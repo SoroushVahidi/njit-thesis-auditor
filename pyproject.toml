@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "njit-thesis-auditor"
+version = "0.1.0"
+description = "Free local-first NJIT thesis and dissertation formatting auditor"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Soroush Vahidi" }]
+dependencies = [
+  "pymupdf>=1.24.0",
+  "pdfplumber>=0.11.0",
+  "typer>=0.12.0",
+  "rich>=13.7.0",
+  "pydantic>=2.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "ruff>=0.5.0",
+  "mypy>=1.10.0",
+]
+
+[project.scripts]
+njit-audit = "njit_auditor.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+mypy_path = "src"
+packages = ["njit_auditor"]
+
+[[tool.mypy.overrides]]
+module = ["fitz"]
+ignore_missing_imports = true
