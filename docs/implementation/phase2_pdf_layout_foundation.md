@@ -18,8 +18,17 @@ Backend:
 Initial checks implemented:
 
 - `P013`: page-number candidate detection in top/bottom zones
-- `P011`: possible text outside assumed margin rectangle
+- `P011`: possible text crossing assumed margin boundaries
 - `P012`: PDF annotations/comments detection
+
+P011 refinement notes:
+
+- Uses line-level geometry (instead of only broad block boxes) where available.
+- Ignores whitespace-only lines and tiny artifacts.
+- Applies a 3pt overflow tolerance before flagging a violation.
+- Excludes likely page-number candidates to avoid duplicate/low-value warnings.
+- Groups repeated violations per page and per side (`left_margin`, `right_margin`,
+  `top_margin`, `bottom_margin`) with worst-overflow and affected-line counts.
 
 Current limitations:
 
