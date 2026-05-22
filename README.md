@@ -29,6 +29,16 @@ The command currently:
 - runs initial local rules
 - prints a report with `PASS`, `WARNING`, and `FAIL` severities
 
+## PDF layout audit
+
+```bash
+njit-audit pdf path/to/thesis.pdf
+```
+
+This command runs the Phase 2 layout foundation checks on digital PDFs:
+page-size extraction, page-number candidates, possible margin-boundary text,
+and annotation/comment detection.
+
 ## LaTeX source-only audit
 
 ```bash
