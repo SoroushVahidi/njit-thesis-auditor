@@ -29,6 +29,33 @@ def _make_pdf_with_margin_violation(path: Path) -> None:
     doc.close()
 
 
+def _make_pdf_with_right_margin_violation(path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Place long text near right edge so line bbox crosses right margin.
+    page.insert_text((560, 120), "Right edge overflow text", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def _make_pdf_with_small_left_overflow(path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Left margin is 108pt. x=106 should stay within tolerance (2pt).
+    page.insert_text((106, 120), "Tiny overflow", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def _make_pdf_with_grouped_left_violations(path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for y in (120, 140, 160):
+        page.insert_text((40, y), "Left overflow line", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
 def _make_pdf_with_normal_text(path: Path) -> None:
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -60,12 +87,58 @@ def test_margin_violation_detected(tmp_path: Path) -> None:
     _make_pdf_with_margin_violation(pdf_path)
     model = load_pdf_layout(str(pdf_path))
     findings = run_pdf_margin_rule(model)
-    assert any(f.rule_id == "P011" and f.severity.value == "WARNING" for f in findings)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details
+    assert warning.details.get("side") == "left_margin"
+    assert float(warning.details.get("worst_overflow_pt", "0")) > 3.0
+
+
+def test_right_margin_violation_detected(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "margin_right_bad.pdf"
+    _make_pdf_with_right_margin_violation(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details
+    assert warning.details.get("side") == "right_margin"
+
+
+def test_small_overflow_is_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "margin_tiny.pdf"
+    _make_pdf_with_small_left_overflow(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
 
 
 def test_no_false_margin_violation_for_normal_text(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_ok.pdf"
     _make_pdf_with_normal_text(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
+
+
+def test_margin_violations_grouped_by_side(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "margin_grouped.pdf"
+    _make_pdf_with_grouped_left_violations(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
+    assert len(warnings) == 1
+    assert warnings[0].details
+    assert warnings[0].details.get("side") == "left_margin"
+    assert warnings[0].details.get("affected_line_count") == "3"
+
+
+def test_page_number_candidate_not_flagged_as_margin_violation(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "page_number_only.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((300, 770), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
     model = load_pdf_layout(str(pdf_path))
     findings = run_pdf_margin_rule(model)
     assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
