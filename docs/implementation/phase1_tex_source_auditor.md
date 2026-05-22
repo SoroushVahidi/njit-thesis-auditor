@@ -23,7 +23,8 @@ Ester rule coverage in Phase 1:
 
 - Q004: implemented
 - Q005: implemented
-- Q006: partially implemented (heuristic context detection)
+- Q006: partially implemented (heuristic metadata/title-page context detection, prioritizing
+  `\date{...}`/`graduation...`-style macros)
 
 Project-added rules covered:
 

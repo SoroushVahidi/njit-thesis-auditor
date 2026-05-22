@@ -11,6 +11,7 @@ runner = CliRunner()
 def test_good_demo_has_no_fail_findings() -> None:
     _, _, findings = collect_tex_findings("examples/latex/good_minimal_thesis/main.tex")
     assert not any(f.severity == Severity.FAIL for f in findings)
+    assert not any(f.rule_id == "Q006" and f.severity == Severity.WARNING for f in findings)
 
 
 def test_bad_demo_reports_expected_rules() -> None:
@@ -19,6 +20,7 @@ def test_bad_demo_reports_expected_rules() -> None:
     assert "Q004" in rule_ids
     assert "Q005" in rule_ids
     assert "Q006" in rule_ids
+    assert any(f.rule_id == "Q006" and f.severity == Severity.WARNING for f in findings)
     assert "P001" in rule_ids
     assert "P002" in rule_ids
     assert any(rule_id in {"P005", "P006", "P007"} for rule_id in rule_ids)

@@ -12,8 +12,14 @@ MONTH_RE = re.compile(
     r"\b(january|february|march|april|may|june|july|august|september|october|november|december)\b",
     re.IGNORECASE,
 )
+EXPLICIT_METADATA_MONTH_RE = re.compile(
+    r"""\\(?:graduationmonth|graduationdate|degreedate|submitdate|date)\s*\{[^}]*?\b
+    (january|february|march|april|may|june|july|august|september|october|november|december)\b
+    [^}]*\}""",
+    re.IGNORECASE | re.VERBOSE,
+)
 GRAD_CONTEXT_RE = re.compile(
-    r"(graduation|degree|submitted|thesis|dissertation|title)",
+    r"(graduation|degree|submitted|thesis|dissertation|title|new jersey institute of technology)",
     re.IGNORECASE,
 )
 
@@ -25,6 +31,15 @@ def run_latex_graduation_month_check(project: LoadedTexProject) -> list[AuditFin
     month_hits: list[tuple[str, int, str]] = []
     front_files = project.files[:5]
     for source_file in front_files:
+        for i, line in enumerate(source_file.lines, start=1):
+            explicit = EXPLICIT_METADATA_MONTH_RE.search(line)
+            if explicit:
+                month_hits.append((str(source_file.path), i, explicit.group(1).lower()))
+
+        # Fall back to context scanning when no explicit metadata macro month is found.
+        if month_hits:
+            continue
+
         for i, line in enumerate(source_file.lines, start=1):
             if not GRAD_CONTEXT_RE.search(line):
                 continue
