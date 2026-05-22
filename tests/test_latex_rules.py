@@ -28,11 +28,43 @@ def test_abstract_forbidden_and_first_person(tmp_path: Path) -> None:
 
 
 def test_invalid_graduation_month(tmp_path: Path) -> None:
-    project = _load_single(tmp_path, "Submitted for degree in January 2026.")
+    project = _load_single(tmp_path, r"\date{June 2026}")
     findings = run_latex_graduation_month_check(project)
     assert any(f.severity == Severity.WARNING for f in findings)
-    assert any("January" in f.message for f in findings)
+    assert any("June" in f.message for f in findings)
     assert any(f.rule_id == "Q006" for f in findings)
+
+
+def test_valid_metadata_month_passes_q006(tmp_path: Path) -> None:
+    project = _load_single(tmp_path, r"\date{May 2026}")
+    findings = run_latex_graduation_month_check(project)
+    q006_findings = [f for f in findings if f.rule_id == "Q006"]
+    assert q006_findings
+    assert all(f.severity != Severity.WARNING for f in q006_findings)
+
+
+def test_body_month_does_not_override_valid_metadata_month(tmp_path: Path) -> None:
+    project = _load_single(
+        tmp_path,
+        "\n".join(
+            [
+                r"\date{May 2026}",
+                r"\begin{document}",
+                "In January we reviewed prior unrelated results.",
+                r"\end{document}",
+            ]
+        ),
+    )
+    findings = run_latex_graduation_month_check(project)
+    q006_findings = [f for f in findings if f.rule_id == "Q006"]
+    assert q006_findings
+    assert all(f.severity != Severity.WARNING for f in q006_findings)
+
+
+def test_missing_metadata_month_warns_q006(tmp_path: Path) -> None:
+    project = _load_single(tmp_path, r"\title{Demo}\author{Student}")
+    findings = run_latex_graduation_month_check(project)
+    assert any(f.rule_id == "Q006" and f.severity == Severity.WARNING for f in findings)
 
 
 def test_missing_structure_warnings(tmp_path: Path) -> None:
