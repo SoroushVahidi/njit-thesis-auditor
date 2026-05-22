@@ -5,6 +5,7 @@ Run:
 ```bash
 njit-audit tex examples/latex/good_minimal_thesis/main.tex
 njit-audit tex examples/latex/bad_minimal_thesis/main.tex
+njit-audit tex examples/latex/bad_minimal_thesis/main.tex --linters
 ```
 
 Expected behavior:
@@ -28,9 +29,12 @@ Project-added rules demonstrated:
 - `P006` missing figure/table labels
 - `P007` caption punctuation
 - `P008` required TeX structure presence
+- `P009` optional ChkTeX linter findings (when installed)
+- `P010` optional lacheck linter findings (when installed)
 
 Limitations:
 
 - no TeX compile step
 - no PDF visual/layout checks
 - regex-based parser (not full TeX AST)
+- optional linters are external local tools and are skipped if not installed

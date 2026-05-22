@@ -142,5 +142,41 @@
     "implementation_module": "njit_auditor.rules.latex_structure",
     "priority": "high",
     "notes": "Presence-based check only; does not validate rendered layout."
+  },
+  {
+    "id": "P009",
+    "section": "LaTeX source linting",
+    "question": "Do optional ChkTeX warnings indicate source issues worth addressing?",
+    "rule_definition": "When available locally, ChkTeX warnings can highlight TeX source style and syntax risks.",
+    "remediation": "Review ChkTeX warnings and adjust LaTeX source where appropriate.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "heuristic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.latex_linters",
+    "priority": "medium",
+    "notes": "Optional check; skipped gracefully when ChkTeX is not installed."
+  },
+  {
+    "id": "P010",
+    "section": "LaTeX source linting",
+    "question": "Do optional lacheck warnings indicate source issues worth addressing?",
+    "rule_definition": "When available locally, lacheck warnings can highlight LaTeX source problems.",
+    "remediation": "Review lacheck warnings and adjust LaTeX source where appropriate.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "heuristic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.latex_linters",
+    "priority": "medium",
+    "notes": "Optional check; skipped gracefully when lacheck is not installed."
   }
 ]

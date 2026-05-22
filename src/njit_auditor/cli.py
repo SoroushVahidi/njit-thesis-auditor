@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from njit_auditor.latex_linters import run_optional_latex_linters
 from njit_auditor.latex_loader import load_tex_project
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_loader import load_document_info
@@ -25,7 +26,9 @@ app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor"
 console = Console()
 
 
-def collect_tex_findings(main_tex_path: str) -> tuple[Path, int, list[AuditFinding]]:
+def collect_tex_findings(
+    main_tex_path: str, include_optional_linters: bool = False
+) -> tuple[Path, int, list[AuditFinding]]:
     """Load TeX project and run all phase-1 source checks."""
     input_path = Path(main_tex_path)
     project = load_tex_project(input_path)
@@ -36,6 +39,8 @@ def collect_tex_findings(main_tex_path: str) -> tuple[Path, int, list[AuditFindi
     findings.extend(run_latex_risky_command_checks(project))
     findings.extend(run_latex_label_checks(project))
     findings.extend(run_latex_figure_table_checks(project))
+    if include_optional_linters:
+        findings.extend(run_optional_latex_linters(input_path))
     return project.main_path, len(project.files), findings
 
 
@@ -62,7 +67,7 @@ def audit(pdf_path: str) -> None:
 
 
 @app.command()
-def tex(main_tex_path: str) -> None:
+def tex(main_tex_path: str, linters: bool = False) -> None:
     """Audit a TeX source project without compiling it."""
     input_path = Path(main_tex_path)
     if not input_path.exists():
@@ -72,7 +77,9 @@ def tex(main_tex_path: str) -> None:
         console.print("[red]Input must be a .tex file for source-only audit.[/red]")
         raise typer.Exit(code=1)
 
-    main_path, loaded_file_count, findings = collect_tex_findings(main_tex_path)
+    main_path, loaded_file_count, findings = collect_tex_findings(
+        main_tex_path, include_optional_linters=linters
+    )
 
     render_tex_report(
         console,

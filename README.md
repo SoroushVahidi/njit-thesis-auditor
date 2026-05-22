@@ -33,10 +33,13 @@ The command currently:
 
 ```bash
 njit-audit tex path/to/main.tex
+njit-audit tex path/to/main.tex --linters
 ```
 
 This phase does not compile TeX and does not inspect generated PDFs.
 It only detects problems visible in source files by recursively loading `\input{}` and `\include{}` trees and running lightweight local checks.
+Optional local linters (`chktex`, `lacheck`) can be enabled with `--linters` if installed.
+If they are missing, the audit continues and reports that they were skipped.
 PDF visual/layout validation will be added in later phases.
 
 ## Demo examples
