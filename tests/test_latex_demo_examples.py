@@ -38,3 +38,10 @@ def test_cli_tex_command_runs_for_demo_examples() -> None:
     assert bad_result.exit_code == 0
     assert "Summary:" in bad_result.output
     assert "FAIL" in bad_result.output
+
+
+def test_cli_tex_linters_flag_does_not_crash_when_tools_missing() -> None:
+    good_path = Path("examples/latex/good_minimal_thesis/main.tex")
+    result = runner.invoke(app, ["tex", str(good_path), "--linters"])
+    assert result.exit_code == 0
+    assert "P009" in result.output or "P010" in result.output

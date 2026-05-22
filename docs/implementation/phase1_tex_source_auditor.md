@@ -6,6 +6,7 @@ Usage:
 
 ```bash
 njit-audit tex path/to/main.tex
+njit-audit tex path/to/main.tex --linters
 ```
 
 Implemented capabilities:
@@ -18,6 +19,7 @@ Implemented capabilities:
 - risky formatting command checks
 - label/reference consistency checks
 - figure/table caption/label/punctuation checks
+- optional local linter checks (`chktex`, `lacheck`) when `--linters` is used
 
 Ester rule coverage in Phase 1:
 
@@ -45,6 +47,7 @@ Known limitations:
 - no full TeX AST/model expansion support
 - prose checks are improved by LaTeX-to-text conversion, but this still does not replace
   rendered PDF/layout validation
+- external linters are optional local tools and may be unavailable on some machines
 
 Next improvements:
 
