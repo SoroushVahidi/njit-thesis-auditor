@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 from njit_auditor.cli import app
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_rule
 
@@ -70,6 +71,30 @@ def _make_pdf_with_annotation(path: Path) -> None:
     page.insert_text((120, 120), "Annotated text", fontsize=12)
     annot = page.add_text_annot((180, 120), "Review comment")
     annot.update()
+    doc.save(path)
+    doc.close()
+
+
+def _make_pdf_with_heading(
+    path: Path,
+    text: str = "ABSTRACT",
+    x: float = 250,
+    y: float = 90,
+    fontname: str = "Times-Bold",
+    centered: bool = False,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    if centered:
+        page.insert_textbox(
+            fitz.Rect(0, y - 20, 612, y + 20),
+            text,
+            fontsize=16,
+            fontname=fontname,
+            align=fitz.TEXT_ALIGN_CENTER,
+        )
+    else:
+        page.insert_text((x, y), text, fontsize=16, fontname=fontname)
     doc.save(path)
     doc.close()
 
@@ -152,12 +177,59 @@ def test_annotation_extraction_detects_comment(tmp_path: Path) -> None:
     assert any(f.rule_id == "P012" for f in findings)
 
 
+def test_centered_bold_abstract_near_top_produces_no_p014_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "heading_ok.pdf"
+    _make_pdf_with_heading(
+        pdf_path, text="ABSTRACT", x=250, y=90, fontname="Times-Bold", centered=True
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    assert not any(f.rule_id == "P014" for f in findings)
+
+
+def test_off_center_abstract_produces_p014_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "heading_off_center.pdf"
+    _make_pdf_with_heading(pdf_path, text="ABSTRACT", x=120, y=90, fontname="Times-Bold")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    warning = next(f for f in findings if f.rule_id == "P014")
+    assert warning.details.get("centered") == "False"
+
+
+def test_lowercase_abstract_produces_p014_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "heading_case.pdf"
+    _make_pdf_with_heading(pdf_path, text="Abstract", x=250, y=90, fontname="Times-Bold")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    warning = next(f for f in findings if f.rule_id == "P014")
+    assert warning.details.get("all_caps") == "False"
+
+
+def test_non_bold_abstract_produces_p014_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "heading_non_bold.pdf"
+    _make_pdf_with_heading(pdf_path, text="ABSTRACT", x=250, y=90, fontname="Times-Roman")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    warning = next(f for f in findings if f.rule_id == "P014")
+    assert warning.details.get("bold") == "False"
+
+
+def test_abstract_too_low_produces_p014_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "heading_too_low.pdf"
+    _make_pdf_with_heading(pdf_path, text="ABSTRACT", x=250, y=220, fontname="Times-Bold")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    warning = next(f for f in findings if f.rule_id == "P014")
+    assert warning.details.get("near_top") == "False"
+
+
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:
     pdf_path = tmp_path / "cli.pdf"
-    _make_pdf_with_bottom_page_number(pdf_path)
+    _make_pdf_with_heading(pdf_path, text="Abstract", x=120, y=220, fontname="Times-Roman")
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "PDF Layout Findings" in result.output
+    assert "P014" in result.output
 
 
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:

@@ -16,6 +16,7 @@ def map_finding_rule_to_category(rule_id: str) -> str:
         "P011": "margin_or_overflow",
         "P012": "annotations",
         "P013": "page_numbering",
+        "P014": "heading_title",
         "Q004": "abstract_language",
         "Q005": "abstract_language",
         "Q006": "title_page_metadata",

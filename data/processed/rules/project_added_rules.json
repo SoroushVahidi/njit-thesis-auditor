@@ -232,5 +232,23 @@
     "implementation_module": "njit_auditor.rules.pdf_page_numbers",
     "priority": "high",
     "notes": "Candidate detection only; not full NJIT page-number compliance."
+  },
+  {
+    "id": "P014",
+    "section": "PDF front matter headings",
+    "question": "Do named front-matter headings follow expected layout/style heuristics?",
+    "rule_definition": "Detect expected named front-matter headings and warn if they are not near top, centered, bold, and all caps.",
+    "remediation": "Center named front-matter headings near the top of the page and format as bold all caps.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_headings",
+    "priority": "high",
+    "notes": "Named heading checks only; does not require every optional front-matter section."
   }
 ]

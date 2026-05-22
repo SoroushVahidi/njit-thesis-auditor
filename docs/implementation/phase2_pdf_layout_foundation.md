@@ -20,6 +20,17 @@ Initial checks implemented:
 - `P013`: page-number candidate detection in top/bottom zones
 - `P011`: possible text crossing assumed margin boundaries
 - `P012`: PDF annotations/comments detection
+- `P014`: named front-matter heading layout/style heuristics
+
+P014 checks (heuristic):
+
+- expected named heading text match for:
+  `ABSTRACT`, `APPROVAL PAGE`, `BIOGRAPHICAL SKETCH`, `ACKNOWLEDGEMENTS`,
+  `TABLE OF CONTENTS`, `LIST OF TABLES`, `LIST OF FIGURES`
+- near-top zone check (`y0 <= 2.0in`, 72pt/in)
+- horizontal centering check (line center within `12pt` of page center)
+- all-caps check
+- bold inference from extracted span style metadata and font-name hints
 
 P011 refinement notes:
 
@@ -35,7 +46,8 @@ Current limitations:
 - digital PDFs with text layers only
 - no OCR yet
 - no computer vision yet
-- no TOC/heading/indentation verification yet
+- heading checks are deterministic/heuristic only and depend on text-layer quality
+- optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
 
 ## PDF Comment Workflow (Local-Only)
