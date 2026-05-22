@@ -29,6 +29,16 @@ The command currently:
 - runs initial local rules
 - prints a report with `PASS`, `WARNING`, and `FAIL` severities
 
+## LaTeX source-only audit
+
+```bash
+njit-audit tex path/to/main.tex
+```
+
+This phase does not compile TeX and does not inspect generated PDFs.
+It only detects problems visible in source files by recursively loading `\input{}` and `\include{}` trees and running lightweight local checks.
+PDF visual/layout validation will be added in later phases.
+
 ## Roadmap
 
 - front matter rules

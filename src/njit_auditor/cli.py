@@ -7,10 +7,17 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from njit_auditor.latex_loader import load_tex_project
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_loader import load_document_info
-from njit_auditor.report import render_report
+from njit_auditor.report import render_report, render_tex_report
 from njit_auditor.rules.abstract import run_abstract_checks
+from njit_auditor.rules.latex_abstract import run_latex_abstract_checks
+from njit_auditor.rules.latex_figures_tables import run_latex_figure_table_checks
+from njit_auditor.rules.latex_labels import run_latex_label_checks
+from njit_auditor.rules.latex_metadata import run_latex_graduation_month_check
+from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_checks
+from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.page_numbers import run_page_number_rule
 from njit_auditor.rules.title_page import run_title_page_month_check
 
@@ -38,6 +45,34 @@ def audit(pdf_path: str) -> None:
     findings.extend(run_title_page_month_check(str(input_path)))
 
     render_report(console, doc_info, findings)
+
+
+@app.command()
+def tex(main_tex_path: str) -> None:
+    """Audit a TeX source project without compiling it."""
+    input_path = Path(main_tex_path)
+    if not input_path.exists():
+        console.print(f"[red]File not found:[/red] {input_path}")
+        raise typer.Exit(code=1)
+    if input_path.suffix.lower() != ".tex":
+        console.print("[red]Input must be a .tex file for source-only audit.[/red]")
+        raise typer.Exit(code=1)
+
+    project = load_tex_project(input_path)
+    findings: list[AuditFinding] = []
+    findings.extend(run_latex_abstract_checks(project))
+    findings.extend(run_latex_graduation_month_check(project))
+    findings.extend(run_latex_structure_checks(project))
+    findings.extend(run_latex_risky_command_checks(project))
+    findings.extend(run_latex_label_checks(project))
+    findings.extend(run_latex_figure_table_checks(project))
+
+    render_tex_report(
+        console,
+        main_file=str(project.main_path),
+        loaded_file_count=len(project.files),
+        findings=findings,
+    )
 
 
 if __name__ == "__main__":
