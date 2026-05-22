@@ -16,6 +16,7 @@ dependencies = [
   "typer>=0.12.0",
   "rich>=13.7.0",
   "pydantic>=2.7.0",
+  "pylatexenc>=2.10",
 ]
 
 [project.optional-dependencies]
@@ -54,4 +55,8 @@ packages = ["njit_auditor"]
 
 [[tool.mypy.overrides]]
 module = ["fitz"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pylatexenc.*"]
 ignore_missing_imports = true

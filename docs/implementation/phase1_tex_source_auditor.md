@@ -11,8 +11,8 @@ njit-audit tex path/to/main.tex
 Implemented capabilities:
 
 - recursive `\input{}` and `\include{}` loading
-- abstract forbidden-term detection
-- abstract first-person pronoun detection
+- abstract forbidden-term detection (with `pylatexenc`-based LaTeX-to-text cleanup)
+- abstract first-person pronoun detection (with `pylatexenc`-based LaTeX-to-text cleanup)
 - graduation month heuristic checks
 - required TeX structure presence checks
 - risky formatting command checks
@@ -43,6 +43,8 @@ Known limitations:
 - no TeX compilation step
 - no PDF visual/layout checking
 - no full TeX AST/model expansion support
+- prose checks are improved by LaTeX-to-text conversion, but this still does not replace
+  rendered PDF/layout validation
 
 Next improvements:
 
