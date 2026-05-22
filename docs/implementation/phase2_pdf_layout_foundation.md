@@ -58,3 +58,19 @@ Privacy cautions:
 - Keep generated evaluation outputs under ignored folders (for example
   `data/evaluation/generated/` or `data/evaluation/private/`).
 - Do not commit full dissertation body text or long annotation text.
+
+## Expert Comment Comparison (Deterministic)
+
+Phase 2 now includes deterministic category-level comparison helpers for
+reviewer comments vs automatic findings:
+
+- `categorize_comment_text(...)` for keyword/regex comment categories
+- category summaries for extracted comments and rule findings
+- simple mapping from rule IDs (for example `P011`, `P012`, `P013`) to
+  high-level categories
+
+Notes:
+
+- This is not semantic AI matching.
+- It is designed to prioritize next rule implementation from real reviewer
+  feedback while staying fully local/offline.
