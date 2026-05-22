@@ -256,6 +256,7 @@ def test_indented_first_abstract_paragraph_warns(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_indentation(model)
     warning = next(f for f in findings if f.rule_id == "P015")
+    assert warning.details.get("issue_type") == "unexpected_opening_indent"
     assert warning.details.get("expected") == "flush_left"
 
 
@@ -283,6 +284,7 @@ def test_later_paragraph_missing_indent_warns(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_indentation(model)
     warning = next(f for f in findings if f.rule_id == "P015")
+    assert warning.details.get("issue_type") == "missing_later_indent"
     assert warning.details.get("expected") == "first_line_indent_approx_36pt"
 
 
@@ -297,6 +299,76 @@ def test_headings_and_page_numbers_are_ignored_for_p015(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_indentation(model)
     assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_figure_or_table_caption_is_ignored_for_p015(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_ignore_caption.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 140), "Figure 1. This is a synthetic caption line.")
+    page.insert_text((108, 154), "Continuation synthetic caption text line.")
+    page.insert_text((108, 168), "Another continuation caption line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_references_like_page_is_ignored_for_p015(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_ignore_references.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=210)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_bullet_list_paragraph_is_ignored_for_p015(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_ignore_bullets.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 140), "- Bullet line one with synthetic text.")
+    page.insert_text((108, 154), "Continuation bullet explanation line.")
+    page.insert_text((108, 168), "Another continuation bullet line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_low_confidence_short_or_two_line_paragraphs_are_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_ignore_low_confidence.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 140), "This is a synthetic first line.")
+    page.insert_text((108, 154), "This is a synthetic continuation line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_repeated_same_page_p015_warnings_are_grouped(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_grouped_same_page.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=210)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=280)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "missing_later_indent"
 
 
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:

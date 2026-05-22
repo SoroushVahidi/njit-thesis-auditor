@@ -44,6 +44,8 @@ P015 checks (heuristic, conservative):
 - emits warnings only for strong cases:
   - opening paragraph on `ABSTRACT` page appears unexpectedly indented
   - later paragraph appears to be missing expected first-line indent
+- excludes likely references/bibliography pages, captions, and list/bullet patterns
+- groups repeated same-page findings per issue type to reduce noise
 
 P011 refinement notes:
 
@@ -62,6 +64,7 @@ Current limitations:
 - heading checks are deterministic/heuristic only and depend on text-layer quality
 - indentation checks are heuristic and sensitive to PDF line segmentation artifacts
 - paragraph grouping uses geometric thresholds and may over/under-group in complex layouts
+- current missing-indent detection is conservative and may miss subtle cases
 - optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
 

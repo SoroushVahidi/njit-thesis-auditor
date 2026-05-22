@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
@@ -16,12 +17,23 @@ MIN_TEXT_LEN = 20
 MAX_PARAGRAPH_GAP_PT = 14.0
 X_GROUP_TOLERANCE_PT = 24.0
 FIRST_LINE_INDENT_GROUP_TOLERANCE_PT = 96.0
+MAX_LINE_X_SPREAD_PT = 110.0
+MAX_FINDINGS_PER_PAGE_ISSUE = 1
+NEGATIVE_INDENT_IGNORE_PT = -8.0
 
 TOC_LIKE_HEADINGS = {
     "TABLE OF CONTENTS",
     "LIST OF TABLES",
     "LIST OF FIGURES",
 }
+REFERENCES_LIKE_HEADINGS = {
+    "REFERENCES",
+    "BIBLIOGRAPHY",
+    "WORKS CITED",
+}
+
+CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
+BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
 
 
 def first_text_x(line: PdfTextLine) -> float:
@@ -46,14 +58,23 @@ def _is_usable_paragraph_line(line: PdfTextLine) -> bool:
     clean = " ".join(line.text.strip().split())
     if len(clean) < MIN_TEXT_LEN:
         return False
+    if BULLET_PREFIX_RE.match(clean):
+        return False
+    if CAPTION_PREFIX_RE.match(clean):
+        return False
+    alpha_count = sum(ch.isalpha() for ch in clean)
+    if alpha_count < 10:
+        return False
+    if alpha_count / max(len(clean), 1) < 0.45:
+        return False
     return True
 
 
-def _is_toc_or_list_page(page: PdfPage) -> bool:
+def _has_page_heading_in(page: PdfPage, headings: set[str]) -> bool:
     for block in page.text_blocks:
         for line in block.lines:
             normalized = normalize_heading_text(line.text).upper()
-            if normalized in TOC_LIKE_HEADINGS:
+            if normalized in headings:
                 return True
     return False
 
@@ -61,7 +82,7 @@ def _is_toc_or_list_page(page: PdfPage) -> bool:
 def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
     """Group nearby lines into paragraph candidates on a page."""
 
-    if _is_toc_or_list_page(page):
+    if _has_page_heading_in(page, TOC_LIKE_HEADINGS):
         return []
 
     lines: list[PdfTextLine] = []
@@ -125,6 +146,13 @@ def _find_abstract_page_numbers(pdf_document: PdfDocument) -> set[int]:
     return pages
 
 
+def _paragraph_is_low_confidence(paragraph: list[PdfTextLine]) -> bool:
+    if len(paragraph) < 3:
+        return True
+    x_values = [first_text_x(line) for line in paragraph]
+    return (max(x_values) - min(x_values)) > MAX_LINE_X_SPREAD_PT
+
+
 def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P015 warnings for strong likely indentation issues."""
 
@@ -132,36 +160,41 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
     abstract_pages = _find_abstract_page_numbers(pdf_document)
 
     for page in pdf_document.pages:
+        if _has_page_heading_in(page, REFERENCES_LIKE_HEADINGS):
+            continue
         paragraphs = group_lines_into_paragraphs(page)
         if not paragraphs:
             continue
 
         seen_indented_paragraph = False
+        page_issue_findings: dict[str, AuditFinding] = {}
         for idx, paragraph in enumerate(paragraphs):
+            if _paragraph_is_low_confidence(paragraph):
+                continue
             indent_pt = _paragraph_indent_pt(paragraph)
 
             # Strong case: opening abstract/front-matter paragraph should be flush-left.
             if page.page_number in abstract_pages and idx == 0:
                 if indent_pt > STRONG_INDENT_THRESHOLD_PT:
-                    findings.append(
-                        AuditFinding(
-                            rule_id="P015",
-                            severity=Severity.WARNING,
-                            page=page.page_number,
-                            message=(
-                                "Opening paragraph appears unexpectedly indented where "
-                                "flush-left is likely expected."
+                    page_issue_findings["unexpected_opening_indent"] = AuditFinding(
+                        rule_id="P015",
+                        severity=Severity.WARNING,
+                        page=page.page_number,
+                        message=(
+                            "Opening paragraph appears unexpectedly indented where "
+                            "flush-left is likely expected."
+                        ),
+                        details={
+                            "page_number": str(page.page_number),
+                            "issue_type": "unexpected_opening_indent",
+                            "indent_pt": f"{indent_pt:.1f}",
+                            "expected": "flush_left",
+                            "paragraph_line_count": str(len(paragraph)),
+                            "confidence": "high",
+                            "suggested_fix": (
+                                "Remove first-line indent for opening front-matter paragraph."
                             ),
-                            details={
-                                "page_number": str(page.page_number),
-                                "indent_pt": f"{indent_pt:.1f}",
-                                "expected": "flush_left",
-                                "paragraph_line_count": str(len(paragraph)),
-                                "suggested_fix": (
-                                    "Remove first-line indent for opening front-matter paragraph."
-                                ),
-                            },
-                        )
+                        },
                     )
                 continue
 
@@ -175,27 +208,38 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                 )
                 if likely_indented or not seen_indented_paragraph:
                     continue
-                if indent_pt < STRONG_INDENT_THRESHOLD_PT:
-                    findings.append(
-                        AuditFinding(
-                            rule_id="P015",
-                            severity=Severity.WARNING,
-                            page=page.page_number,
-                            message=(
-                                "Later paragraph appears to be missing expected first-line "
-                                "indentation."
+                if NEGATIVE_INDENT_IGNORE_PT <= indent_pt < STRONG_INDENT_THRESHOLD_PT:
+                    existing = page_issue_findings.get("missing_later_indent")
+                    current = AuditFinding(
+                        rule_id="P015",
+                        severity=Severity.WARNING,
+                        page=page.page_number,
+                        message=(
+                            "Later paragraph appears to be missing expected first-line "
+                            "indentation."
+                        ),
+                        details={
+                            "page_number": str(page.page_number),
+                            "issue_type": "missing_later_indent",
+                            "indent_pt": f"{indent_pt:.1f}",
+                            "expected": "first_line_indent_approx_36pt",
+                            "paragraph_line_count": str(len(paragraph)),
+                            "confidence": "medium",
+                            "suggested_fix": (
+                                "Apply consistent first-line indentation "
+                                "for non-opening paragraphs."
                             ),
-                            details={
-                                "page_number": str(page.page_number),
-                                "indent_pt": f"{indent_pt:.1f}",
-                                "expected": "first_line_indent_approx_36pt",
-                                "paragraph_line_count": str(len(paragraph)),
-                                "suggested_fix": (
-                                    "Apply consistent first-line indentation "
-                                    "for non-opening paragraphs."
-                                ),
-                            },
-                        )
+                        },
                     )
+                    if existing is None:
+                        page_issue_findings["missing_later_indent"] = current
+                    else:
+                        existing_indent = float(existing.details.get("indent_pt", "999"))
+                        if indent_pt < existing_indent:
+                            page_issue_findings["missing_later_indent"] = current
+
+        for issue_type in ("unexpected_opening_indent", "missing_later_indent"):
+            if issue_type in page_issue_findings and MAX_FINDINGS_PER_PAGE_ISSUE >= 1:
+                findings.append(page_issue_findings[issue_type])
 
     return findings
