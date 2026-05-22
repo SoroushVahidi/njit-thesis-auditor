@@ -20,6 +20,8 @@ venv/
 # Local data and generated artifacts
 *.log
 *.tmp
+data/evaluation/generated/
+data/evaluation/private/
 
 # OS/editor files
 .DS_Store

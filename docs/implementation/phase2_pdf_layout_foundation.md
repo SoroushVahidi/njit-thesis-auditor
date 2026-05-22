@@ -37,3 +37,24 @@ Current limitations:
 - no computer vision yet
 - no TOC/heading/indentation verification yet
 - heuristic foundation checks, not final NJIT compliance verdicts
+
+## PDF Comment Workflow (Local-Only)
+
+Phase 2 also supports a local reviewer-comment workflow:
+
+- `njit-audit pdf-comments extract input.pdf --json-out ... --md-out ...`
+- `njit-audit pdf-comments clean input.pdf --out clean.pdf`
+
+Purpose:
+
+- Extract annotation/comment objects for structured offline review.
+- Create a "clean" PDF copy with annotation objects removed.
+- Re-run PDF heuristics on the clean copy to compare automated findings with
+  reviewer feedback at a high level.
+
+Privacy cautions:
+
+- Do not overwrite or modify raw dissertation PDFs.
+- Keep generated evaluation outputs under ignored folders (for example
+  `data/evaluation/generated/` or `data/evaluation/private/`).
+- Do not commit full dissertation body text or long annotation text.
