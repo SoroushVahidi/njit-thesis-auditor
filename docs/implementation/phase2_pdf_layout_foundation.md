@@ -21,6 +21,7 @@ Initial checks implemented:
 - `P011`: possible text crossing assumed margin boundaries
 - `P012`: PDF annotations/comments detection
 - `P014`: named front-matter heading layout/style heuristics
+- `P015`: paragraph indentation heuristics for front-matter/body text
 
 P014 checks (heuristic):
 
@@ -31,6 +32,18 @@ P014 checks (heuristic):
 - horizontal centering check (line center within `12pt` of page center)
 - all-caps check
 - bold inference from extracted span style metadata and font-name hints
+
+P015 checks (heuristic, conservative):
+
+- groups nearby text-layer lines into paragraph candidates
+- ignores named front-matter heading lines and page-number-like lines
+- ignores short lines and TOC/list pages (`TABLE OF CONTENTS`, `LIST OF TABLES`,
+  `LIST OF FIGURES`)
+- computes paragraph first-line indent as:
+  `first_line_x - median(continuation_line_x)`
+- emits warnings only for strong cases:
+  - opening paragraph on `ABSTRACT` page appears unexpectedly indented
+  - later paragraph appears to be missing expected first-line indent
 
 P011 refinement notes:
 
@@ -47,6 +60,8 @@ Current limitations:
 - no OCR yet
 - no computer vision yet
 - heading checks are deterministic/heuristic only and depend on text-layer quality
+- indentation checks are heuristic and sensitive to PDF line segmentation artifacts
+- paragraph grouping uses geometric thresholds and may over/under-group in complex layouts
 - optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
 

@@ -7,6 +7,7 @@ from njit_auditor.cli import app
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
+from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_rule
 
@@ -97,6 +98,14 @@ def _make_pdf_with_heading(
         page.insert_text((x, y), text, fontsize=16, fontname=fontname)
     doc.save(path)
     doc.close()
+
+
+def _draw_paragraph(
+    page: fitz.Page, first_x: float, rest_x: float, y: float, lines: int = 3
+) -> None:
+    page.insert_text((first_x, y), "This is a synthetic paragraph line for indentation checks.")
+    for idx in range(1, lines):
+        page.insert_text((rest_x, y + (idx * 14)), "Continuation synthetic paragraph line text.")
 
 
 def test_page_number_candidate_detected(tmp_path: Path) -> None:
@@ -223,13 +232,85 @@ def test_abstract_too_low_produces_p014_warning(tmp_path: Path) -> None:
     assert warning.details.get("near_top") == "False"
 
 
+def test_flush_left_first_abstract_paragraph_does_not_warn(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_abstract_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_paragraph(page, first_x=108, rest_x=108, y=140)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_indented_first_abstract_paragraph_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_abstract_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    warning = next(f for f in findings if f.rule_id == "P015")
+    assert warning.details.get("expected") == "flush_left"
+
+
+def test_later_paragraph_with_expected_indent_does_not_warn(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_later_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_later_paragraph_missing_indent_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_later_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=210)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    warning = next(f for f in findings if f.rule_id == "P015")
+    assert warning.details.get("expected") == "first_line_indent_approx_36pt"
+
+
+def test_headings_and_page_numbers_are_ignored_for_p015(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_ignore_heading_page_num.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((300, 770), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:
     pdf_path = tmp_path / "cli.pdf"
-    _make_pdf_with_heading(pdf_path, text="Abstract", x=120, y=220, fontname="Times-Roman")
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    doc.save(pdf_path)
+    doc.close()
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "PDF Layout Findings" in result.output
-    assert "P014" in result.output
+    assert "P015" in result.output
 
 
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:

@@ -250,5 +250,23 @@
     "implementation_module": "njit_auditor.rules.pdf_headings",
     "priority": "high",
     "notes": "Named heading checks only; does not require every optional front-matter section."
+  },
+  {
+    "id": "P015",
+    "section": "PDF paragraph indentation",
+    "question": "Do front-matter/body paragraphs show likely indentation issues?",
+    "rule_definition": "Heuristically detect strong paragraph indentation anomalies in PDF text lines, including unexpected opening indents and likely missing later first-line indents.",
+    "remediation": "Use consistent first-line indentation in paragraph text and remove unintended opening-paragraph indents.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_indentation",
+    "priority": "high",
+    "notes": "Conservative heuristic; ignores heading lines, page numbers, and TOC/list pages."
   }
 ]
