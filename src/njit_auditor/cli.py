@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+from pymupdf import FileDataError
 from rich.console import Console
 
 from njit_auditor.latex_linters import run_optional_latex_linters
@@ -105,7 +106,12 @@ def pdf(pdf_path: str) -> None:
         console.print("[red]Input must be a .pdf file for PDF layout audit.[/red]")
         raise typer.Exit(code=1)
 
-    pdf_doc = load_pdf_layout(str(input_path))
+    try:
+        pdf_doc = load_pdf_layout(str(input_path))
+    except (FileDataError, ValueError, RuntimeError) as exc:
+        console.print(f"[red]Unable to read PDF:[/red] {input_path}")
+        console.print(f"[yellow]Reason:[/yellow] {exc}")
+        raise typer.Exit(code=1) from exc
     findings: list[AuditFinding] = []
     findings.extend(run_pdf_page_number_candidates_rule(pdf_doc))
     findings.extend(run_pdf_margin_rule(pdf_doc))

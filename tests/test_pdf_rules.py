@@ -85,3 +85,11 @@ def test_pdf_cli_command_runs(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "PDF Layout Findings" in result.output
+
+
+def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "broken.pdf"
+    pdf_path.write_text("not a pdf")
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 1
+    assert "Unable to read PDF" in result.output
