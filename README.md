@@ -29,6 +29,35 @@ The command currently:
 - runs initial local rules
 - prints a report with `PASS`, `WARNING`, and `FAIL` severities
 
+## LaTeX source-only audit
+
+```bash
+njit-audit tex path/to/main.tex
+```
+
+This phase does not compile TeX and does not inspect generated PDFs.
+It only detects problems visible in source files by recursively loading `\input{}` and `\include{}` trees and running lightweight local checks.
+PDF visual/layout validation will be added in later phases.
+
+## Demo examples
+
+Try the synthetic fixtures:
+
+- `examples/latex/good_minimal_thesis/main.tex`
+- `examples/latex/bad_minimal_thesis/main.tex`
+
+Run:
+
+```bash
+njit-audit tex examples/latex/good_minimal_thesis/main.tex
+njit-audit tex examples/latex/bad_minimal_thesis/main.tex
+```
+
+More docs:
+- `docs/status/phase1_milestone_summary.md`
+- `docs/demo/phase1_tex_demo.md`
+- `docs/rules/rule_inventory.md`
+
 ## Roadmap
 
 - front matter rules

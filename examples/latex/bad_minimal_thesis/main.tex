@@ -1,0 +1,39 @@
+\documentclass[12pt]{report}
+\usepackage[a4paper,margin=1in]{geometry}
+
+\title{Synthetic Bad Demo}
+\author{Demo Student}
+\date{June 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper shows how we tested formatting. I also summarize article findings.
+\end{abstract}
+
+\tableofcontents
+
+\vspace{1em}
+
+\chapter{Introduction}
+See Figure~\ref{fig:missing-target} and Table~\ref{tab:missing}.
+
+\begin{figure}[h]
+\label{fig:dup}
+\end{figure}
+
+\begin{table}[h]
+\caption{Table caption without punctuation}
+\label{tab bad}
+\end{table}
+
+\label{fig:dup}
+\label{bad label}
+
+\begin{thebibliography}{9}
+\bibitem{demo1} Synthetic reference entry for testing.
+\end{thebibliography}
+
+\end{document}

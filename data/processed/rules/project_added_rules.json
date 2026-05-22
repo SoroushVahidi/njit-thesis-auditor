@@ -1,0 +1,146 @@
+[
+  {
+    "id": "P001",
+    "section": "TeX Source Hygiene",
+    "question": "Are risky manual formatting commands avoided in TeX sources?",
+    "rule_definition": "Manual layout override commands such as \\vspace, \\setlength, and page style commands should be avoided unless explicitly justified.",
+    "remediation": "Remove or minimize manual formatting overrides and rely on template-driven structure.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "deterministic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_risky_commands",
+    "priority": "high",
+    "notes": "Covers a broad risky-command allowlist."
+  },
+  {
+    "id": "P002",
+    "section": "Cross-references",
+    "question": "Are label identifiers unique?",
+    "rule_definition": "Each \\label{...} value must be unique across the project.",
+    "remediation": "Rename duplicate labels and update references accordingly.",
+    "severity": "fail",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "deterministic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_labels",
+    "priority": "high",
+    "notes": "Duplicate labels produce FAIL findings."
+  },
+  {
+    "id": "P003",
+    "section": "Cross-references",
+    "question": "Do label identifiers avoid whitespace?",
+    "rule_definition": "Labels should not contain spaces to avoid brittle references and style inconsistency.",
+    "remediation": "Replace spaces with separators like colon or underscore.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "deterministic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_labels",
+    "priority": "medium",
+    "notes": "Whitespace in labels is flagged as WARNING."
+  },
+  {
+    "id": "P004",
+    "section": "Cross-references",
+    "question": "Do \\ref/\\eqref targets resolve to existing labels?",
+    "rule_definition": "All detected \\ref{...} and \\eqref{...} commands should map to defined labels.",
+    "remediation": "Add missing labels or correct reference keys.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "deterministic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_labels",
+    "priority": "high",
+    "notes": "Undefined references are currently heuristic for simple forms."
+  },
+  {
+    "id": "P005",
+    "section": "Figures and Tables",
+    "question": "Do figure/table environments include captions?",
+    "rule_definition": "Each figure and table environment should define \\caption{...}.",
+    "remediation": "Add meaningful captions to all figures and tables.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "deterministic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_figures_tables",
+    "priority": "high",
+    "notes": "Missing captions are detected in simple environment parsing."
+  },
+  {
+    "id": "P006",
+    "section": "Figures and Tables",
+    "question": "Do figure/table environments include labels?",
+    "rule_definition": "Each figure and table environment should define \\label{...}.",
+    "remediation": "Add labels for cross-referencing and consistency.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "deterministic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_figures_tables",
+    "priority": "medium",
+    "notes": "Missing labels are detected per environment block."
+  },
+  {
+    "id": "P007",
+    "section": "Figures and Tables",
+    "question": "Do captions end with terminal punctuation?",
+    "rule_definition": "Caption text should end with punctuation (., !, or ?).",
+    "remediation": "Edit captions to end with terminal punctuation.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "heuristic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_figures_tables",
+    "priority": "low",
+    "notes": "Punctuation check is heuristic and style-oriented."
+  },
+  {
+    "id": "P008",
+    "section": "Document Structure",
+    "question": "Are key front-matter and structure commands present?",
+    "rule_definition": "Project should include abstract, TOC, lists of tables/figures, chapters, and bibliography commands.",
+    "remediation": "Add missing structure commands/environments required by the template.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "heuristic",
+    "input_required": [
+      "tex_source"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_structure",
+    "priority": "high",
+    "notes": "Presence-based check only; does not validate rendered layout."
+  }
+]

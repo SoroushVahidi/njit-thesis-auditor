@@ -1,0 +1,792 @@
+[
+  {
+    "id": "Q001",
+    "section": "Abstract",
+    "question": "Is the Abstract page free of any visible page number?",
+    "rule_definition": "The Abstract page must show no visible page number.",
+    "remediation": "Delete the visible page number from the Abstract page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q002",
+    "section": "Abstract",
+    "question": "Look at the very first word of the first body paragraph. Is its starting position horizontally aligned perfectly with the left edge of the text block, showing zero indentation?",
+    "rule_definition": "The first Abstract paragraph must begin flush with the left paragraph margin.",
+    "remediation": "Remove the first-line indent from the first Abstract paragraph.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q003",
+    "section": "Abstract",
+    "question": "Look at the left side of Paragraph 2. Imagine the left edge of the main body text is a solid vertical wall. Is the top line of the paragraph pushed inward to the right, creating a visible \"step\" or empty cutout at the top left corner? Repeat this check for any subsequent paragraphs.",
+    "rule_definition": "Every Abstract paragraph after the first must begin with a visible first-line indent.",
+    "remediation": "Apply a first-line indent to every Abstract paragraph after the first.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q004",
+    "section": "Abstract",
+    "question": "Does the Abstract text contain any standalone form of the words \u201cpaper\u201d or \u201carticle,\u201d including plurals?",
+    "rule_definition": "The Abstract must not contain the words \u201cpaper,\u201d \u201cpapers,\u201d \u201carticle,\u201d or \u201carticles.\u201d",
+    "remediation": "Replace \u201cpaper\u201d or \u201carticle\u201d with \u201cdissertation,\u201d \u201cstudy,\u201d \u201cwork,\u201d or \u201cresearch.\u201d",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q005",
+    "section": "Abstract",
+    "question": "Is the Abstract text completely free of first-person pronouns (I, me, my, we, etc.)?",
+    "rule_definition": "The Abstract must not contain first-person pronouns.",
+    "remediation": "Rewrite the sentence or sentences to remove first-person pronouns.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q006",
+    "section": "Title Page",
+    "question": "Does the Title Page display a graduation month that is exactly August, December, or May?",
+    "rule_definition": "The Title Page must display a graduation month of August, December, or May.",
+    "remediation": "Change the graduation month on the Title Page to August, December, or May.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q007",
+    "section": "Title Page",
+    "question": "Does the institutional identity block on the Title Page exactly match the department/program-specific template?",
+    "rule_definition": "The Title Page institutional identity block must exactly match the wording in the correct template.",
+    "remediation": "Replace the institutional identity block with the exact wording from the matching template.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q008",
+    "section": "Title Page",
+    "question": "Is the Title Page free of any visible page number?",
+    "rule_definition": "The Title Page must show no visible page number.",
+    "remediation": "Delete the visible page number from the Title Page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q009",
+    "section": "Copyright Page",
+    "question": "Is there no header text in the top margin area of the Copyright page?",
+    "rule_definition": "The Copyright page must show no header text at the top of the page.",
+    "remediation": "Remove the header text from the top of the Copyright page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q010",
+    "section": "Copyright Page",
+    "question": "Does the visible copyright year exactly match the year shown on the Title Page?",
+    "rule_definition": "The copyright year on the Copyright page must exactly match the year shown on the Title Page.",
+    "remediation": "Change the year on the Copyright page to match the year on the Title Page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q011",
+    "section": "Copyright Page",
+    "question": "Does the visible author name on the Copyright page exactly match the author\u2019s name on the Title Page?",
+    "rule_definition": "The author\u2019s name on the Copyright page must exactly match the author\u2019s name on the Title Page.",
+    "remediation": "Change the author\u2019s name to match the Title Page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q012",
+    "section": "Copyright Page",
+    "question": "Is the Copyright page free of any visible page number?",
+    "rule_definition": "The Copyright page must show no visible page number.",
+    "remediation": "Delete the visible page number from the Copyright page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q013",
+    "section": "Approval Page",
+    "question": "Does the Approval Page display the exact phrase \u201cAPPROVAL PAGE\u201d in all caps, bold, centered, and at the top?",
+    "rule_definition": "The Approval Page must display the exact phrase \u201cAPPROVAL PAGE\u201d in all caps, bold, centered, and at the top.",
+    "remediation": "Format the heading \u201cAPPROVAL PAGE\u201d in all caps, bold, centered, and at the top.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q014",
+    "section": "Approval Page",
+    "question": "Is the Approval Page free of any visible page number?",
+    "rule_definition": "The Approval Page must show no visible page number.",
+    "remediation": "Delete the visible page number from the Approval Page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q015",
+    "section": "Approval Page",
+    "question": "Does every committee-member entry begin with an honorific such as Dr., Mr., or Ms.?",
+    "rule_definition": "Every committee-member entry on the Approval Page must begin with an honorific.",
+    "remediation": "Add an honorific before every committee-member name on the Approval Page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q016",
+    "section": "Approval Page",
+    "question": "Do all entries identified as Dissertation Advisor appear before any non-advisor committee-member entries?",
+    "rule_definition": "Every Dissertation Advisor entry must appear before every non-advisor committee-member entry.",
+    "remediation": "Move all Dissertation Advisor entries to the top of the committee list.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q017",
+    "section": "Approval Page",
+    "question": "Are committee members listed in descending rank order?",
+    "rule_definition": "Committee members with explicitly stated ranks must be listed in descending rank order.",
+    "remediation": "Reorder the committee-member entries by explicit rank from highest to lowest.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q018",
+    "section": "Approval Page",
+    "question": "Among members with the same explicitly stated rank, are the surnames listed in alphabetical order?",
+    "rule_definition": "Committee members with the same explicitly stated rank must be alphabetized by surname.",
+    "remediation": "Alphabetize same-rank committee-member entries by surname.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q019",
+    "section": "Approval Page",
+    "question": "Do all committee-member entries whose affiliation is not NJIT appear after all entries whose affiliation is NJIT?",
+    "rule_definition": "Every external or non-NJIT committee-member entry must appear after all NJIT entries.",
+    "remediation": "Move all external or non-NJIT entries below all NJIT entries.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q020",
+    "section": "Approval Page",
+    "question": "Does every external or non-NJIT committee-member entry include institution/company name plus city and state?",
+    "rule_definition": "Every external entry must include institution or company name and location information (city and state).",
+    "remediation": "Add institution/company name, city, and state to every external entry.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q021",
+    "section": "Biographical Sketch",
+    "question": "Does the Biographical Sketch page display the exact phrase \u201cBIOGRAPHICAL SKETCH\u201d correctly?",
+    "rule_definition": "The Biographical Sketch page must display the exact phrase in all caps, bold, centered, and at the top.",
+    "remediation": "Format the heading \u201cBIOGRAPHICAL SKETCH\u201d in all caps, bold, centered, and at the top.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q022",
+    "section": "Biographical Sketch",
+    "question": "Is the visible page number on the first Biographical Sketch page exactly the lowercase Roman numeral \u201civ\u201d?",
+    "rule_definition": "The first Biographical Sketch page must display the visible lowercase Roman numeral \u201civ\u201d.",
+    "remediation": "Change the visible page number on the first Biographical Sketch page to \u201civ\u201d.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q023",
+    "section": "Biographical Sketch",
+    "question": "Does the Biographical Sketch text exclude both place of birth and date of birth?",
+    "rule_definition": "The Biographical Sketch must not include place of birth or date of birth.",
+    "remediation": "Remove place of birth and date of birth from the Biographical Sketch.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q024",
+    "section": "Biographical Sketch",
+    "question": "Does the Biographical Sketch exclude all work experience and professional positions?",
+    "rule_definition": "The Biographical Sketch must not include work experience, employment history, job titles, or internships.",
+    "remediation": "Remove work experience and employment-related content from the Biographical Sketch.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q025",
+    "section": "Biographical Sketch",
+    "question": "Are all postgraduate degrees listed from most recent to oldest?",
+    "rule_definition": "Postgraduate degrees must be listed from most recent to oldest, with NJIT first when applicable.",
+    "remediation": "Reorder postgraduate degree entries from most recent to oldest.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q026",
+    "section": "Biographical Sketch",
+    "question": "Are the bullet items in the education section single-spaced within each bullet?",
+    "rule_definition": "Each bullet item in the \u201cUndergraduate and Graduate Education\u201d section must be single-spaced internally.",
+    "remediation": "Single-space each bullet item in the education section.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q027",
+    "section": "Biographical Sketch",
+    "question": "Are the entries in \u201cPublications and Presentations\u201d ordered from most recent to oldest?",
+    "rule_definition": "Entries in \u201cPublications and Presentations\u201d must be ordered from most recent to oldest.",
+    "remediation": "Reorder \u201cPublications and Presentations\u201d entries from most recent to oldest.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q028",
+    "section": "Biographical Sketch",
+    "question": "Is each entry in \u201cPublications and Presentations\u201d single-spaced with a blank line between entries?",
+    "rule_definition": "Each entry must be single-spaced internally, with a blank line or double-space gap between entries.",
+    "remediation": "Single-space each entry and add a blank line or double-space gap between entries.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q029",
+    "section": "Biographical Sketch",
+    "question": "Do all entries in \u201cPublications and Presentations\u201d use a hanging indent?",
+    "rule_definition": "Every entry in \u201cPublications and Presentations\u201d must use a hanging indent.",
+    "remediation": "Apply a hanging indent to every entry in this section.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q030",
+    "section": "Biographical Sketch",
+    "question": "Do all entries in \u201cPublications and Presentations\u201d follow one consistent citation pattern?",
+    "rule_definition": "All entries in \u201cPublications and Presentations\u201d must use one consistent citation style throughout.",
+    "remediation": "Reformat all entries to use one consistent citation style.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q031",
+    "section": "Dedication Page",
+    "question": "Does the Dedication page display the next sequential lowercase Roman numeral?",
+    "rule_definition": "The Dedication page must display the next sequential visible lowercase Roman numeral after the Biographical Sketch.",
+    "remediation": "Change the visible page number to the next sequential lowercase Roman numeral.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q032",
+    "section": "Dedication Page",
+    "question": "Is there no header text in the top margin area of the Dedication page?",
+    "rule_definition": "The Dedication page must show no header text at the top of the page.",
+    "remediation": "Remove the header text from the top of the Dedication page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q033",
+    "section": "Dedication Page",
+    "question": "Is the full dedication text block visually centered on the page?",
+    "rule_definition": "The full dedication text block must be centered on the page.",
+    "remediation": "Center the full dedication text block on the page.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q034",
+    "section": "Dedication Page",
+    "question": "If the dedication text uses the Latin alphabet, is the entire text italicized?",
+    "rule_definition": "Dedication text written in the Latin alphabet must be italicized.",
+    "remediation": "Italicize the dedication text.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q035",
+    "section": "Acknowledgements",
+    "question": "Does the Acknowledgements page display the next sequential lowercase Roman numeral?",
+    "rule_definition": "The Acknowledgements page must display the next sequential visible lowercase Roman numeral after the Dedication.",
+    "remediation": "Change the visible page number to the next sequential lowercase Roman numeral.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q036",
+    "section": "Acknowledgements",
+    "question": "Does the Acknowledgements page display the exact word correctly formatted?",
+    "rule_definition": "The Acknowledgements page must display \u201cACKNOWLEDGEMENTS\u201d in all caps, bold, centered, and at the top.",
+    "remediation": "Format the heading \u201cACKNOWLEDGEMENTS\u201d correctly.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q037",
+    "section": "Acknowledgements",
+    "question": "Does the first paragraph of the Acknowledgements explicitly thank the advisor(s)?",
+    "rule_definition": "The first paragraph of the Acknowledgements must explicitly thank the advisor or advisors.",
+    "remediation": "Revise the first paragraph to explicitly thank the advisor or advisors.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q038",
+    "section": "Acknowledgements",
+    "question": "Does the second paragraph explicitly thank the committee members?",
+    "rule_definition": "The second paragraph of the Acknowledgements must explicitly thank the committee members.",
+    "remediation": "Revise the second paragraph to explicitly thank the committee members.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q039",
+    "section": "Acknowledgements",
+    "question": "Does the third paragraph explicitly mention both technical and financial support?",
+    "rule_definition": "The third paragraph must explicitly mention both technical support and financial support.",
+    "remediation": "Revise the third paragraph to mention both technical and financial support.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q040",
+    "section": "Acknowledgements",
+    "question": "If grant support is mentioned, does it include full agency name and grant number?",
+    "rule_definition": "Mention of grant support must include the full agency name and grant number in parentheses.",
+    "remediation": "Add the full grant agency name and the grant number in parentheses.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q041",
+    "section": "Acknowledgements",
+    "question": "Does the fifth paragraph explicitly thank peers, colleagues, or fellow students?",
+    "rule_definition": "The fifth paragraph of the Acknowledgements must explicitly mention support from peers, colleagues, or students.",
+    "remediation": "Revise the fifth paragraph to explicitly mention peers or colleagues.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q042",
+    "section": "Acknowledgements",
+    "question": "If a sixth paragraph is present, does it explicitly mention family or friends?",
+    "rule_definition": "A sixth Acknowledgements paragraph, if present, must explicitly mention family or friends.",
+    "remediation": "Revise the sixth paragraph to explicitly mention family or friends.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q043",
+    "section": "Acknowledgements",
+    "question": "For every named person mentioned, is the full first and last name used?",
+    "rule_definition": "Every named person mentioned in the Acknowledgements must be identified by full first and last name.",
+    "remediation": "Replace partial names with full first name and last name for every person mentioned.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q044",
+    "section": "Acknowledgements",
+    "question": "Does the first Acknowledgements paragraph begin flush with the left margin?",
+    "rule_definition": "The first Acknowledgements paragraph must begin flush with the left paragraph margin.",
+    "remediation": "Remove the first-line indent from the first Acknowledgements paragraph.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q045",
+    "section": "Acknowledgements",
+    "question": "Does every Acknowledgements paragraph after the first begin with a visible indent?",
+    "rule_definition": "Every Acknowledgements paragraph after the first must begin with a visible first-line indent.",
+    "remediation": "Apply a first-line indent to every paragraph after the first.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q046",
+    "section": "Table of Contents",
+    "question": "Does the TOC continue the Roman numeral sequence correctly?",
+    "rule_definition": "Table of Contents pages must display sequential visible lowercase Roman numerals continuing after Acknowledgements.",
+    "remediation": "Change page numbers to sequential lowercase Roman numerals continuing after the Acknowledgements.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q047",
+    "section": "Table of Contents",
+    "question": "Does the first TOC page display the exact heading correctly?",
+    "rule_definition": "The first Table of Contents page must display \u201cTABLE OF CONTENTS\u201d in all caps, bold, and centered.",
+    "remediation": "Format the first TOC heading as \u201cTABLE OF CONTENTS\u201d in all caps, bold, and centered.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q048",
+    "section": "Table of Contents",
+    "question": "Do subsequent TOC pages display the correct \"(Continued)\" heading?",
+    "rule_definition": "Every TOC page after the first must display \u201cTABLE OF CONTENTS (Continued)\u201d in all caps, bold, and centered.",
+    "remediation": "Add the heading \u201cTABLE OF CONTENTS (Continued)\u201d to every TOC page after the first.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q049",
+    "section": "Table of Contents",
+    "question": "In the TOC, are all level-1 chapter titles displayed in all caps?",
+    "rule_definition": "Every level-1 chapter title in the TOC must be displayed in all caps.",
+    "remediation": "Change all level-1 chapter titles in the TOC to all caps.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q050",
+    "section": "Table of Contents",
+    "question": "In the TOC, are all level-2 section titles (X.x) displayed in title case?",
+    "rule_definition": "Every level-2 section title in the TOC must be displayed in title case.",
+    "remediation": "Change all level-2 section titles in the TOC to title case.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q051",
+    "section": "Table of Contents",
+    "question": "In the TOC, are all level-3 section titles (X.xx) displayed in sentence case?",
+    "rule_definition": "Every level-3 section title in the TOC must be displayed in sentence case.",
+    "remediation": "Change all level-3 section titles in the TOC to sentence case.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q052",
+    "section": "Table of Contents",
+    "question": "Is each entry connected to a page number by a consistent leader style?",
+    "rule_definition": "Every TOC entry must connect to a right-aligned page number using one consistent leader style.",
+    "remediation": "Right-align page numbers and use one consistent leader style (dots or hyphens).",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q053",
+    "section": "Table of Contents",
+    "question": "Is every wrapped level-1 TOC entry single-spaced internally?",
+    "rule_definition": "Every wrapped level-1 TOC entry must be single-spaced internally.",
+    "remediation": "Single-space every wrapped level-1 TOC entry.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q054",
+    "section": "Table of Contents",
+    "question": "Is every wrapped level-2 TOC entry single-spaced internally?",
+    "rule_definition": "Every wrapped level-2 TOC entry must be single-spaced internally.",
+    "remediation": "Single-space every wrapped level-2 TOC entry.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q055",
+    "section": "Table of Contents",
+    "question": "Is every wrapped level-3 TOC entry single-spaced internally?",
+    "rule_definition": "Every wrapped level-3 TOC entry must be single-spaced internally.",
+    "remediation": "Single-space every wrapped level-3 TOC entry.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q056",
+    "section": "Table of Contents",
+    "question": "Are level-2 and level-3 entries indented to show hierarchy?",
+    "rule_definition": "Level-2 and level-3 TOC entries must be indented to show hierarchy beneath their parent level.",
+    "remediation": "Indent level-2 and level-3 TOC entries to show hierarchy.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q057",
+    "section": "Table of Contents",
+    "question": "Is there visible double spacing between consecutive section-title entries?",
+    "rule_definition": "Consecutive TOC entries must be separated by visible double spacing or a blank line.",
+    "remediation": "Add visible double spacing or a blank line between consecutive TOC entries.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q058",
+    "section": "Table of Contents",
+    "question": "If only one appendix is listed, does it begin with \u201cAPPENDIX\u201d plus title?",
+    "rule_definition": "A single appendix listed in the TOC must begin with the word \u201cAPPENDIX\u201d followed by its title.",
+    "remediation": "Rename the single appendix entry to begin with \u201cAPPENDIX\u201d followed by its title.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q059",
+    "section": "Table of Contents",
+    "question": "If multiple appendices are listed, are they identified by letters?",
+    "rule_definition": "Multiple appendices listed in the TOC must be identified by letter designations (A, B, C, etc.).",
+    "remediation": "Rename the appendix entries in the TOC to use letter designations.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q060",
+    "section": "List of Tables",
+    "question": "Does the List of Tables continue the Roman numeral sequence correctly?",
+    "rule_definition": "List of Tables pages must display sequential visible lowercase Roman numerals continuing after the TOC.",
+    "remediation": "Change the page numbers to sequential lowercase Roman numerals continuing after the TOC.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q061",
+    "section": "List of Tables",
+    "question": "Does the first List of Tables page display the exact heading correctly?",
+    "rule_definition": "The first List of Tables page must display \u201cLIST OF TABLES\u201d in all caps, bold, and centered.",
+    "remediation": "Format the first List of Tables heading as \u201cLIST OF TABLES\u201d in all caps, bold, and centered.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q062",
+    "section": "List of Tables",
+    "question": "Do subsequent List of Tables pages display the correct \"(Continued)\" heading?",
+    "rule_definition": "Every List of Tables page after the first must display \u201cLIST OF TABLES (Continued)\u201d in all caps, bold, and centered.",
+    "remediation": "Add the heading \u201cLIST OF TABLES (Continued)\u201d to every page after the first.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q063",
+    "section": "List of Tables",
+    "question": "Does the label \u201cTable\u201d appear in bold and left-aligned under the heading?",
+    "rule_definition": "Each List of Tables page must display the label \u201cTable\u201d in bold and left-aligned directly under the heading.",
+    "remediation": "Add the label \u201cTable\u201d in bold and left-aligned directly under the heading.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q064",
+    "section": "List of Tables",
+    "question": "Does the label \u201cPage\u201d appear in bold and right-aligned under the heading?",
+    "rule_definition": "Each List of Tables page must display the label \u201cPage\u201d in bold and right-aligned directly under the heading.",
+    "remediation": "Add the label \u201cPage\u201d in bold and right-aligned directly under the heading.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q065",
+    "section": "List of Tables",
+    "question": "Are all listed table titles in title case and free of a final period?",
+    "rule_definition": "Every table title in the List of Tables must be in title case and must not end with a period.",
+    "remediation": "Change all List of Tables titles to title case and remove final periods.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q066",
+    "section": "List of Tables",
+    "question": "Is every wrapped table title single-spaced internally?",
+    "rule_definition": "Every wrapped table title in the List of Tables must be single-spaced internally.",
+    "remediation": "Single-space every wrapped table title in the List of Tables.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q067",
+    "section": "List of Tables",
+    "question": "Is there visible double spacing between consecutive table entries?",
+    "rule_definition": "Consecutive entries in the List of Tables must be separated by visible double spacing or a blank line.",
+    "remediation": "Add visible double spacing or a blank line between consecutive entries.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q068",
+    "section": "List of Tables",
+    "question": "Are all table numbers aligned vertically in one left column?",
+    "rule_definition": "All table numbers in the List of Tables must align vertically in one left column.",
+    "remediation": "Align all table numbers in the List of Tables into one vertical column.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q069",
+    "section": "List of Tables",
+    "question": "Are all table page numbers aligned vertically in one right column?",
+    "rule_definition": "All page numbers in the List of Tables must align vertically in one right column.",
+    "remediation": "Align all List of Tables page numbers into one vertical right column.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q070",
+    "section": "List of Figures",
+    "question": "Does the first List of Figures page display the exact heading correctly?",
+    "rule_definition": "The first List of Figures page must display \u201cLIST OF FIGURES\u201d in all caps, bold, and centered.",
+    "remediation": "Format the first List of Figures heading as \u201cLIST OF FIGURES\u201d in all caps, bold, and centered.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q071",
+    "section": "List of Figures",
+    "question": "Do subsequent List of Figures pages display the correct \"(Continued)\" heading?",
+    "rule_definition": "Every List of Figures page after the first must display \u201cLIST OF FIGURES (Continued)\u201d in all caps, bold, and centered.",
+    "remediation": "Add the heading \u201cLIST OF FIGURES (Continued)\u201d to every page after the first.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q072",
+    "section": "List of Figures",
+    "question": "Does the label \u201cFigure\u201d appear in bold and left-aligned under the heading?",
+    "rule_definition": "Each List of Figures page must display the label \u201cFigure\u201d in bold and left-aligned directly under the heading.",
+    "remediation": "Add the label \u201cFigure\u201d in bold and left-aligned directly under the heading.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q073",
+    "section": "List of Figures",
+    "question": "Does the label \u201cPage\u201d appear in bold and right-aligned under the heading?",
+    "rule_definition": "Each List of Figures page must display the label \u201cPage\u201d in bold and right-aligned directly under the heading.",
+    "remediation": "Add the label \u201cPage\u201d in bold and right-aligned directly under the heading.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q074",
+    "section": "List of Figures",
+    "question": "Are all figure descriptions written in sentence case?",
+    "rule_definition": "Every figure description in the List of Figures must be written in sentence case.",
+    "remediation": "Change all figure descriptions in the List of Figures to sentence case.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q075",
+    "section": "List of Figures",
+    "question": "Does every figure description end with a terminal punctuation mark?",
+    "rule_definition": "Every figure description in the List of Figures must end with a terminal punctuation mark.",
+    "remediation": "Add terminal punctuation to every figure description.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q076",
+    "section": "List of Figures",
+    "question": "Is every wrapped figure description single-spaced internally?",
+    "rule_definition": "Every wrapped figure description in the List of Figures must be single-spaced internally.",
+    "remediation": "Single-space every wrapped figure description in the List of Figures.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q077",
+    "section": "List of Figures",
+    "question": "Is there visible double spacing between consecutive figure entries?",
+    "rule_definition": "Consecutive entries in the List of Figures must be separated by visible double spacing or a blank line.",
+    "remediation": "Add visible double spacing or a blank line between consecutive entries.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q078",
+    "section": "List of Figures",
+    "question": "Are all figure numbers aligned vertically in one left column?",
+    "rule_definition": "All figure numbers in the List of Figures must align vertically in one left column.",
+    "remediation": "Align all figure numbers in the List of Figures into one vertical left column.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  },
+  {
+    "id": "Q079",
+    "section": "List of Figures",
+    "question": "Are all figure page numbers aligned vertically in one right column?",
+    "rule_definition": "All page numbers in the List of Figures must align vertically in one right column.",
+    "remediation": "Align all List of Figures page numbers into one vertical right column.",
+    "severity": "warning",
+    "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
+    "implementation_status": "not_implemented"
+  }
+]

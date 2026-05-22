@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Severity(str, Enum):
@@ -22,7 +22,7 @@ class AuditFinding(BaseModel):
     severity: Severity
     message: str
     page: int | None = None
-    details: dict[str, str] = {}
+    details: dict[str, str] = Field(default_factory=dict)
 
 
 class PageInfo(BaseModel):
