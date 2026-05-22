@@ -102,3 +102,50 @@ def render_tex_report(
         )
 
     console.print(table)
+
+
+def render_pdf_layout_report(
+    console: Console,
+    document_path: str,
+    page_sizes: list[tuple[int, float, float]],
+    findings: list[AuditFinding],
+) -> None:
+    """Print a concise layout-audit report for PDFs."""
+
+    console.print(f"[bold]PDF Document[/bold]: {document_path}")
+    console.print(f"[bold]Pages[/bold]: {len(page_sizes)}")
+    size_text = ", ".join(f"p{n}: {w:.1f}x{h:.1f} pt" for n, w, h in page_sizes)
+    console.print(f"[bold]Page sizes[/bold]: {size_text}")
+
+    counts = Counter(item.severity for item in findings)
+    console.print(
+        "[bold]Summary[/bold]: "
+        f"[green]PASS {counts.get(Severity.PASS, 0)}[/green], "
+        f"[yellow]WARNING {counts.get(Severity.WARNING, 0)}[/yellow], "
+        f"[red]FAIL {counts.get(Severity.FAIL, 0)}[/red]"
+    )
+
+    table = Table(title="PDF Layout Findings")
+    table.add_column("Severity", no_wrap=True)
+    table.add_column("Rule", no_wrap=True)
+    table.add_column("Page", no_wrap=True)
+    table.add_column("Message")
+    table.add_column("Suggested Fix")
+
+    for finding in findings:
+        color = _severity_color(finding.severity)
+        page = str(finding.page) if finding.page is not None else "-"
+        message = finding.message
+        extras = {k: v for k, v in finding.details.items() if k not in {"suggested_fix"}}
+        suggested_fix = finding.details.get("suggested_fix", "-")
+        if extras:
+            detail_parts = [f"{key}={value}" for key, value in extras.items()]
+            message += f" ({'; '.join(detail_parts)})"
+        table.add_row(
+            f"[{color}]{finding.severity.value}[/{color}]",
+            finding.rule_id,
+            page,
+            message,
+            suggested_fix,
+        )
+    console.print(table)

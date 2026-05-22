@@ -178,5 +178,59 @@
     "implementation_module": "njit_auditor.latex_linters",
     "priority": "medium",
     "notes": "Optional check; skipped gracefully when lacheck is not installed."
+  },
+  {
+    "id": "P011",
+    "section": "PDF layout",
+    "question": "Is there possible text outside required margins?",
+    "rule_definition": "Detect text blocks outside assumed margin bounds (left 1.5in, right/top/bottom 1.0in).",
+    "remediation": "Review block positions and adjust document margins/layout as needed.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_margins",
+    "priority": "high",
+    "notes": "Heuristic foundation check; excludes likely page-number candidates."
+  },
+  {
+    "id": "P012",
+    "section": "PDF annotations",
+    "question": "Does the PDF contain annotations/comments?",
+    "rule_definition": "Detect reviewer comments/annotations embedded in the PDF file.",
+    "remediation": "Resolve or remove annotations before final submission.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_annotations",
+    "priority": "medium",
+    "notes": "Best-effort extraction from PDF annotation objects."
+  },
+  {
+    "id": "P013",
+    "section": "PDF page numbering",
+    "question": "Are there page-number candidates near top/bottom zones?",
+    "rule_definition": "Detect numeric/roman page-number-like text in top/bottom margin zones for manual rule review.",
+    "remediation": "Verify page-number visibility/placement against NJIT requirements.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_page_numbers",
+    "priority": "high",
+    "notes": "Candidate detection only; not full NJIT page-number compliance."
   }
 ]

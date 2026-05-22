@@ -49,7 +49,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 10
+    assert len(project_rules) == 13
     assert all(item["implementation_status"] == "implemented" for item in project_rules)
 
 
