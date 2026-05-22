@@ -25,6 +25,20 @@ app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor"
 console = Console()
 
 
+def collect_tex_findings(main_tex_path: str) -> tuple[Path, int, list[AuditFinding]]:
+    """Load TeX project and run all phase-1 source checks."""
+    input_path = Path(main_tex_path)
+    project = load_tex_project(input_path)
+    findings: list[AuditFinding] = []
+    findings.extend(run_latex_abstract_checks(project))
+    findings.extend(run_latex_graduation_month_check(project))
+    findings.extend(run_latex_structure_checks(project))
+    findings.extend(run_latex_risky_command_checks(project))
+    findings.extend(run_latex_label_checks(project))
+    findings.extend(run_latex_figure_table_checks(project))
+    return project.main_path, len(project.files), findings
+
+
 @app.command()
 def audit(pdf_path: str) -> None:
     """Audit a thesis/dissertation PDF using local checks only."""
@@ -58,19 +72,12 @@ def tex(main_tex_path: str) -> None:
         console.print("[red]Input must be a .tex file for source-only audit.[/red]")
         raise typer.Exit(code=1)
 
-    project = load_tex_project(input_path)
-    findings: list[AuditFinding] = []
-    findings.extend(run_latex_abstract_checks(project))
-    findings.extend(run_latex_graduation_month_check(project))
-    findings.extend(run_latex_structure_checks(project))
-    findings.extend(run_latex_risky_command_checks(project))
-    findings.extend(run_latex_label_checks(project))
-    findings.extend(run_latex_figure_table_checks(project))
+    main_path, loaded_file_count, findings = collect_tex_findings(main_tex_path)
 
     render_tex_report(
         console,
-        main_file=str(project.main_path),
-        loaded_file_count=len(project.files),
+        main_file=str(main_path),
+        loaded_file_count=loaded_file_count,
         findings=findings,
     )
 

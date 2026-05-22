@@ -43,10 +43,14 @@ def run_latex_figure_table_checks(project: LoadedTexProject) -> list[AuditFindin
             if not caption_match:
                 findings.append(
                     AuditFinding(
-                        rule_id=f"latex_{env}_caption_missing",
+                        rule_id="P005",
                         severity=Severity.WARNING,
                         message=f"{env.title()} environment has no \\caption{{...}}.",
-                        details={"file": str(source_file.path), "line": str(start_line)},
+                        details={
+                            "file": str(source_file.path),
+                            "line": str(start_line),
+                            "suggested_fix": f"Add a descriptive \\caption{{...}} to this {env}.",
+                        },
                     )
                 )
             else:
@@ -54,20 +58,28 @@ def run_latex_figure_table_checks(project: LoadedTexProject) -> list[AuditFindin
                 if caption_text and caption_text[-1] not in ".!?":
                     findings.append(
                         AuditFinding(
-                            rule_id=f"latex_{env}_caption_punctuation",
+                            rule_id="P007",
                             severity=Severity.WARNING,
                             message=f"{env.title()} caption may be missing ending punctuation.",
-                            details={"file": str(source_file.path), "line": str(start_line)},
+                            details={
+                                "file": str(source_file.path),
+                                "line": str(start_line),
+                                "suggested_fix": "End caption text with ., !, or ?.",
+                            },
                         )
                     )
 
             if not label_match:
                 findings.append(
                     AuditFinding(
-                        rule_id=f"latex_{env}_label_missing",
+                        rule_id="P006",
                         severity=Severity.WARNING,
                         message=f"{env.title()} environment has no \\label{{...}}.",
-                        details={"file": str(source_file.path), "line": str(start_line)},
+                        details={
+                            "file": str(source_file.path),
+                            "line": str(start_line),
+                            "suggested_fix": f"Add a unique \\label{{...}} in this {env}.",
+                        },
                     )
                 )
             i += 1
@@ -75,7 +87,7 @@ def run_latex_figure_table_checks(project: LoadedTexProject) -> list[AuditFindin
     if not findings:
         return [
             AuditFinding(
-                rule_id="latex_figures_tables",
+                rule_id="P005",
                 severity=Severity.PASS,
                 message="Figure/table caption and label checks passed.",
             )

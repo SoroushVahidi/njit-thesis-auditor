@@ -35,9 +35,10 @@ def run_latex_abstract_checks(project: LoadedTexProject) -> list[AuditFinding]:
     if not abstract_sources:
         return [
             AuditFinding(
-                rule_id="latex_abstract_presence",
+                rule_id="P008",
                 severity=Severity.WARNING,
                 message="No abstract block/file detected in TeX sources.",
+                details={"suggested_fix": "Add a \\begin{abstract}...\\end{abstract} section."},
             )
         ]
 
@@ -45,24 +46,29 @@ def run_latex_abstract_checks(project: LoadedTexProject) -> list[AuditFinding]:
         for match in FORBIDDEN_WORD_RE.finditer(text):
             findings.append(
                 AuditFinding(
-                    rule_id="latex_abstract_forbidden_terms",
+                    rule_id="Q004",
                     severity=Severity.FAIL,
-                    message=f"Forbidden abstract term '{match.group(1)}' detected.",
+                    message=(
+                        f"Abstract uses forbidden term '{match.group(1)}' "
+                        "(paper/article variants are not allowed)."
+                    ),
                     details={
                         "file": str(source_file.path),
                         "line": str(text[: match.start()].count("\n") + 1),
+                        "suggested_fix": "Replace with dissertation/study/work/research wording.",
                     },
                 )
             )
         for match in FIRST_PERSON_RE.finditer(text):
             findings.append(
                 AuditFinding(
-                    rule_id="latex_abstract_first_person",
+                    rule_id="Q005",
                     severity=Severity.FAIL,
                     message=f"First-person pronoun '{match.group(1)}' detected in abstract.",
                     details={
                         "file": str(source_file.path),
                         "line": str(text[: match.start()].count("\n") + 1),
+                        "suggested_fix": "Rewrite sentence in neutral third-person style.",
                     },
                 )
             )
@@ -70,9 +76,9 @@ def run_latex_abstract_checks(project: LoadedTexProject) -> list[AuditFinding]:
     if not findings:
         return [
             AuditFinding(
-                rule_id="latex_abstract",
+                rule_id="Q004",
                 severity=Severity.PASS,
-                message="Abstract checks passed with no forbidden terms/pronouns detected.",
+                message="Abstract forbidden-term and first-person checks passed.",
             )
         ]
     return findings

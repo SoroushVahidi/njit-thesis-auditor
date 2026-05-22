@@ -23,8 +23,8 @@ def test_abstract_forbidden_and_first_person(tmp_path: Path) -> None:
     )
     findings = run_latex_abstract_checks(project)
     rule_ids = {f.rule_id for f in findings}
-    assert "latex_abstract_forbidden_terms" in rule_ids
-    assert "latex_abstract_first_person" in rule_ids
+    assert "Q004" in rule_ids
+    assert "Q005" in rule_ids
 
 
 def test_invalid_graduation_month(tmp_path: Path) -> None:
@@ -32,19 +32,19 @@ def test_invalid_graduation_month(tmp_path: Path) -> None:
     findings = run_latex_graduation_month_check(project)
     assert any(f.severity == Severity.WARNING for f in findings)
     assert any("January" in f.message for f in findings)
+    assert any(f.rule_id == "Q006" for f in findings)
 
 
 def test_missing_structure_warnings(tmp_path: Path) -> None:
     project = _load_single(tmp_path, "Hello world.")
     findings = run_latex_structure_checks(project)
-    assert any(f.rule_id == "latex_structure_table_of_contents" for f in findings)
-    assert any(f.rule_id == "latex_structure_chapter" for f in findings)
+    assert any(f.rule_id == "P008" for f in findings)
 
 
 def test_risky_command_line_numbers(tmp_path: Path) -> None:
     project = _load_single(tmp_path, "Line1\n\\vspace{1em}\nLine3")
     findings = run_latex_risky_command_checks(project)
-    hit = next(f for f in findings if f.rule_id == "latex_risky_command")
+    hit = next(f for f in findings if f.rule_id == "P001")
     assert hit.details["line"] == "2"
     assert hit.details["command"] == "vspace"
 
@@ -56,10 +56,10 @@ def test_duplicate_labels_and_missing_ref(tmp_path: Path) -> None:
     )
     findings = run_latex_label_checks(project)
     assert any(
-        f.rule_id == "latex_duplicate_label" and f.severity == Severity.FAIL for f in findings
+        f.rule_id == "P002" and f.severity == Severity.FAIL for f in findings
     )
-    assert any(f.rule_id == "latex_label_space" for f in findings)
-    assert any(f.rule_id == "latex_missing_label_reference" for f in findings)
+    assert any(f.rule_id == "P003" for f in findings)
+    assert any(f.rule_id == "P004" for f in findings)
 
 
 def test_figure_table_caption_and_punctuation(tmp_path: Path) -> None:
@@ -77,6 +77,6 @@ def test_figure_table_caption_and_punctuation(tmp_path: Path) -> None:
         ),
     )
     findings = run_latex_figure_table_checks(project)
-    assert any(f.rule_id == "latex_figure_label_missing" for f in findings)
-    assert any(f.rule_id == "latex_figure_caption_punctuation" for f in findings)
-    assert any(f.rule_id == "latex_table_caption_missing" for f in findings)
+    assert any(f.rule_id == "P006" for f in findings)
+    assert any(f.rule_id == "P007" for f in findings)
+    assert any(f.rule_id == "P005" for f in findings)

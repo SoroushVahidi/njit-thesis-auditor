@@ -39,6 +39,20 @@ This phase does not compile TeX and does not inspect generated PDFs.
 It only detects problems visible in source files by recursively loading `\input{}` and `\include{}` trees and running lightweight local checks.
 PDF visual/layout validation will be added in later phases.
 
+## Demo examples
+
+Try the synthetic fixtures:
+
+- `examples/latex/good_minimal_thesis/main.tex`
+- `examples/latex/bad_minimal_thesis/main.tex`
+
+Run:
+
+```bash
+njit-audit tex examples/latex/good_minimal_thesis/main.tex
+njit-audit tex examples/latex/bad_minimal_thesis/main.tex
+```
+
 ## Roadmap
 
 - front matter rules

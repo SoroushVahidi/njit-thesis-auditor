@@ -37,20 +37,27 @@ def run_latex_risky_command_checks(project: LoadedTexProject) -> list[AuditFindi
                 command = match.group(1)
                 findings.append(
                     AuditFinding(
-                        rule_id="latex_risky_command",
+                        rule_id="P001",
                         severity=Severity.WARNING,
                         message=(
                             f"Risky formatting override '\\{command}' detected; "
                             "manual formatting can break NJIT requirements."
                         ),
-                        details={"file": str(source_file.path), "line": str(i), "command": command},
+                        details={
+                            "file": str(source_file.path),
+                            "line": str(i),
+                            "command": command,
+                            "suggested_fix": (
+                                "Remove manual override and rely on template defaults."
+                            ),
+                        },
                     )
                 )
 
     if not findings:
         return [
             AuditFinding(
-                rule_id="latex_risky_command",
+                rule_id="P001",
                 severity=Severity.PASS,
                 message="No risky manual formatting commands detected.",
             )

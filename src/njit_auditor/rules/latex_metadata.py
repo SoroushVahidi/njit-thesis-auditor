@@ -34,9 +34,12 @@ def run_latex_graduation_month_check(project: LoadedTexProject) -> list[AuditFin
     if not month_hits:
         return [
             AuditFinding(
-                rule_id="latex_graduation_month",
+                rule_id="Q006",
                 severity=Severity.WARNING,
                 message="No graduation month found in likely front-matter TeX sources.",
+                details={
+                    "suggested_fix": "Add May, August, or December in title/graduation metadata.",
+                },
             )
         ]
 
@@ -44,10 +47,14 @@ def run_latex_graduation_month_check(project: LoadedTexProject) -> list[AuditFin
         if month not in VALID_MONTHS:
             findings.append(
                 AuditFinding(
-                    rule_id="latex_graduation_month",
+                    rule_id="Q006",
                     severity=Severity.WARNING,
                     message=f"Non-NJIT graduation month '{month.title()}' found in context.",
-                    details={"file": file_path, "line": str(line_no)},
+                    details={
+                        "file": file_path,
+                        "line": str(line_no),
+                        "suggested_fix": "Use May, August, or December.",
+                    },
                 )
             )
 
@@ -56,7 +63,7 @@ def run_latex_graduation_month_check(project: LoadedTexProject) -> list[AuditFin
 
     return [
         AuditFinding(
-            rule_id="latex_graduation_month",
+            rule_id="Q006",
             severity=Severity.PASS,
             message="Graduation month mentions appear valid (May/August/December).",
         )

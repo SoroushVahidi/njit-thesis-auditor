@@ -80,6 +80,7 @@ def render_tex_report(
     table.add_column("Rule", no_wrap=True)
     table.add_column("Location", no_wrap=True)
     table.add_column("Message")
+    table.add_column("Suggested Fix")
 
     for finding in findings:
         color = _severity_color(finding.severity)
@@ -88,6 +89,7 @@ def render_tex_report(
         location = f"{file_hint}:{line_hint}" if file_hint != "-" else "-"
         message = finding.message
         extras = {k: v for k, v in finding.details.items() if k not in {"file", "line"}}
+        suggested_fix = extras.pop("suggested_fix", "-")
         if extras:
             detail_parts = [f"{key}={value}" for key, value in extras.items()]
             message += f" ({'; '.join(detail_parts)})"
@@ -96,6 +98,7 @@ def render_tex_report(
             finding.rule_id,
             location,
             message,
+            suggested_fix,
         )
 
     console.print(table)

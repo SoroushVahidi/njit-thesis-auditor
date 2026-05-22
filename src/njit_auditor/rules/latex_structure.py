@@ -38,16 +38,19 @@ def run_latex_structure_checks(project: LoadedTexProject) -> list[AuditFinding]:
         if not present:
             findings.append(
                 AuditFinding(
-                    rule_id=f"latex_structure_{rule_id}",
+                    rule_id="P008",
                     severity=Severity.WARNING,
                     message=f"Required structure appears missing: {hint}.",
+                    details={
+                        "suggested_fix": f"Add {hint} content/command in the TeX project.",
+                    },
                 )
             )
 
     if not findings:
         return [
             AuditFinding(
-                rule_id="latex_structure",
+                rule_id="P008",
                 severity=Severity.PASS,
                 message="Required structure commands/environments detected.",
             )
