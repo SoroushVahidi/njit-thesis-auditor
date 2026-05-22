@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.latex_loader import LoadedTexProject, TeXSourceFile
+from njit_auditor.latex_text import strip_latex_to_text
 from njit_auditor.models import AuditFinding, Severity
 
 FORBIDDEN_WORD_RE = re.compile(r"\b(paper|papers|article|articles)\b", re.IGNORECASE)
@@ -43,31 +44,36 @@ def run_latex_abstract_checks(project: LoadedTexProject) -> list[AuditFinding]:
         ]
 
     for source_file, text in abstract_sources:
-        for match in FORBIDDEN_WORD_RE.finditer(text):
+        plain_text = strip_latex_to_text(text)
+        forbidden_terms = sorted(
+            {m.group(1).lower() for m in FORBIDDEN_WORD_RE.finditer(plain_text)}
+        )
+        for term in forbidden_terms:
             findings.append(
                 AuditFinding(
                     rule_id="Q004",
                     severity=Severity.FAIL,
                     message=(
-                        f"Abstract uses forbidden term '{match.group(1)}' "
+                        f"Abstract uses forbidden term '{term}' "
                         "(paper/article variants are not allowed)."
                     ),
                     details={
                         "file": str(source_file.path),
-                        "line": str(text[: match.start()].count("\n") + 1),
+                        "line": str(_approx_line_number(text, term)),
                         "suggested_fix": "Replace with dissertation/study/work/research wording.",
                     },
                 )
             )
-        for match in FIRST_PERSON_RE.finditer(text):
+        pronouns = sorted({m.group(1).lower() for m in FIRST_PERSON_RE.finditer(plain_text)})
+        for pronoun in pronouns:
             findings.append(
                 AuditFinding(
                     rule_id="Q005",
                     severity=Severity.FAIL,
-                    message=f"First-person pronoun '{match.group(1)}' detected in abstract.",
+                    message=f"First-person pronoun '{pronoun}' detected in abstract.",
                     details={
                         "file": str(source_file.path),
-                        "line": str(text[: match.start()].count("\n") + 1),
+                        "line": str(_approx_line_number(text, pronoun)),
                         "suggested_fix": "Rewrite sentence in neutral third-person style.",
                     },
                 )
@@ -82,3 +88,13 @@ def run_latex_abstract_checks(project: LoadedTexProject) -> list[AuditFinding]:
             )
         ]
     return findings
+
+
+def _approx_line_number(raw_text: str, token: str) -> int:
+    """Find an approximate line number for a detected token in raw source text."""
+
+    token_re = re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE)
+    for idx, line in enumerate(raw_text.splitlines(), start=1):
+        if token_re.search(line):
+            return idx
+    return 1

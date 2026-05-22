@@ -27,6 +27,36 @@ def test_abstract_forbidden_and_first_person(tmp_path: Path) -> None:
     assert "Q005" in rule_ids
 
 
+def test_abstract_detection_through_latex_macros(tmp_path: Path) -> None:
+    project = _load_single(
+        tmp_path,
+        r"\begin{abstract}\textit{paper} and \emph{We} present results.\end{abstract}",
+    )
+    findings = run_latex_abstract_checks(project)
+    rule_ids = {f.rule_id for f in findings}
+    assert "Q004" in rule_ids
+    assert "Q005" in rule_ids
+
+
+def test_latex_commands_do_not_create_abstract_false_positives(tmp_path: Path) -> None:
+    project = _load_single(
+        tmp_path,
+        (
+            r"\begin{abstract}"
+            r"\newcommand{\papertrail}{x} The dissertation evaluates formatting."
+            r"\end{abstract}"
+        ),
+    )
+    findings = run_latex_abstract_checks(project)
+    assert not any(f.rule_id in {"Q004", "Q005"} and f.severity == Severity.FAIL for f in findings)
+
+
+def test_malformed_latex_in_abstract_does_not_crash(tmp_path: Path) -> None:
+    project = _load_single(tmp_path, r"\begin{abstract}\textit{paper \emph{We}\end{abstract}")
+    findings = run_latex_abstract_checks(project)
+    assert findings
+
+
 def test_invalid_graduation_month(tmp_path: Path) -> None:
     project = _load_single(tmp_path, r"\date{June 2026}")
     findings = run_latex_graduation_month_check(project)
