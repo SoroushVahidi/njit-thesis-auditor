@@ -1,0 +1,61 @@
+import json
+from pathlib import Path
+
+from njit_auditor.rule_loader import load_rule_file
+
+
+def _load_json(path: str) -> list[dict[str, object]]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def test_inventory_and_project_rule_files_exist() -> None:
+    assert Path("data/processed/rules/njit_rule_inventory.json").exists()
+    assert Path("data/processed/rules/project_added_rules.json").exists()
+
+
+def test_all_ester_rules_represented_in_inventory() -> None:
+    inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
+    assert len(inventory) == 79
+    ids = {str(item["id"]) for item in inventory}
+    expected = {f"Q{i:03d}" for i in range(1, 80)}
+    assert ids == expected
+
+
+def test_q004_q005_q006_mappings() -> None:
+    inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
+    by_id = {str(item["id"]): item for item in inventory}
+
+    q004 = by_id["Q004"]
+    assert q004["phase"] == "tex_source"
+    assert q004["implementation_module"] == "njit_auditor.rules.latex_abstract"
+
+    q005 = by_id["Q005"]
+    assert q005["phase"] == "tex_source"
+    assert q005["implementation_module"] == "njit_auditor.rules.latex_abstract"
+
+    q006 = by_id["Q006"]
+    assert q006["phase"] == "tex_source"
+    assert q006["implementation_module"] == "njit_auditor.rules.latex_metadata"
+
+
+def test_q001_q052_q007_classifications() -> None:
+    inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
+    by_id = {str(item["id"]): item for item in inventory}
+    assert by_id["Q001"]["phase"] == "pdf_layout"
+    assert by_id["Q052"]["phase"] in {"pdf_layout", "mixed"}
+    assert by_id["Q007"]["phase"] in {"manual_review", "mixed"}
+
+
+def test_project_added_rules_implemented() -> None:
+    project_rules = _load_json("data/processed/rules/project_added_rules.json")
+    assert project_rules
+    assert all(item["implementation_status"] == "implemented" for item in project_rules)
+
+
+def test_rule_loader_validates_all_rule_files() -> None:
+    front = load_rule_file("data/processed/rules/front_matter_rules.json")
+    inventory = load_rule_file("data/processed/rules/njit_rule_inventory.json")
+    project_added = load_rule_file("data/processed/rules/project_added_rules.json")
+    assert len(front) == 79
+    assert len(inventory) == 79
+    assert len(project_added) >= 1
