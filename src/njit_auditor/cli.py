@@ -11,6 +11,12 @@ from rich.console import Console
 from njit_auditor.latex_linters import run_optional_latex_linters
 from njit_auditor.latex_loader import load_tex_project
 from njit_auditor.models import AuditFinding
+from njit_auditor.pdf_comments import (
+    extract_pdf_annotations,
+    remove_pdf_annotations,
+    write_annotations_json,
+    write_annotations_markdown,
+)
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_loader import load_document_info
 from njit_auditor.report import render_pdf_layout_report, render_report, render_tex_report
@@ -28,6 +34,7 @@ from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_r
 from njit_auditor.rules.title_page import run_title_page_month_check
 
 app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor")
+pdf_comments_app = typer.Typer(help="PDF annotation extraction and clean-copy workflow.")
 console = Console()
 
 
@@ -124,6 +131,65 @@ def pdf(pdf_path: str) -> None:
         page_sizes=page_sizes,
         findings=findings,
     )
+
+
+@pdf_comments_app.command("extract")
+def pdf_comments_extract(
+    input_pdf: str,
+    json_out: str = typer.Option(..., "--json-out", help="Path to JSON annotation output."),
+    md_out: str = typer.Option(..., "--md-out", help="Path to Markdown annotation output."),
+) -> None:
+    """Extract annotation metadata from PDF into JSON/Markdown."""
+    input_path = Path(input_pdf)
+    if not input_path.exists():
+        console.print(f"[red]File not found:[/red] {input_path}")
+        raise typer.Exit(code=1)
+    if input_path.suffix.lower() != ".pdf":
+        console.print("[red]Input must be a .pdf file.[/red]")
+        raise typer.Exit(code=1)
+    try:
+        annotations = extract_pdf_annotations(input_path)
+    except (FileDataError, ValueError, RuntimeError) as exc:
+        console.print(f"[red]Unable to read PDF:[/red] {input_path}")
+        console.print(f"[yellow]Reason:[/yellow] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    json_path = Path(json_out)
+    md_path = Path(md_out)
+    write_annotations_json(annotations, json_path)
+    write_annotations_markdown(annotations, md_path)
+    console.print(f"[green]Extracted annotations:[/green] {len(annotations)}")
+    console.print(f"[green]JSON:[/green] {json_path}")
+    console.print(f"[green]Markdown:[/green] {md_path}")
+
+
+@pdf_comments_app.command("clean")
+def pdf_comments_clean(
+    input_pdf: str,
+    out: str = typer.Option(..., "--out", help="Path to cleaned PDF output."),
+) -> None:
+    """Create a copy of PDF with annotation objects removed."""
+    input_path = Path(input_pdf)
+    if not input_path.exists():
+        console.print(f"[red]File not found:[/red] {input_path}")
+        raise typer.Exit(code=1)
+    if input_path.suffix.lower() != ".pdf":
+        console.print("[red]Input must be a .pdf file.[/red]")
+        raise typer.Exit(code=1)
+    out_path = Path(out)
+    if out_path.resolve() == input_path.resolve():
+        console.print("[red]Output path must differ from input path.[/red]")
+        raise typer.Exit(code=1)
+    try:
+        remove_pdf_annotations(input_path, out_path)
+    except (FileDataError, ValueError, RuntimeError) as exc:
+        console.print(f"[red]Unable to process PDF:[/red] {input_path}")
+        console.print(f"[yellow]Reason:[/yellow] {exc}")
+        raise typer.Exit(code=1) from exc
+    console.print(f"[green]Clean PDF created:[/green] {out_path}")
+
+
+app.add_typer(pdf_comments_app, name="pdf-comments")
 
 
 if __name__ == "__main__":
