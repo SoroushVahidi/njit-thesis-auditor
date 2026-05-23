@@ -74,6 +74,7 @@ More docs:
 - `docs/status/phase1_milestone_summary.md`
 - `docs/status/phase1_tex_finalization_status.md`
 - `docs/status/phase2_pdf_milestone_summary.md`
+- `docs/status/current_capabilities_for_graduate_studies.md`
 - `docs/demo/phase1_tex_demo.md`
 - `docs/rules/rule_inventory.md`
 
