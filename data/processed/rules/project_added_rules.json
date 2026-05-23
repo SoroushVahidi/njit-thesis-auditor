@@ -304,5 +304,23 @@
     "implementation_module": "njit_auditor.rules.pdf_captions",
     "priority": "medium",
     "notes": "Conservative caption-line heuristic; warns only on strong visible text-layer signals."
+  },
+  {
+    "id": "P018",
+    "section": "PDF TOC and list alignment",
+    "question": "Do TOC/List of Tables/List of Figures entries show likely alignment inconsistencies?",
+    "rule_definition": "Heuristically detect obvious TOC/list entry alignment issues including page-number column alignment, missing page numbers, leader-dot inconsistency, and indentation outliers.",
+    "remediation": "Align TOC/list entry page-number columns, maintain consistent leader-dot usage, and fix missing page numbers or obvious indentation outliers.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
+    "priority": "high",
+    "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages."
   }
 ]

@@ -13,6 +13,7 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P014") == "heading_title"
     assert map_finding_rule_to_category("P015") == "indentation"
     assert map_finding_rule_to_category("P016") == "spacing_blank_lines"
+    assert map_finding_rule_to_category("P018") == "list_of_tables_figures_toc"
     assert map_finding_rule_to_category("P017", {"caption_type": "table"}) == "table_format"
     assert map_finding_rule_to_category("P017", {"caption_type": "figure"}) == "figure_format"
     assert (
@@ -64,6 +65,7 @@ def test_summarize_audit_findings_counts() -> None:
             message="p",
             details={"caption_type": "figure", "issue_type": "missing_terminal_punctuation"},
         ),
+        AuditFinding(rule_id="P018", severity=Severity.WARNING, message="toc"),
         AuditFinding(rule_id="UNKNOWN", severity=Severity.WARNING, message="x"),
     ]
     summary = summarize_audit_findings(findings)
@@ -72,6 +74,7 @@ def test_summarize_audit_findings_counts() -> None:
     assert summary["heading_title"] == 1
     assert summary["indentation"] == 1
     assert summary["spacing_blank_lines"] == 1
+    assert summary["list_of_tables_figures_toc"] == 1
     assert summary["table_format"] == 1
     assert summary["figure_format"] == 1
     assert summary["punctuation"] == 1
