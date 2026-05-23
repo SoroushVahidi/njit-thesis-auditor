@@ -10,7 +10,10 @@ from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
-from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_rule
+from njit_auditor.rules.pdf_page_numbers import (
+    check_pdf_page_number_sequence,
+    run_pdf_page_number_candidates_rule,
+)
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 
@@ -121,6 +124,25 @@ def _draw_toc_entry(
 ) -> None:
     page.insert_text((label_x, y), label)
     page.insert_text((page_num_x, y), "12")
+
+
+def _make_pdf_with_page_numbers(
+    path: Path,
+    texts: list[str | None],
+    x: float = 300,
+    y: float = 770,
+    add_second_numbers: dict[int, tuple[str, float]] | None = None,
+) -> None:
+    doc = fitz.open()
+    for idx, txt in enumerate(texts):
+        page = doc.new_page(width=612, height=792)
+        if txt is not None:
+            page.insert_text((x, y), txt, fontsize=12)
+        if add_second_numbers and idx in add_second_numbers:
+            extra_text, extra_x = add_second_numbers[idx]
+            page.insert_text((extra_x, y), extra_text, fontsize=12)
+    doc.save(path)
+    doc.close()
 
 
 def test_page_number_candidate_detected(tmp_path: Path) -> None:
@@ -728,6 +750,90 @@ def test_pdf_cli_markdown_report_output_works(tmp_path: Path) -> None:
     assert md_out.exists()
     assert "# NJIT PDF Audit Report" in md_out.read_text(encoding="utf-8")
     assert "Markdown report" in result.output
+
+
+def test_sequential_arabic_page_numbers_do_not_warn_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_arabic_ok.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", "2", "3", "4"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert not any(f.rule_id == "P019" for f in findings)
+
+
+def test_missing_page_number_in_sequence_warns_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_missing.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", None, "3", "4"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert any(f.details.get("issue_type") == "missing_page_number" for f in findings)
+
+
+def test_multiple_page_numbers_on_same_page_warns_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_multiple.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path,
+        ["1", "2", "3"],
+        add_second_numbers={1: ("99", 520)},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert any(f.details.get("issue_type") == "multiple_page_numbers" for f in findings)
+
+
+def test_inconsistent_position_warns_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_position.pdf"
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((300, 770), "1", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((300, 770), "2", fontsize=12)
+    p2.insert_text((560, 30), "2", fontsize=12)
+    p2.insert_text((300, 30), "2", fontsize=12)
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((300, 770), "3", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert any(f.details.get("issue_type") == "inconsistent_position" for f in findings)
+
+
+def test_arabic_sequence_gap_warns_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_gap_arabic.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", "2", "4", "5"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert any(f.details.get("issue_type") == "sequence_gap" for f in findings)
+
+
+def test_roman_lower_sequence_no_warn_for_small_numbers(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_roman_ok.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["i", "ii", "iii", "iv"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert not any(f.rule_id == "P019" for f in findings)
+
+
+def test_pdf_cli_command_runs_with_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_p019.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", None, "3"])
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P019" in result.output
+
+
+def test_json_and_markdown_report_include_p019(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_p019_reports.pdf"
+    json_out = tmp_path / "out" / "p019.json"
+    md_out = tmp_path / "out" / "p019.md"
+    _make_pdf_with_page_numbers(pdf_path, ["1", None, "3"])
+    result = runner.invoke(
+        app,
+        ["pdf", str(pdf_path), "--json-out", str(json_out), "--md-out", str(md_out)],
+    )
+    assert result.exit_code == 0
+    assert "P019" in json_out.read_text(encoding="utf-8")
+    assert "### P019" in md_out.read_text(encoding="utf-8")
 
 
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:

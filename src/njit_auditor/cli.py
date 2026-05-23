@@ -34,7 +34,10 @@ from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
-from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_rule
+from njit_auditor.rules.pdf_page_numbers import (
+    check_pdf_page_number_sequence,
+    run_pdf_page_number_candidates_rule,
+)
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.title_page import run_title_page_month_check
@@ -131,6 +134,7 @@ def pdf(
         raise typer.Exit(code=1) from exc
     findings: list[AuditFinding] = []
     findings.extend(run_pdf_page_number_candidates_rule(pdf_doc))
+    findings.extend(check_pdf_page_number_sequence(pdf_doc))
     findings.extend(run_pdf_margin_rule(pdf_doc))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))

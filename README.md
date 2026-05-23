@@ -41,6 +41,7 @@ page-size extraction, page-number candidates, possible margin-boundary text,
 and annotation/comment detection.
 Optional `--json-out` and `--md-out` outputs write structured reports for
 office/student review workflows.
+It also includes conservative page-number sequence/style validation signals.
 
 ## LaTeX source-only audit
 

@@ -25,6 +25,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P011": "margin_or_overflow",
         "P012": "annotations",
         "P013": "page_numbering",
+        "P019": "page_numbering",
         "P014": "heading_title",
         "P015": "indentation",
         "P016": "spacing_blank_lines",

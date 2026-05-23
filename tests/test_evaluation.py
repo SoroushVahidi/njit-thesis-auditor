@@ -10,6 +10,7 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P011") == "margin_or_overflow"
     assert map_finding_rule_to_category("P012") == "annotations"
     assert map_finding_rule_to_category("P013") == "page_numbering"
+    assert map_finding_rule_to_category("P019") == "page_numbering"
     assert map_finding_rule_to_category("P014") == "heading_title"
     assert map_finding_rule_to_category("P015") == "indentation"
     assert map_finding_rule_to_category("P016") == "spacing_blank_lines"
@@ -44,6 +45,7 @@ def test_summarize_audit_findings_counts() -> None:
         AuditFinding(rule_id="P011", severity=Severity.WARNING, message="m1"),
         AuditFinding(rule_id="P011", severity=Severity.WARNING, message="m2"),
         AuditFinding(rule_id="P013", severity=Severity.WARNING, message="p"),
+        AuditFinding(rule_id="P019", severity=Severity.WARNING, message="pn"),
         AuditFinding(rule_id="P014", severity=Severity.WARNING, message="h"),
         AuditFinding(rule_id="P015", severity=Severity.WARNING, message="i"),
         AuditFinding(rule_id="P016", severity=Severity.WARNING, message="s"),
@@ -70,7 +72,7 @@ def test_summarize_audit_findings_counts() -> None:
     ]
     summary = summarize_audit_findings(findings)
     assert summary["margin_or_overflow"] == 2
-    assert summary["page_numbering"] == 1
+    assert summary["page_numbering"] == 2
     assert summary["heading_title"] == 1
     assert summary["indentation"] == 1
     assert summary["spacing_blank_lines"] == 1
