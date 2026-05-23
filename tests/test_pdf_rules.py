@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 from njit_auditor.cli import app
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -488,6 +489,93 @@ def test_pdf_cli_command_runs_with_p016(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "P016" in result.output
+
+
+def test_figure_caption_with_terminal_punctuation_does_not_warn_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_figure_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 1.1 Sample figure caption ends properly.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_figure_caption_without_terminal_punctuation_warns_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_figure_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 2 Sample figure caption missing ending punctuation")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_table_title_with_acceptable_formatting_does_not_warn_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_table_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Table 3.4 Results Summary and Key Metrics")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_obvious_table_punctuation_problem_warns_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_table_punct_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Table 5 Results Summary..")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "table"
+    assert warning.details.get("issue_type") == "unexpected_terminal_period"
+
+
+def test_list_of_tables_entry_ending_with_period_warns_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_lot_period_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 140), "Table 1 Summary of Experimental Setup.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("issue_type") == "unexpected_terminal_period"
+
+
+def test_ambiguous_short_caption_is_ignored_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_short_ignored.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Fig. 1 Short")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_pdf_cli_command_runs_with_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_caption.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 2 Caption without terminal punctuation")
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P017" in result.output
 
 
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:

@@ -286,5 +286,23 @@
     "implementation_module": "njit_auditor.rules.pdf_spacing",
     "priority": "high",
     "notes": "Conservative heuristic; focuses on strong gap signals and groups repeated page-level warnings."
+  },
+  {
+    "id": "P017",
+    "section": "PDF caption and title formatting",
+    "question": "Do figure/table caption and title lines show obvious formatting issues?",
+    "rule_definition": "Heuristically detect obvious punctuation and high-confidence case-style anomalies in visible figure/table caption-like PDF lines.",
+    "remediation": "Review figure/table caption and list-entry punctuation/case formatting for consistency with thesis guidelines.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_captions",
+    "priority": "medium",
+    "notes": "Conservative caption-line heuristic; warns only on strong visible text-layer signals."
   }
 ]

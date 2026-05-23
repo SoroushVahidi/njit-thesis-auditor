@@ -9,8 +9,17 @@ from njit_auditor.comment_analysis import categorize_comment_text
 from njit_auditor.models import AuditFinding
 
 
-def map_finding_rule_to_category(rule_id: str) -> str:
+def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = None) -> str:
     """Map finding rule ids to coarse comparison categories."""
+
+    if rule_id == "P017":
+        issue_type = (details or {}).get("issue_type", "")
+        caption_type = (details or {}).get("caption_type", "")
+        if issue_type in {"missing_terminal_punctuation", "unexpected_terminal_period"}:
+            return "punctuation"
+        if caption_type == "figure":
+            return "figure_format"
+        return "table_format"
 
     mapping = {
         "P011": "margin_or_overflow",
@@ -42,5 +51,5 @@ def summarize_audit_findings(findings: list[AuditFinding]) -> dict[str, int]:
 
     counts: Counter[str] = Counter()
     for finding in findings:
-        counts[map_finding_rule_to_category(finding.rule_id)] += 1
+        counts[map_finding_rule_to_category(finding.rule_id, finding.details)] += 1
     return dict(sorted(counts.items()))
