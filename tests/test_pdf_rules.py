@@ -10,6 +10,7 @@ from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_rule
+from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 
 runner = CliRunner()
 
@@ -106,6 +107,11 @@ def _draw_paragraph(
     page.insert_text((first_x, y), "This is a synthetic paragraph line for indentation checks.")
     for idx in range(1, lines):
         page.insert_text((rest_x, y + (idx * 14)), "Continuation synthetic paragraph line text.")
+
+
+def _draw_spacing_lines(page: fitz.Page, y_positions: list[float], x: float = 108) -> None:
+    for idx, y in enumerate(y_positions):
+        page.insert_text((x, y), f"Synthetic spacing line {idx} with normal text content.")
 
 
 def test_page_number_candidate_detected(tmp_path: Path) -> None:
@@ -399,6 +405,89 @@ def test_pdf_cli_command_runs(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "PDF Layout Findings" in result.output
     assert "P015" in result.output
+
+
+def test_normal_spacing_does_not_warn_for_p016(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "spacing_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_spacing_lines(page, [140, 154, 168, 182, 196, 210])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_spacing(model)
+    assert not any(f.rule_id == "P016" for f in findings)
+
+
+def test_obvious_large_blank_gap_warns_for_p016(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "spacing_large_gap.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 168, 240, 254, 326])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_spacing(model) if f.rule_id == "P016"]
+    assert warnings
+    assert any(f.details.get("issue_type") == "excessive_line_gap" for f in warnings)
+
+
+def test_repeated_excessive_gaps_grouped_for_p016(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "spacing_grouped.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 230, 244, 320, 334])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [
+        f
+        for f in check_pdf_spacing(model)
+        if f.rule_id == "P016" and f.details.get("issue_type") == "excessive_line_gap"
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("affected_gap_count") == "2"
+
+
+def test_page_number_line_ignored_for_p016(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "spacing_ignore_page_number.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_spacing_lines(page, [140, 154, 168])
+    page.insert_text((300, 770), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_spacing(model)
+    assert not any(f.rule_id == "P016" for f in findings)
+
+
+def test_toc_like_page_ignored_for_p016(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "spacing_ignore_toc.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 230, 244])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_spacing(model)
+    assert not any(f.rule_id == "P016" for f in findings)
+
+
+def test_pdf_cli_command_runs_with_p016(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_spacing.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 230, 244])
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P016" in result.output
 
 
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:

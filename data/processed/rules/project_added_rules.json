@@ -268,5 +268,23 @@
     "implementation_module": "njit_auditor.rules.pdf_indentation",
     "priority": "high",
     "notes": "Conservative heuristic; ignores heading lines, page numbers, and TOC/list pages."
+  },
+  {
+    "id": "P016",
+    "section": "PDF spacing and blank lines",
+    "question": "Are there likely excessive spacing or blank-line issues in PDF text layout?",
+    "rule_definition": "Heuristically detect strong blank-line and vertical-spacing anomalies from extracted text-line geometry.",
+    "remediation": "Reduce unintended blank lines and excessive vertical gaps, especially around front-matter headings and paragraph transitions.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_spacing",
+    "priority": "high",
+    "notes": "Conservative heuristic; focuses on strong gap signals and groups repeated page-level warnings."
   }
 ]
