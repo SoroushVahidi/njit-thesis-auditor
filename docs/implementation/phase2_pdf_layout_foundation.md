@@ -24,6 +24,7 @@ Initial checks implemented:
 - `P015`: paragraph indentation heuristics for front-matter/body text
 - `P016`: spacing/blank-line heuristics for front-matter pages
 - `P017`: caption/title punctuation and case heuristics for figure/table lines
+- `P018`: TOC/list alignment heuristics for entry formatting consistency
 
 P014 checks (heuristic):
 
@@ -73,6 +74,18 @@ P017 checks (heuristic, conservative):
 - includes optional low-confidence case-style hints only for sufficiently long captions
 - ignores ambiguous short lines and non-caption regions (for example TOC/references)
 
+P018 checks (heuristic, conservative):
+
+- runs only on pages with named headings:
+  `TABLE OF CONTENTS`, `LIST OF TABLES`, `LIST OF FIGURES`
+- extracts likely entry lines below heading and infers right-side page-number tokens
+- checks grouped page-level issues:
+  - page-number column misalignment (right-edge outliers)
+  - likely entries missing page-number tokens
+  - inconsistent visible leader-dot usage when dot style is dominant
+  - obvious hierarchy indentation outliers
+- groups repeated same-page issues by issue type to reduce noise
+
 P011 refinement notes:
 
 - Uses line-level geometry (instead of only broad block boxes) where available.
@@ -95,6 +108,7 @@ Current limitations:
 - spacing thresholds depend on extracted line boxes and can be affected by PDF text-layer quirks
 - caption/title checks depend on text-layer extraction and can miss multi-line caption context
 - capitalization hints are intentionally conservative and may under-report style issues
+- TOC/list alignment checks depend on line reconstruction and may miss subtle hierarchy/style defects
 - optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
 

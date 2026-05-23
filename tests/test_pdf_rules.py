@@ -12,6 +12,7 @@ from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbers import run_pdf_page_number_candidates_rule
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
+from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 
 runner = CliRunner()
 
@@ -113,6 +114,13 @@ def _draw_paragraph(
 def _draw_spacing_lines(page: fitz.Page, y_positions: list[float], x: float = 108) -> None:
     for idx, y in enumerate(y_positions):
         page.insert_text((x, y), f"Synthetic spacing line {idx} with normal text content.")
+
+
+def _draw_toc_entry(
+    page: fitz.Page, y: float, label_x: float, label: str, page_num_x: float
+) -> None:
+    page.insert_text((label_x, y), label)
+    page.insert_text((page_num_x, y), "12")
 
 
 def test_page_number_candidate_detected(tmp_path: Path) -> None:
@@ -576,6 +584,118 @@ def test_pdf_cli_command_runs_with_p017(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "P017" in result.output
+
+
+def test_aligned_toc_entries_do_not_warn_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_aligned.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 500)
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_alignment(model)
+    assert not any(f.rule_id == "P018" for f in findings)
+
+
+def test_misaligned_toc_page_number_warns_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_misaligned_page_num.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 465)
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    assert any(f.details.get("issue_type") == "misaligned_page_number_column" for f in warnings)
+
+
+def test_missing_page_number_warns_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_missing_page_number.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    page.insert_text((108, 180), "Chapter 3 Results ....")
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    assert any(f.details.get("issue_type") == "missing_page_number" for f in warnings)
+
+
+def test_inconsistent_leader_dots_warns_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_inconsistent_dots.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 500)
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion", 500)
+    _draw_toc_entry(page, 220, 108, "Chapter 5 Conclusion ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    assert any(f.details.get("issue_type") == "inconsistent_leader_dots" for f in warnings)
+
+
+def test_hierarchy_indent_outlier_warns_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_indent_outlier.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 500)
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
+    _draw_toc_entry(page, 220, 108, "Chapter 5 Conclusion ....", 500)
+    _draw_toc_entry(page, 240, 160, "Odd Entry Indent ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    assert any(f.details.get("issue_type") == "inconsistent_hierarchy_indent" for f in warnings)
+
+
+def test_non_toc_page_is_ignored_for_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_ignore_non_toc.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 470)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_alignment(model)
+    assert not any(f.rule_id == "P018" for f in findings)
+
+
+def test_pdf_cli_command_runs_with_p018(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_toc_alignment.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 465)
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P018" in result.output
 
 
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:
