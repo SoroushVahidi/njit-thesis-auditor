@@ -278,7 +278,8 @@ def test_later_paragraph_missing_indent_warns(tmp_path: Path) -> None:
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     _draw_paragraph(page, first_x=190, rest_x=108, y=140)
-    _draw_paragraph(page, first_x=108, rest_x=108, y=210)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=280, lines=4)
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
@@ -361,14 +362,29 @@ def test_repeated_same_page_p015_warnings_are_grouped(tmp_path: Path) -> None:
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     _draw_paragraph(page, first_x=190, rest_x=108, y=140)
-    _draw_paragraph(page, first_x=108, rest_x=108, y=210)
-    _draw_paragraph(page, first_x=108, rest_x=108, y=280)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=280)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=350, lines=4)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=430, lines=4)
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
     assert len(findings) == 1
     assert findings[0].details.get("issue_type") == "missing_later_indent"
+
+
+def test_later_paragraph_missing_indent_low_style_confidence_is_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_later_low_style_confidence.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=210, lines=4)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
 
 
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:

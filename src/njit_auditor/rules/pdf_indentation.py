@@ -20,6 +20,9 @@ FIRST_LINE_INDENT_GROUP_TOLERANCE_PT = 96.0
 MAX_LINE_X_SPREAD_PT = 110.0
 MAX_FINDINGS_PER_PAGE_ISSUE = 1
 NEGATIVE_INDENT_IGNORE_PT = -8.0
+MIN_LINES_FOR_MISSING_LATER_INDENT = 4
+MIN_LIKELY_INDENTED_PARAGRAPHS_FOR_PAGE_STYLE = 2
+MIN_INDENT_STYLE_CONFIDENCE_RATIO = 0.6
 
 TOC_LIKE_HEADINGS = {
     "TABLE OF CONTENTS",
@@ -153,6 +156,10 @@ def _paragraph_is_low_confidence(paragraph: list[PdfTextLine]) -> bool:
     return (max(x_values) - min(x_values)) > MAX_LINE_X_SPREAD_PT
 
 
+def _is_likely_expected_indent(indent_pt: float) -> bool:
+    return abs(indent_pt - EXPECTED_NORMAL_INDENT_PT) <= INDENT_TOLERANCE_PT
+
+
 def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P015 warnings for strong likely indentation issues."""
 
@@ -166,12 +173,35 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         if not paragraphs:
             continue
 
-        seen_indented_paragraph = False
-        page_issue_findings: dict[str, AuditFinding] = {}
+        paragraph_data: list[tuple[int, list[PdfTextLine], float]] = []
         for idx, paragraph in enumerate(paragraphs):
             if _paragraph_is_low_confidence(paragraph):
                 continue
-            indent_pt = _paragraph_indent_pt(paragraph)
+            paragraph_data.append((idx, paragraph, _paragraph_indent_pt(paragraph)))
+        if not paragraph_data:
+            continue
+
+        likely_indented_count = 0
+        likely_not_indented_count = 0
+        for idx, paragraph, indent_pt in paragraph_data:
+            if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
+                likely_indented_count += 1
+            elif (
+                NEGATIVE_INDENT_IGNORE_PT <= indent_pt < STRONG_INDENT_THRESHOLD_PT
+                and len(paragraph) >= MIN_LINES_FOR_MISSING_LATER_INDENT
+            ):
+                likely_not_indented_count += 1
+
+        comparable_count = likely_indented_count + likely_not_indented_count
+        page_has_high_confidence_indent_style = (
+            likely_indented_count >= MIN_LIKELY_INDENTED_PARAGRAPHS_FOR_PAGE_STYLE
+            and comparable_count > 0
+            and (likely_indented_count / comparable_count) >= MIN_INDENT_STYLE_CONFIDENCE_RATIO
+        )
+
+        seen_indented_paragraph = False
+        page_issue_findings: dict[str, AuditFinding] = {}
+        for idx, paragraph, indent_pt in paragraph_data:
 
             # Strong case: opening abstract/front-matter paragraph should be flush-left.
             if page.page_number in abstract_pages and idx == 0:
@@ -203,10 +233,12 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
 
             # Strong case: later paragraph likely expected to have first-line indent.
             if idx >= 1:
-                likely_indented = (
-                    abs(indent_pt - EXPECTED_NORMAL_INDENT_PT) <= INDENT_TOLERANCE_PT
-                )
+                likely_indented = _is_likely_expected_indent(indent_pt)
                 if likely_indented or not seen_indented_paragraph:
+                    continue
+                if not page_has_high_confidence_indent_style:
+                    continue
+                if len(paragraph) < MIN_LINES_FOR_MISSING_LATER_INDENT:
                     continue
                 if NEGATIVE_INDENT_IGNORE_PT <= indent_pt < STRONG_INDENT_THRESHOLD_PT:
                     existing = page_issue_findings.get("missing_later_indent")
@@ -224,7 +256,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "indent_pt": f"{indent_pt:.1f}",
                             "expected": "first_line_indent_approx_36pt",
                             "paragraph_line_count": str(len(paragraph)),
-                            "confidence": "medium",
+                            "confidence": "high",
                             "suggested_fix": (
                                 "Apply consistent first-line indentation "
                                 "for non-opening paragraphs."

@@ -7,8 +7,8 @@
 ## Result Summary
 
 - Previous `P015` finding count: `136`
-- New `P015` finding count: `36`
-- Reduction: `100` findings (`73.5%` reduction)
+- New `P015` finding count: `13`
+- Reduction: `123` findings (`90.4%` reduction)
 
 ## What Was Filtered in Refinement
 
@@ -20,6 +20,8 @@
 - Added low-confidence paragraph exclusion (for weak grouping patterns).
 - Grouped repeated same-page `P015` warnings to at most one finding per page per issue type.
 - Ignored strong negative-indent artifacts for missing-indent warnings.
+- Added page-level indent-style confidence gating for `missing_later_indent` (only warn when the page strongly suggests an indented-body style).
+- Required longer paragraphs for `missing_later_indent` warnings.
 
 ## High-Level Remaining Issue Types
 
