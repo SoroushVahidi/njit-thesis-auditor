@@ -33,11 +33,14 @@ The command currently:
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
+njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
 This command runs the Phase 2 layout foundation checks on digital PDFs:
 page-size extraction, page-number candidates, possible margin-boundary text,
 and annotation/comment detection.
+Optional `--json-out` and `--md-out` outputs write structured reports for
+office/student review workflows.
 
 ## LaTeX source-only audit
 

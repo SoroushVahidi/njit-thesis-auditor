@@ -20,6 +20,7 @@ from njit_auditor.pdf_comments import (
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_loader import load_document_info
 from njit_auditor.report import render_pdf_layout_report, render_report, render_tex_report
+from njit_auditor.report_outputs import write_json_report, write_markdown_report
 from njit_auditor.rules.abstract import run_abstract_checks
 from njit_auditor.rules.latex_abstract import run_latex_abstract_checks
 from njit_auditor.rules.latex_figures_tables import run_latex_figure_table_checks
@@ -107,7 +108,11 @@ def tex(main_tex_path: str, linters: bool = False) -> None:
 
 
 @app.command()
-def pdf(pdf_path: str) -> None:
+def pdf(
+    pdf_path: str,
+    json_out: str | None = typer.Option(None, "--json-out", help="Path to JSON report output."),
+    md_out: str | None = typer.Option(None, "--md-out", help="Path to Markdown report output."),
+) -> None:
     """Run Phase 2 foundation PDF layout audit."""
 
     input_path = Path(pdf_path)
@@ -141,6 +146,30 @@ def pdf(pdf_path: str) -> None:
         page_sizes=page_sizes,
         findings=findings,
     )
+
+    report_metadata = {
+        "input_file_path": str(input_path),
+        "input_file_name": input_path.name,
+        "audit_type": "pdf",
+    }
+    if json_out:
+        json_path = Path(json_out)
+        try:
+            write_json_report(findings, report_metadata, json_path)
+        except OSError as exc:
+            console.print(f"[red]Unable to write JSON report:[/red] {json_path}")
+            console.print(f"[yellow]Reason:[/yellow] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(f"[green]JSON report:[/green] {json_path}")
+    if md_out:
+        md_path = Path(md_out)
+        try:
+            write_markdown_report(findings, report_metadata, md_path)
+        except OSError as exc:
+            console.print(f"[red]Unable to write Markdown report:[/red] {md_path}")
+            console.print(f"[yellow]Reason:[/yellow] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(f"[green]Markdown report:[/green] {md_path}")
 
 
 @pdf_comments_app.command("extract")

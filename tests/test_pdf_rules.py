@@ -698,6 +698,38 @@ def test_pdf_cli_command_runs_with_p018(tmp_path: Path) -> None:
     assert "P018" in result.output
 
 
+def test_pdf_cli_json_report_output_works(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_report_json.pdf"
+    json_out = tmp_path / "out" / "report.json"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 230, 244])
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    assert json_out.exists()
+    assert "\"total_findings\"" in json_out.read_text(encoding="utf-8")
+    assert "JSON report" in result.output
+
+
+def test_pdf_cli_markdown_report_output_works(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_report_md.pdf"
+    md_out = tmp_path / "out" / "report.md"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 230, 244])
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--md-out", str(md_out)])
+    assert result.exit_code == 0
+    assert md_out.exists()
+    assert "# NJIT PDF Audit Report" in md_out.read_text(encoding="utf-8")
+    assert "Markdown report" in result.output
+
+
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:
     pdf_path = tmp_path / "broken.pdf"
     pdf_path.write_text("not a pdf")

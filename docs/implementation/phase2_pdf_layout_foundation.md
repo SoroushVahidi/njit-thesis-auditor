@@ -15,6 +15,10 @@ Backend:
 - First backend: PyMuPDF (`fitz`)
 - Coordinates are represented in PDF points.
 
+PDF command supports optional structured output paths:
+
+- `njit-audit pdf thesis.pdf --json-out report.json --md-out report.md`
+
 Initial checks implemented:
 
 - `P013`: page-number candidate detection in top/bottom zones
@@ -111,6 +115,7 @@ Current limitations:
 - TOC/list alignment checks depend on line reconstruction and may miss subtle hierarchy/style defects
 - optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
+- structured report output is summary-oriented and intentionally avoids long text excerpts
 
 ## PDF Comment Workflow (Local-Only)
 
