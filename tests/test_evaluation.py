@@ -13,6 +13,12 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P014") == "heading_title"
     assert map_finding_rule_to_category("P015") == "indentation"
     assert map_finding_rule_to_category("P016") == "spacing_blank_lines"
+    assert map_finding_rule_to_category("P017", {"caption_type": "table"}) == "table_format"
+    assert map_finding_rule_to_category("P017", {"caption_type": "figure"}) == "figure_format"
+    assert (
+        map_finding_rule_to_category("P017", {"issue_type": "missing_terminal_punctuation"})
+        == "punctuation"
+    )
     assert map_finding_rule_to_category("Q004") == "abstract_language"
     assert map_finding_rule_to_category("Q006") == "title_page_metadata"
     assert map_finding_rule_to_category("UNKNOWN") == "other"
@@ -40,6 +46,24 @@ def test_summarize_audit_findings_counts() -> None:
         AuditFinding(rule_id="P014", severity=Severity.WARNING, message="h"),
         AuditFinding(rule_id="P015", severity=Severity.WARNING, message="i"),
         AuditFinding(rule_id="P016", severity=Severity.WARNING, message="s"),
+        AuditFinding(
+            rule_id="P017",
+            severity=Severity.WARNING,
+            message="t",
+            details={"caption_type": "table", "issue_type": "possible_title_case_issue"},
+        ),
+        AuditFinding(
+            rule_id="P017",
+            severity=Severity.WARNING,
+            message="f",
+            details={"caption_type": "figure", "issue_type": "possible_sentence_case_issue"},
+        ),
+        AuditFinding(
+            rule_id="P017",
+            severity=Severity.WARNING,
+            message="p",
+            details={"caption_type": "figure", "issue_type": "missing_terminal_punctuation"},
+        ),
         AuditFinding(rule_id="UNKNOWN", severity=Severity.WARNING, message="x"),
     ]
     summary = summarize_audit_findings(findings)
@@ -48,4 +72,7 @@ def test_summarize_audit_findings_counts() -> None:
     assert summary["heading_title"] == 1
     assert summary["indentation"] == 1
     assert summary["spacing_blank_lines"] == 1
+    assert summary["table_format"] == 1
+    assert summary["figure_format"] == 1
+    assert summary["punctuation"] == 1
     assert summary["other"] == 1

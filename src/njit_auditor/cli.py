@@ -29,6 +29,7 @@ from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_chec
 from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.page_numbers import run_page_number_rule
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -128,6 +129,7 @@ def pdf(pdf_path: str) -> None:
     findings.extend(check_named_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))
+    findings.extend(check_pdf_captions(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 
     page_sizes = [(page.page_number, page.width, page.height) for page in pdf_doc.pages]
