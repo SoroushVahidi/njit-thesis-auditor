@@ -69,6 +69,7 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 More docs:
 - `docs/status/phase1_milestone_summary.md`
 - `docs/status/phase1_tex_finalization_status.md`
+- `docs/status/phase2_pdf_milestone_summary.md`
 - `docs/demo/phase1_tex_demo.md`
 - `docs/rules/rule_inventory.md`
 
