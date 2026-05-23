@@ -29,6 +29,7 @@ Initial checks implemented:
 - `P016`: spacing/blank-line heuristics for front-matter pages
 - `P017`: caption/title punctuation and case heuristics for figure/table lines
 - `P018`: TOC/list alignment heuristics for entry formatting consistency
+- `P019`: page-number sequence/style heuristics on candidate page numbers
 
 P014 checks (heuristic):
 
@@ -90,6 +91,18 @@ P018 checks (heuristic, conservative):
   - obvious hierarchy indentation outliers
 - groups repeated same-page issues by issue type to reduce noise
 
+P019 checks (heuristic, conservative):
+
+- builds on page-number candidate detection from top/bottom page zones
+- classifies candidate style (`arabic`, `roman_lower`, `roman_upper`) and position
+- flags only obvious grouped issues:
+  - likely missing page number when neighboring pages have candidates
+  - multiple page-number candidates on one page
+  - inconsistent page-number position vs dominant pattern
+  - obvious candidate sequence gaps
+  - mixed numbering styles in candidate regions
+- does not yet enforce full NJIT policy-specific page-number rules
+
 P011 refinement notes:
 
 - Uses line-level geometry (instead of only broad block boxes) where available.
@@ -113,6 +126,7 @@ Current limitations:
 - caption/title checks depend on text-layer extraction and can miss multi-line caption context
 - capitalization hints are intentionally conservative and may under-report style issues
 - TOC/list alignment checks depend on line reconstruction and may miss subtle hierarchy/style defects
+- page-number sequence/style checks are candidate-based and may over/under-detect in complex layouts
 - optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
 - structured report output is summary-oriented and intentionally avoids long text excerpts

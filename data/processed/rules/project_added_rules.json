@@ -322,5 +322,23 @@
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
     "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages."
+  },
+  {
+    "id": "P019",
+    "section": "PDF page-number sequence and style",
+    "question": "Do page-number candidates show obvious sequence, style, or position inconsistencies?",
+    "rule_definition": "Heuristically validate obvious page-number sequence/style issues using detected page-number candidates across pages.",
+    "remediation": "Review page-number visibility, position, style consistency, and sequence continuity.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_page_numbers",
+    "priority": "high",
+    "notes": "Conservative candidate-based sequence/style check; does not yet enforce full NJIT policy."
   }
 ]
