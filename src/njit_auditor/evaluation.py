@@ -18,6 +18,7 @@ def map_finding_rule_to_category(rule_id: str) -> str:
         "P013": "page_numbering",
         "P014": "heading_title",
         "P015": "indentation",
+        "P016": "spacing_blank_lines",
         "Q004": "abstract_language",
         "Q005": "abstract_language",
         "Q006": "title_page_metadata",

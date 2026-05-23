@@ -22,6 +22,7 @@ Initial checks implemented:
 - `P012`: PDF annotations/comments detection
 - `P014`: named front-matter heading layout/style heuristics
 - `P015`: paragraph indentation heuristics for front-matter/body text
+- `P016`: spacing/blank-line heuristics for front-matter pages
 
 P014 checks (heuristic):
 
@@ -47,6 +48,19 @@ P015 checks (heuristic, conservative):
 - excludes likely references/bibliography pages, captions, and list/bullet patterns
 - groups repeated same-page findings per issue type to reduce noise
 
+P016 checks (heuristic, conservative):
+
+- line-level spacing checks on text-layer geometry
+- currently focused on named front-matter pages only
+- ignores page-number-like lines, TOC/list pages, and references-like pages
+- skips likely caption-heavy noise patterns
+- computes adaptive spacing thresholds from median extracted line height
+- flags only strong spacing cases:
+  - suspiciously large blank gap after a front-matter heading
+  - excessive blank space between likely paragraph groups
+  - repeated excessive line gaps on the same page
+- groups repeated same-page findings by issue type to reduce noise
+
 P011 refinement notes:
 
 - Uses line-level geometry (instead of only broad block boxes) where available.
@@ -65,6 +79,8 @@ Current limitations:
 - indentation checks are heuristic and sensitive to PDF line segmentation artifacts
 - paragraph grouping uses geometric thresholds and may over/under-group in complex layouts
 - current missing-indent detection is conservative and may miss subtle cases
+- spacing checks are front-matter-focused and can miss issues outside named front matter
+- spacing thresholds depend on extracted line boxes and can be affected by PDF text-layer quirks
 - optional front-matter sections are not yet required to exist in every PDF
 - heuristic foundation checks, not final NJIT compliance verdicts
 
