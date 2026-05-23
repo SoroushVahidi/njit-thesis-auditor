@@ -76,6 +76,7 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md`
 - `docs/status/current_capabilities_for_graduate_studies.md`
 - `docs/demo/phase1_tex_demo.md`
+- `docs/demo/graduate_studies_pdf_audit_workflow.md`
 - `docs/rules/rule_inventory.md`
 
 ## Roadmap
