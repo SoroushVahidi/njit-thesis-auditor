@@ -12,6 +12,14 @@ from njit_auditor.models import AuditFinding
 def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = None) -> str:
     """Map finding rule ids to coarse comparison categories."""
 
+    if rule_id == "P025":
+        issue_type = (details or {}).get("issue_type", "")
+        if issue_type == "missing_abstract_body":
+            return "abstract_length"
+        if "title_page" in issue_type:
+            return "title_page_metadata"
+        return "frontmatter_structure"
+
     if rule_id == "P024":
         issue_type = (details or {}).get("issue_type", "")
         if issue_type == "unexpected_terminal_punctuation":

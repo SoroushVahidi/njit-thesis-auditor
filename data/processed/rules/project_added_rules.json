@@ -413,5 +413,23 @@
     "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
     "priority": "high",
     "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization, list_of_tables_title_case, list_of_figures_sentence_case, unexpected_terminal_punctuation."
+  },
+  {
+    "id": "P025",
+    "section": "PDF front-matter structure",
+    "question": "Do required front-matter pages contain expected structural elements?",
+    "rule_definition": "Heuristically detect missing or sparse required elements in front-matter pages: (A) Abstract page has body text; (B) early pages contain a degree phrase and institution name; (C) Approval page has non-sparse body content; (D) Abstract appears before Table of Contents.",
+    "remediation": "Ensure the Abstract page has body text, the title page includes the degree and institution name, the Approval page contains committee/signature content, and front-matter pages appear in the required order.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_structure",
+    "priority": "high",
+    "notes": "Conservative heuristic. Sources: Thesis and Dissertation Formatting Guidelines (WIP).docx; Front Matter Pages Lorem Ipsum.pdf; PhD Title Pages.pdf. Does not duplicate P014 (heading style) or P021 (abstract word count). Title page check guarded by presence of named front-matter headings and minimum page count. issue_type values: missing_abstract_body, missing_title_page_degree_phrase, missing_title_page_institution, sparse_approval_page_content, possible_frontmatter_order_issue."
   }
 ]
