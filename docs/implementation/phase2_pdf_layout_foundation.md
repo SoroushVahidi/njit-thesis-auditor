@@ -31,6 +31,7 @@ Initial checks implemented:
 - `P018`: TOC/list alignment heuristics for entry formatting consistency
 - `P019`: page-number sequence/style heuristics on candidate page numbers
 - `P020`: title-case capitalization heuristics for Level 2 headings and table titles
+- `P021`: abstract word-count check on Abstract page (conservative; single-page extraction)
 
 P014 checks (heuristic):
 

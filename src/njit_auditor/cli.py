@@ -22,13 +22,17 @@ from njit_auditor.pdf_loader import load_document_info
 from njit_auditor.report import render_pdf_layout_report, render_report, render_tex_report
 from njit_auditor.report_outputs import write_json_report, write_markdown_report
 from njit_auditor.rules.abstract import run_abstract_checks
-from njit_auditor.rules.latex_abstract import run_latex_abstract_checks
+from njit_auditor.rules.latex_abstract import (
+    run_latex_abstract_checks,
+    run_latex_abstract_word_count_check,
+)
 from njit_auditor.rules.latex_figures_tables import run_latex_figure_table_checks
 from njit_auditor.rules.latex_labels import run_latex_label_checks
 from njit_auditor.rules.latex_metadata import run_latex_graduation_month_check
 from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_checks
 from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.page_numbers import run_page_number_rule
+from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
@@ -56,6 +60,7 @@ def collect_tex_findings(
     project = load_tex_project(input_path)
     findings: list[AuditFinding] = []
     findings.extend(run_latex_abstract_checks(project))
+    findings.extend(run_latex_abstract_word_count_check(project))
     findings.extend(run_latex_graduation_month_check(project))
     findings.extend(run_latex_structure_checks(project))
     findings.extend(run_latex_risky_command_checks(project))
@@ -138,6 +143,7 @@ def pdf(
     findings.extend(check_pdf_page_number_sequence(pdf_doc))
     findings.extend(run_pdf_margin_rule(pdf_doc))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
+    findings.extend(check_pdf_abstract_word_count(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))
     findings.extend(check_pdf_captions(pdf_doc))

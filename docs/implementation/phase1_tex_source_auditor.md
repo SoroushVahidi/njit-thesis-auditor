@@ -14,6 +14,7 @@ Implemented capabilities:
 - recursive `\input{}` and `\include{}` loading
 - abstract forbidden-term detection (with `pylatexenc`-based LaTeX-to-text cleanup)
 - abstract first-person pronoun detection (with `pylatexenc`-based LaTeX-to-text cleanup)
+- abstract word-count validation with degree-type inference (PhD ≤350, MS ≤150)
 - graduation month heuristic checks
 - required TeX structure presence checks
 - risky formatting command checks
@@ -25,6 +26,7 @@ Ester rule coverage in Phase 1:
 
 - Q004: implemented
 - Q005: implemented
+- P021: implemented (abstract word-count; no Q-rule equivalent in Q001–Q079)
 - Q006: partially implemented (heuristic metadata/title-page context detection, prioritizing
   `\date{...}`/`graduation...`-style macros)
 

@@ -358,5 +358,24 @@
     "implementation_module": "njit_auditor.rules.pdf_title_capitalization",
     "priority": "medium",
     "notes": "Conservative heuristic; applies only to bold headings and table titles. Preserves all-caps acronyms (PDF, AI, NJIT). Skips hyphenated words and math tokens. Sources: data/raw/guidelines/Titles Examples Level 1 to 5.docx; data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx."
+  },
+  {
+    "id": "P021",
+    "section": "Abstract word count",
+    "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
+    "rule_definition": "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
+    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "tex_source",
+    "checkability": "heuristic",
+    "input_required": [
+      "tex_source",
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.latex_abstract",
+    "priority": "high",
+    "notes": "LaTeX-side: degree type inferred from source; counts words after LaTeX stripping. PDF-side (pdf_abstract.py): single-page abstract extraction, conservative PhD threshold when type unknown. Source: data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx."
   }
 ]
