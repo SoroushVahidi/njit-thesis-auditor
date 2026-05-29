@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 from njit_auditor.cli import app
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
@@ -1139,3 +1140,106 @@ def test_p020_cli_pdf_run_includes_p020(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "P020" in result.output
+
+
+# ---------------------------------------------------------------------------
+# P021: PDF abstract word-count tests
+# ---------------------------------------------------------------------------
+
+
+def _make_pdf_with_abstract(
+    path: Path,
+    abstract_word_count: int,
+    include_abstract_heading: bool = True,
+) -> None:
+    body = " ".join(f"word{i}" for i in range(abstract_word_count))
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    if include_abstract_heading:
+        page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), body[:500], fontsize=12)
+    if len(body) > 500:
+        page.insert_text((108, 400), body[500:900], fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_pdf_abstract_under_phd_limit_no_p021(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "abstract_ok.pdf"
+    _make_pdf_with_abstract(pdf_path, abstract_word_count=50)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_word_count(model)
+    assert not any(f.rule_id == "P021" for f in findings)
+
+
+def test_pdf_abstract_over_phd_limit_warns_p021(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "abstract_over.pdf"
+    # Write 360 words of body text after ABSTRACT heading
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    # Insert lines of ~10 words each to total >350
+    y = 130
+    words_written = 0
+    while words_written < 360 and y < 750:
+        line = " ".join(f"word{words_written + i}" for i in range(10))
+        page.insert_text((108, y), line, fontsize=12)
+        y += 14
+        words_written += 10
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_word_count(model)
+    warning = next((f for f in findings if f.rule_id == "P021"), None)
+    assert warning is not None
+    assert int(warning.details["word_count"]) > 350
+
+
+def test_pdf_no_abstract_heading_no_p021(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "no_abstract.pdf"
+    _make_pdf_with_abstract(pdf_path, abstract_word_count=400, include_abstract_heading=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_word_count(model)
+    assert not any(f.rule_id == "P021" for f in findings)
+
+
+def test_pdf_abstract_word_count_detail_fields(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "abstract_detail.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    y = 130
+    words_written = 0
+    while words_written < 360 and y < 750:
+        line = " ".join(f"word{words_written + i}" for i in range(10))
+        page.insert_text((108, y), line, fontsize=12)
+        y += 14
+        words_written += 10
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_word_count(model)
+    warning = next(f for f in findings if f.rule_id == "P021")
+    assert "word_count" in warning.details
+    assert "limit" in warning.details
+    assert "inferred_degree_type" in warning.details
+    assert "confidence" in warning.details
+
+
+def test_pdf_cli_command_runs_with_p021(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_p021.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    y = 130
+    words_written = 0
+    while words_written < 360 and y < 750:
+        line = " ".join(f"word{words_written + i}" for i in range(10))
+        page.insert_text((108, y), line, fontsize=12)
+        y += 14
+        words_written += 10
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P021" in result.output

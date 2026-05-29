@@ -219,7 +219,7 @@ evaluation dataset. They are automatable with moderate effort.
 
 | Priority | Rule Area | Guideline Source | Implementation Approach | Estimated Complexity |
 |----------|-----------|-----------------|------------------------|----------------------|
-| 🔴 HIGH | Abstract word-count (PhD ≤350, MS ≤150) | Formatting Guidelines | Count words from PDF/TeX abstract text block | Low — text extraction + word count |
+| ✅ DONE | Abstract word-count (PhD ≤350, MS ≤150) | Formatting Guidelines | P021 implemented — LaTeX + PDF modes | See `docs/evaluation/abstract_word_count_evaluation.md` |
 | 🔴 HIGH | P020 font-size fallback for heading detection | Titles Examples | Add font-size ≥ body heuristic when bold metadata absent | Medium — requires font-size distribution analysis |
 | 🔴 HIGH | Acknowledgements paragraph order and key words | Self-Assessment Sheet | Keyword/pattern matching per paragraph | Medium — fragile on varied writing |
 | 🔴 HIGH | Body text double-spacing (line height ≥ ~2× font size) | Formatting Guidelines | Check median line spacing in body blocks | Medium — geometry extraction |
