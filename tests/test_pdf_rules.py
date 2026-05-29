@@ -9,6 +9,9 @@ from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
+from njit_auditor.rules.pdf_frontmatter_no_page_number import (
+    check_pdf_frontmatter_no_page_number,
+)
 from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
@@ -2083,3 +2086,219 @@ def test_p025_text_based_title_missing_institution_still_warns(tmp_path: Path) -
         f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_institution"
         for f in findings
     )
+
+
+# ---------------------------------------------------------------------------
+# P022 — front-matter no visible page number tests
+# ---------------------------------------------------------------------------
+
+
+def test_p022_abstract_without_visible_page_number_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_abstract_clean.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "This dissertation presents research on formatting.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_no_page_number(model)
+    assert not any(f.rule_id == "P022" for f in findings)
+
+
+def test_p022_abstract_with_visible_page_number_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_abstract_num.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "Abstract body text here.", fontsize=12)
+    page.insert_text((300, 770), "ii", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("page_type") == "abstract"
+    assert warnings[0].details.get("issue_type") == "visible_page_number_on_no_number_page"
+    assert warnings[0].details.get("source_q_rule_id") == "Q001"
+
+
+def test_p022_title_page_without_visible_page_number_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_title_clean.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((200, 300), "Thesis Title", fontsize=24)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page2.insert_text((108, 200), "Abstract text.", fontsize=12)
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((108, 200), "Chapter content.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_no_page_number(model)
+    # No page-number candidate on title page or abstract page.
+    assert not any(f.rule_id == "P022" for f in findings)
+
+
+def test_p022_title_page_with_visible_page_number_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_title_num.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((200, 300), "Thesis Title", fontsize=24)
+    page1.insert_text((300, 770), "1", fontsize=12)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page2.insert_text((108, 200), "Abstract body text.", fontsize=12)
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((108, 200), "Chapter content.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    assert any(w.details.get("page_type") == "title_page" for w in warnings)
+    title_warning = next(w for w in warnings if w.details.get("page_type") == "title_page")
+    assert title_warning.details.get("source_q_rule_id") == "Q008"
+
+
+def test_p022_year_on_title_page_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_title_year.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((200, 300), "Thesis Title", fontsize=24)
+    page1.insert_text((300, 770), "2024", fontsize=12)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page2.insert_text((108, 200), "Abstract body text.", fontsize=12)
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((108, 200), "Chapter content.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    # Year 2024 in bottom zone should be suppressed on title page.
+    assert not any(w.details.get("page_type") == "title_page" for w in warnings)
+
+
+def test_p022_approval_page_with_visible_page_number_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_approval_num.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "APPROVAL PAGE", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "Dr. Advisor Name", fontsize=12)
+    page.insert_text((108, 220), "Dr. Committee Member", fontsize=12)
+    page.insert_text((300, 770), "iii", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("page_type") == "approval_page"
+    assert warnings[0].details.get("source_q_rule_id") == "Q014"
+
+
+def test_p022_copyright_page_with_visible_page_number_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_copyright_num.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((200, 300), "Thesis Title", fontsize=24)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((200, 400), "© 2024 Author Name. All Rights Reserved.", fontsize=12)
+    page2.insert_text((300, 770), "2", fontsize=12)
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page3.insert_text((108, 200), "Abstract text.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    assert any(w.details.get("page_type") == "copyright_page" for w in warnings)
+    cr_warning = next(w for w in warnings if w.details.get("page_type") == "copyright_page")
+    assert cr_warning.details.get("source_q_rule_id") == "Q012"
+
+
+def test_p022_body_page_with_page_number_no_p022(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_body_num.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page1.insert_text((108, 200), "Abstract text.", fontsize=12)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((108, 200), "Chapter 1 body text.", fontsize=12)
+    page2.insert_text((300, 770), "5", fontsize=12)
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((108, 200), "More body text.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    # Page 2 is a body page and should not trigger P022.
+    assert not any(w.page == 2 for w in warnings)
+
+
+def test_p022_toc_page_with_page_number_no_p022(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_toc_num.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page1.insert_text((108, 200), "Abstract text.", fontsize=12)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page2.insert_text((300, 770), "iv", fontsize=12)
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((108, 200), "Body text.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    # TOC pages are expected to have Roman numeral page numbers — not a no-number page.
+    assert not any(w.page == 2 for w in warnings)
+
+
+def test_p022_one_finding_per_page_with_multiple_candidates(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_abstract_multi.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "Abstract body text.", fontsize=12)
+    page.insert_text((300, 50), "ii", fontsize=12)
+    page.insert_text((300, 770), "ii", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+    assert len(warnings) == 1
+    assert int(warnings[0].details.get("candidate_count", "0")) >= 2
+
+
+def test_p022_cli_pdf_includes_p022(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p022_cli.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "Abstract body text.", fontsize=12)
+    page.insert_text((300, 770), "iii", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P022" in result.output
+
+
+def test_p022_json_report_includes_p022_when_triggered(tmp_path: Path) -> None:
+    import json as _json
+
+    pdf_path = tmp_path / "p022_json.pdf"
+    json_path = tmp_path / "p022_report.json"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "Abstract body text.", fontsize=12)
+    page.insert_text((300, 770), "iii", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_path)])
+    assert result.exit_code == 0
+    data = _json.loads(json_path.read_text())
+    rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
+    assert "P022" in rule_ids

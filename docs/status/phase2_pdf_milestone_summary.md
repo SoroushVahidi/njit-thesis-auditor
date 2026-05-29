@@ -27,7 +27,7 @@ njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comm
 njit-audit pdf-comments clean input.pdf --out clean.pdf
 ```
 
-## 4) Implemented PDF Rules (P011–P025)
+## 4) Implemented PDF Rules (P011–P025, including P022)
 
 - `P011` margin detection
   - Detects likely text crossing assumed NJIT margin bounds.
@@ -71,6 +71,12 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Based on `Titles Examples Level 1 to 5.docx` guideline: Level 2 uses Title Case.
   - Skips body paragraphs, figure captions (sentence case), references pages, and all-caps labels.
   - Preserves all-caps acronyms; skips hyphenated words and math tokens conservatively.
+  - Manual review required.
+- `P022` front-matter no visible page number
+  - Checks Abstract, Title, Approval, and Copyright pages for visible page-number candidates.
+  - Uses P013-style top/bottom zone detection targeted at confirmed named no-number pages.
+  - Year 1900–2099 tokens are suppressed on the title page to avoid graduation-year false positives.
+  - EF evaluation: 0 findings on all 4 EF PDFs (expected — late-stage reviews have this corrected).
   - Manual review required.
 - `P023` body-text double-spacing
   - Checks whether body-text line spacing is consistent with double-spacing (ratio ≥ 1.55×).
