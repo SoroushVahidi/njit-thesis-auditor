@@ -59,6 +59,17 @@ _INSTITUTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Fallback patterns for PDFs where inter-word spaces are absent in the text layer
+# (run-together text extraction artifact). Applied to the space-stripped combined text.
+_DEGREE_RE_NOSPACE = re.compile(
+    r"doctorofphilosophy|masterofscience|masterofarts|masterofengineering",
+    re.IGNORECASE,
+)
+_INSTITUTION_RE_NOSPACE = re.compile(
+    r"newjerseyinstituteoftechnology|njit",
+    re.IGNORECASE,
+)
+
 TITLE_PAGE_SCAN_PAGES = 4
 MIN_ABSTRACT_BODY_WORDS = 5
 MIN_APPROVAL_BODY_LINES = 3  # substantial lines (≥2 words each)
@@ -165,10 +176,20 @@ def _check_title_page_elements(pdf_document: PdfDocument) -> list[AuditFinding]:
 
     scan_pages = pdf_document.pages[:TITLE_PAGE_SCAN_PAGES]
     combined_text = " ".join(_page_all_text(p) for p in scan_pages)
+    # Space-stripped fallback: handles PDFs where words are merged in the text layer
+    # (e.g. "DoctorofPhilosophy" instead of "Doctor of Philosophy").
+    combined_nospace = combined_text.replace(" ", "")
+
+    has_degree = bool(
+        _DEGREE_RE.search(combined_text) or _DEGREE_RE_NOSPACE.search(combined_nospace)
+    )
+    has_institution = bool(
+        _INSTITUTION_RE.search(combined_text) or _INSTITUTION_RE_NOSPACE.search(combined_nospace)
+    )
 
     findings: list[AuditFinding] = []
 
-    if not _DEGREE_RE.search(combined_text):
+    if not has_degree:
         findings.append(
             AuditFinding(
                 rule_id="P025",
@@ -192,7 +213,7 @@ def _check_title_page_elements(pdf_document: PdfDocument) -> list[AuditFinding]:
             )
         )
 
-    if not _INSTITUTION_RE.search(combined_text):
+    if not has_institution:
         findings.append(
             AuditFinding(
                 rule_id="P025",

@@ -1991,3 +1991,95 @@ def test_p025_json_report_includes_p025(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert json_out.exists()
     assert "P025" in json_out.read_text(encoding="utf-8")
+
+
+def test_p025_runon_text_degree_not_flagged(tmp_path: Path) -> None:
+    """Title page with run-together text containing degree phrase must not warn.
+
+    Simulates a PDF where text extraction produces space-free tokens like
+    'DoctorofPhilosophy' instead of 'Doctor of Philosophy'.
+    """
+    pdf_path = tmp_path / "runon_degree.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "ADissertationSubmittedto",
+            "NewJerseyInstituteofTechnology",
+            "fortheDegreeof",
+            "DoctorofPhilosophy",
+            "DepartmentofComputerScience",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_degree_phrase"
+        for f in findings
+    )
+
+
+def test_p025_runon_text_institution_not_flagged(tmp_path: Path) -> None:
+    """Title page with run-together institution name must not warn."""
+    pdf_path = tmp_path / "runon_institution.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "ADissertationSubmittedto",
+            "NewJerseyInstituteofTechnology",
+            "fortheDegreeof",
+            "DoctorofPhilosophy",
+            "DepartmentofComputerScience",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_institution"
+        for f in findings
+    )
+
+
+def test_p025_text_based_title_missing_degree_still_warns(tmp_path: Path) -> None:
+    """Text-based title page without degree phrase must still produce a warning.
+
+    When spaces are present but the required phrase is genuinely absent, both the
+    spaced and space-stripped searches should fail, and the warning should fire.
+    """
+    pdf_path = tmp_path / "text_no_degree.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by Test Author",
+            "New Jersey Institute of Technology",
+            "Submitted in Partial Fulfillment",
+            "May 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_degree_phrase"
+        for f in findings
+    )
+
+
+def test_p025_text_based_title_missing_institution_still_warns(tmp_path: Path) -> None:
+    """Text-based title page without institution name must still produce a warning."""
+    pdf_path = tmp_path / "text_no_institution.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by Test Author",
+            "Doctor of Philosophy",
+            "Submitted in Partial Fulfillment",
+            "May 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_institution"
+        for f in findings
+    )

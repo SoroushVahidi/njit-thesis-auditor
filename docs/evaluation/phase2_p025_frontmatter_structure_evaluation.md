@@ -35,19 +35,29 @@
 
 ## EF PDF Evaluation
 
+### Before text-layer guard (initial version)
+
+| File | P025 Count | Notes |
+|------|-----------|-------|
+| Yin 4th review (compressed) | 0 | Degree + institution found on p3 |
+| Cibaku 1st review | 2 | False positives: run-together text |
+| Yin 2nd review (EF comments) | 2 | False positives: run-together text |
+| Yin Haotian Second R | 2 | False positives: run-together text |
+
+### After space-stripped fallback (refined version)
+
 | File | P025 Count | issue_type breakdown | Notes |
 |------|-----------|---------------------|-------|
-| Yin 4th review (compressed) | **0** | — | Degree phrase + NJIT found on p3 (within scan window) |
-| Cibaku 1st review | **2** | missing_title_page_degree_phrase, missing_title_page_institution | Title page text layer not extractable (likely image-based); false positives |
-| Yin 2nd review (EF comments) | **2** | missing_title_page_degree_phrase, missing_title_page_institution | Same limitation |
-| Yin Haotian Second R (EF feedback) | **2** | missing_title_page_degree_phrase, missing_title_page_institution | Same limitation |
+| Yin 4th review (compressed) | **0** | — | Degree phrase + NJIT found on p3 via normal regex |
+| Cibaku 1st review | **0** | — | "DoctorofPhilosophy" and "NewJerseyInstituteofTechnology" found via nospace fallback |
+| Yin 2nd review (EF comments) | **0** | — | Same |
+| Yin Haotian Second R | **0** | — | Same |
 
 ## Analysis
 
-- **Yin 4th review** correctly produces 0 P025 findings: the PDF has a rich text layer where the degree and institution appear on page 3.
-- **3 remaining files** all produce the same 2 title-page findings. Investigation shows that `NJIT` and the degree phrase are absent from the first 4 extractable pages in those files — the title pages are either image-rendered or use font encodings that suppress text extraction.
-- The 2 title-page findings for those 3 files are likely **false positives caused by limited text extraction**, not genuine formatting errors.
-- No `missing_abstract_body`, `sparse_approval_page_content`, or `possible_frontmatter_order_issue` findings on any file, suggesting those checks produce no false positives on this dataset.
+**Root cause of original false positives**: the 3 non-compressed PDFs use a PDF font encoding where inter-word spaces are absent from the extracted text layer. The title block is present but renders as merged tokens: "DoctorofPhilosophy" and "NewJerseyInstituteofTechnology" instead of "Doctor of Philosophy" and "New Jersey Institute of Technology". The original `\s+`-based regex could not match these.
+
+**Fix**: the refined version also searches a space-stripped version of the combined early-page text, using simple patterns that match the merged forms ("doctorofphilosophy", "newjerseyinstituteoftechnology"). This eliminates the false positives while preserving warnings for PDFs that genuinely omit the required elements.
 
 ## Relation to Existing Rules
 
@@ -59,8 +69,8 @@
 
 ## Known Caveats and Limitations
 
-- **Title page checks are unreliable when the title page is image-based** — text extraction yields no title page text, producing false positives for missing degree/institution.
-- **4-page scan window**: degree phrase and institution must appear within the first 4 pages. For documents with non-standard front-matter ordering (e.g., copyright page before abstract), the window may need extending.
-- **Abstract body check**: if the abstract heading and body text are rendered as separate text objects across block boundaries, the check may undercount body words. Multi-page abstracts are only checked on the heading page.
-- **Approval page**: a very short approval page (e.g., for a scanned or minimal PDF) will always trigger sparse_approval_page_content regardless of actual content correctness.
+- **Nospace fallback coverage**: the fallback patterns cover "Doctor of Philosophy", "Master of Science", "Master of Arts", "Master of Engineering", "New Jersey Institute of Technology", and "NJIT". Unusual degree names or NJIT abbreviations not matching these patterns may still be missed.
+- **4-page scan window**: degree phrase and institution must appear within the first 4 pages.
+- **Abstract body check**: if the abstract heading and body text are in separate text objects with block boundaries, the word count may be underestimated. Multi-page abstracts are only checked on the heading page.
+- **Approval page**: very short or scanned approval pages will trigger sparse_approval_page_content regardless of actual correctness.
 - All findings are heuristic warnings requiring manual review.
