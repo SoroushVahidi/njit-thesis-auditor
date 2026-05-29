@@ -58,7 +58,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q013 | "APPROVAL PAGE" heading present, all caps, bold, centered | 🟡 partial | P014 checks named front-matter heading layout | P014 confirms bold/centered/all-caps/near-top for APPROVAL PAGE |
+| Q013 | "APPROVAL PAGE" heading present, all caps, bold, centered | 🟡 partial | P014 checks heading style; P025 checks content below heading | P025 warns if approval page body is sparse |
 | Q014 | Approval page free of visible page number | 🟡 partial | P013 candidate detection | Does not confirm absence specifically |
 | Q015 | Every committee entry preceded by honorific (Dr./Mr./Ms.) | 👤 manual-only | — | Requires NLP name/title parsing |
 | Q016 | Dissertation Advisor listed first | 👤 manual-only | — | Requires semantic role understanding |
@@ -196,6 +196,7 @@ Status key:
 | P021 | TeX+PDF | Abstract word count (PhD ≤350, MS ≤150) | ✅ | Formatting Guidelines | Single-page extraction only; PDF mode uses conservative PhD threshold |
 | P023 | PDF layout | Body-text double-spacing (line spacing ≥ 1.55× font size) | ✅ | Formatting Guidelines; Self-Assessment Sheet | Conservative: requires ≥8 suspicious gaps, ≥60% fraction, median < 1.55×; EF eval: 0 findings on clean Yin 4th review |
 | P024 | PDF layout | TOC/LoT/LoF entry capitalization and terminal punctuation | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Conservative; requires ≥3 entries on page; only classifiable TOC levels; EF eval: 12 findings on Yin 4th review (3 other files have no detectable TOC pages) |
+| P025 | PDF layout | Front-matter structure: abstract body, title page elements, approval page content, front-matter order | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf; PhD Title Pages.pdf | Conservative; title page checks require extractable text layer; EF eval: 0 on Yin 4th review (text-rich); 2 on others (title page image-based, likely false positives) |
 
 ---
 

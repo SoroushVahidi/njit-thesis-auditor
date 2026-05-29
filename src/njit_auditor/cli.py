@@ -36,6 +36,7 @@ from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
+from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -145,6 +146,7 @@ def pdf(
     findings.extend(check_pdf_page_number_sequence(pdf_doc))
     findings.extend(run_pdf_margin_rule(pdf_doc))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
+    findings.extend(check_pdf_frontmatter_structure(pdf_doc))
     findings.extend(check_pdf_abstract_word_count(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))

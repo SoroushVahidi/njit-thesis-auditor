@@ -34,6 +34,7 @@ Initial checks implemented:
 - `P021`: abstract word-count check on Abstract page (conservative; single-page extraction)
 - `P023`: body-text double-spacing check (body pages only; requires ≥8 suspicious gaps, ≥60% fraction, median ratio < 1.55×)
 - `P024`: TOC/LoT/LoF entry capitalization and terminal punctuation (Q049–Q050 and LoT period; level classified by numbering pattern + indentation)
+- `P025`: front-matter structure and required-elements (abstract body, title page degree/institution, approval page content, front-matter order)
 
 P014 checks (heuristic):
 

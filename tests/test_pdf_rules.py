@@ -9,6 +9,7 @@ from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
+from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -1734,3 +1735,351 @@ def test_p024_json_report_includes_p024_when_triggered(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert json_out.exists()
     assert "P024" in json_out.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# P025: Front-matter structure and required-elements checks
+# ---------------------------------------------------------------------------
+
+def _make_frontmatter_pdf(
+    path: Path,
+    *,
+    title_page_text: list[str] | None = None,
+    abstract_body: list[str] | None = None,
+    approval_body: list[str] | None = None,
+    toc_before_abstract: bool = False,
+) -> None:
+    """Create a minimal multi-page front-matter PDF for P025 tests."""
+    doc = fitz.open()
+
+    # Page 1: title page
+    p1 = doc.new_page(width=612, height=792)
+    default_title = [
+        "A Study of Systems",
+        "by",
+        "Test Author",
+        "A Dissertation",
+        "Submitted to",
+        "New Jersey Institute of Technology",
+        "in Partial Fulfillment of the Requirements",
+        "for the Degree of Doctor of Philosophy",
+        "May 2024",
+    ]
+    for idx, line in enumerate(title_page_text if title_page_text is not None else default_title):
+        p1.insert_text((108, 100 + idx * 20), line, fontsize=12)
+
+    # Page 2: ABSTRACT page (or TOC first if toc_before_abstract)
+    p2 = doc.new_page(width=612, height=792)
+    if toc_before_abstract:
+        p2.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+        p2.insert_text((108, 140), "CHAPTER 1 INTRODUCTION .......    1", fontsize=12)
+    else:
+        p2.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+        body_lines = abstract_body if abstract_body is not None else [
+            "This dissertation presents a comprehensive study of synthetic test cases.",
+            "The results demonstrate consistent performance across all configurations.",
+            "Statistical analysis confirms the validity of the proposed methodology.",
+        ]
+        for idx, line in enumerate(body_lines):
+            p2.insert_text((108, 140 + idx * 18), line, fontsize=12)
+
+    # Page 3: APPROVAL PAGE
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((210, 90), "APPROVAL PAGE", fontsize=14, fontname="Times-Bold")
+    approval_lines = approval_body if approval_body is not None else [
+        "Dissertation Committee:",
+        "Dr. Test Advisor, Dissertation Advisor",
+        "Department of Computer Science",
+        "Dr. Committee Member, Committee Member",
+        "Dr. Another Member, Committee Member",
+        "Date:",
+    ]
+    for idx, line in enumerate(approval_lines):
+        p3.insert_text((108, 140 + idx * 18), line, fontsize=12)
+
+    # Page 4: TABLE OF CONTENTS (if abstract was page 2)
+    p4 = doc.new_page(width=612, height=792)
+    if toc_before_abstract:
+        p4.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+        p4.insert_text((108, 140), "Abstract body text here for testing purposes.", fontsize=12)
+    else:
+        p4.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+        p4.insert_text((108, 140), "CHAPTER 1 INTRODUCTION .......    1", fontsize=12)
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p025_abstract_with_body_no_warning(tmp_path: Path) -> None:
+    """ABSTRACT heading with sufficient body text must not warn."""
+    pdf_path = tmp_path / "abstract_ok.pdf"
+    _make_frontmatter_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_abstract_body"
+        for f in findings
+    )
+
+
+def test_p025_abstract_without_body_warns(tmp_path: Path) -> None:
+    """ABSTRACT heading with no body text must produce missing_abstract_body warning."""
+    pdf_path = tmp_path / "abstract_empty.pdf"
+    _make_frontmatter_pdf(pdf_path, abstract_body=[])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_abstract_body"
+        for f in findings
+    )
+
+
+def test_p025_title_page_with_required_elements_no_warning(tmp_path: Path) -> None:
+    """Title page with degree phrase and institution must not warn."""
+    pdf_path = tmp_path / "title_ok.pdf"
+    _make_frontmatter_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") in {
+            "missing_title_page_degree_phrase",
+            "missing_title_page_institution",
+        }
+        for f in findings
+    )
+
+
+def test_p025_title_page_missing_institution_warns(tmp_path: Path) -> None:
+    """Title page without institution name must warn."""
+    pdf_path = tmp_path / "title_no_institution.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by Test Author",
+            "Doctor of Philosophy",
+            "May 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_institution"
+        for f in findings
+    )
+
+
+def test_p025_title_page_missing_degree_warns(tmp_path: Path) -> None:
+    """Title page without degree phrase must warn."""
+    pdf_path = tmp_path / "title_no_degree.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by Test Author",
+            "New Jersey Institute of Technology",
+            "May 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_degree_phrase"
+        for f in findings
+    )
+
+
+def test_p025_title_page_year_not_confused_as_issue(tmp_path: Path) -> None:
+    """A year like 2024 on the title page must not cause a P025 warning about degree/institution."""
+    pdf_path = tmp_path / "title_with_year.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "Research in Computer Systems 2024",
+            "by Test Author",
+            "New Jersey Institute of Technology",
+            "Doctor of Philosophy",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") in {
+            "missing_title_page_degree_phrase",
+            "missing_title_page_institution",
+        }
+        for f in findings
+    )
+
+
+def test_p025_approval_page_with_content_no_warning(tmp_path: Path) -> None:
+    """APPROVAL PAGE with enough committee content must not warn."""
+    pdf_path = tmp_path / "approval_ok.pdf"
+    _make_frontmatter_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "sparse_approval_page_content"
+        for f in findings
+    )
+
+
+def test_p025_approval_page_sparse_warns(tmp_path: Path) -> None:
+    """APPROVAL PAGE with sparse content must warn."""
+    pdf_path = tmp_path / "approval_sparse.pdf"
+    _make_frontmatter_pdf(pdf_path, approval_body=["One line."])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "sparse_approval_page_content"
+        for f in findings
+    )
+
+
+def test_p025_normal_frontmatter_order_no_warning(tmp_path: Path) -> None:
+    """Abstract before TOC must not trigger an order warning."""
+    pdf_path = tmp_path / "order_ok.pdf"
+    _make_frontmatter_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "possible_frontmatter_order_issue"
+        for f in findings
+    )
+
+
+def test_p025_abstract_after_toc_warns(tmp_path: Path) -> None:
+    """ABSTRACT appearing after TABLE OF CONTENTS must warn."""
+    pdf_path = tmp_path / "order_bad.pdf"
+    _make_frontmatter_pdf(pdf_path, toc_before_abstract=True)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "possible_frontmatter_order_issue"
+        for f in findings
+    )
+
+
+def test_p025_body_page_ignored(tmp_path: Path) -> None:
+    """Plain body pages without front-matter headings must not produce P025 findings."""
+    pdf_path = tmp_path / "body_p025.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 130), "This is ordinary body text for a regular chapter.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(f.rule_id == "P025" for f in findings)
+
+
+def test_p025_cli_includes_p025(tmp_path: Path) -> None:
+    """CLI pdf command must surface P025 when a front-matter issue is detected."""
+    pdf_path = tmp_path / "cli_p025.pdf"
+    _make_frontmatter_pdf(pdf_path, abstract_body=[])
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P025" in result.output
+
+
+def test_p025_json_report_includes_p025(tmp_path: Path) -> None:
+    """JSON report must include P025 when a front-matter issue is detected."""
+    pdf_path = tmp_path / "json_p025.pdf"
+    json_out = tmp_path / "out" / "p025_report.json"
+    _make_frontmatter_pdf(pdf_path, abstract_body=[])
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    assert json_out.exists()
+    assert "P025" in json_out.read_text(encoding="utf-8")
+
+
+def test_p025_runon_text_degree_not_flagged(tmp_path: Path) -> None:
+    """Title page with run-together text containing degree phrase must not warn.
+
+    Simulates a PDF where text extraction produces space-free tokens like
+    'DoctorofPhilosophy' instead of 'Doctor of Philosophy'.
+    """
+    pdf_path = tmp_path / "runon_degree.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "ADissertationSubmittedto",
+            "NewJerseyInstituteofTechnology",
+            "fortheDegreeof",
+            "DoctorofPhilosophy",
+            "DepartmentofComputerScience",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_degree_phrase"
+        for f in findings
+    )
+
+
+def test_p025_runon_text_institution_not_flagged(tmp_path: Path) -> None:
+    """Title page with run-together institution name must not warn."""
+    pdf_path = tmp_path / "runon_institution.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "ADissertationSubmittedto",
+            "NewJerseyInstituteofTechnology",
+            "fortheDegreeof",
+            "DoctorofPhilosophy",
+            "DepartmentofComputerScience",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert not any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_institution"
+        for f in findings
+    )
+
+
+def test_p025_text_based_title_missing_degree_still_warns(tmp_path: Path) -> None:
+    """Text-based title page without degree phrase must still produce a warning.
+
+    When spaces are present but the required phrase is genuinely absent, both the
+    spaced and space-stripped searches should fail, and the warning should fire.
+    """
+    pdf_path = tmp_path / "text_no_degree.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by Test Author",
+            "New Jersey Institute of Technology",
+            "Submitted in Partial Fulfillment",
+            "May 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_degree_phrase"
+        for f in findings
+    )
+
+
+def test_p025_text_based_title_missing_institution_still_warns(tmp_path: Path) -> None:
+    """Text-based title page without institution name must still produce a warning."""
+    pdf_path = tmp_path / "text_no_institution.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by Test Author",
+            "Doctor of Philosophy",
+            "Submitted in Partial Fulfillment",
+            "May 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_frontmatter_structure(model)
+    assert any(
+        f.rule_id == "P025" and f.details.get("issue_type") == "missing_title_page_institution"
+        for f in findings
+    )
