@@ -1,7 +1,7 @@
 # Rule Coverage Audit Against Guideline Sources
 
 - Date: 2026-05-29
-- Auditor version: P001–P020, Q004–Q005 implemented
+- Auditor version: P001–P021, P023, Q004–Q005 implemented
 - Main branch: b569736
 
 ## Purpose
@@ -193,6 +193,8 @@ Status key:
 | P018 | PDF layout | TOC/list entry alignment (leader dots, page-number column, indentation) | ✅ | Guidelines: leaders, aligned columns, indented hierarchy | Activates on named TOC/list pages only |
 | P019 | PDF layout | Page-number sequence/style consistency | ✅ | Guidelines: sequential Arabic then Roman, consistent position | Candidate-based; does not enforce full NJIT policy |
 | P020 | PDF layout | Title-case capitalization for Level 2 headings and table titles | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Bold metadata may be absent; misses Level 2 in non-bold PDFs |
+| P021 | TeX+PDF | Abstract word count (PhD ≤350, MS ≤150) | ✅ | Formatting Guidelines | Single-page extraction only; PDF mode uses conservative PhD threshold |
+| P023 | PDF layout | Body-text double-spacing (line spacing ≥ 1.55× font size) | ✅ | Formatting Guidelines; Self-Assessment Sheet | Conservative: requires ≥8 suspicious gaps, ≥60% fraction, median < 1.55×; EF eval: 0 findings on clean Yin 4th review |
 
 ---
 
@@ -222,7 +224,7 @@ evaluation dataset. They are automatable with moderate effort.
 | ✅ DONE | Abstract word-count (PhD ≤350, MS ≤150) | Formatting Guidelines | P021 implemented — LaTeX + PDF modes | See `docs/evaluation/abstract_word_count_evaluation.md` |
 | 🔴 HIGH | P020 font-size fallback for heading detection | Titles Examples | Add font-size ≥ body heuristic when bold metadata absent | Medium — requires font-size distribution analysis |
 | 🔴 HIGH | Acknowledgements paragraph order and key words | Self-Assessment Sheet | Keyword/pattern matching per paragraph | Medium — fragile on varied writing |
-| 🔴 HIGH | Body text double-spacing (line height ≥ ~2× font size) | Formatting Guidelines | Check median line spacing in body blocks | Medium — geometry extraction |
+| ✅ DONE | Body text double-spacing (line height ≥ ~2× font size) | Formatting Guidelines | P023 implemented — conservative median+fraction threshold; 0 findings on clean Yin 4th review | See `docs/evaluation/phase2_p023_body_double_spacing_evaluation.md` |
 | 🔴 HIGH | TOC entry capitalization by level (L1=ALL CAPS, L2=title case, L3=sentence) | Q049–Q051 | Detect level from indentation + numbering pattern | High — requires TOC level classification |
 | 🔴 HIGH | Table title terminal period absent | Q065 / P017 partial | P017 already partially checks; strengthen with P020 | Low — already partially implemented |
 
