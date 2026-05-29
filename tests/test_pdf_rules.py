@@ -15,6 +15,12 @@ from njit_auditor.rules.pdf_page_numbers import (
     run_pdf_page_number_candidates_rule,
 )
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
+from njit_auditor.rules.pdf_title_capitalization import (
+    check_apa_title_case_phrase,
+    check_pdf_title_capitalization,
+    is_minor_word,
+    looks_like_acronym,
+)
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 
 runner = CliRunner()
@@ -842,3 +848,294 @@ def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 1
     assert "Unable to read PDF" in result.output
+
+
+# ---------------------------------------------------------------------------
+# P020: Title-case capitalization — helper unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_p020_minor_word_detection() -> None:
+    for word in ("a", "an", "the", "and", "but", "or", "for", "nor", "as",
+                 "at", "by", "in", "of", "on", "per", "to", "up", "via"):
+        assert is_minor_word(word), f"'{word}' should be a minor word"
+    for word in ("machine", "learning", "with", "from", "into", "over"):
+        assert not is_minor_word(word), f"'{word}' should NOT be a minor word"
+
+
+def test_p020_acronym_detection() -> None:
+    for word in ("PDF", "AI", "MRI", "NJIT", "CAD", "SDF"):
+        assert looks_like_acronym(word), f"'{word}' should look like an acronym"
+    for word in ("Machine", "learning", "a", "the"):
+        assert not looks_like_acronym(word), f"'{word}' should NOT look like an acronym"
+
+
+def test_p020_phrase_correct_title_case_no_issues() -> None:
+    issues = check_apa_title_case_phrase(
+        "Machine Learning Approaches to Signal Processing"
+    )
+    assert issues == []
+
+
+def test_p020_phrase_minor_word_in_middle_no_issue() -> None:
+    issues = check_apa_title_case_phrase("Machine Learning and Signal Processing")
+    assert issues == []
+
+
+def test_p020_phrase_major_word_lowercase_flagged() -> None:
+    issues = check_apa_title_case_phrase(
+        "Machine learning Approaches to Signal Processing"
+    )
+    assert any(i["word"] == "learning" for i in issues)
+    assert any(i["reason"] == "major_word_requires_capital" for i in issues)
+
+
+def test_p020_phrase_first_word_lowercase_flagged() -> None:
+    issues = check_apa_title_case_phrase(
+        "machine Learning Approaches to Signal Processing"
+    )
+    assert any(i["reason"] == "first_word_requires_capital" for i in issues)
+    assert any(i["confidence"] == "high" for i in issues)
+
+
+def test_p020_phrase_word_after_colon_lowercase_flagged() -> None:
+    issues = check_apa_title_case_phrase(
+        "Signal Processing: a Novel Approach to Learning"
+    )
+    assert any(
+        i["reason"] == "word_after_separator_requires_capital" and i["word"] == "a"
+        for i in issues
+    )
+
+
+def test_p020_phrase_word_after_emdash_flagged() -> None:
+    issues = check_apa_title_case_phrase(
+        "Signal Processing—a Novel Approach to Learning"
+    )
+    assert any(i["reason"] == "word_after_separator_requires_capital" for i in issues)
+
+
+def test_p020_phrase_allcaps_acronym_not_flagged() -> None:
+    issues = check_apa_title_case_phrase(
+        "Using PDF Format for Scientific Communication"
+    )
+    assert not any(i["word"] == "PDF" for i in issues)
+    assert issues == []
+
+
+def test_p020_phrase_math_model_token_suppressed() -> None:
+    # Words containing digits or math notation should be skipped
+    issues = check_apa_title_case_phrase(
+        "Optimization of CO2 and H2O Emissions in Processes"
+    )
+    assert not any("2" in i.get("word", "") for i in issues)
+
+
+def test_p020_phrase_hyphenated_word_conservative_no_flag() -> None:
+    issues = check_apa_title_case_phrase(
+        "A well-known Method for Image Analysis Research"
+    )
+    assert not any("-" in i.get("word", "") for i in issues)
+
+
+def test_p020_phrase_too_short_no_issues() -> None:
+    assert check_apa_title_case_phrase("Two Words") == []
+    assert check_apa_title_case_phrase("Single") == []
+
+
+# ---------------------------------------------------------------------------
+# P020: Title-case capitalization — PDF integration tests
+# ---------------------------------------------------------------------------
+
+
+def test_p020_correct_title_case_bold_heading_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Machine Learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_lowercase_major_word_in_bold_heading_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_major_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Machine learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("issue_type") == "possible_title_capitalization_issue"
+    assert warning.details.get("expected_or_reason") == "major_word_requires_capital"
+
+
+def test_p020_lowercase_minor_word_in_middle_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_minor_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Machine Learning and Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_first_word_lowercase_in_bold_heading_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_first_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "machine Learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("expected_or_reason") == "first_word_requires_capital"
+    assert warning.details.get("confidence") == "high"
+
+
+def test_p020_word_after_colon_lowercase_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_colon_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Signal Processing: a Novel Approach to Learning",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("expected_or_reason") == "word_after_separator_requires_capital"
+
+
+def test_p020_allcaps_acronym_in_bold_heading_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_acronym_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Using PDF Format for Scientific Communication",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_allcaps_frontmatter_label_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_frontmatter_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_normal_non_bold_body_paragraph_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_body_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "this is a long body paragraph that is not bold and has lowercase words",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_references_page_bold_line_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_references_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    page.insert_text(
+        (108, 140),
+        "machine learning and deep neural networks",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_table_title_lowercase_major_word_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_table_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Table title uses title case per NJIT guidelines; "results" should be capitalized
+    page.insert_text(
+        (108, 140),
+        "Table 3.2 AI applications in Education",
+        fontsize=12,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("source") == "caption"
+
+
+def test_p020_cli_pdf_run_includes_p020(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cli_p020.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "machine learning Approaches for Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P020" in result.output

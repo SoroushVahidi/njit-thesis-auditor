@@ -62,6 +62,12 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Includes missing/multiple/inconsistent-position/sequence-gap/mixed-style signals.
   - Conservative and candidate-based; does not yet enforce full NJIT-specific numbering policy.
   - Manual review required.
+- `P020` title and heading capitalization
+  - Checks NJIT title-case compliance for Level 2 headings (bold, X.x format) and table titles.
+  - Based on `Titles Examples Level 1 to 5.docx` guideline: Level 2 uses Title Case.
+  - Skips body paragraphs, figure captions (sentence case), references pages, and all-caps labels.
+  - Preserves all-caps acronyms; skips hyphenated words and math tokens conservatively.
+  - Manual review required.
 
 ## 5) Evaluation on Ester Clean PDF (Latest Known)
 
@@ -76,6 +82,7 @@ Source filename: `clean_without_annotations.pdf`
 - `P017`: `0`
 - `P018`: `0`
 - `P019`: `15`
+- `P020`: not yet run on this file (added after this snapshot)
 
 These are heuristic signals, not final compliance verdicts.
 
