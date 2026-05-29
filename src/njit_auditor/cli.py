@@ -34,6 +34,7 @@ from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.page_numbers import run_page_number_rule
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
@@ -146,6 +147,7 @@ def pdf(
     findings.extend(check_pdf_abstract_word_count(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))
+    findings.extend(check_pdf_body_spacing(pdf_doc))
     findings.extend(check_pdf_captions(pdf_doc))
     findings.extend(check_pdf_toc_alignment(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))

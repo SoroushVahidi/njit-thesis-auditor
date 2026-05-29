@@ -7,6 +7,7 @@ from njit_auditor.cli import app
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
@@ -1243,3 +1244,219 @@ def test_pdf_cli_command_runs_with_p021(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "P021" in result.output
+
+
+# ---------------------------------------------------------------------------
+# P023: PDF body text double-spacing tests
+# ---------------------------------------------------------------------------
+
+_BODY_TEXT_TEMPLATE = (
+    "Synthetic body paragraph text line for double-spacing verification test {idx}."
+)
+
+# Single-spaced: 12pt baseline spacing → ratio 1.0 per 12pt font (clearly suspicious).
+_SINGLE_SPACED_Y = [140, 152, 164, 176, 188, 200, 212, 224, 236, 248, 260]
+# Double-spaced: 24pt baseline spacing → ratio 2.0 per 12pt font (clearly fine).
+_DOUBLE_SPACED_Y = [140, 164, 188, 212, 236, 260, 284, 308, 332, 356]
+
+
+def _make_body_spacing_pdf(
+    path: Path,
+    y_positions: list[float],
+    fontsize: float = 12,
+) -> None:
+    """Synthetic PDF with body-text lines at given baseline y positions."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(y_positions):
+        page.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=fontsize)
+    doc.save(path)
+    doc.close()
+
+
+def test_double_spaced_body_no_p023(tmp_path: Path) -> None:
+    """Double-spaced body text (24pt between 12pt baselines, ratio 2.0) must not warn."""
+    pdf_path = tmp_path / "body_double_ok.pdf"
+    _make_body_spacing_pdf(pdf_path, _DOUBLE_SPACED_Y)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_single_spaced_body_warns_p023(tmp_path: Path) -> None:
+    """Single-spaced body text (12pt between 12pt baselines, ratio 1.0) must warn.
+
+    11 lines → 10 suspicious gaps, fraction 100% → satisfies the conservative
+    thresholds (≥8 suspicious, ≥60% fraction, median < 1.55).
+    """
+    pdf_path = tmp_path / "body_single_warns.pdf"
+    _make_body_spacing_pdf(pdf_path, _SINGLE_SPACED_Y)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_one_finding_per_page(tmp_path: Path) -> None:
+    """P023 emits at most one finding per under-spaced page."""
+    pdf_path = tmp_path / "body_single_one_per_page.pdf"
+    _make_body_spacing_pdf(pdf_path, _SINGLE_SPACED_Y)
+    model = load_pdf_layout(str(pdf_path))
+    p023 = [f for f in check_pdf_body_spacing(model) if f.rule_id == "P023"]
+    assert len(p023) == 1
+
+
+def test_p023_details_include_required_fields(tmp_path: Path) -> None:
+    """P023 finding details must include all required fields."""
+    pdf_path = tmp_path / "body_single_details.pdf"
+    _make_body_spacing_pdf(pdf_path, _SINGLE_SPACED_Y)
+    model = load_pdf_layout(str(pdf_path))
+    f = next(f for f in check_pdf_body_spacing(model) if f.rule_id == "P023")
+    assert f.details.get("issue_type") == "possible_body_text_not_double_spaced"
+    assert f.details.get("median_body_gap_pt") is not None
+    assert f.details.get("estimated_body_font_size_pt") is not None
+    assert f.details.get("gap_to_font_ratio") is not None
+    assert f.details.get("affected_gap_count") is not None
+    assert f.details.get("confidence") == "medium"
+
+
+def test_p023_named_heading_page_skipped(tmp_path: Path) -> None:
+    """Pages with a named front-matter heading (e.g. ABSTRACT) are skipped for P023.
+
+    Even if enough single-spaced body-text lines exist on the page, the named
+    heading causes the whole page to be excluded from P023 analysis.
+    """
+    pdf_path = tmp_path / "heading_only_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_page_number_line_not_counted(tmp_path: Path) -> None:
+    """A double-spaced body page with a bottom page number must not warn."""
+    pdf_path = tmp_path / "body_double_with_pagenum.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(_DOUBLE_SPACED_Y):
+        page.insert_text(
+            (108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12
+        )
+    page.insert_text((300, 770), "5", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_toc_page_ignored(tmp_path: Path) -> None:
+    """TABLE OF CONTENTS pages must be completely skipped for P023."""
+    pdf_path = tmp_path / "toc_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_list_of_tables_page_ignored(tmp_path: Path) -> None:
+    """LIST OF TABLES pages must be completely skipped for P023."""
+    pdf_path = tmp_path / "lot_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((210, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_references_page_ignored(tmp_path: Path) -> None:
+    """REFERENCES pages must be completely skipped for P023."""
+    pdf_path = tmp_path / "ref_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((240, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_caption_lines_not_counted(tmp_path: Path) -> None:
+    """Caption lines must not be counted as body-text lines for P023."""
+    pdf_path = tmp_path / "captions_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page.insert_text(
+            (108, y),
+            f"Figure {idx + 1}. Synthetic figure caption line for test purposes only here.",
+            fontsize=12,
+        )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_short_lines_not_counted(tmp_path: Path) -> None:
+    """Lines shorter than MIN_LINE_TEXT_LEN must not be counted as body-text lines."""
+    pdf_path = tmp_path / "short_lines_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page.insert_text((108, y), "Short.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_not_enough_suspicious_gaps_no_warning(tmp_path: Path) -> None:
+    """Double-spaced lines produce 0 suspicious gaps (ratio 2.0 >> 1.55) so P023 does not fire."""
+    pdf_path = tmp_path / "body_mostly_double.pdf"
+    # 10 lines at 24pt spacing → 9 gaps, ratio 2.0, none suspicious → no P023
+    _make_body_spacing_pdf(pdf_path, _DOUBLE_SPACED_Y)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_cli_in_output(tmp_path: Path) -> None:
+    """CLI pdf command must surface P023 when body text appears single-spaced."""
+    pdf_path = tmp_path / "cli_p023.pdf"
+    _make_body_spacing_pdf(pdf_path, _SINGLE_SPACED_Y)
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P023" in result.output
+
+
+def test_p023_json_report_includes_rule_when_triggered(tmp_path: Path) -> None:
+    """JSON report must include P023 when body text is single-spaced."""
+    pdf_path = tmp_path / "json_p023.pdf"
+    json_out = tmp_path / "out" / "p023_report.json"
+    _make_body_spacing_pdf(pdf_path, _SINGLE_SPACED_Y)
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    assert json_out.exists()
+    assert "P023" in json_out.read_text(encoding="utf-8")
