@@ -46,6 +46,7 @@ from njit_auditor.rules.pdf_page_numbers import (
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import check_pdf_title_capitalization
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.title_page import run_title_page_month_check
 
 app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor")
@@ -150,6 +151,7 @@ def pdf(
     findings.extend(check_pdf_body_spacing(pdf_doc))
     findings.extend(check_pdf_captions(pdf_doc))
     findings.extend(check_pdf_toc_alignment(pdf_doc))
+    findings.extend(check_pdf_toc_list_formatting(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 
