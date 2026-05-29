@@ -23,6 +23,13 @@ venv/
 data/evaluation/generated/
 data/evaluation/private/
 
+# Archive files (download locally; do not commit the raw archive bundles)
+*.rar
+
+# Temporary extraction directories
+/tmp/rar_extract/
+/tmp/handouts/
+
 # OS/editor files
 .DS_Store
 .vscode/
