@@ -1,5 +1,9 @@
 # Phase 2 PDF Audit Milestone Summary
 
+See also: [Rule Coverage Audit](rule_coverage_audit.md) — comprehensive mapping
+of all Q001–Q079 and P001–P020 rules against NJIT guideline sources, with
+priority backlog and gap analysis.
+
 ## 1) Project Goal
 
 Build a local, privacy-preserving assistant for NJIT Graduate Studies thesis/dissertation formatting review.
