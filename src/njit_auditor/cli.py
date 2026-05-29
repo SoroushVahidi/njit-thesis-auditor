@@ -39,6 +39,7 @@ from njit_auditor.rules.pdf_page_numbers import (
     run_pdf_page_number_candidates_rule,
 )
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
+from njit_auditor.rules.pdf_title_capitalization import check_pdf_title_capitalization
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.title_page import run_title_page_month_check
 
@@ -141,6 +142,7 @@ def pdf(
     findings.extend(check_pdf_spacing(pdf_doc))
     findings.extend(check_pdf_captions(pdf_doc))
     findings.extend(check_pdf_toc_alignment(pdf_doc))
+    findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 
     page_sizes = [(page.page_number, page.width, page.height) for page in pdf_doc.pages]

@@ -30,6 +30,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P015": "indentation",
         "P016": "spacing_blank_lines",
         "P018": "list_of_tables_figures_toc",
+        "P020": "capitalization_case",
         "Q004": "abstract_language",
         "Q005": "abstract_language",
         "Q006": "title_page_metadata",

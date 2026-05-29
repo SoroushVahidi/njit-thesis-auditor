@@ -38,10 +38,11 @@ njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 
 This command runs the Phase 2 layout foundation checks on digital PDFs:
 page-size extraction, page-number candidates, possible margin-boundary text,
-and annotation/comment detection.
+annotation/comment detection, heading/spacing/indentation heuristics, caption
+formatting, TOC/list alignment, page-number sequence/style validation, and
+conservative title-case capitalization checks for Level 2 headings and table titles.
 Optional `--json-out` and `--md-out` outputs write structured reports for
 office/student review workflows.
-It also includes conservative page-number sequence/style validation signals.
 
 ## LaTeX source-only audit
 

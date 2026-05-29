@@ -30,6 +30,7 @@ Initial checks implemented:
 - `P017`: caption/title punctuation and case heuristics for figure/table lines
 - `P018`: TOC/list alignment heuristics for entry formatting consistency
 - `P019`: page-number sequence/style heuristics on candidate page numbers
+- `P020`: title-case capitalization heuristics for Level 2 headings and table titles
 
 P014 checks (heuristic):
 
@@ -102,6 +103,29 @@ P019 checks (heuristic, conservative):
   - obvious candidate sequence gaps
   - mixed numbering styles in candidate regions
 - does not yet enforce full NJIT policy-specific page-number rules
+
+P020 checks (heuristic, conservative):
+
+- applies only to title-like text regions, not body paragraphs
+- checked regions:
+  - bold heading-like lines (≤150 chars, not all-caps front-matter labels, not on
+    references or TOC pages) — targets Level 2 headings (X.x), which use Title Case
+  - table caption title bodies from existing caption detection (table only;
+    figure captions use sentence case and are excluded)
+- skips pages with REFERENCES, BIBLIOGRAPHY, TABLE OF CONTENTS headings
+- ignores all-caps front-matter labels and page numbers
+- NJIT title-case rules applied (per `Titles Examples Level 1 to 5.docx`):
+  - first word must be capitalized
+  - last word must be capitalized
+  - words after subtitle separators (colon, em/en dash, double-hyphen) must be capitalized
+  - minor words (a, an, the, and, but, or, for, nor, as, at, by, in, of, on, per, to, up,
+    via) may be lowercase in the middle
+  - all other words (including all words of 4+ letters) must be capitalized
+- preserves all-caps acronyms (PDF, AI, MRI, NJIT, etc.)
+- hyphenated words are skipped (conservative)
+- words with digits, Greek letters, or math notation are skipped
+- one finding per title-like line (first violation only)
+- does not flag over-capitalization; only detects under-capitalization
 
 P011 refinement notes:
 
