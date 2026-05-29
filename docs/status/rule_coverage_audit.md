@@ -114,9 +114,9 @@ Status key:
 | Q046 | TOC continues Roman numeral sequence | 🟡 partial | P013/P019 detect page-number candidates | Exact sequence on TOC pages not confirmed |
 | Q047 | First TOC page heading correct ("TABLE OF CONTENTS") | 🟡 partial | P014 checks heading style | P014 confirms bold/all-caps/centered |
 | Q048 | Subsequent TOC pages show "(Continued)" heading | ❌ not implemented | — | Multi-page TOC not yet handled |
-| Q049 | TOC level-1 chapter titles in ALL CAPS | ❌ not implemented | — | P018 detects TOC entries but does not check capitalization |
-| Q050 | TOC level-2 titles in title case | ❌ not implemented | — | P018 does not validate entry capitalization style |
-| Q051 | TOC level-3 titles in sentence case | ❌ not implemented | — | Same gap as Q050 |
+| Q049 | TOC level-1 chapter titles in ALL CAPS | 🟡 partial | P024 checks Level 1 entries for obvious non-ALL-CAPS | Conservative: only flags entries with ≥2 lowercase major words |
+| Q050 | TOC level-2 titles in title case | 🟡 partial | P024 uses check_apa_title_case_phrase on Level 2 entries | Requires numbered-level pattern (1.x) or indentation classification |
+| Q051 | TOC level-3 titles in sentence case | ❌ not implemented | — | P024 skips Level 3+ entries |
 | Q052 | Leader dots/hyphens connect entry to page number | 🟡 partial | P018 detects inconsistent leader usage | P018 flags absent/inconsistent leaders |
 | Q053 | Wrapped level-1 entries single-spaced | ❌ not implemented | — | Intra-entry spacing geometry |
 | Q054 | Wrapped level-2 entries single-spaced | ❌ not implemented | — | Same |
@@ -161,8 +161,8 @@ Status key:
 | Status | Count | IDs |
 |--------|------:|-----|
 | ✅ implemented | 2 | Q004, Q005 |
-| 🟡 partial (P-rule covers partially) | 28 | Q001–Q003, Q006, Q008, Q012–Q014, Q021–Q022, Q035–Q036, Q044–Q047, Q052, Q056, Q060–Q061, Q065, Q068–Q070, Q075, Q079 |
-| ❌ not implemented (automatable) | 27 | Q009–Q011, Q023–Q030, Q031, Q033–Q034, Q043, Q048–Q051, Q053–Q055, Q057–Q059, Q062–Q064, Q066–Q067, Q071–Q074, Q076–Q078 |
+| 🟡 partial (P-rule covers partially) | 30 | Q001–Q003, Q006, Q008, Q012–Q014, Q021–Q022, Q035–Q036, Q044–Q047, Q049–Q050, Q052, Q056, Q060–Q061, Q065, Q068–Q070, Q075, Q079 |
+| ❌ not implemented (automatable) | 25 | Q009–Q011, Q023–Q030, Q031, Q033–Q034, Q043, Q048, Q051, Q053–Q055, Q057–Q059, Q062–Q064, Q066–Q067, Q071–Q074, Q076–Q078 |
 | 👤 manual-only | 22 | Q007, Q015–Q020, Q037–Q042, Q032\*, Q033, Q034, Q039–Q042, Q015–Q020 |
 
 \* Q032 (no header in margin) is partially structural but mostly visual/manual.
@@ -195,6 +195,7 @@ Status key:
 | P020 | PDF layout | Title-case capitalization for Level 2 headings and table titles | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Bold metadata may be absent; misses Level 2 in non-bold PDFs |
 | P021 | TeX+PDF | Abstract word count (PhD ≤350, MS ≤150) | ✅ | Formatting Guidelines | Single-page extraction only; PDF mode uses conservative PhD threshold |
 | P023 | PDF layout | Body-text double-spacing (line spacing ≥ 1.55× font size) | ✅ | Formatting Guidelines; Self-Assessment Sheet | Conservative: requires ≥8 suspicious gaps, ≥60% fraction, median < 1.55×; EF eval: 0 findings on clean Yin 4th review |
+| P024 | PDF layout | TOC/LoT/LoF entry capitalization and terminal punctuation | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Conservative; requires ≥3 entries on page; only classifiable TOC levels; EF eval: 12 findings on Yin 4th review (3 other files have no detectable TOC pages) |
 
 ---
 
@@ -225,8 +226,8 @@ evaluation dataset. They are automatable with moderate effort.
 | 🔴 HIGH | P020 font-size fallback for heading detection | Titles Examples | Add font-size ≥ body heuristic when bold metadata absent | Medium — requires font-size distribution analysis |
 | 🔴 HIGH | Acknowledgements paragraph order and key words | Self-Assessment Sheet | Keyword/pattern matching per paragraph | Medium — fragile on varied writing |
 | ✅ DONE | Body text double-spacing (line height ≥ ~2× font size) | Formatting Guidelines | P023 implemented — conservative median+fraction threshold; 0 findings on clean Yin 4th review | See `docs/evaluation/phase2_p023_body_double_spacing_evaluation.md` |
-| 🔴 HIGH | TOC entry capitalization by level (L1=ALL CAPS, L2=title case, L3=sentence) | Q049–Q051 | Detect level from indentation + numbering pattern | High — requires TOC level classification |
-| 🔴 HIGH | Table title terminal period absent | Q065 / P017 partial | P017 already partially checks; strengthen with P020 | Low — already partially implemented |
+| ✅ DONE | TOC entry capitalization by level (L1=ALL CAPS, L2=title case) | Q049–Q050 | P024 implemented — level classified by numbering pattern + indentation; conservative all-caps and title-case checks | See `docs/evaluation/phase2_p024_toc_list_formatting_evaluation.md` |
+| ✅ DONE | LoT/LoF entry title-case and terminal punctuation | Q065 area | P024 implemented — LoT checks title case + no terminal period; LoF checks sentence case | See `docs/evaluation/phase2_p024_toc_list_formatting_evaluation.md` |
 
 ### Useful but Heuristic
 
@@ -282,7 +283,7 @@ Per `Titles Examples Level 1 to 5.docx` and `Self-Self Assessment Sheet.pdf`:
 
 **Key gap:** P020 uses bold font metadata to identify headings, but 3 of 4 tested PDFs do not expose this metadata reliably. A font-size threshold (e.g., span size ≥ 13pt) as a secondary trigger would significantly improve recall.
 
-**TOC entry capitalization (Q049–Q051)** is not covered: P018 checks alignment and structural consistency of TOC entries but does not validate whether L1 entries are ALL CAPS, L2 entries are title case, or L3 entries are sentence case.
+**TOC entry capitalization (Q049–Q050)** is now partially covered by P024: Level 1 entries are checked for obvious non-ALL-CAPS, Level 2 entries (numbered 1.x) are checked using the title-case helper. Q051 (Level 3 sentence case) is not enforced.
 
 ---
 

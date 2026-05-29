@@ -24,6 +24,7 @@ from njit_auditor.rules.pdf_title_capitalization import (
     looks_like_acronym,
 )
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 runner = CliRunner()
 
@@ -1460,3 +1461,276 @@ def test_p023_json_report_includes_rule_when_triggered(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert json_out.exists()
     assert "P023" in json_out.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# P024: TOC/List entry capitalization and punctuation
+# ---------------------------------------------------------------------------
+
+def _make_toc_pdf(path: Path, heading: str, entries: list[tuple[str, float]]) -> None:
+    """Create a PDF with a TOC/List heading and entries at given x-indents."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    for idx, (label, indent_x) in enumerate(entries):
+        y = 130 + idx * 20
+        page.insert_text((indent_x, y), label)
+        page.insert_text((500, y), "12")
+    doc.save(path)
+    doc.close()
+
+
+def test_p024_toc_level2_correct_title_case_no_warning(tmp_path: Path) -> None:
+    """TOC Level 2 entry in correct Title Case must not produce a P024 warning."""
+    pdf_path = tmp_path / "toc_l2_ok.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        [
+            # Use 5+ word CHAPTER entries to pass _likely_entry_line's all-caps/≤4-word filter.
+            ("CHAPTER 1 INTRODUCTION TO THE STUDY ....", 108),
+            ("CHAPTER 2 BACKGROUND AND RELATED WORK ....", 108),
+            ("CHAPTER 3 RESEARCH METHODOLOGY AND DATA ....", 108),
+            ("1.1 Background of the Study ....", 140),
+            ("1.2 Statement of the Problem ....", 140),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    p024 = [f for f in findings if f.rule_id == "P024"]
+    assert not any(
+        f.details.get("issue_type") == "toc_level_capitalization"
+        and f.details.get("entry_level") == "2"
+        for f in p024
+    )
+
+
+def test_p024_toc_level2_lowercase_major_word_warns(tmp_path: Path) -> None:
+    """TOC Level 2 entry with obvious lowercase major word must warn."""
+    pdf_path = tmp_path / "toc_l2_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        [
+            # Use numbered Level 2 entries only — all pass _likely_entry_line.
+            ("1.1 background of the study and motivation ....", 108),
+            ("1.2 Statement of the Problem and Research Gap ....", 108),
+            ("1.3 Review of Related Literature and Prior Work ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    p024 = [f for f in findings if f.rule_id == "P024"]
+    assert any(
+        f.details.get("issue_type") == "toc_level_capitalization"
+        and f.details.get("entry_level") == "2"
+        for f in p024
+    )
+
+
+def test_p024_toc_ambiguous_entry_skipped(tmp_path: Path) -> None:
+    """TOC entries that cannot be level-classified must be skipped (no P024 warning)."""
+    pdf_path = tmp_path / "toc_ambiguous.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    # Single-indent level — cannot distinguish Level 1 from Level 2.
+    # One entry is a short entry that fails the word-count gate.
+    page.insert_text((108, 130), "Short")
+    page.insert_text((500, 130), "2")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(f.rule_id == "P024" for f in findings)
+
+
+def test_p024_lot_correct_title_case_no_warning(tmp_path: Path) -> None:
+    """LoT entry with correct Title Case and no terminal period must not warn."""
+    pdf_path = tmp_path / "lot_ok.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 Descriptive Statistics for Participant Demographics ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_tables_title_case"
+        for f in findings
+    )
+
+
+def test_p024_lot_lowercase_major_word_warns(tmp_path: Path) -> None:
+    """LoT entry with obvious lowercase major word must warn."""
+    pdf_path = tmp_path / "lot_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 descriptive statistics for participant demographics ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_tables_title_case"
+        for f in findings
+    )
+
+
+def test_p024_lot_unexpected_terminal_period_warns(tmp_path: Path) -> None:
+    """LoT entry ending with a period must produce an unexpected_terminal_punctuation warning."""
+    pdf_path = tmp_path / "lot_period.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((210, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "Table 1. Descriptive Statistics for Participants.")
+    page.insert_text((500, 130), "12")
+    page.insert_text((108, 150), "Table 2. Summary of Regression Coefficients Here.")
+    page.insert_text((500, 150), "24")
+    page.insert_text((108, 170), "Table 3. Comparison of Algorithm Performance.")
+    page.insert_text((500, 170), "36")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert any(
+        f.rule_id == "P024"
+        and f.details.get("issue_type") == "unexpected_terminal_punctuation"
+        and f.details.get("page_type") == "list_of_tables"
+        for f in findings
+    )
+
+
+def test_p024_lof_sentence_case_correct_no_warning(tmp_path: Path) -> None:
+    """LoF entry in correct sentence case must not warn."""
+    pdf_path = tmp_path / "lof_ok.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Schematic diagram of the proposed system architecture ....", 108),
+            ("Figure 2 Overview of data collection pipeline for experiments ....", 108),
+            ("Figure 3 Comparison of training accuracy across baseline models ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        for f in findings
+    )
+
+
+def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
+    """LoF entry with title-case-like capitalization warns for sentence-case violation."""
+    pdf_path = tmp_path / "lof_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
+            ("Figure 2 Overview of Data Collection Pipeline for Experiments ....", 108),
+            ("Figure 3 Comparison of Training Accuracy Across Baseline Models ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        for f in findings
+    )
+
+
+def test_p024_leader_dots_and_page_number_stripped_before_check(tmp_path: Path) -> None:
+    """Leader dots and trailing page numbers must be stripped before capitalization check."""
+    pdf_path = tmp_path / "lot_stripped.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((210, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    # This entry has correct Title Case; the trailing ".... 12" must not be part of the check.
+    page.insert_text((108, 130), "Table 1 Regression Analysis of Independent Variables ....")
+    page.insert_text((500, 130), "12")
+    page.insert_text((108, 150), "Table 2 Summary Statistics for Population Groups ....")
+    page.insert_text((500, 150), "24")
+    page.insert_text((108, 170), "Table 3 Cross-Validation Results for Classifier Models ....")
+    page.insert_text((500, 170), "36")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_tables_title_case"
+        for f in findings
+    )
+
+
+def test_p024_body_page_ignored(tmp_path: Path) -> None:
+    """P024 must not fire on ordinary body pages."""
+    pdf_path = tmp_path / "body_p024.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 130), "1.1 background of the study and its implications here.")
+    page.insert_text((108, 150), "some more lowercase paragraph text on this body page.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(f.rule_id == "P024" for f in findings)
+
+
+def test_p024_references_page_ignored(tmp_path: Path) -> None:
+    """P024 must not fire on REFERENCES pages."""
+    pdf_path = tmp_path / "ref_p024.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((240, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "1.1 background of the study and its implications here.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(f.rule_id == "P024" for f in findings)
+
+
+def test_p024_cli_pdf_includes_p024(tmp_path: Path) -> None:
+    """CLI pdf command must surface P024 when a LoT entry has a title-case violation."""
+    pdf_path = tmp_path / "cli_p024.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 descriptive statistics for participant demographics ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P024" in result.output
+
+
+def test_p024_json_report_includes_p024_when_triggered(tmp_path: Path) -> None:
+    """JSON report must include P024 when LoT entry has a title-case violation."""
+    pdf_path = tmp_path / "json_p024.pdf"
+    json_out = tmp_path / "out" / "p024_report.json"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 descriptive statistics for participant demographics ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    assert json_out.exists()
+    assert "P024" in json_out.read_text(encoding="utf-8")

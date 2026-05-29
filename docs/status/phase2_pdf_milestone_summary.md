@@ -27,7 +27,7 @@ njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comm
 njit-audit pdf-comments clean input.pdf --out clean.pdf
 ```
 
-## 4) Implemented PDF Rules (P011–P023)
+## 4) Implemented PDF Rules (P011–P024)
 
 - `P011` margin detection
   - Detects likely text crossing assumed NJIT margin bounds.
@@ -78,6 +78,14 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Skips TOC, List, References, and all named front-matter pages.
   - Excludes top/bottom 15% margin zones (running headers, footnotes, page numbers).
   - EF evaluation: 0 findings on Yin 4th review (clean); 4–6 findings on earlier drafts.
+  - Manual review required.
+- `P024` TOC/LoT/LoF entry capitalization and punctuation
+  - Checks TABLE OF CONTENTS entries for expected capitalization by level (L1=ALL CAPS Q049, L2=Title Case Q050).
+  - Checks LIST OF TABLES entries for Title Case compliance and absence of terminal periods.
+  - Checks LIST OF FIGURES entries for sentence-case compliance (conservative: requires >60% later words capitalized).
+  - TOC level classified by numbering pattern (`1.x`, `1.x.x`, `CHAPTER`) and indentation clusters.
+  - Strips leader dots and page-number tokens before checking entry text.
+  - EF evaluation: 12 findings on Yin 4th review (8 LoT title-case, 2 terminal punct, 1 TOC L2, 1 LoF); 0 on other files (TOC pages not extractable).
   - Manual review required.
 
 ## 5) Evaluation on Ester Clean PDF (Latest Known)

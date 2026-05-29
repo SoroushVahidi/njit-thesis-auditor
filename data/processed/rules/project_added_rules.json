@@ -395,5 +395,23 @@
     "implementation_module": "njit_auditor.rules.pdf_body_spacing",
     "priority": "high",
     "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55× is between single (≈1.1–1.3×) and double (≈2.0–2.3×) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0×) are excluded from spacing analysis."
+  },
+  {
+    "id": "P024",
+    "section": "PDF TOC and list entry formatting",
+    "question": "Do TOC/LoT/LoF entries follow expected capitalization and punctuation style?",
+    "rule_definition": "Heuristically detect obvious capitalization and punctuation issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); List of Tables titles should use Title Case and not end with a period; List of Figures descriptions should use sentence case.",
+    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, List of Tables=Title Case (no terminal period), List of Figures=sentence case.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
+    "priority": "high",
+    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization, list_of_tables_title_case, list_of_figures_sentence_case, unexpected_terminal_punctuation."
   }
 ]
