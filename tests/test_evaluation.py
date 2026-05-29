@@ -11,6 +11,7 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P012") == "annotations"
     assert map_finding_rule_to_category("P013") == "page_numbering"
     assert map_finding_rule_to_category("P019") == "page_numbering"
+    assert map_finding_rule_to_category("P022") == "page_numbering"
     assert map_finding_rule_to_category("P014") == "heading_title"
     assert map_finding_rule_to_category("P015") == "indentation"
     assert map_finding_rule_to_category("P016") == "spacing_blank_lines"

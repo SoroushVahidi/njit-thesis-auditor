@@ -1,9 +1,8 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Branch: `implement-frontmatter-structure-rules` (2 commits ahead of main)
-- HEAD: `c92f18d` (Refine P025 title-page text-layer guard)
-- Latest main: `d651b59` (P024 TOC/list entry formatting)
+- Branch: `implement-p022-frontmatter-no-page-number` (P022 pending PR)
+- Latest main: `f30417e` (P025 front-matter structure checks)
 
 ---
 
@@ -35,6 +34,7 @@
 | `pdf_captions.py` | P017 | Caption terminal punctuation; table-title no-period signal |
 | `pdf_toc_alignment.py` | P018 | TOC/list entry alignment (leaders, page-number column, indentation hierarchy) |
 | `pdf_abstract.py` | P021 (PDF) | Abstract word count via PDF text layer |
+| `pdf_frontmatter_no_page_number.py` | P022 | No visible page number on Abstract, Title, Approval, Copyright pages |
 | `pdf_body_spacing.py` | P023 | Body text double-spacing (line spacing ≥ 1.55× font size, conservative threshold) |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
@@ -55,7 +55,7 @@
 | `pdf_comments.py` | PDF annotation extraction and cleaning |
 | `rule_loader.py` | Load and validate rule inventory JSON files |
 
-**Missing:** P022 slot is vacant in `project_added_rules.json`. The rule_coverage_audit originally planned P022 as "body spacing" but that was implemented as P023. No rule currently checks for page-number absence on specific named front-matter pages.
+**P022 is now implemented** in `pdf_frontmatter_no_page_number.py` on the `implement-p022-frontmatter-no-page-number` branch.
 
 ---
 
@@ -63,8 +63,8 @@
 
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
-| Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~28 | ~27 | ~22 |
-| P-rules (P001–P025, no P022) | 24 | 24 | — | — | — |
+| Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~32 | ~23 | ~22 |
+| P-rules (P001–P025) | 25 | 25 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -109,7 +109,7 @@
 
 | Priority | Gap | Addresses | Complexity | Risk |
 |----------|-----|-----------|:----------:|:----:|
-| 🔴 HIGH | P022: Page-number absence on named front-matter pages (abstract, title, copyright, approval) | Q001, Q008, Q012, Q014 | Medium | Low |
+| ✅ DONE | P022: Page-number absence on named front-matter pages | Q001, Q008, Q012, Q014 | — | — |
 | 🔴 HIGH | P020 font-size fallback when bold metadata absent | P020 recall gap | Medium | Low-Med |
 | 🟡 MED | P026: Font compliance (Times New Roman 12pt throughout body) | Guidelines requirement | Medium | Medium |
 | 🟡 MED | L3/L4/L5 heading style enforcement | Q051; L4/L5 period/italic | Medium | Medium |
@@ -143,12 +143,8 @@ All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. 
 
 ## 5. Recommended Next Implementation Bundles
 
-### Bundle 1: P022 — Page-Number Absence on Named Pages (highest priority)
-**Rationale:** P013 provides candidates globally but never confirms absence on specific pages (abstract, title, copyright, approval). EF consistently flags stray page numbers on these pages. P025/P014 already identify named pages by heading detection.  
-**Q-rule basis:** Q001, Q008, Q012, Q014  
-**Files to change:** `src/njit_auditor/rules/pdf_page_numbers.py`, `data/processed/rules/project_added_rules.json`  
-**Tests:** Synthetic pages with/without page-number zone hits; named-page detection integration  
-**Risk:** Low — uses existing P013 infrastructure; heuristic warning only
+### Bundle 1 (DONE): P022 — Page-Number Absence on Named Pages
+Implemented in `pdf_frontmatter_no_page_number.py`. 0 findings on all 4 EF PDFs.
 
 ### Bundle 2: P020 Font-Size Fallback
 **Rationale:** 3 of 4 tested PDFs lack bold metadata, causing P020 to fire 0 on heading-rich documents with real title-case issues (confirmed by EF comments on Cibaku).  
@@ -180,18 +176,18 @@ All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. 
 
 ---
 
-## 6. Validation Status (as of HEAD c92f18d)
+## 6. Validation Status (as of implement-p022-frontmatter-no-page-number branch)
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 200 passed, 0 failed |
+| `python -m pytest` | ✅ 212 passed, 0 failed |
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 38 source files |
+| `mypy src` | ✅ No issues in 39 source files |
 
 ---
 
 ## 7. Branch Readiness
 
-The `implement-frontmatter-structure-rules` branch (P025) is **ready for PR** against main. All 200 tests pass, linting is clean, mypy is clean, and EF evaluation shows 0 findings on all 4 tested PDFs after the text-layer guard refinement.
+The `implement-p022-frontmatter-no-page-number` branch (P022) is **ready for PR** against main. All 212 tests pass, linting is clean, mypy is clean, and EF evaluation shows 0 findings on all 4 tested PDFs (expected for late-stage review files).
 
-**Next PR after P025 merge:** Bundle 1 (P022 page-number absence on named pages) is the most impactful and lowest-risk next step.
+**Next PR after P022 merge:** Bundle 2 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.

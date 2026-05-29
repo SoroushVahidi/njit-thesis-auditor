@@ -7,14 +7,15 @@
     "remediation": "Delete the visible page number from the Abstract page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_no_page_number"
   },
   {
     "id": "Q002",
@@ -131,14 +132,15 @@
     "remediation": "Delete the visible page number from the Title Page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_no_page_number"
   },
   {
     "id": "Q009",
@@ -203,14 +205,15 @@
     "remediation": "Delete the visible page number from the Copyright page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_no_page_number"
   },
   {
     "id": "Q013",
@@ -237,14 +240,15 @@
     "remediation": "Delete the visible page number from the Approval Page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_no_page_number"
   },
   {
     "id": "Q015",

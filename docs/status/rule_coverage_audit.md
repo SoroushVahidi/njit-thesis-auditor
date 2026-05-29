@@ -1,8 +1,8 @@
 # Rule Coverage Audit Against Guideline Sources
 
 - Date: 2026-05-29
-- Auditor version: P001–P021, P023, Q004–Q005 implemented
-- Main branch: b569736
+- Auditor version: P001–P025 implemented (P022 added; Q004–Q005 implemented)
+- Main branch: f30417e (P025); P022 on implement-p022-frontmatter-no-page-number branch
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q001 | Abstract page free of visible page number | 🟡 partial | P013/P019 detect page-number candidates but do not confirm absence on abstract page | Requires targeted page-zone check |
+| Q001 | Abstract page free of visible page number | 🟡 partial | P022 detects page-number candidates on ABSTRACT heading page; P013/P019 global detection | P022 targets named page; still heuristic |
 | Q002 | First body paragraph flush-left (no indent) | 🟡 partial | P015 detects opening indent on abstract page | P015 covers abstract page first-paragraph case |
 | Q003 | Subsequent paragraphs indented | 🟡 partial | P015 detects missing later indent | P015 is conservative; may miss subtle cases |
 | Q004 | Abstract avoids "paper"/"article" language | ✅ implemented | `latex_abstract.py` (tex source) | TeX source only; not checked in PDF text layer |
@@ -43,7 +43,7 @@ Status key:
 |----|-------------|:------:|-----------|-------|
 | Q006 | Graduation month is Aug/Dec/May | 🟡 partial | `latex_metadata.py` + `title_page.py` (PDF) | Detects month text; heuristic/partial |
 | Q007 | Institutional identity block matches department template | 👤 manual-only | Not automated | Requires per-department template comparison |
-| Q008 | Title page free of visible page number | 🟡 partial | P013 detects page-number candidates near top/bottom zones | Does not confirm absence on title page specifically |
+| Q008 | Title page free of visible page number | 🟡 partial | P022 checks page 1 when doc has named front-matter headings; years suppressed | Title-page detection is heuristic (page 1 assumption) |
 
 ### Copyright Page (Q009–Q012)
 
@@ -52,14 +52,14 @@ Status key:
 | Q009 | Copyright page free of header text | ❌ not implemented | — | Requires named page identification |
 | Q010 | Copyright year matches title page year | ❌ not implemented | — | Requires multi-field cross-check |
 | Q011 | Copyright author name matches title page | ❌ not implemented | — | Requires cross-page text extraction and comparison |
-| Q012 | Copyright page free of visible page number | 🟡 partial | P013 candidate detection only | Does not confirm absence specifically |
+| Q012 | Copyright page free of visible page number | 🟡 partial | P022 checks if copyright signal found in early pages; conservative | Copyright detection requires text-layer copyright signal |
 
 ### Approval Page (Q013–Q020)
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
 | Q013 | "APPROVAL PAGE" heading present, all caps, bold, centered | 🟡 partial | P014 checks heading style; P025 checks content below heading | P025 warns if approval page body is sparse |
-| Q014 | Approval page free of visible page number | 🟡 partial | P013 candidate detection | Does not confirm absence specifically |
+| Q014 | Approval page free of visible page number | 🟡 partial | P022 detects candidates on APPROVAL PAGE heading page | Heading must be detected by P014 logic |
 | Q015 | Every committee entry preceded by honorific (Dr./Mr./Ms.) | 👤 manual-only | — | Requires NLP name/title parsing |
 | Q016 | Dissertation Advisor listed first | 👤 manual-only | — | Requires semantic role understanding |
 | Q017 | Committee members listed in descending rank order | 👤 manual-only | — | Requires rank NLP |
@@ -169,7 +169,7 @@ Status key:
 
 ---
 
-## 2. Project-Added P-Rule Coverage (P001–P020)
+## 2. Project-Added P-Rule Coverage (P001–P025)
 
 | ID | Scope | What It Checks | Status | Guideline Basis | Known Caveats |
 |----|-------|---------------|:------:|----------------|---------------|
@@ -194,6 +194,7 @@ Status key:
 | P019 | PDF layout | Page-number sequence/style consistency | ✅ | Guidelines: sequential Arabic then Roman, consistent position | Candidate-based; does not enforce full NJIT policy |
 | P020 | PDF layout | Title-case capitalization for Level 2 headings and table titles | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Bold metadata may be absent; misses Level 2 in non-bold PDFs |
 | P021 | TeX+PDF | Abstract word count (PhD ≤350, MS ≤150) | ✅ | Formatting Guidelines | Single-page extraction only; PDF mode uses conservative PhD threshold |
+| P022 | PDF layout | No visible page number on no-number front-matter pages (Abstract, Title, Approval, Copyright) | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf | Heuristic; title page = page 1 assumption; year suppression on title page; copyright detection requires text-layer signal; EF eval: 0 findings on all 4 EF PDFs |
 | P023 | PDF layout | Body-text double-spacing (line spacing ≥ 1.55× font size) | ✅ | Formatting Guidelines; Self-Assessment Sheet | Conservative: requires ≥8 suspicious gaps, ≥60% fraction, median < 1.55×; EF eval: 0 findings on clean Yin 4th review |
 | P024 | PDF layout | TOC/LoT/LoF entry capitalization and terminal punctuation | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Conservative; requires ≥3 entries on page; only classifiable TOC levels; EF eval: 12 findings on Yin 4th review (3 other files have no detectable TOC pages) |
 | P025 | PDF layout | Front-matter structure: abstract body, title page elements, approval page content, front-matter order | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf; PhD Title Pages.pdf | Conservative; title page checks require extractable text layer; EF eval: 0 on Yin 4th review (text-rich); 2 on others (title page image-based, likely false positives) |
@@ -317,9 +318,9 @@ Per `Titles Examples Level 1 to 5.docx` and `Self-Self Assessment Sheet.pdf`:
 
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
-| Q-rules (Q001–Q079) | 79 | 2 | 28 | 27 | 22 |
-| P-rules (P001–P020) | 20 | 20 | — | — | — |
-| **Total** | **99** | **22** | **28** | **27** | **22** |
+| Q-rules (Q001–Q079) | 79 | 2 | 32 | 23 | 22 |
+| P-rules (P001–P025, no vacant slots) | 25 | 25 | — | — | — |
+| **Total** | **104** | **27** | **32** | **23** | **22** |
 
 The 22 manual-only rules (all in Approval Page and Acknowledgements sections) are
 unlikely to be automated without LLM-based semantic analysis.

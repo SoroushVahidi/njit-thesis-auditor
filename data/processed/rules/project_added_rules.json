@@ -364,7 +364,7 @@
     "section": "Abstract word count",
     "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
     "rule_definition": "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
-    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
+    "remediation": "Shorten the abstract to within the applicable limit. PhD: \u2264350 words. MS: \u2264150 words.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -379,10 +379,28 @@
     "notes": "LaTeX-side: degree type inferred from source; counts words after LaTeX stripping. PDF-side (pdf_abstract.py): single-page abstract extraction, conservative PhD threshold when type unknown. Source: data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx."
   },
   {
+    "id": "P022",
+    "section": "PDF front-matter no visible page number",
+    "question": "Do any named no-number front-matter pages (Abstract, Title, Approval, Copyright) show a visible page number?",
+    "rule_definition": "NJIT requires no visible page number on the Abstract page (Q001), Title page (Q008), Approval page (Q014), and Copyright page (Q012). This rule detects page-number-like candidates (numeric or Roman numeral tokens) in the top/bottom margin zone on these specific named pages and emits one warning per affected page. Years (1900-2099) in the title-page zone are suppressed to avoid false positives. Copyright page detection is conservative: only flagged when clear copyright signals are found in the first four pages.",
+    "remediation": "Remove any visible page number from the Abstract, Title, Approval, or Copyright page. These pages must not display a page number per NJIT formatting guidelines.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_no_page_number",
+    "priority": "high",
+    "notes": "Conservative heuristic. Sources: Thesis and Dissertation Formatting Guidelines (WIP).docx; Front Matter Pages Lorem Ipsum.pdf. Partially addresses Q001 (Abstract), Q008 (Title), Q012 (Copyright), Q014 (Approval). Reuses P013-style candidate detection but targets only identified no-number pages. Title-page detection uses first-page heuristic when document has front-matter headings and >= 3 pages. Does not duplicate P013 (global candidates) or P019 (sequence). issue_type: visible_page_number_on_no_number_page. page_type values: abstract, title_page, approval_page, copyright_page."
+  },
+  {
     "id": "P023",
     "section": "PDF body text double-spacing",
     "question": "Does any body-text page show line spacing that appears to be less than double-spaced?",
-    "rule_definition": "Body text paragraphs must be double-spaced (line spacing ≥ ~1.8–2.4× font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55× the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
+    "rule_definition": "Body text paragraphs must be double-spaced (line spacing \u2265 ~1.8\u20132.4\u00d7 font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55\u00d7 the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
     "remediation": "Set body text to double line spacing. In LaTeX: use \\doublespacing or \\setstretch{2.0}. In Word: set paragraph line spacing to 'Double'.",
     "severity": "warning",
     "source_file": "project_added",
@@ -394,7 +412,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_body_spacing",
     "priority": "high",
-    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55× is between single (≈1.1–1.3×) and double (≈2.0–2.3×) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0×) are excluded from spacing analysis."
+    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55\u00d7 is between single (\u22481.1\u20131.3\u00d7) and double (\u22482.0\u20132.3\u00d7) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0\u00d7) are excluded from spacing analysis."
   },
   {
     "id": "P024",
