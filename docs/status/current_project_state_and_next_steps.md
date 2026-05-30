@@ -24,6 +24,7 @@
 - P031 current-dataset evaluation: `docs/evaluation/p031_current_dataset_evaluation.md`
 - P031 Sebastian clean-baseline investigation: `docs/evaluation/p031_sebastian_clean_baseline_investigation.md`
 - P032 synthetic validation: `docs/evaluation/p032_toc_list_wrapped_spacing_synthetic_validation.md`
+- P032 current-dataset evaluation: `docs/evaluation/p032_current_dataset_evaluation.md`
 
 ---
 

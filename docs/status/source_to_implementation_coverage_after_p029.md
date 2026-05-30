@@ -223,3 +223,4 @@ Top 3 next tasks:
 - **Q-rule basis:** partial/heuristic PDF coverage for **Q053–Q055**, **Q066–Q067**, and **Q076–Q078** only.
 - **Limitations:** Does not verify spacing between separate entries, leader formatting, or full visual compliance; skips ambiguous wrap grouping and very large gaps that likely indicate separate entries.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p032_toc_list_wrapped_spacing_synthetic_validation.md`.
+- **Current-dataset evaluation (2026-05-30):** `docs/evaluation/p032_current_dataset_evaluation.md` — 3 P032 findings on Yin H 4th compressed (LoF page 15 only); 0 on other evaluated PDFs.
