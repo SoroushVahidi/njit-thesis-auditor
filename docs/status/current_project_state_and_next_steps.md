@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Branch: `implement-pdf-font-compliance` (P026 pending PR)
-- Latest main: `87369f7` (P022 front-matter no-page-number)
+- Branch: `improve-pdf-report-grouped-summaries` (grouped summary pending PR)
+- Latest main: `4e73c39` (P026 body font compliance)
 
 ---
 
@@ -45,6 +45,7 @@
 
 | Module | Purpose |
 |--------|---------|
+| `report_outputs.py` | JSON/Markdown report generation; `build_grouped_summary`, `compact_page_list` added for triage summaries |
 | `cli.py` | CLI entry point for both TeX and PDF audit modes |
 | `pdf_layout.py` / `pdf_loader.py` | PDF geometry extraction (pdfplumber) |
 | `pdf_models.py` | Typed data models for pages, blocks, spans |
@@ -184,7 +185,7 @@ Implemented in `pdf_font_compliance.py`. EF evaluation: 92–117 family warnings
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 234 passed, 0 failed |
+| `python -m pytest` | ✅ 255 passed, 0 failed |
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 40 source files |
 
@@ -192,6 +193,6 @@ Implemented in `pdf_font_compliance.py`. EF evaluation: 92–117 family warnings
 
 ## 7. Branch Readiness
 
-The `implement-pdf-font-compliance` branch (P026) is **ready for PR** against main. All 234 tests pass, linting is clean, mypy is clean. EF evaluation shows 92–117 family warnings per document (expected — all 4 PDFs use non-TNR fonts).
+The `improve-pdf-report-grouped-summaries` branch is **ready for PR** against main. All 255 tests pass, linting is clean, mypy is clean. Grouped summaries evaluated on Yin 4th review (463 findings, 6 high-volume rules correctly identified).
 
-**Next PR after P026 merge:** Bundle 3 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.
+**Next PR after this merge:** Bundle 3 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.
