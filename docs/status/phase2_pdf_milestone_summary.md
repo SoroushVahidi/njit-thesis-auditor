@@ -45,7 +45,8 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Manual review required.
 - `P014` front-matter heading checks
   - Checks named heading layout/style (near-top, centered, bold, caps).
-  - Conservative heuristic for obvious heading issues.
+  - Centering now checks against text-area center (accounting for NJIT's 1.5"/1" margins), not
+    physical page center. This eliminated false positives on all tested PDFs.
   - Manual review required.
 - `P015` indentation
   - Checks strong indentation anomalies.

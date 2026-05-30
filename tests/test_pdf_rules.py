@@ -119,8 +119,10 @@ def _make_pdf_with_heading(
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     if centered:
+        # Center within the text area (1.5" left, 1" right margins) so centering
+        # checks against text_area_center pass correctly.
         page.insert_textbox(
-            fitz.Rect(0, y - 20, 612, y + 20),
+            fitz.Rect(108, y - 20, 540, y + 20),
             text,
             fontsize=16,
             fontname=fontname,
@@ -367,6 +369,64 @@ def test_abstract_too_low_produces_p014_warning(tmp_path: Path) -> None:
     findings = check_named_frontmatter_headings(model)
     warning = next(f for f in findings if f.rule_id == "P014")
     assert warning.details.get("near_top") == "False"
+
+
+def test_p014_cmbx_bold_heading_not_flagged_as_non_bold() -> None:
+    # CMBX (Computer Modern Bold Extended) is recognized as bold via _style_flags_from_font_name.
+    # Test directly at model level since CMBX is not a built-in PyMuPDF render font.
+    from njit_auditor.pdf_layout import _style_flags_from_font_name
+    from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextSpan
+    from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
+
+    bold, _ = _style_flags_from_font_name("CMBX12")
+    assert bold, "CMBX12 font name should be recognized as bold"
+
+    span = PdfTextSpan(
+        text="ABSTRACT",
+        bbox=BBox(x0=282.0, y0=75.0, x1=366.0, y1=91.0),
+        font="CMBX12",
+        size=14.0,
+        bold=bold,
+        italic=False,
+    )
+    line = PdfTextLine(
+        spans=[span],
+        bbox=BBox(x0=282.0, y0=75.0, x1=366.0, y1=91.0),
+        text="ABSTRACT",
+    )
+    block = PdfTextBlock(
+        lines=[line],
+        bbox=BBox(x0=282.0, y0=75.0, x1=366.0, y1=91.0),
+        text="ABSTRACT",
+    )
+    page = PdfPage(page_number=1, width=612.0, height=792.0, text_blocks=[block])
+    doc = PdfDocument(path="synthetic", pages=[page])
+
+    findings = check_named_frontmatter_headings(doc)
+    non_bold = [f for f in findings if f.rule_id == "P014" and f.details.get("bold") == "False"]
+    assert not non_bold, "CMBX heading should be recognized as bold"
+
+
+def test_p014_text_area_centered_heading_passes(tmp_path: Path) -> None:
+    # Heading centered within the text area (between margins) should pass P014.
+    pdf_path = tmp_path / "heading_ta_centered.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Insert heading centered within text area [108, 540] — center at 324pt.
+    page.insert_textbox(
+        fitz.Rect(108, 70, 540, 110),
+        "ABSTRACT",
+        fontsize=16,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    assert not any(f.rule_id == "P014" for f in findings), (
+        "Heading centered in text area should pass P014"
+    )
 
 
 def test_flush_left_first_abstract_paragraph_does_not_warn(tmp_path: Path) -> None:

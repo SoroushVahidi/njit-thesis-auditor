@@ -43,6 +43,13 @@ Initial checks implemented:
 - `P028`: page-numbering regime (front-matter pages → lowercase Roman; body pages → Arabic; region detected from named headings + CHAPTER heading)
 - `P029`: front-matter lowercase Roman numeral ordering (sequence checks for i, ii, iii...; flags repeats/gaps/decreases)
 
+P014 refinement notes:
+
+- Centering check now compares against text-area center `(LEFT_MARGIN_PT + page.width - RIGHT_MARGIN_PT) / 2`
+  rather than physical page center. NJIT's asymmetric margins (1.5" left, 1" right) place the
+  text area center 18pt right of the page center; using page center produced false positives on
+  all tested PDFs. Fixed in clean-baseline investigation (2026-05-29).
+
 P014 checks (heuristic):
 
 - expected named heading text match for:
