@@ -521,5 +521,23 @@
     "implementation_module": "njit_auditor.rules.pdf_roman_sequence",
     "priority": "medium",
     "notes": "Conservative heuristic. Reuses page-number candidate detection and front-matter region classification. issue_type values: roman_sequence_gap, roman_sequence_repeat, roman_sequence_decrease, roman_sequence_unexpected_start. One finding per (page, issue_type)."
+  },
+  {
+    "id": "P030",
+    "section": "PDF TOC/List continued headings",
+    "question": "Do multi-page Table of Contents, List of Tables, or List of Figures sections use a continued heading on subsequent pages?",
+    "rule_definition": "When a TOC, List of Tables, or List of Figures section spans more than one consecutive page, each continuation page should display a continued heading such as \"TABLE OF CONTENTS (Continued)\", \"LIST OF TABLES (Continued)\", or \"LIST OF FIGURES (Continued)\". This conservative heuristic flags only consecutive continuation pages of the same section that lack a continued-heading variant.",
+    "remediation": "Add the appropriate continued heading to each continuation page of the multi-page TOC, List of Tables, or List of Figures section.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_toc_continued_headings",
+    "priority": "medium",
+    "notes": "Conservative heuristic partial coverage for Q048, Q062, and Q071. Reuses TOC/List page detection from pdf_toc_alignment.py. Does not verify bold/centering of continued headings. Skips single-page sections and non-consecutive pages. issue_type: missing_continued_heading."
   }
 ]

@@ -31,6 +31,7 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P016") == "spacing_blank_lines"
     assert map_finding_rule_to_category("P023") == "spacing_blank_lines"
     assert map_finding_rule_to_category("P018") == "list_of_tables_figures_toc"
+    assert map_finding_rule_to_category("P030") == "list_of_tables_figures_toc"
     assert map_finding_rule_to_category("P020") == "capitalization_case"
     assert map_finding_rule_to_category("P021") == "abstract_length"
     assert map_finding_rule_to_category("P017", {"caption_type": "table"}) == "table_format"

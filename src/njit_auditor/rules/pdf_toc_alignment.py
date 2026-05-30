@@ -74,6 +74,19 @@ def _detect_toc_page_type(line_text: str) -> str | None:
     return TOC_HEADING_MAP.get(normalized)
 
 
+def classify_toc_heading_line(line_text: str) -> tuple[str, bool] | None:
+    """Return ``(page_type, is_continued)`` when *line_text* is a TOC/List heading."""
+
+    cleaned = _clean_text(line_text)
+    upper = cleaned.upper()
+    upper = TRAILING_PUNCT_RE.sub("", upper).strip()
+    is_continued = bool(HEADING_SUFFIX_RE.search(upper))
+    page_type = TOC_HEADING_MAP.get(_normalize_toc_heading_variant(cleaned))
+    if page_type is None:
+        return None
+    return page_type, is_continued
+
+
 def detect_toc_like_pages(pdf_document: PdfDocument) -> list[TocPageContext]:
     """Detect TOC/List pages from named heading lines."""
 

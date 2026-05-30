@@ -93,8 +93,8 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 29,
-        "rule_id_range": "P001-P029",
+        "rule_count": 30,
+        "rule_id_range": "P001-P030",
         "tracked_status": "tracked",
         "description": "Project implementation rule set mapped to audit modules"
       }

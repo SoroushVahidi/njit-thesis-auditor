@@ -41,6 +41,7 @@ from njit_auditor.rules.pdf_title_capitalization import (
     looks_like_acronym,
 )
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 runner = CliRunner()
@@ -3278,3 +3279,173 @@ def test_p020_font_size_fallback_correct_title_case_no_warning(tmp_path: Path) -
         and f.details.get("detection_reason") == "font_size_heading_fallback"
     ]
     assert not size_fallback
+
+
+# ---------------------------------------------------------------------------
+# P030: TOC/List continued headings
+# ---------------------------------------------------------------------------
+
+_P030_TOC_ENTRIES: list[tuple[str, float]] = [
+    ("CHAPTER 1 INTRODUCTION TO THE STUDY ....", 108),
+    ("CHAPTER 2 BACKGROUND AND RELATED WORK ....", 108),
+    ("CHAPTER 3 RESEARCH METHODOLOGY AND DATA ....", 108),
+]
+
+_P030_LOT_ENTRIES: list[tuple[str, float]] = [
+    ("Table 1 Summary of Experimental Setup ....", 108),
+    ("Table 2 Comparison of Model Performance ....", 108),
+    ("Table 3 Regression Coefficients Overview ....", 108),
+]
+
+_P030_LOF_ENTRIES: list[tuple[str, float]] = [
+    ("Figure 1 Overview of the experimental workflow ....", 108),
+    ("Figure 2 Comparison of model performance ....", 108),
+    ("Figure 3 Distribution of sample measurements ....", 108),
+]
+
+
+def _make_multi_page_section_pdf(
+    path: Path,
+    pages: list[tuple[str, list[tuple[str, float]]]],
+) -> None:
+    doc = fitz.open()
+    for heading, entries in pages:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+        for idx, (label, indent_x) in enumerate(entries):
+            y = 130 + idx * 20
+            page.insert_text((indent_x, y), label)
+            page.insert_text((500, y), "12")
+    doc.save(path)
+    doc.close()
+
+
+def test_p030_single_page_toc_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_single_toc.pdf"
+    _make_multi_page_section_pdf(
+        pdf_path,
+        [("TABLE OF CONTENTS", _P030_TOC_ENTRIES)],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P030" for f in check_pdf_toc_continued_headings(model))
+
+
+def test_p030_two_page_toc_with_continued_heading_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_toc_continued_ok.pdf"
+    _make_multi_page_section_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", _P030_TOC_ENTRIES),
+            ("TABLE OF CONTENTS (Continued)", _P030_TOC_ENTRIES),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P030" for f in check_pdf_toc_continued_headings(model))
+
+
+def test_p030_two_page_toc_missing_continued_heading_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_toc_missing_continued.pdf"
+    _make_multi_page_section_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", _P030_TOC_ENTRIES),
+            ("TABLE OF CONTENTS", _P030_TOC_ENTRIES),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_continued_headings(model) if f.rule_id == "P030"]
+    assert len(warnings) == 1
+    assert warnings[0].page == 2
+    assert warnings[0].details.get("issue_type") == "missing_continued_heading"
+    assert warnings[0].details.get("section_type") == "table_of_contents"
+    assert warnings[0].details.get("expected_heading") == "TABLE OF CONTENTS (Continued)"
+
+
+def test_p030_lot_continued_heading_accepted(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_lot_continued_ok.pdf"
+    _make_multi_page_section_pdf(
+        pdf_path,
+        [
+            ("LIST OF TABLES", _P030_LOT_ENTRIES),
+            ("LIST OF TABLES (Continued)", _P030_LOT_ENTRIES),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P030" for f in check_pdf_toc_continued_headings(model))
+
+
+def test_p030_lof_missing_continued_heading_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_lof_missing_continued.pdf"
+    _make_multi_page_section_pdf(
+        pdf_path,
+        [
+            ("LIST OF FIGURES", _P030_LOF_ENTRIES),
+            ("LIST OF FIGURES", _P030_LOF_ENTRIES),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_continued_headings(model) if f.rule_id == "P030"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("section_type") == "list_of_figures"
+
+
+def test_p030_heading_variants_with_punctuation_and_continued_suffix_accepted(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p030_heading_variants.pdf"
+    _make_multi_page_section_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS.", _P030_TOC_ENTRIES),
+            ("TABLE OF CONTENTS (CONTINUED)", _P030_TOC_ENTRIES),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P030" for f in check_pdf_toc_continued_headings(model))
+
+
+def test_p030_non_consecutive_toc_pages_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_non_consecutive.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    for idx, (label, indent_x) in enumerate(_P030_TOC_ENTRIES):
+        y = 130 + idx * 20
+        page1.insert_text((indent_x, y), label)
+        page1.insert_text((500, y), "12")
+
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((108, 140), "Ordinary body page content without list heading.")
+
+    page3 = doc.new_page(width=612, height=792)
+    page3.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    for idx, (label, indent_x) in enumerate(_P030_TOC_ENTRIES):
+        y = 130 + idx * 20
+        page3.insert_text((indent_x, y), label)
+        page3.insert_text((500, y), "12")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P030" for f in check_pdf_toc_continued_headings(model))
+
+
+def test_p030_finding_details_are_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p030_privacy_safe_details.pdf"
+    long_body = "X" * 200
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page1.insert_text((108, 140), long_body)
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page2.insert_text((108, 140), "Chapter 4 Discussion of Results and Findings ....")
+    page2.insert_text((500, 140), "12")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_toc_continued_headings(model) if f.rule_id == "P030")
+    assert len(warning.details.get("observed_heading", "")) <= 80
+    assert long_body not in str(warning.details)
+    assert long_body not in warning.message
