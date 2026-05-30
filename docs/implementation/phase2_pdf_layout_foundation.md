@@ -41,7 +41,7 @@ Initial checks implemented:
 - `P026`: body font compliance (size ≈12pt, family = Times New Roman or accepted equivalent; ≥5 violations AND ≥50% of body spans)
 - `P027`: numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case; inferred from section-number patterns)
 - `P028`: page-numbering regime (front-matter pages → lowercase Roman; body pages → Arabic; region detected from named headings + CHAPTER heading)
-- `P029`: front-matter lowercase Roman numeral ordering (sequence checks for i, ii, iii...; flags repeats/gaps/decreases)
+- `P029`: front-matter lowercase Roman numeral ordering (sequence checks for i, ii, iii...; flags repeats/gaps/decreases; candidates with value > 50 excluded as implausible TOC/noise artifacts)
 
 P014 refinement notes:
 

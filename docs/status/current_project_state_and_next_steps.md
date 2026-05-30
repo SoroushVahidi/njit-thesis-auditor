@@ -201,7 +201,15 @@ Fine 6→0, Cibaku 1→0, Yin Haotian 1→0, Yin H 4th 10→0 — all false posi
 Total: 1,485 findings (down from 1,572). Key changes: P011 compressed 150→70; P014 0 everywhere;
 P029 adds 12+2 findings. See `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`.
 
-### Bundle 10: Next recommended tasks
+### Bundle 10: P029 Boundary Guard — IMPLEMENTED
+**Summary:** P029 false positives on Sebastian Fine clean baseline (expected values 901/1001)
+were caused by TOC entries "m" (1000) and "cm" (900) being included in the front-matter
+Roman sequence. Added `_MAX_PLAUSIBLE_FRONTMATTER_ROMAN = 50` to exclude implausible
+large-value candidates. Result: Sebastian Fine 2→0; Yin H 4th 12→12 (preserved).
+**Files changed:** `src/njit_auditor/rules/pdf_roman_sequence.py`, tests, evaluation docs.
+**Risk:** Low — only excludes candidates with Roman value > 50; all real front-matter sequences unaffected.
+
+### Bundle 11: Next recommended tasks
 
 Based on the current evaluation snapshot:
 

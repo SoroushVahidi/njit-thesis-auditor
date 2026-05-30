@@ -12,6 +12,11 @@ from njit_auditor.rules.pdf_page_numbers import (
     detect_page_number_candidates,
 )
 
+# Front-matter Roman numeral pages never legitimately exceed this value.
+# Candidates above this threshold (e.g. "m"=1000, "cm"=900) are TOC entries
+# or other noise, not page numbers, and are excluded from sequence checks.
+_MAX_PLAUSIBLE_FRONTMATTER_ROMAN = 50
+
 
 def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P029 warnings for front-matter lowercase Roman numeral ordering.
@@ -40,6 +45,7 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         and c.number_style == "roman_lower"
         and c.value is not None
         and c.page_number not in no_number_pages
+        and c.value <= _MAX_PLAUSIBLE_FRONTMATTER_ROMAN
     ]
 
     # Require at least two visible roman candidates to check for continuity.

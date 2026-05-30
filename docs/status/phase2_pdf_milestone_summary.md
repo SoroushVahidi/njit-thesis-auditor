@@ -120,7 +120,8 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Conservatively validates visible lowercase Roman numeral ordering within front-matter (i, ii, iii...).
   - Flags `roman_sequence_repeat`, `roman_sequence_gap`, and `roman_sequence_decrease` on adjacent visible-numbered front-matter pages.
   - Skips named no-number pages; requires ≥2 visible roman candidates; conservative to avoid false positives.
-  - EF evaluation: 12 findings on Yin 4th compressed (all repeats); 0 on other EF PDFs.
+  - Boundary guard: candidates with Roman value > 50 excluded as implausible TOC/noise artifacts (e.g. "m"=1000, "cm"=900).
+  - EF evaluation: 12 findings on Yin 4th compressed (all repeats); 0 on other EF PDFs and clean baseline.
   - Manual review required.
 
 ## 5) Evaluation on Ester Clean PDF (Latest Known)

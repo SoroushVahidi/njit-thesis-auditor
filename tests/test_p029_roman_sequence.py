@@ -134,6 +134,50 @@ def test_p029_allows_skip_over_no_number_pages(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P029" for f in findings)
 
 
+def test_p029_implausible_high_value_roman_suppressed(tmp_path: Path) -> None:
+    # "m" (=1000) is a valid Roman numeral but implausibly large for a front-matter page number.
+    # It should be excluded from the P029 sequence so it cannot produce false positives.
+    pdf_path = tmp_path / "p029_high_value.pdf"
+    # Sequence: i, ii, m (=1000 — TOC/noise artifact), iii
+    _make_pdf_with_page_numbers(
+        pdf_path, ["i", "ii", "m", "iii"], add_chapter=True, heading_at=0
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_roman_sequence(model)
+    # "m" should be excluded by the max-plausible-value guard; i→ii→iii sequence is valid.
+    assert not any(f.rule_id == "P029" for f in findings), (
+        "Implausibly large Roman numeral 'M' (1000) should not produce P029 findings"
+    )
+
+
+def test_p029_cm_value_roman_suppressed(tmp_path: Path) -> None:
+    # "cm" (=900) — another implausibly large Roman numeral, suppressed by the guard.
+    pdf_path = tmp_path / "p029_cm.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path, ["i", "ii", "cm", "iii"], add_chapter=True, heading_at=0
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_roman_sequence(model)
+    assert not any(f.rule_id == "P029" for f in findings), (
+        "'cm' (900) should be excluded from P029 sequence checks"
+    )
+
+
+def test_p029_real_gap_after_high_value_artifact_still_warns(tmp_path: Path) -> None:
+    # Even with an artifact present, a real gap in the remaining sequence should warn.
+    pdf_path = tmp_path / "p029_gap_with_artifact.pdf"
+    # Sequence: i, m (artifact), i, iii — i then iii is a gap that should still warn.
+    _make_pdf_with_page_numbers(
+        pdf_path, ["i", "m", "i", "iii"], add_chapter=True, heading_at=0
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_roman_sequence(model)
+    # After removing "m", remaining sequence is i, i, iii → repeat then gap → at least one warning
+    assert any(f.rule_id == "P029" for f in findings), (
+        "Real sequence issues after artifact removal should still produce P029 warnings"
+    )
+
+
 def test_p029_cli_and_reports_include_findings(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p029_cli.pdf"
     json_out = tmp_path / "data" / "evaluation" / "generated" / "p029_roman_sequence" / "out.json"
