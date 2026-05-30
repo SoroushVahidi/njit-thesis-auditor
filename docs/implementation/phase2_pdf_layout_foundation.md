@@ -43,6 +43,17 @@ Initial checks implemented:
 - `P028`: page-numbering regime (front-matter pages → lowercase Roman; body pages → Arabic; region detected from named headings + CHAPTER heading)
 - `P029`: front-matter lowercase Roman numeral ordering (sequence checks for i, ii, iii...; flags repeats/gaps/decreases; candidates with value > 50 excluded as implausible TOC/noise artifacts)
 
+P013 refinement notes:
+
+- Candidate extraction remains unchanged (same top/bottom-zone detector used by P019/P022/P028/P029).
+- Warning emission is now grouped to **one P013 warning per page** (instead of one per candidate line), reducing repeated noise on pages with multiple number-like tokens.
+- P013 warnings now include structured triage details:
+  - `issue_type=page_number_candidate`
+  - `candidate_count_on_page`
+  - representative `candidate_sample`
+  - `position_type` and `number_style`
+  - conservative `confidence` (`low`/`medium`)
+
 P014 refinement notes:
 
 - Centering check now compares against text-area center `(LEFT_MARGIN_PT + page.width - RIGHT_MARGIN_PT) / 2`

@@ -5,6 +5,8 @@
 - Validation: 320 tests passed (ruff, mypy, pytest)
 - Current evaluation snapshot: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - Current EF overlap study: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
+- EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
+- EF-overlap refinement evaluation: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`
 
 ---
 
@@ -120,6 +122,14 @@
 - P011 (margins): 70 findings on compressed PDF (down from 150 with artifact guard); 21–33 on normal PDFs
 - P026 (font family): 92–117 warnings per document — real noncompliance but high volume
 
+**Latest EF-overlap-driven refinement (P013 grouping):**
+- P013 now emits one warning per page with candidates (instead of one per candidate line) and adds structured triage details (`issue_type`, candidate count/sample, style/position, confidence).
+- Focused comparison-set impact:
+  - Cibaku: P013 `99 → 95` (page coverage unchanged: 94 pages)
+  - Yin Haotian: P013 `113 → 104` (page coverage unchanged: 103 pages)
+  - Sebastian clean baseline: P013 `27 → 25`
+- EF-overlap effect for P013 pages is unchanged on extractable-comment PDFs; refinement reduces repeated noise without narrowing coverage.
+
 **Biggest coverage gaps relative to EF feedback:**
 - P020 (title capitalization): fires 0 on 3 of 4 PDFs — bold metadata absent in most PDFs; font-size fallback still needed
 - Cross-page title consistency: title spelling on title/abstract/approval — not automated
@@ -222,7 +232,7 @@ Based on the current evaluation snapshot:
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | P013 grouping / noise reduction | Current EF overlap confirms high page coverage but low category precision in high-volume signals |
+| ✅ Done | P013 grouping / noise reduction | Implemented EF-overlap-driven per-page grouping + structured triage details |
 | 🟡 High | EF category coverage expansion | Add deterministic checks for recurrent uncaptured EF categories (committee/references/list formatting cues) |
 | 🟡 Med | EF comment ↔ rule comparison | Map EF comments to P-rule findings page-by-page |
 | 🟡 Med | P011 bottom_margin clean-baseline investigation | 5 high-confidence findings on 29-page clean doc |

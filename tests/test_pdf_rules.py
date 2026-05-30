@@ -181,6 +181,30 @@ def test_page_number_candidate_detected(tmp_path: Path) -> None:
     assert any(f.rule_id == "P013" and f.severity.value == "WARNING" for f in findings)
 
 
+def test_page_number_candidates_grouped_per_page(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "page_no_grouped.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path,
+        texts=["1", "2"],
+        x=300,
+        y=770,
+        add_second_numbers={0: ("i", 540)},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_page_number_candidates_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P013" and f.page is not None]
+    assert len(warnings) == 2
+
+    page1 = next(f for f in warnings if f.page == 1)
+    assert page1.details.get("issue_type") == "page_number_candidate"
+    assert page1.details.get("candidate_count_on_page") == "2"
+    assert page1.details.get("candidate_sample")
+    assert page1.details.get("confidence") in {"low", "medium"}
+
+    page2 = next(f for f in warnings if f.page == 2)
+    assert page2.details.get("candidate_count_on_page") == "1"
+
+
 def test_margin_violation_detected(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_bad.pdf"
     _make_pdf_with_margin_violation(pdf_path)
