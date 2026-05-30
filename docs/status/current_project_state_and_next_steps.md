@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Branch: `implement-p022-frontmatter-no-page-number` (P022 pending PR)
-- Latest main: `f30417e` (P025 front-matter structure checks)
+- Branch: `implement-pdf-font-compliance` (P026 pending PR)
+- Latest main: `87369f7` (P022 front-matter no-page-number)
 
 ---
 
@@ -36,6 +36,7 @@
 | `pdf_abstract.py` | P021 (PDF) | Abstract word count via PDF text layer |
 | `pdf_frontmatter_no_page_number.py` | P022 | No visible page number on Abstract, Title, Approval, Copyright pages |
 | `pdf_body_spacing.py` | P023 | Body text double-spacing (line spacing ≥ 1.55× font size, conservative threshold) |
+| `pdf_font_compliance.py` | P026 | Body font size ≈12pt and Times New Roman (or accepted equivalent) |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -64,7 +65,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~32 | ~23 | ~22 |
-| P-rules (P001–P025) | 25 | 25 | — | — | — |
+| P-rules (P001–P026) | 26 | 26 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -110,8 +111,8 @@
 | Priority | Gap | Addresses | Complexity | Risk |
 |----------|-----|-----------|:----------:|:----:|
 | ✅ DONE | P022: Page-number absence on named front-matter pages | Q001, Q008, Q012, Q014 | — | — |
+| ✅ DONE | P026: Font compliance (Times New Roman 12pt throughout body) | Guidelines requirement | — | — |
 | 🔴 HIGH | P020 font-size fallback when bold metadata absent | P020 recall gap | Medium | Low-Med |
-| 🟡 MED | P026: Font compliance (Times New Roman 12pt throughout body) | Guidelines requirement | Medium | Medium |
 | 🟡 MED | L3/L4/L5 heading style enforcement | Q051; L4/L5 period/italic | Medium | Medium |
 | 🟡 MED | Roman numeral sequence validation (front-matter sections) | Q022, Q031, Q035, Q046, Q060 | Medium | Medium |
 | 🟡 MED | Figure/table centering check | Self-Assessment Sheet | Medium | Medium |
@@ -146,7 +147,10 @@ All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. 
 ### Bundle 1 (DONE): P022 — Page-Number Absence on Named Pages
 Implemented in `pdf_frontmatter_no_page_number.py`. 0 findings on all 4 EF PDFs.
 
-### Bundle 2: P020 Font-Size Fallback
+### Bundle 2 (DONE): P026 — Font Compliance
+Implemented in `pdf_font_compliance.py`. EF evaluation: 92–117 family warnings per document (all use CMR or Georgia), 0–1 size warnings. These are real noncompliance signals, not false positives.
+
+### Bundle 3: P020 Font-Size Fallback
 **Rationale:** 3 of 4 tested PDFs lack bold metadata, causing P020 to fire 0 on heading-rich documents with real title-case issues (confirmed by EF comments on Cibaku).  
 **Q-rule basis:** Q049–Q050  
 **Files to change:** `src/njit_auditor/rules/pdf_title_capitalization.py`  
@@ -180,14 +184,14 @@ Implemented in `pdf_frontmatter_no_page_number.py`. 0 findings on all 4 EF PDFs.
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 212 passed, 0 failed |
+| `python -m pytest` | ✅ 234 passed, 0 failed |
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 39 source files |
+| `mypy src` | ✅ No issues in 40 source files |
 
 ---
 
 ## 7. Branch Readiness
 
-The `implement-p022-frontmatter-no-page-number` branch (P022) is **ready for PR** against main. All 212 tests pass, linting is clean, mypy is clean, and EF evaluation shows 0 findings on all 4 tested PDFs (expected for late-stage review files).
+The `implement-pdf-font-compliance` branch (P026) is **ready for PR** against main. All 234 tests pass, linting is clean, mypy is clean. EF evaluation shows 92–117 family warnings per document (expected — all 4 PDFs use non-TNR fonts).
 
-**Next PR after P022 merge:** Bundle 2 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.
+**Next PR after P026 merge:** Bundle 3 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.

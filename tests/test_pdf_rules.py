@@ -9,6 +9,10 @@ from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
+from njit_auditor.rules.pdf_font_compliance import (
+    check_pdf_font_compliance,
+    classify_font,
+)
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
@@ -2302,3 +2306,214 @@ def test_p022_json_report_includes_p022_when_triggered(tmp_path: Path) -> None:
     data = _json.loads(json_path.read_text())
     rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
     assert "P022" in rule_ids
+
+
+# ---------------------------------------------------------------------------
+# P026 — body font compliance tests
+# ---------------------------------------------------------------------------
+
+_LONG_BODY_LINE = "An ordinary body text paragraph line for PDF font compliance testing here."
+
+
+def _make_body_page_with_font(
+    path: Path,
+    fontname: str,
+    fontsize: float,
+    line_count: int = 12,
+    y_start: float = 150.0,
+    y_step: float = 28.0,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for i in range(line_count):
+        page.insert_text(
+            (108, y_start + i * y_step), _LONG_BODY_LINE, fontsize=fontsize, fontname=fontname
+        )
+    doc.save(path)
+    doc.close()
+
+
+# ---- classify_font unit tests ----
+
+def test_classify_font_times_roman() -> None:
+    assert classify_font("Times-Roman") == "times"
+
+
+def test_classify_font_times_new_roman_psmt() -> None:
+    assert classify_font("TimesNewRomanPSMT") == "times"
+
+
+def test_classify_font_subset_prefix_times() -> None:
+    assert classify_font("ABCDEF+TimesNewRomanPSMT") == "times"
+
+
+def test_classify_font_nimbus() -> None:
+    assert classify_font("NimbusRomNo9L") == "times"
+
+
+def test_classify_font_cmr_is_computer_modern() -> None:
+    assert classify_font("CMR12") == "computer_modern"
+
+
+def test_classify_font_cmbx_is_computer_modern() -> None:
+    assert classify_font("CMBX12") == "computer_modern"
+
+
+def test_classify_font_helvetica_is_other() -> None:
+    assert classify_font("Helvetica") == "other"
+
+
+def test_classify_font_georgia_is_other() -> None:
+    assert classify_font("Georgia") == "other"
+
+
+def test_classify_font_none_is_unknown() -> None:
+    assert classify_font(None) == "unknown"
+
+
+def test_classify_font_math_cmmi_skipped() -> None:
+    assert classify_font("CMMI12") == "math"
+
+
+# ---- integration tests with fitz PDFs ----
+
+def test_p026_times_roman_12pt_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_times_ok.pdf"
+    _make_body_page_with_font(pdf_path, "tiro", 12.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_times_roman_alias_12pt_no_warning(tmp_path: Path) -> None:
+    # "tiro" → Times-Roman, an accepted alias
+    pdf_path = tmp_path / "p026_times_alias_ok.pdf"
+    _make_body_page_with_font(pdf_path, "tiro", 12.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    family_issue = "possible_body_font_family_issue"
+    assert not any(
+        f.rule_id == "P026" and f.details.get("issue_type") == family_issue
+        for f in findings
+    )
+
+
+def test_p026_non_times_font_repeated_warns_family(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_helv_family.pdf"
+    _make_body_page_with_font(pdf_path, "helv", 12.0, line_count=12)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    family_warnings = [
+        w for w in warnings if w.details.get("issue_type") == "possible_body_font_family_issue"
+    ]
+    assert len(family_warnings) >= 1
+    assert family_warnings[0].details.get("confidence") == "medium"
+
+
+def test_p026_body_10pt_repeated_warns_size(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_10pt_size.pdf"
+    _make_body_page_with_font(pdf_path, "tiro", 10.0, line_count=12)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    size_warnings = [
+        w for w in warnings if w.details.get("issue_type") == "possible_body_font_size_issue"
+    ]
+    assert len(size_warnings) >= 1
+
+
+def test_p026_body_14pt_repeated_warns_size(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_14pt_size.pdf"
+    _make_body_page_with_font(pdf_path, "tiro", 14.0, line_count=12)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    size_warnings = [
+        w for w in warnings if w.details.get("issue_type") == "possible_body_font_size_issue"
+    ]
+    assert len(size_warnings) >= 1
+
+
+def test_p026_toc_page_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_toc_ignored.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    for i in range(10):
+        page.insert_text((108, 150 + i * 28), _LONG_BODY_LINE, fontsize=12, fontname="helv")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_abstract_page_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_abstract_ignored.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    for i in range(10):
+        page.insert_text((108, 150 + i * 28), _LONG_BODY_LINE, fontsize=12, fontname="helv")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_references_page_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_refs_ignored.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((240, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    for i in range(10):
+        page.insert_text((108, 150 + i * 28), _LONG_BODY_LINE, fontsize=12, fontname="helv")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_short_lines_not_enough_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_short_no_warn.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for i in range(10):
+        page.insert_text((108, 150 + i * 28), "Short text.", fontsize=12, fontname="helv")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_one_finding_per_page_issue_type(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_one_per_page.pdf"
+    _make_body_page_with_font(pdf_path, "helv", 12.0, line_count=14)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026" and f.page == 1]
+    family_findings = [
+        f for f in findings if f.details.get("issue_type") == "possible_body_font_family_issue"
+    ]
+    assert len(family_findings) == 1
+
+
+def test_p026_cli_pdf_includes_p026(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_cli.pdf"
+    _make_body_page_with_font(pdf_path, "helv", 12.0, line_count=12)
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P026" in result.output
+
+
+def test_p026_json_report_includes_p026_when_triggered(tmp_path: Path) -> None:
+    import json as _json
+
+    pdf_path = tmp_path / "p026_json.pdf"
+    json_path = tmp_path / "p026_report.json"
+    _make_body_page_with_font(pdf_path, "helv", 12.0, line_count=12)
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_path)])
+    assert result.exit_code == 0
+    data = _json.loads(json_path.read_text())
+    rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
+    assert "P026" in rule_ids
