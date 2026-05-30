@@ -27,7 +27,7 @@ njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comm
 njit-audit pdf-comments clean input.pdf --out clean.pdf
 ```
 
-## 4) Implemented PDF Rules (P011–P026)
+## 4) Implemented PDF Rules (P011–P028)
 
 - `P011` margin detection
   - Detects likely text crossing assumed NJIT margin bounds.
@@ -85,23 +85,33 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Excludes top/bottom 15% margin zones (running headers, footnotes, page numbers).
   - EF evaluation: 0 findings on Yin 4th review (clean); 4–6 findings on earlier drafts.
   - Manual review required.
-- `P024` TOC/LoT/LoF entry capitalization and punctuation
+- `P024` TOC/LoT/LoF entry capitalization and terminal punctuation
+  - Checks TABLE OF CONTENTS entries for expected capitalization by level (L1=ALL CAPS, L2=Title Case).
+  - Checks LIST OF TABLES entries for Title Case compliance and absence of terminal periods.
+  - Checks LIST OF FIGURES entries for sentence-case compliance.
+  - TOC level classified by numbering pattern (`1.x`, `1.x.x`, `CHAPTER`) and indentation clusters.
+  - EF evaluation: 12 findings on Yin 4th review; 0 on other files (TOC pages not extractable).
+  - Manual review required.
+- `P025` front-matter structure: abstract body presence, title-page degree/institution, approval-page content, Abstract-before-TOC order
+  - EF evaluation: 0 findings on Yin 4th review (text-rich); 2 title-page false positives on image-based title pages.
+  - Manual review required.
 - `P026` body font compliance
-  - Checks font size (expected 12pt, ±1pt tolerance) and font family (Times New Roman or accepted equivalent) for ordinary body-text spans.
-  - One finding per (page, issue_type). Requires ≥5 violations AND ≥50% of body spans to emit a warning.
+  - Checks font size (expected 12pt, ±1pt tolerance) and font family (Times New Roman or accepted equivalent).
+  - One finding per (page, issue_type). Requires ≥5 violations AND ≥50% of body spans.
   - Accepted aliases: Times, TimesNewRomanPSMT, NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX.
   - Computer Modern (CMR12, the LaTeX default) is flagged as non-Times.
-  - EF evaluation: all 4 tested PDFs use CMR12 (LaTeX) or Georgia/Arial (Word) — 92–117 family warnings per document, 0–1 size warnings. These are real font-compliance findings.
+  - EF evaluation: 92–117 family warnings per document (all 4 PDFs use CMR or Georgia/Arial); 0–1 size warnings.
   - Manual review required.
-- `P025` front-matter structure: abstract body presence, title page degree phrase and institution, approval page content, Abstract-before-TOC order check
-  - EF evaluation: 0 findings on Yin 4th review (clean/text-rich); 2 title-page false positives on 3 files with image-based title pages.
+- `P027` heading-level style check
+  - Infers heading level from numbered-section patterns (1.1, 1.1.1, etc.) and CHAPTER/APPENDIX headings.
+  - Checks: L1 = ALL CAPS; L2 = Title Case; L3-5 = Sentence case (L4/L5 + terminal period).
+  - EF evaluation: 1 finding (Cibaku Elson), 2 findings (Yin 4th) — all `level1_not_all_caps`.
   - Manual review required.
-  - Checks TABLE OF CONTENTS entries for expected capitalization by level (L1=ALL CAPS Q049, L2=Title Case Q050).
-  - Checks LIST OF TABLES entries for Title Case compliance and absence of terminal periods.
-  - Checks LIST OF FIGURES entries for sentence-case compliance (conservative: requires >60% later words capitalized).
-  - TOC level classified by numbering pattern (`1.x`, `1.x.x`, `CHAPTER`) and indentation clusters.
-  - Strips leader dots and page-number tokens before checking entry text.
-  - EF evaluation: 12 findings on Yin 4th review (8 LoT title-case, 2 terminal punct, 1 TOC L2, 1 LoF); 0 on other files (TOC pages not extractable).
+- `P028` page-numbering regime
+  - Checks that front-matter numbered pages use lowercase Roman numerals and body pages use Arabic numerals.
+  - Region detected from named front-matter headings + first CHAPTER/APPENDIX heading.
+  - Q-rule basis: Q022, Q031, Q035, Q046, Q060.
+  - EF evaluation: 8 findings on Cibaku Elson (Arabic on front-matter); 8 on Yin 4th (mixed regime); 0 on Yin 2nd.
   - Manual review required.
 
 ## 5) Evaluation on Ester Clean PDF (Latest Known)

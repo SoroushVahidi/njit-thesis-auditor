@@ -1,6 +1,6 @@
 # njit-thesis-auditor
 
-`njit-thesis-auditor` is an early research prototype for auditing NJIT thesis/dissertation formatting.
+`njit-thesis-auditor` is a local-first research prototype for auditing NJIT thesis/dissertation formatting.
 
 This project is:
 - local-first and free
@@ -19,52 +19,87 @@ pip install -e ".[dev]"
 
 ## Usage
 
-```bash
-njit-audit audit thesis.pdf
-```
-
-The command currently:
-- loads the PDF
-- prints page count and page sizes
-- runs initial local rules
-- prints a report with `PASS`, `WARNING`, and `FAIL` severities
-
-## PDF layout audit
+### PDF layout audit (P011–P028)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-This command runs the Phase 2 layout foundation checks on digital PDFs:
-page-size extraction, page-number candidates, possible margin-boundary text,
-annotation/comment detection, heading/spacing/indentation heuristics, caption
-formatting, TOC/list alignment, page-number sequence/style validation, and
-conservative title-case capitalization checks for Level 2 headings and table titles.
-Optional `--json-out` and `--md-out` outputs write structured reports for
-office/student review workflows.
+Runs P011–P028 layout and formatting checks on digital PDFs. Optional `--json-out`
+and `--md-out` flags write structured reports. The JSON report includes a
+`grouped_summary` field that aggregates high-volume repeated findings by rule and
+issue type for triage. The Markdown report includes a "Repeated Findings Summary"
+table before the full raw findings.
 
-## LaTeX source-only audit
+Current PDF checks (P011–P028):
+
+| Rule | Area | Check |
+|------|------|-------|
+| P011 | Margins | Text crossing 1.5"/1" margin boundaries |
+| P012 | Annotations | Embedded PDF annotation objects |
+| P013 | Page numbers | Page-number candidate detection (top/bottom zones) |
+| P014 | Headings | Named front-matter heading style (bold/all-caps/centered/near-top) |
+| P015 | Indentation | Paragraph indentation (first-para flush-left; subsequent indented) |
+| P016 | Spacing | Spacing/blank-line gaps on front-matter pages |
+| P017 | Captions | Caption/title punctuation and case signals |
+| P018 | TOC/List | TOC/list entry alignment (leaders, page-number column, hierarchy) |
+| P019 | Page numbers | Page-number sequence/style consistency |
+| P020 | Capitalization | Title-case check for Level 2 headings and table titles |
+| P021 | Abstract | Abstract word count (PhD ≤350, MS ≤150) |
+| P022 | Page numbers | No visible page number on Abstract/Title/Approval/Copyright pages |
+| P023 | Spacing | Body text double-spacing (line spacing ≥ 1.55× font size) |
+| P024 | TOC/List | TOC/LoT/LoF entry capitalization and terminal punctuation |
+| P025 | Front matter | Front-matter structure: abstract body, title-page elements, approval-page content |
+| P026 | Font | Body text font compliance (Times New Roman 12pt or accepted equivalent) |
+| P027 | Headings | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) |
+| P028 | Page numbers | Front-matter Roman / body Arabic page-numbering regime |
+
+All findings are heuristic warnings and require manual review.
+
+### LaTeX source audit (P001–P010)
 
 ```bash
 njit-audit tex path/to/main.tex
 njit-audit tex path/to/main.tex --linters
 ```
 
-This phase does not compile TeX and does not inspect generated PDFs.
-It only detects problems visible in source files by recursively loading `\input{}` and `\include{}` trees and running lightweight local checks.
+Checks TeX source files without compiling. Recursively loads `\input{}`/`\include{}`
+trees and runs lightweight checks including risky commands, duplicate labels,
+missing captions, structure commands, and abstract language checks.
 Optional local linters (`chktex`, `lacheck`) can be enabled with `--linters` if installed.
-If they are missing, the audit continues and reports that they were skipped.
-PDF visual/layout validation will be added in later phases.
+
+Current TeX checks (P001–P010, Q004, Q005, Q006):
+
+| Rule | Check |
+|------|-------|
+| P001 | Risky manual formatting commands |
+| P002 | Duplicate `\label` identifiers |
+| P003 | Whitespace in label names |
+| P004 | Unresolved `\ref`/`\eqref` targets |
+| P005 | Missing `\caption` in figure/table environments |
+| P006 | Missing `\label` in figure/table environments |
+| P007 | Caption terminal punctuation |
+| P008 | Required document structure commands |
+| P009 | chktex warnings (optional) |
+| P010 | lacheck warnings (optional) |
+| Q004 | Abstract forbidden words ("paper"/"article") |
+| Q005 | Abstract first-person pronouns |
+| Q006 | Graduation month validation (Aug/Dec/May) |
+
+### PDF comment extraction
+
+```bash
+njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comments.md
+njit-audit pdf-comments clean input.pdf --out clean.pdf
+```
+
+Extracts PDF annotation objects (highlights, text notes) to JSON/Markdown, or
+creates a clean copy with annotation objects removed.
 
 ## Demo examples
 
-Try the synthetic fixtures:
-
-- `examples/latex/good_minimal_thesis/main.tex`
-- `examples/latex/bad_minimal_thesis/main.tex`
-
-Run:
+Try the synthetic TeX fixtures:
 
 ```bash
 njit-audit tex examples/latex/good_minimal_thesis/main.tex
@@ -72,25 +107,52 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 ```
 
 More docs:
-- `docs/status/phase1_milestone_summary.md`
-- `docs/status/phase1_tex_finalization_status.md`
-- `docs/status/phase2_pdf_milestone_summary.md`
-- `docs/status/current_capabilities_for_graduate_studies.md`
-- `docs/demo/phase1_tex_demo.md`
-- `docs/demo/graduate_studies_pdf_audit_workflow.md`
-- `docs/rules/rule_inventory.md`
+- `docs/status/current_project_state_and_next_steps.md` — current implementation state and next steps
+- `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
+- `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
+- `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
+- `docs/evaluation/` — per-rule evaluation docs (P011–P028)
 
-## Roadmap
+## Report schema
 
-- front matter rules
-- margins
-- page numbering
-- TOC / List of Tables / List of Figures checks
-- figures, tables, captions
-- references/bibliography checks
-- optional DOCX support
-- optional VLM/API fallback later
+The `--json-out` JSON report structure:
+
+```json
+{
+  "metadata": {
+    "total_findings": 42,
+    "counts_by_severity": { "PASS": 0, "WARNING": 42, "FAIL": 0 },
+    "counts_by_rule_id": { "P013": 15, "P026": 10, ... },
+    "counts_by_category": { "page_numbering": 20, "font_format": 10, ... }
+  },
+  "grouped_summary": {
+    "high_volume_rules": [
+      {
+        "rule_id": "P026",
+        "count": 10,
+        "category": "font_format",
+        "issue_type_counts": { "possible_body_font_family_issue": 10 },
+        "affected_page_count": 10,
+        "affected_pages_compact": "3-12"
+      }
+    ],
+    "by_rule_issue_type": { ... }
+  },
+  "findings": [ ... ]
+}
+```
+
+Rules with 5+ findings appear in `grouped_summary.high_volume_rules`. Raw findings
+are always preserved in full.
 
 ## Privacy model
 
 This version is designed for local processing only. Keep thesis/dissertation files on your own machine.
+
+## Development
+
+```bash
+ruff check .
+mypy src
+python -m pytest
+```

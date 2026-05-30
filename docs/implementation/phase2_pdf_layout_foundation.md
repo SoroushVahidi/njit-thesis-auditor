@@ -35,6 +35,12 @@ Initial checks implemented:
 - `P023`: body-text double-spacing check (body pages only; requires ≥8 suspicious gaps, ≥60% fraction, median ratio < 1.55×)
 - `P024`: TOC/LoT/LoF entry capitalization and terminal punctuation (Q049–Q050 and LoT period; level classified by numbering pattern + indentation)
 - `P025`: front-matter structure and required-elements (abstract body, title page degree/institution, approval page content, front-matter order)
+- `P022`: no visible page number on named no-number front-matter pages (Abstract, Title, Approval, Copyright)
+- `P023`: body-text double-spacing check (body pages only; conservative threshold; ≥8 suspicious gaps, ≥60% fraction, median ratio < 1.55×)
+- `P024`: TOC/LoT/LoF entry capitalization and terminal punctuation (level classified by numbering pattern + indentation)
+- `P026`: body font compliance (size ≈12pt, family = Times New Roman or accepted equivalent; ≥5 violations AND ≥50% of body spans)
+- `P027`: numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case; inferred from section-number patterns)
+- `P028`: page-numbering regime (front-matter pages → lowercase Roman; body pages → Arabic; region detected from named headings + CHAPTER heading)
 
 P014 checks (heuristic):
 
@@ -142,21 +148,19 @@ P011 refinement notes:
 
 Current limitations:
 
-- digital PDFs with text layers only
-- no OCR yet
+- digital PDFs with text layers only; no OCR or scanned-PDF support
 - no computer vision yet
-- heading checks are deterministic/heuristic only and depend on text-layer quality
+- heading checks depend on text-layer quality; bold/italic metadata often absent
 - indentation checks are heuristic and sensitive to PDF line segmentation artifacts
 - paragraph grouping uses geometric thresholds and may over/under-group in complex layouts
-- current missing-indent detection is conservative and may miss subtle cases
 - spacing checks are front-matter-focused and can miss issues outside named front matter
-- spacing thresholds depend on extracted line boxes and can be affected by PDF text-layer quirks
 - caption/title checks depend on text-layer extraction and can miss multi-line caption context
 - capitalization hints are intentionally conservative and may under-report style issues
 - TOC/list alignment checks depend on line reconstruction and may miss subtle hierarchy/style defects
-- page-number sequence/style checks are candidate-based and may over/under-detect in complex layouts
-- optional front-matter sections are not yet required to exist in every PDF
-- heuristic foundation checks, not final NJIT compliance verdicts
+- page-number regime checks require CHAPTER heading detection to identify body start
+- font compliance (P026): Computer Modern (LaTeX default) is flagged as non-Times — may be acceptable by department
+- heading-level inference (P027): only checks numbered section headings (1.1, 1.1.1, etc.); unnumbered body headings are not classified
+- all checks are heuristic signals, not final NJIT compliance verdicts; all findings require manual review
 - structured report output is summary-oriented and intentionally avoids long text excerpts
 
 ## PDF Comment Workflow (Local-Only)
