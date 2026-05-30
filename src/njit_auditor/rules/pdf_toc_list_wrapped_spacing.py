@@ -104,6 +104,29 @@ def _collect_entry_region_lines(context: TocPageContext) -> list[PdfTextLine]:
     return lines
 
 
+def _has_intervening_page_number_line(
+    context: TocPageContext,
+    first: PdfTextLine,
+    second: PdfTextLine,
+) -> bool:
+    """Return True when a page-number-only line sits between two entry-region lines."""
+
+    y_lo = first.bbox.y1
+    y_hi = second.bbox.y0
+    if y_hi <= y_lo:
+        return False
+    for block in context.page.text_blocks:
+        for line in block.lines:
+            if line.bbox.y0 <= y_lo or line.bbox.y0 >= y_hi:
+                continue
+            cleaned = _clean_text(line.text)
+            if NUMERIC_ONLY_RE.match(cleaned):
+                return True
+            if _line_has_page_number(line, cleaned) and len(cleaned) <= 6:
+                return True
+    return False
+
+
 def _is_wrap_continuation_pair(
     first: PdfTextLine,
     second: PdfTextLine,
@@ -144,6 +167,8 @@ def check_pdf_toc_list_wrapped_spacing(pdf_document: PdfDocument) -> list[AuditF
 
         for first, second in zip(lines, lines[1:]):
             if not _is_wrap_continuation_pair(first, second, context.page_type):
+                continue
+            if _has_intervening_page_number_line(context, first, second):
                 continue
 
             gap_pt = second.bbox.y0 - first.bbox.y1

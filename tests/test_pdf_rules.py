@@ -3785,6 +3785,35 @@ def test_p032_ambiguous_continuation_indent_not_flagged(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
 
 
+def test_p032_orphan_page_number_between_entries_not_flagged(tmp_path: Path) -> None:
+    """Split page-number lines must not bridge two separate list entries as one wrap."""
+
+    pdf_path = tmp_path / "p032_orphan_page_number.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text(
+        (148.9, 168.0),
+        "Figure 3.1 Long Figure Title First Line Portion ....",
+        fontsize=12,
+    )
+    page.insert_text(
+        (148.9, 181.0),
+        "Continuation Line of Wrapped Figure Title Text",
+        fontsize=12,
+    )
+    page.insert_text((148.9, 192.0), "30", fontsize=12)
+    page.insert_text(
+        (137.2, 214.0),
+        "Figure 3.2 Next Figure Title Begins On New Entry Row",
+        fontsize=12,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
+
+
 def test_p032_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p032_privacy_safe.pdf"
     long_entry = "Chapter 4 " + ("X" * 200)
