@@ -15,6 +15,14 @@ TOP_BOTTOM_ZONE_RATIO = 0.15
 POSITION_CENTER_TOLERANCE_PT = 24.0
 POSITION_RIGHT_TOLERANCE_PT = 72.0
 POSITION_DOMINANT_MISMATCH_THRESHOLD = 2
+_POSITION_SCORE = {
+    "bottom_center": 4,
+    "bottom_right": 3,
+    "top_center": 2,
+    "top_right": 2,
+    "other": 0,
+}
+_STYLE_SCORE = {"arabic": 2, "roman_lower": 2, "roman_upper": 2, "other": 0}
 
 
 @dataclass(frozen=True)
@@ -128,6 +136,30 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
     return candidates
 
 
+def _candidate_rank(candidate: PageNumberCandidate) -> tuple[int, int, int]:
+    return (
+        _POSITION_SCORE.get(candidate.position_type, 0),
+        _STYLE_SCORE.get(candidate.number_style, 0),
+        len(candidate.text.strip()),
+    )
+
+
+def _candidate_confidence(candidate: PageNumberCandidate) -> str:
+    if candidate.position_type in {"bottom_center", "bottom_right"} and candidate.number_style in {
+        "arabic",
+        "roman_lower",
+        "roman_upper",
+    }:
+        return "medium"
+    if candidate.position_type in {"top_center", "top_right"} and candidate.number_style in {
+        "arabic",
+        "roman_lower",
+        "roman_upper",
+    }:
+        return "medium"
+    return "low"
+
+
 def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P013 findings for candidate page numbers."""
 
@@ -149,18 +181,32 @@ def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFindi
             details={"candidate_count": str(len(candidates))},
         )
     ]
+    candidates_by_page: dict[int, list[PageNumberCandidate]] = {}
     for candidate in candidates:
+        candidates_by_page.setdefault(candidate.page_number, []).append(candidate)
+
+    for page in sorted(candidates_by_page):
+        page_candidates = candidates_by_page[page]
+        primary = max(page_candidates, key=_candidate_rank)
+        distinct_texts = sorted({c.text for c in page_candidates})
+        sample_text = ", ".join(distinct_texts[:3])
+        if len(distinct_texts) > 3:
+            sample_text += ", ..."
         findings.append(
             AuditFinding(
                 rule_id="P013",
                 severity=Severity.WARNING,
-                page=candidate.page_number,
-                message=(
-                    f"Candidate page number '{candidate.text}' found near "
-                    f"{candidate.location} margin."
-                ),
+                page=page,
+                message=f"Page has {len(page_candidates)} page-number-like candidate(s).",
                 details={
-                    "location": candidate.location,
+                    "issue_type": "page_number_candidate",
+                    "location": primary.location,
+                    "position_type": primary.position_type,
+                    "number_style": primary.number_style,
+                    "candidate_count_on_page": str(len(page_candidates)),
+                    "candidate_sample": sample_text,
+                    "observed_summary": f"{primary.position_type}/{primary.number_style}",
+                    "confidence": _candidate_confidence(primary),
                     "suggested_fix": (
                         "Verify placement/format against NJIT page-number requirements."
                     ),
