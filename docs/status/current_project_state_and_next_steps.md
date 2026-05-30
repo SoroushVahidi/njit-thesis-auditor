@@ -2,6 +2,7 @@
 
 - Strict coverage audit (post-P029): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory/status (post-PR #47): `docs/status/data_inventory_and_evaluation_sources.md`
+- Evaluation data manifest (machine-readable index): `docs/status/evaluation_data_manifest.md`
 - Coverage checkpoint (strict):
   - P001-P029 implemented
   - Not all source-file rules are fully implemented
