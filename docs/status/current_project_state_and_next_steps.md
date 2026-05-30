@@ -7,6 +7,8 @@
 - Current EF overlap study: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
 - EF-overlap refinement evaluation: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`
+- EF-overlap round2 notes: `docs/evaluation/ef_overlap_refinement_round2_notes.md`
+- EF-overlap round2 evaluation: `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`
 
 ---
 
@@ -130,6 +132,13 @@
   - Sebastian clean baseline: P013 `27 → 25`
 - EF-overlap effect for P013 pages is unchanged on extractable-comment PDFs; refinement reduces repeated noise without narrowing coverage.
 
+**Round 2 EF-overlap-driven refinement (P018/P024 heading variants):**
+- Expanded TOC/List heading detection to include trailing punctuation and `(CONTINUED)`/`CONTINUED` suffix variants.
+- Synthetic regression tests added for:
+  - `TABLE OF CONTENTS.` handling (P018 path)
+  - `LIST OF TABLES (CONTINUED)` handling (P024 path)
+- Focused dataset impact was neutral (no count shifts on extractable-comment PDFs), but baseline behavior stayed stable (no added noise on Sebastian).
+
 **Biggest coverage gaps relative to EF feedback:**
 - P020 (title capitalization): fires 0 on 3 of 4 PDFs — bold metadata absent in most PDFs; font-size fallback still needed
 - Cross-page title consistency: title spelling on title/abstract/approval — not automated
@@ -233,7 +242,7 @@ Based on the current evaluation snapshot:
 | Priority | Task | Rationale |
 |----------|------|-----------|
 | ✅ Done | P013 grouping / noise reduction | Implemented EF-overlap-driven per-page grouping + structured triage details |
-| 🟡 High | EF category coverage expansion | Add deterministic checks for recurrent uncaptured EF categories (committee/references/list formatting cues) |
+| 🟡 High | EF category coverage expansion | `list_of_tables_figures_toc` still has uncovered EF pages on Yin; next step is TOC/List entry extraction robustness (wrapped/split entries) |
 | 🟡 Med | EF comment ↔ rule comparison | Map EF comments to P-rule findings page-by-page |
 | 🟡 Med | P011 bottom_margin clean-baseline investigation | 5 high-confidence findings on 29-page clean doc |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs still have P020=0 |
