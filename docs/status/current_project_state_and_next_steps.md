@@ -21,6 +21,7 @@
 - P030 synthetic validation: `docs/evaluation/p030_toc_continued_heading_synthetic_validation.md`
 - P030 current-dataset evaluation: `docs/evaluation/p030_current_dataset_evaluation.md`
 - P031 synthetic validation: `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md`
+- P031 current-dataset evaluation: `docs/evaluation/p031_current_dataset_evaluation.md`
 
 ---
 

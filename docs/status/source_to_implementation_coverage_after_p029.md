@@ -213,3 +213,4 @@ Top 3 next tasks:
 - **Q-rule basis:** partial/heuristic PDF coverage for **Q063**, **Q064**, **Q072**, and **Q073** only.
 - **Limitations:** Does not verify bold styling or exact alignment; skips TOC pages and ambiguous pages without extractable list entries.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md`.
+- **Current-dataset evaluation (2026-05-30):** `docs/evaluation/p031_current_dataset_evaluation.md` — 2 P031 findings on Sebastian Fine clean baseline LoT page 11 only; 0 on other evaluated PDFs (see doc for detection caveats).
