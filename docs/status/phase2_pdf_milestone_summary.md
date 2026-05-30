@@ -27,7 +27,7 @@ njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comm
 njit-audit pdf-comments clean input.pdf --out clean.pdf
 ```
 
-## 4) Implemented PDF Rules (P011–P025, including P022)
+## 4) Implemented PDF Rules (P011–P026)
 
 - `P011` margin detection
   - Detects likely text crossing assumed NJIT margin bounds.
@@ -86,6 +86,13 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - EF evaluation: 0 findings on Yin 4th review (clean); 4–6 findings on earlier drafts.
   - Manual review required.
 - `P024` TOC/LoT/LoF entry capitalization and punctuation
+- `P026` body font compliance
+  - Checks font size (expected 12pt, ±1pt tolerance) and font family (Times New Roman or accepted equivalent) for ordinary body-text spans.
+  - One finding per (page, issue_type). Requires ≥5 violations AND ≥50% of body spans to emit a warning.
+  - Accepted aliases: Times, TimesNewRomanPSMT, NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX.
+  - Computer Modern (CMR12, the LaTeX default) is flagged as non-Times.
+  - EF evaluation: all 4 tested PDFs use CMR12 (LaTeX) or Georgia/Arial (Word) — 92–117 family warnings per document, 0–1 size warnings. These are real font-compliance findings.
+  - Manual review required.
 - `P025` front-matter structure: abstract body presence, title page degree phrase and institution, approval page content, Abstract-before-TOC order check
   - EF evaluation: 0 findings on Yin 4th review (clean/text-rich); 2 title-page false positives on 3 files with image-based title pages.
   - Manual review required.

@@ -198,6 +198,7 @@ Status key:
 | P023 | PDF layout | Body-text double-spacing (line spacing ≥ 1.55× font size) | ✅ | Formatting Guidelines; Self-Assessment Sheet | Conservative: requires ≥8 suspicious gaps, ≥60% fraction, median < 1.55×; EF eval: 0 findings on clean Yin 4th review |
 | P024 | PDF layout | TOC/LoT/LoF entry capitalization and terminal punctuation | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Conservative; requires ≥3 entries on page; only classifiable TOC levels; EF eval: 12 findings on Yin 4th review (3 other files have no detectable TOC pages) |
 | P025 | PDF layout | Front-matter structure: abstract body, title page elements, approval page content, front-matter order | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf; PhD Title Pages.pdf | Conservative; title page checks require extractable text layer; EF eval: 0 on Yin 4th review (text-rich); 2 on others (title page image-based, likely false positives) |
+| P026 | PDF layout | Body font compliance: size ≈12pt and Times New Roman or accepted equivalent | ✅ | Thesis and Dissertation Formatting Guidelines; Self-Self Assessment Sheet.pdf | Heuristic; one finding per (page, issue_type); EF eval: 92–117 family warnings per document (all 4 PDFs use CMR or Georgia, not TNR); 0–1 size warnings |
 
 ---
 
@@ -319,8 +320,8 @@ Per `Titles Examples Level 1 to 5.docx` and `Self-Self Assessment Sheet.pdf`:
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 | 32 | 23 | 22 |
-| P-rules (P001–P025, no vacant slots) | 25 | 25 | — | — | — |
-| **Total** | **104** | **27** | **32** | **23** | **22** |
+| P-rules (P001–P026) | 26 | 26 | — | — | — |
+| **Total** | **105** | **28** | **32** | **23** | **22** |
 
 The 22 manual-only rules (all in Approval Page and Acknowledgements sections) are
 unlikely to be automated without LLM-based semantic analysis.
