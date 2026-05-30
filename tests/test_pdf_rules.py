@@ -17,6 +17,11 @@ from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
 from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
+from njit_auditor.rules.pdf_heading_levels import (
+    _is_all_caps_phrase,
+    _looks_like_title_case_violation,
+    check_pdf_heading_level_styles,
+)
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -2517,3 +2522,201 @@ def test_p026_json_report_includes_p026_when_triggered(tmp_path: Path) -> None:
     data = _json.loads(json_path.read_text())
     rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
     assert "P026" in rule_ids
+
+
+# ---------------------------------------------------------------------------
+# P027 — heading-level style tests
+# ---------------------------------------------------------------------------
+
+# ---- unit tests ----
+
+def test_looks_like_title_case_violation_detects_multiple_caps() -> None:
+    assert _looks_like_title_case_violation("Background Theory and Methods Study") is True
+
+
+def test_looks_like_title_case_violation_sentence_case_no_flag() -> None:
+    assert _looks_like_title_case_violation("Background theory and methods") is False
+
+
+def test_looks_like_title_case_violation_short_text_no_flag() -> None:
+    assert _looks_like_title_case_violation("Background theory") is False
+
+
+def test_is_all_caps_phrase_true() -> None:
+    assert _is_all_caps_phrase("INTRODUCTION TO THE TOPIC") is True
+
+
+def test_is_all_caps_phrase_false() -> None:
+    assert _is_all_caps_phrase("Introduction to the topic") is False
+
+
+# ---- integration tests ----
+
+def _make_single_page_pdf(path: Path, lines: list[tuple[float, str]]) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for y, text in lines:
+        page.insert_text((108, y), text, fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p027_level2_correct_title_case_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l2_ok.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1 Background and Motivation")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l2 = [f for f in findings if f.details.get("issue_type") == "level2_title_case_issue"]
+    assert not l2
+
+
+def test_p027_level2_lowercase_first_word_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l2_lower.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1 the impact of machine learning methods")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l2 = [f for f in findings if f.details.get("issue_type") == "level2_title_case_issue"]
+    assert len(l2) == 1
+    assert l2[0].details.get("inferred_level") == "2"
+
+
+def test_p027_level3_sentence_case_correct_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l3_ok.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1 Background theory and methods")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l3 = [f for f in findings if f.details.get("issue_type") == "level3_sentence_case_issue"]
+    assert not l3
+
+
+def test_p027_level3_title_case_like_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l3_titlecase.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1 Background Theory and Methods Study")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l3 = [f for f in findings if f.details.get("issue_type") == "level3_sentence_case_issue"]
+    assert len(l3) == 1
+    assert l3[0].details.get("inferred_level") == "3"
+    assert l3[0].details.get("source_q_rule_id") == "Q051"
+
+
+def test_p027_level4_title_case_like_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l4_titlecase.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1.1 Background Theory and Results.")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l4 = [f for f in findings if f.details.get("inferred_level") == "4"]
+    assert any(f.details.get("issue_type") == "level4_sentence_case_issue" for f in l4)
+
+
+def test_p027_level4_missing_period_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l4_noperiod.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1.1 Background theory here")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l4 = [
+        f for f in findings
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    assert len(l4) == 1
+
+
+def test_p027_level4_with_period_no_period_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_l4_period_ok.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1.1 Background theory here.")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    punct = [
+        f for f in findings
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    assert not punct
+
+
+def test_p027_chapter_heading_not_all_caps_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_chap_lower.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "CHAPTER 1 Introduction to the Topic")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l1 = [f for f in findings if f.details.get("issue_type") == "level1_not_all_caps"]
+    assert len(l1) == 1
+    assert l1[0].details.get("inferred_level") == "1"
+
+
+def test_p027_chapter_heading_all_caps_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_chap_upper.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "CHAPTER 1 INTRODUCTION TO THE TOPIC")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    l1 = [f for f in findings if f.details.get("issue_type") == "level1_not_all_caps"]
+    assert not l1
+
+
+def test_p027_toc_page_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_toc_skip.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "1.1.1 Background Theory and Methods Study")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    assert not any(f.rule_id == "P027" for f in findings)
+
+
+def test_p027_abstract_page_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_abstract_skip.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "1.1.1 Background Theory and Methods Study")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    assert not any(f.rule_id == "P027" for f in findings)
+
+
+def test_p027_references_page_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_refs_skip.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((240, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 200), "1.1 Background Theory and Methods")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    assert not any(f.rule_id == "P027" for f in findings)
+
+
+def test_p027_citation_text_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_citation_skip.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1 Smith et al. (2020) proposed a method")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    assert not any(f.rule_id == "P027" for f in findings)
+
+
+def test_p027_cli_includes_p027(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_cli.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1 Background Theory and Methods Study")])
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P027" in result.output
+
+
+def test_p027_json_report_includes_p027_when_triggered(tmp_path: Path) -> None:
+    import json as _json
+
+    pdf_path = tmp_path / "p027_json.pdf"
+    json_path = tmp_path / "p027_report.json"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1 Background Theory and Methods Study")])
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_path)])
+    assert result.exit_code == 0
+    data = _json.loads(json_path.read_text())
+    rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
+    assert "P027" in rule_ids

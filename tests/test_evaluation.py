@@ -13,6 +13,12 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P019") == "page_numbering"
     assert map_finding_rule_to_category("P022") == "page_numbering"
     assert map_finding_rule_to_category("P026") == "font_format"
+    assert map_finding_rule_to_category(
+        "P027", {"issue_type": "level3_sentence_case_issue"}
+    ) == "capitalization_case"
+    assert map_finding_rule_to_category(
+        "P027", {"issue_type": "level1_not_all_caps"}
+    ) == "heading_title"
     assert map_finding_rule_to_category("P014") == "heading_title"
     assert map_finding_rule_to_category("P015") == "indentation"
     assert map_finding_rule_to_category("P016") == "spacing_blank_lines"

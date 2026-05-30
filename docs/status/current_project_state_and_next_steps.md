@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Branch: `improve-pdf-report-grouped-summaries` (grouped summary pending PR)
-- Latest main: `4e73c39` (P026 body font compliance)
+- Branch: `implement-heading-level-style-checks` (P027 pending PR)
+- Latest main: `6a96712` (grouped report summaries)
 
 ---
 
@@ -37,6 +37,7 @@
 | `pdf_frontmatter_no_page_number.py` | P022 | No visible page number on Abstract, Title, Approval, Copyright pages |
 | `pdf_body_spacing.py` | P023 | Body text double-spacing (line spacing ≥ 1.55× font size, conservative threshold) |
 | `pdf_font_compliance.py` | P026 | Body font size ≈12pt and Times New Roman (or accepted equivalent) |
+| `pdf_heading_levels.py` | P027 | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -65,8 +66,8 @@
 
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
-| Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~32 | ~23 | ~22 |
-| P-rules (P001–P026) | 26 | 26 | — | — | — |
+| Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~33 | ~22 | ~22 |
+| P-rules (P001–P027) | 27 | 27 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -185,9 +186,9 @@ Implemented in `pdf_font_compliance.py`. EF evaluation: 92–117 family warnings
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 255 passed, 0 failed |
+| `python -m pytest` | ✅ 275 passed, 0 failed |
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 40 source files |
+| `mypy src` | ✅ No issues in 41 source files |
 
 ---
 
