@@ -1,7 +1,12 @@
 from njit_auditor.evaluation import (
+    build_comment_page_category_sets,
+    build_finding_page_category_sets,
     map_finding_rule_to_category,
+    normalize_page_number,
     summarize_audit_findings,
+    summarize_category_page_overlap,
     summarize_comment_categories,
+    summarize_page_overlap,
 )
 from njit_auditor.models import AuditFinding, Severity
 
@@ -94,3 +99,50 @@ def test_summarize_audit_findings_counts() -> None:
     assert summary["figure_format"] == 1
     assert summary["punctuation"] == 1
     assert summary["other"] == 1
+
+
+def test_normalize_page_number() -> None:
+    assert normalize_page_number(3) == 3
+    assert normalize_page_number(3.0) == 3
+    assert normalize_page_number(" 7 ") == 7
+    assert normalize_page_number(0) is None
+    assert normalize_page_number(-2) is None
+    assert normalize_page_number("abc") is None
+    assert normalize_page_number(None) is None
+
+
+def test_page_overlap_helpers() -> None:
+    annotations = [
+        {"page_number": 2, "content": "delete indent"},
+        {"page_number": "3", "content": "table title format"},
+        {"page_number": "bad", "content": "ignored"},
+    ]
+    findings = [
+        AuditFinding(rule_id="P015", severity=Severity.WARNING, message="indent", page=2),
+        AuditFinding(rule_id="P017", severity=Severity.WARNING, message="table", page=5),
+        AuditFinding(
+            rule_id="P017",
+            severity=Severity.WARNING,
+            message="punct",
+            page=3,
+            details={"issue_type": "missing_terminal_punctuation"},
+        ),
+    ]
+
+    comment_pages = set(build_comment_page_category_sets(annotations).keys())
+    finding_pages = set(build_finding_page_category_sets(findings).keys())
+    overlap = summarize_page_overlap(comment_pages, finding_pages)
+    assert overlap["pages_with_ef_comments"] == 2
+    assert overlap["pages_with_tool_findings"] == 3
+    assert overlap["pages_with_both"] == 2
+    assert overlap["tool_only_pages"] == [5]
+
+    category_overlap = summarize_category_page_overlap(
+        build_comment_page_category_sets(annotations),
+        build_finding_page_category_sets(findings),
+        categories=["indentation", "table_format", "punctuation"],
+    )
+    assert category_overlap["indentation"]["both_pages"] == [2]
+    assert category_overlap["table_format"]["ef_only_pages"] == [3]
+    assert category_overlap["table_format"]["tool_only_pages"] == [5]
+    assert category_overlap["punctuation"]["tool_pages"] == [3]

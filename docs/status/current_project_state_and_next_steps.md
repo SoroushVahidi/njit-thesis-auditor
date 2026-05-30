@@ -4,6 +4,7 @@
 - Latest main: `6a0baaf` (PR #41 — P014 clean-baseline investigation)
 - Validation: 320 tests passed (ruff, mypy, pytest)
 - Current evaluation snapshot: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
+- Current EF overlap study: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 
 ---
 
@@ -107,6 +108,12 @@
 | P028 | 8 | Mixed page-numbering regime (Arabic on front-matter, Roman on body) |
 | P027 | 2 | Two L1 chapter headings not ALL CAPS |
 | P024 | 12 | TOC/LoT/LoF capitalization/punctuation |
+
+**Current EF comment-vs-tool overlap (extractable PDFs only):**
+- Compared files: Cibaku Elson 1st review (78 comments), Yin Haotian 2nd review (65 comments)
+- Page overlap: all EF-comment pages also have tool findings (Cibaku 42/42, Yin 44/44)
+- Category overlap is narrow: Yin shows overlap in `indentation` (2 pages) and `margin_or_overflow` (1 page); Cibaku shows no positive overlap in the shared category set
+- Major uncaptured EF areas remain `references_citations`, `committee_approval_page`, and semantic/manual feedback (`unclear_or_other`)
 
 **Biggest current noise sources:**
 - P013 (page-number candidates): always very high-volume by design
@@ -215,8 +222,8 @@ Based on the current evaluation snapshot:
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | P029 false-positive triage | Expected values 901/1001 on Sebastian Fine = body-page misclassification |
-| 🟡 High | P013 grouping / noise reduction | 501 raw candidates; hard to action without grouping |
+| 🟡 High | P013 grouping / noise reduction | Current EF overlap confirms high page coverage but low category precision in high-volume signals |
+| 🟡 High | EF category coverage expansion | Add deterministic checks for recurrent uncaptured EF categories (committee/references/list formatting cues) |
 | 🟡 Med | EF comment ↔ rule comparison | Map EF comments to P-rule findings page-by-page |
 | 🟡 Med | P011 bottom_margin clean-baseline investigation | 5 high-confidence findings on 29-page clean doc |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs still have P020=0 |
