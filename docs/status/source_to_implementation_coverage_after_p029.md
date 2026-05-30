@@ -214,3 +214,4 @@ Top 3 next tasks:
 - **Limitations:** Does not verify bold styling or exact alignment; skips TOC pages and ambiguous pages without extractable list entries.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md`.
 - **Current-dataset evaluation (2026-05-30):** `docs/evaluation/p031_current_dataset_evaluation.md` — 2 P031 findings on Sebastian Fine clean baseline LoT page 11 only; 0 on other evaluated PDFs (see doc for detection caveats).
+- **Sebastian investigation/refinement (2026-05-30):** `docs/evaluation/p031_sebastian_clean_baseline_investigation.md` — page-11 warnings were likely false positives from header-band geometry; P031 band extended upward conservatively.

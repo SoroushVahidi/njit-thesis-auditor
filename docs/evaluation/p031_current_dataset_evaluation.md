@@ -98,7 +98,14 @@ true formatting defects.
 - Sebastian Fine PDF extracted locally from tracked ZIP; not committed.
 - Generated summary JSON under gitignored `data/evaluation/generated/p031_evaluation/`.
 
-## 7. Related docs
+## 8. Follow-up investigation (2026-05-30)
+
+See `docs/evaluation/p031_sebastian_clean_baseline_investigation.md`. The two Sebastian Fine
+LoT page-11 warnings were **likely false positives** caused by an overly strict header-band
+lower bound. P031 was refined to search slightly above `heading_bottom_y`; the clean baseline
+re-run then reported **0 P031 findings**.
+
+## 9. Related docs
 
 - Synthetic validation: `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md`
 - P030 current-dataset evaluation: `docs/evaluation/p030_current_dataset_evaluation.md`

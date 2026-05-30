@@ -11,14 +11,17 @@ from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
+    classify_toc_heading_line,
     detect_toc_like_pages,
     extract_toc_entry_lines,
 )
 
+HEADER_ZONE_ABOVE_HEADING_PT = 12.0
 HEADER_ZONE_BELOW_HEADING_PT = 60.0
 HEADER_LABEL_MAX_LEN = 20
 LEFT_HEADER_TOLERANCE_PT = 80.0
@@ -73,12 +76,15 @@ def _matches_page_label(text: str) -> bool:
 
 
 def _collect_header_zone_lines(context: TocPageContext) -> list[PdfTextLine]:
-    y_min = context.heading_bottom_y + 2.0
+    y_min = context.heading_bottom_y - HEADER_ZONE_ABOVE_HEADING_PT
     y_max = context.heading_bottom_y + HEADER_ZONE_BELOW_HEADING_PT
     header_lines: list[PdfTextLine] = []
     for block in context.page.text_blocks:
         for line in block.lines:
             if line.bbox.y0 < y_min or line.bbox.y0 > y_max:
+                continue
+            normalized = normalize_heading_text(line.text)
+            if classify_toc_heading_line(normalized) is not None:
                 continue
             if not _is_short_header_candidate(line.text):
                 continue
