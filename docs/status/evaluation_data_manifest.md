@@ -4,6 +4,7 @@
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
+- **Validation:** Protected by `tests/test_evaluation_data_manifest.py`
 
 ## Executive Summary
 
