@@ -215,3 +215,11 @@ Top 3 next tasks:
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md`.
 - **Current-dataset evaluation (2026-05-30):** `docs/evaluation/p031_current_dataset_evaluation.md` — PR #54 initially reported 2 Sebastian P031 findings (page 11); PR #55 resolved these as header-band false positives; post-fix rerun shows **0 P031 findings** on all evaluated PDFs.
 - **Sebastian investigation/refinement (2026-05-30):** `docs/evaluation/p031_sebastian_clean_baseline_investigation.md` — page-11 warnings were likely false positives from header-band geometry; P031 band extended upward conservatively.
+
+## 10. Post-audit update (P032)
+
+- **Date:** 2026-05-30
+- **Change:** Added **P032** — conservative wrapped-entry internal spacing checks for Table of Contents, List of Tables, and List of Figures pages.
+- **Q-rule basis:** partial/heuristic PDF coverage for **Q053–Q055**, **Q066–Q067**, and **Q076–Q078** only.
+- **Limitations:** Does not verify spacing between separate entries, leader formatting, or full visual compliance; skips ambiguous wrap grouping and very large gaps that likely indicate separate entries.
+- **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p032_toc_list_wrapped_spacing_synthetic_validation.md`.

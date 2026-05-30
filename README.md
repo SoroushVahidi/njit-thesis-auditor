@@ -19,20 +19,20 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### PDF layout audit (P011–P031)
+### PDF layout audit (P011–P032)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P031 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P032 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. The Markdown report includes a "Repeated Findings Summary"
 table before the full raw findings.
 
-Current PDF checks (P011–P031):
+Current PDF checks (P011–P032):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -57,6 +57,7 @@ Current PDF checks (P011–P031):
 | P029 | Page numbers | Front-matter lowercase Roman numeral ordering (sequence checks) |
 | P030 | TOC/List | Multi-page TOC/LoT/LoF continued-heading checks on continuation pages |
 | P031 | TOC/List | List of Tables/Figures column header labels (Table/Figure and Page) |
+| P032 | TOC/List | Wrapped TOC/LoT/LoF entry internal spacing (continuation gap vs line height) |
 
 All findings are heuristic warnings and require manual review.
 

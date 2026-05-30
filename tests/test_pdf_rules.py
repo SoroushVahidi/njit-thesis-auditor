@@ -44,6 +44,7 @@ from njit_auditor.rules.pdf_title_capitalization import (
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
+from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
 
 runner = CliRunner()
 
@@ -3628,3 +3629,176 @@ def test_p031_header_row_immediately_below_heading_no_warning(tmp_path: Path) ->
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P031" for f in check_pdf_lot_lof_column_headers(model))
+
+
+# ---------------------------------------------------------------------------
+# P032: TOC/List wrapped-entry internal spacing
+# ---------------------------------------------------------------------------
+
+
+def _make_wrapped_entry_pdf(
+    path: Path,
+    heading: str,
+    first_line: str,
+    continuation_line: str,
+    *,
+    first_y: float = 140.0,
+    continuation_y: float = 152.0,
+    first_x: float = 108.0,
+    continuation_x: float = 108.0,
+    page_number_on_first: str | None = None,
+    page_number_on_continuation: str | None = None,
+    extra_lines: list[tuple[str, float, float]] | None = None,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    page.insert_text((first_x, first_y), first_line, fontsize=12)
+    if page_number_on_first is not None:
+        page.insert_text((500, first_y), page_number_on_first, fontsize=12)
+    page.insert_text((continuation_x, continuation_y), continuation_line, fontsize=12)
+    if page_number_on_continuation is not None:
+        page.insert_text((500, continuation_y), page_number_on_continuation, fontsize=12)
+    if extra_lines:
+        for text, x_pos, y_pos in extra_lines:
+            page.insert_text((x_pos, y_pos), text, fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p032_toc_normal_wrapped_continuation_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_toc_wrap_ok.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "Chapter 4 Extended Dissertation Topic Title ....",
+        "Continuation Line of Wrapped Entry Text",
+        continuation_y=152.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
+
+
+def test_p032_toc_excessive_wrapped_gap_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_toc_wrap_gap.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "Chapter 4 Extended Dissertation Topic Title ....",
+        "Continuation Line of Wrapped Entry Text",
+        continuation_y=185.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_list_wrapped_spacing(model) if f.rule_id == "P032"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("issue_type") == "wrapped_entry_internal_spacing"
+    assert warnings[0].details.get("section_type") == "table_of_contents"
+
+
+def test_p032_lot_normal_wrapped_continuation_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_lot_wrap_ok.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        "Table 3.1 Summary of Experimental Setup and ....",
+        "Additional Wrapped Table Title Continuation",
+        continuation_y=152.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
+
+
+def test_p032_lot_excessive_wrapped_gap_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_lot_wrap_gap.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        "Table 3.1 Summary of Experimental Setup and ....",
+        "Additional Wrapped Table Title Continuation",
+        continuation_y=185.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_list_wrapped_spacing(model) if f.rule_id == "P032"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("section_type") == "list_of_tables"
+    assert warnings[0].details.get("entry_kind") == "table_entry"
+
+
+def test_p032_lof_excessive_wrapped_gap_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_lof_wrap_gap.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        "Figure 2.1 Overview of Experimental Apparatus ....",
+        "Additional Wrapped Figure Title Continuation",
+        continuation_y=185.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_list_wrapped_spacing(model) if f.rule_id == "P032"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("section_type") == "list_of_figures"
+    assert warnings[0].details.get("entry_kind") == "figure_entry"
+
+
+def test_p032_separate_entries_with_large_spacing_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_separate_entries.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "Chapter 3 Literature Review and Background ....",
+        "Chapter 4 Extended Dissertation Topic Title ....",
+        first_y=140.0,
+        continuation_y=180.0,
+        page_number_on_first="10",
+        page_number_on_continuation="12",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
+
+
+def test_p032_no_wrapped_entries_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_single_line_entries.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    for idx, (label, indent_x) in enumerate(_P030_TOC_ENTRIES):
+        y = 140 + idx * 20
+        page.insert_text((indent_x, y), label, fontsize=12)
+        page.insert_text((500, y), "12", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
+
+
+def test_p032_ambiguous_continuation_indent_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_ambiguous_wrap.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "Chapter 4 Extended Dissertation Topic Title ....",
+        "Continuation Line of Wrapped Entry Text",
+        continuation_y=185.0,
+        continuation_x=140.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P032" for f in check_pdf_toc_list_wrapped_spacing(model))
+
+
+def test_p032_finding_details_are_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p032_privacy_safe.pdf"
+    long_entry = "Chapter 4 " + ("X" * 200)
+    long_continuation = "Continuation " + ("Y" * 200)
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        long_entry,
+        long_continuation,
+        continuation_y=185.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_toc_list_wrapped_spacing(model) if f.rule_id == "P032")
+    assert long_entry not in str(warning.details)
+    assert long_continuation not in str(warning.details)
+    assert long_entry not in warning.message
+    assert warning.details.get("issue_type") == "wrapped_entry_internal_spacing"
