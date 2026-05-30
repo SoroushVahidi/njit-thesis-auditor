@@ -16,7 +16,8 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines; Titles Examples Leve
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
@@ -67,11 +68,17 @@ _SUBTITLE_SEP_RE = re.compile(r"[:–—]|--+")
 # Word token: letter-started run, optionally joined by single hyphens.
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
 
-_BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold)", re.IGNORECASE)
+_BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold|cmbx)", re.IGNORECASE)
 
 MIN_WORDS_FOR_TITLE_CHECK = 3
 MAX_HEADING_LINE_LEN = 150
 MAX_PREVIEW_LEN = 80
+# Font-size fallback: line treated as heading-like if span sizes exceed body by this much.
+_FONT_SIZE_HEADING_MARGIN_PT = 2.0
+# Maximum line length for font-size fallback headings (shorter = more conservative).
+_MAX_FONT_SIZE_FALLBACK_LINE_LEN = 100
+# Minimum fraction of spans that must be above the size threshold for fallback to fire.
+_MIN_ABOVE_SIZE_FRACTION = 0.70
 
 
 @dataclass
@@ -82,6 +89,8 @@ class TitleLikeLine:
     check_text: str   # phrase to check (caption body or full clean heading)
     line_preview: str  # ≤80-char preview of the original line
     source: str        # "caption" | "heading"
+    detection_reason: str = field(default="bold_heading")
+    # detection_reason values: "bold_heading" | "cmbx_bold_heading" | "font_size_heading_fallback"
 
 
 def normalize_title_text(text: str) -> str:
@@ -216,13 +225,71 @@ def _page_context_type(page: PdfPage) -> str:
     return "body"
 
 
-def _all_spans_bold(line: PdfTextLine) -> bool:
+def _is_math_font(font_name: str) -> bool:
+    """Return True for known math/symbol fonts that should not be treated as headings."""
+    base = font_name.lower().split("+")[-1]
+    return base.startswith(("cmmi", "cmsy", "cmex", "msam", "msbm", "wasy"))
+
+
+def _spans_bold_reason(line: PdfTextLine) -> str | None:
+    """Return detection reason if the line looks bold/heading-like, else None.
+
+    Returns:
+        'cmbx_bold_heading' — all non-math spans use CMBX (Computer Modern Bold).
+        'bold_heading'      — all non-math spans use another bold font.
+        None               — line is not detected as bold/heading-like.
+    """
+    if not line.spans:
+        return None
+    candidate_spans = [
+        s for s in line.spans if not (s.font and _is_math_font(s.font))
+    ]
+    if not candidate_spans:
+        return None
+    all_bold = all(
+        s.bold or bool(s.font and _BOLD_FONT_HINT_RE.search(s.font))
+        for s in candidate_spans
+    )
+    if not all_bold:
+        return None
+    # Distinguish CMBX-based detection from other bold fonts.
+    if all(
+        s.font and s.font.lower().split("+")[-1].startswith("cmbx")
+        for s in candidate_spans
+        if s.font
+    ):
+        return "cmbx_bold_heading"
+    return "bold_heading"
+
+
+def _estimate_document_body_size(pdf_document: PdfDocument) -> float:
+    """Estimate the dominant body font size from spans in the document."""
+    sizes: list[float] = []
+    for page in pdf_document.pages:
+        for block in page.text_blocks:
+            for line in block.lines:
+                for span in line.spans:
+                    if span.size and 9.0 <= span.size <= 14.0:
+                        sizes.append(span.size)
+    return median(sizes) if sizes else 12.0
+
+
+def _is_font_size_heading(line: PdfTextLine, body_size: float) -> bool:
+    """Return True if line looks like a heading based on font size alone.
+
+    Conservative: requires ≥70% of spans to be above body_size + 2pt threshold,
+    line must be short and not all-caps.
+    """
     if not line.spans:
         return False
-    return all(
-        span.bold or bool(span.font and _BOLD_FONT_HINT_RE.search(span.font))
-        for span in line.spans
-    )
+    threshold = body_size + _FONT_SIZE_HEADING_MARGIN_PT
+    sized_spans = [s for s in line.spans if s.size is not None]
+    if not sized_spans:
+        return False
+    above_count = sum(1 for s in sized_spans if (s.size or 0.0) >= threshold)
+    if above_count / len(sized_spans) < _MIN_ABOVE_SIZE_FRACTION:
+        return False
+    return True
 
 
 def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine]:
@@ -262,6 +329,8 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
             )
         )
 
+    body_size = _estimate_document_body_size(pdf_document)
+
     # 2. Bold heading-like lines (Level 2 and similar title-case headings).
     for page in pdf_document.pages:
         page_ctx = _page_context_type(page)
@@ -280,13 +349,22 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                     continue
                 if CAPTION_START_RE.match(clean):
                     continue  # already covered by caption detection above
-                if _all_spans_bold(line):
+
+                detection_reason = _spans_bold_reason(line)
+                if detection_reason is None and len(clean) <= _MAX_FONT_SIZE_FALLBACK_LINE_LEN:
+                    # Font-size fallback: treat as heading-like if significantly larger than body.
+                    # Only apply for short lines to avoid catching body paragraphs.
+                    if _is_font_size_heading(line, body_size):
+                        detection_reason = "font_size_heading_fallback"
+
+                if detection_reason is not None:
                     results.append(
                         TitleLikeLine(
                             page_number=page.page_number,
                             check_text=clean,
                             line_preview=clean[:MAX_PREVIEW_LEN],
                             source="heading",
+                            detection_reason=detection_reason,
                         )
                     )
 
@@ -327,6 +405,7 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
                     "expected_or_reason": first_issue["reason"],
                     "confidence": first_issue["confidence"],
                     "source": title_line.source,
+                    "detection_reason": title_line.detection_reason,
                 },
             )
         )
