@@ -129,7 +129,7 @@
 | ✅ DONE | P026: Font compliance (Times New Roman 12pt body) | Guidelines requirement | — | — |
 | ✅ DONE | P027: Heading level-specific style (L1/L2/L3-5) | Q051 | — | — |
 | ✅ DONE | P028: Page-numbering regime (Roman/Arabic) | Q022, Q031, Q035, Q046, Q060 | — | — |
-| 🔴 HIGH | P020 font-size fallback when bold metadata absent | P020 recall gap | Medium | Low-Med |
+| ✅ DONE | P020 CMBX/font-size heading detection refinement | P020 recall; Q049–Q050 | — | — |
 | 🟡 MED | Roman numeral sequence ordering (not just style) | Q022, Q031, Q035, Q046, Q060 | Medium | Medium |
 | 🟡 MED | Figure/table centering check | Self-Assessment Sheet | Medium | Medium |
 | 🟡 LOW | Copyright page identification and checks (Q009–Q011) | Q009–Q012 | High | High |
@@ -165,12 +165,10 @@ All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. 
 ### Bundle 3 (DONE): P027 — Heading Level Style
 ### Bundle 4 (DONE): P028 — Page-Numbering Regime
 
-### Bundle 5: P020 Font-Size Fallback (highest remaining priority)
-**Rationale:** 3 of 4 tested PDFs lack bold metadata, causing P020 to fire 0 on heading-rich documents with confirmed title-case issues (EF comments on Cibaku).  
-**Q-rule basis:** Q049–Q050  
-**Files to change:** `src/njit_auditor/rules/pdf_title_capitalization.py`  
-**Tests:** Synthetic spans with no bold flag but large font size (≥13pt); verify no body-text regressions  
-**Risk:** Low-Medium
+### Bundle 5 (DONE): P020 CMBX/Font-Size Heading Detection Refinement
+CMBX (Computer Modern Bold) now recognized as bold at layout extraction layer.
+Font-size fallback added for non-bold large-font headings.
+See `docs/evaluation/phase2_p020_heading_detection_refinement_evaluation.md`.
 
 ### Bundle 6: Roman Numeral Sequence Ordering (P029)
 **Rationale:** P028 checks style (Roman vs. Arabic) but not whether front-matter page numbers form a valid ascending sequence (i, ii, iii, iv...). P019 partially covers this but is not specific to the front-matter regime.  
@@ -188,7 +186,7 @@ All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. 
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 285 passed, 0 failed |
+| `python -m pytest` | ✅ 304 passed, 0 failed |
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 42 source files |
 

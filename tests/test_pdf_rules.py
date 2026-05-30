@@ -4,7 +4,8 @@ import fitz
 from typer.testing import CliRunner
 
 from njit_auditor.cli import app
-from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.pdf_layout import _style_flags_from_font_name, load_pdf_layout
+from njit_auditor.pdf_models import BBox, PdfTextLine, PdfTextSpan
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
@@ -32,6 +33,8 @@ from njit_auditor.rules.pdf_page_numbers import (
 )
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import (
+    _is_math_font,
+    _spans_bold_reason,
     check_apa_title_case_phrase,
     check_pdf_title_capitalization,
     is_minor_word,
@@ -2884,3 +2887,200 @@ def test_p028_json_report_includes_p028_when_triggered(tmp_path: Path) -> None:
     data = _json.loads(json_path.read_text())
     rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
     assert "P028" in rule_ids
+
+
+# ---------------------------------------------------------------------------
+# P020 refinement tests — CMBX bold recognition and font-size fallback
+# ---------------------------------------------------------------------------
+
+
+
+def _make_line(font: str, size: float, bold: bool = False, text: str = "word") -> PdfTextLine:
+    span = PdfTextSpan(
+        text=text, bbox=BBox(x0=0, y0=0, x1=100, y1=14), font=font, size=size, bold=bold
+    )
+    return PdfTextLine(
+        spans=[span], bbox=BBox(x0=0, y0=0, x1=100, y1=14), text=text
+    )
+
+
+# ---- _style_flags_from_font_name unit tests ----
+
+def test_style_flags_cmbx12_is_bold() -> None:
+    bold, italic = _style_flags_from_font_name("CMBX12")
+    assert bold is True
+    assert italic is False
+
+
+def test_style_flags_cmbx_subset_prefix_is_bold() -> None:
+    bold, italic = _style_flags_from_font_name("ABCDEF+CMBX12")
+    assert bold is True
+    assert italic is False
+
+
+def test_style_flags_cmr12_is_not_bold() -> None:
+    bold, italic = _style_flags_from_font_name("CMR12")
+    assert bold is False
+    assert italic is False
+
+
+def test_style_flags_cmti12_is_italic_not_bold() -> None:
+    bold, italic = _style_flags_from_font_name("CMTI12")
+    assert bold is False
+    assert italic is True
+
+
+def test_style_flags_times_bold_is_bold() -> None:
+    bold, italic = _style_flags_from_font_name("Times-Bold")
+    assert bold is True
+
+
+def test_style_flags_none_returns_false_false() -> None:
+    assert _style_flags_from_font_name(None) == (False, False)
+
+
+# ---- _is_math_font unit tests ----
+
+def test_is_math_font_cmmi_true() -> None:
+    assert _is_math_font("CMMI12") is True
+
+
+def test_is_math_font_cmsy_true() -> None:
+    assert _is_math_font("CMSY10") is True
+
+
+def test_is_math_font_cmbx_false() -> None:
+    assert _is_math_font("CMBX12") is False
+
+
+def test_is_math_font_cmr_false() -> None:
+    assert _is_math_font("CMR12") is False
+
+
+# ---- _spans_bold_reason unit tests ----
+
+def test_spans_bold_reason_cmbx_returns_cmbx() -> None:
+    line = _make_line("CMBX12", 12.0)
+    assert _spans_bold_reason(line) == "cmbx_bold_heading"
+
+
+def test_spans_bold_reason_times_bold_returns_bold() -> None:
+    line = _make_line("Times-Bold", 12.0, bold=True)
+    assert _spans_bold_reason(line) == "bold_heading"
+
+
+def test_spans_bold_reason_cmr_returns_none() -> None:
+    line = _make_line("CMR12", 12.0)
+    assert _spans_bold_reason(line) is None
+
+
+def test_spans_bold_reason_math_font_excluded() -> None:
+    # A line with only CMMI (math) spans should not be detected as bold heading.
+    line = _make_line("CMMI12", 12.0)
+    assert _spans_bold_reason(line) is None
+
+
+# ---- Integration: P020 with fitz PDFs ----
+
+def test_p020_cmbx_heading_wrong_title_case_warns(tmp_path: Path) -> None:
+    """A CMBX-named heading with a title-case violation should trigger P020."""
+    pdf_path = tmp_path / "p020_cmbx_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Use a bold font for the heading line — fitz will embed it as bold.
+    page.insert_text(
+        (108, 200), "results and discussion methods", fontsize=12, fontname="hebo"
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    # The bold Times-Bold or Helvetica-Bold line should trigger (font=hebo → bold=True).
+    warnings = [f for f in findings if f.rule_id == "P020"]
+    # Expect at least one P020 finding (bold heading with title-case issue).
+    assert len(warnings) >= 1
+
+
+def test_p020_correct_title_case_hebo_heading_no_warning(tmp_path: Path) -> None:
+    """A bold heading with correct Title Case should produce no P020 warning."""
+    pdf_path = tmp_path / "p020_bold_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 200), "Results and Discussion Methods Here", fontsize=12, fontname="hebo"
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_finding_includes_detection_reason(tmp_path: Path) -> None:
+    """P020 findings must include a detection_reason detail field."""
+    pdf_path = tmp_path / "p020_detection_reason.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 200), "results and discussion methods", fontsize=12, fontname="hebo"
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    if findings:
+        assert "detection_reason" in findings[0].details
+
+
+def test_p020_font_size_fallback_large_font_wrong_case_warns(tmp_path: Path) -> None:
+    """Non-bold line at ≥14pt (body=12pt) should trigger font_size_heading_fallback."""
+    pdf_path = tmp_path / "p020_size_fallback.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Body text at 12pt (many lines to establish body_size baseline).
+    for i in range(10):
+        page.insert_text(
+            (108, 150 + i * 22),
+            "An ordinary body text paragraph line for font compliance testing here.",
+            fontsize=12,
+            fontname="tiro",
+        )
+    # Non-bold heading at 14pt with title-case violation.
+    page.insert_text(
+        (108, 380), "the results and discussion methods", fontsize=14, fontname="tiro"
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    size_fallback = [
+        f for f in findings
+        if f.details.get("detection_reason") == "font_size_heading_fallback"
+    ]
+    assert len(size_fallback) >= 1
+
+
+def test_p020_font_size_fallback_correct_title_case_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_size_fallback_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for i in range(10):
+        page.insert_text(
+            (108, 150 + i * 22),
+            "An ordinary body text paragraph line for font compliance testing here.",
+            fontsize=12,
+            fontname="tiro",
+        )
+    # Non-bold heading at 14pt with correct Title Case.
+    page.insert_text(
+        (108, 380), "Results and Discussion Methods", fontsize=14, fontname="tiro"
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    size_fallback = [
+        f for f in check_pdf_title_capitalization(model)
+        if f.rule_id == "P020"
+        and f.details.get("detection_reason") == "font_size_heading_fallback"
+    ]
+    assert not size_fallback

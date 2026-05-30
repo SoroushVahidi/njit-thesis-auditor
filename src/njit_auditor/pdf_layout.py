@@ -15,10 +15,27 @@ from njit_auditor.pdf_models import (
 
 
 def _style_flags_from_font_name(font_name: str | None) -> tuple[bool, bool]:
+    """Infer bold/italic from PDF font name including Computer Modern variants."""
     if not font_name:
         return False, False
     lowered = font_name.lower()
-    return ("bold" in lowered), ("italic" in lowered or "oblique" in lowered)
+    # Strip embedded subset prefix (e.g. "ABCDEF+CMBX12" → "cmbx12").
+    base = lowered.split("+")[-1]
+    # Bold: standard keyword hints + Computer Modern Bold Extended (CMBX family).
+    bold = (
+        "bold" in lowered
+        or "black" in lowered
+        or "heavy" in lowered
+        or base.startswith("cmbx")
+    )
+    # Italic: standard keyword hints + Computer Modern Text Italic (CMTI) and Slant (CMSL).
+    italic = (
+        "italic" in lowered
+        or "oblique" in lowered
+        or base.startswith("cmti")
+        or base.startswith("cmsl")
+    )
+    return bold, italic
 
 
 def load_pdf_layout(pdf_path: str) -> PdfDocument:
