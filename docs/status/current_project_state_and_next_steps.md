@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Latest main: `263529c` (P028 page-numbering regime)
+- Latest main: `96543ef` (PR #37 — P020 CMBX/font-size heading detection refinement)
 
 ---
 
@@ -89,7 +89,7 @@
 | `260415 Yin H _2nd_review with EF Comments.pdf` | No (flattened) | Identical audit counts to Yin Haotian (same doc) |
 | `Yin_H_4th_Review_with_EF_comments_compressed.pdf` | No (flattened) | Highest finding count — compression artifacts inflate P011 |
 
-**Full evaluation:** See `docs/evaluation/current_auditor_after_p028_evaluation.md` for the current P011–P028 evaluation snapshot across all available data including the Sebastian Fine clean baseline.
+**Full evaluation (post P020 refinement):** See `docs/evaluation/after_p020_refinement_current_snapshot.md` for the current snapshot after PR #37 (CMBX heading detection). Prior full baseline: `docs/evaluation/current_auditor_after_p028_evaluation.md`.
 
 **Summary counts across 4 EF PDFs (Yin H 4th compressed — highest volume):**
 
@@ -186,8 +186,8 @@ See `docs/evaluation/phase2_p020_heading_detection_refinement_evaluation.md`.
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 304 passed, 0 failed |
+| `python -m pytest` | ✅ 304 passed, 0 failed (after PR #37) |
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 42 source files |
 
-**Next recommended PR:** Bundle 5 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.
+**Next recommended PR:** Bundle A (P029 Roman numeral sequence ordering) or Bundle B (P011 compression artifact guard). See `docs/evaluation/after_p020_refinement_current_snapshot.md`.
