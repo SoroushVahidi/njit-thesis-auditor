@@ -38,6 +38,7 @@
 | `pdf_font_compliance.py` | P026 | Body font size ≈12pt and Times New Roman (or accepted equivalent) |
 | `pdf_heading_levels.py` | P027 | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) |
 | `pdf_page_numbering_regime.py` | P028 | Front-matter Roman / body Arabic page-numbering regime check |
+| `pdf_roman_sequence.py` | P029 | Front-matter lowercase Roman numeral ordering (i, ii, iii...) |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -65,7 +66,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P028) | 28 | 28 | — | — | — |
+| P-rules (P001–P029) | 29 | 29 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -170,11 +171,11 @@ CMBX (Computer Modern Bold) now recognized as bold at layout extraction layer.
 Font-size fallback added for non-bold large-font headings.
 See `docs/evaluation/phase2_p020_heading_detection_refinement_evaluation.md`.
 
-### Bundle 6: Roman Numeral Sequence Ordering (P029)
-**Rationale:** P028 checks style (Roman vs. Arabic) but not whether front-matter page numbers form a valid ascending sequence (i, ii, iii, iv...). P019 partially covers this but is not specific to the front-matter regime.  
-**Q-rule basis:** Q022, Q031, Q035, Q046, Q060  
-**Files to change:** New `pdf_page_numbering_sequence.py`  
-**Risk:** Medium
+### Bundle 6: Roman Numeral Sequence Ordering (P029) — IMPLEMENTED
+**Summary:** P029 was added to conservatively validate visible lowercase Roman numeral ordering across front-matter pages. It flags repeats, decreases, and non-consecutive visible numerals while excluding recognized no-number pages (ABSTRACT, APPROVAL PAGE, etc.).
+**Q-rule basis:** Q022, Q031, Q035, Q046, Q060
+**Files changed:** `src/njit_auditor/rules/pdf_roman_sequence.py`, CLI integration, inventory and tests
+**Risk:** Medium — heuristic, conservative checks; does not replace manual review.
 
 ### Bundle 7: Clean Baseline False-Positive Audit (evaluation task)
 **Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) has not been run through the full P011–P028 auditor. Establishing false-positive counts is essential before further refinement.  

@@ -52,6 +52,9 @@ from njit_auditor.rules.pdf_page_numbers import (
     check_pdf_page_number_sequence,
     run_pdf_page_number_candidates_rule,
 )
+from njit_auditor.rules.pdf_roman_sequence import (
+    check_pdf_roman_sequence,
+)
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import check_pdf_title_capitalization
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
@@ -153,6 +156,7 @@ def pdf(
     findings.extend(run_pdf_page_number_candidates_rule(pdf_doc))
     findings.extend(check_pdf_page_number_sequence(pdf_doc))
     findings.extend(check_pdf_page_numbering_regime(pdf_doc))
+    findings.extend(check_pdf_roman_sequence(pdf_doc))
     findings.extend(check_pdf_frontmatter_no_page_number(pdf_doc))
     findings.extend(run_pdf_margin_rule(pdf_doc))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
