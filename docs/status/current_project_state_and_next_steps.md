@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Latest main: `443868c` (PR #39 — P029 Roman numeral sequence checks)
+- Latest main: `caa6cae` (PR #40 — P011 compression artifact guard)
 
 ---
 
@@ -185,7 +185,16 @@ Added `confidence` (low/medium/high) to P011 finding details.
 **Files changed:** `src/njit_auditor/rules/pdf_margins.py`, tests, evaluation and status docs.
 **Risk:** Low — conservative threshold; does not affect normal PDFs.
 
-### Bundle 8: Clean Baseline False-Positive Audit (evaluation task)
+### Bundle 8: P014 Clean-Baseline Investigation — IMPLEMENTED
+**Summary:** Investigated 6 P014 false positives on Sebastian Fine clean baseline. Root cause:
+P014 compared heading center against page center (306pt) instead of text-area center (324pt).
+NJIT's asymmetric margins (1.5" left, 1" right) shift the text area center 18pt right of page
+center. Fixed `_line_centered` to compare against text-area center. Before/after: Sebastian
+Fine 6→0, Cibaku 1→0, Yin Haotian 1→0, Yin H 4th 10→0 — all false positives removed.
+**Files changed:** `src/njit_auditor/rules/pdf_headings.py`, tests, evaluation docs.
+**Risk:** Low — fix narrows false positives; off-center headings still flagged.
+
+### Bundle 9: Clean Baseline False-Positive Audit (evaluation task)
 **Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) has not been run through the full P011–P028 auditor. Establishing false-positive counts is essential before further refinement.  
 **Risk:** None — read-only evaluation task
 

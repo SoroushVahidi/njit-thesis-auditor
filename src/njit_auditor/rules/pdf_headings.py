@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
 
 INCH_TO_PT = 72.0
 TOP_ZONE_PT = 2.0 * INCH_TO_PT
@@ -47,10 +48,10 @@ def _is_bold_line(line: PdfTextLine) -> bool:
     return any(BOLD_FONT_HINT_RE.search(span.font or "") for span in line.spans)
 
 
-def _line_centered(line: PdfTextLine, page_width: float) -> bool:
+def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
     line_center = (line.bbox.x0 + line.bbox.x1) / 2.0
-    page_center = page_width / 2.0
-    return abs(line_center - page_center) <= CENTER_TOLERANCE_PT
+    text_area_center = (text_area_x0 + text_area_x1) / 2.0
+    return abs(line_center - text_area_center) <= CENTER_TOLERANCE_PT
 
 
 def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMatch]:
@@ -60,6 +61,8 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
     expected_set = set(EXPECTED_HEADINGS)
 
     for page in pdf_document.pages:
+        text_area_x0 = LEFT_MARGIN_PT
+        text_area_x1 = page.width - RIGHT_MARGIN_PT
         for block in page.text_blocks:
             for line in block.lines:
                 raw_text = line.text.strip()
@@ -72,7 +75,7 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                     HeadingMatch(
                         heading=normalized_upper,
                         page_number=page.page_number,
-                        centered=_line_centered(line, page.width),
+                        centered=_line_centered(line, text_area_x0, text_area_x1),
                         near_top=line.bbox.y0 <= TOP_ZONE_PT,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized_upper),
