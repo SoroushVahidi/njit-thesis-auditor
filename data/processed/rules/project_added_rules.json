@@ -557,5 +557,23 @@
     "implementation_module": "njit_auditor.rules.pdf_lot_lof_column_headers",
     "priority": "medium",
     "notes": "Conservative partial PDF heuristic for Q063, Q064, Q072, Q073. Does not verify bold styling or exact alignment. Skips ambiguous pages and pages without extractable list entries. issue_type values: missing_left_column_header, missing_page_column_header, left_column_header_misaligned, page_column_header_misaligned."
+  },
+  {
+    "id": "P032",
+    "section": "PDF TOC/List wrapped-entry spacing",
+    "question": "Do wrapped Table of Contents, List of Tables, and List of Figures entries appear internally single-spaced between the first line and continuation line?",
+    "rule_definition": "Conservative heuristic that flags likely wrapped TOC/List entries where the vertical gap between the first line and its continuation line clearly exceeds single-spacing relative to local line height or font size. Applies to Table of Contents, List of Tables, and List of Figures pages. Skips ambiguous entry grouping and spacing between separate entries.",
+    "remediation": "Adjust wrapped TOC/List entry formatting so continuation lines sit on the next single-spaced line within the same entry, rather than with extra internal blank space.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_toc_list_wrapped_spacing",
+    "priority": "medium",
+    "notes": "Conservative partial PDF heuristic for Q053-Q055, Q066-Q067, and Q076-Q078. Does not verify full visual compliance, leader dots, or spacing between separate entries. Skips ambiguous continuation grouping. issue_type: wrapped_entry_internal_spacing."
   }
 ]
