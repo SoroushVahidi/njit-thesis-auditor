@@ -1,5 +1,12 @@
 # Current Project State and Next Steps
 
+- Strict coverage audit (post-P029): `docs/status/source_to_implementation_coverage_after_p029.md`
+- Coverage checkpoint (strict):
+  - P001-P029 implemented
+  - Not all source-file rules are fully implemented
+  - Some source rules are partial or manual-only
+  - Baseline main before this branch: `7139e76a9fe5`
+
 - Date: 2026-05-29
 - Latest main: `6a0baaf` (PR #41 — P014 clean-baseline investigation)
 - Validation: 320 tests passed (ruff, mypy, pytest)
