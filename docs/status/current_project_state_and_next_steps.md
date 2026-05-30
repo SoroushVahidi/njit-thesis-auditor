@@ -89,6 +89,8 @@
 | `260415 Yin H _2nd_review with EF Comments.pdf` | No (flattened) | Identical audit counts to Yin Haotian (same doc) |
 | `Yin_H_4th_Review_with_EF_comments_compressed.pdf` | No (flattened) | Highest finding count — compression artifacts inflate P011 |
 
+**Full evaluation:** See `docs/evaluation/current_auditor_after_p028_evaluation.md` for the current P011–P028 evaluation snapshot across all available data including the Sebastian Fine clean baseline.
+
 **Summary counts across 4 EF PDFs (Yin H 4th compressed — highest volume):**
 
 | Rule | Count | Notes |
