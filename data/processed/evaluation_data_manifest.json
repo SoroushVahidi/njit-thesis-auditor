@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "generated_for_commit": "06158f195a08",
+  "privacy_policy": {
+    "contains_real_student_data": true,
+    "body_text_must_not_be_quoted": true,
+    "raw_generated_outputs_gitignored": true
+  },
+  "categories": {
+    "guideline_rule_sources": [
+      {
+        "path": "data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx",
+        "file_type": "DOCX",
+        "tracked_status": "tracked",
+        "role": "formatting-rule-source",
+        "privacy_risk": "low",
+        "description": "Main NJIT formatting spec",
+        "used_by_rules": ["Q001-Q079", "P001-P029"]
+      },
+      {
+        "path": "data/raw/guidelines/Titles Examples Level 1 to 5.docx",
+        "file_type": "DOCX",
+        "tracked_status": "tracked",
+        "role": "formatting-rule-source",
+        "privacy_risk": "low",
+        "description": "Heading level formatting guide",
+        "used_by_rules": ["P020", "P024", "P027"]
+      },
+      {
+        "path": "data/raw/guidelines/Self-Self Assessment Sheet.pdf",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "role": "formatting-rule-source",
+        "privacy_risk": "low",
+        "description": "GSO self-assessment checklist",
+        "used_by_rules": ["Q001-Q079"]
+      },
+      {
+        "path": "data/raw/guidelines/Front Matter Pages Lorem Ipsum.pdf",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "role": "formatting-rule-source",
+        "privacy_risk": "low",
+        "description": "Annotated mock front matter",
+        "used_by_rules": ["P014", "P025", "P029"]
+      },
+      {
+        "path": "data/raw/guidelines/PhD Title Pages.pdf",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "role": "formatting-rule-source",
+        "privacy_risk": "low",
+        "description": "Title page guide by department",
+        "used_by_rules": ["P025"]
+      },
+      {
+        "path": "data/raw/guidelines/Dissertation Review Process.pdf",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "role": "process-admin-reference",
+        "privacy_risk": "low",
+        "description": "Review process overview",
+        "used_by_rules": []
+      },
+      {
+        "path": "data/raw/guidelines/PhD Dissertation Process Roadmap .xlsx",
+        "file_type": "XLSX",
+        "tracked_status": "tracked",
+        "role": "process-admin-reference",
+        "privacy_risk": "low",
+        "description": "Timeline and action items checklist",
+        "used_by_rules": []
+      },
+      {
+        "path": "data/raw/guidelines/Link to PQ ETD Administartor_.docx",
+        "file_type": "DOCX",
+        "tracked_status": "tracked",
+        "role": "submission-reference",
+        "privacy_risk": "low",
+        "description": "ProQuest ETD submission link",
+        "used_by_rules": []
+      }
+    ],
+    "processed_rule_sources": [
+      {
+        "path": "data/processed/rules/njit_rule_inventory.json",
+        "rule_prefix": "Q",
+        "rule_count": 79,
+        "rule_id_range": "Q001-Q079",
+        "tracked_status": "tracked",
+        "description": "Guideline-derived rule inventory with implementation status metadata"
+      },
+      {
+        "path": "data/processed/rules/project_added_rules.json",
+        "rule_prefix": "P",
+        "rule_count": 29,
+        "rule_id_range": "P001-P029",
+        "tracked_status": "tracked",
+        "description": "Project implementation rule set mapped to audit modules"
+      }
+    ],
+    "ef_commented_dissertations": [
+      {
+        "path": "data/raw/ester/250218 Cibaku Elson First Review.pdf",
+        "display_name": "Cibaku Elson 1st Review",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "review_round": "1st",
+        "comment_status": "extractable",
+        "extractable_comment_count": 78,
+        "pages": null,
+        "used_in_full_evaluation": true,
+        "used_in_ef_overlap": true,
+        "privacy_risk": "high"
+      },
+      {
+        "path": "data/raw/ester/260415 Yin H _2nd_review with EF Comments.pdf",
+        "display_name": "Yin H 2nd Review (flattened)",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "review_round": "2nd",
+        "comment_status": "flattened",
+        "extractable_comment_count": 0,
+        "pages": null,
+        "used_in_full_evaluation": true,
+        "used_in_ef_overlap": false,
+        "privacy_risk": "high"
+      },
+      {
+        "path": "data/raw/ester/Yin_Haotian_Second_R_with_EF_Feedback.pdf",
+        "display_name": "Yin Haotian 2nd Review",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "review_round": "2nd",
+        "comment_status": "extractable",
+        "extractable_comment_count": 65,
+        "pages": 108,
+        "used_in_full_evaluation": true,
+        "used_in_ef_overlap": true,
+        "privacy_risk": "high"
+      },
+      {
+        "path": "data/raw/ester/Yin_H_4th_Review_with_EF_comments_compressed.pdf",
+        "display_name": "Yin H 4th Review (compressed)",
+        "file_type": "PDF",
+        "tracked_status": "tracked",
+        "review_round": "4th",
+        "comment_status": "compressed_flattened",
+        "extractable_comment_count": 0,
+        "pages": 137,
+        "used_in_full_evaluation": true,
+        "used_in_ef_overlap": false,
+        "privacy_risk": "high"
+      },
+      {
+        "path": "data/raw/ester/250128 Sebastian.Fine Revised 1st Dissertation Draft EF.pdf",
+        "display_name": "Sebastian Fine 1st Review (EF annotated)",
+        "file_type": "PDF",
+        "tracked_status": "referenced_not_standalone_tracked",
+        "review_round": "1st",
+        "comment_status": "unknown",
+        "extractable_comment_count": null,
+        "pages": null,
+        "used_in_full_evaluation": false,
+        "used_in_ef_overlap": false,
+        "privacy_risk": "high",
+        "notes": "Documented in docs/sources/ester_materials.md; not verified as a standalone tracked path in the current tree"
+      }
+    ],
+    "clean_no_feedback_baselines": [
+      {
+        "path": "data/raw/ester/Dissertations with no Feedback -20260529T012213Z-3-001.zip",
+        "archive_member_name": "Dissertations with no Feedback /Sebastian.Fine Revised 1st Dissertation Draft_Revision3.pdf",
+        "display_name": "Sebastian Fine clean baseline (Revision 3)",
+        "file_type": "ZIP",
+        "tracked_status": "tracked",
+        "used_in_full_evaluation": true,
+        "used_in_ef_overlap": false,
+        "pages": 29,
+        "privacy_risk": "high",
+        "notes": "Clean baseline PDF is archive-contained; evaluated locally after extraction, not committed as a standalone file"
+      },
+      {
+        "path": null,
+        "archive_member_name": "Sebastian.Fine Revised 1st Dissertation Draft_Revision3.pdf",
+        "display_name": "Sebastian Fine clean baseline PDF",
+        "file_type": "PDF",
+        "tracked_status": "archive-contained",
+        "parent_archive": "data/raw/ester/Dissertations with no Feedback -20260529T012213Z-3-001.zip",
+        "used_in_full_evaluation": true,
+        "used_in_ef_overlap": false,
+        "pages": 29,
+        "privacy_risk": "high",
+        "notes": "Referenced in evaluation docs; present inside tracked ZIP, not as a standalone tracked repository path"
+      }
+    ],
+    "rule_matrix_files": [
+      {
+        "path": "data/raw/ester/260330_YESNO_audit_logic_matrix.xlsx",
+        "file_type": "XLSX",
+        "tracked_status": "tracked",
+        "role": "rule-matrix-source",
+        "privacy_risk": "low",
+        "used_in_full_evaluation": false,
+        "used_in_ef_overlap": false,
+        "notes": "Skipped by PDF evaluation runs; used as a source for processed rule inventory derivation"
+      }
+    ],
+    "original_archive_only_materials": [
+      {
+        "path": "250128 Sebastian.Fine Revised 1st Dissertation Draft EF.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high",
+        "notes": "Also referenced in evaluation docs; not verified as a standalone tracked path"
+      },
+      {
+        "path": "250129 Kang, Qi EF comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "250204 Kang Qi PhD dissertation_1st review with EF comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "250213 Pennock Andrew Revised 1st Dissertation Draft with EF comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "250409 Sebastian.Fine 3rd Review Draft with EF comments.docx",
+        "file_type": "DOCX",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "250415 Termini_DoloresThirdReview with EF comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "250828 Aguado Alvaro 3rd Review Dissertation Draft with EF comments.docx",
+        "file_type": "DOCX",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "260428 Yin H 3rd review with EF Comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "260430 Yin H 4th review with EF comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high",
+        "notes": "Distinct from tracked compressed variant Yin_H_4th_Review_with_EF_comments_compressed.pdf"
+      },
+      {
+        "path": "260528Luo M 3rd review with EF comments.pdf",
+        "file_type": "PDF",
+        "tracked_status": "original_archive_only",
+        "privacy_risk": "high"
+      },
+      {
+        "path": "Presentations /First Review Workshop.pptx",
+        "file_type": "PPTX",
+        "tracked_status": "original_archive_only",
+        "role": "process-admin-reference",
+        "privacy_risk": "low"
+      },
+      {
+        "path": "Presentations /Create a ProQuest Account Final.pptx",
+        "file_type": "PPTX",
+        "tracked_status": "original_archive_only",
+        "role": "process-admin-reference",
+        "privacy_risk": "low"
+      }
+    ],
+    "generated_and_private_paths": [
+      {
+        "path": "data/evaluation/generated/",
+        "tracked_status": "gitignored",
+        "directory_present_in_tree": true,
+        "description": "Local evaluation artifacts: audit JSON/MD snapshots, EF overlap summaries, refinement run outputs",
+        "privacy_risk": "medium-high"
+      },
+      {
+        "path": "data/evaluation/private/",
+        "tracked_status": "gitignored",
+        "directory_present_in_tree": false,
+        "description": "Reserved for sensitive local-only analysis; directory may be absent until created locally",
+        "privacy_risk": "high"
+      }
+    ]
+  },
+  "sample_counts": {
+    "guideline_rule_sources": 8,
+    "processed_rule_sources": 2,
+    "ef_commented_dissertation_pdfs_tracked": 4,
+    "ef_commented_dissertation_pdfs_referenced_not_standalone": 1,
+    "extractable_comment_pdfs": 2,
+    "flattened_or_nonextractable_comment_pdfs": 2,
+    "clean_no_feedback_archives_tracked": 1,
+    "clean_no_feedback_pdfs_archive_contained": 1,
+    "rule_matrix_files": 1,
+    "original_archive_only_materials": 12,
+    "generated_and_private_gitignored_paths": 2
+  }
+}
