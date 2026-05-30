@@ -4,7 +4,7 @@
 - Data inventory/status (post-PR #47): `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest (machine-readable index): `docs/status/evaluation_data_manifest.md`
 - Coverage checkpoint (strict):
-  - P001-P029 implemented
+  - P001-P030 implemented
   - Not all source-file rules are fully implemented
   - Some source rules are partial or manual-only
   - Baseline main before this branch: `7139e76a9fe5`
@@ -55,6 +55,7 @@
 | `pdf_heading_levels.py` | P027 | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) |
 | `pdf_page_numbering_regime.py` | P028 | Front-matter Roman / body Arabic page-numbering regime check |
 | `pdf_roman_sequence.py` | P029 | Front-matter lowercase Roman numeral ordering (i, ii, iii...) |
+| `pdf_toc_continued_headings.py` | P030 | Multi-page TOC/LoT/LoF continued-heading checks |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -82,7 +83,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P029) | 29 | 29 | — | — | — |
+| P-rules (P001–P030) | 30 | 30 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 

@@ -196,3 +196,11 @@ Top 3 next tasks:
 1. Implement multi-page TOC/List `(Continued)` coverage and column-label/alignment checks (`Q048/Q062/Q071`, `Q063/Q064/Q072/Q073`).
 2. Add wrapped-entry spacing checks for TOC/LoT/LoF (`Q053-Q055`, `Q066-Q067`, `Q076-Q077`) with conservative grouping thresholds.
 3. Expand structured reporting to clearly separate **automated-pass**, **partial-coverage**, and **manual-review-required** items per source section.
+
+## 8. Post-audit update (P030)
+
+- **Date:** 2026-05-30
+- **Change:** Added **P030** — conservative continued-heading checks for multi-page TOC, List of Tables, and List of Figures sections.
+- **Q-rule basis:** partial/heuristic PDF coverage for **Q048**, **Q062**, and **Q071** only.
+- **Limitations:** Does not verify bold/centering of continued headings; skips single-page sections and non-consecutive pages; does not claim full visual compliance with the rule matrix wording.
+- **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p030_toc_continued_heading_synthetic_validation.md`.
