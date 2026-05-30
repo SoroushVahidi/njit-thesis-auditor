@@ -94,6 +94,11 @@ flagged only 3 of 75 detected wrap pairs on the one file with rich TOC/List cont
 stayed silent on the clean baseline. The concentration of all findings on one LoF page
 warrants manual spot-checking before treating them as definite formatting defects.
 
+**Follow-up (2026-05-30):** Investigation of the three Yin H 4th page-15 findings concluded
+they were likely false positives from split page-number lines between entries; see
+`docs/evaluation/p032_yin_h_4th_page15_investigation.md`. A narrow P032 refinement suppresses
+wrap-gap checks when a page-number-only line sits between two entry-region lines.
+
 ## 6. Limitations
 
 - Heuristic PDF-only partial coverage for Q053–Q055, Q066–Q067, Q076–Q078; does not
