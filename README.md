@@ -19,7 +19,7 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### PDF layout audit (P011–P028)
+### PDF layout audit (P011–P029)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
@@ -54,6 +54,7 @@ Current PDF checks (P011–P028):
 | P026 | Font | Body text font compliance (Times New Roman 12pt or accepted equivalent) |
 | P027 | Headings | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) |
 | P028 | Page numbers | Front-matter Roman / body Arabic page-numbering regime |
+| P029 | Page numbers | Front-matter lowercase Roman numeral ordering (sequence checks) |
 
 All findings are heuristic warnings and require manual review.
 

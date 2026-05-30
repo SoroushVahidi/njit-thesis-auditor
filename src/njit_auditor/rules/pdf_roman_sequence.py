@@ -2,26 +2,23 @@
 
 from __future__ import annotations
 
-from collections import Counter
-from typing import List
-
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument
-from njit_auditor.rules.pdf_page_numbers import (
-    detect_page_number_candidates,
-)
 from njit_auditor.rules.pdf_page_numbering_regime import (
     _classify_pages,
     _find_no_number_pages,
 )
+from njit_auditor.rules.pdf_page_numbers import (
+    detect_page_number_candidates,
+)
 
 
-def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> List[AuditFinding]:
+def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P029 warnings for front-matter lowercase Roman numeral ordering.
 
     Conservative heuristics:
     - Only considers candidates classified as roman_lower and within front_matter region.
-    - Requires at least 3 roman candidates before emitting sequence checks.
+    - Requires at least 2 roman candidates before emitting sequence checks.
     - Flags repeats, decreases, and obvious gaps between consecutive visible candidates.
     - Skips pages explicitly classified as no-number (title/abstract/approval/copyright).
     - Returns one finding per (page, issue_type).
@@ -45,12 +42,13 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> List[AuditFinding]:
         and c.page_number not in no_number_pages
     ]
 
-    if len(fm_candidates) < 3:
+    # Require at least two visible roman candidates to check for continuity.
+    if len(fm_candidates) < 2:
         return []
 
     fm_candidates_sorted = sorted(fm_candidates, key=lambda c: c.page_number)
 
-    findings: List[AuditFinding] = []
+    findings: list[AuditFinding] = []
     seen: set = set()
 
     prev = fm_candidates_sorted[0]
@@ -59,27 +57,34 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> List[AuditFinding]:
         if page_step <= 0:
             prev = cand
             continue
-        expected = (prev.value or 0) + page_step
+        # Expect visible roman numerals to increase by one across consecutive
+        # visible numbered front-matter pages. This flags non-consecutive visible
+        # numerals (i, iii) as a gap. Skipped no-number pages are handled by
+        # excluding those pages from candidate lists; if an intermediate page is
+        # a recognized no-number page, a following visible numeral that equals
+        # previous+1 will still pass.
+        expected = (prev.value or 0) + 1
         issue_type = None
         confidence = "medium"
 
-        if cand.value == prev.value:
+        if cand.value is not None and prev.value is not None and cand.value == prev.value:
             issue_type = "roman_sequence_repeat"
             message = (
                 f"Repeated Roman numeral '{cand.text}' on page {cand.page_number} "
                 f"(previous page {prev.page_number} = {prev.text})."
             )
-        elif cand.value < prev.value:
+        elif cand.value is not None and prev.value is not None and cand.value < prev.value:
             issue_type = "roman_sequence_decrease"
             message = (
                 f"Roman numeral decreased to '{cand.text}' on page {cand.page_number} "
                 f"(previous {prev.page_number} = {prev.text})."
             )
-        elif cand.value != expected:
+        elif cand.value is not None and cand.value != expected:
             issue_type = "roman_sequence_gap"
             message = (
-                f"Roman numeral on page {cand.page_number} is '{cand.text}' (value={cand.value}) "
-                f"but expected {expected} based on previous visible numeral {prev.text} on page {prev.page_number}."
+                f"Roman numeral on page {cand.page_number} is '{cand.text}' (value={cand.value}), "
+                f"expected {expected} based on previous visible numeral {prev.text} "
+                f"on page {prev.page_number}."
             )
             # Be conservative: lower confidence for large page gaps
             if page_step > 2:

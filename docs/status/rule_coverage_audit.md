@@ -1,7 +1,7 @@
 # Rule Coverage Audit Against Guideline Sources
 
 - Date: 2026-05-29
-- Auditor version: P001–P025 implemented (P022 added; Q004–Q005 implemented)
+- Auditor version: P001–P029 implemented (P022, P029 added; Q004–Q005 implemented)
 - Main branch: f30417e (P025); P022 on implement-p022-frontmatter-no-page-number branch
 
 ## Purpose
@@ -72,7 +72,7 @@ Status key:
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
 | Q021 | "BIOGRAPHICAL SKETCH" heading present, correct format | 🟡 partial | P014 checks named front-matter heading | P014 covers style; not content presence |
-| Q022 | First bio-sketch page has correct Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages; P013/P019 global detection | Sequence value not validated; P028 checks style only |
+| Q022 | First bio-sketch page has correct Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages; P013/P019 global detection | Sequence ordering now conservatively validated by P029 (front-matter Roman sequence checks) |
 | Q023 | No place/date of birth in bio text | ❌ not implemented | — | Heuristic NLP possible but fragile |
 | Q024 | No work experience in bio | ❌ not implemented | — | Requires semantic parsing |
 | Q025 | Degrees listed most-recent to oldest | ❌ not implemented | — | Requires date/degree ordering logic |
@@ -86,7 +86,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q031 | Dedication has next sequential lowercase Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering not validated |
+| Q031 | Dedication has next sequential lowercase Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering now conservatively validated by P029 |
 | Q032 | No header text in top margin | 🟡 partial | P011 margin detection may catch extreme cases | P011 is not header-specific |
 | Q033 | Dedication text block visually centered | ❌ not implemented | — | Requires geometric centering analysis |
 | Q034 | Dedication text italicized (if Latin alphabet) | ❌ not implemented | — | Requires italic style detection per block |
@@ -95,7 +95,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q035 | Acknowledgements page has correct Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence value not validated |
+| Q035 | Acknowledgements page has correct Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering now conservatively validated by P029 |
 | Q036 | "ACKNOWLEDGEMENTS" heading present, correct format | 🟡 partial | P014 checks heading style | P014 covers ACKNOWLEDGEMENTS heading |
 | Q037 | First paragraph thanks advisor | 👤 manual-only | — | Semantic intent detection |
 | Q038 | Second paragraph thanks committee | 👤 manual-only | — | Semantic intent detection |
@@ -111,7 +111,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q046 | TOC continues Roman numeral sequence | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering not validated |
+| Q046 | TOC continues Roman numeral sequence | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering now conservatively validated by P029 |
 | Q047 | First TOC page heading correct ("TABLE OF CONTENTS") | 🟡 partial | P014 checks heading style | P014 confirms bold/all-caps/centered |
 | Q048 | Subsequent TOC pages show "(Continued)" heading | ❌ not implemented | — | Multi-page TOC not yet handled |
 | Q049 | TOC level-1 chapter titles in ALL CAPS | 🟡 partial | P024 checks Level 1 entries for obvious non-ALL-CAPS | Conservative: only flags entries with ≥2 lowercase major words |
@@ -201,6 +201,7 @@ Status key:
 | P026 | PDF layout | Body font compliance: size ≈12pt and Times New Roman or accepted equivalent | ✅ | Thesis and Dissertation Formatting Guidelines; Self-Self Assessment Sheet.pdf | Heuristic; one finding per (page, issue_type); EF eval: 92–117 family warnings per document (all 4 PDFs use CMR or Georgia, not TNR); 0–1 size warnings |
 | P027 | PDF layout | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) | ✅ | Titles Examples Level 1 to 5.docx | Pattern-based; requires numbered section prefix; EF eval: 0–2 findings per file (L1 not-all-caps only) |
 | P028 | PDF layout | Page-numbering regime (front-matter → lowercase Roman, body → Arabic) | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf | Requires CHAPTER heading for body detection; EF eval: 8 findings on Cibaku (Arabic on FM), 8 on Yin 4th (mixed regime), 0 on Yin 2nd |
+| P029 | PDF layout | Front-matter lowercase Roman numeral ordering (sequence: i, ii, iii...) | ✅ | Formatting Guidelines; Q022/Q031/Q035/Q046/Q060 | Conservative checks for repeats, decreases, and non-consecutive visible numerals; excludes named no-number pages |
 
 ---
 

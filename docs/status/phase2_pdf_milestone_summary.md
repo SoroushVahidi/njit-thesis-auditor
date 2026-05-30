@@ -113,6 +113,12 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
   - Q-rule basis: Q022, Q031, Q035, Q046, Q060.
   - EF evaluation: 8 findings on Cibaku Elson (Arabic on front-matter); 8 on Yin 4th (mixed regime); 0 on Yin 2nd.
   - Manual review required.
+- `P029` roman sequence ordering
+  - Conservatively validates visible lowercase Roman numeral ordering within front-matter (i, ii, iii...).
+  - Flags `roman_sequence_repeat`, `roman_sequence_gap`, and `roman_sequence_decrease` on adjacent visible-numbered front-matter pages.
+  - Skips named no-number pages; requires ≥2 visible roman candidates; conservative to avoid false positives.
+  - EF evaluation: 12 findings on Yin 4th compressed (all repeats); 0 on other EF PDFs.
+  - Manual review required.
 
 ## 5) Evaluation on Ester Clean PDF (Latest Known)
 
