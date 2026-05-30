@@ -1,8 +1,7 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Branch: `implement-page-numbering-regime-checks` (P028 pending PR)
-- Latest main: `e1cbfcc` (P027 heading-level style checks)
+- Latest main: `263529c` (P028 page-numbering regime)
 
 ---
 
@@ -21,7 +20,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P025)
+### PDF Layout Audit (P011–P028)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -59,8 +58,6 @@
 | `pdf_comments.py` | PDF annotation extraction and cleaning |
 | `rule_loader.py` | Load and validate rule inventory JSON files |
 
-**P022 is now implemented** in `pdf_frontmatter_no_page_number.py` on the `implement-p022-frontmatter-no-page-number` branch.
-
 ---
 
 ## 2. Rule Coverage Summary
@@ -74,9 +71,10 @@
 
 - **TOC/list internal formatting**: wrapping spacing (Q053–Q055, Q066–Q067, Q076–Q077), "(Continued)" headers (Q048, Q062, Q071), column headers bold/aligned (Q063–Q064, Q072–Q073)
 - **Front-matter visual checks**: copyright page (Q009–Q011), dedication centering/italic (Q033–Q034), bio-sketch content (Q023–Q025, Q027–Q029)
-- **Heading level distinctions**: L3 sentence case (Q051), L4/L5 period/italic enforcement
-- **Page-number sequence**: Roman numeral tracking per named section (Q031, Q035, Q046, Q060)
+- **Heading level distinctions**: L3/L4/L5 partially addressed by P027; bold/italic enforcement still missing
+- **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 style check; actual sequence ordering not yet validated)
 - **Figure/table body checks**: figure centering, table placement (above/below detection)
+- **Cross-page title consistency**: title spelling across title/abstract/approval pages
 
 ---
 
@@ -91,19 +89,31 @@
 | `260415 Yin H _2nd_review with EF Comments.pdf` | No (flattened) | Identical audit counts to Yin Haotian (same doc) |
 | `Yin_H_4th_Review_with_EF_comments_compressed.pdf` | No (flattened) | Highest finding count — compression artifacts inflate P011 |
 
-**P025 (current branch) result on all 4 EF files: 0 findings** — the nospace fallback correctly handles merged token encoding used by 3 of 4 PDFs.
+**Summary counts across 4 EF PDFs (Yin H 4th compressed — highest volume):**
+
+| Rule | Count | Notes |
+|------|------:|-------|
+| P011 | 150 | Inflated by compression artifacts on compressed PDF |
+| P013 | 149 | Candidate detector; high volume by design |
+| P026 | 117 | Font family violations (Georgia/Arial — real noncompliance) |
+| P023 | 0 | Double-spacing appears correct in body |
+| P025 | 0 | Front-matter structure correct |
+| P022 | 0 | No stray page numbers on no-number pages |
+| P028 | 8 | Mixed page-numbering regime (Arabic on front-matter, Roman on body) |
+| P027 | 2 | Two L1 chapter headings not ALL CAPS |
+| P024 | 12 | TOC/LoT/LoF capitalization/punctuation |
 
 **Biggest current noise sources:**
-- P013 (page-number candidates): always very high-volume by design (~100–175 per file)
+- P013 (page-number candidates): always very high-volume by design
 - P011 (margins): inflated on compressed PDFs (150 findings vs 21–33 on normal PDFs)
-- P012 (annotations): correctly 1:1 with actual annotation count
+- P026 (font family): 92–117 warnings per document — real noncompliance but high volume
 
 **Biggest coverage gaps relative to EF feedback:**
-- P020 (title capitalization): fires 0 on 3 of 4 PDFs — bold metadata absent in most PDFs; font-size fallback needed
-- Page-number absence on named pages: EF flags these but no rule checks them specifically
+- P020 (title capitalization): fires 0 on 3 of 4 PDFs — bold metadata absent in most PDFs; font-size fallback still needed
 - Cross-page title consistency: title spelling on title/abstract/approval — not automated
+- TOC "(Continued)" headers: multi-page TOC not handled
 
-**Clean baseline**: `Dissertations with no Feedback` zip contains Sebastian Fine Revision 3 — useful for false-positive analysis. Not yet run against P022–P025.
+**Clean baseline**: `Dissertations with no Feedback` zip contains Sebastian Fine Revision 3 — useful for false-positive analysis. Not yet run through the full P011–P028 auditor.
 
 ---
 
@@ -114,10 +124,11 @@
 | Priority | Gap | Addresses | Complexity | Risk |
 |----------|-----|-----------|:----------:|:----:|
 | ✅ DONE | P022: Page-number absence on named front-matter pages | Q001, Q008, Q012, Q014 | — | — |
-| ✅ DONE | P026: Font compliance (Times New Roman 12pt throughout body) | Guidelines requirement | — | — |
+| ✅ DONE | P026: Font compliance (Times New Roman 12pt body) | Guidelines requirement | — | — |
+| ✅ DONE | P027: Heading level-specific style (L1/L2/L3-5) | Q051 | — | — |
+| ✅ DONE | P028: Page-numbering regime (Roman/Arabic) | Q022, Q031, Q035, Q046, Q060 | — | — |
 | 🔴 HIGH | P020 font-size fallback when bold metadata absent | P020 recall gap | Medium | Low-Med |
-| 🟡 MED | L3/L4/L5 heading style enforcement | Q051; L4/L5 period/italic | Medium | Medium |
-| 🟡 MED | Roman numeral sequence validation (front-matter sections) | Q022, Q031, Q035, Q046, Q060 | Medium | Medium |
+| 🟡 MED | Roman numeral sequence ordering (not just style) | Q022, Q031, Q035, Q046, Q060 | Medium | Medium |
 | 🟡 MED | Figure/table centering check | Self-Assessment Sheet | Medium | Medium |
 | 🟡 LOW | Copyright page identification and checks (Q009–Q011) | Q009–Q012 | High | High |
 | 🟡 LOW | Multi-page TOC "(Continued)" heading | Q048, Q062, Q071 | Medium | Medium |
@@ -138,52 +149,40 @@ All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. 
 
 ### D. Evaluation/Data Tasks
 
-- Run clean baseline (Sebastian Fine zip) through current auditor to establish false-positive rate for P023–P025
+- Run clean baseline (Sebastian Fine zip) through current P011–P028 auditor to establish false-positive rates
 - Build per-file precision/recall-style analysis mapping EF comment categories to rule IDs
-- Add P022–P025 findings to the expanded EF feedback dataset evaluation doc once those rules are merged
-- Investigate whether the Yin 4th review's inflated P011 count is truly compression artifacts (compare with uncompressed version if available)
+- Investigate whether the Yin 4th review's inflated P011 count is truly compression artifacts
+- Compare P028 findings on Cibaku Elson (Arabic on front-matter) against EF comments for corroboration
 
 ---
 
 ## 5. Recommended Next Implementation Bundles
 
 ### Bundle 1 (DONE): P022 — Page-Number Absence on Named Pages
-Implemented in `pdf_frontmatter_no_page_number.py`. 0 findings on all 4 EF PDFs.
-
 ### Bundle 2 (DONE): P026 — Font Compliance
-Implemented in `pdf_font_compliance.py`. EF evaluation: 92–117 family warnings per document (all use CMR or Georgia), 0–1 size warnings. These are real noncompliance signals, not false positives.
+### Bundle 3 (DONE): P027 — Heading Level Style
+### Bundle 4 (DONE): P028 — Page-Numbering Regime
 
-### Bundle 3: P020 Font-Size Fallback
-**Rationale:** 3 of 4 tested PDFs lack bold metadata, causing P020 to fire 0 on heading-rich documents with real title-case issues (confirmed by EF comments on Cibaku).  
+### Bundle 5: P020 Font-Size Fallback (highest remaining priority)
+**Rationale:** 3 of 4 tested PDFs lack bold metadata, causing P020 to fire 0 on heading-rich documents with confirmed title-case issues (EF comments on Cibaku).  
 **Q-rule basis:** Q049–Q050  
 **Files to change:** `src/njit_auditor/rules/pdf_title_capitalization.py`  
-**Tests:** Synthetic spans with no bold flag but large font size (≥13pt); verify no regression on body-text false positives  
-**Risk:** Low-Medium — font size is more stable than bold flag; need body-text size threshold
+**Tests:** Synthetic spans with no bold flag but large font size (≥13pt); verify no body-text regressions  
+**Risk:** Low-Medium
 
-### Bundle 3: P026 — Font Compliance (Times New Roman 12pt)
-**Rationale:** The formatting guidelines explicitly require Times New Roman 12pt throughout body text. This is a top-level requirement that no current rule validates.  
-**Q-rule basis:** Formatting Guidelines main requirement  
-**Files to change:** New `pdf_font_compliance.py`; `project_added_rules.json`  
-**Tests:** Synthetic spans with correct/incorrect font names and sizes  
-**Risk:** Medium — embedded fonts may alias font names; need allowlist for TNR variants (TimesNewRoman, Times-Roman, NimbusRoman, etc.)
+### Bundle 6: Roman Numeral Sequence Ordering (P029)
+**Rationale:** P028 checks style (Roman vs. Arabic) but not whether front-matter page numbers form a valid ascending sequence (i, ii, iii, iv...). P019 partially covers this but is not specific to the front-matter regime.  
+**Q-rule basis:** Q022, Q031, Q035, Q046, Q060  
+**Files to change:** New `pdf_page_numbering_sequence.py`  
+**Risk:** Medium
 
-### Bundle 4: Heading Level 3–5 Style + P020 Level-Number Detection
-**Rationale:** L3 (sentence case bold), L4/L5 (sentence case + period/italic) are unchecked. Also, using section numbering (X.x, X.x.x) to distinguish L2 from L3 in TOC and body would improve P020/P024 accuracy.  
-**Q-rule basis:** Q051; `Titles Examples Level 1 to 5.docx`  
-**Files to change:** `pdf_title_capitalization.py`, `pdf_toc_list_formatting.py`  
-**Tests:** Numbered heading patterns; sentence-case detection; L4/L5 period enforcement  
-**Risk:** Medium — sentence-case detection is tricky; need to suppress body text false positives
-
-### Bundle 5: Clean Baseline False-Positive Audit + P022–P025 Evaluation Update
-**Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) in the data zip has not been run through the current auditor. Establishing its false-positive counts for P021–P025 is essential before further refinement.  
-**Q-rule basis:** N/A (evaluation task)  
-**Files to change:** New evaluation doc in `docs/evaluation/`  
-**Tests:** No new tests; running the CLI on the clean PDF  
+### Bundle 7: Clean Baseline False-Positive Audit (evaluation task)
+**Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) has not been run through the full P011–P028 auditor. Establishing false-positive counts is essential before further refinement.  
 **Risk:** None — read-only evaluation task
 
 ---
 
-## 6. Validation Status (as of implement-p022-frontmatter-no-page-number branch)
+## 6. Validation Status (main at 263529c)
 
 | Check | Result |
 |-------|--------|
@@ -191,10 +190,4 @@ Implemented in `pdf_font_compliance.py`. EF evaluation: 92–117 family warnings
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 42 source files |
 
----
-
-## 7. Branch Readiness
-
-The `improve-pdf-report-grouped-summaries` branch is **ready for PR** against main. All 255 tests pass, linting is clean, mypy is clean. Grouped summaries evaluated on Yin 4th review (463 findings, 6 high-volume rules correctly identified).
-
-**Next PR after this merge:** Bundle 3 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.
+**Next recommended PR:** Bundle 5 (P020 font-size fallback) to improve heading detection recall on PDFs without bold metadata.

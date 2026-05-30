@@ -72,7 +72,7 @@ Status key:
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
 | Q021 | "BIOGRAPHICAL SKETCH" heading present, correct format | 🟡 partial | P014 checks named front-matter heading | P014 covers style; not content presence |
-| Q022 | First bio-sketch page has correct Roman numeral | 🟡 partial | P013/P019 detect page-number candidates | Exact Roman numeral not validated |
+| Q022 | First bio-sketch page has correct Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages; P013/P019 global detection | Sequence value not validated; P028 checks style only |
 | Q023 | No place/date of birth in bio text | ❌ not implemented | — | Heuristic NLP possible but fragile |
 | Q024 | No work experience in bio | ❌ not implemented | — | Requires semantic parsing |
 | Q025 | Degrees listed most-recent to oldest | ❌ not implemented | — | Requires date/degree ordering logic |
@@ -86,7 +86,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q031 | Dedication has next sequential lowercase Roman numeral | ❌ not implemented | — | Requires page-number cross-section tracking |
+| Q031 | Dedication has next sequential lowercase Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering not validated |
 | Q032 | No header text in top margin | 🟡 partial | P011 margin detection may catch extreme cases | P011 is not header-specific |
 | Q033 | Dedication text block visually centered | ❌ not implemented | — | Requires geometric centering analysis |
 | Q034 | Dedication text italicized (if Latin alphabet) | ❌ not implemented | — | Requires italic style detection per block |
@@ -95,7 +95,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q035 | Acknowledgements page has correct Roman numeral | 🟡 partial | P013/P019 candidate detection | Exact value not confirmed |
+| Q035 | Acknowledgements page has correct Roman numeral | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence value not validated |
 | Q036 | "ACKNOWLEDGEMENTS" heading present, correct format | 🟡 partial | P014 checks heading style | P014 covers ACKNOWLEDGEMENTS heading |
 | Q037 | First paragraph thanks advisor | 👤 manual-only | — | Semantic intent detection |
 | Q038 | Second paragraph thanks committee | 👤 manual-only | — | Semantic intent detection |
@@ -111,12 +111,12 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q046 | TOC continues Roman numeral sequence | 🟡 partial | P013/P019 detect page-number candidates | Exact sequence on TOC pages not confirmed |
+| Q046 | TOC continues Roman numeral sequence | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering not validated |
 | Q047 | First TOC page heading correct ("TABLE OF CONTENTS") | 🟡 partial | P014 checks heading style | P014 confirms bold/all-caps/centered |
 | Q048 | Subsequent TOC pages show "(Continued)" heading | ❌ not implemented | — | Multi-page TOC not yet handled |
 | Q049 | TOC level-1 chapter titles in ALL CAPS | 🟡 partial | P024 checks Level 1 entries for obvious non-ALL-CAPS | Conservative: only flags entries with ≥2 lowercase major words |
 | Q050 | TOC level-2 titles in title case | 🟡 partial | P024 uses check_apa_title_case_phrase on Level 2 entries | Requires numbered-level pattern (1.x) or indentation classification |
-| Q051 | TOC level-3 titles in sentence case | ❌ not implemented | — | P024 skips Level 3+ entries |
+| Q051 | TOC level-3 titles in sentence case | 🟡 partial | P027 checks body Level 3 headings for sentence-case violations | P027 checks body headings, not TOC entries; TOC Level 3 entries still not checked |
 | Q052 | Leader dots/hyphens connect entry to page number | 🟡 partial | P018 detects inconsistent leader usage | P018 flags absent/inconsistent leaders |
 | Q053 | Wrapped level-1 entries single-spaced | ❌ not implemented | — | Intra-entry spacing geometry |
 | Q054 | Wrapped level-2 entries single-spaced | ❌ not implemented | — | Same |
@@ -130,7 +130,7 @@ Status key:
 
 | ID | Rule Summary | Status | Covered By | Notes |
 |----|-------------|:------:|-----------|-------|
-| Q060 | List of Tables continues Roman numeral sequence | 🟡 partial | P013/P019 | Approximate; not LoT-specific |
+| Q060 | List of Tables continues Roman numeral sequence | 🟡 partial | P028 checks Roman style on front-matter pages | Sequence ordering not validated |
 | Q061 | First LoT page heading correct ("LIST OF TABLES") | 🟡 partial | P014 checks heading style | P014 confirms format |
 | Q062 | Subsequent LoT pages show "(Continued)" | ❌ not implemented | — |  |
 | Q063 | "Table" label bold, left-aligned under heading | ❌ not implemented | — | Column-header detection not yet implemented |
@@ -161,8 +161,8 @@ Status key:
 | Status | Count | IDs |
 |--------|------:|-----|
 | ✅ implemented | 2 | Q004, Q005 |
-| 🟡 partial (P-rule covers partially) | 30 | Q001–Q003, Q006, Q008, Q012–Q014, Q021–Q022, Q035–Q036, Q044–Q047, Q049–Q050, Q052, Q056, Q060–Q061, Q065, Q068–Q070, Q075, Q079 |
-| ❌ not implemented (automatable) | 25 | Q009–Q011, Q023–Q030, Q031, Q033–Q034, Q043, Q048, Q051, Q053–Q055, Q057–Q059, Q062–Q064, Q066–Q067, Q071–Q074, Q076–Q078 |
+| 🟡 partial (P-rule covers partially) | 33 | Q001–Q003, Q006, Q008, Q012–Q014, Q021–Q022, Q031, Q035–Q036, Q044–Q047, Q049–Q051, Q052, Q056, Q060–Q061, Q065, Q068–Q070, Q075, Q079 |
+| ❌ not implemented (automatable) | 22 | Q009–Q011, Q023–Q030, Q033–Q034, Q043, Q048, Q053–Q055, Q057–Q059, Q062–Q064, Q066–Q067, Q071–Q074, Q076–Q078 |
 | 👤 manual-only | 22 | Q007, Q015–Q020, Q037–Q042, Q032\*, Q033, Q034, Q039–Q042, Q015–Q020 |
 
 \* Q032 (no header in margin) is partially structural but mostly visual/manual.
@@ -199,6 +199,8 @@ Status key:
 | P024 | PDF layout | TOC/LoT/LoF entry capitalization and terminal punctuation | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Conservative; requires ≥3 entries on page; only classifiable TOC levels; EF eval: 12 findings on Yin 4th review (3 other files have no detectable TOC pages) |
 | P025 | PDF layout | Front-matter structure: abstract body, title page elements, approval page content, front-matter order | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf; PhD Title Pages.pdf | Conservative; title page checks require extractable text layer; EF eval: 0 on Yin 4th review (text-rich); 2 on others (title page image-based, likely false positives) |
 | P026 | PDF layout | Body font compliance: size ≈12pt and Times New Roman or accepted equivalent | ✅ | Thesis and Dissertation Formatting Guidelines; Self-Self Assessment Sheet.pdf | Heuristic; one finding per (page, issue_type); EF eval: 92–117 family warnings per document (all 4 PDFs use CMR or Georgia, not TNR); 0–1 size warnings |
+| P027 | PDF layout | Numbered heading level-specific style (L1 ALL CAPS, L2 Title Case, L3-5 Sentence case) | ✅ | Titles Examples Level 1 to 5.docx | Pattern-based; requires numbered section prefix; EF eval: 0–2 findings per file (L1 not-all-caps only) |
+| P028 | PDF layout | Page-numbering regime (front-matter → lowercase Roman, body → Arabic) | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf | Requires CHAPTER heading for body detection; EF eval: 8 findings on Cibaku (Arabic on FM), 8 on Yin 4th (mixed regime), 0 on Yin 2nd |
 
 ---
 
@@ -286,7 +288,7 @@ Per `Titles Examples Level 1 to 5.docx` and `Self-Self Assessment Sheet.pdf`:
 
 **Key gap:** P020 uses bold font metadata to identify headings, but 3 of 4 tested PDFs do not expose this metadata reliably. A font-size threshold (e.g., span size ≥ 13pt) as a secondary trigger would significantly improve recall.
 
-**TOC entry capitalization (Q049–Q050)** is now partially covered by P024: Level 1 entries are checked for obvious non-ALL-CAPS, Level 2 entries (numbered 1.x) are checked using the title-case helper. Q051 (Level 3 sentence case) is not enforced.
+**TOC entry capitalization (Q049–Q050)** is now partially covered by P024: Level 1 entries are checked for obvious non-ALL-CAPS, Level 2 entries (numbered 1.x) are checked using the title-case helper. Q051 (Level 3 sentence case) is now partially covered by P027 for body headings; TOC Level 3 entries remain unchecked.
 
 ---
 
