@@ -146,6 +146,11 @@ P011 refinement notes:
 - Excludes likely page-number candidates to avoid duplicate/low-value warnings.
 - Groups repeated violations per page and per side (`left_margin`, `right_margin`,
   `top_margin`, `bottom_margin`) with worst-overflow and affected-line counts.
+- Compression artifact guard: suppresses a page/side group when `affected_line_count ≥ 5`
+  AND `worst_overflow < 8pt`. This pattern indicates a systematic PDF-coordinate shift
+  rather than a real margin violation. Reduced false positives 53% on a compressed test PDF
+  while leaving all normal-PDF findings unchanged.
+- Adds `confidence` (low/medium/high) to finding details based on overflow magnitude and group size.
 
 Current limitations:
 

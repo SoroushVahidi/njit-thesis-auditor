@@ -36,7 +36,7 @@ Current PDF checks (P011–P028):
 
 | Rule | Area | Check |
 |------|------|-------|
-| P011 | Margins | Text crossing 1.5"/1" margin boundaries |
+| P011 | Margins | Text crossing 1.5"/1" margin boundaries; compression artifact guard reduces false positives on compressed PDFs |
 | P012 | Annotations | Embedded PDF annotation objects |
 | P013 | Page numbers | Page-number candidate detection (top/bottom zones) |
 | P014 | Headings | Named front-matter heading style (bold/all-caps/centered/near-top) |

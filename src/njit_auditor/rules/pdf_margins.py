@@ -17,6 +17,11 @@ BOTTOM_MARGIN_PT = 1.0 * INCH_TO_PT
 MIN_ARTIFACT_SIZE_PT = 2.0
 OVERFLOW_TOLERANCE_PT = 3.0
 
+# Artifact guard: a page/side group with this many lines all below this overflow
+# is likely caused by a compressed-PDF coordinate shift rather than a real margin violation.
+ARTIFACT_GUARD_MIN_COUNT = 5
+ARTIFACT_GUARD_MAX_OVERFLOW_PT = 8.0
+
 
 class MarginSide(str, Enum):
     LEFT = "left_margin"
@@ -71,6 +76,17 @@ def _line_violation(
     return LineViolation(side=side, overflow_pt=overflow, line=line)
 
 
+def _group_confidence(worst_overflow_pt: float, count: int) -> str:
+    large_count_ok = (
+        count >= ARTIFACT_GUARD_MIN_COUNT and worst_overflow_pt >= ARTIFACT_GUARD_MAX_OVERFLOW_PT
+    )
+    if worst_overflow_pt >= 12.0 or large_count_ok:
+        return "high"
+    if worst_overflow_pt >= 5.0 or count >= 2:
+        return "medium"
+    return "low"
+
+
 def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Detect possible text lines outside expected margin rectangle."""
 
@@ -93,6 +109,12 @@ def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
 
         for side, violations in grouped.items():
             worst = max(v.overflow_pt for v in violations)
+            count = len(violations)
+            # Suppress groups where many lines all barely cross the margin: this pattern
+            # indicates a compressed-PDF coordinate shift, not a real margin violation.
+            if count >= ARTIFACT_GUARD_MIN_COUNT and worst < ARTIFACT_GUARD_MAX_OVERFLOW_PT:
+                continue
+            confidence = _group_confidence(worst, count)
             findings.append(
                 AuditFinding(
                     rule_id="P011",
@@ -102,7 +124,8 @@ def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     details={
                         "side": side.value,
                         "worst_overflow_pt": f"{worst:.1f}",
-                        "affected_line_count": str(len(violations)),
+                        "affected_line_count": str(count),
+                        "confidence": confidence,
                         "suggested_fix": (
                             "Review margin settings and move content inside required layout bounds."
                         ),

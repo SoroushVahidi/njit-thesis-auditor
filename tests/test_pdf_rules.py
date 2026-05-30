@@ -241,6 +241,80 @@ def test_page_number_candidate_not_flagged_as_margin_violation(tmp_path: Path) -
     assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
 
 
+def _make_pdf_with_many_marginal_right_overflows(
+    path: Path, line_count: int = 6, overflow_x: float = 537
+) -> None:
+    """Create a PDF where many lines each barely cross the right margin (artifact pattern)."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for i in range(line_count):
+        page.insert_text((overflow_x, 120 + i * 18), "Xx", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def _make_pdf_with_many_large_right_overflows(path: Path, line_count: int = 6) -> None:
+    """Create a PDF where many lines deeply overflow the right margin (real violations)."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    for i in range(line_count):
+        page.insert_text((400, 120 + i * 18), "Far right overflow text AAAA", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_artifact_group_high_count_low_overflow_suppressed(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "artifact_many_marginal.pdf"
+    _make_pdf_with_many_marginal_right_overflows(pdf_path, line_count=6, overflow_x=533)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    # A group of ≥5 lines all barely crossing the margin should be suppressed as artifact.
+    assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
+
+
+def test_large_overflow_group_still_warns_despite_many_lines(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "real_many_overflow.pdf"
+    _make_pdf_with_many_large_right_overflows(pdf_path, line_count=6)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
+    assert warnings, "Substantial right-margin overflow should still fire even with many lines"
+    assert any(w.details.get("side") == "right_margin" for w in warnings)
+
+
+def test_confidence_field_present_in_p011_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "margin_conf.pdf"
+    _make_pdf_with_margin_violation(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details
+    assert "confidence" in warning.details
+    assert warning.details["confidence"] in ("low", "medium", "high")
+
+
+def test_small_group_real_violation_still_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "margin_small_group.pdf"
+    _make_pdf_with_right_margin_violation(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    # Small group (count < 5) should never be suppressed by the artifact guard.
+    assert any(f.rule_id == "P011" and f.severity.value == "WARNING" for f in findings)
+
+
+def test_grouped_violations_confidence_high_for_large_overflow(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "margin_high_conf.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((40, 120), "Very far left extreme overflow text here", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details.get("confidence") == "high"
+
+
 def test_annotation_extraction_detects_comment(tmp_path: Path) -> None:
     pdf_path = tmp_path / "annot.pdf"
     _make_pdf_with_annotation(pdf_path)

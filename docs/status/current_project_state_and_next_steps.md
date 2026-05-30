@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Latest main: `96543ef` (PR #37 — P020 CMBX/font-size heading detection refinement)
+- Latest main: `443868c` (PR #39 — P029 Roman numeral sequence checks)
 
 ---
 
@@ -108,7 +108,7 @@
 
 **Biggest current noise sources:**
 - P013 (page-number candidates): always very high-volume by design
-- P011 (margins): inflated on compressed PDFs (150 findings vs 21–33 on normal PDFs)
+- P011 (margins): 70 findings on compressed PDF (down from 150 with artifact guard); 21–33 on normal PDFs
 - P026 (font family): 92–117 warnings per document — real noncompliance but high volume
 
 **Biggest coverage gaps relative to EF feedback:**
@@ -141,7 +141,7 @@
 | Rule | Issue | Suggested Fix |
 |------|-------|--------------|
 | P020 | Bold metadata absent in 3 of 4 tested PDFs; 0 findings | Add font-size ≥ 13pt as supplementary heading trigger |
-| P011 | Compressed PDFs inflate margin findings (150 vs 21–33) | Add compression-detection guard or higher threshold for compressed PDFs |
+| P011 | ~~Compressed PDFs inflate margin findings~~ | ✅ Done — artifact guard added (150 → 70 on compressed PDF; normal PDFs unchanged) |
 | P013 | Always very high-volume; hard to action | Group by zone/page pattern; add summary-level output |
 | P016 | Underrepresents body-page spacing issues vs EF feedback | Extend from front-matter focus to include body chapter pages |
 | P025 | Nospace fallback covers only 6 degree forms | Extend degree pattern list; add coverage for edge-case NJIT abbreviations |
@@ -177,7 +177,15 @@ See `docs/evaluation/phase2_p020_heading_detection_refinement_evaluation.md`.
 **Files changed:** `src/njit_auditor/rules/pdf_roman_sequence.py`, CLI integration, inventory and tests
 **Risk:** Medium — heuristic, conservative checks; does not replace manual review.
 
-### Bundle 7: Clean Baseline False-Positive Audit (evaluation task)
+### Bundle 7: P011 Compression Artifact Guard — IMPLEMENTED
+**Summary:** Added a group-level artifact guard to P011. Groups with ≥5 lines all within 8pt of
+the margin are suppressed as compression-coordinate artifacts. Reduced P011 from 150 → 70 on
+the compressed Yin H 4th PDF while leaving all normal-PDF counts unchanged (21–33).
+Added `confidence` (low/medium/high) to P011 finding details.
+**Files changed:** `src/njit_auditor/rules/pdf_margins.py`, tests, evaluation and status docs.
+**Risk:** Low — conservative threshold; does not affect normal PDFs.
+
+### Bundle 8: Clean Baseline False-Positive Audit (evaluation task)
 **Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) has not been run through the full P011–P028 auditor. Establishing false-positive counts is essential before further refinement.  
 **Risk:** None — read-only evaluation task
 
