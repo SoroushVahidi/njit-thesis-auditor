@@ -18,6 +18,8 @@
 - EF-overlap refinement evaluation: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`
 - EF-overlap round2 notes: `docs/evaluation/ef_overlap_refinement_round2_notes.md`
 - EF-overlap round2 evaluation: `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`
+- P030 synthetic validation: `docs/evaluation/p030_toc_continued_heading_synthetic_validation.md`
+- P030 current-dataset evaluation: `docs/evaluation/p030_current_dataset_evaluation.md`
 
 ---
 

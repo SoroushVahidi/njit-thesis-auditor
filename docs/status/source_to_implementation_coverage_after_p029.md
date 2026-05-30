@@ -204,3 +204,4 @@ Top 3 next tasks:
 - **Q-rule basis:** partial/heuristic PDF coverage for **Q048**, **Q062**, and **Q071** only.
 - **Limitations:** Does not verify bold/centering of continued headings; skips single-page sections and non-consecutive pages; does not claim full visual compliance with the rule matrix wording.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p030_toc_continued_heading_synthetic_validation.md`.
+- **Current-dataset evaluation (2026-05-30):** `docs/evaluation/p030_current_dataset_evaluation.md` — 3 P030 findings on Yin H 4th compressed only; 0 on other evaluated PDFs (see doc for detection caveats).
