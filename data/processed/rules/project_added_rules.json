@@ -539,5 +539,23 @@
     "implementation_module": "njit_auditor.rules.pdf_toc_continued_headings",
     "priority": "medium",
     "notes": "Conservative heuristic partial coverage for Q048, Q062, and Q071. Reuses TOC/List page detection from pdf_toc_alignment.py. Does not verify bold/centering of continued headings. Skips single-page sections and non-consecutive pages. issue_type: missing_continued_heading."
+  },
+  {
+    "id": "P031",
+    "section": "PDF LoT/LoF column headers",
+    "question": "Do List of Tables and List of Figures pages show expected Table/Figure and Page column header labels in the expected coarse regions?",
+    "rule_definition": "Conservative heuristic that checks List of Tables and List of Figures pages for short header-row labels: left label (Table or Figure) near the entry column and Page near the page-number column. Flags only clearly missing labels or labels far from expected coarse regions. Does not apply to Table of Contents pages.",
+    "remediation": "Add bold left-aligned Table/Figure and right-aligned Page column header labels directly under the list heading on each List of Tables or List of Figures page.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_column_headers",
+    "priority": "medium",
+    "notes": "Conservative partial PDF heuristic for Q063, Q064, Q072, Q073. Does not verify bold styling or exact alignment. Skips ambiguous pages and pages without extractable list entries. issue_type values: missing_left_column_header, missing_page_column_header, left_column_header_misaligned, page_column_header_misaligned."
   }
 ]

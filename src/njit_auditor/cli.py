@@ -44,6 +44,7 @@ from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_s
 from njit_auditor.rules.pdf_heading_levels import check_pdf_heading_level_styles
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
+from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import (
     check_pdf_page_numbering_regime,
@@ -172,6 +173,7 @@ def pdf(
     findings.extend(check_pdf_toc_alignment(pdf_doc))
     findings.extend(check_pdf_toc_list_formatting(pdf_doc))
     findings.extend(check_pdf_toc_continued_headings(pdf_doc))
+    findings.extend(check_pdf_lot_lof_column_headers(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 

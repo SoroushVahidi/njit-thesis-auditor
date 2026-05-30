@@ -25,6 +25,7 @@ from njit_auditor.rules.pdf_heading_levels import (
 )
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
+from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
 from njit_auditor.rules.pdf_page_numbers import (
@@ -3449,3 +3450,165 @@ def test_p030_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     assert len(warning.details.get("observed_heading", "")) <= 80
     assert long_body not in str(warning.details)
     assert long_body not in warning.message
+
+
+# ---------------------------------------------------------------------------
+# P031: LoT/LoF column headers
+# ---------------------------------------------------------------------------
+
+
+def _make_lot_lof_pdf(
+    path: Path,
+    heading: str,
+    entries: list[tuple[str, float]],
+    *,
+    left_header: str | None = "Table",
+    page_header: str | None = "Page",
+    left_header_x: float = 108,
+    page_header_x: float = 500,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    if left_header is not None:
+        page.insert_text((left_header_x, 115), left_header)
+    if page_header is not None:
+        page.insert_text((page_header_x, 115), page_header)
+    for idx, (label, indent_x) in enumerate(entries):
+        y = 140 + idx * 20
+        page.insert_text((indent_x, y), label)
+        page.insert_text((500, y), "12")
+    doc.save(path)
+    doc.close()
+
+
+def test_p031_lot_correct_header_row_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_lot_ok.pdf"
+    _make_lot_lof_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        _P030_LOT_ENTRIES,
+        left_header="Table",
+        page_header="Page",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P031" for f in check_pdf_lot_lof_column_headers(model))
+
+
+def test_p031_lot_missing_table_header_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_lot_missing_table.pdf"
+    _make_lot_lof_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        _P030_LOT_ENTRIES,
+        left_header=None,
+        page_header="Page",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_lot_lof_column_headers(model) if f.rule_id == "P031"]
+    assert any(f.details.get("issue_type") == "missing_left_column_header" for f in warnings)
+
+
+def test_p031_lot_missing_page_header_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_lot_missing_page.pdf"
+    _make_lot_lof_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        _P030_LOT_ENTRIES,
+        left_header="Table",
+        page_header=None,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_lot_lof_column_headers(model) if f.rule_id == "P031"]
+    assert any(f.details.get("issue_type") == "missing_page_column_header" for f in warnings)
+
+
+def test_p031_lof_correct_header_row_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_lof_ok.pdf"
+    _make_lot_lof_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        _P030_LOF_ENTRIES,
+        left_header="Figure",
+        page_header="Page",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P031" for f in check_pdf_lot_lof_column_headers(model))
+
+
+def test_p031_lof_missing_figure_header_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_lof_missing_figure.pdf"
+    _make_lot_lof_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        _P030_LOF_ENTRIES,
+        left_header=None,
+        page_header="Page",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_lot_lof_column_headers(model) if f.rule_id == "P031"]
+    assert any(f.details.get("issue_type") == "missing_left_column_header" for f in warnings)
+
+
+def test_p031_lof_missing_page_header_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_lof_missing_page.pdf"
+    _make_lot_lof_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        _P030_LOF_ENTRIES,
+        left_header="Figure",
+        page_header=None,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_lot_lof_column_headers(model) if f.rule_id == "P031"]
+    assert any(f.details.get("issue_type") == "missing_page_column_header" for f in warnings)
+
+
+def test_p031_toc_page_not_checked(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_toc_ignored.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Table")
+    page.insert_text((500, 115), "Page")
+    for idx, (label, indent_x) in enumerate(_P030_TOC_ENTRIES):
+        y = 140 + idx * 20
+        page.insert_text((indent_x, y), label)
+        page.insert_text((500, y), "12")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P031" for f in check_pdf_lot_lof_column_headers(model))
+
+
+def test_p031_ambiguous_page_without_lot_heading_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_ambiguous.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 115), "Table")
+    page.insert_text((500, 115), "Page")
+    page.insert_text((108, 140), "Table 1 Summary of Experimental Setup ....")
+    page.insert_text((500, 140), "12")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P031" for f in check_pdf_lot_lof_column_headers(model))
+
+
+def test_p031_finding_details_are_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p031_privacy_safe.pdf"
+    long_entry = "Table 1 " + ("X" * 200)
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 140), long_entry)
+    page.insert_text((500, 140), "12")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(
+        f for f in check_pdf_lot_lof_column_headers(model) if f.rule_id == "P031"
+    )
+    assert long_entry not in str(warning.details)
+    assert long_entry not in warning.message
+    assert len(warning.details.get("observed_header_labels", "")) <= 80
