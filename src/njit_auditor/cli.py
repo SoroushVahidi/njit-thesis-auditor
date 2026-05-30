@@ -48,12 +48,12 @@ from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import (
     check_pdf_page_numbering_regime,
 )
-from njit_auditor.rules.pdf_roman_sequence import (
-    check_pdf_roman_sequence,
-)
 from njit_auditor.rules.pdf_page_numbers import (
     check_pdf_page_number_sequence,
     run_pdf_page_number_candidates_rule,
+)
+from njit_auditor.rules.pdf_roman_sequence import (
+    check_pdf_roman_sequence,
 )
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import check_pdf_title_capitalization
