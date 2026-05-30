@@ -31,7 +31,9 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
 
 - `P011` margin detection
   - Detects likely text crossing assumed NJIT margin bounds.
-  - Refined and more conservative than initial version, but still heuristic.
+  - Artifact guard added: groups with ≥5 lines all within 8pt of the margin are suppressed as
+    compression-coordinate artifacts; reduces false positives 53% on the compressed Yin H 4th PDF.
+  - Adds `confidence` field (low/medium/high) to finding details.
   - Manual review required.
 - `P012` annotations/comments
   - Detects embedded PDF annotation objects.
