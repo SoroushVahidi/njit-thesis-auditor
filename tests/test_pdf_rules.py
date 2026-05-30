@@ -25,6 +25,7 @@ from njit_auditor.rules.pdf_heading_levels import (
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
+from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
 from njit_auditor.rules.pdf_page_numbers import (
     check_pdf_page_number_sequence,
     run_pdf_page_number_candidates_rule,
@@ -2720,3 +2721,166 @@ def test_p027_json_report_includes_p027_when_triggered(tmp_path: Path) -> None:
     data = _json.loads(json_path.read_text())
     rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
     assert "P027" in rule_ids
+
+
+# ---------------------------------------------------------------------------
+# P028 — page-numbering regime tests
+# ---------------------------------------------------------------------------
+
+def _make_regime_pdf(
+    path: Path,
+    pages: list[tuple[str | None, str | None, str | None]],
+) -> None:
+    """Create a multi-page PDF for regime tests.
+
+    pages: list of (heading_text_or_none, chapter_text_or_none, page_num_text_or_none)
+    heading_text: named heading like "TABLE OF CONTENTS"
+    chapter_text: body heading like "CHAPTER 1 INTRODUCTION"
+    page_num_text: page number candidate like "iii" or "3"
+    """
+    doc = fitz.open()
+    for heading, chapter, page_num in pages:
+        page = doc.new_page(width=612, height=792)
+        if heading:
+            page.insert_text((180, 90), heading, fontsize=14, fontname="Times-Bold")
+        if chapter:
+            page.insert_text((108, 200), chapter, fontsize=14)
+        if page_num:
+            page.insert_text((300, 760), page_num, fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p028_frontmatter_lowercase_roman_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_fm_roman_ok.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "iv"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert not findings
+
+
+def test_p028_frontmatter_arabic_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_fm_arabic_bad.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "4"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert any(f.details.get("issue_type") == "arabic_number_on_frontmatter_page" for f in findings)
+
+
+def test_p028_frontmatter_uppercase_roman_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_fm_upper_roman.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "IV"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert any(
+        f.details.get("issue_type") == "uppercase_roman_on_frontmatter_page" for f in findings
+    )
+
+
+def test_p028_body_arabic_no_warning(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_body_arabic_ok.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "iv"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+        (None, None, "2"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    body_roman = [f for f in findings if f.details.get("issue_type") == "roman_number_on_body_page"]
+    assert not body_roman
+
+
+def test_p028_body_roman_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_body_roman_bad.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "iv"),
+        (None, "CHAPTER 1 INTRODUCTION", "v"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert any(f.details.get("issue_type") == "roman_number_on_body_page" for f in findings)
+
+
+def test_p028_abstract_page_excluded(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_abstract_excl.pdf"
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((220, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    p1.insert_text((300, 760), "ii", fontsize=12)  # would be a P022 issue, not P028
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p2.insert_text((300, 760), "iv", fontsize=12)
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((108, 200), "CHAPTER 1 INTRODUCTION", fontsize=14)
+    p3.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    # Abstract page (page 1, no-number) should NOT produce a P028 finding.
+    assert not any(f.page == 1 for f in findings)
+
+
+def test_p028_no_front_matter_detected_no_crash(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_no_fm.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 200), "Some body text.", fontsize=12)
+    page.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_numbering_regime(model)
+    assert isinstance(findings, list)
+
+
+def test_p028_one_finding_per_page_issue_type(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_dedup.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "4"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    arabic_fm = [
+        f for f in findings if f.details.get("issue_type") == "arabic_number_on_frontmatter_page"
+    ]
+    # Only one P028 finding per (page, issue_type).
+    pages = [f.page for f in arabic_fm]
+    assert len(pages) == len(set(pages))
+
+
+def test_p028_cli_includes_p028(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_cli.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "4"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    result = runner.invoke(app, ["pdf", str(pdf_path)])
+    assert result.exit_code == 0
+    assert "P028" in result.output
+
+
+def test_p028_json_report_includes_p028_when_triggered(tmp_path: Path) -> None:
+    import json as _json
+
+    pdf_path = tmp_path / "p028_json.pdf"
+    json_path = tmp_path / "p028_report.json"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "4"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_path)])
+    assert result.exit_code == 0
+    data = _json.loads(json_path.read_text())
+    rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
+    assert "P028" in rule_ids

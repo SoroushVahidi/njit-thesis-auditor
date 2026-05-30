@@ -12,6 +12,7 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P013") == "page_numbering"
     assert map_finding_rule_to_category("P019") == "page_numbering"
     assert map_finding_rule_to_category("P022") == "page_numbering"
+    assert map_finding_rule_to_category("P028") == "page_numbering"
     assert map_finding_rule_to_category("P026") == "font_format"
     assert map_finding_rule_to_category(
         "P027", {"issue_type": "level3_sentence_case_issue"}

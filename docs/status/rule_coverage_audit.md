@@ -319,9 +319,9 @@ Per `Titles Examples Level 1 to 5.docx` and `Self-Self Assessment Sheet.pdf`:
 
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
-| Q-rules (Q001–Q079) | 79 | 2 | 33 | 22 | 22 |
-| P-rules (P001–P027) | 27 | 27 | — | — | — |
-| **Total** | **106** | **29** | **33** | **22** | **22** |
+| Q-rules (Q001–Q079) | 79 | 2 | 38 | 17 | 22 |
+| P-rules (P001–P028) | 28 | 28 | — | — | — |
+| **Total** | **107** | **30** | **38** | **17** | **22** |
 
 The 22 manual-only rules (all in Approval Page and Acknowledgements sections) are
 unlikely to be automated without LLM-based semantic analysis.
