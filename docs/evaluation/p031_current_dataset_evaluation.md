@@ -1,9 +1,11 @@
 # P031 Current Dataset Evaluation
 
-- **Date:** 2026-05-30
-- **Baseline commit:** `e0ebbd324f6c620ad57375466e887ce858c368e2`
+- **Date:** 2026-05-30 (refreshed after PR #55)
+- **Current baseline commit:** `e0f70f8ab6f8adecbafebea82ffa2611fe615c20`
 - **Auditor scope:** P001–P031 (P031 only reported here)
-- **Generated artifacts (gitignored):** `data/evaluation/generated/p031_evaluation/`
+- **Generated artifacts (gitignored):**
+  - Original run (PR #54): `data/evaluation/generated/p031_evaluation/`
+  - Post–PR #55 rerun: `data/evaluation/generated/p031_evaluation_after_header_band_fix/`
 
 ## 1. Purpose and scope
 
@@ -11,22 +13,36 @@ Evaluate the conservative P031 List of Tables/Figures column-header rule on the
 repository’s documented evaluation PDF set identified in
 `data/processed/evaluation_data_manifest.json`.
 
-This run reports **aggregate P031 counts and structural metadata only**. No dissertation
-body text is quoted. No generated audit JSON/Markdown outputs are committed.
+This document tracks **two evaluation snapshots**:
 
-Evaluated inputs match the five-PDF full-evaluation set documented in
-`docs/evaluation/current_auditor_after_p014_p029_evaluation.md`, excluding the rule-matrix
-XLSX and archive-only materials not verified locally.
+1. **Before PR #55** (commit `e0ebbd324f6c620ad57375466e887ce858c368e2`, PR #54) — first
+   current-dataset evaluation.
+2. **After PR #55** (commit `e0f70f8ab6f8adecbafebea82ffa2611fe615c20`) — rerun after the
+   header-band geometry refinement.
 
-## 2. Evaluated files
+Reporting is **aggregate-only**. No dissertation body text is quoted. No generated audit
+outputs are committed.
 
-| File label | Availability | LoT/LoF pages detected | P031 count | Pages | Issue types | Notes |
-|---|---|---:|---:|---|---|---|
-| Cibaku Elson 1st review | tracked | 0 | 0 | — | — | No LoT/LoF pages detected |
-| Yin H 2nd review (flattened) | tracked | 0 | 0 | — | — | No LoT/LoF pages detected |
-| Yin Haotian 2nd review | tracked | 0 | 0 | — | — | No LoT/LoF pages detected |
-| Yin H 4th review (compressed) | tracked | 4 | 0 | — | — | LoT p.14; LoF pp.15,17,18 — headers not flagged |
-| Sebastian Fine clean baseline | archive-contained (local ZIP extract) | 2 | 2 | 11 | missing_left_column_header; missing_page_column_header | LoT p.11 flagged; LoF p.12 detected, no P031 |
+## 2. Evaluation history
+
+| Milestone | Commit | Sebastian Fine P031 count | Outcome |
+|---|---|---:|---|
+| PR #54 initial evaluation | `e0ebbd3` | 2 (page 11) | Documented in this file (original run) |
+| PR #55 investigation | `e0f70f8` | — | Likely false positives; header band extended upward |
+| PR #55 post-fix rerun | `e0f70f8` | **0** | Confirmed by re-run (this refresh) |
+
+See `docs/evaluation/p031_sebastian_clean_baseline_investigation.md` for the structural
+explanation (labels present in text layer but outside the old header band).
+
+## 3. Current results (after PR #55)
+
+| File label | LoT/LoF pages detected | P031 before PR #55 | P031 after PR #55 | Pages after PR #55 | Notes |
+|---|---:|---:|---:|---|---|
+| Cibaku Elson 1st review | 0 | 0 | 0 | — | No LoT/LoF pages detected |
+| Yin H 2nd review (flattened) | 0 | 0 | 0 | — | No LoT/LoF pages detected |
+| Yin Haotian 2nd review | 0 | 0 | 0 | — | No LoT/LoF pages detected |
+| Yin H 4th review (compressed) | 4 | 0 | 0 | — | LoT p.14; LoF pp.15,17,18 |
+| Sebastian Fine clean baseline | 2 | 2 | **0** | — | LoT p.11; LoF p.12 — no P031 after fix |
 
 ### Skipped
 
@@ -35,18 +51,21 @@ XLSX and archive-only materials not verified locally.
 | Sebastian Fine 1st review (EF annotated) | Referenced in manifest; not present as a standalone tracked path |
 | Rule matrix XLSX | Not a PDF evaluation input |
 
-## 3. P031 detail summary (Sebastian Fine clean baseline only)
+**Total P031 findings after PR #55:** **0** across all five evaluated PDFs.
 
-Both findings are on **page 11** (`section_type: list_of_tables`), `confidence: high`.
+## 4. Before PR #55 detail (historical — Sebastian only)
 
-| Page | Issue type | Expected left label | Expected page label | Observed header labels |
-|---:|---|---|---|---|
-| 11 | missing_left_column_header | Table | Page | (none detected) |
-| 11 | missing_page_column_header | Table | Page | (none detected) |
+The original PR #54 run reported two **high-confidence** warnings on Sebastian Fine page 11
+(`list_of_tables`):
 
-No short header-row tokens were detected in the header band below the List of Tables heading.
+| Page | Issue types | Expected labels | Observed header labels (before fix) |
+|---:|---|---|---|
+| 11 | missing_left_column_header; missing_page_column_header | Table; Page | (none detected in old band) |
 
-## 4. Structural context (privacy-safe)
+PR #55 showed **Table** and **Page** short labels were present at **y0 ≈ 84.3 pt** but
+outside the old header band starting at **heading_bottom_y + 2 (≈ 89.1 pt)**.
+
+## 5. Structural context (privacy-safe, unchanged)
 
 LoT/LoF pages detected per file (page numbers only):
 
@@ -61,52 +80,32 @@ LoT/LoF pages detected per file (page numbers only):
 Page counts: Cibaku 99; Yin H 2nd flat 108; Yin Haotian 2nd 108; Yin H 4th 137;
 Sebastian Fine 29.
 
-## 5. Interpretation
+## 6. Interpretation (current behavior)
 
-**Overall:** P031 produced **0 findings on four of five evaluated PDFs** and **2 findings
-on one file** (Sebastian Fine clean baseline, both on page 11).
+**After PR #55, P031 is silent on the full five-PDF evaluation set (0 findings).**
 
-**No LoT/LoF pages detected (3 files):** P031 had no qualifying pages to evaluate. This
-does not prove compliance; it may reflect compressed/flattened text layers, heading layout
-differences, or list sections not recognized by shared page-type detection.
+- The Sebastian Fine change (2 → 0) aligns with the header-band false-positive diagnosis;
+  not a change in the underlying PDF.
+- Yin H 4th remains **0 findings** with four detected list pages (unchanged).
+- Three EF PDFs still have **no LoT/LoF pages detected**; P031 cannot evaluate them. Zero
+  findings there does not prove compliance.
 
-**LoT/LoF detected, zero P031 findings (Yin H 4th compressed):** Four list pages were
-detected (LoT page 14; LoF pages 15, 17, 18) with no P031 warnings. That suggests either
-extractable header-row labels were present in expected regions, or header text is formatted
-in a way the conservative rule accepts. Precision/recall against human review is **not
-measured**.
+**Usefulness vs noise:** Post-fix behavior is **low-noise** on this dataset. The earlier
+Sebastian warnings should **not** be treated as open P031 defects. Bold/right-alignment
+requirements (Q063/Q064/Q072/Q073 visual scope) may still need manual review outside P031.
 
-**Sebastian Fine clean baseline:** List of Tables page 11 triggered missing **Table** and
-**Page** header warnings with no observed short header tokens. List of Figures page 12 was
-detected but not flagged (headers may be present or entries/header band did not meet flag
-thresholds). These findings are **structurally plausible** for a missing header row in the
-PDF text layer, but could include false positives if labels are embedded in non-extractable
-or non-short-line layout.
+## 7. Limitations
 
-**Usefulness vs noise:** On this dataset P031 is **mostly silent** except on the clean
-baseline LoT page. That supports conservative behavior on Yin H 4th (where list pages were
-detected) but the Sebastian Fine LoT warnings need manual confirmation before treating as
-true formatting defects.
-
-## 6. Limitations
-
-- Heuristic PDF-only partial coverage for Q063, Q064, Q072, Q073; no bold/exact alignment checks.
-- Depends on shared LoT/LoF page detection and extractable list entries below headings.
-- Header-band search may miss labels split across spans or rendered without separate short lines.
-- Three EF PDFs had no detected LoT/LoF pages; P031 cannot assess them.
-- Small sample; no EF-comment overlap for column-header labels.
+- Heuristic PDF-only partial coverage; no bold/exact alignment checks.
+- Depends on shared LoT/LoF page detection and extractable list entries.
+- Header-band geometry remains approximate (now extends 12 pt above `heading_bottom_y`).
+- Small sample; no precision/recall vs human review.
 - Sebastian Fine PDF extracted locally from tracked ZIP; not committed.
-- Generated summary JSON under gitignored `data/evaluation/generated/p031_evaluation/`.
+- Generated summaries remain under gitignored `data/evaluation/generated/` paths.
 
-## 8. Follow-up investigation (2026-05-30)
+## 8. Related docs
 
-See `docs/evaluation/p031_sebastian_clean_baseline_investigation.md`. The two Sebastian Fine
-LoT page-11 warnings were **likely false positives** caused by an overly strict header-band
-lower bound. P031 was refined to search slightly above `heading_bottom_y`; the clean baseline
-re-run then reported **0 P031 findings**.
-
-## 9. Related docs
-
+- Sebastian investigation: `docs/evaluation/p031_sebastian_clean_baseline_investigation.md`
 - Synthetic validation: `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md`
 - P030 current-dataset evaluation: `docs/evaluation/p030_current_dataset_evaluation.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
