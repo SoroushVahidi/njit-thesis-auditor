@@ -3612,3 +3612,19 @@ def test_p031_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     assert long_entry not in str(warning.details)
     assert long_entry not in warning.message
     assert len(warning.details.get("observed_header_labels", "")) <= 80
+
+
+def test_p031_header_row_immediately_below_heading_no_warning(tmp_path: Path) -> None:
+    """Header labels slightly above heading_bottom_y should still be detected."""
+    pdf_path = tmp_path / "p031_tight_header_row.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 84), "Table")
+    page.insert_text((504, 84), "Page")
+    page.insert_text((108, 98), "Table 1 Summary of Experimental Setup ....")
+    page.insert_text((500, 98), "12")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P031" for f in check_pdf_lot_lof_column_headers(model))
