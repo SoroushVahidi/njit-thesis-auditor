@@ -14,6 +14,8 @@ TOC_HEADING_MAP = {
     "LIST OF TABLES": "list_of_tables",
     "LIST OF FIGURES": "list_of_figures",
 }
+HEADING_SUFFIX_RE = re.compile(r"[\s:.\-]+(?:\((?:continued)\)|continued)\s*$", re.IGNORECASE)
+TRAILING_PUNCT_RE = re.compile(r"[.:]+$")
 PAGE_NUMBER_TOKEN_RE = re.compile(r"(?P<num>(?:[0-9]+|[ivxlcdm]+))$", re.IGNORECASE)
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
@@ -57,6 +59,21 @@ def _clean_text(text: str) -> str:
     return " ".join(text.strip().split())
 
 
+def _normalize_toc_heading_variant(text: str) -> str:
+    """Normalize TOC/list heading text for robust page-type detection."""
+
+    normalized = _clean_text(text).upper()
+    normalized = TRAILING_PUNCT_RE.sub("", normalized).strip()
+    normalized = HEADING_SUFFIX_RE.sub("", normalized).strip()
+    normalized = TRAILING_PUNCT_RE.sub("", normalized).strip()
+    return _clean_text(normalized)
+
+
+def _detect_toc_page_type(line_text: str) -> str | None:
+    normalized = _normalize_toc_heading_variant(line_text)
+    return TOC_HEADING_MAP.get(normalized)
+
+
 def detect_toc_like_pages(pdf_document: PdfDocument) -> list[TocPageContext]:
     """Detect TOC/List pages from named heading lines."""
 
@@ -66,8 +83,8 @@ def detect_toc_like_pages(pdf_document: PdfDocument) -> list[TocPageContext]:
         best_match: tuple[str, float] | None = None
         for block in page.text_blocks:
             for line in block.lines:
-                normalized = normalize_heading_text(line.text).upper()
-                page_type = TOC_HEADING_MAP.get(normalized)
+                normalized = normalize_heading_text(line.text)
+                page_type = _detect_toc_page_type(normalized)
                 if page_type is None:
                     continue
                 heading_bottom = line.bbox.y1

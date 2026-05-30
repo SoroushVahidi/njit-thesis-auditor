@@ -888,6 +888,22 @@ def test_non_toc_page_is_ignored_for_p018(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P018" for f in findings)
 
 
+def test_p018_toc_heading_with_trailing_period_is_detected(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_heading_period.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS.", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
+    page.insert_text((108, 180), "Chapter 3 Results ....")
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    assert any(f.details.get("issue_type") == "missing_page_number" for f in warnings)
+
+
 def test_pdf_cli_command_runs_with_p018(tmp_path: Path) -> None:
     pdf_path = tmp_path / "cli_toc_alignment.pdf"
     doc = fitz.open()
@@ -1746,6 +1762,26 @@ def test_p024_lot_lowercase_major_word_warns(tmp_path: Path) -> None:
     _make_toc_pdf(
         pdf_path,
         "LIST OF TABLES",
+        [
+            ("Table 1 descriptive statistics for participant demographics ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_tables_title_case"
+        for f in findings
+    )
+
+
+def test_p024_lot_continued_heading_detected(tmp_path: Path) -> None:
+    """LoT '(CONTINUED)' heading variant should still run list-format checks."""
+    pdf_path = tmp_path / "lot_continued_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES (CONTINUED)",
         [
             ("Table 1 descriptive statistics for participant demographics ....", 108),
             ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),

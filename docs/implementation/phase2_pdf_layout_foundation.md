@@ -54,6 +54,13 @@ P013 refinement notes:
   - `position_type` and `number_style`
   - conservative `confidence` (`low`/`medium`)
 
+P018/P024 round-2 refinement notes:
+
+- TOC/List page detection now tolerates heading variants with:
+  - trailing punctuation (e.g., `TABLE OF CONTENTS.`)
+  - continuation suffixes (e.g., `LIST OF TABLES (CONTINUED)`, `... CONTINUED`)
+- This is a detection-scope refinement only; P018/P024 issue semantics and thresholds are unchanged.
+
 P014 refinement notes:
 
 - Centering check now compares against text-area center `(LEFT_MARGIN_PT + page.width - RIGHT_MARGIN_PT) / 2`
