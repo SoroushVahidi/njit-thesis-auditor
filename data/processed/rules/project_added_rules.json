@@ -485,5 +485,23 @@
     "implementation_module": "njit_auditor.rules.pdf_heading_levels",
     "priority": "medium",
     "notes": "Heuristic. Source: Titles Examples Level 1 to 5.docx. Q-rule basis: Q051 (Level 3 sentence case). Does not duplicate P014 (named front-matter heading style), P020 (bold-line title-case), or P024 (TOC/List entry capitalization). Level inferred from numbered pattern. issue_type values: level1_not_all_caps, level2_title_case_issue, level3_sentence_case_issue, level4_sentence_case_or_punctuation_issue, level5_sentence_case_or_punctuation_issue."
+  },
+  {
+    "id": "P028",
+    "section": "PDF page-numbering regime",
+    "question": "Do front-matter numbered pages use lowercase Roman numerals and body pages use Arabic numerals?",
+    "rule_definition": "NJIT requires front-matter pages that show page numbers to use lowercase Roman numerals (i, ii, iii, ...) and main-body pages to use Arabic numerals (1, 2, 3, ...). This rule detects the front-matter and body regions from named headings and chapter/body heading detection, then checks that P013-style page-number candidates match the expected style for their region. No-number pages (ABSTRACT, APPROVAL PAGE, title page) are excluded; P022 handles those.",
+    "remediation": "Use lowercase Roman numerals (i, ii, iii) for front-matter numbered pages and Arabic numerals (1, 2, 3) for body pages. Configure page numbering in LaTeX using \\frontmatter/\\mainmatter commands or \\pagenumbering{roman}/\\pagenumbering{arabic}.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_page_numbering_regime",
+    "priority": "medium",
+    "notes": "Heuristic. Q-rule basis: Q022, Q031, Q035, Q046, Q060. Does not duplicate P013 (global candidates), P019 (sequence/style), or P022 (no-number pages). Region classification uses named front-matter headings + CHAPTER/APPENDIX heading detection. issue_type values: arabic_number_on_frontmatter_page, uppercase_roman_on_frontmatter_page, roman_number_on_body_page. One finding per (page, issue_type)."
   }
 ]

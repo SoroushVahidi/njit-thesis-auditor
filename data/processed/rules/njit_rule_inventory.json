@@ -389,14 +389,15 @@
     "remediation": "Change the visible page number on the first Biographical Sketch page to \u201civ\u201d.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_page_numbering_regime"
   },
   {
     "id": "Q023",
@@ -558,14 +559,15 @@
     "remediation": "Change the visible page number to the next sequential lowercase Roman numeral.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_page_numbering_regime"
   },
   {
     "id": "Q032",
@@ -626,14 +628,15 @@
     "remediation": "Change the visible page number to the next sequential lowercase Roman numeral.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_page_numbering_regime"
   },
   {
     "id": "Q036",
@@ -831,14 +834,15 @@
     "remediation": "Change page numbers to sequential lowercase Roman numerals continuing after the Acknowledgements.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_page_numbering_regime"
   },
   {
     "id": "Q047",
@@ -1070,14 +1074,15 @@
     "remediation": "Change the page numbers to sequential lowercase Roman numerals continuing after the TOC.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_page_numbering_regime"
   },
   {
     "id": "Q061",

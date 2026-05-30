@@ -47,6 +47,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P013": "page_numbering",
         "P019": "page_numbering",
         "P022": "page_numbering",
+        "P028": "page_numbering",
         "P026": "font_format",
         "P014": "heading_title",
         "P015": "indentation",
