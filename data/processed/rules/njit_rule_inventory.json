@@ -916,14 +916,15 @@
     "remediation": "Change all level-3 section titles in the TOC to sentence case.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output.",
+    "implementation_module": "njit_auditor.rules.pdf_heading_levels"
   },
   {
     "id": "Q052",

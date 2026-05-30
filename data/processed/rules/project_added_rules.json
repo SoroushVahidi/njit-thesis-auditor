@@ -467,5 +467,23 @@
     "implementation_module": "njit_auditor.rules.pdf_font_compliance",
     "priority": "medium",
     "notes": "Heuristic. Sources: Thesis and Dissertation Formatting Guidelines (WIP).docx; Self-Self Assessment Sheet.pdf. Excludes named front-matter pages, TOC/list pages, references pages. Excludes margin zones, headings, captions, bullets, short lines, and low-alpha-density lines. Accepted font aliases: Times, NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX. issue_type values: possible_body_font_size_issue, possible_body_font_family_issue. Note: Computer Modern (CMR12, the LaTeX default) will be flagged. EF evaluation: all 4 tested PDFs use CMR12 or Georgia -- expect P026 family warnings on all."
+  },
+  {
+    "id": "P027",
+    "section": "PDF heading-level style",
+    "question": "Do numbered headings follow the expected level-specific capitalization and punctuation style?",
+    "rule_definition": "Numbered section headings (1.1, 1.1.1, etc.) should follow NJIT level-specific style: Level 2 = Title Case; Level 3 = Sentence case; Level 4/5 = Sentence case ending with a period. Body-chapter headings (CHAPTER N TITLE) should be ALL CAPS. Inferred from section-number pattern; conservative: only flags clear violations with >=2 non-first capitalized major words for sentence-case checks.",
+    "remediation": "Ensure numbered section headings follow the correct capitalization style for their level: Level 2 (1.x): Title Case; Level 3 (1.x.x): Sentence case (bold); Level 4 (1.x.x.x) and Level 5 (1.x.x.x.x): Sentence case ending with a period.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_heading_levels",
+    "priority": "medium",
+    "notes": "Heuristic. Source: Titles Examples Level 1 to 5.docx. Q-rule basis: Q051 (Level 3 sentence case). Does not duplicate P014 (named front-matter heading style), P020 (bold-line title-case), or P024 (TOC/List entry capitalization). Level inferred from numbered pattern. issue_type values: level1_not_all_caps, level2_title_case_issue, level3_sentence_case_issue, level4_sentence_case_or_punctuation_issue, level5_sentence_case_or_punctuation_issue."
   }
 ]

@@ -41,6 +41,7 @@ from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
 from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
+from njit_auditor.rules.pdf_heading_levels import check_pdf_heading_level_styles
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -158,6 +159,7 @@ def pdf(
     findings.extend(check_pdf_body_spacing(pdf_doc))
     findings.extend(check_pdf_font_compliance(pdf_doc))
     findings.extend(check_pdf_captions(pdf_doc))
+    findings.extend(check_pdf_heading_level_styles(pdf_doc))
     findings.extend(check_pdf_toc_alignment(pdf_doc))
     findings.extend(check_pdf_toc_list_formatting(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
