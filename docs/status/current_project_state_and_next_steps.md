@@ -1,7 +1,9 @@
 # Current Project State and Next Steps
 
 - Date: 2026-05-29
-- Latest main: `caa6cae` (PR #40 — P011 compression artifact guard)
+- Latest main: `6a0baaf` (PR #41 — P014 clean-baseline investigation)
+- Validation: 320 tests passed (ruff, mypy, pytest)
+- Current evaluation snapshot: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 
 ---
 
@@ -194,7 +196,22 @@ Fine 6→0, Cibaku 1→0, Yin Haotian 1→0, Yin H 4th 10→0 — all false posi
 **Files changed:** `src/njit_auditor/rules/pdf_headings.py`, tests, evaluation docs.
 **Risk:** Low — fix narrows false positives; off-center headings still flagged.
 
-### Bundle 9: Clean Baseline False-Positive Audit (evaluation task)
+### Bundle 9: Current Evaluation Snapshot (after P011/P014/P029 refinements) — DONE
+**Summary:** Full evaluation snapshot at commit `6a0baaf` across all 5 dissertation PDFs.
+Total: 1,485 findings (down from 1,572). Key changes: P011 compressed 150→70; P014 0 everywhere;
+P029 adds 12+2 findings. See `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`.
+
+### Bundle 10: Next recommended tasks
+
+Based on the current evaluation snapshot:
+
+| Priority | Task | Rationale |
+|----------|------|-----------|
+| 🟡 High | P029 false-positive triage | Expected values 901/1001 on Sebastian Fine = body-page misclassification |
+| 🟡 High | P013 grouping / noise reduction | 501 raw candidates; hard to action without grouping |
+| 🟡 Med | EF comment ↔ rule comparison | Map EF comments to P-rule findings page-by-page |
+| 🟡 Med | P011 bottom_margin clean-baseline investigation | 5 high-confidence findings on 29-page clean doc |
+| 🟡 Low | P020 font-size fallback | CMR body PDFs still have P020=0 |
 **Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) has not been run through the full P011–P028 auditor. Establishing false-positive counts is essential before further refinement.  
 **Risk:** None — read-only evaluation task
 
