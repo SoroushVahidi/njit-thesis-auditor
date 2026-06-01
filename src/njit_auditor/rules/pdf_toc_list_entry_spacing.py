@@ -1,0 +1,119 @@
+"""Conservative inter-entry spacing checks for TOC/List pages (P036).
+
+Partial heuristic PDF coverage for Q057, Q067, and Q077.
+"""
+
+from __future__ import annotations
+
+from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages
+from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
+    _collect_entry_region_lines,
+    _estimate_line_height,
+    _has_intervening_page_number_line,
+    _is_wrap_continuation_pair,
+)
+
+MIN_INTER_ENTRY_GAP_RATIO = 1.4
+FALLBACK_LINE_HEIGHT_PT = 12.0
+
+ISSUE_TYPE_BY_SECTION = {
+    "table_of_contents": "toc_inter_entry_spacing_too_tight",
+    "list_of_tables": "lot_inter_entry_spacing_too_tight",
+    "list_of_figures": "lof_inter_entry_spacing_too_tight",
+}
+
+SOURCE_Q_RULE_IDS_BY_SECTION = {
+    "table_of_contents": "Q057",
+    "list_of_tables": "Q067",
+    "list_of_figures": "Q077",
+}
+
+
+def _group_lines_into_entries(
+    lines: list[PdfTextLine],
+    page_type: str,
+) -> list[list[PdfTextLine]]:
+    if not lines:
+        return []
+
+    entries: list[list[PdfTextLine]] = [[lines[0]]]
+    for line in lines[1:]:
+        previous = entries[-1][-1]
+        if _is_wrap_continuation_pair(previous, line, page_type):
+            entries[-1].append(line)
+            continue
+        entries.append([line])
+    return entries
+
+
+def _triage_tier(gap_ratio: float) -> str:
+    if gap_ratio < 1.1:
+        return "high"
+    if gap_ratio < MIN_INTER_ENTRY_GAP_RATIO:
+        return "medium"
+    return "low"
+
+
+def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
+    """Emit P036 warnings when consecutive TOC/List entries appear too tightly spaced."""
+
+    findings: list[AuditFinding] = []
+
+    for context in detect_toc_like_pages(pdf_document):
+        lines = _collect_entry_region_lines(context)
+        entries = _group_lines_into_entries(lines, context.page_type)
+        if len(entries) < 2:
+            continue
+
+        issue_type = ISSUE_TYPE_BY_SECTION.get(context.page_type)
+        if issue_type is None:
+            continue
+
+        for pair_index, (previous_entry, next_entry) in enumerate(zip(entries, entries[1:])):
+            last_line = previous_entry[-1]
+            first_line = next_entry[0]
+            if _has_intervening_page_number_line(context, last_line, first_line):
+                continue
+
+            gap_pt = first_line.bbox.y0 - last_line.bbox.y1
+            if gap_pt <= 0:
+                continue
+
+            line_height = _estimate_line_height(last_line, first_line)
+            if line_height <= 0:
+                line_height = FALLBACK_LINE_HEIGHT_PT
+
+            gap_ratio = gap_pt / line_height
+            if gap_ratio >= MIN_INTER_ENTRY_GAP_RATIO:
+                continue
+
+            required_gap_pt = line_height * MIN_INTER_ENTRY_GAP_RATIO
+            triage_tier = _triage_tier(gap_ratio)
+
+            findings.append(
+                AuditFinding(
+                    rule_id="P036",
+                    severity=Severity.WARNING,
+                    page=context.page.page_number,
+                    message=(
+                        "Consecutive TOC/List entries appear to have insufficient "
+                        "inter-entry vertical spacing."
+                    ),
+                    details={
+                        "page_number": str(context.page.page_number),
+                        "section_type": context.page_type,
+                        "issue_type": issue_type,
+                        "entry_pair_index": str(pair_index),
+                        "gap_points": f"{gap_pt:.1f}",
+                        "required_gap_points": f"{required_gap_pt:.1f}",
+                        "local_line_height_points": f"{line_height:.1f}",
+                        "gap_ratio": f"{gap_ratio:.2f}",
+                        "triage_tier": triage_tier,
+                        "source_q_rule_ids": SOURCE_Q_RULE_IDS_BY_SECTION[context.page_type],
+                    },
+                )
+            )
+
+    return findings

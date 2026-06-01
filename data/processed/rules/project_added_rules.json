@@ -629,5 +629,23 @@
     "implementation_module": "njit_auditor.rules.pdf_figure_table_layout",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Self-Assessment figure/table centering and caption placement. Reuses caption detection from pdf_captions.py. Skips image-only floats and non-text-layer bodies. issue_types: table_body_not_centered, figure_body_not_centered, table_caption_not_above_body, figure_caption_not_below_body."
+  },
+  {
+    "id": "P036",
+    "section": "PDF TOC/List inter-entry spacing",
+    "question": "Do consecutive TOC, List of Tables, and List of Figures entries have visible double spacing between them?",
+    "rule_definition": "Conservative heuristic on detected TOC/LoT/LoF pages: group text-layer lines into distinct entries (skipping wrapped internal continuations handled by P032), measure vertical gap between consecutive entries, and flag when gap is below a conservative double-spacing threshold. Skips ambiguous/sparse pages and does not quote entry title text.",
+    "remediation": "Add visible double spacing or a blank line between consecutive TOC, List of Tables, or List of Figures entries per NJIT formatting guidance.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_toc_list_entry_spacing",
+    "priority": "medium",
+    "notes": "Partial PDF heuristic for Q057, Q067, Q077. Complements P032 wrapped internal spacing; excludes P018/P024/P030/P031 checks. issue_types: toc_inter_entry_spacing_too_tight, lot_inter_entry_spacing_too_tight, lof_inter_entry_spacing_too_tight."
   }
 ]

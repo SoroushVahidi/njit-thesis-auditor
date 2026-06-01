@@ -19,14 +19,14 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### PDF layout audit (P011–P035)
+### PDF layout audit (P011–P036)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P035 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P036 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P035):
+Current PDF checks (P011–P036):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -71,6 +71,7 @@ Current PDF checks (P011–P035):
 | P033 | Front matter | Cross-page title consistency (Title Page, Abstract, Approval) |
 | P034 | Front matter | Copyright Page top-margin header, year/author consistency with Title Page |
 | P035 | Figures/Tables | Body-page figure/table centering and caption placement; **v1 text-layer bodies only** (image-only floats skipped); privacy-safe geometry metadata only |
+| P036 | TOC/List | Inter-entry double spacing on TOC, LoT, and LoF pages (distinct entries only; complements P032 wrapped internal spacing) |
 
 All findings are heuristic warnings and require manual review.
 
@@ -135,7 +136,8 @@ More docs:
 - `docs/evaluation/p012_reporting_actionability_refinement.md` — P012 `p012_annotation_triage` rollup
 - `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
-- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P035 synthetic/current-dataset)
+- `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md` — P036 synthetic validation
+- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
 
