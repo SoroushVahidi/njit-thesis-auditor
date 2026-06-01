@@ -7,7 +7,7 @@
 - **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
 - **P-rules:** **34/34** implemented (`P001`–`P034` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not P035, not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #79; do not start a new P-rule until docs and scope are explicitly updated
+- **Status/metadata cleanup:** complete through PR #80; do not start a new P-rule until docs and scope are explicitly updated
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
