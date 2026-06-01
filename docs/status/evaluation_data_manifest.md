@@ -1,7 +1,8 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; auditor P001–P034; 404 pytest)
-- **Latest main:** `1607111` (docs-only refreshes PRs #76–#77; five-PDF counts unchanged)
+- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; auditor P001–P034)
+- **Latest main:** `0a835b8` (PR #79 P012 triage reporting; five-PDF detection counts unchanged)
+- **Validation:** ruff, mypy, **414 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
