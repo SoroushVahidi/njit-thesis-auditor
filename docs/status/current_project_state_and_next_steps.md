@@ -7,7 +7,7 @@
 - **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
 - **P-rules:** **34/34** implemented (`P001`–`P034` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not P035, not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #80; do not start a new P-rule until docs and scope are explicitly updated
+- **Status/metadata cleanup:** complete through PR #80; **P035 scoped, not implemented** — see `docs/planning/p035_scope_and_design.md`
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -339,7 +339,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
-| 🟡 Low | Next automatable rule | No P035 unless scoped explicitly |
+| 🟡 Low | P035 implementation | Scoped: figure/table body centering and caption placement — `docs/planning/p035_scope_and_design.md` |
 
 Do **not** re-run aggregate snapshot for reporting-only changes unless detection changes.
 Full P001–P034 aggregate evaluation is documented at
