@@ -1,11 +1,11 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-01
-- **Latest main:** `00b9c2d` (PR #75 — status/docs refresh after P011/P013/P026 triage; P001–P034 implemented)
+- **Latest main:** `ee13bfe` (PR #76 — status/manifest metadata refresh after P034 triage reporting; P001–P034 implemented)
 - **Validation:** ruff, mypy, **404 pytest** passed
 - **Auditor scope:** P001–P034 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
-- **Status/metadata cleanup:** complete through PR #75; do not start a new P-rule until docs and scope are explicitly updated
+- **Status/metadata cleanup:** complete through PR #76; do not start a new P-rule until docs and scope are explicitly updated
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
