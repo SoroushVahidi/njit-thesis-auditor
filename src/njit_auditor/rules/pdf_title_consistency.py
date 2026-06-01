@@ -30,6 +30,10 @@ _TITLE_ZONE_MAX_Y_RATIO = 0.68
 _MIN_CONFIDENT_NORMALIZED_LEN = 12
 _MIN_CONFIDENT_WORDS = 3
 _MATERIAL_MISMATCH_SIMILARITY = 0.92
+_MAX_LINES_BELOW_HEADING = 5
+_MAX_GAP_BELOW_HEADING_PT = 90.0
+_MAX_LINE_WORDS_BELOW_HEADING = 12
+_MAX_TOTAL_WORDS_BELOW_HEADING = 22
 
 _NAMED_HEADINGS = frozenset(
     {
@@ -57,6 +61,10 @@ _MONTH_YEAR_RE = re.compile(
     re.IGNORECASE,
 )
 _AUTHOR_LIKE_RE = re.compile(r"^dr\.?\s", re.IGNORECASE)
+_ABSTRACT_BODY_START_RE = re.compile(
+    r"^(this|in this|the purpose|we |this dissertation|this thesis)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -174,6 +182,62 @@ def _extract_above_heading_candidate(page: PdfPage, heading: str) -> str | None:
     return _join_title_lines(parts)
 
 
+def _extract_below_heading_candidate(page: PdfPage, heading: str) -> str | None:
+    """Extract a short title-like block immediately below a front-matter heading.
+
+    Used only when above-heading extraction finds nothing (common when ABSTRACT or
+    APPROVAL PAGE is the first line on the page). Stops at metadata markers, long
+    lines, or a small line/word budget so abstract body text is not captured.
+    """
+
+    lines = _sorted_lines(page)
+    heading_y: float | None = None
+    for line in lines:
+        if normalize_heading_text(line.text).upper() == heading:
+            heading_y = line.bbox.y0
+            break
+    if heading_y is None:
+        return None
+
+    parts: list[str] = []
+    total_words = 0
+    for line in lines:
+        if line.bbox.y0 < heading_y - 2:
+            continue
+        if line.bbox.y0 - heading_y > _MAX_GAP_BELOW_HEADING_PT:
+            break
+        cleaned = normalize_heading_text(line.text)
+        if not cleaned:
+            continue
+        if _is_metadata_or_noise_line(cleaned):
+            if parts:
+                break
+            continue
+        if heading == _ABSTRACT_HEADING and not parts and _ABSTRACT_BODY_START_RE.match(
+            cleaned
+        ):
+            break
+        normalized = normalize_title_for_comparison(cleaned)
+        word_count = len(normalized.split())
+        if word_count > _MAX_LINE_WORDS_BELOW_HEADING:
+            break
+        if total_words + word_count > _MAX_TOTAL_WORDS_BELOW_HEADING:
+            break
+        parts.append(cleaned)
+        total_words += word_count
+        if len(parts) >= _MAX_LINES_BELOW_HEADING:
+            break
+    return _join_title_lines(parts)
+
+
+def _extract_heading_region_candidate(page: PdfPage, heading: str) -> str | None:
+    """Try above-heading extraction first, then a conservative below-heading band."""
+
+    return _extract_above_heading_candidate(page, heading) or _extract_below_heading_candidate(
+        page, heading
+    )
+
+
 def _build_candidate(page_number: int, page_role: str, raw_title: str) -> TitleCandidate:
     normalized = normalize_title_for_comparison(raw_title)
     return TitleCandidate(
@@ -197,33 +261,39 @@ def _collect_title_candidates(pdf_document: PdfDocument) -> list[TitleCandidate]
     heading_pages = {match.heading: match.page_number for match in headings}
     pages_by_number = {page.page_number: page for page in pdf_document.pages}
     candidates: list[TitleCandidate] = []
+    seen_hashes: set[str] = set()
+
+    def _append_candidate(page_number: int, page_role: str, raw_title: str) -> None:
+        candidate = _build_candidate(page_number, page_role, raw_title)
+        if candidate.confidence != "high":
+            return
+        if candidate.title_hash in seen_hashes:
+            return
+        seen_hashes.add(candidate.title_hash)
+        candidates.append(candidate)
 
     title_page = pdf_document.pages[0]
     title_raw = _extract_title_page_candidate(title_page)
     if title_raw:
-        candidates.append(_build_candidate(title_page.page_number, "title_page", title_raw))
+        _append_candidate(title_page.page_number, "title_page", title_raw)
 
     abstract_page_num = heading_pages.get(_ABSTRACT_HEADING)
     if abstract_page_num is not None:
         page = pages_by_number.get(abstract_page_num)
         if page is not None:
-            abstract_raw = _extract_above_heading_candidate(page, _ABSTRACT_HEADING)
+            abstract_raw = _extract_heading_region_candidate(page, _ABSTRACT_HEADING)
             if abstract_raw:
-                candidates.append(
-                    _build_candidate(page.page_number, "abstract", abstract_raw)
-                )
+                _append_candidate(page.page_number, "abstract", abstract_raw)
 
     approval_page_num = heading_pages.get(_APPROVAL_HEADING)
     if approval_page_num is not None:
         page = pages_by_number.get(approval_page_num)
         if page is not None:
-            approval_raw = _extract_above_heading_candidate(page, _APPROVAL_HEADING)
+            approval_raw = _extract_heading_region_candidate(page, _APPROVAL_HEADING)
             if approval_raw:
-                candidates.append(
-                    _build_candidate(page.page_number, "approval_page", approval_raw)
-                )
+                _append_candidate(page.page_number, "approval_page", approval_raw)
 
-    return [c for c in candidates if c.confidence == "high"]
+    return candidates
 
 
 def check_pdf_title_consistency(pdf_document: PdfDocument) -> list[AuditFinding]:

@@ -23,6 +23,10 @@ include dissertation title text.
 | Short/ambiguous title (low confidence) | No finding |
 | No extractable title text (metadata only) | No finding |
 | Privacy-safe finding details | No raw title, author, or body text in message/details |
+| ABSTRACT heading first, title block below heading | Below-heading path extracts; hash dedup with title_page when text matches |
+| APPROVAL PAGE heading first, title below heading | Below-heading path extracts when above-heading is empty |
+| Abstract body line immediately below title block | Below-heading stops at abstract-body opener / word caps |
+| Single-role PDF (no approval page) | No finding when only one unique hash |
 
 ## Limitations
 
@@ -33,6 +37,9 @@ include dissertation title text.
   typos may be missed or over-flagged.
 - Does not verify semantic equivalence, subtitle wording policy, or committee-page titles.
 - Requires named front-matter headings (ABSTRACT, APPROVAL PAGE) for page roles.
+- Below-heading extraction applies only after above-heading returns nothing; uses strict
+  line/word/gap caps to avoid abstract body text.
+- Duplicate normalized hashes across roles are deduplicated (one candidate per unique hash).
 
 ## Test references
 
