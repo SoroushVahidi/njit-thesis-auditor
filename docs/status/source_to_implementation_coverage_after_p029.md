@@ -262,3 +262,5 @@ Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation 
 **Full aggregate snapshot (2026-06-01):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`).
 
 **P013 reporting refinement (2026-06-01):** `docs/evaluation/p013_reporting_actionability_refinement.md` — `p013_triage` rollup and Markdown triage section; detection unchanged.
+
+**P034 + P013 triage output refresh (2026-06-01):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — regenerated five-PDF JSON/MD under gitignored `current_auditor_after_p034_p013_triage/`; aggregate counts unchanged (1,446 / 461 P013).
