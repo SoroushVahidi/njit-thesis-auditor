@@ -135,6 +135,7 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
+- **Current full P001–P034 PDF evaluation:** `docs/evaluation/current_auditor_after_p034_evaluation.md`
 - P030–P034 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
