@@ -50,20 +50,11 @@ See `tests/test_pdf_rules.py` (P035 section) and `tests/test_rule_inventory.py`.
 - Single confident body cluster per caption; ambiguous multi-cluster pages skipped.
 - Does not check caption punctuation/case (P017) or list/front-matter formatting rules.
 
-## Current-dataset note (local, not committed)
+## Current-dataset note
 
-Four available evaluation PDFs were audited locally after implementation:
-
-| PDF (label) | P035 count |
-|---|---:|
-| Cibaku Elson 1st review | 0 |
-| Yin H 2nd review (flattened) | 0 |
-| Yin Haotian 2nd review | 0 |
-| Yin H 4th review (compressed) | 13 |
-
-Aggregate issue-type mix on flagged pages: `figure_caption_not_below_body` (7),
-`table_caption_not_above_body` (5), `table_body_not_centered` (1). Image-only figures
-likely contribute to skips on the zero-finding files.
+Local four-PDF subset results (0 / 0 / 0 / 13) are documented in
+`docs/evaluation/p035_current_dataset_evaluation.md`. That doc is **not** a canonical
+five-PDF aggregate rerun; the pre-P035 baseline (**1,446** findings) remains unchanged.
 
 Regenerate full five-PDF counts locally into gitignored
 `data/evaluation/generated/current_auditor_after_p035/` when needed.

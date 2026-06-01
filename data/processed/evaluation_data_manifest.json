@@ -2,9 +2,10 @@
   "schema_version": 1,
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P034",
-    "pytest_count_at_last_doc_refresh": 414,
-    "latest_main_at_last_doc_refresh": "0a835b8"
+    "p_rules_implemented": "P001-P035",
+    "pytest_count_at_last_doc_refresh": 424,
+    "latest_main_at_last_doc_refresh": "c31dfd5",
+    "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -98,10 +99,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 34,
-        "rule_id_range": "P001-P034",
+        "rule_count": 35,
+        "rule_id_range": "P001-P035",
         "tracked_status": "tracked",
-        "description": "Project implementation rule set mapped to audit modules (P001-P034 implemented)"
+        "description": "Project implementation rule set mapped to audit modules (P001-P035 implemented)"
       }
     ],
     "ef_commented_dissertations": [

@@ -2,18 +2,18 @@
 
 - **Date:** 2026-06-01
 - **Status:** Implemented
-- **Baseline main:** `af244aa` (P001–P034 implemented; four triage rollups complete)
+- **Baseline main:** `c31dfd5` (P001–P035 implemented; four triage rollups complete)
 - **Author:** Design/scoping only; no detector code in this document
 
 ## Current state
 
 | Area | State |
 |------|--------|
-| P-rules | **34/34** implemented (`P001`–`P034`) |
+| P-rules | **35/35** implemented (`P001`–`P035`) |
 | Q-rules (raw inventory) | **79** total — **2** implemented, **11** partially_implemented, **66** not_implemented |
 | Manual-only framing | **9** `checkability=manual` + **57** automatable `not_implemented` |
 | Figure/table caption text | **P017** — punctuation/case on caption lines only |
-| Figure/table body layout | **Not covered** — documented high-priority gap |
+| Figure/table body layout | **P035** — text-layer body centering and caption placement (v1; image floats skipped) |
 | PDF geometry | Text blocks + bboxes via `pdf_layout.py`; **image blocks not yet extracted** (TODO in loader) |
 | Reusable helpers | `detect_caption_lines()` in `pdf_captions.py`; text-area centering from `pdf_headings.py` / `pdf_margins.py` |
 
