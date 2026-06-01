@@ -16,6 +16,9 @@ MAX_DETAIL_TEXT_LEN = 120
 HIGH_VOLUME_THRESHOLD = 5
 # Maximum page-range segments shown in compact page lists before truncation.
 _MAX_COMPACT_RANGES = 8
+P013_RULE_ID = "P013"
+P013_PAGE_ISSUE_TYPE = "page_number_candidate"
+P013_DOC_ISSUE_TYPE = "p013_document_overview"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -80,6 +83,81 @@ def compact_page_list(pages: list[int], max_ranges: int = _MAX_COMPACT_RANGES) -
     if len(ranges) > max_ranges:
         result += f", ... ({len(sorted_pages)} pages total)"
     return result
+
+
+def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | None:
+    """Build a P013-specific rollup for high-volume page-number candidate triage.
+
+    Raw findings are not modified. This summary separates document overview from
+    per-page candidate warnings and adds position/style pattern page ranges.
+    """
+    p013_findings = [f for f in findings if f.rule_id == P013_RULE_ID]
+    if not p013_findings:
+        return None
+
+    page_findings = [f for f in p013_findings if f.page is not None]
+    doc_findings = [f for f in p013_findings if f.page is None]
+
+    pages = sorted({f.page for f in page_findings if f.page is not None})
+    position_type_counts: Counter[str] = Counter()
+    number_style_counts: Counter[str] = Counter()
+    confidence_counts: Counter[str] = Counter()
+    issue_type_counts: Counter[str] = Counter()
+    multi_candidate_pages: list[int] = []
+    by_observed: dict[str, list[int]] = defaultdict(list)
+
+    for finding in page_findings:
+        details = finding.details or {}
+        issue_type_counts[details.get("issue_type", P013_PAGE_ISSUE_TYPE)] += 1
+        position_type = details.get("position_type", "")
+        if position_type:
+            position_type_counts[position_type] += 1
+        number_style = details.get("number_style", "")
+        if number_style:
+            number_style_counts[number_style] += 1
+        confidence = details.get("confidence", "")
+        if confidence:
+            confidence_counts[confidence] += 1
+        try:
+            candidate_count = int(details.get("candidate_count_on_page", "1"))
+        except ValueError:
+            candidate_count = 1
+        if candidate_count > 1 and finding.page is not None:
+            multi_candidate_pages.append(finding.page)
+        observed = details.get("observed_summary", "")
+        if observed and finding.page is not None:
+            by_observed[observed].append(finding.page)
+
+    for finding in doc_findings:
+        details = finding.details or {}
+        issue_type_counts[details.get("issue_type", P013_DOC_ISSUE_TYPE)] += 1
+
+    pattern_page_ranges = {
+        observed: compact_page_list(sorted(set(page_list)))
+        for observed, page_list in sorted(
+            by_observed.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:8]
+    }
+
+    return {
+        "raw_finding_count": len(p013_findings),
+        "page_level_finding_count": len(page_findings),
+        "document_overview_finding_count": len(doc_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "issue_type_counts": dict(sorted(issue_type_counts.items())),
+        "position_type_counts": dict(sorted(position_type_counts.items())),
+        "number_style_counts": dict(sorted(number_style_counts.items())),
+        "confidence_counts": dict(sorted(confidence_counts.items())),
+        "pages_with_multiple_candidates": len(multi_candidate_pages),
+        "multiple_candidate_pages_compact": compact_page_list(multi_candidate_pages),
+        "pattern_page_ranges": pattern_page_ranges,
+        "triage_tier": "informational",
+        "triage_note": (
+            "P013 reports heuristic page-number candidates for manual NJIT verification. "
+            "Page-level warnings are triage signals, not confirmed formatting defects."
+        ),
+    }
 
 
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
@@ -160,10 +238,14 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
             )
         high_volume.append(entry)
 
-    return {
+    result: dict[str, Any] = {
         "high_volume_rules": high_volume,
         "by_rule_issue_type": by_rule_issue_type,
     }
+    p013_triage = build_p013_triage_summary(findings)
+    if p013_triage is not None:
+        result["p013_triage"] = p013_triage
+    return result
 
 
 def audit_findings_to_json_dict(
@@ -259,6 +341,71 @@ def _format_grouped_summary_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p013_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P013-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p013_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P013 Page-Number Candidate Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P013 findings | {triage['raw_finding_count']} |")
+    lines.append(f"| Page-level warnings | {triage['page_level_finding_count']} |")
+    lines.append(f"| Document overview | {triage['document_overview_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    lines.append(f"| Pages with multiple candidates | {triage['pages_with_multiple_candidates']} |")
+    lines.append("")
+
+    issue_counts = triage.get("issue_type_counts", {})
+    if issue_counts:
+        lines.append("### Issue type counts")
+        lines.append("")
+        for issue_type, count in sorted(issue_counts.items()):
+            label = issue_type or "(unspecified)"
+            lines.append(f"- `{label}`: {count}")
+        lines.append("")
+
+    position_counts = triage.get("position_type_counts", {})
+    style_counts = triage.get("number_style_counts", {})
+    if position_counts or style_counts:
+        lines.append("### Position and style distribution (page-level)")
+        lines.append("")
+        for position, count in sorted(position_counts.items()):
+            lines.append(f"- position `{position}`: {count}")
+        for style, count in sorted(style_counts.items()):
+            lines.append(f"- style `{style}`: {count}")
+        lines.append("")
+
+    pattern_ranges = triage.get("pattern_page_ranges", {})
+    if pattern_ranges:
+        lines.append("### Position/style pattern page ranges")
+        lines.append("")
+        for observed, page_range in pattern_ranges.items():
+            lines.append(f"- `{observed}`: pages {page_range}")
+        lines.append("")
+
+    multi_compact = triage.get("multiple_candidate_pages_compact", "")
+    if multi_compact:
+        lines.append(f"Pages with multiple candidates: {multi_compact}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P013 findings are listed under **Findings by Rule → P013** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -319,6 +466,9 @@ def write_markdown_report(
     lines.append("")
     grouped_section = _format_grouped_summary_section(payload["grouped_summary"])
     lines.extend(grouped_section)
+
+    p013_section = _format_p013_triage_section(payload["grouped_summary"])
+    lines.extend(p013_section)
 
     lines.append("## Findings by Rule")
     lines.append("")
