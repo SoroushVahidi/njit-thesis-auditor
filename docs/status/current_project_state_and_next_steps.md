@@ -8,6 +8,7 @@
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
+- **Current full-auditor snapshot (P001–P034 PDF):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs)
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
@@ -238,7 +239,7 @@ Approval Page committee semantics (Q015–Q020), Acknowledgements intent (Q037�
 
 ### E. Evaluation / data tasks
 
-- Refresh a **full P001–P034** aggregate snapshot across five PDFs (historical doc stops at P029)
+- ~~Refresh a full P001–P034 aggregate snapshot~~ — done: `docs/evaluation/current_auditor_after_p034_evaluation.md`
 - Expand EF overlap to additional extractable archive PDFs when available locally
 - Per-category precision/recall vs EF comments (aggregate only)
 

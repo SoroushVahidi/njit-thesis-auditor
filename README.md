@@ -117,7 +117,8 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
-- `docs/evaluation/` — per-rule evaluation docs (historical P011–P029 snapshots; P030–P034 synthetic and current-dataset evaluations)
+- `docs/evaluation/current_auditor_after_p034_evaluation.md` — current full PDF audit snapshot (P011–P034, five evaluation PDFs)
+- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P034 synthetic/current-dataset)
 
 ## Report schema
 

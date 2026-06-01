@@ -251,10 +251,12 @@ Top 3 next tasks:
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
-| **P030** | Q048, Q062, Q071 | 3 findings initially on Yin H 4th; **0** after documented eval | Continued-heading checks on multi-page TOC/LoT/LoF |
+| **P030** | Q048, Q062, Q071 | **3** on Yin H 4th in full P034 snapshot; 0 on other four files | Continued-heading checks on multi-page TOC/LoT/LoF |
 | **P031** | Q063–Q064, Q072–Q073 | PR #54: 2 Sebastian false positives; **0** after PR #55 header-band fix | LoT/LoF column header labels |
 | **P032** | Q053–Q055, Q066–Q067, Q076–Q078 | PR #58: 3 Yin H 4th LoF page 15; **0** after PR #59 split-page-number guard | Wrapped-entry internal spacing |
 | **P033** | Cross-page title consistency | PR #62: no comparison; PR #63: comparison on **2/5**; **0** findings | Below-heading recall fallback |
 | **P034** | Q009–Q011 | PR #66: 2 author mismatches; PR #67: middle-initial tolerance; **0** findings | Copyright page detected **5/5** |
 
 Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation title text, author names, or body text. Generated JSON summaries remain under `data/evaluation/generated/` (gitignored).
+
+**Full aggregate snapshot (2026-06-01):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`).
