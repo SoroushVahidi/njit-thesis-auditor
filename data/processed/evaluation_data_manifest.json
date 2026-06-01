@@ -4,7 +4,7 @@
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P035",
     "pytest_count_at_last_doc_refresh": 424,
-    "latest_main_at_last_doc_refresh": "c31dfd5",
+    "latest_main_at_last_doc_refresh": "b19c452",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md"
   },
   "privacy_policy": {

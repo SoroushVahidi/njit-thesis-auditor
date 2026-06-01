@@ -1,14 +1,14 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-01
-- **Latest main:** `c31dfd5` (PR #83 — P035 figure/table body layout; P001–P035 implemented)
+- **Latest main:** `b19c452` (PR #84 — post-P035 status refresh; P001–P035 implemented)
 - **Validation:** ruff, mypy, **424 pytest** passed
 - **Auditor scope:** P001–P035 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P035 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P-rules:** **35/35** implemented (`P001`–`P035` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #83; P035 implemented — see `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
+- **Status/metadata cleanup:** complete through PR #84; P035 implemented — see `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P035): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -319,7 +319,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `c31dfd5`)
+## 6. Validation Status (main at `b19c452`)
 
 | Check | Result |
 |-------|--------|

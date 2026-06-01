@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-01
 - **Status:** Implemented
-- **Baseline main:** `c31dfd5` (P001–P035 implemented; four triage rollups complete)
+- **Baseline main:** `b19c452` (P001–P035 implemented; status refresh PR #84; P035 implementation PR #83 `c31dfd5`)
 - **Author:** Design/scoping only; no detector code in this document
 
 ## Current state
@@ -181,13 +181,15 @@ After implementation, **rerun five-PDF evaluation locally** into a new gitignore
 
 ---
 
-## Implementation plan (next task)
+## Implementation status (completed PR #83)
 
-1. Add `pdf_figure_table_layout.py` with body-block inference helpers shared internally (no premature abstraction).
-2. Wire CLI + `project_added_rules.json` + `evaluation.py` category map.
-3. Add synthetic tests; run full validation.
-4. Optional: current-dataset evaluation doc with aggregate P035 counts on five-PDF set.
-5. Update `docs/status/current_project_state_and_next_steps.md` to mark P035 implemented.
+1. ✅ `pdf_figure_table_layout.py` with body-block inference helpers.
+2. ✅ CLI + `project_added_rules.json` + `evaluation.py` category map wired.
+3. ✅ Synthetic tests; full validation (**424 pytest**).
+4. ✅ Local four-PDF subset evaluation doc: `docs/evaluation/p035_current_dataset_evaluation.md` (not canonical five-PDF aggregate).
+5. ✅ Status/docs refresh through PR #84 (`b19c452`).
+
+Full five-PDF canonical P001–P035 rerun remains optional future work (gitignored `current_auditor_after_p035/`).
 
 ---
 
