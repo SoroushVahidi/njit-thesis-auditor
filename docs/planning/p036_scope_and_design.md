@@ -1,7 +1,7 @@
 # P036 Scope and Design
 
 - **Date:** 2026-06-01
-- **Status:** Scoped (not implemented)
+- **Status:** Implemented
 - **Baseline main:** `47cc57d` (P001–P035 implemented; post-P035 consistency audit PR #85)
 - **Author:** Design/scoping only; no detector code in this document
 
@@ -9,10 +9,10 @@
 
 | Area | State |
 |------|--------|
-| P-rules | **35/35** implemented (`P001`–`P035`) |
+| P-rules | **36/36** implemented (`P001`–`P036`) |
 | Q-rules (raw inventory) | **79** total — **2** implemented, **11** partially_implemented, **66** not_implemented |
 | TOC/List cluster | **P018**, **P024**, **P030**, **P031**, **P032** — alignment, capitalization, continued headings, column headers, **wrapped internal** spacing |
-| TOC/List inter-entry spacing | **Not covered** — Q057, Q067, Q077 remain `not_implemented` |
+| TOC/List inter-entry spacing | **P036** — Q057, Q067, Q077 (distinct entry gaps; complements P032) |
 | Front-matter named headings | **P014** — layout/style when heading text is found (7 headings); does not flag missing sections |
 | Dedication / bio-sketch | Q033–Q034, Q023–Q030 — optional or semantic; high manual/FP risk |
 | Figure/table body layout | **P035** — text-layer bodies (v1); image floats skipped |

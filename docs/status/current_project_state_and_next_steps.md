@@ -2,13 +2,13 @@
 
 - **Date:** 2026-06-01
 - **Latest main:** `b19c452` (PR #84 — post-P035 status refresh; P001–P035 implemented)
-- **Validation:** ruff, mypy, **424 pytest** passed
-- **Auditor scope:** P001–P035 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Validation:** ruff, mypy, **432 pytest** passed
+- **Auditor scope:** P001–P036 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P035 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
-- **P-rules:** **35/35** implemented (`P001`–`P035` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **36/36** implemented (`P001`–`P036` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #85; P035 implemented; **P036 scoped** (not implemented) — see `docs/planning/p035_scope_and_design.md`, `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
+- **Status/metadata cleanup:** P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P035): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -44,7 +44,8 @@
 - P034 author-mismatch investigation: `docs/evaluation/p034_author_mismatch_investigation.md`
 - P035 synthetic validation: `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`
 - P035 current-dataset evaluation (local 4-PDF subset): `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not canonical five-PDF aggregate
-- **P036 scope/design (not implemented):** `docs/planning/p036_scope_and_design.md` — recommended: TOC/List inter-entry double spacing (Q057, Q067, Q077)
+- **P036 scope/design (implemented):** `docs/planning/p036_scope_and_design.md` — TOC/List inter-entry spacing (Q057, Q067, Q077)
+- P036 synthetic validation: `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`
 
 ### P030–P036 evaluation docs (chronological)
 
@@ -84,7 +85,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P035)
+### PDF Layout Audit (P011–P036)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -109,6 +110,7 @@
 | `pdf_title_consistency.py` | P033 | Cross-page front-matter title consistency checks |
 | `pdf_copyright_page.py` | P034 | Copyright Page top-margin header; year/author consistency with Title Page |
 | `pdf_figure_table_layout.py` | P035 | Body-page figure/table centering and caption placement (text-layer bodies) |
+| `pdf_toc_list_entry_spacing.py` | P036 | TOC/LoT/LoF inter-entry double spacing (distinct entries; complements P032) |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -136,11 +138,11 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P035) | 35 | 35 | — | — | — |
+| P-rules (P001–P036) | 36 | 36 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
-- **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); **inter-entry** double spacing (Q057, Q067, Q077) scoped as **P036**, not implemented; "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031
+- **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); inter-entry double spacing partially covered by **P036** (Q057, Q067, Q077); "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031
 - **Front-matter visual checks**: copyright page (Q009–Q011) partially covered by P034; dedication centering/italic (Q033–Q034), bio-sketch content (Q023–Q025, Q027–Q029)
 - **Heading level distinctions**: L3/L4/L5 partially addressed by P027; bold/italic enforcement still missing
 - **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 style check; actual sequence ordering not yet validated)
@@ -213,7 +215,7 @@
 
 ---
 
-## 4. Remaining Gaps After P035 (Prioritized)
+## 4. Remaining Gaps After P036 (Prioritized)
 
 ### A. Automatable / partial (not yet fully covered)
 
@@ -326,7 +328,16 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 49 source files |
-| `python -m pytest` | ✅ 424 passed |
+| `python -m pytest` | ✅ 432 passed |
+
+### P036 at a glance
+
+| Item | Notes |
+|------|--------|
+| Scope | Inter-entry spacing on TOC/LoT/LoF pages only |
+| Threshold | Gap ratio `< 1.4×` local line height between distinct entries |
+| v1 skips | Wrapped internal continuations (P032); sparse/ambiguous pages |
+| Issue types | `toc_inter_entry_spacing_too_tight`, `lot_inter_entry_spacing_too_tight`, `lof_inter_entry_spacing_too_tight` |
 
 ### P035 at a glance (local four-PDF subset)
 
@@ -351,8 +362,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 Med | **Implement P036** (TOC/List inter-entry spacing) | Scoped in `docs/planning/p036_scope_and_design.md`; Q057/Q067/Q077; complements P032 |
-| 🟡 Med | Full five-PDF P001–P035 aggregate rerun | Canonical 1,446 baseline is pre-P035; local subset shows +13 P035 on Yin H 4th only |
+| 🟡 Med | Full five-PDF P001–P036 aggregate rerun | Canonical 1,446 baseline is pre-P035/P036; local P035 subset +13 on Yin H 4th only |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce image-float skips |
