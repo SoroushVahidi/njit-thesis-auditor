@@ -235,3 +235,11 @@ Top 3 next tasks:
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p033_title_consistency_synthetic_validation.md`.
 - **Current-dataset evaluation (2026-06-01):** `docs/evaluation/p033_current_dataset_evaluation.md` — PR #62 initially skipped comparison on all files; PR #63 added below-heading fallback; post-fix rerun shows **0 P033 findings**, comparison on **2/5** files (Yin H 4th, Sebastian).
 - **Candidate-extraction recall investigation (2026-06-01):** `docs/evaluation/p033_candidate_extraction_recall_investigation.md` — below-heading fallback for ABSTRACT/APPROVAL PAGE layouts.
+
+## 12. Post-audit update (P034)
+
+- **Date:** 2026-06-01
+- **Change:** Added **P034** — conservative Copyright Page checks (top-margin header text, year/author consistency with Title Page).
+- **Q-rule basis:** partial/heuristic PDF coverage for **Q009–Q011** only.
+- **Limitations:** Skips ambiguous or image-only copyright pages; does not quote author names or title text; Q012 (no page number on copyright page) remains with **P022**.
+- **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; `docs/evaluation/p034_copyright_page_synthetic_validation.md`.

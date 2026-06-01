@@ -10,6 +10,7 @@ from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
+from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
 from njit_auditor.rules.pdf_font_compliance import (
     check_pdf_font_compliance,
     classify_font,
@@ -4171,3 +4172,149 @@ def test_p033_below_heading_does_not_capture_long_body_line(tmp_path: Path) -> N
     raw = _extract_below_heading_candidate(model.pages[0], "ABSTRACT")
     assert raw is not None
     assert len(raw.split()) <= 6
+
+
+# ---------------------------------------------------------------------------
+# P034: Copyright Page metadata and layout
+# ---------------------------------------------------------------------------
+
+_DEFAULT_TITLE_PAGE_LINES = [
+    "A Study of Synthetic Systems",
+    "by",
+    "Test Author",
+    "Submitted to the Graduate Faculty",
+    "New Jersey Institute of Technology",
+    "in Partial Fulfillment of the Requirements",
+    "for the Degree of Doctor of Philosophy",
+    "May 2024",
+]
+
+
+def _make_copyright_page_pdf(
+    path: Path,
+    *,
+    title_page_lines: list[str] | None = None,
+    copyright_notice: str | None = "© 2024 Test Author. All Rights Reserved.",
+    copyright_y: float = 360.0,
+    top_margin_text: str | None = None,
+    include_copyright_page: bool = True,
+) -> None:
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    for idx, line in enumerate(
+        title_page_lines if title_page_lines is not None else _DEFAULT_TITLE_PAGE_LINES
+    ):
+        p1.insert_text((108, 100 + idx * 20), line, fontsize=12)
+
+    if include_copyright_page and copyright_notice is not None:
+        p2 = doc.new_page(width=612, height=792)
+        if top_margin_text is not None:
+            p2.insert_text((108, 40), top_margin_text, fontsize=11)
+        p2.insert_text((108, copyright_y), copyright_notice, fontsize=12)
+
+    p_abs = doc.new_page(width=612, height=792)
+    p_abs.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p_abs.insert_text(
+        (108, 140),
+        "Synthetic abstract body text for copyright page rule testing only.",
+        fontsize=12,
+    )
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p034_matching_copyright_metadata_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_clean.pdf"
+    _make_copyright_page_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P034" for f in check_pdf_copyright_page(model))
+
+
+def test_p034_top_margin_header_text_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_top_header.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        top_margin_text="Running Dissertation Header",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    assert any(w.details.get("issue_type") == "copyright_top_margin_header_text" for w in warnings)
+    header = next(
+        w for w in warnings if w.details.get("issue_type") == "copyright_top_margin_header_text"
+    )
+    assert header.details.get("source_q_rule_id") == "Q009"
+    assert "Running Dissertation Header" not in str(header.details)
+    assert "Running Dissertation Header" not in header.message
+
+
+def test_p034_copyright_year_mismatch_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_year_mismatch.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2023 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    year_warning = next(
+        w for w in warnings if w.details.get("issue_type") == "copyright_year_mismatch"
+    )
+    assert year_warning.details.get("copyright_year") == "2023"
+    assert year_warning.details.get("title_page_year") == "2024"
+    assert year_warning.details.get("source_q_rule_id") == "Q010"
+
+
+def test_p034_author_mismatch_uses_hashes_only(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_author_mismatch.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2024 Other Person Name. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    author_warning = next(
+        w for w in warnings if w.details.get("issue_type") == "copyright_author_mismatch"
+    )
+    assert author_warning.details.get("title_page_author_hash")
+    assert author_warning.details.get("copyright_author_hash")
+    assert author_warning.details.get("title_page_author_hash") != author_warning.details.get(
+        "copyright_author_hash"
+    )
+    assert "Test Author" not in str(author_warning.details)
+    assert "Other Person" not in str(author_warning.details)
+    assert author_warning.details.get("source_q_rule_id") == "Q011"
+
+
+def test_p034_no_copyright_page_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_no_copyright.pdf"
+    _make_copyright_page_pdf(pdf_path, include_copyright_page=False)
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P034" for f in check_pdf_copyright_page(model))
+
+
+def test_p034_ambiguous_multiple_years_no_year_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_ambiguous_years.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2023-2024 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    assert not any(w.details.get("issue_type") == "copyright_year_mismatch" for w in warnings)
+
+
+def test_p034_finding_details_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_privacy.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        top_margin_text="Header Line",
+        copyright_notice="© 2023 Wrong Name. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_copyright_page(model)
+    blob = " ".join(f.message for f in findings) + " " + " ".join(
+        f"{k}={v}" for f in findings for k, v in (f.details or {}).items()
+    )
+    assert "Test Author" not in blob
+    assert "Wrong Name" not in blob
+    assert "A Study of Synthetic" not in blob
