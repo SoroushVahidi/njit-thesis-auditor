@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (post PR #47)
 
 - Date: 2026-06-01 (metadata refresh for P034)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P034 on `main` (`179e247`)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P034 on `main` (`ae61e16`, 404 pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -92,6 +92,7 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 | Historical full P001-P029 evaluation across 5 PDFs | EF-commented subset + clean baseline PDF | Rule-volume snapshot at P029 milestone | Historical baseline doc | `docs/evaluation/current_auditor_after_p014_p029_evaluation.md` |
 | Per-rule P030-P034 current-dataset evaluations | Same 5-PDF set | Privacy-safe counts per new rule | Aggregate-only; no body text quoted | `docs/evaluation/p030_current_dataset_evaluation.md` through `p034_current_dataset_evaluation.md` |
 | Generated audit snapshots | Local PDF runs | All evaluation reruns | Gitignored | `data/evaluation/generated/` |
+| Canonical full-triage five-PDF rerun | Same 5-PDF set | Latest JSON/MD with P011+P013+P026 triage | Gitignored; not committed | `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`) |
 | EF comment-vs-tool overlap | Extractable-comment PDFs only | Page/category overlap against extractable EF comments | Excludes flattened-comment PDFs from comment extraction logic | `docs/evaluation/current_ef_comment_vs_tool_comparison.md` + `data/evaluation/generated/current_ef_comment_comparison/` (gitignored) |
 | EF overlap refinement round 1 | Extractable PDFs + clean baseline | P013 noise-reduction impact measurement | Clean baseline included for stability/noise check; no EF-overlap role | `docs/evaluation/ef_overlap_driven_refinement_evaluation.md` + `data/evaluation/generated/ef_overlap_refinement/` (gitignored) |
 | EF overlap refinement round 2 | Extractable PDFs + clean baseline | P018/P024 heading-variant robustness impact | Flattened-comment PDFs not used for comment extraction | `docs/evaluation/ef_overlap_refinement_round2_evaluation.md` + `data/evaluation/generated/ef_overlap_refinement_round2/` (gitignored) |

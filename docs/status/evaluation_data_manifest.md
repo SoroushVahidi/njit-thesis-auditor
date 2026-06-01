@@ -1,6 +1,6 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `179e247` (auditor: P001–P034 implemented; 383 pytest at last refresh)
+- **Generated for commit:** `ae61e16` (auditor: P001–P034 implemented; 404 pytest at last refresh)
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -136,6 +136,8 @@ files unless explicitly requested.
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - **Current full P001–P034 PDF evaluation:** `docs/evaluation/current_auditor_after_p034_evaluation.md`
+- **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`
+- Historical generated folders (superseded): `current_auditor_after_p034/`, `current_auditor_after_p034_p013_triage/`, `current_auditor_after_p034_p026_triage/`
 - P030–P034 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
