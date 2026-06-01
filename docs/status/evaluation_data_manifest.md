@@ -1,6 +1,6 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `06158f195a08`
+- **Generated for commit:** `179e247` (auditor: P001–P034 implemented; 383 pytest at last refresh)
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -52,9 +52,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 31 (P001–P031) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 34 (P001–P034) | Yes |
 
-P001–P031 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P034 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -134,7 +134,8 @@ files unless explicitly requested.
 - Source inventory: `docs/status/data_inventory_and_evaluation_sources.md`
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
-- Full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
+- Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
+- P030–P034 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
   `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`

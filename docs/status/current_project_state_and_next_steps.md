@@ -1,19 +1,15 @@
 # Current Project State and Next Steps
 
-- Strict coverage audit (post-P029): `docs/status/source_to_implementation_coverage_after_p029.md`
-- Data inventory/status (post-PR #47): `docs/status/data_inventory_and_evaluation_sources.md`
-- Evaluation data manifest (machine-readable index): `docs/status/evaluation_data_manifest.md`
-- Coverage checkpoint (strict):
-  - P001-P034 implemented
-  - Not all source-file rules are fully implemented
-  - Some source rules are partial or manual-only
-  - Baseline main before this branch: `7139e76a9fe5`
+- **Date:** 2026-06-01
+- **Latest main:** `179e247` (PR #68 — P034 evaluation refresh; P001–P034 implemented)
+- **Validation:** 383 pytest passed (ruff, mypy, pytest)
+- **Auditor scope:** P001–P034 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 
-- Date: 2026-05-29
-- Latest main: `6a0baaf` (PR #41 — P014 clean-baseline investigation)
-- Validation: 320 tests passed (ruff, mypy, pytest)
-- Current evaluation snapshot: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- Current EF overlap study: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
+- Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
+- Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
+- Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
+- Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
+- Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
 - EF-overlap refinement evaluation: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`
 - EF-overlap round2 notes: `docs/evaluation/ef_overlap_refinement_round2_notes.md`
@@ -33,6 +29,27 @@
 - P034 current-dataset evaluation: `docs/evaluation/p034_current_dataset_evaluation.md` (refreshed after PR #67; 0 P034 findings on 5/5 files)
 - P034 author-mismatch investigation: `docs/evaluation/p034_author_mismatch_investigation.md`
 
+### P030–P034 evaluation docs (chronological)
+
+| Order | Doc | Type |
+|---:|---|---|
+| 1 | `docs/evaluation/p030_toc_continued_heading_synthetic_validation.md` | Synthetic |
+| 2 | `docs/evaluation/p030_current_dataset_evaluation.md` | Current dataset |
+| 3 | `docs/evaluation/p031_lot_lof_column_header_synthetic_validation.md` | Synthetic |
+| 4 | `docs/evaluation/p031_current_dataset_evaluation.md` | Current dataset |
+| 5 | `docs/evaluation/p031_sebastian_clean_baseline_investigation.md` | Investigation |
+| 6 | `docs/evaluation/p032_toc_list_wrapped_spacing_synthetic_validation.md` | Synthetic |
+| 7 | `docs/evaluation/p032_current_dataset_evaluation.md` | Current dataset |
+| 8 | `docs/evaluation/p032_yin_h_4th_page15_investigation.md` | Investigation |
+| 9 | `docs/evaluation/p033_title_consistency_synthetic_validation.md` | Synthetic |
+| 10 | `docs/evaluation/p033_current_dataset_evaluation.md` | Current dataset |
+| 11 | `docs/evaluation/p033_candidate_extraction_recall_investigation.md` | Investigation |
+| 12 | `docs/evaluation/p034_copyright_page_synthetic_validation.md` | Synthetic |
+| 13 | `docs/evaluation/p034_current_dataset_evaluation.md` | Current dataset |
+| 14 | `docs/evaluation/p034_author_mismatch_investigation.md` | Investigation |
+
+**Privacy:** All evaluation docs are aggregate-only. Do not quote dissertation body text, title text, or author names. Generated audit JSON/MD outputs stay under gitignored `data/evaluation/generated/`.
+
 ---
 
 ## 1. Implemented Feature Summary
@@ -50,7 +67,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P028)
+### PDF Layout Audit (P011–P034)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -172,46 +189,58 @@
 - Cross-page title consistency: partial PDF heuristic via P033; manual review still required for edge layouts
 - TOC "(Continued)" headers: multi-page TOC not handled
 
-**Clean baseline**: `Dissertations with no Feedback` zip contains Sebastian Fine Revision 3 — useful for false-positive analysis. Not yet run through the full P011–P028 auditor.
+**Clean baseline:** Sebastian Fine Revision 3 (archive-contained) is in the five-PDF current-dataset evaluation set; used for P014/P031/P034 investigations and false-positive analysis.
+
+**Per-rule current-dataset status (P030–P034):** All report **0** findings on the five-PDF set after respective refinements (see evaluation index above). This does not prove full guideline compliance.
 
 ---
 
-## 4. Remaining Gaps (Prioritized)
+## 4. Remaining Gaps After P034 (Prioritized)
 
-### A. High-Priority Automatable Rules Still Missing
+### A. Automatable / partial (not yet fully covered)
 
-| Priority | Gap | Addresses | Complexity | Risk |
-|----------|-----|-----------|:----------:|:----:|
-| ✅ DONE | P022: Page-number absence on named front-matter pages | Q001, Q008, Q012, Q014 | — | — |
-| ✅ DONE | P026: Font compliance (Times New Roman 12pt body) | Guidelines requirement | — | — |
-| ✅ DONE | P027: Heading level-specific style (L1/L2/L3-5) | Q051 | — | — |
-| ✅ DONE | P028: Page-numbering regime (Roman/Arabic) | Q022, Q031, Q035, Q046, Q060 | — | — |
-| ✅ DONE | P020 CMBX/font-size heading detection refinement | P020 recall; Q049–Q050 | — | — |
-| 🟡 MED | Roman numeral sequence ordering (not just style) | Q022, Q031, Q035, Q046, Q060 | Medium | Medium |
-| 🟡 MED | Figure/table centering check | Self-Assessment Sheet | Medium | Medium |
-| 🟡 LOW | Copyright page identification and checks (Q009–Q011) | Q009–Q012 | High | High |
-| 🟡 LOW | Multi-page TOC "(Continued)" heading | Q048, Q062, Q071 | Medium | Medium |
+| Priority | Gap | Type | Notes |
+|----------|-----|------|-------|
+| 🟡 High | Figure/table centering and placement | Automatable partial | Self-Assessment Sheet; above/below detection |
+| 🟡 High | P034 copyright year/author extraction recall | Refinement | Year comparison ran 1/5; author 2/5; expand without quoting names in findings |
+| 🟡 Med | Roman numeral **value** sequence (not just style/regime) | Automatable partial | Beyond P028/P029 style checks |
+| 🟡 Med | Heading bold/italic enforcement beyond P027 | Partial | Level style partially covered |
+| 🟡 Med | Body-page spacing (P016 front-matter focus) | Refinement | EF feedback suggests body gaps underrepresented |
+| 🟡 Med | References/citations deterministic checks | Automatable partial | If TeX/BibTeX path feasible |
+| 🟡 Med | Front-matter dedication/bio-sketch (Q023–Q029, Q033–Q034) | Partial/manual | Not covered by P025/P034 |
+| 🟡 Low | Evaluation-set expansion | Data/eval | More extractable EF-comment PDFs from archive |
+| 🟡 Low | EF category ↔ rule mapping at scale | Eval | Page/category precision/recall vs human comments |
 
-### B. Partial Rules Needing Refinement
+### B. Recently addressed (P030–P034 — historical)
 
-| Rule | Issue | Suggested Fix |
-|------|-------|--------------|
-| P020 | Bold metadata absent in 3 of 4 tested PDFs; 0 findings | Add font-size ≥ 13pt as supplementary heading trigger |
-| P011 | ~~Compressed PDFs inflate margin findings~~ | ✅ Done — artifact guard added (150 → 70 on compressed PDF; normal PDFs unchanged) |
-| P013 | Always very high-volume; hard to action | Group by zone/page pattern; add summary-level output |
-| P016 | Underrepresents body-page spacing issues vs EF feedback | Extend from front-matter focus to include body chapter pages |
-| P025 | Nospace fallback covers only 6 degree forms | Extend degree pattern list; add coverage for edge-case NJIT abbreviations |
+| Rule | Status |
+|------|--------|
+| P030 continued TOC/LoT/LoF headings | ✅ Implemented; 0 current-dataset findings |
+| P031 LoT/LoF column headers | ✅ Implemented; false positives fixed (PR #55) |
+| P032 wrapped-entry spacing | ✅ Implemented; Yin H 4th false positives fixed (PR #59) |
+| P033 cross-page title consistency | ✅ Implemented; comparison on 2/5 files; 0 findings |
+| P034 copyright page Q009–Q011 | ✅ Implemented; author false positives fixed (PR #67) |
 
-### C. Manual-Only Rules (22 total)
+### C. Partial rules still needing refinement
 
-All in Approval Page (Q015–Q020) and Acknowledgements (Q037–Q042) sections. Require committee rank/affiliation parsing and semantic paragraph intent detection. Not practical without LLM-based analysis.
+| Rule | Issue | Suggested direction |
+|------|-------|---------------------|
+| P020 | Bold metadata absent in many PDFs; low recall | Font-size fallback (historical note) |
+| P013 | High volume by design | Further triage/grouping if needed |
+| P016 | Front-matter-focused | Extend to body chapters conservatively |
+| P025 | Limited degree/institution patterns | Extend nospace/abbreviation fallbacks |
+| P033 | Comparison only 2/5 files | More candidate extraction paths (privacy-safe) |
+| P034 | Year/author extraction skipped on 3/5 | ©-line and title-page pattern expansion |
 
-### D. Evaluation/Data Tasks
+### D. Manual-only / process-only (not automatable without semantic AI)
 
-- Run clean baseline (Sebastian Fine zip) through current P011–P028 auditor to establish false-positive rates
-- Build per-file precision/recall-style analysis mapping EF comment categories to rule IDs
-- Investigate whether the Yin 4th review's inflated P011 count is truly compression artifacts
-- Compare P028 findings on Cibaku Elson (Arabic on front-matter) against EF comments for corroboration
+Approval Page committee semantics (Q015–Q020), Acknowledgements intent (Q037–Q042), administrative approval workflows, and many visual-layout judgments remain **manual-only** per the strict coverage audit.
+
+### E. Evaluation / data tasks
+
+- Refresh a **full P001–P034** aggregate snapshot across five PDFs (historical doc stops at P029)
+- Expand EF overlap to additional extractable archive PDFs when available locally
+- Per-category precision/recall vs EF comments (aggregate only)
 
 ---
 
@@ -279,12 +308,12 @@ Based on the current evaluation snapshot:
 
 ---
 
-## 6. Validation Status (main at 263529c)
+## 6. Validation Status (main at `179e247`)
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 304 passed, 0 failed (after PR #37) |
+| `python -m pytest` | ✅ 383 passed |
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 42 source files |
+| `mypy src` | ✅ No issues in 48 source files |
 
-**Next recommended PR:** Bundle A (P029 Roman numeral sequence ordering) or Bundle B (P011 compression artifact guard). See `docs/evaluation/after_p020_refinement_current_snapshot.md`.
+**Next recommended work:** Figure/table placement checks; P034 extraction recall; full P001–P034 aggregate evaluation refresh; EF overlap expansion on extractable PDFs.

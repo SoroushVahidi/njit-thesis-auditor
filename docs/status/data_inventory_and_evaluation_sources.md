@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (post PR #47)
 
-- Date: 2026-05-30
-- Baseline: main after PR #47 (`8afdcad165ab`)
+- Date: 2026-06-01 (metadata refresh for P034)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P034 on `main` (`179e247`)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project P001-P029 implementation rules.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P034** implementation rules.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -51,11 +51,12 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (`P001-P029`) mapped to implemented modules/checks.
+  Project implementation rule set (**P001-P034**) mapped to implemented modules/checks.
 
-From the strict post-P029 audit (`docs/status/source_to_implementation_coverage_after_p029.md`):
+From the strict post-P029 audit plus post-audit updates through P034
+(`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- P-rules: `29/29` implemented.
+- P-rules: **34/34** implemented (historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data
@@ -88,7 +89,9 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 
 | Evaluation dataset/use case | Source set | Current use | Inclusion/exclusion rule | Output location |
 |---|---|---|---|---|
-| Full P001-P029 evaluation across 5 PDFs | EF-commented subset + clean baseline PDF | Rule-volume and category snapshots after refinements | Includes flattened-comment PDFs for raw finding counts; includes clean baseline for noise profile | Documented in `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`; generated run artifacts under `data/evaluation/generated/` |
+| Historical full P001-P029 evaluation across 5 PDFs | EF-commented subset + clean baseline PDF | Rule-volume snapshot at P029 milestone | Historical baseline doc | `docs/evaluation/current_auditor_after_p014_p029_evaluation.md` |
+| Per-rule P030-P034 current-dataset evaluations | Same 5-PDF set | Privacy-safe counts per new rule | Aggregate-only; no body text quoted | `docs/evaluation/p030_current_dataset_evaluation.md` through `p034_current_dataset_evaluation.md` |
+| Generated audit snapshots | Local PDF runs | All evaluation reruns | Gitignored | `data/evaluation/generated/` |
 | EF comment-vs-tool overlap | Extractable-comment PDFs only | Page/category overlap against extractable EF comments | Excludes flattened-comment PDFs from comment extraction logic | `docs/evaluation/current_ef_comment_vs_tool_comparison.md` + `data/evaluation/generated/current_ef_comment_comparison/` (gitignored) |
 | EF overlap refinement round 1 | Extractable PDFs + clean baseline | P013 noise-reduction impact measurement | Clean baseline included for stability/noise check; no EF-overlap role | `docs/evaluation/ef_overlap_driven_refinement_evaluation.md` + `data/evaluation/generated/ef_overlap_refinement/` (gitignored) |
 | EF overlap refinement round 2 | Extractable PDFs + clean baseline | P018/P024 heading-variant robustness impact | Flattened-comment PDFs not used for comment extraction | `docs/evaluation/ef_overlap_refinement_round2_evaluation.md` + `data/evaluation/generated/ef_overlap_refinement_round2/` (gitignored) |
