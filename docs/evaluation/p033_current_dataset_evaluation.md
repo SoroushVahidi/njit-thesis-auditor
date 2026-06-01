@@ -1,9 +1,11 @@
 # P033 Current Dataset Evaluation
 
-- **Date:** 2026-06-01 (updated after recall investigation)
-- **Baseline commit:** `7982e86` (initial evaluation); post-refinement behavior documented in section 10
+- **Date:** 2026-06-01 (refreshed after PR #63)
+- **Current baseline commit:** `0addb84` (post–PR #63 below-heading recall refinement)
 - **Auditor scope:** P001–P033 (P033 only reported here)
-- **Generated artifacts (gitignored):** `data/evaluation/generated/p033_evaluation/`
+- **Generated artifacts (gitignored):**
+  - Initial run (PR #62): `data/evaluation/generated/p033_evaluation/`
+  - Post–PR #63 refresh: `data/evaluation/generated/p033_evaluation_after_recall_refinement/`
 
 ## 1. Purpose and scope
 
@@ -11,21 +13,38 @@ Evaluate the conservative P033 cross-page front-matter title consistency rule on
 repository’s documented evaluation PDF set identified in
 `data/processed/evaluation_data_manifest.json`.
 
+This document tracks **two evaluation snapshots**:
+
+1. **Before PR #63** (commits through PR #62, `5f27b0b`) — comparison never ran on any file.
+2. **After PR #63** (commit `0addb84`) — below-heading title extraction fallback; rerun confirms
+   comparison on two files.
+
 Reporting is **aggregate-only**. No dissertation title text, title previews, author names,
 committee names, or body text is quoted. No generated audit outputs are committed.
 
 Evaluated inputs match the five-PDF full-evaluation set used for P030–P032, excluding the
 rule-matrix XLSX and archive-only materials not verified locally.
 
-## 2. Results summary
+## 2. Evaluation history
 
-| File label | Availability | Page roles present | Confident candidates | Comparison outcome | P033 count | Pages | Notes |
-|---|---|---|---|---:|---:|---|---|
-| Cibaku Elson 1st review | tracked | title_page, abstract | 0 | insufficient_confident_title_candidates | 0 | — | Title-page text too short; no abstract/approval title block |
-| Yin H 2nd review (flattened) | tracked | title_page, abstract | 1 | insufficient_confident_title_candidates | 0 | — | Title page only; abstract p.1 has no extractable title above heading |
-| Yin Haotian 2nd review | tracked | title_page, abstract | 1 | insufficient_confident_title_candidates | 0 | — | Same pattern as Yin H 2nd |
-| Yin H 4th review (compressed) | tracked | title_page, abstract, approval_page | 1 | insufficient_confident_title_candidates | 0 | — | Title page only (16-word candidate); abstract p.1 / approval p.5 lack title blocks |
-| Sebastian Fine clean baseline | archive-contained (local extract) | title_page, abstract, approval_page | 1 | insufficient_confident_title_candidates | 0 | — | Title page only (18-word candidate); no title above abstract/approval headings |
+| Milestone | Commit | Comparison ran (any file) | P033 findings | Outcome |
+|---|---|---:|---:|---|
+| PR #62 initial evaluation | `5f27b0b` | **No** (0/5 files) | 0 | Documented in this file (pre-PR #63 sections) |
+| PR #63 recall investigation | `0addb84` | — | — | Below-heading fallback; see investigation doc |
+| PR #63 post-fix rerun | `0addb84` | **Yes** (2/5 files) | **0** | Confirmed by re-run (this refresh) |
+
+See `docs/evaluation/p033_candidate_extraction_recall_investigation.md` for the structural
+explanation (titles below ABSTRACT/APPROVAL headings, not above).
+
+## 3. Current results (after PR #63)
+
+| File label | Roles present | Unique hashes before PR #63 | Unique hashes after PR #63 | Comparison after PR #63 | P033 after PR #63 | Notes |
+|---|---|---:|---:|---:|---:|---|
+| Cibaku Elson 1st review | title_page, abstract | 1 | 1 | no | 0 | One candidate; abstract below-heading deduplicated with title_page |
+| Yin H 2nd review (flattened) | title_page, abstract | 1 | 1 | no | 0 | Same dedup pattern |
+| Yin Haotian 2nd review | title_page, abstract | 1 | 1 | no | 0 | Same dedup pattern |
+| Yin H 4th review (compressed) | title_page, abstract, approval_page | 1 | **2** | **yes** | 0 | Approval below-heading adds second hash; sim ≈0.96 |
+| Sebastian Fine clean baseline | title_page, abstract, approval_page | 1 | **2** | **yes** | 0 | Approval below-heading adds second hash; sim ≈0.95 |
 
 ### Skipped
 
@@ -34,115 +53,96 @@ rule-matrix XLSX and archive-only materials not verified locally.
 | Sebastian Fine 1st review (EF annotated) | Referenced in manifest; not present as a standalone tracked path |
 | Rule matrix XLSX | Not a PDF evaluation input |
 
-**Total P033 findings:** **0** across all five evaluated PDFs.
+**Total P033 findings after PR #63:** **0** across all five evaluated PDFs.
 
-## 3. Candidate extraction detail (privacy-safe)
+**Comparison ran on 2 of 5 files** (Yin H 4th, Sebastian Fine clean baseline).
 
-P033 requires **≥2 high-confidence** title candidates (normalized length ≥12 characters and
-≥3 words) before comparison runs. The table below summarizes extraction attempts without
-quoting title text.
+### Similarity ranges (when comparison ran)
 
-| File label | Role | Page | Raw extract attempted | Meets confidence threshold | In comparison set |
-|---|---|---:|:---:|:---:|:---:|
-| Cibaku Elson 1st review | title_page | 1 | yes (2 words) | no | no |
-| Cibaku Elson 1st review | abstract | 1 | no | — | no |
-| Yin H 2nd review (flattened) | title_page | 1 | yes (3 words) | yes | yes |
-| Yin H 2nd review (flattened) | abstract | 1 | no | — | no |
-| Yin Haotian 2nd review | title_page | 1 | yes (3 words) | yes | yes |
-| Yin Haotian 2nd review | abstract | 1 | no | — | no |
-| Yin H 4th review (compressed) | title_page | 1 | yes (16 words) | yes | yes |
-| Yin H 4th review (compressed) | abstract | 1 | no | — | no |
-| Yin H 4th review (compressed) | approval_page | 5 | no | — | no |
-| Sebastian Fine clean baseline | title_page | 1 | yes (18 words) | yes | yes |
-| Sebastian Fine clean baseline | abstract | 1 | no | — | no |
-| Sebastian Fine clean baseline | approval_page | 5 | no | — | no |
-
-**Unique title hashes among confident candidates:** 1 per file (only one candidate each).
-
-No cross-page similarity scores were computed because comparison was skipped on every file.
-
-## 4. Structural context (privacy-safe)
-
-| File label | Pages | ABSTRACT page | APPROVAL PAGE page | Named front-matter headings detected |
-|---|---:|---:|---:|---|
-| Cibaku Elson 1st review | 99 | 1 | — | yes (limited) |
-| Yin H 2nd review (flattened) | 108 | 1 | — | yes |
-| Yin Haotian 2nd review | 108 | 1 | — | yes |
-| Yin H 4th review (compressed) | 137 | 1 | 5 | yes |
-| Sebastian Fine clean baseline | 29 | 1 | 5 | yes |
-
-On all five PDFs, the ABSTRACT heading was detected on **page 1** (same sheet as the title
-page in the text layer). P033 looks for title-like lines **above** the ABSTRACT heading on
-that page; none were found. Approval-page title blocks were not extractable on the two files
-where APPROVAL PAGE appears (pages 5).
-
-## 5. Interpretation
-
-**Overall:** P033 produced **0 findings on all five evaluated PDFs**. This does **not**
-prove cross-page title consistency. In every case, comparison was **skipped** because fewer
-than two confident title candidates were extracted.
-
-**Outcome categories (all files):**
-
-| Category | Count | Meaning |
+| File label | Min similarity to title_page reference | Material mismatch (threshold 0.92) |
 |---|---:|---|
-| Roles present, &lt;2 confident candidates | 5 | Comparison never ran |
-| Compared, no mismatch | 0 | — |
-| Material mismatch flagged | 0 | — |
-| No named front-matter headings | 0 | — |
+| Yin H 4th review (compressed) | 0.959 | no |
+| Sebastian Fine clean baseline | 0.954 | no |
 
-**Why candidates were sparse:**
+## 4. Extraction detail after PR #63 (privacy-safe)
 
-- **Title page:** Most files yielded one confident title-page candidate; Cibaku’s title-region
-  text was too short (&lt;3 words) to qualify.
-- **Abstract page:** ABSTRACT on page 1 shares the sheet with the title page; no separate
-  title block appeared above the heading in the text layer.
-- **Approval page:** On Yin H 4th and Sebastian, approval pages were detected (page 5) but
-  no title-like lines appeared above APPROVAL PAGE.
+P033 requires **≥2 unique high-confidence title hashes** before comparison runs. Below-heading
+extraction applies when above-heading extraction is empty.
 
-**Usefulness vs noise on this dataset:** P033 was **silent** (no false-positive mismatches)
-but also **non-evaluative** — it could not perform cross-page comparison on any file. The rule
-appears conservative for this sample; usefulness for catching real inconsistencies remains
-unmeasured (precision/recall not assessed).
+| File label | Role | Page | Above-heading extract | Below-heading extract | In candidate set |
+|---|---|---:|:---:|:---:|:---:|
+| Cibaku Elson 1st review | title_page | 1 | — | — | yes |
+| Cibaku Elson 1st review | abstract | 1 | no | yes | no (hash dedup) |
+| Yin H 2nd review (flattened) | title_page | 1 | — | — | yes |
+| Yin H 2nd review (flattened) | abstract | 1 | no | yes | no (hash dedup) |
+| Yin Haotian 2nd review | title_page | 1 | — | — | yes |
+| Yin Haotian 2nd review | abstract | 1 | no | yes | no (hash dedup) |
+| Yin H 4th review (compressed) | title_page | 1 | — | — | yes |
+| Yin H 4th review (compressed) | abstract | 1 | no | yes | no (hash dedup) |
+| Yin H 4th review (compressed) | approval_page | 5 | no | yes | yes |
+| Sebastian Fine clean baseline | title_page | 1 | — | — | yes |
+| Sebastian Fine clean baseline | abstract | 1 | no | yes | no (hash dedup) |
+| Sebastian Fine clean baseline | approval_page | 5 | no | yes | yes |
 
-## 6. Limitations
+Title hashes and word counts are in gitignored `p033_summary.json` only.
 
-- PDF text-layer extraction only; titles in non-extractable regions or image-only text are
-  skipped.
-- Requires named front-matter headings; comparison needs ≥2 confident candidates.
-- Abstract-on-page-1 layouts common in this dataset prevent abstract-page title extraction.
-- Does not verify semantic equivalence, subtitles, or committee-page titles.
-- Candidate and hash metadata are in gitignored `p033_summary.json` only.
+## 5. Structural context (privacy-safe)
+
+| File label | Pages | ABSTRACT page | APPROVAL PAGE page |
+|---|---:|---:|---:|
+| Cibaku Elson 1st review | 99 | 1 | — |
+| Yin H 2nd review (flattened) | 108 | 1 | — |
+| Yin Haotian 2nd review | 108 | 1 | — |
+| Yin H 4th review (compressed) | 137 | 1 | 5 |
+| Sebastian Fine clean baseline | 29 | 1 | 5 |
+
+On all five PDFs, ABSTRACT appears on **page 1**. After PR #63, title-like text **below**
+the ABSTRACT heading is considered; when it matches the title-page hash, the abstract role is
+deduplicated. Approval-page titles on page 5 use the same below-heading band on Yin H 4th and
+Sebastian.
+
+## 6. Interpretation (current behavior)
+
+**Overall:** After PR #63, P033 still reports **0 findings** on all five PDFs, but
+**cross-page comparison now runs on two files** (Yin H 4th and Sebastian). This is a
+meaningful recall improvement over PR #62, where comparison never ran.
+
+**Zero findings do not prove title consistency** across the dissertation.
+
+| Outcome category | Files (after PR #63) |
+|---|---:|
+| Comparison skipped (&lt;2 unique hashes) | 3 |
+| Compared, no material mismatch | 2 |
+| P033 warning emitted | 0 |
+
+**Why three files still skip comparison:** Below-heading abstract title blocks match the
+title-page hash and are deduplicated, leaving one unique hash.
+
+**Usefulness vs noise:** On this dataset, P033 remains **silent** (no false-positive
+mismatches) and is now **partially evaluative** — it can compare title_page vs approval_page
+on two files. Precision/recall against human review is still not measured.
+
+## 7. Prior state (before PR #63 only)
+
+Before PR #63, every file had **one** confident title candidate (title_page only). Comparison
+was skipped on all files because above-heading extraction found no title block on abstract or
+approval pages (ABSTRACT/APPROVAL PAGE headings sit at the top of the page with no lines
+above). **0 P033 findings** in that run reflected non-comparison, not verified consistency.
+
+## 8. Limitations
+
+- PDF text-layer extraction only; image-only titles remain skipped.
+- Hash deduplication suppresses a second candidate when abstract below-heading text matches
+  title_page on page 1.
+- Below-heading band uses strict line/word/gap caps; unusual layouts may still be missed.
+- Similarity threshold (0.92) not validated against human review on this dataset.
 - Sebastian Fine PDF extracted locally from the tracked ZIP; not committed.
-- Zero findings do not demonstrate compliance; they reflect insufficient candidates for
-  comparison on this evaluation set.
+- Pre–PR #63 counts reflect above-heading-only behavior; current behavior is defined by the
+  post–PR #63 rerun at commit `0addb84`.
 
-## 7. Related docs
+## 9. Related docs
 
+- Recall investigation: `docs/evaluation/p033_candidate_extraction_recall_investigation.md`
 - Synthetic validation: `docs/evaluation/p033_title_consistency_synthetic_validation.md`
-- Candidate extraction recall investigation: `docs/evaluation/p033_candidate_extraction_recall_investigation.md`
 - P032 current-dataset evaluation: `docs/evaluation/p032_current_dataset_evaluation.md`
-- P025 front-matter structure: `docs/status/current_project_state_and_next_steps.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
-
-## 10. Post-refinement rerun (recall investigation)
-
-After `docs/evaluation/p033_candidate_extraction_recall_investigation.md`, P033 gained a
-conservative **below-heading** title band when above-heading extraction is empty (common when
-ABSTRACT/APPROVAL PAGE is the first line on the page).
-
-| File label | Candidates (post-refinement) | Comparison ran | P033 findings |
-|---|---:|---|---:|
-| Cibaku Elson 1st review | 1 | no | 0 |
-| Yin H 2nd review (flattened) | 1 | no | 0 |
-| Yin Haotian 2nd review | 1 | no | 0 |
-| Yin H 4th review (compressed) | 2 | **yes** | 0 |
-| Sebastian Fine clean baseline | 2 | **yes** | 0 |
-
-When the below-heading abstract title matches the title-page hash, the abstract role is
-deduplicated and comparison remains skipped (three files). Yin H 4th and Sebastian gain a
-second candidate from the **approval_page** below-heading band; normalized similarity to the
-title-page reference remained ≥0.92, so no warnings were emitted.
-
-Gitignored post-refinement summary:
-`data/evaluation/generated/p033_evaluation_after_recall_refinement/`
