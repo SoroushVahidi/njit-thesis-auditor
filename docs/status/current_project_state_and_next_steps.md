@@ -30,7 +30,7 @@
 - P033 current-dataset evaluation: `docs/evaluation/p033_current_dataset_evaluation.md` (refreshed after PR #63; 0 P033 findings; comparison runs on 2/5 files)
 - P033 candidate-extraction recall investigation: `docs/evaluation/p033_candidate_extraction_recall_investigation.md`
 - P034 synthetic validation: `docs/evaluation/p034_copyright_page_synthetic_validation.md`
-- P034 current-dataset evaluation: `docs/evaluation/p034_current_dataset_evaluation.md` (PR #66: 2 author findings; investigation + middle-initial fix → 0 on re-run)
+- P034 current-dataset evaluation: `docs/evaluation/p034_current_dataset_evaluation.md` (refreshed after PR #67; 0 P034 findings on 5/5 files)
 - P034 author-mismatch investigation: `docs/evaluation/p034_author_mismatch_investigation.md`
 
 ---
