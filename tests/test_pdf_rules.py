@@ -373,6 +373,16 @@ def test_annotation_extraction_detects_comment(tmp_path: Path) -> None:
     assert any(f.rule_id == "P012" for f in findings)
 
 
+def test_p012_warnings_include_triage_metadata(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "annot_triage.pdf"
+    _make_pdf_with_annotation(pdf_path)
+    warnings = [f for f in run_pdf_annotation_rule(str(pdf_path)) if f.severity.value == "WARNING"]
+    assert warnings
+    for finding in warnings:
+        assert finding.details.get("issue_type") == "pdf_annotation_detected"
+        assert finding.details.get("triage_tier") == "informational"
+
+
 def test_centered_bold_abstract_near_top_produces_no_p014_warning(tmp_path: Path) -> None:
     pdf_path = tmp_path / "heading_ok.pdf"
     _make_pdf_with_heading(

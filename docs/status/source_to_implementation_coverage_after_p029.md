@@ -247,7 +247,7 @@ Top 3 next tasks:
 
 ## 13. Post-audit updates through P034 (consolidated current state)
 
-**Current repository (main `1607111`; five-PDF eval baseline `00b9c2d`):** P001–P034 implemented; **404** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p013_triage`, `p026_font_triage` (detection unchanged; raw counts 169 / 461 / 415 on five-PDF snapshot).
+**Current repository (main `1607111`; five-PDF eval baseline `00b9c2d`):** P001–P034 implemented; **404** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged; raw counts 169 / 143 / 461 / 415 on five-PDF snapshot).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -268,5 +268,7 @@ Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation 
 **P026 reporting refinement (2026-06-01):** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup; five-PDF rerun under gitignored `current_auditor_after_p034_p026_triage/` (415 P026 unchanged).
 
 **P011 reporting refinement (2026-06-01):** `docs/evaluation/p011_reporting_actionability_refinement.md` — `p011_margin_triage` rollup; five-PDF rerun under gitignored `current_auditor_after_p034_p011_triage/` (169 P011 unchanged).
+
+**P012 reporting refinement (2026-06-01):** `docs/evaluation/p012_reporting_actionability_refinement.md` — `p012_annotation_triage` rollup; raw P012 count expected unchanged (143 on five-PDF snapshot).
 
 **Canonical full-triage outputs (2026-06-01):** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — use `current_auditor_after_p034_p011_triage/` for latest JSON/MD with all three triage rollups; older `current_auditor_after_p034*` folders are historical.
