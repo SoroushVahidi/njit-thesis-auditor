@@ -32,6 +32,15 @@ see `docs/evaluation/p011_reporting_actionability_refinement.md`. Post-change re
 gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/`. Raw P011
 count (169) unchanged.
 
+**Canonical full-triage outputs (2026-06-01):** Use
+`data/evaluation/generated/current_auditor_after_p034_p011_triage/` for the latest
+five-PDF JSON/Markdown with P011+P013+P026 triage. See
+`docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`. Older folders
+(`current_auditor_after_p034/`, `…_p013_triage/`, `…_p026_triage/`) are historical.
+
+**Current toolchain validation (2026-06-01):** ruff, mypy, **404 pytest** on `main` at `ae61e16`
+(reporting triage does not change the aggregate counts in §3).
+
 ---
 
 ## 2. Dataset inventory

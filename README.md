@@ -29,10 +29,17 @@ njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 Runs P011–P034 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
-issue type for triage. P013 (page-number candidates) also includes a dedicated
-`p013_triage` rollup with position/style pattern page ranges. The Markdown report
-includes a "Repeated Findings Summary" table and a P013 triage section before the
-full raw findings.
+issue type for triage. High-volume rules also get optional **reporting-only** triage
+rollups (detection unchanged):
+
+| Rollup key | Rule | Purpose |
+|---|---|---|
+| `p011_margin_triage` | P011 | Margin side counts, overflow by side, page ranges |
+| `p013_triage` | P013 | Page-number candidate patterns and multi-candidate pages |
+| `p026_font_triage` | P026 | Font/size issue counts and label page ranges |
+
+The Markdown report includes a "Repeated Findings Summary" table and P011/P013/P026
+triage sections (when present) before the full raw findings.
 
 Current PDF checks (P011–P034):
 
@@ -120,9 +127,10 @@ More docs:
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — current full PDF audit snapshot (P011–P034, five evaluation PDFs)
-- `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — post–PR #71 regenerated reports with `p013_triage` (gitignored outputs)
-- `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup (gitignored five-PDF rerun)
-- `docs/evaluation/p011_reporting_actionability_refinement.md` — P011 `p011_margin_triage` rollup (gitignored five-PDF rerun)
+- `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with all triage rollups (`current_auditor_after_p034_p011_triage/`)
+- `docs/evaluation/p011_reporting_actionability_refinement.md` — P011 `p011_margin_triage` rollup
+- `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup
+- `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P034 synthetic/current-dataset)
 
 ## Report schema
@@ -148,14 +156,18 @@ The `--json-out` JSON report structure:
         "affected_pages_compact": "3-12"
       }
     ],
-    "by_rule_issue_type": { ... }
+    "by_rule_issue_type": { ... },
+    "p011_margin_triage": { "...": "optional; present when P011 warnings exist" },
+    "p013_triage": { "...": "optional; present when P013 warnings exist" },
+    "p026_font_triage": { "...": "optional; present when P026 warnings exist" }
   },
   "findings": [ ... ]
 }
 ```
 
-Rules with 5+ findings appear in `grouped_summary.high_volume_rules`. Raw findings
-are always preserved in full.
+Rules with 5+ findings appear in `grouped_summary.high_volume_rules`. Optional
+`triage` keys summarize patterns for manual review; they do not replace raw findings.
+Raw findings are always preserved in full.
 
 ## Privacy model
 

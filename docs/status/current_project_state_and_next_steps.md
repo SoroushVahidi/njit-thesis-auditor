@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-01
-- **Latest main:** `179e247` (PR #68 — P034 evaluation refresh; P001–P034 implemented)
-- **Validation:** 383 pytest passed (ruff, mypy, pytest)
+- **Latest main:** `ae61e16` (PR #74 — P011 margin triage; P001–P034 implemented)
+- **Validation:** 404 pytest passed (ruff, mypy, pytest)
 - **Auditor scope:** P001–P034 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -12,7 +12,8 @@
 - **P013 reporting triage:** `docs/evaluation/p013_reporting_actionability_refinement.md` — dedicated `p013_triage` rollup + Markdown section (raw P013 counts unchanged)
 - **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
 - **P011 reporting triage:** `docs/evaluation/p011_reporting_actionability_refinement.md` — `p011_margin_triage` rollup + Markdown section (raw P011 counts unchanged; 169 on five-PDF snapshot)
-- **P034 snapshot + P013 triage refresh:** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — five-PDF rerun with `p013_triage` in gitignored outputs (1,446 / 461 P013 unchanged)
+- **Canonical full-triage generated outputs:** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (P011+P013+P026 triage; 1,446 total unchanged)
+- **P013 triage refresh (historical):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — superseded by canonical path above for full reports
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
@@ -297,28 +298,33 @@ large-value candidates. Result: Sebastian Fine 2→0; Yin H 4th 12→12 (preserv
 **Files changed:** `src/njit_auditor/rules/pdf_roman_sequence.py`, tests, evaluation docs.
 **Risk:** Low — only excludes candidates with Roman value > 50; all real front-matter sequences unaffected.
 
-### Bundle 11: Next recommended tasks
+### Bundle 11: Reporting triage (P011/P013/P026) — DONE
 
-Based on the current evaluation snapshot:
-
-| Priority | Task | Rationale |
-|----------|------|-----------|
-| ✅ Done | P013 grouping / noise reduction | Implemented EF-overlap-driven per-page grouping + structured triage details |
-| 🟡 High | EF category coverage expansion | `list_of_tables_figures_toc` still has uncovered EF pages on Yin; next step is TOC/List entry extraction robustness (wrapped/split entries) |
-| 🟡 Med | EF comment ↔ rule comparison | Map EF comments to P-rule findings page-by-page |
-| 🟡 Med | P011 bottom_margin clean-baseline investigation | 5 high-confidence findings on 29-page clean doc |
-| 🟡 Low | P020 font-size fallback | CMR body PDFs still have P020=0 |
-**Rationale:** The Sebastian Fine Revision 3 PDF (clean, no EF annotations) has not been run through the full P011–P028 auditor. Establishing false-positive counts is essential before further refinement.  
-**Risk:** None — read-only evaluation task
+**Summary:** High-volume rules now have dedicated JSON triage rollups and Markdown triage
+sections while preserving raw findings. Canonical five-PDF rerun:
+`data/evaluation/generated/current_auditor_after_p034_p011_triage/` (gitignored).
+See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `179e247`)
+## 6. Validation Status (main at `ae61e16`)
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 383 passed |
+| `python -m pytest` | ✅ 404 passed |
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 48 source files |
 
-**Next recommended work:** Figure/table placement checks; P034 extraction recall; full P001–P034 aggregate evaluation refresh; EF overlap expansion on extractable PDFs.
+**Next recommended work (post–triage cleanup):**
+
+| Priority | Task | Rationale |
+|----------|------|-----------|
+| 🟡 Med | P012 annotation reporting triage | 143 findings; evaluate whether a rollup similar to P011/P013/P026 helps reviewers |
+| 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
+| 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
+| 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
+| 🟡 Low | Next automatable rule | Defer until status/docs stable; no P035 unless scoped explicitly |
+
+Do **not** re-run aggregate snapshot for reporting-only changes unless detection changes.
+Full P001–P034 aggregate evaluation is documented at
+`docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings, five PDFs).
