@@ -44,6 +44,8 @@ _AUTHOR_NOISE_RE = re.compile(
 )
 _MIN_AUTHOR_NORMALIZED_LEN = 4
 _MIN_AUTHOR_WORDS = 2
+_NAME_SUFFIX_TOKENS = frozenset({"jr", "sr", "ii", "iii", "iv"})
+_MAX_MIDDLE_INITIAL_TOKEN_LEN = 2
 
 
 def _stable_author_hash(normalized: str) -> str:
@@ -231,6 +233,37 @@ def _extract_title_page_author(title_page: PdfPage) -> tuple[str, str] | None:
     return None
 
 
+def _authors_match_with_middle_initial_tolerance(
+    title_norm: str,
+    copyright_norm: str,
+) -> bool:
+    """Treat copyright notice with one extra short initial/suffix token as a match.
+
+    Common layout: Title Page ``by`` line has given + family name; © line adds a
+    leading middle initial (e.g. two characters after normalization).
+    """
+
+    if title_norm == copyright_norm:
+        return True
+    title_words = title_norm.split()
+    copyright_words = copyright_norm.split()
+    if len(title_words) < _MIN_AUTHOR_WORDS or len(copyright_words) < _MIN_AUTHOR_WORDS:
+        return False
+    if len(copyright_words) != len(title_words) + 1:
+        return False
+
+    extra: str | None = None
+    if copyright_words[1:] == title_words:
+        extra = copyright_words[0]
+    elif copyright_words[:-1] == title_words:
+        extra = copyright_words[-1]
+    if extra is None:
+        return False
+    if len(extra) <= _MAX_MIDDLE_INITIAL_TOKEN_LEN:
+        return True
+    return extra in _NAME_SUFFIX_TOKENS
+
+
 def _extract_copyright_author(copyright_page: PdfPage) -> tuple[str, str] | None:
     for line in _sorted_lines(copyright_page):
         raw = line.text.strip()
@@ -299,6 +332,8 @@ def _check_author_consistency(
     title_norm, title_hash = title_author
     copyright_norm, copyright_hash = copyright_author
     if title_hash == copyright_hash:
+        return None
+    if _authors_match_with_middle_initial_tolerance(title_norm, copyright_norm):
         return None
     return AuditFinding(
         rule_id="P034",

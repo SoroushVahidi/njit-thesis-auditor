@@ -4264,6 +4264,22 @@ def test_p034_copyright_year_mismatch_warns(tmp_path: Path) -> None:
     assert year_warning.details.get("source_q_rule_id") == "Q010"
 
 
+def test_p034_copyright_middle_initial_matches_title_no_finding(tmp_path: Path) -> None:
+    """© line with one leading middle initial should not warn when title omits it."""
+
+    pdf_path = tmp_path / "p034_middle_initial.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2024 T Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(
+        f.rule_id == "P034"
+        and f.details.get("issue_type") == "copyright_author_mismatch"
+        for f in check_pdf_copyright_page(model)
+    )
+
+
 def test_p034_author_mismatch_uses_hashes_only(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p034_author_mismatch.pdf"
     _make_copyright_page_pdf(
