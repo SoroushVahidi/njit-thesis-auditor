@@ -59,6 +59,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P031": "list_of_tables_figures_toc",
         "P032": "list_of_tables_figures_toc",
         "P033": "title_page_metadata",
+        "P034": "title_page_metadata",
         "P020": "capitalization_case",
         "P021": "abstract_length",
         "Q004": "abstract_language",

@@ -593,5 +593,23 @@
     "implementation_module": "njit_auditor.rules.pdf_title_consistency",
     "priority": "medium",
     "notes": "Partial PDF heuristic for cross-page title consistency (documented remaining gap; front-matter/title-page guideline sources). Does not quote title text in findings. Uses normalized text hashes and similarity scores only. issue_type: frontmatter_title_mismatch."
+  },
+  {
+    "id": "P034",
+    "section": "PDF Copyright Page metadata and layout",
+    "question": "Does the Copyright Page avoid top-margin header text and match the Title Page copyright year and author name when confidently extractable?",
+    "rule_definition": "Conservative heuristic on a confidently identified Copyright Page: flags visible non-page-number text in the top margin (Q009); compares copyright year to Title Page graduation year (Q010) and author name to Title Page author after 'by' (Q011) only when both sides are confidently extracted. Skips ambiguous, image-only, or undetected copyright pages. Does not quote author names or title text in findings.",
+    "remediation": "Remove running headers from the Copyright Page top margin; ensure the copyright notice year and author match the Title Page graduation year and author name.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_copyright_page",
+    "priority": "medium",
+    "notes": "Partial PDF heuristic for Q009-Q011. Does not replace manual copyright-page or administrative approval checks. Does not duplicate Q012 (no page number) covered by P022. issue_types: copyright_top_margin_header_text, copyright_year_mismatch, copyright_author_mismatch."
   }
 ]
