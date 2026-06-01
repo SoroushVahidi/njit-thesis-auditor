@@ -71,7 +71,7 @@ Current PDF checks (P011–P036):
 | P033 | Front matter | Cross-page title consistency (Title Page, Abstract, Approval) |
 | P034 | Front matter | Copyright Page top-margin header, year/author consistency with Title Page |
 | P035 | Figures/Tables | Body-page figure/table centering and caption placement; **v1 text-layer bodies only** (image-only floats skipped); privacy-safe geometry metadata only |
-| P036 | TOC/List | Inter-entry double spacing on TOC, LoT, and LoF pages (distinct entries only; complements P032 wrapped internal spacing) |
+| P036 | TOC/List | Inter-entry double spacing between distinct entries on TOC, LoT, and LoF pages; complements P032; privacy-safe geometry metadata only (no entry text) |
 
 All findings are heuristic warnings and require manual review.
 
@@ -137,6 +137,7 @@ More docs:
 - `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
 - `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md` — P036 synthetic validation
+- `docs/evaluation/p036_current_dataset_evaluation.md` — P036 current-dataset status (not run; evaluation PDFs unavailable)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema

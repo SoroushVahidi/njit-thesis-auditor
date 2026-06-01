@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-01
 - **Status:** Implemented
-- **Baseline main:** `47cc57d` (P001–P035 implemented; post-P035 consistency audit PR #85)
+- **Baseline main:** `e4840aa` (P001–P036 implemented; P036 PR #87)
 - **Author:** Design/scoping only; no detector code in this document
 
 ## Current state
