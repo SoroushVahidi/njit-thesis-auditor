@@ -15,6 +15,7 @@
 - **P013 reporting triage:** `docs/evaluation/p013_reporting_actionability_refinement.md` — dedicated `p013_triage` rollup + Markdown section (raw P013 counts unchanged)
 - **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
 - **P011 reporting triage:** `docs/evaluation/p011_reporting_actionability_refinement.md` — `p011_margin_triage` rollup + Markdown section (raw P011 counts unchanged; 169 on five-PDF snapshot)
+- **P012 reporting triage:** `docs/evaluation/p012_reporting_actionability_refinement.md` — `p012_annotation_triage` rollup + Markdown section (raw P012 counts unchanged; 143 on five-PDF snapshot)
 - **Canonical full-triage generated outputs:** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (P011+P013+P026 triage; 1,446 total unchanged)
 - **P013 triage refresh (historical):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — superseded by canonical path above for full reports
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
@@ -301,10 +302,11 @@ large-value candidates. Result: Sebastian Fine 2→0; Yin H 4th 12→12 (preserv
 **Files changed:** `src/njit_auditor/rules/pdf_roman_sequence.py`, tests, evaluation docs.
 **Risk:** Low — only excludes candidates with Roman value > 50; all real front-matter sequences unaffected.
 
-### Bundle 11: Reporting triage (P011/P013/P026) — DONE
+### Bundle 11: Reporting triage (P011/P012/P013/P026) — DONE
 
 **Summary:** High-volume rules now have dedicated JSON triage rollups and Markdown triage
-sections while preserving raw findings. Canonical five-PDF rerun:
+sections while preserving raw findings (P012 added for embedded annotations/comments).
+Canonical five-PDF rerun:
 `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (gitignored).
 See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
@@ -332,7 +334,6 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 Med | P012 annotation reporting triage | 143 findings; evaluate whether a rollup similar to P011/P013/P026 helps reviewers |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |

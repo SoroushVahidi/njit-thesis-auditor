@@ -25,6 +25,8 @@ P026_FAMILY_ISSUE_TYPE = "possible_body_font_family_issue"
 P026_SIZE_ISSUE_TYPE = "possible_body_font_size_issue"
 P011_RULE_ID = "P011"
 P011_ISSUE_TYPE = "margin_boundary_violation"
+P012_RULE_ID = "P012"
+P012_ISSUE_TYPE = "pdf_annotation_detected"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -254,6 +256,73 @@ def _parse_overflow_pt(details: dict[str, str]) -> float | None:
         return None
 
 
+def build_p012_annotation_triage_summary(
+    findings: list[AuditFinding],
+) -> dict[str, Any] | None:
+    """Build a P012-specific rollup for embedded PDF annotation/comment triage.
+
+    Raw findings are not modified. Summaries use annotation types and page numbers
+    only — never annotation text content.
+    """
+    p012_findings = [f for f in findings if f.rule_id == P012_RULE_ID]
+    if not p012_findings:
+        return None
+
+    pages = sorted({f.page for f in p012_findings if f.page is not None})
+    annotation_type_counts: Counter[str] = Counter()
+    annotations_by_page: Counter[int] = Counter()
+    by_type_pages: dict[str, list[int]] = defaultdict(list)
+
+    for finding in p012_findings:
+        details = finding.details or {}
+        annotation_type = details.get("annotation_type", "") or "(unknown)"
+        annotation_type_counts[annotation_type] += 1
+        if finding.page is not None:
+            annotations_by_page[finding.page] += 1
+            by_type_pages[annotation_type].append(finding.page)
+
+    multi_annotation_pages = sorted(
+        page for page, count in annotations_by_page.items() if count > 1
+    )
+    type_page_ranges = {
+        annotation_type: compact_page_list(sorted(set(page_list)))
+        for annotation_type, page_list in sorted(
+            by_type_pages.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:8]
+    }
+
+    dominant_type = ""
+    if annotation_type_counts:
+        dominant_type = annotation_type_counts.most_common(1)[0][0]
+
+    return {
+        "raw_finding_count": len(p012_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "annotation_type_counts": dict(sorted(annotation_type_counts.items())),
+        "annotations_per_page_max": (
+            max(annotations_by_page.values()) if annotations_by_page else 0
+        ),
+        "pages_with_multiple_annotations": len(multi_annotation_pages),
+        "multiple_annotations_pages_compact": compact_page_list(
+            multi_annotation_pages
+        ),
+        "type_page_ranges": type_page_ranges,
+        "dominant_annotation_type": dominant_type,
+        "triage_tier": "informational",
+        "triage_note": (
+            "P012 reports embedded PDF annotations and reviewer comments for manual "
+            "cleanup before final submission. This is an informational triage category; "
+            "resolve or remove comments rather than treating each warning as a "
+            "formatting defect."
+        ),
+        "recommended_action": (
+            "Review affected pages, resolve feedback, and remove or flatten annotations "
+            "before submitting the final PDF."
+        ),
+    }
+
+
 def build_p011_margin_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | None:
     """Build a P011-specific rollup for margin/overflow triage.
 
@@ -433,6 +502,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p011_triage = build_p011_margin_triage_summary(findings)
     if p011_triage is not None:
         result["p011_margin_triage"] = p011_triage
+    p012_triage = build_p012_annotation_triage_summary(findings)
+    if p012_triage is not None:
+        result["p012_annotation_triage"] = p012_triage
     return result
 
 
@@ -659,6 +731,71 @@ def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p012_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P012-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p012_annotation_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P012 Annotation/Comment Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P012 findings | {triage['raw_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    max_per_page = triage.get("annotations_per_page_max", 0)
+    if max_per_page:
+        lines.append(f"| Max annotations on one page | {max_per_page} |")
+    multi_count = triage.get("pages_with_multiple_annotations", 0)
+    if multi_count:
+        lines.append(f"| Pages with multiple annotations | {multi_count} |")
+    dominant = triage.get("dominant_annotation_type", "")
+    if dominant:
+        lines.append(f"| Dominant annotation type | `{dominant}` |")
+    lines.append("")
+
+    type_counts = triage.get("annotation_type_counts", {})
+    if type_counts:
+        lines.append("### Annotation type counts")
+        lines.append("")
+        for annotation_type, count in sorted(type_counts.items()):
+            lines.append(f"- `{annotation_type}`: {count}")
+        lines.append("")
+
+    type_ranges = triage.get("type_page_ranges", {})
+    if type_ranges:
+        lines.append("### Annotation type page ranges")
+        lines.append("")
+        for annotation_type, page_range in type_ranges.items():
+            lines.append(f"- `{annotation_type}`: pages {page_range}")
+        lines.append("")
+
+    multi_compact = triage.get("multiple_annotations_pages_compact", "")
+    if multi_compact:
+        lines.append(f"Pages with multiple annotations: {multi_compact}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    recommended = triage.get("recommended_action", "")
+    if recommended:
+        lines.append(f"**Recommended action:** {recommended}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-annotation P012 findings are listed under **Findings by Rule → P012** "
+        "below. Annotation text is not repeated in this triage section."
+    )
+    lines.append("")
+    return lines
+
+
 def _format_p011_triage_section(grouped: dict[str, Any]) -> list[str]:
     """Render P011-specific triage rollup for Markdown reports."""
     triage = grouped.get("p011_margin_triage")
@@ -804,6 +941,9 @@ def write_markdown_report(
 
     p026_section = _format_p026_triage_section(payload["grouped_summary"])
     lines.extend(p026_section)
+
+    p012_section = _format_p012_triage_section(payload["grouped_summary"])
+    lines.extend(p012_section)
 
     lines.append("## Findings by Rule")
     lines.append("")

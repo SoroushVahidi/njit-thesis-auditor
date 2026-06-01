@@ -25,6 +25,7 @@ def run_pdf_annotation_rule(pdf_path: str) -> list[AuditFinding]:
                             page=page_number,
                             message=f"PDF annotation/comment detected ({subtype}).",
                             details={
+                                "issue_type": "pdf_annotation_detected",
                                 "annotation_type": subtype,
                                 "content": content.strip()[:200],
                                 "rect": (
@@ -33,6 +34,7 @@ def run_pdf_annotation_rule(pdf_path: str) -> list[AuditFinding]:
                                 "suggested_fix": (
                                     "Resolve/remove reviewer comments before final submission."
                                 ),
+                                "triage_tier": "informational",
                             },
                         )
                     )

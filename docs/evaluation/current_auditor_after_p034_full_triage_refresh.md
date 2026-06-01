@@ -17,9 +17,9 @@
 | `*_report.json` / `*_report.md` | Per-file audit outputs with triage sections |
 | `sebastian_fine_clean_baseline.pdf` | Local ZIP extract only |
 
-Each JSON report includes `grouped_summary.p011_margin_triage`, `p013_triage`, and
-`p026_font_triage` when those rules have warnings. Markdown reports include the
-P011, P013, and P026 triage sections before **Findings by Rule**.
+Each JSON report includes `grouped_summary.p011_margin_triage`, `p012_annotation_triage`,
+`p013_triage`, and `p026_font_triage` when those rules have warnings. Markdown reports
+include the P011, P012, P013, and P026 triage sections before **Findings by Rule**.
 
 ## Aggregate counts (unchanged from P034 snapshot)
 

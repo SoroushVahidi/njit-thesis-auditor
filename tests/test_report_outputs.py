@@ -4,6 +4,7 @@ from pathlib import Path
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import (
     P011_ISSUE_TYPE,
+    P012_ISSUE_TYPE,
     P013_DOC_ISSUE_TYPE,
     P013_PAGE_ISSUE_TYPE,
     P026_FAMILY_ISSUE_TYPE,
@@ -11,6 +12,7 @@ from njit_auditor.report_outputs import (
     audit_findings_to_json_dict,
     build_grouped_summary,
     build_p011_margin_triage_summary,
+    build_p012_annotation_triage_summary,
     build_p013_triage_summary,
     build_p026_font_triage_summary,
     compact_page_list,
@@ -467,6 +469,130 @@ def test_p011_p013_p026_triage_coexist() -> None:
     findings = _p011_mixed_findings() + _p013_findings(8) + _p026_findings(10)
     summary = build_grouped_summary(findings)
     assert "p011_margin_triage" in summary
+    assert "p013_triage" in summary
+    assert "p026_font_triage" in summary
+
+
+def _p012_mixed_findings() -> list[AuditFinding]:
+    """Synthetic P012 annotations across pages and types."""
+    findings: list[AuditFinding] = []
+    for page in range(1, 6):
+        findings.append(
+            AuditFinding(
+                rule_id="P012",
+                severity=Severity.WARNING,
+                page=page,
+                message="PDF annotation/comment detected (Text).",
+                details={
+                    "issue_type": P012_ISSUE_TYPE,
+                    "annotation_type": "Text",
+                    "content": "Private reviewer note should not appear in triage",
+                    "rect": "100.0,120.0,200.0,140.0",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    for page in range(6, 9):
+        findings.append(
+            AuditFinding(
+                rule_id="P012",
+                severity=Severity.WARNING,
+                page=page,
+                message="PDF annotation/comment detected (Highlight).",
+                details={
+                    "issue_type": P012_ISSUE_TYPE,
+                    "annotation_type": "Highlight",
+                    "content": "Another secret comment",
+                    "rect": "50.0,60.0,150.0,80.0",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    findings.append(
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=5,
+            message="PDF annotation/comment detected (Text).",
+            details={
+                "issue_type": P012_ISSUE_TYPE,
+                "annotation_type": "Text",
+                "content": "Second annotation on page 5",
+                "triage_tier": "informational",
+            },
+        )
+    )
+    return findings
+
+
+def test_p012_triage_annotation_type_counts() -> None:
+    triage = build_p012_annotation_triage_summary(_p012_mixed_findings())
+    assert triage is not None
+    assert triage["annotation_type_counts"]["Text"] == 6
+    assert triage["annotation_type_counts"]["Highlight"] == 3
+
+
+def test_p012_triage_consecutive_pages_compact_range() -> None:
+    triage = build_p012_annotation_triage_summary(_p012_mixed_findings())
+    assert triage is not None
+    assert "1-5" in triage["type_page_ranges"]["Text"]
+    assert "6-8" in triage["type_page_ranges"]["Highlight"]
+    assert "1-8" in triage["affected_pages_compact"]
+    assert triage["pages_with_multiple_annotations"] == 1
+    assert "5" in triage["multiple_annotations_pages_compact"]
+
+
+def test_p012_triage_in_grouped_summary() -> None:
+    summary = build_grouped_summary(_p012_mixed_findings())
+    assert summary["p012_annotation_triage"]["affected_page_count"] == 8
+
+
+def test_p012_triage_absent_when_no_findings() -> None:
+    assert build_p012_annotation_triage_summary([]) is None
+    summary = build_grouped_summary(_p026_findings(10))
+    assert "p012_annotation_triage" not in summary
+
+
+def test_p012_raw_findings_preserved_in_json() -> None:
+    findings = _p012_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 9
+    assert payload["grouped_summary"]["p012_annotation_triage"]["raw_finding_count"] == 9
+
+
+def test_p012_triage_excludes_private_annotation_content() -> None:
+    triage = build_p012_annotation_triage_summary(_p012_mixed_findings())
+    assert triage is not None
+    triage_blob = json.dumps(triage)
+    assert "Private reviewer note" not in triage_blob
+    assert "secret comment" not in triage_blob
+
+
+def test_markdown_report_includes_p012_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "report_p012.md"
+    write_markdown_report(_p012_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P012 Annotation/Comment Triage" in text
+    assert "Annotation type counts" in text
+    triage_pos = text.index("P012 Annotation/Comment Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+    triage_section = text[triage_pos:findings_pos]
+    assert "Text" in triage_section
+    assert "Private reviewer note" not in triage_section
+    assert "secret comment" not in triage_section
+
+
+def test_all_four_triage_rollups_coexist() -> None:
+    findings = (
+        _p011_mixed_findings()
+        + _p012_mixed_findings()
+        + _p013_findings(8)
+        + _p026_findings(10)
+    )
+    summary = build_grouped_summary(findings)
+    assert "p011_margin_triage" in summary
+    assert "p012_annotation_triage" in summary
     assert "p013_triage" in summary
     assert "p026_font_triage" in summary
 

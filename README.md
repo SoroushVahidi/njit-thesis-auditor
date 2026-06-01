@@ -35,10 +35,11 @@ rollups (detection unchanged):
 | Rollup key | Rule | Purpose |
 |---|---|---|
 | `p011_margin_triage` | P011 | Margin side counts, overflow by side, page ranges |
+| `p012_annotation_triage` | P012 | Annotation type counts and page ranges (no comment text) |
 | `p013_triage` | P013 | Page-number candidate patterns and multi-candidate pages |
 | `p026_font_triage` | P026 | Font/size issue counts and label page ranges |
 
-The Markdown report includes a "Repeated Findings Summary" table and P011/P013/P026
+The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
 Current PDF checks (P011–P034):
@@ -129,6 +130,7 @@ More docs:
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — current full PDF audit snapshot (P011–P034, five evaluation PDFs)
 - `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with all triage rollups (`current_auditor_after_p034_p011_triage/`)
 - `docs/evaluation/p011_reporting_actionability_refinement.md` — P011 `p011_margin_triage` rollup
+- `docs/evaluation/p012_reporting_actionability_refinement.md` — P012 `p012_annotation_triage` rollup
 - `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P034 synthetic/current-dataset)
@@ -158,6 +160,7 @@ The `--json-out` JSON report structure:
     ],
     "by_rule_issue_type": { ... },
     "p011_margin_triage": { "...": "optional; present when P011 warnings exist" },
+    "p012_annotation_triage": { "...": "optional; present when P012 warnings exist" },
     "p013_triage": { "...": "optional; present when P013 warnings exist" },
     "p026_font_triage": { "...": "optional; present when P026 warnings exist" }
   },
