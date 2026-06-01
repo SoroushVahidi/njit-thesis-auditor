@@ -204,6 +204,7 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "affected_span_count": str(len(size_violations)),
                         "candidate_count": str(len(body_spans)),
                         "confidence": "medium",
+                        "triage_tier": "informational",
                         "suggested_fix": (
                             "Set body text font size to 12pt throughout the document "
                             "(LaTeX: \\normalsize in a 12pt document class; "
@@ -244,6 +245,7 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "affected_span_count": str(len(family_violations)),
                         "candidate_count": str(len(named_spans)),
                         "confidence": "medium",
+                        "triage_tier": "informational",
                         "suggested_fix": (
                             "Set body text font to Times New Roman 12pt throughout the document "
                             "(LaTeX: use \\usepackage{mathptmx} or \\usepackage{times}; "

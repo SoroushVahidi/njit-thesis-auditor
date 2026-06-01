@@ -22,6 +22,11 @@ gitignored `data/evaluation/generated/current_auditor_after_p034_p013_triage/`; 
 `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md`. Aggregate counts
 (1,446 total, 461 P013) match this document; only report structure/actionability differs.
 
+**P026 reporting refinement (2026-06-01):** P026 triage rollup added (`p026_font_triage`);
+see `docs/evaluation/p026_reporting_actionability_refinement.md`. Post-change rerun:
+gitignored `data/evaluation/generated/current_auditor_after_p034_p026_triage/`. Raw P026
+count (415) unchanged.
+
 ---
 
 ## 2. Dataset inventory

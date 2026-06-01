@@ -121,6 +121,7 @@ More docs:
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — current full PDF audit snapshot (P011–P034, five evaluation PDFs)
 - `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — post–PR #71 regenerated reports with `p013_triage` (gitignored outputs)
+- `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup (gitignored five-PDF rerun)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P034 synthetic/current-dataset)
 
 ## Report schema

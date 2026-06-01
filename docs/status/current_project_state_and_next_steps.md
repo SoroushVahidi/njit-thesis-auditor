@@ -10,6 +10,7 @@
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
 - **Current full-auditor snapshot (P001–P034 PDF):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs)
 - **P013 reporting triage:** `docs/evaluation/p013_reporting_actionability_refinement.md` — dedicated `p013_triage` rollup + Markdown section (raw P013 counts unchanged)
+- **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
 - **P034 snapshot + P013 triage refresh:** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — five-PDF rerun with `p013_triage` in gitignored outputs (1,446 / 461 P013 unchanged)
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`

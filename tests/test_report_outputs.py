@@ -5,9 +5,12 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import (
     P013_DOC_ISSUE_TYPE,
     P013_PAGE_ISSUE_TYPE,
+    P026_FAMILY_ISSUE_TYPE,
+    P026_SIZE_ISSUE_TYPE,
     audit_findings_to_json_dict,
     build_grouped_summary,
     build_p013_triage_summary,
+    build_p026_font_triage_summary,
     compact_page_list,
     write_json_report,
     write_markdown_report,
@@ -66,6 +69,57 @@ def _p026_findings(count: int = 10) -> list[AuditFinding]:
         )
         for i in range(count)
     ]
+
+
+def _p026_mixed_findings() -> list[AuditFinding]:
+    """P026 findings with two font-label bands and a size-issue band for range tests."""
+    findings: list[AuditFinding] = []
+    for page in range(1, 6):
+        findings.append(
+            AuditFinding(
+                rule_id="P026",
+                severity=Severity.WARNING,
+                page=page,
+                message=f"Body text on page {page} may not use Times New Roman.",
+                details={
+                    "issue_type": P026_FAMILY_ISSUE_TYPE,
+                    "observed_summary": "CMR12",
+                    "confidence": "medium",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    for page in range(6, 9):
+        findings.append(
+            AuditFinding(
+                rule_id="P026",
+                severity=Severity.WARNING,
+                page=page,
+                message=f"Body text on page {page} may not use Times New Roman.",
+                details={
+                    "issue_type": P026_FAMILY_ISSUE_TYPE,
+                    "observed_summary": "CMBX12, CMR12",
+                    "confidence": "medium",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    for page in (9, 10):
+        findings.append(
+            AuditFinding(
+                rule_id="P026",
+                severity=Severity.WARNING,
+                page=page,
+                message=f"Body text on page {page} may not use 12pt font size.",
+                details={
+                    "issue_type": P026_SIZE_ISSUE_TYPE,
+                    "observed_summary": "11.0pt",
+                    "confidence": "medium",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    return findings
 
 
 def _p013_findings(count: int = 8) -> list[AuditFinding]:
@@ -249,8 +303,65 @@ def test_non_p013_grouped_summary_unchanged_for_p026() -> None:
     findings = _p026_findings(10)
     summary = build_grouped_summary(findings)
     assert "p013_triage" not in summary
+    assert "p026_font_triage" in summary
     p026_entry = next(e for e in summary["high_volume_rules"] if e["rule_id"] == "P026")
     assert p026_entry["count"] == 10
+
+
+def test_p026_triage_issue_type_counts() -> None:
+    triage = build_p026_font_triage_summary(_p026_mixed_findings())
+    assert triage is not None
+    assert triage["issue_type_counts"][P026_FAMILY_ISSUE_TYPE] == 8
+    assert triage["issue_type_counts"][P026_SIZE_ISSUE_TYPE] == 2
+
+
+def test_p026_triage_font_label_counts() -> None:
+    triage = build_p026_font_triage_summary(_p026_mixed_findings())
+    assert triage is not None
+    assert triage["font_label_counts"]["CMR12"] == 5
+    assert triage["font_label_counts"]["CMBX12, CMR12"] == 3
+    assert triage["size_observed_label_counts"]["11.0pt"] == 2
+
+
+def test_p026_triage_consecutive_pages_compact_range() -> None:
+    triage = build_p026_font_triage_summary(_p026_mixed_findings())
+    assert triage is not None
+    patterns = triage["pattern_page_ranges"]
+    assert "1-5" in patterns[f"{P026_FAMILY_ISSUE_TYPE}/CMR12"]
+    assert "6-8" in patterns[f"{P026_FAMILY_ISSUE_TYPE}/CMBX12, CMR12"]
+    assert "9-10" in patterns[f"{P026_SIZE_ISSUE_TYPE}/11.0pt"]
+    assert "1-10" in triage["affected_pages_compact"]
+
+
+def test_p026_triage_in_grouped_summary() -> None:
+    summary = build_grouped_summary(_p026_mixed_findings())
+    assert summary["p026_font_triage"]["affected_page_count"] == 10
+
+
+def test_p026_raw_findings_preserved_in_json() -> None:
+    findings = _p026_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 10
+    assert payload["grouped_summary"]["p026_font_triage"]["raw_finding_count"] == 10
+
+
+def test_markdown_report_includes_p026_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "report_p026.md"
+    write_markdown_report(_p026_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P026 Body Font Compliance Triage" in text
+    assert "CMR12" in text
+    assert "Issue type counts" in text
+    triage_pos = text.index("P026 Body Font Compliance Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+
+
+def test_p013_and_p026_triage_coexist() -> None:
+    findings = _p013_findings(8) + _p026_findings(10)
+    summary = build_grouped_summary(findings)
+    assert "p013_triage" in summary
+    assert "p026_font_triage" in summary
 
 
 # ---- audit_findings_to_json_dict tests (existing + new) ----
