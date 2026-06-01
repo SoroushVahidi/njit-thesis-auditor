@@ -41,6 +41,12 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
             return "figure_format"
         return "table_format"
 
+    if rule_id == "P035":
+        float_type = (details or {}).get("float_type", "")
+        if float_type == "figure":
+            return "figure_format"
+        return "table_format"
+
     mapping = {
         "P011": "margin_or_overflow",
         "P012": "annotations",

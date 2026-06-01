@@ -2,12 +2,12 @@
 
 - **Date:** 2026-06-01
 - **Latest main:** `0a835b8` (PR #79 — P012 annotation triage reporting; P001–P034 implemented)
-- **Validation:** ruff, mypy, **414 pytest** passed
-- **Auditor scope:** P001–P034 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Validation:** ruff, mypy, **424 pytest** passed
+- **Auditor scope:** P001–P035 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
-- **P-rules:** **34/34** implemented (`P001`–`P034` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not P035, not a new rule)
+- **P-rules:** **35/35** implemented (`P001`–`P035` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #80; **P035 scoped, not implemented** — see `docs/planning/p035_scope_and_design.md`
+- **Status/metadata cleanup:** complete through PR #80; **P035 implemented** — see `docs/planning/p035_scope_and_design.md` and `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -103,6 +103,7 @@
 | `pdf_toc_list_wrapped_spacing.py` | P032 | Wrapped TOC/LoT/LoF entry internal spacing checks |
 | `pdf_title_consistency.py` | P033 | Cross-page front-matter title consistency checks |
 | `pdf_copyright_page.py` | P034 | Copyright Page top-margin header; year/author consistency with Title Page |
+| `pdf_figure_table_layout.py` | P035 | Body-page figure/table centering and caption placement (text-layer bodies) |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -213,7 +214,7 @@
 
 | Priority | Gap | Type | Notes |
 |----------|-----|------|-------|
-| 🟡 High | Figure/table centering and placement | Automatable partial | Self-Assessment Sheet; above/below detection |
+| 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image floats skipped in v1 |
 | 🟡 High | P034 copyright year/author extraction recall | Refinement | Year comparison ran 1/5; author 2/5; expand without quoting names in findings |
 | 🟡 Med | Roman numeral **value** sequence (not just style/regime) | Automatable partial | Beyond P028/P029 style checks |
 | 🟡 Med | Heading bold/italic enforcement beyond P027 | Partial | Level style partially covered |
@@ -320,7 +321,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 48 source files |
-| `python -m pytest` | ✅ 414 passed |
+| `python -m pytest` | ✅ 424 passed |
 
 ### P030–P034 at a glance (five-PDF snapshot)
 
@@ -339,7 +340,6 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
-| 🟡 Low | P035 implementation | Scoped: figure/table body centering and caption placement — `docs/planning/p035_scope_and_design.md` |
 
 Do **not** re-run aggregate snapshot for reporting-only changes unless detection changes.
 Full P001–P034 aggregate evaluation is documented at

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import fitz
@@ -11,6 +12,7 @@ from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
+from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
 from njit_auditor.rules.pdf_font_compliance import (
     check_pdf_font_compliance,
     classify_font,
@@ -4360,3 +4362,212 @@ def test_p034_finding_details_privacy_safe(tmp_path: Path) -> None:
     assert "Test Author" not in blob
     assert "Wrong Name" not in blob
     assert "A Study of Synthetic" not in blob
+
+
+# ---------------------------------------------------------------------------
+# P035: Figure/table body layout
+# ---------------------------------------------------------------------------
+
+_P035_TABLE_CAPTION = "Table 3.1 Example table caption title for layout testing here."
+_P035_FIGURE_CAPTION = "Figure 2.1 Example figure caption text for layout testing here."
+
+
+def _draw_p035_body_rows(
+    page: fitz.Page,
+    *,
+    x0: float,
+    y_start: float,
+    rows: int = 3,
+    row_height: float = 18.0,
+    centered: bool = False,
+) -> None:
+    text = "Row column alpha and column beta values"
+    if centered:
+        for idx in range(rows):
+            y0 = y_start + idx * row_height
+            page.insert_textbox(
+                fitz.Rect(108, y0 - 14, 540, y0 + 4),
+                text,
+                fontsize=11,
+                align=fitz.TEXT_ALIGN_CENTER,
+            )
+        return
+    for idx in range(rows):
+        page.insert_text(
+            (x0, y_start + idx * row_height),
+            f"Row {idx + 1} column alpha and column beta values",
+            fontsize=11,
+        )
+
+
+def _make_p035_body_page_pdf(
+    path: Path,
+    *,
+    float_type: str = "table",
+    caption_text: str = _P035_TABLE_CAPTION,
+    caption_y: float = 200.0,
+    body_x0: float = 180.0,
+    body_y: float = 240.0,
+    body_rows: int = 3,
+    include_body: bool = True,
+    toc_page: bool = False,
+    body_centered: bool = False,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    if toc_page:
+        page.insert_text((250, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 80), "CHAPTER 1 INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    if include_body:
+        _draw_p035_body_rows(
+            page,
+            x0=body_x0,
+            y_start=body_y,
+            rows=body_rows,
+            centered=body_centered,
+        )
+    page.insert_text((108, caption_y), caption_text, fontsize=11)
+    doc.save(path)
+    doc.close()
+
+
+def test_p035_centered_table_with_caption_above_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_table_ok.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        float_type="table",
+        caption_y=200.0,
+        body_y=240.0,
+        body_centered=True,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_off_center_table_body_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_table_off_center.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        caption_y=200.0,
+        body_x0=108.0,
+        body_y=240.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(w.details.get("issue_type") == "table_body_not_centered" for w in warnings)
+
+
+def test_p035_table_caption_below_body_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_table_caption_below.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        caption_y=280.0,
+        body_x0=180.0,
+        body_y=180.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(w.details.get("issue_type") == "table_caption_not_above_body" for w in warnings)
+
+
+def test_p035_centered_figure_with_caption_below_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_figure_ok.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        float_type="figure",
+        caption_text=_P035_FIGURE_CAPTION,
+        caption_y=260.0,
+        body_y=180.0,
+        body_centered=True,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_off_center_figure_body_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_figure_off_center.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        float_type="figure",
+        caption_text=_P035_FIGURE_CAPTION,
+        caption_y=260.0,
+        body_x0=108.0,
+        body_y=180.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(w.details.get("issue_type") == "figure_body_not_centered" for w in warnings)
+
+
+def test_p035_figure_caption_above_body_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_figure_caption_above.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        float_type="figure",
+        caption_text=_P035_FIGURE_CAPTION,
+        caption_y=180.0,
+        body_x0=180.0,
+        body_y=240.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(w.details.get("issue_type") == "figure_caption_not_below_body" for w in warnings)
+
+
+def test_p035_no_text_layer_body_is_skipped(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_caption_only.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        include_body=False,
+        caption_y=260.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_toc_page_caption_skipped(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_toc_skip.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        toc_page=True,
+        caption_y=260.0,
+        body_x0=108.0,
+        body_y=180.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_finding_details_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_privacy.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        caption_y=200.0,
+        body_x0=108.0,
+        body_y=240.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_figure_table_layout(model)
+    blob = " ".join(f.message for f in findings) + " " + " ".join(
+        f"{k}={v}" for f in findings for k, v in (f.details or {}).items()
+    )
+    assert "Example table caption" not in blob
+    assert "Row 1 column alpha" not in blob
+    assert "line_preview" not in blob
+
+
+def test_p035_cli_pdf_command_includes_rule(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_cli.pdf"
+    json_out = tmp_path / "p035_cli_report.json"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        caption_y=200.0,
+        body_x0=108.0,
+        body_y=240.0,
+    )
+    runner = CliRunner()
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P035" for item in payload.get("findings", []))
+
