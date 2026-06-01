@@ -1,19 +1,21 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-01
-- **Latest main:** `0a835b8` (PR #79 — P012 annotation triage reporting; P001–P034 implemented)
+- **Latest main:** `c31dfd5` (PR #83 — P035 figure/table body layout; P001–P035 implemented)
 - **Validation:** ruff, mypy, **424 pytest** passed
 - **Auditor scope:** P001–P035 implemented; full Q001–Q079 / guideline source coverage is **not** complete
-- **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
+- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P035 rerun)
+- **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P-rules:** **35/35** implemented (`P001`–`P035` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #80; **P035 implemented** — see `docs/planning/p035_scope_and_design.md` and `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`
+- **Status/metadata cleanup:** complete through PR #83; P035 implemented — see `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
-- Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
+- Strict coverage audit (historical baseline P029; updates through P035): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
-- **Current full-auditor snapshot (P001–P034 PDF):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs)
+- **Current full-auditor snapshot (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs; baseline `00b9c2d`)
+- **P035 current-dataset subset (local, 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not a new canonical aggregate
 - **P013 reporting triage:** `docs/evaluation/p013_reporting_actionability_refinement.md` — dedicated `p013_triage` rollup + Markdown section (raw P013 counts unchanged)
 - **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
 - **P011 reporting triage:** `docs/evaluation/p011_reporting_actionability_refinement.md` — `p011_margin_triage` rollup + Markdown section (raw P011 counts unchanged; 169 on five-PDF snapshot)
@@ -40,8 +42,10 @@
 - P034 synthetic validation: `docs/evaluation/p034_copyright_page_synthetic_validation.md`
 - P034 current-dataset evaluation: `docs/evaluation/p034_current_dataset_evaluation.md` (refreshed after PR #67; 0 P034 findings on 5/5 files)
 - P034 author-mismatch investigation: `docs/evaluation/p034_author_mismatch_investigation.md`
+- P035 synthetic validation: `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`
+- P035 current-dataset evaluation (local 4-PDF subset): `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not canonical five-PDF aggregate
 
-### P030–P034 evaluation docs (chronological)
+### P030–P035 evaluation docs (chronological)
 
 | Order | Doc | Type |
 |---:|---|---|
@@ -79,7 +83,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P034)
+### PDF Layout Audit (P011–P035)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -131,7 +135,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P034) | 34 | 34 | — | — | — |
+| P-rules (P001–P035) | 35 | 35 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -208,7 +212,7 @@
 
 ---
 
-## 4. Remaining Gaps After P034 (Prioritized)
+## 4. Remaining Gaps After P035 (Prioritized)
 
 ### A. Automatable / partial (not yet fully covered)
 
@@ -315,15 +319,24 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `0a835b8`)
+## 6. Validation Status (main at `c31dfd5`)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 48 source files |
+| `mypy src` | ✅ No issues in 49 source files |
 | `python -m pytest` | ✅ 424 passed |
 
-### P030–P034 at a glance (five-PDF snapshot)
+### P035 at a glance (local four-PDF subset)
+
+| Item | Notes |
+|------|--------|
+| Scope | Text-layer bodies; caption placement + centering on body pages |
+| v1 skips | Image-only floats; ambiguous multi-cluster pages; same-page only |
+| Subset counts | 0 / 0 / 0 / **13** (Cibaku, Yin H 2nd flat, Yin Haotian 2nd, Yin H 4th comp) |
+| Issue mix | `figure_caption_not_below_body` 7; `table_caption_not_above_body` 5; `table_body_not_centered` 1 |
+
+### P030–P034 at a glance (five-PDF canonical snapshot)
 
 | Rule | Role | Snapshot notes |
 |------|------|----------------|
@@ -337,10 +350,12 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
+| 🟡 Med | Full five-PDF P001–P035 aggregate rerun | Canonical 1,446 baseline is pre-P035; local subset shows +13 P035 on Yin H 4th only |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
+| 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce image-float skips |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
 
-Do **not** re-run aggregate snapshot for reporting-only changes unless detection changes.
-Full P001–P034 aggregate evaluation is documented at
-`docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings, five PDFs).
+Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
+Full pre-P035 five-PDF aggregate evaluation remains at
+`docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).

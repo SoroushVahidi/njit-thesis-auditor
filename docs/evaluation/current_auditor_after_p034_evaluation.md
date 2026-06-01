@@ -38,7 +38,7 @@ five-PDF JSON/Markdown with P011+P013+P026 triage. See
 `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`. Older folders
 (`current_auditor_after_p034/`, `…_p013_triage/`, `…_p026_triage/`) are historical.
 
-**Current toolchain validation (2026-06-01):** ruff, mypy, **414 pytest** — reaffirmed on latest `main` (`0a835b8`, PR #79). Five-PDF finding counts in this doc match eval baseline `00b9c2d` (unchanged).
+**Current toolchain validation (2026-06-01):** ruff, mypy, **424 pytest** — reaffirmed on latest `main` (`c31dfd5`, PR #83 adds P035). Five-PDF finding counts in this doc match eval baseline `00b9c2d` (pre-P035 detection unchanged; **1,446** total). P035 local four-PDF subset documented separately in `docs/evaluation/p035_current_dataset_evaluation.md`.
 (reporting triage does not change the aggregate counts in §3).
 
 ---

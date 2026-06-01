@@ -70,7 +70,7 @@ Current PDF checks (P011–P035):
 | P032 | TOC/List | Wrapped TOC/LoT/LoF entry internal spacing (continuation gap vs line height) |
 | P033 | Front matter | Cross-page title consistency (Title Page, Abstract, Approval) |
 | P034 | Front matter | Copyright Page top-margin header, year/author consistency with Title Page |
-| P035 | Figures/Tables | Body-page figure/table centering and caption placement (text-layer bodies) |
+| P035 | Figures/Tables | Body-page figure/table centering and caption placement; **v1 text-layer bodies only** (image-only floats skipped); privacy-safe geometry metadata only |
 
 All findings are heuristic warnings and require manual review.
 
@@ -128,13 +128,14 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
-- `docs/evaluation/current_auditor_after_p034_evaluation.md` — current full PDF audit snapshot (P011–P034, five evaluation PDFs)
+- `docs/evaluation/current_auditor_after_p034_evaluation.md` — canonical pre-P035 full PDF audit snapshot (P011–P034, five evaluation PDFs; **1,446** findings)
+- `docs/evaluation/p035_current_dataset_evaluation.md` — P035 local four-PDF subset (not a new canonical aggregate)
 - `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with all triage rollups (`current_auditor_after_p034_p011_triage/`)
 - `docs/evaluation/p011_reporting_actionability_refinement.md` — P011 `p011_margin_triage` rollup
 - `docs/evaluation/p012_reporting_actionability_refinement.md` — P012 `p012_annotation_triage` rollup
 - `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
-- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P034 synthetic/current-dataset)
+- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P035 synthetic/current-dataset)
 
 ## Report schema
 

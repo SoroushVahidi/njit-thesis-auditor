@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; auditor P001–P034)
-- **Latest main:** `0a835b8` (PR #79 P012 triage reporting; five-PDF detection counts unchanged)
-- **Validation:** ruff, mypy, **414 pytest** on latest main
+- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
+- **Latest main:** `c31dfd5` (PR #83 — P035 figure/table body layout; P001–P035 implemented)
+- **Validation:** ruff, mypy, **424 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 34 (P001–P034) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 35 (P001–P035) | Yes |
 
-P001–P034 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P035 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -137,10 +137,11 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Current full P001–P034 PDF evaluation:** `docs/evaluation/current_auditor_after_p034_evaluation.md`
+- **Current full P001–P034 PDF evaluation (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md`
+- **P035 current-dataset subset (local 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`
 - Historical generated folders (superseded): `current_auditor_after_p034/`, `current_auditor_after_p034_p013_triage/`, `current_auditor_after_p034_p026_triage/`
-- P030–P034 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
+- P030–P035 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
   `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`
