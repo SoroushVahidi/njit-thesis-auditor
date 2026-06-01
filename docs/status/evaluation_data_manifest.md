@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `c31dfd5` (PR #83 — P035 figure/table body layout; P001–P035 implemented)
+- **Latest main:** `b19c452` (PR #84 — post-P035 status refresh; P001–P035 implemented)
 - **Validation:** ruff, mypy, **424 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
