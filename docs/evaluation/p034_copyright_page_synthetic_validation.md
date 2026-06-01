@@ -23,6 +23,7 @@ Q012 (no visible page number on the Copyright Page) remains covered by **P022**,
 | Scenario | Expected P034 behavior |
 |---|---|
 | Matching © year and author; no top-margin header | No finding |
+| © line with one leading middle initial; title `by` line without it | No finding (middle-initial tolerance) |
 | Running header text in top margin | `copyright_top_margin_header_text` |
 | © year differs from Title Page `May YYYY` | `copyright_year_mismatch` |
 | © author differs from Title Page `by` line | `copyright_author_mismatch` (hashes only) |

@@ -4,6 +4,7 @@
 - **Baseline commit:** `5480a41` (post–PR #65 P034 implementation)
 - **Auditor scope:** P001–P034 (P034 only reported here)
 - **Generated artifacts (gitignored):** `data/evaluation/generated/p034_evaluation/`
+- **Author-mismatch investigation:** `docs/evaluation/p034_author_mismatch_investigation.md` — PR #66’s 2 author findings were middle-initial false positives; refined in a follow-up PR
 
 ## 1. Purpose and scope
 
@@ -80,6 +81,11 @@ skipped because metadata extraction was incomplete, not because mismatches were 
 checks) with no Q009 noise. Precision/recall against human review is **not** measured here;
 author-hash mismatches may include false positives from ©-line formatting (institutional names,
 line breaks, or non-author tokens).
+
+**Post-investigation note (2026-06-01):** The two `copyright_author_mismatch` findings above were
+investigated and classified as **false positives** caused by a leading middle initial on the ©
+line that the Title Page `by` line omitted. A conservative middle-initial tolerance was added;
+re-running P034 on Yin H 4th and Sebastian yields **0** author findings. See the investigation doc.
 
 ## 5. Limitations
 
