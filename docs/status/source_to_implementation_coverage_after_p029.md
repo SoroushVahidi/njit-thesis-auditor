@@ -233,3 +233,4 @@ Top 3 next tasks:
 - **Gap basis:** documented remaining cross-page title consistency gap; front-matter/title-page guideline sources.
 - **Limitations:** PDF text-layer only; does not quote title text in findings; skips ambiguous, image-only, or single-candidate cases; uses normalized hashes and similarity scores.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p033_title_consistency_synthetic_validation.md`.
+- **Current-dataset evaluation (2026-06-01):** `docs/evaluation/p033_current_dataset_evaluation.md` — 0 P033 findings on all evaluated PDFs; cross-page comparison skipped because fewer than two confident title candidates were extracted per file.
