@@ -123,9 +123,11 @@ def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     message=f"Possible text crossing {side.value}.",
                     details={
                         "side": side.value,
+                        "issue_type": "margin_boundary_violation",
                         "worst_overflow_pt": f"{worst:.1f}",
                         "affected_line_count": str(count),
                         "confidence": confidence,
+                        "triage_tier": "informational",
                         "suggested_fix": (
                             "Review margin settings and move content inside required layout bounds."
                         ),

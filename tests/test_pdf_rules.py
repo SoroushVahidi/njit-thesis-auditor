@@ -322,6 +322,16 @@ def test_large_overflow_group_still_warns_despite_many_lines(tmp_path: Path) -> 
     assert any(w.details.get("side") == "right_margin" for w in warnings)
 
 
+def test_p011_warning_includes_triage_tier(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p011_triage_tier.pdf"
+    _make_pdf_with_margin_violation(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details.get("triage_tier") == "informational"
+    assert warning.details.get("issue_type") == "margin_boundary_violation"
+
+
 def test_confidence_field_present_in_p011_warning(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_conf.pdf"
     _make_pdf_with_margin_violation(pdf_path)

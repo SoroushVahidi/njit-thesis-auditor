@@ -266,3 +266,5 @@ Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation 
 **P034 + P013 triage output refresh (2026-06-01):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — regenerated five-PDF JSON/MD under gitignored `current_auditor_after_p034_p013_triage/`; aggregate counts unchanged (1,446 / 461 P013).
 
 **P026 reporting refinement (2026-06-01):** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup; five-PDF rerun under gitignored `current_auditor_after_p034_p026_triage/` (415 P026 unchanged).
+
+**P011 reporting refinement (2026-06-01):** `docs/evaluation/p011_reporting_actionability_refinement.md` — `p011_margin_triage` rollup; five-PDF rerun under gitignored `current_auditor_after_p034_p011_triage/` (169 P011 unchanged).
