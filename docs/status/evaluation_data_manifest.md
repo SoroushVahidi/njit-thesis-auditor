@@ -1,6 +1,6 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `ae61e16` (auditor: P001–P034 implemented; 404 pytest at last refresh)
+- **Generated for commit:** `00b9c2d` (auditor: P001–P034 implemented; 404 pytest at last refresh)
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_for_commit": "ae61e16",
+  "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P034",
     "pytest_count_at_last_doc_refresh": 404
@@ -294,6 +294,7 @@
         "tracked_status": "gitignored",
         "directory_present_in_tree": true,
         "description": "Local evaluation artifacts: audit JSON/MD snapshots, EF overlap summaries, refinement run outputs",
+        "notes": "Canonical full five-PDF rerun with P011+P013+P026 triage: current_auditor_after_p034_p011_triage/. Historical/superseded: current_auditor_after_p034/, current_auditor_after_p034_p013_triage/, current_auditor_after_p034_p026_triage/. Never commit contents.",
         "privacy_risk": "medium-high"
       },
       {

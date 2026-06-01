@@ -1,7 +1,7 @@
 # Current Auditor Full Triage Refresh (P011 + P013 + P026)
 
 - **Date:** 2026-06-01
-- **Baseline commit:** `ae61e16` (after PR #74 P011 margin triage)
+- **Baseline commit:** `00b9c2d` (PR #75 status refresh; triage rollups from PRs #71–#74)
 - **Auditor scope:** P001–P034 implemented (PDF audit P011–P034)
 - **Purpose:** Single canonical local five-PDF rerun with all high-volume reporting triage rollups
 
