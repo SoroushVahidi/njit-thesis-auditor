@@ -43,9 +43,12 @@ See `tests/test_pdf_rules.py` (P036 section) and `tests/test_rule_inventory.py` 
 - Entry boundary detection is conservative; ambiguous pages are skipped.
 - Does not check wrapped **internal** spacing (P032), alignment (P018), capitalization (P024), continued headings (P030), or column headers (P031).
 
-## Local evaluation note
+## Current-dataset note
 
-Regenerate aggregate P036 counts locally into gitignored
-`data/evaluation/generated/current_auditor_after_p036/` when needed. Do not commit
-generated JSON/MD. Canonical pre-P035 five-PDF aggregate (**1,446**) remains unchanged
-until a documented full P001–P036 rerun.
+No local or current-dataset P036 audit was run — evaluation PDFs were unavailable in the
+workspace at implementation time. See `docs/evaluation/p036_current_dataset_evaluation.md`.
+
+When evaluation PDFs are available, regenerate aggregate counts locally into gitignored
+`data/evaluation/generated/current_auditor_after_p036/`. Do not commit generated JSON/MD.
+Canonical pre-P035/P036 five-PDF aggregate (**1,446**) remains unchanged until a documented
+full P001–P036 rerun.
