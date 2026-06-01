@@ -41,7 +41,11 @@ from njit_auditor.rules.pdf_title_capitalization import (
     is_minor_word,
     looks_like_acronym,
 )
-from njit_auditor.rules.pdf_title_consistency import check_pdf_title_consistency
+from njit_auditor.rules.pdf_title_consistency import (
+    _collect_title_candidates,
+    _extract_below_heading_candidate,
+    check_pdf_title_consistency,
+)
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
@@ -3978,11 +3982,32 @@ def test_p033_approval_title_mismatch_warns(tmp_path: Path) -> None:
 
 def test_p033_single_title_candidate_no_finding(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p033_single_candidate.pdf"
-    _make_title_consistency_pdf(
-        pdf_path,
-        include_abstract_title=False,
-        include_approval_title=False,
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    _insert_centered_title_lines(
+        p1, [_DEFAULT_DISS_TITLE], start_y=120.0,
     )
+    p1.insert_text((108, 160), "by", fontsize=12)
+    p1.insert_text((108, 178), "Test Author", fontsize=12)
+    p1.insert_text((108, 196), "Doctor of Philosophy", fontsize=12)
+    p1.insert_text((108, 214), "New Jersey Institute of Technology", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_textbox(
+        fitz.Rect(108, 84, 540, 110),
+        "ABSTRACT",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    p2.insert_text(
+        (108, 140),
+        "This dissertation presents synthetic abstract body text for testing only.",
+        fontsize=12,
+    )
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
 
@@ -4033,3 +4058,116 @@ def test_p033_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     assert warning.details.get("comparison_basis") == (
         "normalized_text_hash_and_sequence_similarity"
     )
+
+
+def test_p033_abstract_title_below_heading_no_mismatch(tmp_path: Path) -> None:
+    """When ABSTRACT is first on the page, title below the heading should still compare."""
+
+    pdf_path = tmp_path / "p033_abstract_below_heading.pdf"
+    shared_title = ["Synthetic Dissertation Title for Below Heading Test"]
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    _insert_centered_title_lines(p1, shared_title, start_y=120.0)
+    p1.insert_text((108, 160), "by", fontsize=12)
+    p1.insert_text((108, 178), "Test Author", fontsize=12)
+    p1.insert_text((108, 196), "Doctor of Philosophy", fontsize=12)
+    p1.insert_text((108, 214), "New Jersey Institute of Technology", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_textbox(
+        fitz.Rect(108, 70, 540, 95),
+        "ABSTRACT",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    _insert_centered_title_lines(p2, shared_title, start_y=110.0)
+    p2.insert_text(
+        (108, 180),
+        "This abstract body line provides synthetic spacing for the test fixture only.",
+        fontsize=12,
+    )
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert _extract_below_heading_candidate(model.pages[1], "ABSTRACT") is not None
+    candidates = _collect_title_candidates(model)
+    assert len(candidates) >= 1
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_approval_title_below_heading_no_mismatch(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_approval_below_heading.pdf"
+    shared_title = ["Synthetic Approval Title Match Test Case"]
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    _insert_centered_title_lines(p1, shared_title, start_y=120.0)
+    p1.insert_text((108, 160), "by", fontsize=12)
+    p1.insert_text((108, 178), "Test Author", fontsize=12)
+    p1.insert_text((108, 196), "Doctor of Philosophy", fontsize=12)
+    p1.insert_text((108, 214), "New Jersey Institute of Technology", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_textbox(
+        fitz.Rect(108, 70, 540, 95),
+        "ABSTRACT",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    p2.insert_text(
+        (108, 140),
+        "This dissertation presents synthetic abstract body text for this fixture only.",
+        fontsize=12,
+    )
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_textbox(
+        fitz.Rect(108, 70, 540, 95),
+        "APPROVAL PAGE",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    _insert_centered_title_lines(p3, shared_title, start_y=110.0)
+    p3.insert_text((108, 180), "Dissertation Committee:", fontsize=12)
+    p3.insert_text((108, 198), "Dr. Test Advisor, Dissertation Advisor", fontsize=12)
+    p4 = doc.new_page(width=612, height=792)
+    p4.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert _extract_below_heading_candidate(model.pages[2], "APPROVAL PAGE") is not None
+    candidates = _collect_title_candidates(model)
+    assert any(c.page_role == "title_page" for c in candidates)
+    # Matching title on approval page deduplicates to one hash; comparison may still run
+    # when hashes differ on real PDFs (see current-dataset evaluation).
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_below_heading_does_not_capture_long_body_line(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_below_heading_body_guard.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_textbox(
+        fitz.Rect(108, 70, 540, 95),
+        "ABSTRACT",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    page.insert_text(
+        (108, 110),
+        "Short Synthetic Title Line Here",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 130),
+        " ".join(["word"] * 20),
+        fontsize=12,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    raw = _extract_below_heading_candidate(model.pages[0], "ABSTRACT")
+    assert raw is not None
+    assert len(raw.split()) <= 6

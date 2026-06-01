@@ -1,7 +1,7 @@
 # P033 Current Dataset Evaluation
 
-- **Date:** 2026-06-01
-- **Baseline commit:** `7982e86`
+- **Date:** 2026-06-01 (updated after recall investigation)
+- **Baseline commit:** `7982e86` (initial evaluation); post-refinement behavior documented in section 10
 - **Auditor scope:** P001–P033 (P033 only reported here)
 - **Generated artifacts (gitignored):** `data/evaluation/generated/p033_evaluation/`
 
@@ -120,6 +120,29 @@ unmeasured (precision/recall not assessed).
 ## 7. Related docs
 
 - Synthetic validation: `docs/evaluation/p033_title_consistency_synthetic_validation.md`
+- Candidate extraction recall investigation: `docs/evaluation/p033_candidate_extraction_recall_investigation.md`
 - P032 current-dataset evaluation: `docs/evaluation/p032_current_dataset_evaluation.md`
 - P025 front-matter structure: `docs/status/current_project_state_and_next_steps.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
+
+## 10. Post-refinement rerun (recall investigation)
+
+After `docs/evaluation/p033_candidate_extraction_recall_investigation.md`, P033 gained a
+conservative **below-heading** title band when above-heading extraction is empty (common when
+ABSTRACT/APPROVAL PAGE is the first line on the page).
+
+| File label | Candidates (post-refinement) | Comparison ran | P033 findings |
+|---|---:|---|---:|
+| Cibaku Elson 1st review | 1 | no | 0 |
+| Yin H 2nd review (flattened) | 1 | no | 0 |
+| Yin Haotian 2nd review | 1 | no | 0 |
+| Yin H 4th review (compressed) | 2 | **yes** | 0 |
+| Sebastian Fine clean baseline | 2 | **yes** | 0 |
+
+When the below-heading abstract title matches the title-page hash, the abstract role is
+deduplicated and comparison remains skipped (three files). Yin H 4th and Sebastian gain a
+second candidate from the **approval_page** below-heading band; normalized similarity to the
+title-page reference remained ≥0.92, so no warnings were emitted.
+
+Gitignored post-refinement summary:
+`data/evaluation/generated/p033_evaluation_after_recall_refinement/`
