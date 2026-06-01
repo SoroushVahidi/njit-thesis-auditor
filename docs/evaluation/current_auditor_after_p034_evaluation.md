@@ -27,6 +27,11 @@ see `docs/evaluation/p026_reporting_actionability_refinement.md`. Post-change re
 gitignored `data/evaluation/generated/current_auditor_after_p034_p026_triage/`. Raw P026
 count (415) unchanged.
 
+**P011 reporting refinement (2026-06-01):** P011 triage rollup added (`p011_margin_triage`);
+see `docs/evaluation/p011_reporting_actionability_refinement.md`. Post-change rerun:
+gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/`. Raw P011
+count (169) unchanged.
+
 ---
 
 ## 2. Dataset inventory

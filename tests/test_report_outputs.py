@@ -3,12 +3,14 @@ from pathlib import Path
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import (
+    P011_ISSUE_TYPE,
     P013_DOC_ISSUE_TYPE,
     P013_PAGE_ISSUE_TYPE,
     P026_FAMILY_ISSUE_TYPE,
     P026_SIZE_ISSUE_TYPE,
     audit_findings_to_json_dict,
     build_grouped_summary,
+    build_p011_margin_triage_summary,
     build_p013_triage_summary,
     build_p026_font_triage_summary,
     compact_page_list,
@@ -69,6 +71,53 @@ def _p026_findings(count: int = 10) -> list[AuditFinding]:
         )
         for i in range(count)
     ]
+
+
+def _p011_mixed_findings() -> list[AuditFinding]:
+    """P011 warnings on consecutive pages grouped by margin side."""
+    findings: list[AuditFinding] = []
+    for page in range(1, 6):
+        findings.append(
+            AuditFinding(
+                rule_id="P011",
+                severity=Severity.WARNING,
+                page=page,
+                message="Possible text crossing left_margin.",
+                details={
+                    "side": "left_margin",
+                    "issue_type": P011_ISSUE_TYPE,
+                    "worst_overflow_pt": "12.5",
+                    "affected_line_count": "3",
+                    "confidence": "high",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    for page in range(6, 9):
+        findings.append(
+            AuditFinding(
+                rule_id="P011",
+                severity=Severity.WARNING,
+                page=page,
+                message="Possible text crossing right_margin.",
+                details={
+                    "side": "right_margin",
+                    "issue_type": P011_ISSUE_TYPE,
+                    "worst_overflow_pt": "8.2",
+                    "affected_line_count": "2",
+                    "confidence": "medium",
+                    "triage_tier": "informational",
+                },
+            )
+        )
+    findings.append(
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.PASS,
+            message="No obvious margin-boundary text violations detected.",
+        )
+    )
+    return findings
 
 
 def _p026_mixed_findings() -> list[AuditFinding]:
@@ -360,6 +409,64 @@ def test_markdown_report_includes_p026_triage_section(tmp_path: Path) -> None:
 def test_p013_and_p026_triage_coexist() -> None:
     findings = _p013_findings(8) + _p026_findings(10)
     summary = build_grouped_summary(findings)
+    assert "p013_triage" in summary
+    assert "p026_font_triage" in summary
+
+
+def test_p011_triage_side_counts() -> None:
+    triage = build_p011_margin_triage_summary(_p011_mixed_findings())
+    assert triage is not None
+    assert triage["side_counts"]["left_margin"] == 5
+    assert triage["side_counts"]["right_margin"] == 3
+    assert triage["raw_finding_count"] == 8
+
+
+def test_p011_triage_consecutive_pages_compact_range() -> None:
+    triage = build_p011_margin_triage_summary(_p011_mixed_findings())
+    assert triage is not None
+    assert "1-5" in triage["pattern_page_ranges"]["left_margin"]
+    assert "6-8" in triage["pattern_page_ranges"]["right_margin"]
+
+
+def test_p011_triage_overflow_summary() -> None:
+    triage = build_p011_margin_triage_summary(_p011_mixed_findings())
+    assert triage is not None
+    assert triage["max_overflow_by_side_pt"]["left_margin"] == 12.5
+    assert triage["median_overflow_by_side_pt"]["right_margin"] == 8.2
+
+
+def test_p011_triage_in_grouped_summary() -> None:
+    summary = build_grouped_summary(_p011_mixed_findings())
+    assert "p011_margin_triage" in summary
+    assert summary["p011_margin_triage"]["affected_page_count"] == 8
+
+
+def test_p011_raw_findings_preserved_in_json() -> None:
+    findings = _p011_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 9
+    assert payload["grouped_summary"]["p011_margin_triage"]["raw_finding_count"] == 8
+
+
+def test_markdown_report_includes_p011_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "report_p011.md"
+    write_markdown_report(_p011_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P011 Margin/Overflow Triage" in text
+    assert "left_margin" in text
+    assert "Overflow distance by side" in text
+    triage_pos = text.index("P011 Margin/Overflow Triage")
+    p013_pos = text.find("P013 Page-Number Candidate Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+    if p013_pos >= 0:
+        assert triage_pos < p013_pos
+
+
+def test_p011_p013_p026_triage_coexist() -> None:
+    findings = _p011_mixed_findings() + _p013_findings(8) + _p026_findings(10)
+    summary = build_grouped_summary(findings)
+    assert "p011_margin_triage" in summary
     assert "p013_triage" in summary
     assert "p026_font_triage" in summary
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import statistics
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,8 @@ P013_DOC_ISSUE_TYPE = "p013_document_overview"
 P026_RULE_ID = "P026"
 P026_FAMILY_ISSUE_TYPE = "possible_body_font_family_issue"
 P026_SIZE_ISSUE_TYPE = "possible_body_font_size_issue"
+P011_RULE_ID = "P011"
+P011_ISSUE_TYPE = "margin_boundary_violation"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -241,6 +244,104 @@ def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, An
     }
 
 
+def _parse_overflow_pt(details: dict[str, str]) -> float | None:
+    raw = details.get("worst_overflow_pt", "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def build_p011_margin_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | None:
+    """Build a P011-specific rollup for margin/overflow triage.
+
+    Raw findings are not modified. Groups pages by margin side for compact ranges
+    and summarizes overflow distance by side.
+    """
+    p011_findings = [
+        f
+        for f in findings
+        if f.rule_id == P011_RULE_ID and f.severity == Severity.WARNING
+    ]
+    if not p011_findings:
+        return None
+
+    pages = sorted({f.page for f in p011_findings if f.page is not None})
+    side_counts: Counter[str] = Counter()
+    confidence_counts: Counter[str] = Counter()
+    by_side: dict[str, list[int]] = defaultdict(list)
+    overflow_by_side: dict[str, list[float]] = defaultdict(list)
+    pages_by_side: dict[str, set[int]] = defaultdict(set)
+    total_affected_lines = 0
+
+    for finding in p011_findings:
+        details = finding.details or {}
+        side = details.get("side", "") or "(unspecified)"
+        side_counts[side] += 1
+        confidence = details.get("confidence", "")
+        if confidence:
+            confidence_counts[confidence] += 1
+        try:
+            total_affected_lines += int(details.get("affected_line_count", "0"))
+        except ValueError:
+            pass
+        overflow = _parse_overflow_pt(details)
+        if overflow is not None:
+            overflow_by_side[side].append(overflow)
+        if finding.page is not None:
+            by_side[side].append(finding.page)
+            pages_by_side[side].add(finding.page)
+
+    page_side_count: Counter[int] = Counter()
+    for page in pages:
+        page_side_count[page] = sum(1 for s in pages_by_side.values() if page in s)
+    multi_side_pages = sorted(page for page, n in page_side_count.items() if n > 1)
+
+    pattern_page_ranges = {
+        side: compact_page_list(sorted(set(page_list)))
+        for side, page_list in sorted(
+            by_side.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:8]
+    }
+
+    max_overflow_by_side = {
+        side: round(max(values), 1)
+        for side, values in sorted(overflow_by_side.items())
+        if values
+    }
+    median_overflow_by_side = {
+        side: round(statistics.median(values), 1)
+        for side, values in sorted(overflow_by_side.items())
+        if values
+    }
+
+    dominant_side = side_counts.most_common(1)[0][0] if side_counts else ""
+
+    return {
+        "raw_finding_count": len(p011_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "side_counts": dict(sorted(side_counts.items())),
+        "confidence_counts": dict(sorted(confidence_counts.items())),
+        "total_affected_line_count": total_affected_lines,
+        "max_overflow_by_side_pt": max_overflow_by_side,
+        "median_overflow_by_side_pt": median_overflow_by_side,
+        "pages_with_multiple_sides": len(multi_side_pages),
+        "multiple_sides_pages_compact": compact_page_list(multi_side_pages),
+        "pattern_page_ranges": pattern_page_ranges,
+        "dominant_margin_side": dominant_side,
+        "triage_tier": "informational",
+        "triage_note": (
+            "P011 reports heuristic margin-boundary crossings for manual NJIT verification. "
+            "Page-level warnings are triage signals, not confirmed layout defects. "
+            "Many small same-side overflows on compressed PDFs may reflect coordinate shifts "
+            "rather than true margin violations."
+        ),
+    }
+
+
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     """Build a grouped summary structure for triage use in JSON/Markdown reports.
 
@@ -329,6 +430,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p026_triage = build_p026_font_triage_summary(findings)
     if p026_triage is not None:
         result["p026_font_triage"] = p026_triage
+    p011_triage = build_p011_margin_triage_summary(findings)
+    if p011_triage is not None:
+        result["p011_margin_triage"] = p011_triage
     return result
 
 
@@ -555,6 +659,82 @@ def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p011_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P011-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p011_margin_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P011 Margin/Overflow Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P011 warnings | {triage['raw_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    lines.append(f"| Total affected lines (sum) | {triage.get('total_affected_line_count', 0)} |")
+    multi = triage.get("pages_with_multiple_sides", 0)
+    if multi:
+        lines.append(f"| Pages with multiple margin sides | {multi} |")
+    dominant = triage.get("dominant_margin_side", "")
+    if dominant:
+        lines.append(f"| Dominant margin side | `{dominant}` |")
+    lines.append("")
+
+    side_counts = triage.get("side_counts", {})
+    if side_counts:
+        lines.append("### Margin side counts")
+        lines.append("")
+        for side, count in sorted(side_counts.items()):
+            lines.append(f"- `{side}`: {count}")
+        lines.append("")
+
+    confidence_counts = triage.get("confidence_counts", {})
+    if confidence_counts:
+        lines.append("### Confidence distribution")
+        lines.append("")
+        for level, count in sorted(confidence_counts.items()):
+            lines.append(f"- `{level}`: {count}")
+        lines.append("")
+
+    max_overflow = triage.get("max_overflow_by_side_pt", {})
+    median_overflow = triage.get("median_overflow_by_side_pt", {})
+    if max_overflow or median_overflow:
+        lines.append("### Overflow distance by side (pt)")
+        lines.append("")
+        for side in sorted(set(max_overflow) | set(median_overflow)):
+            max_pt = max_overflow.get(side)
+            med_pt = median_overflow.get(side)
+            parts = []
+            if max_pt is not None:
+                parts.append(f"max {max_pt}")
+            if med_pt is not None:
+                parts.append(f"median {med_pt}")
+            lines.append(f"- `{side}`: {', '.join(parts)}")
+        lines.append("")
+
+    pattern_ranges = triage.get("pattern_page_ranges", {})
+    if pattern_ranges:
+        lines.append("### Margin-side page ranges")
+        lines.append("")
+        for side, page_range in pattern_ranges.items():
+            lines.append(f"- `{side}`: pages {page_range}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P011 findings are listed under **Findings by Rule → P011** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -615,6 +795,9 @@ def write_markdown_report(
     lines.append("")
     grouped_section = _format_grouped_summary_section(payload["grouped_summary"])
     lines.extend(grouped_section)
+
+    p011_section = _format_p011_triage_section(payload["grouped_summary"])
+    lines.extend(p011_section)
 
     p013_section = _format_p013_triage_section(payload["grouped_summary"])
     lines.extend(p013_section)
