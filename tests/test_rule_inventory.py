@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from pathlib import Path
 
 from njit_auditor.rule_loader import load_rule_file
@@ -19,6 +20,18 @@ def test_all_ester_rules_represented_in_inventory() -> None:
     ids = {str(item["id"]) for item in inventory}
     expected = {f"Q{i:03d}" for i in range(1, 80)}
     assert ids == expected
+
+
+def test_njit_inventory_implementation_status_counts() -> None:
+    """Guard documented Q-rule inventory counts against silent drift."""
+    inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
+    status = Counter(str(item.get("implementation_status")) for item in inventory)
+    assert status["implemented"] == 2
+    assert status["partially_implemented"] == 11
+    assert status["not_implemented"] == 66
+    manual_only = sum(1 for item in inventory if item.get("checkability") == "manual")
+    assert manual_only == 9
+    assert manual_only + 57 == status["not_implemented"]
 
 
 def test_q004_q005_q006_mappings() -> None:

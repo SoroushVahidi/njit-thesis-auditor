@@ -1,11 +1,13 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-01
-- **Latest main:** `1607111` (PR #77; PR #76 substantive status/manifest refresh after P034 triage reporting; P001–P034 implemented)
-- **Validation:** ruff, mypy, **404 pytest** passed
+- **Latest main:** `0a835b8` (PR #79 — P012 annotation triage reporting; P001–P034 implemented)
+- **Validation:** ruff, mypy, **414 pytest** passed
 - **Auditor scope:** P001–P034 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
-- **Status/metadata cleanup:** complete through PR #77; do not start a new P-rule until docs and scope are explicitly updated
+- **P-rules:** **34/34** implemented (`P001`–`P034` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not P035, not a new rule)
+- **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
+- **Status/metadata cleanup:** complete through PR #79; do not start a new P-rule until docs and scope are explicitly updated
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -16,7 +18,7 @@
 - **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
 - **P011 reporting triage:** `docs/evaluation/p011_reporting_actionability_refinement.md` — `p011_margin_triage` rollup + Markdown section (raw P011 counts unchanged; 169 on five-PDF snapshot)
 - **P012 reporting triage:** `docs/evaluation/p012_reporting_actionability_refinement.md` — `p012_annotation_triage` rollup + Markdown section (raw P012 counts unchanged; 143 on five-PDF snapshot)
-- **Canonical full-triage generated outputs:** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (P011+P013+P026 triage; 1,446 total unchanged)
+- **Canonical full-triage generated outputs:** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (P011+P012+P013+P026 triage rollups; 1,446 total unchanged; regenerate locally to include `p012_annotation_triage` after PR #79)
 - **P013 triage refresh (historical):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — superseded by canonical path above for full reports
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
@@ -312,13 +314,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `1607111`)
+## 6. Validation Status (main at `0a835b8`)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 48 source files |
-| `python -m pytest` | ✅ 404 passed |
+| `python -m pytest` | ✅ 414 passed |
 
 ### P030–P034 at a glance (five-PDF snapshot)
 

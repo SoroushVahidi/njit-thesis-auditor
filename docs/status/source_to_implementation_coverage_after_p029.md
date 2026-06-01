@@ -7,8 +7,10 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **29/29 implemented** (`P001-P029`).
-- **Q-rule coverage:** 79 total = **2 implemented**, **11 partially implemented**, **57 not implemented**, **9 manual-only**.
+- **P-rule implementation:** **34/34 implemented** (`P001`–`P034` in `project_added_rules.json`).
+- **Q-rule coverage (raw `implementation_status` in inventory):** **79** total = **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented`.
+- **Q-rule coverage (framing used in this audit):** same 79 total, with **9 manual-only** (`checkability=manual`) counted separately from **57** automatable `not_implemented` gaps (9 + 57 = 66 raw `not_implemented`).
+- **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
 - **Guideline-source coverage:** core formatting signals are partially automated via P-rules; semantic/admin/process requirements remain mostly manual or process-only.
 - **Biggest remaining gaps:**
   1. TOC/List deep formatting details (continued-page headings, wrapped-entry spacing, column-label formatting/alignment).
@@ -20,7 +22,7 @@
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage is mixed (2 implemented, 11 partial, 66 not fully implemented). |
-| `data/processed/rules/project_added_rules.json` | P001-P029 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 29 P-rules are marked implemented and wired in the CLI/testing/docs. |
+| `data/processed/rules/project_added_rules.json` | P001–P034 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 34 P-rules are marked implemented and wired in the CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
 | `data/raw/guidelines/Self-Self Assessment Sheet.pdf` | Checklist-style visual formatting expectations | `P011`, `P015`, `P016`, `P017`, `P026`, `P028` | partially implemented | Core layout signals covered heuristically; checklist semantics and some visual specifics remain unimplemented. |
@@ -247,7 +249,7 @@ Top 3 next tasks:
 
 ## 13. Post-audit updates through P034 (consolidated current state)
 
-**Current repository (main `1607111`; five-PDF eval baseline `00b9c2d`):** P001–P034 implemented; **404** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged; raw counts 169 / 143 / 461 / 415 on five-PDF snapshot).
+**Current repository (main `0a835b8`; five-PDF eval baseline `00b9c2d`):** P001–P034 implemented; **414** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged; raw counts 169 / 143 / 461 / 415 on five-PDF snapshot).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -271,4 +273,4 @@ Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation 
 
 **P012 reporting refinement (2026-06-01):** `docs/evaluation/p012_reporting_actionability_refinement.md` — `p012_annotation_triage` rollup; raw P012 count expected unchanged (143 on five-PDF snapshot).
 
-**Canonical full-triage outputs (2026-06-01):** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — use `current_auditor_after_p034_p011_triage/` for latest JSON/MD with all three triage rollups; older `current_auditor_after_p034*` folders are historical.
+**Canonical full-triage outputs (2026-06-01):** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — use `current_auditor_after_p034_p011_triage/` for latest JSON/MD with P011/P012/P013/P026 triage rollups (regenerate locally after PR #79 for `p012_annotation_triage`); older `current_auditor_after_p034*` folders are historical.

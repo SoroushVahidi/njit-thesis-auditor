@@ -1,7 +1,7 @@
 # Current Auditor Full Triage Refresh (P011 + P013 + P026)
 
 - **Date:** 2026-06-01
-- **Baseline commit:** `00b9c2d` (five-PDF eval baseline; triage rollups from PRs #71–#74). **Latest main:** `1607111` (docs-only PRs #76–#77).
+- **Baseline commit:** `00b9c2d` (five-PDF eval baseline; detection unchanged). **Latest main:** `0a835b8` (PR #79 adds `p012_annotation_triage`; PRs #71–#74 added P011/P013/P026 triage).
 - **Auditor scope:** P001–P034 implemented (PDF audit P011–P034)
 - **Purpose:** Single canonical local five-PDF rerun with all high-volume reporting triage rollups
 
