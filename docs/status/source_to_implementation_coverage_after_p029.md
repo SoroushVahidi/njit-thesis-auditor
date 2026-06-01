@@ -243,4 +243,4 @@ Top 3 next tasks:
 - **Q-rule basis:** partial/heuristic PDF coverage for **Q009–Q011** only.
 - **Limitations:** Skips ambiguous or image-only copyright pages; does not quote author names or title text; Q012 (no page number on copyright page) remains with **P022**.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; `docs/evaluation/p034_copyright_page_synthetic_validation.md`.
-- **Current-dataset evaluation (2026-06-01):** `docs/evaluation/p034_current_dataset_evaluation.md` — copyright page detected on **5/5** files; year comparison on **1/5**; author comparison on **2/5**; **2** `copyright_author_mismatch` findings in PR #66 (later investigated as middle-initial false positives; see `docs/evaluation/p034_author_mismatch_investigation.md`).
+- **Current-dataset evaluation (2026-06-01):** `docs/evaluation/p034_current_dataset_evaluation.md` — PR #66 initially reported **2** author findings; PR #67 added middle-initial tolerance; post-fix rerun shows **0 P034 findings**, copyright detected **5/5**, author comparison **2/5** with no mismatches.
