@@ -41,6 +41,7 @@ from njit_auditor.rules.pdf_title_capitalization import (
     is_minor_word,
     looks_like_acronym,
 )
+from njit_auditor.rules.pdf_title_consistency import check_pdf_title_consistency
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
@@ -3831,3 +3832,204 @@ def test_p032_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     assert long_continuation not in str(warning.details)
     assert long_entry not in warning.message
     assert warning.details.get("issue_type") == "wrapped_entry_internal_spacing"
+
+
+# ---------------------------------------------------------------------------
+# P033: Front-matter cross-page title consistency
+# ---------------------------------------------------------------------------
+
+_DEFAULT_DISS_TITLE = "A Study of Synthetic Systems Architecture"
+_TITLE_PAGE_METADATA = [
+    "by",
+    "Test Author",
+    "Submitted to the Graduate Faculty",
+    "New Jersey Institute of Technology",
+    "in Partial Fulfillment of the Requirements",
+    "for the Degree of Doctor of Philosophy",
+    "May 2024",
+]
+
+
+def _insert_centered_title_lines(page: fitz.Page, lines: list[str], start_y: float = 120.0) -> None:
+    for idx, line in enumerate(lines):
+        y = start_y + idx * 20
+        page.insert_textbox(
+            fitz.Rect(108, y - 16, 540, y + 16),
+            line,
+            fontsize=14,
+            fontname="Times-Roman",
+            align=fitz.TEXT_ALIGN_CENTER,
+        )
+
+
+def _make_title_consistency_pdf(
+    path: Path,
+    *,
+    title_page_title_lines: list[str] | None = None,
+    abstract_title_lines: list[str] | None = None,
+    approval_title_lines: list[str] | None = None,
+    title_page_metadata: list[str] | None = None,
+    include_abstract_title: bool = True,
+    include_approval_title: bool = True,
+) -> None:
+    doc = fitz.open()
+    if title_page_title_lines is not None:
+        title_lines = title_page_title_lines
+    else:
+        title_lines = [_DEFAULT_DISS_TITLE]
+    metadata = title_page_metadata if title_page_metadata is not None else _TITLE_PAGE_METADATA
+
+    p1 = doc.new_page(width=612, height=792)
+    _insert_centered_title_lines(p1, title_lines, start_y=120.0)
+    meta_y = 120.0 + len(title_lines) * 22 + 10
+    for idx, line in enumerate(metadata):
+        p1.insert_text((108, meta_y + idx * 18), line, fontsize=12)
+
+    p2 = doc.new_page(width=612, height=792)
+    if include_abstract_title and abstract_title_lines is not None:
+        _insert_centered_title_lines(p2, abstract_title_lines, start_y=50.0)
+    elif include_abstract_title:
+        _insert_centered_title_lines(p2, title_lines, start_y=50.0)
+    p2.insert_textbox(
+        fitz.Rect(108, 84, 540, 110),
+        "ABSTRACT",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    p2.insert_text(
+        (108, 140),
+        "This dissertation presents synthetic abstract body text for testing purposes only.",
+        fontsize=12,
+    )
+
+    p3 = doc.new_page(width=612, height=792)
+    if include_approval_title and approval_title_lines is not None:
+        _insert_centered_title_lines(p3, approval_title_lines, start_y=50.0)
+    elif include_approval_title:
+        _insert_centered_title_lines(p3, title_lines, start_y=50.0)
+    p3.insert_textbox(
+        fitz.Rect(108, 84, 540, 110),
+        "APPROVAL PAGE",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    p3.insert_text((108, 140), "Dissertation Committee:", fontsize=12)
+    p3.insert_text((108, 158), "Dr. Test Advisor, Dissertation Advisor", fontsize=12)
+    p3.insert_text((108, 176), "Department of Computer Science", fontsize=12)
+
+    p4 = doc.new_page(width=612, height=792)
+    p4.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p4.insert_text((108, 140), "CHAPTER 1 INTRODUCTION .......    1", fontsize=12)
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p033_identical_title_line_breaks_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_match_linebreaks.pdf"
+    split_title = ["A Study of Synthetic", "Systems Architecture"]
+    _make_title_consistency_pdf(
+        pdf_path,
+        title_page_title_lines=split_title,
+        abstract_title_lines=split_title,
+        approval_title_lines=split_title,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_case_and_punctuation_only_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_case_punct.pdf"
+    _make_title_consistency_pdf(
+        pdf_path,
+        abstract_title_lines=["A STUDY OF SYNTHETIC SYSTEMS ARCHITECTURE!!!"],
+        approval_title_lines=["a study of synthetic systems architecture."],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_abstract_title_mismatch_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_abstract_mismatch.pdf"
+    _make_title_consistency_pdf(
+        pdf_path,
+        abstract_title_lines=["An Entirely Different Dissertation Topic for Testing"],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_title_consistency(model) if f.rule_id == "P033"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("issue_type") == "frontmatter_title_mismatch"
+    assert warnings[0].page == 2
+
+
+def test_p033_approval_title_mismatch_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_approval_mismatch.pdf"
+    _make_title_consistency_pdf(
+        pdf_path,
+        approval_title_lines=["Another Dissertation Title on Approval Page Only"],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_title_consistency(model) if f.rule_id == "P033"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("issue_type") == "frontmatter_title_mismatch"
+
+
+def test_p033_single_title_candidate_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_single_candidate.pdf"
+    _make_title_consistency_pdf(
+        pdf_path,
+        include_abstract_title=False,
+        include_approval_title=False,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_ambiguous_short_title_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_ambiguous.pdf"
+    short = ["Short Title"]
+    _make_title_consistency_pdf(
+        pdf_path,
+        title_page_title_lines=short,
+        abstract_title_lines=short,
+        approval_title_lines=short,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_no_extractable_title_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_no_title_text.pdf"
+    _make_title_consistency_pdf(
+        pdf_path,
+        title_page_title_lines=[],
+        title_page_metadata=_TITLE_PAGE_METADATA,
+        include_abstract_title=False,
+        include_approval_title=False,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_finding_details_are_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_privacy.pdf"
+    secret_title = "Secret Dissertation Title For Privacy Testing Alpha"
+    other_title = "Public Mismatch Title for Privacy Testing Beta Case"
+    _make_title_consistency_pdf(
+        pdf_path,
+        title_page_title_lines=[secret_title],
+        abstract_title_lines=[other_title],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_title_consistency(model) if f.rule_id == "P033")
+    assert secret_title not in str(warning.details)
+    assert secret_title not in warning.message
+    assert other_title not in str(warning.details)
+    assert other_title not in warning.message
+    assert warning.details.get("reference_title_hash")
+    assert "title_hashes_by_role" in warning.details
+    assert warning.details.get("comparison_basis") == (
+        "normalized_text_hash_and_sequence_similarity"
+    )

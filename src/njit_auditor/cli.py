@@ -58,6 +58,7 @@ from njit_auditor.rules.pdf_roman_sequence import (
 )
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import check_pdf_title_capitalization
+from njit_auditor.rules.pdf_title_consistency import check_pdf_title_consistency
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
@@ -164,6 +165,7 @@ def pdf(
     findings.extend(run_pdf_margin_rule(pdf_doc))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_frontmatter_structure(pdf_doc))
+    findings.extend(check_pdf_title_consistency(pdf_doc))
     findings.extend(check_pdf_abstract_word_count(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))

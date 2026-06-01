@@ -225,3 +225,11 @@ Top 3 next tasks:
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p032_toc_list_wrapped_spacing_synthetic_validation.md`.
 - **Current-dataset evaluation (2026-05-30):** `docs/evaluation/p032_current_dataset_evaluation.md` — PR #58 initially reported 3 Yin H 4th P032 findings (LoF page 15); PR #59 resolved these as split-page-number false positives; post-fix rerun shows **0 P032 findings** on all evaluated PDFs.
 - **Yin H 4th page-15 investigation (2026-05-30):** `docs/evaluation/p032_yin_h_4th_page15_investigation.md` — structural explanation and intervening page-number guard (PR #59).
+
+## 11. Post-audit update (P033)
+
+- **Date:** 2026-06-01
+- **Change:** Added **P033** — conservative cross-page dissertation title consistency checks for Title Page, Abstract page, and Approval Page.
+- **Gap basis:** documented remaining cross-page title consistency gap; front-matter/title-page guideline sources.
+- **Limitations:** PDF text-layer only; does not quote title text in findings; skips ambiguous, image-only, or single-candidate cases; uses normalized hashes and similarity scores.
+- **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p033_title_consistency_synthetic_validation.md`.

@@ -575,5 +575,23 @@
     "implementation_module": "njit_auditor.rules.pdf_toc_list_wrapped_spacing",
     "priority": "medium",
     "notes": "Conservative partial PDF heuristic for Q053-Q055, Q066-Q067, and Q076-Q078. Does not verify full visual compliance, leader dots, or spacing between separate entries. Skips ambiguous continuation grouping. issue_type: wrapped_entry_internal_spacing."
+  },
+  {
+    "id": "P033",
+    "section": "PDF front-matter title consistency",
+    "question": "Is the dissertation title consistent across the Title Page, Abstract page, and Approval Page?",
+    "rule_definition": "Conservative heuristic that compares normalized title-like text extracted from the Title Page, Abstract page (above the ABSTRACT heading), and Approval Page (above the APPROVAL PAGE heading). Flags only material differences after normalization; skips ambiguous, image-only, or single-candidate cases.",
+    "remediation": "Ensure the dissertation title matches exactly on the Title Page, Abstract page, and Approval Page (allowing only line breaks and minor punctuation or case differences).",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_title_consistency",
+    "priority": "medium",
+    "notes": "Partial PDF heuristic for cross-page title consistency (documented remaining gap; front-matter/title-page guideline sources). Does not quote title text in findings. Uses normalized text hashes and similarity scores only. issue_type: frontmatter_title_mismatch."
   }
 ]
