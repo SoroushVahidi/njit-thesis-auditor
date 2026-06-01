@@ -8,7 +8,7 @@
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P-rules:** **35/35** implemented (`P001`–`P035` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #84; P035 implemented — see `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
+- **Status/metadata cleanup:** complete through PR #85; P035 implemented; **P036 scoped** (not implemented) — see `docs/planning/p035_scope_and_design.md`, `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P035): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -44,8 +44,9 @@
 - P034 author-mismatch investigation: `docs/evaluation/p034_author_mismatch_investigation.md`
 - P035 synthetic validation: `docs/evaluation/p035_figure_table_layout_synthetic_validation.md`
 - P035 current-dataset evaluation (local 4-PDF subset): `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not canonical five-PDF aggregate
+- **P036 scope/design (not implemented):** `docs/planning/p036_scope_and_design.md` — recommended: TOC/List inter-entry double spacing (Q057, Q067, Q077)
 
-### P030–P035 evaluation docs (chronological)
+### P030–P036 evaluation docs (chronological)
 
 | Order | Doc | Type |
 |---:|---|---|
@@ -139,7 +140,7 @@
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
-- **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031
+- **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); **inter-entry** double spacing (Q057, Q067, Q077) scoped as **P036**, not implemented; "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031
 - **Front-matter visual checks**: copyright page (Q009–Q011) partially covered by P034; dedication centering/italic (Q033–Q034), bio-sketch content (Q023–Q025, Q027–Q029)
 - **Heading level distinctions**: L3/L4/L5 partially addressed by P027; bold/italic enforcement still missing
 - **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 style check; actual sequence ordering not yet validated)
@@ -350,6 +351,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
+| 🟡 Med | **Implement P036** (TOC/List inter-entry spacing) | Scoped in `docs/planning/p036_scope_and_design.md`; Q057/Q067/Q077; complements P032 |
 | 🟡 Med | Full five-PDF P001–P035 aggregate rerun | Canonical 1,446 baseline is pre-P035; local subset shows +13 P035 on Yin H 4th only |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Med | TOC/List robustness | EF gaps in `list_of_tables_figures_toc`; wrapped/split entry extraction (P018/P030–P032 area) |
