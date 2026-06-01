@@ -17,6 +17,11 @@ text, title text, author names, or committee names are quoted.
 (`docs/evaluation/p013_reporting_actionability_refinement.md`). Raw P013 finding counts in
 this snapshot are unchanged; JSON/Markdown reports gain `grouped_summary.p013_triage`.
 
+**Reporting refresh (2026-06-01):** Full five-PDF reports were regenerated after PR #71 into
+gitignored `data/evaluation/generated/current_auditor_after_p034_p013_triage/`; see
+`docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md`. Aggregate counts
+(1,446 total, 461 P013) match this document; only report structure/actionability differs.
+
 ---
 
 ## 2. Dataset inventory
