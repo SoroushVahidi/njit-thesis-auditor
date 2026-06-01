@@ -30,6 +30,7 @@
 - P033 current-dataset evaluation: `docs/evaluation/p033_current_dataset_evaluation.md` (refreshed after PR #63; 0 P033 findings; comparison runs on 2/5 files)
 - P033 candidate-extraction recall investigation: `docs/evaluation/p033_candidate_extraction_recall_investigation.md`
 - P034 synthetic validation: `docs/evaluation/p034_copyright_page_synthetic_validation.md`
+- P034 current-dataset evaluation: `docs/evaluation/p034_current_dataset_evaluation.md` (2 P034 findings on 2/5 files; copyright detected on 5/5)
 
 ---
 
