@@ -27,7 +27,7 @@
 - P032 current-dataset evaluation: `docs/evaluation/p032_current_dataset_evaluation.md` (refreshed after PR #59; 0 P032 on all evaluated PDFs)
 - P032 Yin H 4th page-15 investigation: `docs/evaluation/p032_yin_h_4th_page15_investigation.md`
 - P033 synthetic validation: `docs/evaluation/p033_title_consistency_synthetic_validation.md`
-- P033 current-dataset evaluation: `docs/evaluation/p033_current_dataset_evaluation.md` (0 P033 findings; comparison runs on Yin H 4th + Sebastian after below-heading refinement)
+- P033 current-dataset evaluation: `docs/evaluation/p033_current_dataset_evaluation.md` (refreshed after PR #63; 0 P033 findings; comparison runs on 2/5 files)
 - P033 candidate-extraction recall investigation: `docs/evaluation/p033_candidate_extraction_recall_investigation.md`
 
 ---

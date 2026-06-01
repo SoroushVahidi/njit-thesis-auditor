@@ -233,5 +233,5 @@ Top 3 next tasks:
 - **Gap basis:** documented remaining cross-page title consistency gap; front-matter/title-page guideline sources.
 - **Limitations:** PDF text-layer only; does not quote title text in findings; skips ambiguous, image-only, or single-candidate cases; uses normalized hashes and similarity scores.
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; status note in `docs/evaluation/p033_title_consistency_synthetic_validation.md`.
-- **Current-dataset evaluation (2026-06-01):** `docs/evaluation/p033_current_dataset_evaluation.md` — 0 P033 findings on all evaluated PDFs; initial run skipped comparison everywhere; after recall investigation, comparison runs on Yin H 4th and Sebastian (still 0 findings).
+- **Current-dataset evaluation (2026-06-01):** `docs/evaluation/p033_current_dataset_evaluation.md` — PR #62 initially skipped comparison on all files; PR #63 added below-heading fallback; post-fix rerun shows **0 P033 findings**, comparison on **2/5** files (Yin H 4th, Sebastian).
 - **Candidate-extraction recall investigation (2026-06-01):** `docs/evaluation/p033_candidate_extraction_recall_investigation.md` — below-heading fallback for ABSTRACT/APPROVAL PAGE layouts.
