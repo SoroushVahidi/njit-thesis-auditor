@@ -19,6 +19,9 @@ _MAX_COMPACT_RANGES = 8
 P013_RULE_ID = "P013"
 P013_PAGE_ISSUE_TYPE = "page_number_candidate"
 P013_DOC_ISSUE_TYPE = "p013_document_overview"
+P026_RULE_ID = "P026"
+P026_FAMILY_ISSUE_TYPE = "possible_body_font_family_issue"
+P026_SIZE_ISSUE_TYPE = "possible_body_font_size_issue"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -160,6 +163,84 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
     }
 
 
+def _p026_pattern_key(issue_type: str, observed_summary: str) -> str:
+    """Build a privacy-safe grouping key for P026 pattern page ranges."""
+    observed = observed_summary.strip() or "(unspecified)"
+    if len(observed) > 60:
+        observed = f"{observed[:57]}..."
+    return f"{issue_type}/{observed}"
+
+
+def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | None:
+    """Build a P026-specific rollup for high-volume body-font compliance triage.
+
+    Raw findings are not modified. Groups consecutive pages by issue type and
+    observed font label/size summary for compact pattern page ranges.
+    """
+    p026_findings = [f for f in findings if f.rule_id == P026_RULE_ID]
+    if not p026_findings:
+        return None
+
+    pages = sorted({f.page for f in p026_findings if f.page is not None})
+    issue_type_counts: Counter[str] = Counter()
+    confidence_counts: Counter[str] = Counter()
+    font_label_counts: Counter[str] = Counter()
+    size_label_counts: Counter[str] = Counter()
+    by_pattern: dict[str, list[int]] = defaultdict(list)
+    pages_by_issue: dict[str, set[int]] = defaultdict(set)
+
+    for finding in p026_findings:
+        details = finding.details or {}
+        issue_type = details.get("issue_type", "")
+        issue_type_counts[issue_type] += 1
+        confidence = details.get("confidence", "")
+        if confidence:
+            confidence_counts[confidence] += 1
+        observed = details.get("observed_summary", "").strip()
+        if issue_type == P026_FAMILY_ISSUE_TYPE and observed:
+            font_label_counts[observed] += 1
+        elif issue_type == P026_SIZE_ISSUE_TYPE and observed:
+            size_label_counts[observed] += 1
+        if finding.page is not None:
+            pages_by_issue[issue_type].add(finding.page)
+            pattern_key = _p026_pattern_key(issue_type, observed)
+            by_pattern[pattern_key].append(finding.page)
+
+    family_pages = pages_by_issue.get(P026_FAMILY_ISSUE_TYPE, set())
+    size_pages = pages_by_issue.get(P026_SIZE_ISSUE_TYPE, set())
+    both_pages = sorted(family_pages & size_pages)
+
+    pattern_page_ranges = {
+        pattern: compact_page_list(sorted(set(page_list)))
+        for pattern, page_list in sorted(
+            by_pattern.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:8]
+    }
+
+    return {
+        "raw_finding_count": len(p026_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "issue_type_counts": dict(sorted(issue_type_counts.items())),
+        "font_label_counts": dict(
+            font_label_counts.most_common(8),
+        ),
+        "size_observed_label_counts": dict(
+            size_label_counts.most_common(8),
+        ),
+        "confidence_counts": dict(sorted(confidence_counts.items())),
+        "pages_with_both_issue_types": len(both_pages),
+        "both_issue_types_pages_compact": compact_page_list(both_pages),
+        "pattern_page_ranges": pattern_page_ranges,
+        "triage_tier": "informational",
+        "triage_note": (
+            "P026 reports heuristic body-font size/family compliance warnings for manual "
+            "NJIT verification. Page-level warnings are triage signals, not confirmed "
+            "formatting defects."
+        ),
+    }
+
+
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     """Build a grouped summary structure for triage use in JSON/Markdown reports.
 
@@ -245,6 +326,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p013_triage = build_p013_triage_summary(findings)
     if p013_triage is not None:
         result["p013_triage"] = p013_triage
+    p026_triage = build_p026_font_triage_summary(findings)
+    if p026_triage is not None:
+        result["p026_font_triage"] = p026_triage
     return result
 
 
@@ -406,6 +490,71 @@ def _format_p013_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P026-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p026_font_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P026 Body Font Compliance Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P026 findings | {triage['raw_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    both_count = triage.get("pages_with_both_issue_types", 0)
+    if both_count:
+        lines.append(f"| Pages with family and size issues | {both_count} |")
+    lines.append("")
+
+    issue_counts = triage.get("issue_type_counts", {})
+    if issue_counts:
+        lines.append("### Issue type counts")
+        lines.append("")
+        for issue_type, count in sorted(issue_counts.items()):
+            label = issue_type or "(unspecified)"
+            lines.append(f"- `{label}`: {count}")
+        lines.append("")
+
+    font_labels = triage.get("font_label_counts", {})
+    if font_labels:
+        lines.append("### Dominant non-compliant font labels (family issues)")
+        lines.append("")
+        for label, count in font_labels.items():
+            lines.append(f"- `{label}`: {count} page(s)")
+        lines.append("")
+
+    size_labels = triage.get("size_observed_label_counts", {})
+    if size_labels:
+        lines.append("### Observed size labels (size issues)")
+        lines.append("")
+        for label, count in size_labels.items():
+            lines.append(f"- `{label}`: {count} page(s)")
+        lines.append("")
+
+    pattern_ranges = triage.get("pattern_page_ranges", {})
+    if pattern_ranges:
+        lines.append("### Issue/font pattern page ranges")
+        lines.append("")
+        for pattern, page_range in pattern_ranges.items():
+            lines.append(f"- `{pattern}`: pages {page_range}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P026 findings are listed under **Findings by Rule → P026** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -469,6 +618,9 @@ def write_markdown_report(
 
     p013_section = _format_p013_triage_section(payload["grouped_summary"])
     lines.extend(p013_section)
+
+    p026_section = _format_p026_triage_section(payload["grouped_summary"])
+    lines.extend(p026_section)
 
     lines.append("## Findings by Rule")
     lines.append("")

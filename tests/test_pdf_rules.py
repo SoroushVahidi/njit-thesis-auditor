@@ -2625,6 +2625,7 @@ def test_p026_non_times_font_repeated_warns_family(tmp_path: Path) -> None:
     ]
     assert len(family_warnings) >= 1
     assert family_warnings[0].details.get("confidence") == "medium"
+    assert family_warnings[0].details.get("triage_tier") == "informational"
 
 
 def test_p026_body_10pt_repeated_warns_size(tmp_path: Path) -> None:
