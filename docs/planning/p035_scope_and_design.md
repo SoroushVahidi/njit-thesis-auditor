@@ -1,7 +1,7 @@
 # P035 Scope and Design
 
 - **Date:** 2026-06-01
-- **Status:** Scoped — **not implemented**
+- **Status:** Implemented
 - **Baseline main:** `af244aa` (P001–P034 implemented; four triage rollups complete)
 - **Author:** Design/scoping only; no detector code in this document
 

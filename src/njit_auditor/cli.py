@@ -37,6 +37,7 @@ from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
+from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
 from njit_auditor.rules.pdf_font_compliance import check_pdf_font_compliance
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
@@ -174,6 +175,7 @@ def pdf(
     findings.extend(check_pdf_body_spacing(pdf_doc))
     findings.extend(check_pdf_font_compliance(pdf_doc))
     findings.extend(check_pdf_captions(pdf_doc))
+    findings.extend(check_pdf_figure_table_layout(pdf_doc))
     findings.extend(check_pdf_heading_level_styles(pdf_doc))
     findings.extend(check_pdf_toc_alignment(pdf_doc))
     findings.extend(check_pdf_toc_list_formatting(pdf_doc))
