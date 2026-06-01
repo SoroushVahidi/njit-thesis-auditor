@@ -4,7 +4,7 @@
 - Data inventory/status (post-PR #47): `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest (machine-readable index): `docs/status/evaluation_data_manifest.md`
 - Coverage checkpoint (strict):
-  - P001-P032 implemented
+  - P001-P033 implemented
   - Not all source-file rules are fully implemented
   - Some source rules are partial or manual-only
   - Baseline main before this branch: `7139e76a9fe5`
@@ -26,6 +26,7 @@
 - P032 synthetic validation: `docs/evaluation/p032_toc_list_wrapped_spacing_synthetic_validation.md`
 - P032 current-dataset evaluation: `docs/evaluation/p032_current_dataset_evaluation.md` (refreshed after PR #59; 0 P032 on all evaluated PDFs)
 - P032 Yin H 4th page-15 investigation: `docs/evaluation/p032_yin_h_4th_page15_investigation.md`
+- P033 synthetic validation: `docs/evaluation/p033_title_consistency_synthetic_validation.md`
 
 ---
 
@@ -66,6 +67,7 @@
 | `pdf_toc_continued_headings.py` | P030 | Multi-page TOC/LoT/LoF continued-heading checks |
 | `pdf_lot_lof_column_headers.py` | P031 | LoT/LoF column header label checks |
 | `pdf_toc_list_wrapped_spacing.py` | P032 | Wrapped TOC/LoT/LoF entry internal spacing checks |
+| `pdf_title_consistency.py` | P033 | Cross-page front-matter title consistency checks |
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
@@ -93,7 +95,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P032) | 32 | 32 | — | — | — |
+| P-rules (P001–P033) | 33 | 33 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -102,7 +104,7 @@
 - **Heading level distinctions**: L3/L4/L5 partially addressed by P027; bold/italic enforcement still missing
 - **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 style check; actual sequence ordering not yet validated)
 - **Figure/table body checks**: figure centering, table placement (above/below detection)
-- **Cross-page title consistency**: title spelling across title/abstract/approval pages
+- **Cross-page title consistency**: partially covered by P033 (heuristic; skips ambiguous/image-only cases)
 
 ---
 
@@ -161,7 +163,7 @@
 
 **Biggest coverage gaps relative to EF feedback:**
 - P020 (title capitalization): fires 0 on 3 of 4 PDFs — bold metadata absent in most PDFs; font-size fallback still needed
-- Cross-page title consistency: title spelling on title/abstract/approval — not automated
+- Cross-page title consistency: partial PDF heuristic via P033; manual review still required for edge layouts
 - TOC "(Continued)" headers: multi-page TOC not handled
 
 **Clean baseline**: `Dissertations with no Feedback` zip contains Sebastian Fine Revision 3 — useful for false-positive analysis. Not yet run through the full P011–P028 auditor.
