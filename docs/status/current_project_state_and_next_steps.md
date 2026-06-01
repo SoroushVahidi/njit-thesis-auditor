@@ -1,9 +1,11 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-01
-- **Latest main:** `ae61e16` (PR #74 — P011 margin triage; P001–P034 implemented)
-- **Validation:** 404 pytest passed (ruff, mypy, pytest)
+- **Latest main:** `00b9c2d` (PR #75 — status/docs refresh after P011/P013/P026 triage; P001–P034 implemented)
+- **Validation:** ruff, mypy, **404 pytest** passed
 - **Auditor scope:** P001–P034 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Five-PDF aggregate (detection unchanged):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0**
+- **Status/metadata cleanup:** complete through PR #75; do not start a new P-rule until docs and scope are explicitly updated
 
 - Strict coverage audit (historical baseline P029; updates through P034): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
@@ -307,15 +309,25 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `ae61e16`)
+## 6. Validation Status (main at `00b9c2d`)
 
 | Check | Result |
 |-------|--------|
-| `python -m pytest` | ✅ 404 passed |
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 48 source files |
+| `python -m pytest` | ✅ 404 passed |
 
-**Next recommended work (post–triage cleanup):**
+### P030–P034 at a glance (five-PDF snapshot)
+
+| Rule | Role | Snapshot notes |
+|------|------|----------------|
+| P030 | TOC/LoT/LoF continued headings | 3 findings (Yin H 4th only) |
+| P031 | LoT/LoF column headers | 0 after PR #55 header-band fix |
+| P032 | Wrapped entry internal spacing | 0 after PR #59 split page-number guard |
+| P033 | Cross-page title consistency | 0; comparison on 2/5 files |
+| P034 | Copyright page | 0 after PR #67 middle-initial tolerance |
+
+**Next recommended work (after status/metadata cleanup):**
 
 | Priority | Task | Rationale |
 |----------|------|-----------|

@@ -4,7 +4,7 @@
 
 - **Date:** 2026-06-01
 - **Baseline commit:** `3871d23`
-- **Validation:** ruff, mypy, **383 pytest** passed
+- **Validation (PR #70 baseline):** ruff, mypy, **383 pytest** passed
 - **Auditor scope:** P001–P034 implemented (PDF layout audit **P011–P034**; TeX audit P001–P010 not run here)
 - **Supersedes (partial):** `docs/evaluation/current_auditor_after_p014_p029_evaluation.md` (P001–P029 only, commit `6a0baaf`)
 - **Generated artifacts (gitignored):** `data/evaluation/generated/current_auditor_after_p034/`
@@ -38,7 +38,7 @@ five-PDF JSON/Markdown with P011+P013+P026 triage. See
 `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`. Older folders
 (`current_auditor_after_p034/`, `…_p013_triage/`, `…_p026_triage/`) are historical.
 
-**Current toolchain validation (2026-06-01):** ruff, mypy, **404 pytest** on `main` at `ae61e16`
+**Current toolchain validation (2026-06-01):** ruff, mypy, **404 pytest** on `main` at `00b9c2d` (PR #75)
 (reporting triage does not change the aggregate counts in §3).
 
 ---

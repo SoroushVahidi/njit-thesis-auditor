@@ -247,7 +247,7 @@ Top 3 next tasks:
 
 ## 13. Post-audit updates through P034 (consolidated current state)
 
-**Current repository (main `ae61e16`):** P001–P034 implemented; **404** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p013_triage`, `p026_font_triage` (detection unchanged).
+**Current repository (main `00b9c2d`):** P001–P034 implemented; **404** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p013_triage`, `p026_font_triage` (detection unchanged; raw counts 169 / 461 / 415 on five-PDF snapshot).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
