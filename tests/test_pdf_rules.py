@@ -204,11 +204,16 @@ def test_page_number_candidates_grouped_per_page(tmp_path: Path) -> None:
     warnings = [f for f in findings if f.rule_id == "P013" and f.page is not None]
     assert len(warnings) == 2
 
+    overview = next(f for f in findings if f.rule_id == "P013" and f.page is None)
+    assert overview.details.get("issue_type") == "p013_document_overview"
+    assert overview.details.get("triage_tier") == "informational"
+
     page1 = next(f for f in warnings if f.page == 1)
     assert page1.details.get("issue_type") == "page_number_candidate"
     assert page1.details.get("candidate_count_on_page") == "2"
     assert page1.details.get("candidate_sample")
     assert page1.details.get("confidence") in {"low", "medium"}
+    assert page1.details.get("triage_tier") == "informational"
 
     page2 = next(f for f in warnings if f.page == 2)
     assert page2.details.get("candidate_count_on_page") == "1"

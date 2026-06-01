@@ -13,6 +13,10 @@ This is the first **full five-PDF aggregate snapshot** with P030–P034 included
 **aggregate-only**: file labels, rule IDs, page numbers, and counts only. No dissertation body
 text, title text, author names, or committee names are quoted.
 
+**Note (2026-06-01):** P013 reporting was later refined for triage/actionability
+(`docs/evaluation/p013_reporting_actionability_refinement.md`). Raw P013 finding counts in
+this snapshot are unchanged; JSON/Markdown reports gain `grouped_summary.p013_triage`.
+
 ---
 
 ## 2. Dataset inventory

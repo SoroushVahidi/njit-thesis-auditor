@@ -29,8 +29,10 @@ njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 Runs P011–P034 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
-issue type for triage. The Markdown report includes a "Repeated Findings Summary"
-table before the full raw findings.
+issue type for triage. P013 (page-number candidates) also includes a dedicated
+`p013_triage` rollup with position/style pattern page ranges. The Markdown report
+includes a "Repeated Findings Summary" table and a P013 triage section before the
+full raw findings.
 
 Current PDF checks (P011–P034):
 

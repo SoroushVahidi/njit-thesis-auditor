@@ -178,7 +178,11 @@ def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFindi
             rule_id="P013",
             severity=Severity.WARNING,
             message="Detected possible page-number candidates for manual NJIT rule verification.",
-            details={"candidate_count": str(len(candidates))},
+            details={
+                "issue_type": "p013_document_overview",
+                "candidate_count": str(len(candidates)),
+                "triage_tier": "informational",
+            },
         )
     ]
     candidates_by_page: dict[int, list[PageNumberCandidate]] = {}
@@ -207,6 +211,7 @@ def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFindi
                     "candidate_sample": sample_text,
                     "observed_summary": f"{primary.position_type}/{primary.number_style}",
                     "confidence": _candidate_confidence(primary),
+                    "triage_tier": "informational",
                     "suggested_fix": (
                         "Verify placement/format against NJIT page-number requirements."
                     ),

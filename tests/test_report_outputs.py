@@ -3,8 +3,11 @@ from pathlib import Path
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import (
+    P013_DOC_ISSUE_TYPE,
+    P013_PAGE_ISSUE_TYPE,
     audit_findings_to_json_dict,
     build_grouped_summary,
+    build_p013_triage_summary,
     compact_page_list,
     write_json_report,
     write_markdown_report,
@@ -66,25 +69,42 @@ def _p026_findings(count: int = 10) -> list[AuditFinding]:
 
 
 def _p013_findings(count: int = 8) -> list[AuditFinding]:
-    """Synthetic P013 candidate findings."""
+    """Synthetic P013 candidate findings mirroring production detail fields."""
     findings: list[AuditFinding] = [
         AuditFinding(
             rule_id="P013",
             severity=Severity.WARNING,
             message="Detected possible page-number candidates.",
-            details={"candidate_count": str(count)},
+            details={
+                "issue_type": P013_DOC_ISSUE_TYPE,
+                "candidate_count": str(count),
+                "triage_tier": "informational",
+            },
         )
     ]
-    findings.extend(
-        AuditFinding(
-            rule_id="P013",
-            severity=Severity.WARNING,
-            page=i + 1,
-            message="Candidate page number near bottom margin.",
-            details={"location": "bottom"},
+    for i in range(count):
+        page = i + 1
+        multi = page == 3
+        findings.append(
+            AuditFinding(
+                rule_id="P013",
+                severity=Severity.WARNING,
+                page=page,
+                message=f"Page has {2 if multi else 1} page-number-like candidate(s).",
+                details={
+                    "issue_type": P013_PAGE_ISSUE_TYPE,
+                    "location": "bottom",
+                    "position_type": "bottom_center",
+                    "number_style": "arabic" if page <= 5 else "roman_lower",
+                    "candidate_count_on_page": "2" if multi else "1",
+                    "observed_summary": (
+                        "bottom_center/arabic" if page <= 5 else "bottom_center/roman_lower"
+                    ),
+                    "confidence": "medium",
+                    "triage_tier": "informational",
+                },
+            )
         )
-        for i in range(count)
-    )
     return findings
 
 
@@ -179,6 +199,58 @@ def test_grouped_summary_p013_included() -> None:
     summary = build_grouped_summary(findings)
     rule_ids = [e["rule_id"] for e in summary["high_volume_rules"]]
     assert "P013" in rule_ids
+
+
+def test_p013_triage_summary_issue_type_counts() -> None:
+    findings = _p013_findings(8)
+    triage = build_p013_triage_summary(findings)
+    assert triage is not None
+    assert triage["issue_type_counts"][P013_PAGE_ISSUE_TYPE] == 8
+    assert triage["issue_type_counts"][P013_DOC_ISSUE_TYPE] == 1
+    assert triage["pages_with_multiple_candidates"] == 1
+
+
+def test_p013_triage_consecutive_pages_compact_range() -> None:
+    findings = _p013_findings(8)
+    triage = build_p013_triage_summary(findings)
+    assert triage is not None
+    assert "1-5" in triage["pattern_page_ranges"]["bottom_center/arabic"]
+    assert "6-8" in triage["pattern_page_ranges"]["bottom_center/roman_lower"]
+    assert "1-8" in triage["affected_pages_compact"]
+
+
+def test_p013_triage_in_grouped_summary() -> None:
+    findings = _p013_findings(8)
+    summary = build_grouped_summary(findings)
+    assert "p013_triage" in summary
+    assert summary["p013_triage"]["affected_page_count"] == 8
+
+
+def test_p013_raw_findings_preserved_in_json() -> None:
+    findings = _p013_findings(8)
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 9
+    assert payload["grouped_summary"]["p013_triage"]["raw_finding_count"] == 9
+
+
+def test_markdown_report_includes_p013_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "report_p013.md"
+    write_markdown_report(_p013_findings(8), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P013 Page-Number Candidate Triage" in text
+    assert "bottom_center/arabic" in text
+    assert "Issue type counts" in text
+    triage_pos = text.index("P013 Page-Number Candidate Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+
+
+def test_non_p013_grouped_summary_unchanged_for_p026() -> None:
+    findings = _p026_findings(10)
+    summary = build_grouped_summary(findings)
+    assert "p013_triage" not in summary
+    p026_entry = next(e for e in summary["high_volume_rules"] if e["rule_id"] == "P026")
+    assert p026_entry["count"] == 10
 
 
 # ---- audit_findings_to_json_dict tests (existing + new) ----
