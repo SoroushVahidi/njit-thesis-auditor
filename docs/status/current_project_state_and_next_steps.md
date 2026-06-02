@@ -9,7 +9,8 @@
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **36/36** implemented (`P001`–`P036` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
-- **Status/metadata cleanup:** complete through PR #88; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
+- **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
+- **P037 scoping:** scoped but **not implemented** — see `docs/planning/p037_scope_and_design.md` (section-anchored front-matter Roman numerals; Q022, Q031, Q035, Q046, Q060)
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P036): `docs/status/source_to_implementation_coverage_after_p029.md`
@@ -225,7 +226,7 @@
 |----------|-----|------|-------|
 | 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image floats skipped in v1 |
 | 🟡 High | P034 copyright year/author extraction recall | Refinement | Year comparison ran 1/5; author 2/5; expand without quoting names in findings |
-| 🟡 Med | Roman numeral **value** sequence (not just style/regime) | Automatable partial | Beyond P028/P029 style checks |
+| 🟡 Med | Section-anchored Roman numerals (bio=iv, template offsets) | **Scoped as P037** | P029 covers relative sequence; P037 adds template anchors — see `docs/planning/p037_scope_and_design.md` |
 | 🟡 Med | Heading bold/italic enforcement beyond P027 | Partial | Level style partially covered |
 | 🟡 Med | Body-page spacing (P016 front-matter focus) | Refinement | EF feedback suggests body gaps underrepresented |
 | 🟡 Med | References/citations deterministic checks | Automatable partial | If TeX/BibTeX path feasible |
@@ -366,7 +367,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 |----------|------|-----------|
 | 🟡 Med | Full five-PDF P001–P036 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
-| 🟡 Low | P037 scoping | After post-P036 docs/manifest consistency (PR #88) |
+| 🟡 Med | **P037 implementation** | Section-anchored front-matter Roman numerals — `docs/planning/p037_scope_and_design.md` |
+| 🟡 Low | Front-matter exact heading / missing section | P014 follow-on (Q013, Q021, Q036, Q047, Q061, Q070) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce image-float skips |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
 
