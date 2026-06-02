@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `e4840aa` (PR #87 — P036 TOC/List inter-entry spacing; P001–P036 implemented)
+- **Latest main:** `48b1e963` (PR #88 — post-P036 status refresh; P001–P036 implemented)
 - **Validation:** ruff, mypy, **432 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`

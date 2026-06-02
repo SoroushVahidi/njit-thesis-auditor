@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-01
 - **Status:** Implemented
-- **Baseline main:** `e4840aa` (P001–P036 implemented; P036 PR #87)
+- **Baseline main:** `48b1e963` (P001–P036 implemented; status refresh PR #88; P036 implementation PR #87 `e4840aa`)
 - **Author:** Design/scoping only; no detector code in this document
 
 ## Current state
