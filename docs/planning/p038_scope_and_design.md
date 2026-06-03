@@ -1,9 +1,9 @@
 # P038 Scope and Design
 
 - **Date:** 2026-06-02
-- **Status:** Scoped (not implemented)
-- **Baseline main:** `21ec787` (P001–P037 implemented; post-P037 consistency audit PR #94)
-- **Author:** Design/scoping only; no detector code in this document
+- **Status:** **Implemented** — `src/njit_auditor/rules/pdf_frontmatter_headings.py`
+- **Baseline main:** `d0f6175` (P001–P037 implemented; P038 scoped PR #95)
+- **Implementation PR:** rules/p038-frontmatter-heading-phrases
 
 ## Current state
 

@@ -73,6 +73,7 @@ Current PDF checks (P011–P036):
 | P035 | Figures/Tables | Body-page figure/table centering and caption placement; **v1 text-layer bodies only** (image-only floats skipped); privacy-safe geometry metadata only |
 | P036 | TOC/List | Inter-entry double spacing between distinct entries on TOC, LoT, and LoF pages; complements P032; privacy-safe geometry metadata only (no entry text) |
 | P037 | Page numbers | Section-anchored front-matter Roman numerals: BIOGRAPHICAL SKETCH must be iv; DEDICATION (optional) v; ACKNOWLEDGEMENTS vi; TABLE OF CONTENTS vii; LIST OF TABLES viii; emits nothing if BIOGRAPHICAL SKETCH heading absent |
+| P038 | Front matter | Required front-matter heading presence (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) and known phrase-variant detection (e.g. ACKNOWLEDGMENTS); gated: no findings if no headings detected; optional sections not flagged as missing |
 
 All findings are heuristic warnings and require manual review.
 
