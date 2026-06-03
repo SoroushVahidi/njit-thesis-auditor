@@ -2,16 +2,17 @@
   "schema_version": 1,
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P041",
-    "pytest_count_at_last_doc_refresh": 482,
-    "latest_main_at_last_doc_refresh": "97ed159",
+    "p_rules_implemented": "P001-P042",
+    "pytest_count_at_last_doc_refresh": 491,
+    "latest_main_at_last_doc_refresh": "21f521a",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
     "p038_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p038_current_dataset_evaluation.md",
     "p039_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p039_current_dataset_evaluation.md",
     "p040_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p040_current_dataset_evaluation.md",
-    "p041_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p041_current_dataset_evaluation.md"
+    "p041_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p041_current_dataset_evaluation.md",
+    "p042_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p042_current_dataset_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -120,10 +121,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 41,
-        "rule_id_range": "P001-P041",
+        "rule_count": 42,
+        "rule_id_range": "P001-P042",
         "tracked_status": "tracked",
-        "description": "Project implementation rule set mapped to audit modules (P001-P041 implemented)"
+        "description": "Project implementation rule set mapped to audit modules (P001-P042 implemented)"
       }
     ],
     "ef_commented_dissertations": [
