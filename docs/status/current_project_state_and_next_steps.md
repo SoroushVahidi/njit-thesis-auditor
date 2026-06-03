@@ -1,11 +1,11 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `1f5bc9a` (PR #98 — post-P038 consistency audit; P001–P038 implemented)
+- **Latest main:** `db842d6` (PR #100 — P039 TOC entry hierarchy; P001–P039 implemented)
 - **Validation:** ruff, mypy, **465 pytest** passed
 - **Auditor scope:** P001–P039 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P038 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P039 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **39/39** implemented (`P001`–`P039` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -57,8 +57,10 @@
 - P037 synthetic validation: `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`
 - P038 synthetic validation: `docs/evaluation/p038_frontmatter_headings_synthetic_validation.md`
 - P038 current-dataset evaluation (not run): `docs/evaluation/p038_current_dataset_evaluation.md` — no P038 counts; evaluation PDFs unavailable
+- P039 synthetic validation: `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`
+- P039 current-dataset evaluation (not run): `docs/evaluation/p039_current_dataset_evaluation.md` — no P039 counts; evaluation PDFs unavailable
 
-### P030–P038 evaluation docs (chronological)
+### P030–P039 evaluation docs (chronological)
 
 | Order | Doc | Type |
 |---:|---|---|
@@ -85,6 +87,7 @@
 | 21 | `docs/evaluation/p038_frontmatter_headings_synthetic_validation.md` | Synthetic |
 | 22 | `docs/evaluation/p038_current_dataset_evaluation.md` | Current dataset (not run) |
 | 23 | `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md` | Synthetic |
+| 24 | `docs/evaluation/p039_current_dataset_evaluation.md` | Current dataset (not run) |
 
 **Privacy:** All evaluation docs are aggregate-only. Do not quote dissertation body text, title text, or author names. Generated audit JSON/MD outputs stay under gitignored `data/evaluation/generated/`.
 
@@ -105,7 +108,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P038)
+### PDF Layout Audit (P011–P039)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -134,6 +137,7 @@
 | `pdf_toc_list_formatting.py` | P024 | TOC L1 (ALL CAPS), L2 (title case), LoT (title case, no period), LoF (sentence case) |
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
+| `pdf_toc_entry_hierarchy.py` | P039 | TOC level indentation hierarchy: L2 entries indented relative to L1, L3 relative to L2 (Q056) |
 
 ### Infrastructure
 
@@ -158,7 +162,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P038) | 38 | 38 | — | — | — |
+| P-rules (P001–P039) | 39 | 39 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -235,7 +239,7 @@
 
 ---
 
-## 4. Remaining Gaps After P038 (Prioritized)
+## 4. Remaining Gaps After P039 (Prioritized)
 
 ### A. Automatable / partial (not yet fully covered)
 
@@ -342,7 +346,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `2888858`, P039 on branch)
+## 6. Validation Status (main at `db842d6`)
 
 | Check | Result |
 |-------|--------|
@@ -425,5 +429,5 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036, P037, or P038 current-dataset counts exist yet. Full pre-P035/P036/P037/P038 five-PDF aggregate evaluation remains at
+No P036, P037, P038, or P039 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).

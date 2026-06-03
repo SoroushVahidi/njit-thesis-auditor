@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (post PR #47)
 
-- Date: 2026-06-03 (metadata refresh for P038)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P038 on `main` (`ba41df2` latest; manifest/eval baseline `00b9c2d`, **456** pytest)
+- Date: 2026-06-03 (metadata refresh for P039)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P039 on `main` (`db842d6` latest; manifest/eval baseline `00b9c2d`, **465** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P038** implementation rules.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P039** implementation rules.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -51,12 +51,12 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P038**) mapped to implemented modules/checks.
+  Project implementation rule set (**P001-P039**) mapped to implemented modules/checks.
 
-From the strict post-P029 audit plus post-audit updates through P038
+From the strict post-P029 audit plus post-audit updates through P039
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- P-rules: **38/38** implemented (historical audit snapshot listed 29/29 at P029).
+- P-rules: **39/39** implemented (historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data
@@ -90,7 +90,7 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 | Evaluation dataset/use case | Source set | Current use | Inclusion/exclusion rule | Output location |
 |---|---|---|---|---|
 | Historical full P001-P029 evaluation across 5 PDFs | EF-commented subset + clean baseline PDF | Rule-volume snapshot at P029 milestone | Historical baseline doc | `docs/evaluation/current_auditor_after_p014_p029_evaluation.md` |
-| Per-rule P030-P036 current-dataset evaluations | 5-PDF set (P035: local 4-PDF subset; P036: not run) | Privacy-safe counts per new rule | Aggregate-only; no entry/body text quoted | `docs/evaluation/p030_current_dataset_evaluation.md` through `p036_current_dataset_evaluation.md` |
+| Per-rule P030-P039 current-dataset evaluations | 5-PDF set (P035: local 4-PDF subset; P036–P039: not run) | Privacy-safe counts per new rule | Aggregate-only; no entry/body text quoted | `docs/evaluation/p030_current_dataset_evaluation.md` through `p039_current_dataset_evaluation.md` |
 | Generated audit snapshots | Local PDF runs | All evaluation reruns | Gitignored | `data/evaluation/generated/` |
 | Canonical full-triage five-PDF rerun | Same 5-PDF set | Latest JSON/MD with P011+P013+P026 triage | Gitignored; not committed | `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`) |
 | EF comment-vs-tool overlap | Extractable-comment PDFs only | Page/category overlap against extractable EF comments | Excludes flattened-comment PDFs from comment extraction logic | `docs/evaluation/current_ef_comment_vs_tool_comparison.md` + `data/evaluation/generated/current_ef_comment_comparison/` (gitignored) |
