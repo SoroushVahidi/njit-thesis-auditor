@@ -33,6 +33,9 @@ from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_chec
 from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.page_numbers import run_page_number_rule
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
+from njit_auditor.rules.pdf_acknowledgements_indentation import (
+    check_pdf_acknowledgements_indentation,
+)
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
@@ -183,6 +186,7 @@ def pdf(
     findings.extend(check_pdf_dedication_page(pdf_doc))
     findings.extend(check_pdf_abstract_word_count(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
+    findings.extend(check_pdf_acknowledgements_indentation(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))
     findings.extend(check_pdf_body_spacing(pdf_doc))
     findings.extend(check_pdf_font_compliance(pdf_doc))
