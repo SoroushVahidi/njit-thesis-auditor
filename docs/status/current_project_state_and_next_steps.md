@@ -1,9 +1,10 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `ba41df2` (PR #97 — post-P038 status refresh; P001–P038 implemented)
+- **Latest main:** `1f5bc9a` (PR #98 — post-P038 consistency audit; P001–P038 implemented)
 - **Validation:** ruff, mypy, **456 pytest** passed
 - **Auditor scope:** P001–P038 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **P039:** **scoped, not yet implemented** — TOC level indentation hierarchy check (Q056); see `docs/planning/p039_scope_and_design.md`
 - **Five-PDF aggregate (canonical pre-P035/P036/P037/P038 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P038 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
@@ -403,10 +404,9 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Post-P038 consistency audit | Cross-check all status docs, README, and manifests are consistent after P038; clear any remaining P038-scoped-only language |
+| 🟡 High | **Implement P039** — TOC level indentation hierarchy (Q056) | Scoped; see `docs/planning/p039_scope_and_design.md`; module `pdf_toc_entry_hierarchy.py`; 39 tests after implementation |
 | 🟡 Med | Full five-PDF P001–P038 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
-| 🟡 Low | P039 scoping | Only after docs and status are clean and consistent; scope next gap from remaining automatable Q-rule backlog |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
