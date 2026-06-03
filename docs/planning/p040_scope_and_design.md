@@ -1,8 +1,9 @@
 # P040 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`
 - **Baseline main:** `5389686` (PR #102 — post-P039 consistency audit; P001–P039 implemented)
+- **Implementation PR:** rules/p040-lof-terminal-punctuation
 
 ---
 

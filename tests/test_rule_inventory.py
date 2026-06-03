@@ -62,7 +62,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 39
+    assert len(project_rules) == 40
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -155,6 +155,11 @@ def test_project_added_rules_implemented() -> None:
     assert (
         by_id["P039"]["implementation_module"]
         == "njit_auditor.rules.pdf_toc_entry_hierarchy"
+    )
+    assert by_id["P040"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P040"]["implementation_module"]
+        == "njit_auditor.rules.pdf_lof_terminal_punctuation"
     )
     assert by_id["P019"]["phase"] == "pdf_layout"
     assert by_id["P019"]["implementation_module"] == "njit_auditor.rules.pdf_page_numbers"
