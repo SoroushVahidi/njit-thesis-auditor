@@ -17,6 +17,7 @@ from njit_auditor.rules.pdf_font_compliance import (
     check_pdf_font_compliance,
     classify_font,
 )
+from njit_auditor.rules.pdf_frontmatter_headings import check_pdf_frontmatter_headings
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
@@ -4942,4 +4943,234 @@ def test_p037_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P037" for item in payload.get("findings", []))
+
+
+# ---------------------------------------------------------------------------
+# P038 — Front-matter exact heading phrase and missing-section checks
+# ---------------------------------------------------------------------------
+
+
+def _make_p038_pdf(
+    path: Path,
+    pages: list[tuple[str | None, str | None, str | None]],
+) -> None:
+    """Create a synthetic multi-page PDF for P038 tests.
+
+    pages: list of (heading_text_or_none, chapter_text_or_none, page_num_text_or_none)
+    heading_text: e.g. "APPROVAL PAGE", "BIOGRAPHICAL SKETCH"
+    chapter_text: body heading like "CHAPTER 1 INTRODUCTION"
+    page_num_text: page number at bottom
+    """
+    doc = fitz.open()
+    for heading, chapter, page_num in pages:
+        page = doc.new_page(width=612, height=792)
+        if heading:
+            page.insert_text((180, 90), heading, fontsize=14, fontname="Times-Bold")
+        if chapter:
+            page.insert_text((108, 200), chapter, fontsize=14)
+        if page_num:
+            page.insert_text((300, 760), page_num, fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p038_all_required_headings_correct_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p038_all_ok.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    assert not findings
+
+
+def test_p038_approval_page_missing_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p038_no_approval.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    missing = [f for f in findings if f.details.get("issue_type") == "required_heading_missing"]
+    assert any(f.details.get("section_key") == "approval_page" for f in missing)
+
+
+def test_p038_biographical_sketch_missing_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p038_no_bio.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    missing = [f for f in findings if f.details.get("issue_type") == "required_heading_missing"]
+    assert any(f.details.get("section_key") == "biographical_sketch" for f in missing)
+
+
+def test_p038_acknowledgements_missing_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p038_no_ack.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    missing = [f for f in findings if f.details.get("issue_type") == "required_heading_missing"]
+    assert any(f.details.get("section_key") == "acknowledgements" for f in missing)
+
+
+def test_p038_toc_missing_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p038_no_toc.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    missing = [f for f in findings if f.details.get("issue_type") == "required_heading_missing"]
+    assert any(f.details.get("section_key") == "table_of_contents" for f in missing)
+
+
+def test_p038_acknowledgments_variant_warns(tmp_path: Path) -> None:
+    """American spelling ACKNOWLEDGMENTS should trigger heading_phrase_not_exact."""
+    pdf_path = tmp_path / "p038_ackments.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGMENTS", None, "vi"),  # American spelling — not canonical
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    phrase_wrong = [
+        f for f in findings if f.details.get("issue_type") == "heading_phrase_not_exact"
+    ]
+    assert phrase_wrong
+    f = phrase_wrong[0]
+    assert f.details.get("expected_heading") == "ACKNOWLEDGEMENTS"
+    assert f.details.get("observed_heading_normalized") == "ACKNOWLEDGMENTS"
+    assert f.details.get("section_key") == "acknowledgements"
+
+
+def test_p038_dedication_absent_no_finding(tmp_path: Path) -> None:
+    """DEDICATION is optional and must never trigger required_heading_missing."""
+    pdf_path = tmp_path / "p038_no_dedication.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    dedication_missing = [
+        f for f in findings
+        if f.details.get("section_key") == "dedication"
+        and f.details.get("issue_type") == "required_heading_missing"
+    ]
+    assert not dedication_missing
+
+
+def test_p038_lot_lof_absent_no_missing_finding(tmp_path: Path) -> None:
+    """LIST OF TABLES and LIST OF FIGURES are optional — absence must not be flagged."""
+    pdf_path = tmp_path / "p038_no_lot_lof.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    optional_missing = [
+        f for f in findings
+        if f.details.get("section_key") in {"list_of_tables", "list_of_figures"}
+        and f.details.get("issue_type") == "required_heading_missing"
+    ]
+    assert not optional_missing
+
+
+def test_p038_no_headings_detected_no_finding(tmp_path: Path) -> None:
+    """Flattened PDF with no detectable headings must produce no P038 findings."""
+    pdf_path = tmp_path / "p038_no_headings.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 200), "Some body text without any headings.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    assert not findings
+
+
+def test_p038_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """P038 findings must not include arbitrary extracted body text."""
+    pdf_path = tmp_path / "p038_privacy.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    for f in findings:
+        # observed_heading_normalized must only be present for known safe variants
+        observed = f.details.get("observed_heading_normalized", "")
+        if observed:
+            assert observed in {"ACKNOWLEDGMENTS"}, f"Unexpected observed text: {observed}"
+        # No body text, titles, or private content
+        assert "body text" not in f.message.lower()
+        assert "author" not in f.message.lower()
+
+
+def test_p038_lot_lof_headings_correct_no_finding(tmp_path: Path) -> None:
+    """When LIST OF TABLES and LIST OF FIGURES are present and exact, no P038 finding."""
+    pdf_path = tmp_path / "p038_lot_lof_ok.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        ("LIST OF TABLES", None, "viii"),
+        ("LIST OF FIGURES", None, "ix"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    assert not findings
+
+
+def test_p038_cli_includes_rule(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p038_cli.pdf"
+    json_out = tmp_path / "p038_report.json"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGMENTS", None, "vi"),  # triggers heading_phrase_not_exact
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    runner = CliRunner()
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P038" for item in payload.get("findings", []))
 

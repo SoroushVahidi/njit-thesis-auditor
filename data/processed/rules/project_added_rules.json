@@ -665,5 +665,23 @@
     "implementation_module": "njit_auditor.rules.pdf_roman_section_anchors",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q022, Q031, Q035, Q046, Q060. Fixed NJIT template values: bio=4(iv), ded=5(v), ack=6(vi), toc=7(vii), lot=8(viii). Emits nothing if BIOGRAPHICAL SKETCH heading absent. Skips sections with no confident roman_lower candidate. issue_types: roman_bio_sketch_not_iv, roman_section_wrong_value."
+  },
+  {
+    "id": "P038",
+    "section": "PDF front-matter exact headings",
+    "question": "Do required front-matter section headings (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) appear with their exact canonical phrase, and are they present at all?",
+    "rule_definition": "Conservative heuristic: (1) flags required_heading_missing when APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, or TABLE OF CONTENTS is not detected in the front-matter region; (2) flags heading_phrase_not_exact when a known curated spelling variant (e.g. ACKNOWLEDGMENTS) is found instead of the canonical NJIT phrase. Gated: no findings if no headings at all are detected (flattened/image-only PDFs). Optional sections (DEDICATION, LIST OF TABLES, LIST OF FIGURES) are not flagged as missing. Does not duplicate P014 style checks (bold/centered/near-top/all-caps) or P025 structure checks.",
+    "remediation": "Ensure all required front-matter headings use the exact canonical NJIT phrase (ACKNOWLEDGEMENTS not ACKNOWLEDGMENTS, etc.) and that every required section is present.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "implemented",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_headings",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q013, Q021, Q036, Q047, Q061, Q070. Required headings: APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS. Known variant: ACKNOWLEDGMENTS. Gate: skip if no headings detected (flattened PDFs). Optional sections (DEDICATION, LIST OF TABLES, LIST OF FIGURES) not flagged as missing. issue_types: required_heading_missing, heading_phrase_not_exact."
   }
 ]

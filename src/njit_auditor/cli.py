@@ -39,6 +39,7 @@ from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
 from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
 from njit_auditor.rules.pdf_font_compliance import check_pdf_font_compliance
+from njit_auditor.rules.pdf_frontmatter_headings import check_pdf_frontmatter_headings
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
@@ -171,6 +172,7 @@ def pdf(
     findings.extend(check_pdf_frontmatter_no_page_number(pdf_doc))
     findings.extend(run_pdf_margin_rule(pdf_doc))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
+    findings.extend(check_pdf_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_frontmatter_structure(pdf_doc))
     findings.extend(check_pdf_title_consistency(pdf_doc))
     findings.extend(check_pdf_copyright_page(pdf_doc))
