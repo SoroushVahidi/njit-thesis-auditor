@@ -35,6 +35,7 @@ from njit_auditor.rules.pdf_page_numbers import (
     check_pdf_page_number_sequence,
     run_pdf_page_number_candidates_rule,
 )
+from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import (
     _is_math_font,
@@ -4734,4 +4735,211 @@ def test_p035_cli_pdf_command_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P035" for item in payload.get("findings", []))
+
+
+# ---------------------------------------------------------------------------
+# P037 — Section-anchored front-matter Roman numeral checks
+# ---------------------------------------------------------------------------
+
+
+def _make_p037_pdf(
+    path: Path,
+    pages: list[tuple[str | None, str | None, str | None]],
+) -> None:
+    """Create a synthetic front-matter PDF for P037 tests.
+
+    pages: list of (heading_text_or_none, chapter_text_or_none, page_num_text_or_none)
+    heading_text: e.g. "BIOGRAPHICAL SKETCH", "ACKNOWLEDGEMENTS"
+    chapter_text: body heading like "CHAPTER 1 INTRODUCTION" (marks body start)
+    page_num_text: Roman or Arabic page number placed at bottom center
+    """
+    doc = fitz.open()
+    for heading, chapter, page_num in pages:
+        page = doc.new_page(width=612, height=792)
+        if heading:
+            page.insert_text((180, 90), heading, fontsize=14, fontname="Times-Bold")
+        if chapter:
+            page.insert_text((108, 200), chapter, fontsize=14)
+        if page_num:
+            page.insert_text((300, 760), page_num, fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p037_bio_sketch_iv_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_bio_iv_ok.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not findings
+
+
+def test_p037_bio_sketch_wrong_roman_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_bio_v_bad.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "v"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert any(f.details.get("issue_type") == "roman_bio_sketch_not_iv" for f in findings)
+    bio_finding = next(
+        f for f in findings if f.details.get("issue_type") == "roman_bio_sketch_not_iv"
+    )
+    assert bio_finding.details.get("expected_roman") == "iv"
+    assert bio_finding.details.get("expected_value") == "4"
+    assert bio_finding.details.get("observed_roman") == "v"
+    assert bio_finding.details.get("section_key") == "biographical_sketch"
+
+
+def test_p037_globally_offset_sequence_flags_bio(tmp_path: Path) -> None:
+    """P029 may not catch a globally offset sequence (v,vi,...); P037 should flag bio=v."""
+    pdf_path = tmp_path / "p037_offset_seq.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "v"),
+        ("ACKNOWLEDGEMENTS", None, "vii"),
+        ("TABLE OF CONTENTS", None, "viii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert any(f.details.get("issue_type") == "roman_bio_sketch_not_iv" for f in findings)
+
+
+def test_p037_dedication_absent_ack_vi_passes(tmp_path: Path) -> None:
+    """Dedication not detected; ACK at vi is correct per template slot counting."""
+    pdf_path = tmp_path / "p037_no_ded_ack_vi.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        ("LIST OF TABLES", None, "viii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not findings
+
+
+def test_p037_dedication_present_correct_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_ded_ok.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("DEDICATION", None, "v"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not findings
+
+
+def test_p037_dedication_present_wrong_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_ded_wrong.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("DEDICATION", None, "vi"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    ded = [f for f in findings if f.details.get("section_key") == "dedication"]
+    assert ded
+    assert ded[0].details.get("issue_type") == "roman_section_wrong_value"
+    assert ded[0].details.get("expected_roman") == "v"
+    assert ded[0].details.get("observed_roman") == "vi"
+
+
+def test_p037_toc_wrong_value_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_toc_wrong.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "ix"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    toc = [f for f in findings if f.details.get("section_key") == "table_of_contents"]
+    assert toc
+    assert toc[0].details.get("expected_roman") == "vii"
+    assert toc[0].details.get("issue_type") == "roman_section_wrong_value"
+
+
+def test_p037_no_bio_heading_no_findings(tmp_path: Path) -> None:
+    """When BIOGRAPHICAL SKETCH heading is absent, P037 emits nothing."""
+    pdf_path = tmp_path / "p037_no_bio.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not findings
+
+
+def test_p037_no_candidate_on_bio_page_skipped(tmp_path: Path) -> None:
+    """Bio heading present but no Roman candidate → no P037 finding (skip)."""
+    pdf_path = tmp_path / "p037_bio_no_num.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, None),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not findings
+
+
+def test_p037_body_page_roman_not_checked(tmp_path: Path) -> None:
+    """Roman numerals on body pages must not produce P037 findings."""
+    pdf_path = tmp_path / "p037_body_roman.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        (None, "CHAPTER 1 INTRODUCTION", "v"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    body_pages = [f for f in findings if f.page == 2]
+    assert not body_pages
+
+
+def test_p037_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Finding details must not include dissertation body text or heading prose."""
+    pdf_path = tmp_path / "p037_privacy.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "v"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert findings
+    for f in findings:
+        assert f.details.get("section_key") is not None
+        assert f.details.get("expected_roman") is not None
+        assert f.details.get("observed_roman") is not None
+        assert f.details.get("expected_value") is not None
+        assert f.details.get("observed_value") is not None
+        # Message should only reference section name and numerals, not body text.
+        assert "body text" not in f.message.lower()
+
+
+def test_p037_cli_includes_rule(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_cli.pdf"
+    json_out = tmp_path / "p037_report.json"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "v"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    runner = CliRunner()
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P037" for item in payload.get("findings", []))
 

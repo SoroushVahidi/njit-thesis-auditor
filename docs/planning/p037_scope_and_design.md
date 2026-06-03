@@ -1,9 +1,9 @@
 # P037 Scope and Design
 
-- **Date:** 2026-06-01
-- **Status:** Scoped (not implemented)
-- **Baseline main:** `3f75c500` (P001–P036 implemented; post-P036 consistency audit PR #89)
-- **Author:** Design/scoping only; no detector code in this document
+- **Date:** 2026-06-02
+- **Status:** **Implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`
+- **Baseline main:** `f3768dc` (P001–P036 implemented; reusable-tooling audit PR #91)
+- **Implementation PR:** rules/p037-roman-section-anchors
 
 ## Current state
 

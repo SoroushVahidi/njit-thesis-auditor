@@ -72,6 +72,7 @@ Current PDF checks (P011–P036):
 | P034 | Front matter | Copyright Page top-margin header, year/author consistency with Title Page |
 | P035 | Figures/Tables | Body-page figure/table centering and caption placement; **v1 text-layer bodies only** (image-only floats skipped); privacy-safe geometry metadata only |
 | P036 | TOC/List | Inter-entry double spacing between distinct entries on TOC, LoT, and LoF pages; complements P032; privacy-safe geometry metadata only (no entry text) |
+| P037 | Page numbers | Section-anchored front-matter Roman numerals: BIOGRAPHICAL SKETCH must be iv; DEDICATION (optional) v; ACKNOWLEDGEMENTS vi; TABLE OF CONTENTS vii; LIST OF TABLES viii; emits nothing if BIOGRAPHICAL SKETCH heading absent |
 
 All findings are heuristic warnings and require manual review.
 
