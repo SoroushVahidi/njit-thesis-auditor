@@ -26,7 +26,7 @@ njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P036 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P038 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P036):
+Current PDF checks (P011–P038):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -73,7 +73,7 @@ Current PDF checks (P011–P036):
 | P035 | Figures/Tables | Body-page figure/table centering and caption placement; **v1 text-layer bodies only** (image-only floats skipped); privacy-safe geometry metadata only |
 | P036 | TOC/List | Inter-entry double spacing between distinct entries on TOC, LoT, and LoF pages; complements P032; privacy-safe geometry metadata only (no entry text) |
 | P037 | Page numbers | Section-anchored front-matter Roman numerals: BIOGRAPHICAL SKETCH must be iv; DEDICATION (optional) v; ACKNOWLEDGEMENTS vi; TABLE OF CONTENTS vii; LIST OF TABLES viii; emits nothing if BIOGRAPHICAL SKETCH heading absent |
-| P038 | Front matter | Required front-matter heading presence (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) and known phrase-variant detection (e.g. ACKNOWLEDGMENTS); gated: no findings if no headings detected; optional sections not flagged as missing |
+| P038 | Front matter | Required front-matter heading presence (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) and known phrase-variant detection (covers DEDICATION, LIST OF TABLES, LIST OF FIGURES too; e.g. ACKNOWLEDGMENTS variant); gated: no findings if no headings detected; List of Tables/Figures never flagged as missing (optional); complements P014/P025/P030/P031; privacy-safe metadata only |
 
 All findings are heuristic warnings and require manual review.
 

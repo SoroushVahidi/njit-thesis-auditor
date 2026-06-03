@@ -1,10 +1,10 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-02
-- **Latest main:** `d0f6175` (PR #95 — P038 scoped; P001–P037 implemented)
+- **Date:** 2026-06-03
+- **Latest main:** `b6efb6c` (PR #96 — P038 implemented; P001–P038 implemented)
 - **Validation:** ruff, mypy, **456 pytest** passed
 - **Auditor scope:** P001–P038 implemented; full Q001–Q079 / guideline source coverage is **not** complete
-- **Five-PDF aggregate (canonical pre-P035/P036/P037 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P037 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P037 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **38/38** implemented (`P001`–`P038` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -21,6 +21,7 @@
 - **Current full-auditor snapshot (pre-P035/P036 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs; baseline `00b9c2d`)
 - **P036 current-dataset evaluation (not run):** `docs/evaluation/p036_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
 - **P037 current-dataset evaluation (not run):** `docs/evaluation/p037_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
+- **P038 current-dataset evaluation (not run):** `docs/evaluation/p038_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
 - **P035 current-dataset subset (local, 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not a new canonical aggregate
 - **P013 reporting triage:** `docs/evaluation/p013_reporting_actionability_refinement.md` — dedicated `p013_triage` rollup + Markdown section (raw P013 counts unchanged)
 - **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
@@ -52,8 +53,11 @@
 - P035 current-dataset evaluation (local 4-PDF subset): `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not canonical five-PDF aggregate
 - P036 synthetic validation: `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`
 - P036 current-dataset evaluation (not run): `docs/evaluation/p036_current_dataset_evaluation.md` — no P036 counts; evaluation PDFs unavailable
+- P037 synthetic validation: `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`
+- P038 synthetic validation: `docs/evaluation/p038_frontmatter_headings_synthetic_validation.md`
+- P038 current-dataset evaluation (not run): `docs/evaluation/p038_current_dataset_evaluation.md` — no P038 counts; evaluation PDFs unavailable
 
-### P030–P036 evaluation docs (chronological)
+### P030–P038 evaluation docs (chronological)
 
 | Order | Doc | Type |
 |---:|---|---|
@@ -71,6 +75,14 @@
 | 12 | `docs/evaluation/p034_copyright_page_synthetic_validation.md` | Synthetic |
 | 13 | `docs/evaluation/p034_current_dataset_evaluation.md` | Current dataset |
 | 14 | `docs/evaluation/p034_author_mismatch_investigation.md` | Investigation |
+| 15 | `docs/evaluation/p035_figure_table_layout_synthetic_validation.md` | Synthetic |
+| 16 | `docs/evaluation/p035_current_dataset_evaluation.md` | Current dataset (local 4-PDF subset) |
+| 17 | `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md` | Synthetic |
+| 18 | `docs/evaluation/p036_current_dataset_evaluation.md` | Current dataset (not run) |
+| 19 | `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md` | Synthetic |
+| 20 | `docs/evaluation/p037_current_dataset_evaluation.md` | Current dataset (not run) |
+| 21 | `docs/evaluation/p038_frontmatter_headings_synthetic_validation.md` | Synthetic |
+| 22 | `docs/evaluation/p038_current_dataset_evaluation.md` | Current dataset (not run) |
 
 **Privacy:** All evaluation docs are aggregate-only. Do not quote dissertation body text, title text, or author names. Generated audit JSON/MD outputs stay under gitignored `data/evaluation/generated/`.
 
@@ -91,7 +103,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P036)
+### PDF Layout Audit (P011–P038)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -144,7 +156,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P037) | 37 | 37 | — | — | — |
+| P-rules (P001–P038) | 38 | 38 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -221,7 +233,7 @@
 
 ---
 
-## 4. Remaining Gaps After P036 (Prioritized)
+## 4. Remaining Gaps After P038 (Prioritized)
 
 ### A. Automatable / partial (not yet fully covered)
 
@@ -328,13 +340,25 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `14db54c`)
+## 6. Validation Status (main at `b6efb6c`)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 51 source files |
-| `python -m pytest` | ✅ **444 passed** (432 pre-P037 + 12 new P037 synthetic tests) |
+| `mypy src` | ✅ No issues in 52 source files |
+| `python -m pytest` | ✅ **456 passed** (444 pre-P038 + 12 new P038 synthetic tests) |
+
+### P038 at a glance
+
+| Item | Notes |
+|------|--------|
+| Scope | Front-matter required heading presence and known phrase-variant detection |
+| Required headings | APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS |
+| Optional headings | DEDICATION, LIST OF TABLES, LIST OF FIGURES (phrase variants checked; missing not flagged) |
+| Gate condition | No findings if no front-matter headings detected (flattened-PDF guard) |
+| v1 skips | Flattened/compressed PDFs; heading phrase variants not in curated map |
+| Issue types | `required_heading_missing`, `heading_phrase_not_exact` |
+| Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p038_current_dataset_evaluation.md` |
 
 ### P037 at a glance
 
@@ -379,13 +403,14 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 Med | Full five-PDF P001–P037 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037 have no current counts |
+| 🟡 High | Post-P038 consistency audit | Cross-check all status docs, README, and manifests are consistent after P038; clear any remaining P038-scoped-only language |
+| 🟡 Med | Full five-PDF P001–P038 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
-| ~~🟡 Med~~ | ~~**P038 implementation**~~ | **Implemented** — `pdf_frontmatter_headings.py`; Q013, Q021, Q036, Q047, Q061, Q070 |
+| 🟡 Low | P039 scoping | Only after docs and status are clean and consistent; scope next gap from remaining automatable Q-rule backlog |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036 or P037 current-dataset counts exist yet. Full pre-P035/P036/P037 five-PDF aggregate evaluation remains at
+No P036, P037, or P038 current-dataset counts exist yet. Full pre-P035/P036/P037/P038 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).

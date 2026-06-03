@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **37/37 implemented** (`P001`–`P037` in `project_added_rules.json`; updated through P037 — see post-P037 status doc for latest counts).
+- **P-rule implementation:** **38/38 implemented** (`P001`–`P038` in `project_added_rules.json`; updated through P038 — see post-P038 status doc for latest counts).
 - **Q-rule coverage (raw `implementation_status` in inventory):** **79** total = **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented`.
 - **Q-rule coverage (framing used in this audit):** same 79 total, with **9 manual-only** (`checkability=manual`) counted separately from **57** automatable `not_implemented` gaps (9 + 57 = 66 raw `not_implemented`).
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -22,7 +22,7 @@
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage is mixed (2 implemented, 11 partial, 66 not fully implemented). |
-| `data/processed/rules/project_added_rules.json` | P001–P037 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 37 P-rules are marked implemented and wired in the CLI/testing/docs. |
+| `data/processed/rules/project_added_rules.json` | P001–P038 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 38 P-rules are marked implemented and wired in the CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
 | `data/raw/guidelines/Self-Self Assessment Sheet.pdf` | Checklist-style visual formatting expectations | `P011`, `P015`, `P016`, `P017`, `P026`, `P028` | partially implemented | Core layout signals covered heuristically; checklist semantics and some visual specifics remain unimplemented. |
@@ -50,7 +50,7 @@
 | Q010 | Does the visible copyright year exactly match the year shown on the Title Page? | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
 | Q011 | Does the visible author name on the Copyright page exactly match the author’s name on... | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
 | Q012 | Is the Copyright page free of any visible page number? | partially implemented | `njit_auditor.rules.pdf_frontmatter_no_page_number` | Primarily visual/layout formatting check on compiled output. | — |
-| Q013 | Does the Approval Page display the exact phrase “APPROVAL PAGE” in all caps, bold, ce... | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
+| Q013 | Does the Approval Page display the exact phrase “APPROVAL PAGE” in all caps, bold, ce... | partially implemented | `njit_auditor.rules.pdf_frontmatter_headings` | Heading presence and phrase-variant check covered by P038; bold/centered/near-top layout still via P014. | — |
 | Q014 | Is the Approval Page free of any visible page number? | partially implemented | `njit_auditor.rules.pdf_frontmatter_no_page_number` | Primarily visual/layout formatting check on compiled output. | — |
 | Q015 | Does every committee-member entry begin with an honorific such as Dr., Mr., or Ms.? | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
 | Q016 | Do all entries identified as Dissertation Advisor appear before any non-advisor commi... | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
@@ -58,7 +58,7 @@
 | Q018 | Among members with the same explicitly stated rank, are the surnames listed in alphab... | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
 | Q019 | Do all committee-member entries whose affiliation is not NJIT appear after all entrie... | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
 | Q020 | Does every external or non-NJIT committee-member entry include institution/company na... | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
-| Q021 | Does the Biographical Sketch page display the exact phrase “BIOGRAPHICAL SKETCH” corr... | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
+| Q021 | Does the Biographical Sketch page display the exact phrase “BIOGRAPHICAL SKETCH” corr... | partially implemented | `njit_auditor.rules.pdf_frontmatter_headings` | Required heading presence and phrase-variant check covered by P038; full formatting (bold/centered/near-top) still via P014. | — |
 | Q022 | Is the visible page number on the first Biographical Sketch page exactly the lowercas... | partially implemented | `njit_auditor.rules.pdf_page_numbering_regime` | Primarily visual/layout formatting check on compiled output. | — |
 | Q023 | Does the Biographical Sketch text exclude both place of birth and date of birth? | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
 | Q024 | Does the Biographical Sketch exclude all work experience and professional positions? | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
@@ -73,7 +73,7 @@
 | Q033 | Is the full dedication text block visually centered on the page? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q034 | If the dedication text uses the Latin alphabet, is the entire text italicized? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q035 | Does the Acknowledgements page display the next sequential lowercase Roman numeral? | partially implemented | `njit_auditor.rules.pdf_page_numbering_regime` | Primarily visual/layout formatting check on compiled output. | — |
-| Q036 | Does the Acknowledgements page display the exact word correctly formatted? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
+| Q036 | Does the Acknowledgements page display the exact word correctly formatted? | partially implemented | `njit_auditor.rules.pdf_frontmatter_headings` | Required heading presence and phrase-variant check (e.g. ACKNOWLEDGMENTS variant) covered by P038; full formatting checks via P014. | — |
 | Q037 | Does the first paragraph of the Acknowledgements explicitly thank the advisor(s)? | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
 | Q038 | Does the second paragraph explicitly thank the committee members? | manual-only | `—` | Needs human metadata/template interpretation beyond strict source parsing. | Semantic/administrative interpretation requires human review. |
 | Q039 | Does the third paragraph explicitly mention both technical and financial support? | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
@@ -84,7 +84,7 @@
 | Q044 | Does the first Acknowledgements paragraph begin flush with the left margin? | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
 | Q045 | Does every Acknowledgements paragraph after the first begin with a visible indent? | not implemented | `—` | Needs human metadata/template interpretation beyond strict source parsing. | — |
 | Q046 | Does the TOC continue the Roman numeral sequence correctly? | partially implemented | `njit_auditor.rules.pdf_page_numbering_regime` | Primarily visual/layout formatting check on compiled output. | — |
-| Q047 | Does the first TOC page display the exact heading correctly? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
+| Q047 | Does the first TOC page display the exact heading correctly? | partially implemented | `njit_auditor.rules.pdf_frontmatter_headings` | Required heading presence and phrase-variant check covered by P038; full formatting via P014. | — |
 | Q048 | Do subsequent TOC pages display the correct "(Continued)" heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q049 | In the TOC, are all level-1 chapter titles displayed in all caps? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q050 | In the TOC, are all level-2 section titles (X.x) displayed in title case? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
@@ -98,7 +98,7 @@
 | Q058 | If only one appendix is listed, does it begin with “APPENDIX” plus title? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q059 | If multiple appendices are listed, are they identified by letters? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q060 | Does the List of Tables continue the Roman numeral sequence correctly? | partially implemented | `njit_auditor.rules.pdf_page_numbering_regime` | Primarily visual/layout formatting check on compiled output. | — |
-| Q061 | Does the first List of Tables page display the exact heading correctly? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
+| Q061 | Does the first List of Tables page display the exact heading correctly? | partially implemented | `njit_auditor.rules.pdf_frontmatter_headings` | Optional heading phrase-variant check covered by P038; missing not flagged (optional section); full formatting via P014/P031. | — |
 | Q062 | Do subsequent List of Tables pages display the correct "(Continued)" heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q063 | Does the label “Table” appear in bold and left-aligned under the heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q064 | Does the label “Page” appear in bold and right-aligned under the heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
@@ -107,7 +107,7 @@
 | Q067 | Is there visible double spacing between consecutive table entries? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q068 | Are all table numbers aligned vertically in one left column? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q069 | Are all table page numbers aligned vertically in one right column? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
-| Q070 | Does the first List of Figures page display the exact heading correctly? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
+| Q070 | Does the first List of Figures page display the exact heading correctly? | partially implemented | `njit_auditor.rules.pdf_frontmatter_headings` | Optional heading phrase-variant check covered by P038; missing not flagged (optional section); full formatting via P014/P031. | — |
 | Q071 | Do subsequent List of Figures pages display the correct "(Continued)" heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q072 | Does the label “Figure” appear in bold and left-aligned under the heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
 | Q073 | Does the label “Page” appear in bold and right-aligned under the heading? | not implemented | `—` | Primarily visual/layout formatting check on compiled output. | — |
@@ -265,9 +265,9 @@ Top 3 next tasks:
 - **Validation:** Synthetic coverage in `tests/test_pdf_rules.py`; `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`.
 - **Current-dataset evaluation (2026-06-01):** **Not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`.
 
-## 15. Post-audit updates through P037 (consolidated current state)
+## 15. Post-audit updates through P038 (consolidated current state)
 
-**Current repository (main `14db54c`; five-PDF eval baseline `00b9c2d`):** P001–P037 implemented; **444** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035/P036/P037 five-PDF snapshot; raw counts 169 / 143 / 461 / 415).
+**Current repository (main `b6efb6c`; five-PDF eval baseline `00b9c2d`):** P001–P038 implemented; **456** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035/P036/P037/P038 five-PDF snapshot; raw counts 169 / 143 / 461 / 415).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -279,10 +279,11 @@ Top 3 next tasks:
 | **P035** | Figure/table layout (heuristic) | Local **4-PDF subset:** **0 / 0 / 0 / 13**; not canonical five-PDF aggregate | Text-layer bodies; image floats skipped in v1 |
 | **P036** | TOC/List inter-entry spacing (Q057, Q067, Q077) | **Not run** — evaluation PDFs unavailable | Complements P032; no current counts |
 | **P037** | Section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060) | **Not run** — evaluation PDFs unavailable | bio=iv anchor; synthetic validation only; see `docs/evaluation/p037_current_dataset_evaluation.md` |
+| **P038** | Front-matter required heading presence and phrase-variant checks (Q013, Q021, Q036, Q047, Q061, Q070) | **Not run** — evaluation PDFs unavailable | Covers required headings (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) and optional (DEDICATION, LIST OF TABLES, LIST OF FIGURES) phrase variants; gated on heading detection; see `docs/evaluation/p038_current_dataset_evaluation.md` |
 
 Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation title text, author names, caption/body/entry text, or body text. Generated JSON summaries remain under `data/evaluation/generated/` (gitignored).
 
-**Full aggregate snapshot (2026-06-01, pre-P035/P036/P037 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`). P035 local subset (+13 on Yin H 4th only), P036 (not run), and P037 (not run) documented separately; do not add to 1,446 until a full P001–P037 rerun.
+**Full aggregate snapshot (2026-06-01, pre-P035/P036/P037/P038 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`). P035 local subset (+13 on Yin H 4th only), P036 (not run), P037 (not run), and P038 (not run) documented separately; do not add to 1,446 until a full P001–P038 rerun.
 
 **P013 reporting refinement (2026-06-01):** `docs/evaluation/p013_reporting_actionability_refinement.md` — `p013_triage` rollup and Markdown triage section; detection unchanged.
 
