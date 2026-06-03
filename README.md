@@ -26,7 +26,7 @@ njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P041 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P042 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P041):
+Current PDF checks (P011–P042):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -77,6 +77,7 @@ Current PDF checks (P011–P041):
 | P039 | TOC/List | TOC level indentation hierarchy: L2 entries should be indented right of L1, L3 entries right of L2; TOC-only (LoT/LoF excluded); gate: requires ≥2 child-level entries before flagging; privacy-safe geometry metadata only (no entry text); covers Q056 |
 | P040 | TOC/List | List of Figures entry terminal punctuation: checks complete LoF entries (with page-number token) end with `.`, `?`, or `!`; LoF-only; skips wrap-continuation lines; privacy-safe counts/metadata only (no entry text); covers Q075 |
 | P041 | Front matter | Dedication page top-margin header: checks no running header text is in the top 15% of the Dedication page; gate: skips if DEDICATION heading not detected; privacy-safe geometry metadata only (no dedication text); covers Q032 |
+| P042 | TOC/List | TOC appendix entry format: single appendix should have APPENDIX + title; multiple appendices should each use APPENDIX + letter (A, B, C…); TOC-only; privacy-safe counts/metadata only (no entry text); covers Q058/Q059 |
 
 All findings are heuristic warnings and require manual review.
 

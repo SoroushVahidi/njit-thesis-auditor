@@ -737,5 +737,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q032. Gate: skip if no DEDICATION heading detected in first 15 pages. Top zone: top 15% of page height. Skips page numbers and the DEDICATION heading itself. At most one finding per page. Dedication content (Q033/Q034) not checked. issue_types: dedication_top_margin_header_text."
+  },
+  {
+    "id": "P042",
+    "section": "PDF TOC appendix entry format",
+    "question": "Are appendix entries in the Table of Contents formatted correctly — single appendix with a title, multiple appendices each identified by a letter?",
+    "rule_definition": "Conservative heuristic: detects appendix entries on TABLE OF CONTENTS pages by matching lines whose cleaned text starts with \"appendix\" (case-insensitive). Single-appendix check (Q058): if exactly one appendix entry is found, verifies that there is title text after the word APPENDIX. Multiple-appendix check (Q059): if two or more are found, verifies each matches the pattern \"APPENDIX <single uppercase letter>\" immediately after APPENDIX. Skips LoT and LoF pages. Does not include TOC entry text in findings.",
+    "remediation": "Ensure a single appendix TOC entry reads \"APPENDIX\" plus the appendix title. Ensure multiple appendix entries each use a letter identifier: \"APPENDIX A\", \"APPENDIX B\", etc.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_toc_appendix_format",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q058 and Q059. TOC-only: LoT/LoF excluded. Appendix detection uses _APPENDIX_RE on entry cleaned_text. issue_types: single_appendix_missing_title (Q058), multiple_appendix_missing_letter (Q059). No TOC entry text in findings."
   }
 ]
