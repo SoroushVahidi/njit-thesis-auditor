@@ -1,8 +1,10 @@
 # P042 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`
 - **Baseline main:** `eaea12c` (PR #110 — post-P041 consistency audit; P001–P041 implemented)
+- **Implementation PR:** rules/p042-toc-appendix-format
+- **Implementation note:** `single_appendix_missing_title` check requires mixed-case "Appendix" or similar (APPENDIX alone is filtered by `_likely_entry_line` as a short all-caps heading)
 
 ---
 

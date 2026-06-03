@@ -54,6 +54,7 @@ from njit_auditor.rules.pdf_title_consistency import (
     check_pdf_title_consistency,
 )
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+from njit_auditor.rules.pdf_toc_appendix_format import check_pdf_toc_appendix_format
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hierarchy
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
@@ -5622,3 +5623,157 @@ def test_p041_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P041" for item in payload.get("findings", []))
+
+
+# ---------------------------------------------------------------------------
+# P042: TOC appendix entry format
+# ---------------------------------------------------------------------------
+
+
+def _make_toc_with_appendix_pdf(
+    path: Path,
+    appendix_entries: list[tuple[str, str]],
+    chapter_entries: list[tuple[str, str]] | None = None,
+    heading: str = "TABLE OF CONTENTS",
+) -> None:
+    """Create a synthetic TOC page with appendix entries.
+
+    appendix_entries: list of (entry_text, page_number) pairs.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    if chapter_entries:
+        for text, pg_num in chapter_entries:
+            page.insert_text((72.0, y), text, fontsize=12)
+            page.insert_text((500, y), pg_num, fontsize=12)
+            y += 22.0
+    for text, pg_num in appendix_entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p042_no_appendix_entries_no_finding(tmp_path: Path) -> None:
+    """TOC with only chapter entries → no P042 finding."""
+    pdf_path = tmp_path / "p042_no_app.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[], chapter_entries=[
+        ("Chapter 1 Introduction to the Study", "1"),
+        ("Chapter 2 Background and Related Work", "15"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert not findings
+
+
+def test_p042_single_appendix_with_title_no_finding(tmp_path: Path) -> None:
+    """Single appendix entry with title after APPENDIX → no P042 finding."""
+    pdf_path = tmp_path / "p042_single_ok.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX Data Collection Instruments", "85"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert not findings
+
+
+def test_p042_single_appendix_no_title_warns(tmp_path: Path) -> None:
+    """Single appendix entry with no title → single_appendix_missing_title."""
+    pdf_path = tmp_path / "p042_single_no_title.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("Appendix", "85"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert len(findings) >= 1
+    assert findings[0].details.get("issue_type") == "single_appendix_missing_title"
+    assert findings[0].details.get("source_q_rule_id") == "Q058"
+
+
+def test_p042_multiple_appendix_with_letters_no_finding(tmp_path: Path) -> None:
+    """Multiple appendices each with letter identifier → no P042 finding."""
+    pdf_path = tmp_path / "p042_multi_ok.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX A Data Collection Instruments", "85"),
+        ("APPENDIX B Survey Questionnaire Form", "95"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert not findings
+
+
+def test_p042_multiple_appendix_missing_letter_warns(tmp_path: Path) -> None:
+    """Multiple appendices without letter identifiers → multiple_appendix_missing_letter."""
+    pdf_path = tmp_path / "p042_multi_no_letter.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX Data Collection Instruments", "85"),
+        ("APPENDIX Survey Questionnaire Form Item", "95"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert len(findings) >= 1
+    assert any(f.details.get("issue_type") == "multiple_appendix_missing_letter" for f in findings)
+    assert any(f.details.get("source_q_rule_id") == "Q059" for f in findings)
+
+
+def test_p042_multiple_appendix_number_instead_of_letter_warns(tmp_path: Path) -> None:
+    """Multiple appendices using numbers instead of letters → multiple_appendix_missing_letter."""
+    pdf_path = tmp_path / "p042_multi_number.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX A Data Collection Instruments", "85"),
+        ("APPENDIX 2 Survey Questionnaire Form", "95"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert len(findings) >= 1
+    issue = "multiple_appendix_missing_letter"
+    offending = [f for f in findings if f.details.get("issue_type") == issue]
+    assert offending
+
+
+def test_p042_lot_page_not_checked(tmp_path: Path) -> None:
+    """LIST OF TABLES page → P042 does not apply (TOC-only rule)."""
+    pdf_path = tmp_path / "p042_lot.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX A Survey Questionnaire", "85"),
+        ("APPENDIX Survey Without Letter", "95"),
+    ], heading="LIST OF TABLES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert not findings
+
+
+def test_p042_findings_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must not include appendix title text."""
+    pdf_path = tmp_path / "p042_privacy.pdf"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX Survey Questionnaire Here", "85"),
+        ("APPENDIX Another Survey Without Letter", "95"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_appendix_format(model) if f.rule_id == "P042"]
+    assert findings
+    for f in findings:
+        for key, value in f.details.items():
+            assert "survey" not in str(value).lower(), f"Appendix title in details[{key!r}]"
+            assert "questionnaire" not in str(value).lower(), f"Appendix title in details[{key!r}]"
+        assert "appendix_entry_count" in f.details
+        assert "entry_index" in f.details
+        assert "source_q_rule_id" in f.details
+
+
+def test_p042_cli_includes_rule(tmp_path: Path) -> None:
+    """CLI JSON output includes P042 when appendix entries are incorrectly formatted."""
+    pdf_path = tmp_path / "p042_cli.pdf"
+    json_out = tmp_path / "p042_report.json"
+    _make_toc_with_appendix_pdf(pdf_path, appendix_entries=[
+        ("APPENDIX Survey Questionnaire Here", "85"),
+        ("APPENDIX Another Survey Without Letter", "95"),
+    ])
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P042" for item in payload.get("findings", []))
