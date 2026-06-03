@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `ba41df2` (PR #97 — post-P038 status refresh; P001–P038 implemented)
-- **Validation:** ruff, mypy, **456 pytest** on latest main
+- **Latest main:** `db842d6` (PR #100 — P039 TOC entry hierarchy; P001–P039 implemented)
+- **Validation:** ruff, mypy, **465 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 38 (P001–P038) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 39 (P001–P039) | Yes |
 
-P001–P038 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P039 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -142,7 +142,8 @@ files unless explicitly requested.
 - **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`
 - Historical generated folders (superseded): `current_auditor_after_p034/`, `current_auditor_after_p034_p013_triage/`, `current_auditor_after_p034_p026_triage/`
 - **P036 current-dataset evaluation (not run):** `docs/evaluation/p036_current_dataset_evaluation.md`
-- P030–P036 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
+- **P039 current-dataset evaluation (not run):** `docs/evaluation/p039_current_dataset_evaluation.md`
+- P030–P039 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
   `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`
