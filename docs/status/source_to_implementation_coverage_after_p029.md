@@ -267,7 +267,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P038 (consolidated current state)
 
-**Current repository (main `b6efb6c`; five-PDF eval baseline `00b9c2d`):** P001–P038 implemented; **456** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035/P036/P037/P038 five-PDF snapshot; raw counts 169 / 143 / 461 / 415).
+**Current repository (main `ba41df2`; five-PDF eval baseline `00b9c2d`):** P001–P038 implemented; **456** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035/P036/P037/P038 five-PDF snapshot; raw counts 169 / 143 / 461 / 415).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|

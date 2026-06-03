@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `b6efb6c` (PR #96 — P038 front-matter heading phrases; P001–P038 implemented)
+- **Latest main:** `ba41df2` (PR #97 — post-P038 status refresh; P001–P038 implemented)
 - **Validation:** ruff, mypy, **456 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 37 (P001–P037) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 38 (P001–P038) | Yes |
 
-P001–P037 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P038 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
