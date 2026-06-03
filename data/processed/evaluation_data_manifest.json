@@ -2,11 +2,12 @@
   "schema_version": 1,
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P036",
-    "pytest_count_at_last_doc_refresh": 432,
-    "latest_main_at_last_doc_refresh": "48b1e963",
+    "p_rules_implemented": "P001-P037",
+    "pytest_count_at_last_doc_refresh": 444,
+    "latest_main_at_last_doc_refresh": "47484d6",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
-    "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md"
+    "p036_current_dataset_note": "No local audit run \u2014 evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
+    "p037_current_dataset_note": "No local audit run \u2014 evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -22,7 +23,10 @@
         "role": "formatting-rule-source",
         "privacy_risk": "low",
         "description": "Main NJIT formatting spec",
-        "used_by_rules": ["Q001-Q079", "P001-P029"]
+        "used_by_rules": [
+          "Q001-Q079",
+          "P001-P029"
+        ]
       },
       {
         "path": "data/raw/guidelines/Titles Examples Level 1 to 5.docx",
@@ -31,7 +35,11 @@
         "role": "formatting-rule-source",
         "privacy_risk": "low",
         "description": "Heading level formatting guide",
-        "used_by_rules": ["P020", "P024", "P027"]
+        "used_by_rules": [
+          "P020",
+          "P024",
+          "P027"
+        ]
       },
       {
         "path": "data/raw/guidelines/Self-Self Assessment Sheet.pdf",
@@ -40,7 +48,9 @@
         "role": "formatting-rule-source",
         "privacy_risk": "low",
         "description": "GSO self-assessment checklist",
-        "used_by_rules": ["Q001-Q079"]
+        "used_by_rules": [
+          "Q001-Q079"
+        ]
       },
       {
         "path": "data/raw/guidelines/Front Matter Pages Lorem Ipsum.pdf",
@@ -49,7 +59,11 @@
         "role": "formatting-rule-source",
         "privacy_risk": "low",
         "description": "Annotated mock front matter",
-        "used_by_rules": ["P014", "P025", "P029"]
+        "used_by_rules": [
+          "P014",
+          "P025",
+          "P029"
+        ]
       },
       {
         "path": "data/raw/guidelines/PhD Title Pages.pdf",
@@ -58,7 +72,9 @@
         "role": "formatting-rule-source",
         "privacy_risk": "low",
         "description": "Title page guide by department",
-        "used_by_rules": ["P025"]
+        "used_by_rules": [
+          "P025"
+        ]
       },
       {
         "path": "data/raw/guidelines/Dissertation Review Process.pdf",

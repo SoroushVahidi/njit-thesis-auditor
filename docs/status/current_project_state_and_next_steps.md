@@ -4,7 +4,7 @@
 - **Latest main:** `14db54c` (PR #92 — P037 section-anchored Roman numerals; P001–P037 implemented)
 - **Validation:** ruff, mypy, **444 pytest** passed
 - **Auditor scope:** P001–P037 implemented; full Q001–Q079 / guideline source coverage is **not** complete
-- **Five-PDF aggregate (canonical pre-P035/P036 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P036 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P037 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **37/37** implemented (`P001`–`P037` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -143,14 +143,14 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P036) | 36 | 36 | — | — | — |
+| P-rules (P001–P037) | 37 | 37 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
 - **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); inter-entry double spacing partially covered by **P036** (Q057, Q067, Q077); "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031
 - **Front-matter visual checks**: copyright page (Q009–Q011) partially covered by P034; dedication centering/italic (Q033–Q034), bio-sketch content (Q023–Q025, Q027–Q029)
 - **Heading level distinctions**: L3/L4/L5 partially addressed by P027; bold/italic enforcement still missing
-- **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 style check; actual sequence ordering not yet validated)
+- **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 regime check, P029 relative ordering, and **P037** section-anchored values; LOF anchor and remaining gaps not yet validated)
 - **Figure/table body checks**: figure centering, table placement (above/below detection)
 - **Cross-page title consistency**: partially covered by P033 (heuristic; skips ambiguous/image-only cases)
 
