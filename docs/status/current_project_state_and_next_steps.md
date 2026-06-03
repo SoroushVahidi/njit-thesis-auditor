@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-02
-- **Latest main:** `f3768dc` (PR #91 — reusable-tooling audit; P001–P037 implemented)
+- **Latest main:** `14db54c` (PR #92 — P037 section-anchored Roman numerals; P001–P037 implemented)
 - **Validation:** ruff, mypy, **444 pytest** passed
 - **Auditor scope:** P001–P037 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (canonical pre-P035/P036 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P036 rerun)
@@ -10,7 +10,7 @@
 - **P-rules:** **37/37** implemented (`P001`–`P037` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
-- **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`
+- **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
 - **Reusable-tooling audit:** **complete** — see `docs/planning/reusable_tooling_audit.md`; no external tool suitable for direct dependency; YAML spec concept from `AndrewGreenbaum/thesis-compliance` noted as future inspiration
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
@@ -19,6 +19,7 @@
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
 - **Current full-auditor snapshot (pre-P035/P036 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs; baseline `00b9c2d`)
 - **P036 current-dataset evaluation (not run):** `docs/evaluation/p036_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
+- **P037 current-dataset evaluation (not run):** `docs/evaluation/p037_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
 - **P035 current-dataset subset (local, 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md` — 13 P035 findings on Yin H 4th only; not a new canonical aggregate
 - **P013 reporting triage:** `docs/evaluation/p013_reporting_actionability_refinement.md` — dedicated `p013_triage` rollup + Markdown section (raw P013 counts unchanged)
 - **P026 reporting triage:** `docs/evaluation/p026_reporting_actionability_refinement.md` — `p026_font_triage` rollup + Markdown section (raw P026 counts unchanged; 415 on five-PDF snapshot)
@@ -227,7 +228,7 @@
 |----------|-----|------|-------|
 | 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image floats skipped in v1 |
 | 🟡 High | P034 copyright year/author extraction recall | Refinement | Year comparison ran 1/5; author 2/5; expand without quoting names in findings |
-| 🟡 Med | Section-anchored Roman numerals (bio=iv, template offsets) | **Scoped as P037** | P029 covers relative sequence; P037 adds template anchors — see `docs/planning/p037_scope_and_design.md` |
+| ~~🟡 Med~~ | ~~Section-anchored Roman numerals (bio=iv, template offsets)~~ | ~~**Scoped as P037**~~ | ~~P029 covers relative sequence; P037 adds template anchors~~ — **Implemented as P037**; LOF anchor deferred to v2 |
 | 🟡 Med | Heading bold/italic enforcement beyond P027 | Partial | Level style partially covered |
 | 🟡 Med | Body-page spacing (P016 front-matter focus) | Refinement | EF feedback suggests body gaps underrepresented |
 | 🟡 Med | References/citations deterministic checks | Automatable partial | If TeX/BibTeX path feasible |
@@ -326,13 +327,24 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `48b1e963`)
+## 6. Validation Status (main at `14db54c`)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 49 source files |
-| `python -m pytest` | ✅ 432 passed |
+| `mypy src` | ✅ No issues in 51 source files |
+| `python -m pytest` | ✅ **444 passed** (432 pre-P037 + 12 new P037 synthetic tests) |
+
+### P037 at a glance
+
+| Item | Notes |
+|------|--------|
+| Scope | Front-matter section-anchored Roman numerals; BIOGRAPHICAL SKETCH must be iv |
+| Template values | bio=iv(4), ded=v(5, optional slot), ack=vi(6), toc=vii(7), lot=viii(8) |
+| Gate condition | No findings if BIOGRAPHICAL SKETCH heading absent |
+| v1 skips | Pages with no confident roman_lower candidate; LOF anchor deferred |
+| Issue types | `roman_bio_sketch_not_iv`, `roman_section_wrong_value` |
+| Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md` |
 
 ### P036 at a glance
 
@@ -366,13 +378,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 Med | Full five-PDF P001–P036 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged |
+| 🟡 Med | Full five-PDF P001–P037 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
-| 🟡 Med | **P037 implementation** | Section-anchored front-matter Roman numerals — `docs/planning/p037_scope_and_design.md` |
-| 🟡 Low | Front-matter exact heading / missing section | P014 follow-on (Q013, Q021, Q036, Q047, Q061, Q070) |
-| 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce image-float skips |
+| 🟡 Med | Front-matter exact heading / missing section (P038 candidate) | P014 follow-on for Q013, Q021, Q036, Q047, Q061, Q070; scope before implementing |
+| 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
+| 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036 current-dataset counts exist yet. Full pre-P035/P036 five-PDF aggregate evaluation remains at
+No P036 or P037 current-dataset counts exist yet. Full pre-P035/P036/P037 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).
