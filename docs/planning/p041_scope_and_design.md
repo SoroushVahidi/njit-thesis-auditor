@@ -1,8 +1,9 @@
 # P041 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`
 - **Baseline main:** `4f9642c` (PR #106 — post-P040 consistency audit; P001–P040 implemented)
+- **Implementation PR:** rules/p041-dedication-page-header
 
 ---
 

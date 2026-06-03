@@ -719,5 +719,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q075. Checks only complete LoF entries (page_number_token present). Skips wrap-continuation lines and short entries. LoF-only: TOC and LoT pages excluded. Complements P024 LoF sentence-case check. issue_types: lof_entry_missing_terminal_punctuation."
+  },
+  {
+    "id": "P041",
+    "section": "PDF Dedication page top-margin header",
+    "question": "Is there no header text in the top margin area of the Dedication page?",
+    "rule_definition": "Conservative heuristic: detects the Dedication page by scanning the first _MAX_SCAN_PAGES (15) front-matter pages for a line whose normalized text equals \"DEDICATION\". If found, scans the top 15% of that page for text lines that are not page-number candidates, not the DEDICATION heading itself, and not whitespace/non-alphabetic. Emits at most one finding per Dedication page. Skips if no Dedication page is detected (optional section). Findings contain geometry/classification metadata only — no dedication content.",
+    "remediation": "Ensure the Dedication page does not have any running header or header text in the top margin area.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_dedication_page",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q032. Gate: skip if no DEDICATION heading detected in first 15 pages. Top zone: top 15% of page height. Skips page numbers and the DEDICATION heading itself. At most one finding per page. Dedication content (Q033/Q034) not checked. issue_types: dedication_top_margin_header_text."
   }
 ]

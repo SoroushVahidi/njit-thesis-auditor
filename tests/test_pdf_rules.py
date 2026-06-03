@@ -12,6 +12,7 @@ from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
+from njit_auditor.rules.pdf_dedication_page import check_pdf_dedication_page
 from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
 from njit_auditor.rules.pdf_font_compliance import (
     check_pdf_font_compliance,
@@ -5494,3 +5495,130 @@ def test_p040_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P040" for item in payload.get("findings", []))
+
+
+# ---------------------------------------------------------------------------
+# P041: Dedication page top-margin header check
+# ---------------------------------------------------------------------------
+
+
+def _make_dedication_pdf(
+    path: Path,
+    *,
+    header_text: str | None = None,
+    header_y: float = 40.0,
+    dedication_heading_y: float = 150.0,
+    include_dedication_heading: bool = True,
+    body_text_y: float = 260.0,
+) -> None:
+    """Create a synthetic Dedication page PDF.
+
+    header_text: if provided, inserted in the top zone as a running header.
+    dedication_heading_y: baseline y for the DEDICATION heading (should be below top zone).
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    if header_text is not None:
+        page.insert_text((72.0, header_y), header_text, fontsize=10)
+    if include_dedication_heading:
+        page.insert_text((270.0, dedication_heading_y), "DEDICATION", fontsize=14,
+                         fontname="Times-Bold")
+    page.insert_text((200.0, body_text_y), "In memory of those who came before.", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p041_no_dedication_page_no_finding(tmp_path: Path) -> None:
+    """No DEDICATION heading in PDF → no P041 finding (gate)."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 140), "Chapter 1 Introduction", fontsize=12)
+    pdf_path = tmp_path / "p041_no_ded.pdf"
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert not findings
+
+
+def test_p041_dedication_page_no_header_no_finding(tmp_path: Path) -> None:
+    """Dedication page with no top-margin text → no P041 finding."""
+    pdf_path = tmp_path / "p041_ded_clean.pdf"
+    _make_dedication_pdf(pdf_path, header_text=None)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert not findings
+
+
+def test_p041_dedication_page_with_header_warns(tmp_path: Path) -> None:
+    """Dedication page with running header text → dedication_top_margin_header_text."""
+    pdf_path = tmp_path / "p041_ded_header.pdf"
+    _make_dedication_pdf(pdf_path, header_text="Some Running Header Text")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert len(findings) >= 1
+    assert findings[0].details.get("issue_type") == "dedication_top_margin_header_text"
+    assert findings[0].details.get("source_q_rule_id") == "Q032"
+
+
+def test_p041_page_number_in_top_zone_ignored(tmp_path: Path) -> None:
+    """Page number candidate in top zone is skipped → no P041 finding."""
+    pdf_path = tmp_path / "p041_ded_pagnum.pdf"
+    _make_dedication_pdf(pdf_path, header_text="iv")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert not findings
+
+
+def test_p041_dedication_heading_in_top_zone_ignored(tmp_path: Path) -> None:
+    """DEDICATION heading appearing at page top is skipped → no P041 finding."""
+    pdf_path = tmp_path / "p041_ded_hdg_top.pdf"
+    _make_dedication_pdf(pdf_path, header_text="DEDICATION", header_y=40.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert not findings
+
+
+def test_p041_body_text_below_top_zone_ignored(tmp_path: Path) -> None:
+    """Dedication body text below top 15% is not flagged."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((270.0, 150.0), "DEDICATION", fontsize=14, fontname="Times-Bold")
+    page.insert_text((200.0, 400.0), "In memory of those who came before.", fontsize=12)
+    pdf_path = tmp_path / "p041_body_below.pdf"
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert not findings
+
+
+def test_p041_findings_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must not contain dedication content."""
+    pdf_path = tmp_path / "p041_privacy.pdf"
+    _make_dedication_pdf(pdf_path, header_text="Some Running Header Text")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_dedication_page(model) if f.rule_id == "P041"]
+    assert findings
+    for f in findings:
+        assert f.details.get("source_q_rule_id") == "Q032"
+        assert "line_y" in f.details
+        assert "line_x0" in f.details
+        assert "top_region_threshold_points" in f.details
+        for key, value in f.details.items():
+            assert "memory" not in str(value).lower(), f"Dedication content in details[{key!r}]"
+            assert "header" not in str(value).lower() or key == "issue_type", (
+                f"Header text may have leaked into details[{key!r}]"
+            )
+
+
+def test_p041_cli_includes_rule(tmp_path: Path) -> None:
+    """CLI JSON output includes P041 when Dedication header is found."""
+    pdf_path = tmp_path / "p041_cli.pdf"
+    json_out = tmp_path / "p041_report.json"
+    _make_dedication_pdf(pdf_path, header_text="Running Header Here")
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P041" for item in payload.get("findings", []))
