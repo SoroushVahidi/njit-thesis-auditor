@@ -1,14 +1,14 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `eaea12c` (PR #110 — post-P041 consistency audit; P001–P041 implemented)
+- **Latest main:** `21f521a` (PR #112 — P042 TOC appendix format; P001–P042 implemented)
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Validation:** ruff, mypy, **491 pytest** passed
 - **Auditor scope:** P001–P042 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P041 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P042 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **42/42** implemented (`P001`–`P042` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -67,6 +67,7 @@
 - P041 synthetic validation: `docs/evaluation/p041_dedication_page_synthetic_validation.md`
 - P041 current-dataset evaluation (not run): `docs/evaluation/p041_current_dataset_evaluation.md` — no P041 counts; evaluation PDFs unavailable
 - P042 synthetic validation: `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`
+- P042 current-dataset evaluation (not run): `docs/evaluation/p042_current_dataset_evaluation.md` — no P042 counts; evaluation PDFs unavailable
 
 ### P030–P039 evaluation docs (chronological)
 
@@ -101,6 +102,7 @@
 | 27 | `docs/evaluation/p041_dedication_page_synthetic_validation.md` | Synthetic |
 | 28 | `docs/evaluation/p041_current_dataset_evaluation.md` | Current dataset (not run) |
 | 29 | `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md` | Synthetic |
+| 30 | `docs/evaluation/p042_current_dataset_evaluation.md` | Current dataset (not run) |
 
 **Privacy:** All evaluation docs are aggregate-only. Do not quote dissertation body text, title text, or author names. Generated audit JSON/MD outputs stay under gitignored `data/evaluation/generated/`.
 
@@ -373,7 +375,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines; entries shorter than 10 characters |
 | Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md` |
 
-## 6. Validation Status (main at `4de13ab`)
+## 6. Validation Status (main at `21f521a`)
 
 | Check | Result |
 |-------|--------|
@@ -456,5 +458,5 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036, P037, P038, P039, P040, or P041 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039/P040/P041 five-PDF aggregate evaluation remains at
+No P036, P037, P038, P039, P040, P041, or P042 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039/P040/P041/P042 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).
