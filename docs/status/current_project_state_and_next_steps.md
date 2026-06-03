@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `f331dde` (PR #104 — P040 LoF terminal punctuation; P001–P040 implemented)
+- **Latest main:** `4f9642c` (PR #106 — post-P040 consistency audit; P001–P040 implemented)
+- **P041:** **scoped, not yet implemented** — Dedication page top-margin header check (Q032); see `docs/planning/p041_scope_and_design.md`
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Validation:** ruff, mypy, **474 pytest** passed
 - **Auditor scope:** P001–P040 implemented; full Q001–Q079 / guideline source coverage is **not** complete
@@ -438,8 +439,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Full five-PDF P001–P040 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038/P039/P040 have no current counts |
-| 🟡 Med | Scope P041 | Next automatable Q-rule gap; scope from remaining backlog after P040 |
+| 🟡 High | **Implement P041** — Dedication page top-margin header (Q032) | Scoped; see `docs/planning/p041_scope_and_design.md`; module `pdf_dedication_page.py`; 41 rules/tests after implementation |
+| 🟡 Med | Full five-PDF P001–P040 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036–P040 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
