@@ -1,10 +1,10 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `b6efb6c` (PR #96 — P038 implemented; P001–P038 implemented)
+- **Latest main:** `ba41df2` (PR #97 — post-P038 status refresh; P001–P038 implemented)
 - **Validation:** ruff, mypy, **456 pytest** passed
 - **Auditor scope:** P001–P038 implemented; full Q001–Q079 / guideline source coverage is **not** complete
-- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P037 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P038 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **38/38** implemented (`P001`–`P038` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -340,7 +340,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `b6efb6c`)
+## 6. Validation Status (main at `ba41df2`)
 
 | Check | Result |
 |-------|--------|
