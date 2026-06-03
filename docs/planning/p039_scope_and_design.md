@@ -1,8 +1,9 @@
 # P039 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`
 - **Baseline main:** `1f5bc9a` (PR #98 — post-P038 consistency audit; P001–P038 implemented)
+- **Implementation PR:** rules/p039-toc-entry-hierarchy
 
 ---
 

@@ -364,7 +364,7 @@
     "section": "Abstract word count",
     "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
     "rule_definition": "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
-    "remediation": "Shorten the abstract to within the applicable limit. PhD: \u2264350 words. MS: \u2264150 words.",
+    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -400,7 +400,7 @@
     "id": "P023",
     "section": "PDF body text double-spacing",
     "question": "Does any body-text page show line spacing that appears to be less than double-spaced?",
-    "rule_definition": "Body text paragraphs must be double-spaced (line spacing \u2265 ~1.8\u20132.4\u00d7 font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55\u00d7 the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
+    "rule_definition": "Body text paragraphs must be double-spaced (line spacing ≥ ~1.8–2.4× font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55× the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
     "remediation": "Set body text to double line spacing. In LaTeX: use \\doublespacing or \\setstretch{2.0}. In Word: set paragraph line spacing to 'Double'.",
     "severity": "warning",
     "source_file": "project_added",
@@ -412,7 +412,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_body_spacing",
     "priority": "high",
-    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55\u00d7 is between single (\u22481.1\u20131.3\u00d7) and double (\u22482.0\u20132.3\u00d7) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0\u00d7) are excluded from spacing analysis."
+    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55× is between single (≈1.1–1.3×) and double (≈2.0–2.3×) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0×) are excluded from spacing analysis."
   },
   {
     "id": "P024",
@@ -507,9 +507,9 @@
   {
     "id": "P029",
     "section": "PDF front-matter Roman numeral sequence",
-    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii\u2026)?",
+    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii…)?",
     "rule_definition": "Conservative heuristic that validates ordering of visible lowercase Roman numeral page numbers on front-matter pages. Flags repeated, decreasing, or skipped Roman numerals across consecutive visible numbered front-matter pages. Skips explicitly identified no-number pages and ambiguous region classifications.",
-    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, \u2026).",
+    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, …).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -652,7 +652,7 @@
     "id": "P037",
     "section": "PDF front-matter section-anchored Roman numerals",
     "question": "Do BIOGRAPHICAL SKETCH, DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, and LIST OF TABLES pages carry the expected lowercase Roman numerals per the NJIT template (bio=iv, ded=v, ack=vi, toc=vii, lot=viii)?",
-    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Subsequent sections (DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, LIST OF TABLES) are checked against fixed NJIT template expected values. DEDICATION is optional \u2014 if the heading is absent, the slot is still counted (page v may exist as an unnumbered dedication or blank). Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
+    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Subsequent sections (DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, LIST OF TABLES) are checked against fixed NJIT template expected values. DEDICATION is optional — if the heading is absent, the slot is still counted (page v may exist as an unnumbered dedication or blank). Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
     "remediation": "Ensure BIOGRAPHICAL SKETCH appears on the page numbered iv; DEDICATION (if present) on v; ACKNOWLEDGEMENTS on vi; TABLE OF CONTENTS on vii; LIST OF TABLES on viii, per NJIT front-matter pagination template.",
     "severity": "warning",
     "source_file": "project_added",
@@ -683,5 +683,23 @@
     "implementation_module": "njit_auditor.rules.pdf_frontmatter_headings",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q013, Q021, Q036, Q047, Q061, Q070. Required headings: APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS. Known variant: ACKNOWLEDGMENTS. Gate: skip if no headings detected (flattened PDFs). Optional sections (DEDICATION, LIST OF TABLES, LIST OF FIGURES) not flagged as missing. issue_types: required_heading_missing, heading_phrase_not_exact."
+  },
+  {
+    "id": "P039",
+    "section": "PDF TOC level indentation hierarchy",
+    "question": "Are level-2 and level-3 TOC entries indented to show hierarchy relative to their parent level?",
+    "rule_definition": "Conservative heuristic: classifies TOC entry lines as L1 (Chapter/Appendix-pattern entries), L2 (X.Y numbered entries), or L3 (X.Y.Z numbered entries) using text patterns. For each TABLE OF CONTENTS page with both parent-level and child-level entries, checks that the median indent_x of child entries exceeds the median indent_x of parent entries by at least MIN_HIERARCHY_INDENT_PT (6pt). Gate: requires at least 2 child-level entries before checking; skips pages with too few total entries. TOC-only: LoT and LoF pages are not checked. Does not duplicate P024 capitalization checks, P018 alignment checks, P032 wrapped-entry spacing, or P036 inter-entry spacing.",
+    "remediation": "Ensure TOC level-2 section entries are horizontally indented to the right of level-1 chapter entries, and level-3 subsection entries are further indented relative to level-2 entries.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_toc_entry_hierarchy",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q056. Level classification uses CHAPTER/APPENDIX prefix patterns for L1 and X.Y / X.Y.Z numeric-section patterns for L2/L3. Minimum indent delta: 6pt. Gate: requires >=2 child-level entries before flagging. Skips LoT/LoF pages. issue_types: toc_l2_not_indented_relative_to_l1, toc_l3_not_indented_relative_to_l2."
   }
 ]

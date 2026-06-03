@@ -2,13 +2,13 @@
 
 - **Date:** 2026-06-03
 - **Latest main:** `1f5bc9a` (PR #98 — post-P038 consistency audit; P001–P038 implemented)
-- **Validation:** ruff, mypy, **456 pytest** passed
-- **Auditor scope:** P001–P038 implemented; full Q001–Q079 / guideline source coverage is **not** complete
-- **P039:** **scoped, not yet implemented** — TOC level indentation hierarchy check (Q056); see `docs/planning/p039_scope_and_design.md`
+- **Validation:** ruff, mypy, **465 pytest** passed
+- **Auditor scope:** P001–P039 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (canonical pre-P035/P036/P037/P038 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P038 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
-- **P-rules:** **38/38** implemented (`P001`–`P038` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **39/39** implemented (`P001`–`P039` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
@@ -84,6 +84,7 @@
 | 20 | `docs/evaluation/p037_current_dataset_evaluation.md` | Current dataset (not run) |
 | 21 | `docs/evaluation/p038_frontmatter_headings_synthetic_validation.md` | Synthetic |
 | 22 | `docs/evaluation/p038_current_dataset_evaluation.md` | Current dataset (not run) |
+| 23 | `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md` | Synthetic |
 
 **Privacy:** All evaluation docs are aggregate-only. Do not quote dissertation body text, title text, or author names. Generated audit JSON/MD outputs stay under gitignored `data/evaluation/generated/`.
 
@@ -341,13 +342,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `ba41df2`)
+## 6. Validation Status (main at `2888858`, P039 on branch)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 52 source files |
-| `python -m pytest` | ✅ **456 passed** (444 pre-P038 + 12 new P038 synthetic tests) |
+| `python -m pytest` | ✅ **465 passed** (456 pre-P039 + 9 new P039 synthetic tests) |
 
 ### P038 at a glance
 
@@ -381,6 +382,18 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrapped internal continuations (P032); sparse/ambiguous pages |
 | Issue types | `toc_inter_entry_spacing_too_tight`, `lot_inter_entry_spacing_too_tight`, `lof_inter_entry_spacing_too_tight` |
 
+### P039 at a glance
+
+| Item | Notes |
+|------|--------|
+| Scope | TOC level indentation hierarchy: L2 entries indented relative to L1; L3 relative to L2 |
+| Gate | Requires ≥2 child entries and both parent+child levels present on the same page |
+| Pages checked | TABLE OF CONTENTS only; LoT and LoF excluded |
+| Min indent delta | 6pt |
+| Issue types | `toc_l2_not_indented_relative_to_l1`, `toc_l3_not_indented_relative_to_l2` |
+| v1 skips | Pages with fewer than 2 child entries; pages without confirmed parent level; unnumbered TOC entries (no CHAPTER/X.Y pattern) |
+| Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md` |
+
 ### P035 at a glance (local four-PDF subset)
 
 | Item | Notes |
@@ -404,8 +417,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | **Implement P039** — TOC level indentation hierarchy (Q056) | Scoped; see `docs/planning/p039_scope_and_design.md`; module `pdf_toc_entry_hierarchy.py`; 39 tests after implementation |
-| 🟡 Med | Full five-PDF P001–P038 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038 have no current counts |
+| 🟡 High | Full five-PDF P001–P039 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038/P039 have no current counts |
+| 🟡 Med | Scope P040 | Next automatable Q-rule gap; scope from remaining backlog after P039 |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |

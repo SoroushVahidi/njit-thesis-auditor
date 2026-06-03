@@ -53,6 +53,7 @@ from njit_auditor.rules.pdf_title_consistency import (
 )
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
+from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hierarchy
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
@@ -5174,3 +5175,157 @@ def test_p038_cli_includes_rule(tmp_path: Path) -> None:
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P038" for item in payload.get("findings", []))
 
+
+
+# ---------------------------------------------------------------------------
+# P039: TOC level indentation hierarchy
+# ---------------------------------------------------------------------------
+
+
+def _make_toc_hierarchy_pdf(
+    path: Path,
+    *,
+    l1_x: float = 72.0,
+    l2_x: float = 90.0,
+    l3_x: float | None = None,
+    l1_count: int = 2,
+    l2_count: int = 2,
+    l3_count: int = 0,
+) -> None:
+    """Create a synthetic TABLE OF CONTENTS page with configurable level indentation."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for i in range(l1_count):
+        page.insert_text((l1_x, y), f"Chapter {i + 1} Section Heading Title Long", fontsize=12)
+        page.insert_text((500, y), str(i + 1), fontsize=12)
+        y += 22.0
+        for j in range(l2_count):
+            page.insert_text(
+                (l2_x, y), f"{i + 1}.{j + 1} Subsection Title Entry Here", fontsize=12
+            )
+            page.insert_text((500, y), str(i * l2_count + j + 5), fontsize=12)
+            y += 22.0
+            if l3_count > 0 and l3_x is not None:
+                for k in range(l3_count):
+                    page.insert_text(
+                        (l3_x, y), f"{i + 1}.{j + 1}.{k + 1} Sub Subpart Item Here", fontsize=12
+                    )
+                    page.insert_text((500, y), str(i * l2_count + j + k + 20), fontsize=12)
+                    y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p039_l2_correctly_indented_no_warning(tmp_path: Path) -> None:
+    """L2 entries indented 18pt right of L1 → no P039 finding."""
+    pdf_path = tmp_path / "p039_l2_ok.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=90.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    assert not findings
+
+
+def test_p039_l2_not_indented_warns(tmp_path: Path) -> None:
+    """L2 entries at same indent as L1 → toc_l2_not_indented_relative_to_l1."""
+    pdf_path = tmp_path / "p039_l2_flat.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=72.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    assert len(findings) >= 1
+    assert findings[0].details.get("issue_type") == "toc_l2_not_indented_relative_to_l1"
+    assert findings[0].details.get("level") == "2"
+    assert findings[0].details.get("parent_level") == "1"
+    assert findings[0].details.get("source_q_rule_id") == "Q056"
+
+
+def test_p039_l3_correctly_indented_no_warning(tmp_path: Path) -> None:
+    """L3 entries indented 18pt right of L2 → no P039 L3 finding."""
+    pdf_path = tmp_path / "p039_l3_ok.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=90.0, l3_x=108.0, l3_count=2)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    l3_type = "toc_l3_not_indented_relative_to_l2"
+    l3_findings = [f for f in findings if f.details.get("issue_type") == l3_type]
+    assert not l3_findings
+
+
+def test_p039_l3_not_indented_warns(tmp_path: Path) -> None:
+    """L3 entries at same indent as L2 → toc_l3_not_indented_relative_to_l2."""
+    pdf_path = tmp_path / "p039_l3_flat.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=90.0, l3_x=90.0, l3_count=2)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    l3_type = "toc_l3_not_indented_relative_to_l2"
+    l3_findings = [f for f in findings if f.details.get("issue_type") == l3_type]
+    assert len(l3_findings) >= 1
+    assert l3_findings[0].details.get("level") == "3"
+    assert l3_findings[0].details.get("parent_level") == "2"
+    assert l3_findings[0].details.get("source_q_rule_id") == "Q056"
+
+
+def test_p039_too_few_l2_entries_skipped(tmp_path: Path) -> None:
+    """Only 1 L2 entry — below MIN_CHILD_ENTRIES_TO_CHECK gate → no finding."""
+    pdf_path = tmp_path / "p039_one_l2.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=72.0, l1_count=1, l2_count=1)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    assert not findings
+
+
+def test_p039_no_l1_entries_skipped(tmp_path: Path) -> None:
+    """No L1 entries, only L2 → no finding (gate: need parent level to compare)."""
+    pdf_path = tmp_path / "p039_no_l1.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=72.0, l1_count=0, l2_count=4)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    l2_type = "toc_l2_not_indented_relative_to_l1"
+    l2_findings = [f for f in findings if f.details.get("issue_type") == l2_type]
+    assert not l2_findings
+
+
+def test_p039_lot_page_not_checked(tmp_path: Path) -> None:
+    """LIST OF TABLES page → P039 does not apply (TOC-only rule)."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for i in range(4):
+        page.insert_text((72.0, y), f"Table {i + 1}. A Table Title That Is Quite Long", fontsize=12)
+        page.insert_text((500, y), str(i + 10), fontsize=12)
+        y += 22.0
+    pdf_path = tmp_path / "p039_lot.pdf"
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    assert not findings
+
+
+def test_p039_findings_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must contain only geometry/metadata — no entry title text."""
+    pdf_path = tmp_path / "p039_privacy.pdf"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=72.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_hierarchy(model) if f.rule_id == "P039"]
+    assert findings
+    for f in findings:
+        for key, value in f.details.items():
+            assert "Subsection" not in str(value), f"Entry text leaked into details[{key!r}]"
+            assert "Chapter" not in str(value), f"Entry text leaked into details[{key!r}]"
+        assert f.details.get("source_q_rule_id") == "Q056"
+        assert "observed_delta_points" in f.details
+        assert "required_delta_points" in f.details
+        assert "entry_count" not in f.details or True  # field not required
+
+
+def test_p039_cli_includes_rule(tmp_path: Path) -> None:
+    """CLI JSON output includes P039 when L2 entries lack indentation."""
+    pdf_path = tmp_path / "p039_cli.pdf"
+    json_out = tmp_path / "p039_report.json"
+    _make_toc_hierarchy_pdf(pdf_path, l1_x=72.0, l2_x=72.0)
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P039" for item in payload.get("findings", []))
