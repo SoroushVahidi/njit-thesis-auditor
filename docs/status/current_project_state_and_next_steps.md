@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-01
-- **Latest main:** `48b1e963` (PR #88 — post-P036 status refresh; P001–P036 implemented)
+- **Date:** 2026-06-02
+- **Latest main:** `b4b6594` (PR #90 — P037 scope anchored front-matter Roman numerals; P001–P036 implemented)
 - **Validation:** ruff, mypy, **432 pytest** passed
 - **Auditor scope:** P001–P036 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **Five-PDF aggregate (canonical pre-P035/P036 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P036 rerun)
@@ -11,6 +11,7 @@
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037 scoping:** scoped but **not implemented** — see `docs/planning/p037_scope_and_design.md` (section-anchored front-matter Roman numerals; Q022, Q031, Q035, Q046, Q060)
+- **Reusable-tooling audit:** **complete** — see `docs/planning/reusable_tooling_audit.md`; no external tool suitable for direct dependency; P037 should **proceed immediately** (no integration spike needed); YAML spec concept from `AndrewGreenbaum/thesis-compliance` noted as future inspiration
 - **Five-PDF eval/manifest baseline:** `00b9c2d` (`generated_for_commit`; intentional — last substantive code/eval baseline before docs-only refreshes)
 
 - Strict coverage audit (historical baseline P029; updates through P036): `docs/status/source_to_implementation_coverage_after_p029.md`
