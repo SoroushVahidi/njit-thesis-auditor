@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `4de13ab` (PR #108 — P041 Dedication page header; P001–P041 implemented)
+- **Latest main:** `eaea12c` (PR #110 — post-P041 consistency audit; P001–P041 implemented)
+- **P042:** **scoped, not yet implemented** — TOC appendix entry format check (Q058/Q059); see `docs/planning/p042_scope_and_design.md`
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Validation:** ruff, mypy, **482 pytest** passed
@@ -444,8 +445,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Full five-PDF P001–P041 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036–P041 have no current counts |
-| 🟡 Med | Scope P042 | Next automatable Q-rule gap; scope from remaining backlog after P041 |
+| 🟡 High | **Implement P042** — TOC appendix entry format (Q058/Q059) | Scoped; see `docs/planning/p042_scope_and_design.md`; module `pdf_toc_appendix_format.py`; 42 rules after implementation |
+| 🟡 Med | Full five-PDF P001–P041 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036–P041 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
