@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `db842d6` (PR #100 — P039 TOC entry hierarchy; P001–P039 implemented)
+- **Latest main:** `5389686` (PR #102 — post-P039 consistency audit; P001–P039 implemented)
+- **P040:** **scoped, not yet implemented** — LoF entry terminal punctuation check (Q075); see `docs/planning/p040_scope_and_design.md`
 - **Validation:** ruff, mypy, **465 pytest** passed
 - **Auditor scope:** P001–P039 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
@@ -421,8 +422,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Full five-PDF P001–P039 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038/P039 have no current counts |
-| 🟡 Med | Scope P040 | Next automatable Q-rule gap; scope from remaining backlog after P039 |
+| 🟡 High | **Implement P040** — LoF entry terminal punctuation (Q075) | Scoped; see `docs/planning/p040_scope_and_design.md`; module `pdf_lof_terminal_punctuation.py`; 40 rules/tests after implementation |
+| 🟡 Med | Full five-PDF P001–P039 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038/P039 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
