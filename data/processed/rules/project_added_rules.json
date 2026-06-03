@@ -755,5 +755,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q058 and Q059. TOC-only: LoT/LoF excluded. Appendix detection uses _APPENDIX_RE on entry cleaned_text. issue_types: single_appendix_missing_title (Q058), multiple_appendix_missing_letter (Q059). No TOC entry text in findings."
+  },
+  {
+    "id": "P043",
+    "section": "PDF Acknowledgements paragraph indentation",
+    "question": "Does the Acknowledgements page follow the correct paragraph indentation style — first paragraph flush-left, subsequent paragraphs indented?",
+    "rule_definition": "Conservative heuristic: detects the ACKNOWLEDGEMENTS page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q044) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q045) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ACKNOWLEDGEMENTS page not detected or fewer than 2 paragraph blocks found. Complements P015 (general indentation), which may miss short Acknowledgements pages due to conservative thresholds. Findings contain only geometry metadata — no paragraph text.",
+    "remediation": "Ensure the first paragraph on the Acknowledgements page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_acknowledgements_indentation",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q044 and Q045. Page targeted: ACKNOWLEDGEMENTS only (ACKNOWLEDGEMENTS is in EXPECTED_HEADINGS). Gate: requires >=2 paragraph blocks. Left margin derived from min body-line x0. INDENT_THRESHOLD_PT=18.0. Complements P015; does not replace it. issue_types: acknowledgements_first_paragraph_indented (Q044), acknowledgements_subsequent_paragraph_not_indented (Q045)."
   }
 ]
