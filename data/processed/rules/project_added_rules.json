@@ -701,5 +701,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q056. Level classification uses CHAPTER/APPENDIX prefix patterns for L1 and X.Y / X.Y.Z numeric-section patterns for L2/L3. Minimum indent delta: 6pt. Gate: requires >=2 child-level entries before flagging. Skips LoT/LoF pages. issue_types: toc_l2_not_indented_relative_to_l1, toc_l3_not_indented_relative_to_l2."
+  },
+  {
+    "id": "P040",
+    "section": "PDF List of Figures terminal punctuation",
+    "question": "Does every List of Figures entry (figure description) end with a terminal punctuation mark?",
+    "rule_definition": "Conservative heuristic: identifies complete List of Figures entry lines (those with a detected page-number token) and checks that the figure description text, after stripping the Figure N. prefix, leader dots, and page-number token, ends with a terminal punctuation mark (period, question mark, or exclamation point). Skips wrap-continuation lines (no page-number token), lines shorter than 10 characters, and non-LoF pages (TOC and LoT excluded). Emits one finding per offending entry. Findings contain only geometric/count metadata — no figure description text.",
+    "remediation": "Ensure every figure description in the List of Figures ends with a terminal punctuation mark (period, question mark, or exclamation point).",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lof_terminal_punctuation",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q075. Checks only complete LoF entries (page_number_token present). Skips wrap-continuation lines and short entries. LoF-only: TOC and LoT pages excluded. Complements P024 LoF sentence-case check. issue_types: lof_entry_missing_terminal_punctuation."
   }
 ]

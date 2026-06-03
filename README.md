@@ -26,7 +26,7 @@ njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P039 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P040 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P039):
+Current PDF checks (P011–P040):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -75,6 +75,7 @@ Current PDF checks (P011–P039):
 | P037 | Page numbers | Section-anchored front-matter Roman numerals: BIOGRAPHICAL SKETCH must be iv; DEDICATION (optional) v; ACKNOWLEDGEMENTS vi; TABLE OF CONTENTS vii; LIST OF TABLES viii; emits nothing if BIOGRAPHICAL SKETCH heading absent |
 | P038 | Front matter | Required front-matter heading presence (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) and known phrase-variant detection (covers DEDICATION, LIST OF TABLES, LIST OF FIGURES too; e.g. ACKNOWLEDGMENTS variant); gated: no findings if no headings detected; List of Tables/Figures never flagged as missing (optional); complements P014/P025/P030/P031; privacy-safe metadata only |
 | P039 | TOC/List | TOC level indentation hierarchy: L2 entries should be indented right of L1, L3 entries right of L2; TOC-only (LoT/LoF excluded); gate: requires ≥2 child-level entries before flagging; privacy-safe geometry metadata only (no entry text); covers Q056 |
+| P040 | TOC/List | List of Figures entry terminal punctuation: checks complete LoF entries (with page-number token) end with `.`, `?`, or `!`; LoF-only; skips wrap-continuation lines; privacy-safe counts/metadata only (no entry text); covers Q075 |
 
 All findings are heuristic warnings and require manual review.
 

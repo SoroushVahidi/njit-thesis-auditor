@@ -29,6 +29,7 @@ from njit_auditor.rules.pdf_heading_levels import (
 )
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
+from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
@@ -5329,3 +5330,167 @@ def test_p039_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P039" for item in payload.get("findings", []))
+
+
+# ---------------------------------------------------------------------------
+# P040: LoF entry terminal punctuation
+# ---------------------------------------------------------------------------
+
+
+def _make_lof_terminal_punct_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+    heading: str = "LIST OF FIGURES",
+) -> None:
+    """Build a synthetic LoF/LoT/TOC page.
+
+    entries: list of (entry_text, page_number) pairs.
+    If page_number is None, the entry has no trailing page number (wrap continuation).
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p040_lof_entry_with_period_no_finding(tmp_path: Path) -> None:
+    """LoF entry ending with '.' → no P040 finding."""
+    pdf_path = tmp_path / "p040_period.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. An Example Figure With Correct Punctuation.", "5"),
+        ("Figure 2. Another Figure Description Ends Correctly.", "12"),
+        ("Figure 3. Third Figure Also Correctly Ends.", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_lof_entry_with_question_mark_no_finding(tmp_path: Path) -> None:
+    """LoF entry ending with '?' → no P040 finding."""
+    pdf_path = tmp_path / "p040_question.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. Does This Figure Show the Expected Results?", "7"),
+        ("Figure 2. Another Entry Ending With Correct Punctuation.", "15"),
+        ("Figure 3. Is This Also Acceptable?", "22"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_lof_entry_missing_punct_warns(tmp_path: Path) -> None:
+    """LoF entry lacking terminal punctuation → lof_entry_missing_terminal_punctuation."""
+    pdf_path = tmp_path / "p040_no_punct.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. An Example Figure With Correct Punctuation.", "5"),
+        ("Figure 2. This Entry Has No Terminal Punctuation At All", "12"),
+        ("Figure 3. Third Figure Also Correctly Ends.", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) >= 1
+    assert findings[0].details.get("issue_type") == "lof_entry_missing_terminal_punctuation"
+    assert findings[0].details.get("source_q_rule_id") == "Q075"
+
+
+def test_p040_all_entries_missing_punct_multiple_findings(tmp_path: Path) -> None:
+    """Multiple LoF entries lacking punctuation → multiple P040 findings."""
+    pdf_path = tmp_path / "p040_all_missing.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. Entry Without Punctuation One", "5"),
+        ("Figure 2. Entry Without Punctuation Two", "10"),
+        ("Figure 3. Entry Without Punctuation Three", "15"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) >= 2
+
+
+def test_p040_continuation_line_no_page_token_skipped(tmp_path: Path) -> None:
+    """Wrap-continuation line (no page number) is skipped — not checked."""
+    pdf_path = tmp_path / "p040_wrap.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. A Very Long Description That Wraps Onto", None),
+        ("the Next Line Here And Ends Without Punctuation.", "8"),
+        ("Figure 2. Another Figure Entry With Correct Punctuation.", "15"),
+        ("Figure 3. Third Complete Entry With Period.", "22"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not any(
+        "wraps onto" in str(f.details).lower()
+        for f in findings
+    )
+
+
+def test_p040_lot_page_not_checked(tmp_path: Path) -> None:
+    """LIST OF TABLES page → P040 does not apply (LoF-only rule)."""
+    pdf_path = tmp_path / "p040_lot.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Table 1. A Table Title Without Terminal Punctuation", "5"),
+        ("Table 2. Another Table Title No Punctuation Here", "10"),
+        ("Table 3. Third Table Title Also Missing Punctuation", "15"),
+    ], heading="LIST OF TABLES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_toc_page_not_checked(tmp_path: Path) -> None:
+    """TABLE OF CONTENTS page → P040 does not apply."""
+    pdf_path = tmp_path / "p040_toc.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Chapter 1 Introduction Without Punctuation", "1"),
+        ("Chapter 2 Background Without Punctuation", "15"),
+        ("Chapter 3 Methodology Without Punctuation", "30"),
+    ], heading="TABLE OF CONTENTS")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_findings_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must not contain LoF entry text."""
+    pdf_path = tmp_path / "p040_privacy.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. This Entry Has No Terminal Punctuation", "5"),
+        ("Figure 2. Another Missing Punctuation Entry", "10"),
+        ("Figure 3. Third Entry No Punct Either", "15"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert findings
+    for f in findings:
+        for key, value in f.details.items():
+            assert "punctuation" not in str(value).lower() or key in (
+                "issue_type", "terminal_punctuation_required"
+            ), f"Unexpected entry text in details[{key!r}]"
+            assert "figure" not in str(value).lower() or key == "issue_type", (
+                f"Entry text may have leaked into details[{key!r}]"
+            )
+        assert f.details.get("source_q_rule_id") == "Q075"
+        assert "line_y" in f.details
+        assert "entry_index" in f.details
+
+
+def test_p040_cli_includes_rule(tmp_path: Path) -> None:
+    """CLI JSON output includes P040 when LoF entries lack terminal punctuation."""
+    pdf_path = tmp_path / "p040_cli.pdf"
+    json_out = tmp_path / "p040_report.json"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. Entry Without Terminal Punctuation", "5"),
+        ("Figure 2. Another Entry Without Punctuation", "10"),
+        ("Figure 3. Third Entry Also Missing Punctuation", "15"),
+    ])
+    result = runner.invoke(app, ["pdf", str(pdf_path), "--json-out", str(json_out)])
+    assert result.exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert any(item.get("rule_id") == "P040" for item in payload.get("findings", []))

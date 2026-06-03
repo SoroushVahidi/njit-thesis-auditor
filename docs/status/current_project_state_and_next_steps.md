@@ -2,14 +2,14 @@
 
 - **Date:** 2026-06-03
 - **Latest main:** `5389686` (PR #102 — post-P039 consistency audit; P001–P039 implemented)
-- **P040:** **scoped, not yet implemented** — LoF entry terminal punctuation check (Q075); see `docs/planning/p040_scope_and_design.md`
-- **Validation:** ruff, mypy, **465 pytest** passed
-- **Auditor scope:** P001–P039 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
+- **Validation:** ruff, mypy, **474 pytest** passed
+- **Auditor scope:** P001–P040 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P039 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
-- **P-rules:** **39/39** implemented (`P001`–`P039` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **40/40** implemented (`P001`–`P040` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
@@ -60,6 +60,7 @@
 - P038 current-dataset evaluation (not run): `docs/evaluation/p038_current_dataset_evaluation.md` — no P038 counts; evaluation PDFs unavailable
 - P039 synthetic validation: `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`
 - P039 current-dataset evaluation (not run): `docs/evaluation/p039_current_dataset_evaluation.md` — no P039 counts; evaluation PDFs unavailable
+- P040 synthetic validation: `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`
 
 ### P030–P039 evaluation docs (chronological)
 
@@ -89,6 +90,7 @@
 | 22 | `docs/evaluation/p038_current_dataset_evaluation.md` | Current dataset (not run) |
 | 23 | `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md` | Synthetic |
 | 24 | `docs/evaluation/p039_current_dataset_evaluation.md` | Current dataset (not run) |
+| 25 | `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md` | Synthetic |
 
 **Privacy:** All evaluation docs are aggregate-only. Do not quote dissertation body text, title text, or author names. Generated audit JSON/MD outputs stay under gitignored `data/evaluation/generated/`.
 
@@ -139,6 +141,7 @@
 | `pdf_frontmatter_structure.py` | P025 | Abstract body presence, title-page degree/institution, approval-page content, front-matter order |
 | `pdf_title_capitalization.py` | P020 | L2 heading and table-title title-case via bold font metadata |
 | `pdf_toc_entry_hierarchy.py` | P039 | TOC level indentation hierarchy: L2 entries indented relative to L1, L3 relative to L2 (Q056) |
+| `pdf_lof_terminal_punctuation.py` | P040 | LoF entry terminal punctuation: complete entries must end with `.`/`?`/`!`; skips wrap continuations (Q075) |
 
 ### Infrastructure
 
@@ -163,7 +166,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P039) | 39 | 39 | — | — | — |
+| P-rules (P001–P040) | 40 | 40 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -347,13 +350,24 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 ---
 
-## 6. Validation Status (main at `db842d6`)
+### P040 at a glance
+
+| Item | Notes |
+|------|--------|
+| Scope | LoF entry terminal punctuation: entries must end with `.`, `?`, or `!` |
+| Gate | Only entries with `page_number_token is not None` (complete entries / last wrapped line) |
+| Pages checked | LIST OF FIGURES only; TOC and LoT excluded |
+| Issue types | `lof_entry_missing_terminal_punctuation` |
+| v1 skips | Wrap-continuation lines; entries shorter than 10 characters |
+| Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md` |
+
+## 6. Validation Status (main at implementation branch)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 52 source files |
-| `python -m pytest` | ✅ **465 passed** (456 pre-P039 + 9 new P039 synthetic tests) |
+| `python -m pytest` | ✅ **474 passed** (465 pre-P040 + 9 new P040 synthetic tests) |
 
 ### P038 at a glance
 
@@ -422,8 +436,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | **Implement P040** — LoF entry terminal punctuation (Q075) | Scoped; see `docs/planning/p040_scope_and_design.md`; module `pdf_lof_terminal_punctuation.py`; 40 rules/tests after implementation |
-| 🟡 Med | Full five-PDF P001–P039 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038/P039 have no current counts |
+| 🟡 High | Full five-PDF P001–P040 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036/P037/P038/P039/P040 have no current counts |
+| 🟡 Med | Scope P041 | Next automatable Q-rule gap; scope from remaining backlog after P040 |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
