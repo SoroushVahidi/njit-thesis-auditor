@@ -4,7 +4,7 @@
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P040",
     "pytest_count_at_last_doc_refresh": 474,
-    "latest_main_at_last_doc_refresh": "f331dde",
+    "latest_main_at_last_doc_refresh": "da685b9",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
