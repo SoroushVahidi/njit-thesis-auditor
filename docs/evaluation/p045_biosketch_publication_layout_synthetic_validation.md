@@ -3,7 +3,7 @@
 - **Date:** 2026-06-03
 - **Rule:** P045 — Biographical Sketch publication paragraph layout (Q028/Q029)
 - **Status:** **Synthetic validation only** — current-dataset audit not run (evaluation PDFs unavailable)
-- **Baseline main at implementation:** `1c99a95` (PR #125 — Scope P045)
+- **Baseline main at implementation:** `6fa22df` (PR #126 — Implement P045 Bio Sketch publication layout checks)
 
 ---
 
