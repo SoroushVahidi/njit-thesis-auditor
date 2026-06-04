@@ -3,7 +3,7 @@
 - **Date:** 2026-06-03
 - **Rule:** P044 — Abstract page paragraph indentation (Q002/Q003)
 - **Status:** **Synthetic validation only** — current-dataset audit not run (evaluation PDFs unavailable)
-- **Baseline main at implementation:** `4220325` (PR #119 — Scope P044)
+- **Baseline main at implementation:** `8485e52` (PR #120 — Implement P044 Abstract indentation checks)
 
 ---
 
