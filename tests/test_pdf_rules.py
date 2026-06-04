@@ -13,6 +13,9 @@ from njit_auditor.rules.pdf_acknowledgements_indentation import (
     check_pdf_acknowledgements_indentation,
 )
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_biosketch_bullet_spacing import (
+    check_pdf_biosketch_bullet_spacing,
+)
 from njit_auditor.rules.pdf_biosketch_publication_layout import (
     check_pdf_biosketch_publication_layout,
 )
@@ -6258,6 +6261,137 @@ def test_p045_q028_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q028
     assert all(f.details.get("source_q_rule_id") == "Q028" for f in q028)
+
+
+# ---------------------------------------------------------------------------
+# P047 tests
+# ---------------------------------------------------------------------------
+
+
+def _make_biosketch_bullet_pdf(
+    path: Path,
+    *,
+    block_count: int = 2,
+    lines_per_block: int = 3,
+    within_block_step: float = 14.0,
+    inter_block_step: float = 50.0,
+) -> None:
+    """Synthetic Biographical Sketch PDF for P047 bullet/list spacing tests."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((210, 70), "BIOGRAPHICAL SKETCH", fontsize=14, fontname="Times-Bold")
+    y = 120.0
+    for block_index in range(block_count):
+        for line_index in range(lines_per_block):
+            page.insert_text(
+                (108, y),
+                (
+                    "Synthetic education bullet block "
+                    f"{block_index} line {line_index} placeholder words only."
+                ),
+                fontsize=12,
+            )
+            y += within_block_step
+        y += inter_block_step
+    doc.save(path)
+    doc.close()
+
+
+def test_p047_no_biosketch_page_no_findings(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p047_no_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 70), "ACKNOWLEDGEMENTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 110), "Synthetic body paragraph text for testing here.")
+    page.insert_text((108, 124), "Continuation of synthetic paragraph body text line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_bullet_spacing(model)
+    assert not any(f.rule_id == "P047" for f in findings)
+
+
+def test_p047_single_spaced_bullet_blocks_no_findings(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p047_single_spaced.pdf"
+    _make_biosketch_bullet_pdf(pdf_path, within_block_step=14.0, inter_block_step=50.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_bullet_spacing(model)
+    assert not any(f.rule_id == "P047" for f in findings)
+
+
+def test_p047_double_spaced_lines_grouped_and_warn(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p047_double_spaced_grouped.pdf"
+    _make_biosketch_bullet_pdf(pdf_path, within_block_step=36.0, inter_block_step=50.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_bullet_spacing(model) if f.rule_id == "P047"]
+    assert findings
+    assert all(
+        f.details.get("issue_type") == "biosketch_bullet_section_not_single_spaced"
+        for f in findings
+    )
+    assert {f.details.get("block_index") for f in findings} == {"0", "1"}
+    assert all(float(f.details["observed_gap_points"]) > 12.0 for f in findings)
+
+
+def test_p047_separate_bullet_entries_remain_split(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p047_entries_split.pdf"
+    _make_biosketch_bullet_pdf(
+        pdf_path,
+        block_count=2,
+        lines_per_block=3,
+        within_block_step=14.0,
+        inter_block_step=50.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_bullet_spacing(model)
+    assert not any(f.rule_id == "P047" for f in findings)
+
+
+def test_p047_sparse_ambiguous_blocks_skipped(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p047_sparse.pdf"
+    _make_biosketch_bullet_pdf(
+        pdf_path,
+        block_count=2,
+        lines_per_block=2,
+        within_block_step=36.0,
+        inter_block_step=50.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_bullet_spacing(model)
+    assert not any(f.rule_id == "P047" for f in findings)
+
+
+def test_p047_finding_metadata_no_private_content(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p047_privacy.pdf"
+    _make_biosketch_bullet_pdf(pdf_path, within_block_step=36.0, inter_block_step=50.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_bullet_spacing(model) if f.rule_id == "P047"]
+    assert findings
+    forbidden = (
+        "synthetic",
+        "education",
+        "placeholder",
+        "publication",
+        "citation",
+        "name",
+        "title",
+    )
+    for finding in findings:
+        assert "bullet or list block" in finding.message.lower()
+        assert set(finding.details) == {
+            "page_number",
+            "issue_type",
+            "section_type",
+            "block_index",
+            "line_pair_index",
+            "observed_gap_points",
+            "required_max_gap_points",
+            "triage_tier",
+            "source_q_rule_id",
+        }
+        for value in finding.details.values():
+            lowered = str(value).lower()
+            assert not any(term in lowered for term in forbidden)
 
 
 # ---------------------------------------------------------------------------

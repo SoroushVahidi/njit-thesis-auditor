@@ -1,7 +1,7 @@
 # P047 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented**
 - **Baseline main:** `0331c35` (PR #132 — post-P046 consistency audit; P001–P046 implemented)
 
 ---
@@ -90,9 +90,9 @@
 ### Scope included
 
 1. **Bio Sketch page detection** — use `find_named_frontmatter_headings` to locate pages with a "BIOGRAPHICAL SKETCH" heading. If not detected, emit nothing.
-2. **Multi-line block extraction** — collect text line groups below the heading using `MAX_PARA_GAP_PT = 14.0` (same as P043/P044/P045). Filter short lines and page-number candidates.
+2. **Multi-line block extraction** — collect text line groups below the heading using `MAX_PARA_GAP_PT = 20.0`. This is wider than P043/P044/P045 so wrapped or double-spaced bullet/list lines stay in one candidate block. Filter short lines and page-number candidates.
 3. **Bullet-block identification** — identify blocks that do NOT have hanging indent (i.e., `rest_x0 - first_x0 < HANGING_THRESHOLD_PT = 12pt`). These are likely bullet or body blocks.
-4. **Q026 check** — for each non-hanging-indent block with ≥ 3 lines: check that all internal line gaps are ≤ `BULLET_MAX_GAP_PT` (approximately 16pt). If any internal gap exceeds the threshold, emit `biosketch_bullet_item_spacing_not_single`.
+4. **Q026 check** — for each non-hanging-indent block with ≥ 3 lines: check that all internal line gaps are ≤ `BULLET_MAX_GAP_PT = 12.0`. This tighter split/check threshold keeps distinct bullet/list entries separate while still flagging non-single-spaced internal gaps. If any internal gap exceeds the threshold, emit `biosketch_bullet_section_not_single_spaced`.
 5. **Gates** — skip if BIOGRAPHICAL SKETCH heading absent; skip Q026 check if fewer than `MIN_BULLET_BLOCKS = 2` non-hanging-indent multi-line blocks are found.
 6. **Privacy-safe findings** — include only: `page_number`, `issue_type`, `block_index`, `line_pair_index`, `observed_gap_points`, `required_max_gap_points`, `triage_tier`, `source_q_rule_id`.
 
@@ -110,7 +110,7 @@
 
 ### Expected issue types
 
-- `biosketch_bullet_item_spacing_not_single` (Q026)
+- `biosketch_bullet_section_not_single_spaced` (Q026)
 
 ### Expected evaluation category
 
@@ -131,7 +131,7 @@
 
 ### Acceptance criteria
 
-1. P047 emits `biosketch_bullet_item_spacing_not_single` when a non-hanging-indent block on the Bio Sketch page has excessive internal line gaps.
+1. P047 emits `biosketch_bullet_section_not_single_spaced` when a non-hanging-indent block on the Bio Sketch page has excessive internal line gaps.
 2. P047 emits nothing when no BIOGRAPHICAL SKETCH page is detected.
 3. P047 emits nothing when fewer than MIN_BULLET_BLOCKS non-hanging-indent multi-line blocks are found.
 4. P047 does not duplicate P045, P043/P044, or P015/P016 issue types.

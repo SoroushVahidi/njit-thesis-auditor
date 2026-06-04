@@ -38,6 +38,7 @@ from njit_auditor.rules.pdf_acknowledgements_indentation import (
     check_pdf_acknowledgements_indentation,
 )
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_biosketch_bullet_spacing import check_pdf_biosketch_bullet_spacing
 from njit_auditor.rules.pdf_biosketch_publication_layout import (
     check_pdf_biosketch_publication_layout,
 )
@@ -196,6 +197,7 @@ def pdf(
     findings.extend(check_pdf_abstract_indentation(pdf_doc))
     findings.extend(check_pdf_acknowledgements_indentation(pdf_doc))
     findings.extend(check_pdf_biosketch_publication_layout(pdf_doc))
+    findings.extend(check_pdf_biosketch_bullet_spacing(pdf_doc))
     findings.extend(check_pdf_spacing(pdf_doc))
     findings.extend(check_pdf_body_spacing(pdf_doc))
     findings.extend(check_pdf_font_compliance(pdf_doc))
