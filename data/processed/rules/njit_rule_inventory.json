@@ -502,7 +502,7 @@
     "remediation": "Single-space each entry and add a blank line or double-space gap between entries.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "mixed",
     "checkability": "heuristic",
     "input_required": [
@@ -511,7 +511,7 @@
       "template_reference"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Needs human metadata/template interpretation beyond strict source parsing Partially covered: inter-entry spacing check between hanging-indent blocks on Bio Sketch page (pdf_biosketch_publication_layout.py)"
   },
   {
     "id": "Q029",
@@ -521,7 +521,7 @@
     "remediation": "Apply a hanging indent to every entry in this section.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "mixed",
     "checkability": "heuristic",
     "input_required": [
@@ -530,7 +530,7 @@
       "template_reference"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Needs human metadata/template interpretation beyond strict source parsing Partially covered: hanging-indent detection for Bio Sketch publication entries (pdf_biosketch_publication_layout.py)"
   },
   {
     "id": "Q030",
