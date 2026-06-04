@@ -1,8 +1,8 @@
 # P043 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
-- **Baseline main:** `1164b51` (PR #114 — post-P042 consistency audit; P001–P042 implemented)
+- **Status:** **Implemented** (PR #116 — P001–P043 implemented; see `docs/evaluation/p043_current_dataset_evaluation.md`)
+- **Baseline main:** `70b37bc` (PR #116 — P043 Acknowledgements paragraph indentation; P001–P043 implemented)
 
 ---
 
@@ -10,10 +10,10 @@
 
 | Area | State |
 |------|--------|
-| P-rules | **42/42** implemented (`P001`–`P042`) |
+| P-rules | **43/43** implemented (`P001`–`P043`) |
 | Q-rules (raw inventory) | **79** total — **2** implemented, **11** partially_implemented, **66** not_implemented |
-| General paragraph indentation | **P015** — covers ALL pages including Acknowledgements; conservative thresholds (`MIN_LINES_FOR_MISSING_LATER_INDENT=4`, `MIN_LIKELY_INDENTED_PARAGRAPHS_FOR_PAGE_STYLE=2`, `MIN_INDENT_STYLE_CONFIDENCE_RATIO=0.6`); Q044/Q045 remain `not_implemented` |
-| Acknowledgements-specific indentation | **Not implemented** — Q044/Q045 completely unaddressed |
+| General paragraph indentation | **P015** — covers ALL pages including Acknowledgements; conservative thresholds (`MIN_LINES_FOR_MISSING_LATER_INDENT=4`, `MIN_LIKELY_INDENTED_PARAGRAPHS_FOR_PAGE_STYLE=2`, `MIN_INDENT_STYLE_CONFIDENCE_RATIO=0.6`); Q044/Q045 now partially_implemented via P043 |
+| Acknowledgements-specific indentation | **Implemented as P043** — `src/njit_auditor/rules/pdf_acknowledgements_indentation.py`; Q044/Q045 addressed |
 | Dedication page header | **P041** — Q032; top-margin check |
 | TOC appendix format | **P042** — Q058/Q059; letter-identifier check |
 
