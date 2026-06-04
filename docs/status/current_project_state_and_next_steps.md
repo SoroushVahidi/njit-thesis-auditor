@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `963e4da` (PR #117 — Refresh status after P043 implementation; P001–P043 implemented)
+- **Latest main:** `afc2f43` (PR #118 — post-P043 consistency audit; P001–P043 implemented)
+- **P044:** **scoped, not yet implemented** — Abstract page paragraph indentation check (Q002/Q003); see `docs/planning/p044_scope_and_design.md`; module will be `src/njit_auditor/rules/pdf_abstract_indentation.py`
 - **P043:** **implemented** — `src/njit_auditor/rules/pdf_acknowledgements_indentation.py`; Acknowledgements paragraph indentation check (Q044/Q045); 7 synthetic tests added; see `docs/planning/p043_scope_and_design.md` and `docs/evaluation/p043_current_dataset_evaluation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
