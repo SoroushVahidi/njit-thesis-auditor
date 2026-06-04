@@ -15,7 +15,7 @@
 - **Validation:** ruff, mypy, **551 pytest** passed on latest main
 - **Auditor scope:** P001–P049 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044/P045/P046/P047/P048/P049 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P048 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044/P045/P046/P047/P048/P049 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P049 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **49/49** implemented (`P001`–`P049` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -197,11 +197,11 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P048) | 48 | 48 | — | — | — |
+| P-rules (P001–P049) | 49 | 49 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
-- **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); inter-entry double spacing partially covered by **P036** (Q057, Q067, Q077); "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031
+- **TOC/list internal formatting**: wrapping spacing partially covered by P032 (Q053–Q055, Q066–Q067, Q076–Q078); inter-entry double spacing partially covered by **P036** (Q057, Q067, Q077); "(Continued)" headers (Q048, Q062, Q071) partially covered by P030; column headers bold/aligned (Q063–Q064, Q072–Q073) partially covered by P031 and P049
 - **Front-matter visual checks**: copyright page (Q009–Q011) partially covered by P034; dedication centering/italic (Q033–Q034), bio-sketch content (Q023–Q025, Q027–Q029)
 - **Heading level distinctions**: L3/L4/L5 partially addressed by P027; bold/italic enforcement still missing
 - **Page-number sequence correctness**: Roman numeral value sequence (Q022, Q031, Q035, Q046, Q060 partially covered by P028 regime check, P029 relative ordering, and **P037** section-anchored values; LOF anchor and remaining gaps not yet validated)
@@ -398,7 +398,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 60 source files |
-| `python -m pytest` | ✅ **539 passed** (530 pre-P048 + 9 new P048 synthetic tests) |
+| `python -m pytest` | ✅ **551 passed** (539 pre-P049 + 12 new P049 synthetic tests) |
 
 ### P038 at a glance
 
