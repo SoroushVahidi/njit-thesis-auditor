@@ -827,5 +827,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Conservative v1 PDF heuristic for Q068 and Q078. Sections: list_of_tables, list_of_figures. Gate: requires >=3 entries per section. X0_RANGE_THRESHOLD_PT=6.0. Uses detect_toc_like_pages + extract_toc_entry_lines from pdf_toc_alignment.py. issue_types: lot_entry_number_column_misaligned (Q068), lof_entry_number_column_misaligned (Q078). Complements P018 and P031."
+  },
+  {
+    "id": "P047",
+    "section": "PDF Biographical Sketch bullet section single-spacing",
+    "question": "Are the bullet items in the education section of the Biographical Sketch single-spaced within each bullet?",
+    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks using MAX_PARA_GAP_PT=20pt so wrapped or double-spaced lines remain in one candidate block. Identifies 'bullet' blocks as multi-line blocks that do NOT have hanging-indent (rest_x0 - first_x0 < HANGING_THRESHOLD_PT=12pt). For bullet blocks with >=3 lines, checks internal line gaps using BULLET_MAX_GAP_PT=12pt so distinct bullet/list entries remain separated from within-entry spacing checks. If any gap > BULLET_MAX_GAP_PT, emits biosketch_bullet_section_not_single_spaced. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than MIN_BULLET_BLOCKS=2 non-hanging-indent multi-line blocks. Findings are geometry-only \u2014 no bullet text, education content, names, or institutions.",
+    "remediation": "Ensure bullet items in the Biographical Sketch education section are single-spaced within each bullet, with no extra blank lines within a bullet item.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_biosketch_bullet_spacing",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Conservative v1 PDF heuristic for Q026. Page targeted: BIOGRAPHICAL SKETCH only. Gate: requires >=2 non-hanging-indent multi-line blocks and >=3 lines per checked block. HANGING_THRESHOLD_PT=12.0, BULLET_MAX_GAP_PT=12.0, MAX_PARA_GAP_PT=20.0. Complements P045 (hanging-indent publication blocks). Does not read bullet text. issue_type: biosketch_bullet_section_not_single_spaced (Q026)."
   }
 ]

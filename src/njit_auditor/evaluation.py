@@ -63,6 +63,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P043": "indentation",
         "P044": "indentation",
         "P045": "indentation",
+        "P047": "indentation",
         "P016": "spacing_blank_lines",
         "P023": "spacing_blank_lines",
         "P018": "list_of_tables_figures_toc",
