@@ -6,11 +6,11 @@
 
 ---
 
-## Current state
+## Baseline state at scoping
 
 | Area | State |
 |------|-------|
-| P-rules | **47/47** implemented (`P001`-`P047`) |
+| P-rules at scoping | **47/47** implemented (`P001`-`P047`) |
 | Q-rules (updated inventory, post-P047) | **79** total — **2** implemented, **55** partially_implemented, **22** not_implemented (9 manual-only, 13 automatable gaps) |
 | LoT/LoF entry number left-column alignment | **P046** — Q068/Q078; implemented |
 | LoT/LoF page-number right-column alignment | **P048** — Q069/Q079; implemented as a LoT/LoF-specific complement to generic P018 |
