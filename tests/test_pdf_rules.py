@@ -45,6 +45,9 @@ from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_colu
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
+    check_pdf_lot_lof_page_number_alignment,
+)
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
 from njit_auditor.rules.pdf_page_numbers import (
@@ -6530,3 +6533,184 @@ def test_p046_q078_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q078
     assert all(f.details.get("source_q_rule_id") == "Q078" for f in q078)
+
+
+# P048 tests
+
+
+def _make_lot_lof_page_number_pdf(
+    path: Path,
+    heading: str,
+    *,
+    left_header: str | None = "Table",
+    page_header: str | None = "Page",
+    page_number_xs: list[float] | None = None,
+    include_wrapped_continuation: bool = False,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    if left_header is not None:
+        page.insert_text((108, 115), left_header)
+    if page_header is not None:
+        page.insert_text((500, 115), page_header)
+
+    xs = page_number_xs or [500.0, 500.0, 500.0]
+    prefix = "Figure" if heading == "LIST OF FIGURES" else "Table"
+    for idx, page_number_x in enumerate(xs):
+        y = 140 + idx * 24
+        page.insert_text(
+            (108, y),
+            f"{prefix} {idx + 1} Synthetic placeholder entry text for alignment.",
+        )
+        page.insert_text((page_number_x, y), "12")
+        if include_wrapped_continuation and idx == 0:
+            page.insert_text(
+                (132, y + 12),
+                "Synthetic wrapped continuation placeholder line without page number.",
+            )
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p048_no_lot_lof_pages_no_findings(tmp_path: Path) -> None:
+    """No LoT/LoF heading detected → no P048 findings."""
+    pdf_path = tmp_path / "p048_no_list.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "Chapter 1 Introduction ............... 1")
+    page.insert_text((108, 150), "Chapter 2 Background ................ 5")
+    page.insert_text((108, 170), "Chapter 3 Methodology .............. 10")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_page_number_alignment(model)
+    assert not any(f.rule_id == "P048" for f in findings)
+
+
+def test_p048_lot_aligned_page_numbers_no_findings(tmp_path: Path) -> None:
+    """LoT page numbers at consistent right edge → no P048 findings."""
+    pdf_path = tmp_path / "p048_lot_ok.pdf"
+    _make_lot_lof_page_number_pdf(pdf_path, "LIST OF TABLES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_page_number_alignment(model)
+    assert not any(f.rule_id == "P048" for f in findings)
+
+
+def test_p048_lot_misaligned_page_number_warns(tmp_path: Path) -> None:
+    """LoT page-number right-edge outlier → lot_page_number_column_misaligned."""
+    pdf_path = tmp_path / "p048_lot_bad.pdf"
+    _make_lot_lof_page_number_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        page_number_xs=[500.0, 532.0, 500.0],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_page_number_alignment(model) if f.rule_id == "P048"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lot_page_number_column_misaligned" in issue_types
+    assert all(f.details.get("source_q_rule_id") == "Q069" for f in findings)
+
+
+def test_p048_lof_aligned_page_numbers_no_findings(tmp_path: Path) -> None:
+    """LoF page numbers at consistent right edge → no P048 findings."""
+    pdf_path = tmp_path / "p048_lof_ok.pdf"
+    _make_lot_lof_page_number_pdf(pdf_path, "LIST OF FIGURES", left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_page_number_alignment(model)
+    assert not any(f.rule_id == "P048" for f in findings)
+
+
+def test_p048_lof_misaligned_page_number_warns(tmp_path: Path) -> None:
+    """LoF page-number right-edge outlier → lof_page_number_column_misaligned."""
+    pdf_path = tmp_path / "p048_lof_bad.pdf"
+    _make_lot_lof_page_number_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        left_header="Figure",
+        page_number_xs=[500.0, 500.0, 535.0],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_page_number_alignment(model) if f.rule_id == "P048"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lof_page_number_column_misaligned" in issue_types
+    assert all(f.details.get("source_q_rule_id") == "Q079" for f in findings)
+
+
+def test_p048_wrapped_continuation_lines_skipped(tmp_path: Path) -> None:
+    """Wrapped continuation lines without page numbers do not create false positives."""
+    pdf_path = tmp_path / "p048_wrapped_ok.pdf"
+    _make_lot_lof_page_number_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        include_wrapped_continuation=True,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_page_number_alignment(model)
+    assert not any(f.rule_id == "P048" for f in findings)
+
+
+def test_p048_header_column_label_lines_skipped(tmp_path: Path) -> None:
+    """Table/Figure/Page column labels are not counted as entry rows."""
+    pdf_path = tmp_path / "p048_header_labels.pdf"
+    _make_lot_lof_page_number_pdf(pdf_path, "LIST OF TABLES", page_number_xs=[500.0, 532.0])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_page_number_alignment(model)
+    assert not any(f.rule_id == "P048" for f in findings)
+
+
+def test_p048_sparse_complete_entries_skipped(tmp_path: Path) -> None:
+    """Fewer than MIN_ENTRIES=3 complete entries → gate skips P048."""
+    pdf_path = tmp_path / "p048_sparse.pdf"
+    _make_lot_lof_page_number_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        left_header="Figure",
+        page_number_xs=[500.0, 535.0],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_page_number_alignment(model)
+    assert not any(f.rule_id == "P048" for f in findings)
+
+
+def test_p048_finding_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must contain geometry metadata only — no entry text."""
+    pdf_path = tmp_path / "p048_privacy.pdf"
+    _make_lot_lof_page_number_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        page_number_xs=[500.0, 532.0, 500.0],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_page_number_alignment(model) if f.rule_id == "P048"]
+    assert findings
+    expected_keys = {
+        "page_number",
+        "issue_type",
+        "section_type",
+        "entry_index",
+        "observed_page_number_x",
+        "expected_page_number_x",
+        "x_delta_points",
+        "allowed_delta_points",
+        "entry_count",
+        "triage_tier",
+        "source_q_rule_id",
+    }
+    forbidden_terms = (
+        "synthetic",
+        "placeholder",
+        "entry text",
+        "table 1",
+        "figure 1",
+        "caption",
+        "title",
+        "name",
+    )
+    for finding in findings:
+        assert set(finding.details) == expected_keys
+        for value in finding.details.values():
+            value_lower = str(value).lower()
+            assert all(term not in value_lower for term in forbidden_terms)

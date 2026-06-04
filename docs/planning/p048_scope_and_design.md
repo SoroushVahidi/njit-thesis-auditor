@@ -1,7 +1,7 @@
 # P048 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented**
 - **Baseline main:** `225e62c` (PR #136 — post-P047 documentation consistency; P001-P047 implemented)
 
 ---
@@ -13,10 +13,10 @@
 | P-rules | **47/47** implemented (`P001`-`P047`) |
 | Q-rules (updated inventory, post-P047) | **79** total — **2** implemented, **55** partially_implemented, **22** not_implemented (9 manual-only, 13 automatable gaps) |
 | LoT/LoF entry number left-column alignment | **P046** — Q068/Q078; implemented |
-| LoT/LoF page-number right-column alignment | **P018** — Q069/Q079; partially covered via generic `misaligned_page_number_column` |
+| LoT/LoF page-number right-column alignment | **P048** — Q069/Q079; implemented as a LoT/LoF-specific complement to generic P018 |
 | Bio Sketch bullet single-spacing | **P047** — Q026; implemented |
 
-**Gap:** Q069 and Q079 ask whether List of Tables and List of Figures page numbers align vertically in one right column. P018 already detects generic TOC/list right-column outliers, but it reports under a broad P018 issue type and is not tailored to LoT/LoF-specific Q-rule attribution. P048 should scope a narrow geometry-only complement, not a rewrite of P018.
+**Implemented gap:** Q069 and Q079 ask whether List of Tables and List of Figures page numbers align vertically in one right column. P018 already detects generic TOC/list right-column outliers, but it reports under a broad P018 issue type and is not tailored to LoT/LoF-specific Q-rule attribution. P048 adds a narrow geometry-only complement, not a rewrite of P018.
 
 ---
 
