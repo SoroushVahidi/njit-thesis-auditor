@@ -25,14 +25,14 @@
     "remediation": "Remove the first-line indent from the first Abstract paragraph.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Abstract first para flush-left check (pdf_abstract_indentation.py)"
   },
   {
     "id": "Q003",
@@ -42,14 +42,14 @@
     "remediation": "Apply a first-line indent to every Abstract paragraph after the first.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Abstract subsequent paras indented check (pdf_abstract_indentation.py)"
   },
   {
     "id": "Q004",
@@ -150,14 +150,14 @@
     "remediation": "Remove the header text from the top of the Copyright page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Copyright top-margin header check (pdf_copyright_page.py)"
   },
   {
     "id": "Q010",
@@ -167,7 +167,7 @@
     "remediation": "Change the year on the Copyright page to match the year on the Title Page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "mixed",
     "checkability": "heuristic",
     "input_required": [
@@ -176,7 +176,7 @@
       "template_reference"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Needs human metadata/template interpretation beyond strict source parsing. Partially covered: Copyright year vs title-page year match (pdf_copyright_page.py)"
   },
   {
     "id": "Q011",
@@ -186,7 +186,7 @@
     "remediation": "Change the author\u2019s name to match the Title Page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "mixed",
     "checkability": "heuristic",
     "input_required": [
@@ -195,7 +195,7 @@
       "template_reference"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Needs human metadata/template interpretation beyond strict source parsing. Partially covered: Copyright author vs title-page author match (pdf_copyright_page.py)"
   },
   {
     "id": "Q012",
@@ -223,14 +223,14 @@
     "remediation": "Format the heading \u201cAPPROVAL PAGE\u201d in all caps, bold, centered, and at the top.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "high",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: APPROVAL PAGE exact heading presence (pdf_frontmatter_headings.py)"
   },
   {
     "id": "Q014",
@@ -372,14 +372,14 @@
     "remediation": "Format the heading \u201cBIOGRAPHICAL SKETCH\u201d in all caps, bold, centered, and at the top.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: BIOGRAPHICAL SKETCH exact heading presence (pdf_frontmatter_headings.py)"
   },
   {
     "id": "Q022",
@@ -577,14 +577,14 @@
     "remediation": "Remove the header text from the top of the Dedication page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Dedication top-margin header absence check (pdf_dedication_page.py)"
   },
   {
     "id": "Q033",
@@ -646,14 +646,14 @@
     "remediation": "Format the heading \u201cACKNOWLEDGEMENTS\u201d correctly.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: ACKNOWLEDGEMENTS exact heading presence (pdf_frontmatter_headings.py)"
   },
   {
     "id": "Q037",
@@ -796,7 +796,7 @@
     "remediation": "Remove the first-line indent from the first Acknowledgements paragraph.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "mixed",
     "checkability": "heuristic",
     "input_required": [
@@ -805,7 +805,7 @@
       "template_reference"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Needs human metadata/template interpretation beyond strict source parsing. Partially covered: Ack first para flush-left check (pdf_acknowledgements_indentation.py)"
   },
   {
     "id": "Q045",
@@ -815,7 +815,7 @@
     "remediation": "Apply a first-line indent to every paragraph after the first.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "mixed",
     "checkability": "heuristic",
     "input_required": [
@@ -824,7 +824,7 @@
       "template_reference"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Needs human metadata/template interpretation beyond strict source parsing. Partially covered: Ack subsequent paras indented check (pdf_acknowledgements_indentation.py)"
   },
   {
     "id": "Q046",
@@ -852,14 +852,14 @@
     "remediation": "Format the first TOC heading as \u201cTABLE OF CONTENTS\u201d in all caps, bold, and centered.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: TABLE OF CONTENTS exact heading presence (pdf_frontmatter_headings.py)"
   },
   {
     "id": "Q048",
@@ -869,14 +869,14 @@
     "remediation": "Add the heading \u201cTABLE OF CONTENTS (Continued)\u201d to every TOC page after the first.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: TOC (Continued) heading presence on continuation pages (pdf_toc_continued_headings.py)"
   },
   {
     "id": "Q049",
@@ -886,14 +886,14 @@
     "remediation": "Change all level-1 chapter titles in the TOC to all caps.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: TOC L1 all-caps check (pdf_toc_list_formatting.py)"
   },
   {
     "id": "Q050",
@@ -903,14 +903,14 @@
     "remediation": "Change all level-2 section titles in the TOC to title case.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: TOC L2 title-case check (pdf_toc_list_formatting.py)"
   },
   {
     "id": "Q051",
@@ -938,14 +938,14 @@
     "remediation": "Right-align page numbers and use one consistent leader style (dots or hyphens).",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: inconsistent_leader_dots check across TOC/LoT/LoF (pdf_toc_alignment.py)"
   },
   {
     "id": "Q053",
@@ -955,14 +955,14 @@
     "remediation": "Single-space every wrapped level-1 TOC entry.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: wrapped L1 TOC entry internal spacing (pdf_toc_list_wrapped_spacing.py)"
   },
   {
     "id": "Q054",
@@ -972,14 +972,14 @@
     "remediation": "Single-space every wrapped level-2 TOC entry.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: wrapped L2 TOC entry internal spacing (pdf_toc_list_wrapped_spacing.py)"
   },
   {
     "id": "Q055",
@@ -989,14 +989,14 @@
     "remediation": "Single-space every wrapped level-3 TOC entry.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: wrapped L3 TOC entry internal spacing (pdf_toc_list_wrapped_spacing.py)"
   },
   {
     "id": "Q056",
@@ -1006,14 +1006,14 @@
     "remediation": "Indent level-2 and level-3 TOC entries to show hierarchy.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: TOC level indentation hierarchy (pdf_toc_entry_hierarchy.py)"
   },
   {
     "id": "Q057",
@@ -1023,14 +1023,14 @@
     "remediation": "Add visible double spacing or a blank line between consecutive TOC entries.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: TOC inter-entry double spacing (pdf_toc_list_entry_spacing.py)"
   },
   {
     "id": "Q058",
@@ -1040,14 +1040,14 @@
     "remediation": "Rename the single appendix entry to begin with \u201cAPPENDIX\u201d followed by its title.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: single-appendix APPENDIX+title format in TOC (pdf_toc_appendix_format.py)"
   },
   {
     "id": "Q059",
@@ -1057,14 +1057,14 @@
     "remediation": "Rename the appendix entries in the TOC to use letter designations.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: multi-appendix letter-identifier format in TOC (pdf_toc_appendix_format.py)"
   },
   {
     "id": "Q060",
@@ -1092,14 +1092,14 @@
     "remediation": "Format the first List of Tables heading as \u201cLIST OF TABLES\u201d in all caps, bold, and centered.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LIST OF TABLES exact heading presence (pdf_frontmatter_headings.py)"
   },
   {
     "id": "Q062",
@@ -1109,14 +1109,14 @@
     "remediation": "Add the heading \u201cLIST OF TABLES (Continued)\u201d to every page after the first.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoT (Continued) heading on continuation pages (pdf_toc_continued_headings.py)"
   },
   {
     "id": "Q063",
@@ -1126,14 +1126,14 @@
     "remediation": "Add the label \u201cTable\u201d in bold and left-aligned directly under the heading.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Table label left-aligned under LoT heading (pdf_lot_lof_column_headers.py)"
   },
   {
     "id": "Q064",
@@ -1143,14 +1143,14 @@
     "remediation": "Add the label \u201cPage\u201d in bold and right-aligned directly under the heading.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Page label right-aligned under LoT heading (pdf_lot_lof_column_headers.py)"
   },
   {
     "id": "Q065",
@@ -1160,14 +1160,14 @@
     "remediation": "Change all List of Tables titles to title case and remove final periods.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoT title case, no terminal period (pdf_toc_list_formatting.py)"
   },
   {
     "id": "Q066",
@@ -1177,14 +1177,14 @@
     "remediation": "Single-space every wrapped table title in the List of Tables.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: wrapped table title internal spacing (pdf_toc_list_wrapped_spacing.py)"
   },
   {
     "id": "Q067",
@@ -1194,14 +1194,14 @@
     "remediation": "Add visible double spacing or a blank line between consecutive entries.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoT inter-entry double spacing (pdf_toc_list_entry_spacing.py)"
   },
   {
     "id": "Q068",
@@ -1228,14 +1228,14 @@
     "remediation": "Align all List of Tables page numbers into one vertical right column.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: misaligned_page_number_column for LoT page number right-column (pdf_toc_alignment.py)"
   },
   {
     "id": "Q070",
@@ -1245,14 +1245,14 @@
     "remediation": "Format the first List of Figures heading as \u201cLIST OF FIGURES\u201d in all caps, bold, and centered.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LIST OF FIGURES exact heading presence (pdf_frontmatter_headings.py)"
   },
   {
     "id": "Q071",
@@ -1262,14 +1262,14 @@
     "remediation": "Add the heading \u201cLIST OF FIGURES (Continued)\u201d to every page after the first.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoF (Continued) heading on continuation pages (pdf_toc_continued_headings.py)"
   },
   {
     "id": "Q072",
@@ -1279,14 +1279,14 @@
     "remediation": "Add the label \u201cFigure\u201d in bold and left-aligned directly under the heading.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Figure label left-aligned under LoF heading (pdf_lot_lof_column_headers.py)"
   },
   {
     "id": "Q073",
@@ -1296,14 +1296,14 @@
     "remediation": "Add the label \u201cPage\u201d in bold and right-aligned directly under the heading.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: Page label right-aligned under LoF heading (pdf_lot_lof_column_headers.py)"
   },
   {
     "id": "Q074",
@@ -1313,14 +1313,14 @@
     "remediation": "Change all figure descriptions in the List of Figures to sentence case.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoF description sentence-case check (pdf_toc_list_formatting.py)"
   },
   {
     "id": "Q075",
@@ -1330,14 +1330,14 @@
     "remediation": "Add terminal punctuation to every figure description.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoF terminal punctuation check (pdf_lof_terminal_punctuation.py)"
   },
   {
     "id": "Q076",
@@ -1347,14 +1347,14 @@
     "remediation": "Single-space every wrapped figure description in the List of Figures.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: wrapped LoF description internal spacing (pdf_toc_list_wrapped_spacing.py)"
   },
   {
     "id": "Q077",
@@ -1364,14 +1364,14 @@
     "remediation": "Add visible double spacing or a blank line between consecutive entries.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoF inter-entry double spacing (pdf_toc_list_entry_spacing.py)"
   },
   {
     "id": "Q078",
@@ -1398,13 +1398,13 @@
     "remediation": "Align all List of Figures page numbers into one vertical right column.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: misaligned_page_number_column for LoF page number right-column (pdf_toc_alignment.py)"
   }
 ]

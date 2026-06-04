@@ -8,8 +8,8 @@
 
 - **Are all source rules implemented?** **No.**
 - **P-rule implementation:** **44/44 implemented** (`P001`–`P044` in `project_added_rules.json`; updated through P044 — see post-P044 status doc for latest counts).
-- **Q-rule coverage (raw `implementation_status` in inventory):** **79** total = **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented`.
-- **Q-rule coverage (framing used in this audit):** same 79 total, with **9 manual-only** (`checkability=manual`) counted separately from **57** automatable `not_implemented` gaps (9 + 57 = 66 raw `not_implemented`).
+- **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
+- **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
 - **Guideline-source coverage:** core formatting signals are partially automated via P-rules; semantic/admin/process requirements remain mostly manual or process-only.
 - **Biggest remaining gaps:**
@@ -21,7 +21,7 @@
 
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
-| `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage is mixed (2 implemented, 11 partial, 66 not fully implemented). |
+| `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage updated after P044 audit: 2 implemented, 51 partial, 26 not fully implemented. |
 | `data/processed/rules/project_added_rules.json` | P001–P044 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 44 P-rules are marked implemented and wired in the CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
