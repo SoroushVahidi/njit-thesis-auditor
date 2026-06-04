@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-03
-- **Latest main:** `44ce38e` (PR #138 — P048 implementation; P001–P048 implemented)
+- **Date:** 2026-06-04
+- **Latest main:** `3b49cfe` (PR #140 — post-P048 documentation consistency; P001–P048 implemented)
+- **P049:** **scoped, not yet implemented** — LoT/LoF column-header style/alignment refinement (Q064/Q073); see `docs/planning/p049_scope_and_design.md`; do not implement until the scoped P049 work starts
 - **P048:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_page_number_alignment.py`; LoT/LoF page-number right-column alignment check (Q069/Q079); 9 synthetic tests added; see `docs/planning/p048_scope_and_design.md`, `docs/evaluation/p048_lot_lof_page_number_alignment_synthetic_validation.md`, and `docs/evaluation/p048_current_dataset_evaluation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P047:** **implemented** — `src/njit_auditor/rules/pdf_biosketch_bullet_spacing.py`; Bio Sketch bullet/list section single-spacing check (Q026); 6 synthetic tests added; see `docs/planning/p047_scope_and_design.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P046:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_number_alignment.py`; LoT/LoF entry number left-column alignment check (Q068/Q078); 9 synthetic tests added; see `docs/planning/p046_scope_and_design.md` and `docs/evaluation/p046_lot_lof_entry_number_alignment_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -466,7 +467,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Post-P048 consistency audit | Verify docs/status/README consistency with P001–P048 scope |
+| 🟡 High | P049 implementation | Implement scoped LoT/LoF column-header style/alignment refinement (Q064/Q073); see `docs/planning/p049_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P048 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P048 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
