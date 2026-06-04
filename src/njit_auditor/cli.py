@@ -61,6 +61,9 @@ from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_colu
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
+    check_pdf_lot_lof_page_number_alignment,
+)
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import (
     check_pdf_page_numbering_regime,
@@ -209,6 +212,7 @@ def pdf(
     findings.extend(check_pdf_toc_continued_headings(pdf_doc))
     findings.extend(check_pdf_lot_lof_column_headers(pdf_doc))
     findings.extend(check_pdf_lot_lof_entry_number_alignment(pdf_doc))
+    findings.extend(check_pdf_lot_lof_page_number_alignment(pdf_doc))
     findings.extend(check_pdf_toc_list_wrapped_spacing(pdf_doc))
     findings.extend(check_pdf_toc_list_entry_spacing(pdf_doc))
     findings.extend(check_pdf_toc_entry_hierarchy(pdf_doc))

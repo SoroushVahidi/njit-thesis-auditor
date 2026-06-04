@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `225e62c` (PR #136 — post-P047 documentation consistency; P001–P047 implemented)
-- **P048:** **scoped, not yet implemented** — LoT/LoF page-number right-column alignment check (Q069/Q079); see `docs/planning/p048_scope_and_design.md`; proposed module `src/njit_auditor/rules/pdf_lot_lof_page_number_alignment.py`; do not implement until the scoped P048 work starts
+- **Latest main:** `1046f4f` (PR #137 — P048 scope; P001–P047 implemented before this branch)
+- **P048:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_page_number_alignment.py`; LoT/LoF page-number right-column alignment check (Q069/Q079); 9 synthetic tests added; see `docs/planning/p048_scope_and_design.md` and `docs/evaluation/p048_lot_lof_page_number_alignment_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P047:** **implemented** — `src/njit_auditor/rules/pdf_biosketch_bullet_spacing.py`; Bio Sketch bullet/list section single-spacing check (Q026); 6 synthetic tests added; see `docs/planning/p047_scope_and_design.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P046:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_number_alignment.py`; LoT/LoF entry number left-column alignment check (Q068/Q078); 9 synthetic tests added; see `docs/planning/p046_scope_and_design.md` and `docs/evaluation/p046_lot_lof_entry_number_alignment_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P045:** **implemented** — `src/njit_auditor/rules/pdf_biosketch_publication_layout.py`; Bio Sketch publication paragraph layout check (Q028/Q029); 8 synthetic tests added; see `docs/planning/p045_scope_and_design.md` and `docs/evaluation/p045_biosketch_publication_layout_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible; Sebastian Fine is ZIP-only; v1 covers Q029 (hanging indent) and Q028 (inter-entry spacing); Q026 (within-entry spacing) deferred to v2
@@ -12,12 +12,12 @@
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Validation:** ruff, mypy, **530 pytest** passed
-- **Auditor scope:** P001–P047 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Auditor scope:** P001–P048 implemented on this branch; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044/P045/P046/P047 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P047 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044/P045/P046/P047/P048 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P048 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
-- **P-rules:** **47/47** implemented (`P001`–`P047` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **48/48** implemented (`P001`–`P048` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (updated inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps; see `docs/status/q_rule_coverage_after_p044.md`)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
@@ -132,7 +132,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P047)
+### PDF Layout Audit (P011–P048)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -170,6 +170,7 @@
 | `pdf_biosketch_publication_layout.py` | P045 | Bio Sketch publication layout: hanging indent (Q029), inter-entry double spacing (Q028), and wrapped-line single spacing (Q026); geometry-only metadata |
 | `pdf_lot_lof_entry_number_alignment.py` | P046 | LoT/LoF entry number left-column alignment: table/figure entry numbers align at a consistent x-position (Q068/Q078); privacy-safe geometry metadata |
 | `pdf_biosketch_bullet_spacing.py` | P047 | Bio Sketch bullet/list section single-spacing: non-hanging-indent multi-line blocks checked for excessive internal gaps (Q026); privacy-safe geometry metadata |
+| `pdf_lot_lof_page_number_alignment.py` | P048 | LoT/LoF page-number right-column alignment: table/figure page numbers align at a consistent right-column x-position (Q069/Q079); privacy-safe geometry metadata |
 
 ### Infrastructure
 
@@ -194,7 +195,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P047) | 47 | 47 | — | — | — |
+| P-rules (P001–P048) | 48 | 48 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -395,7 +396,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 60 source files |
-| `python -m pytest` | ✅ **530 passed** (524 pre-P047 + 6 new P047 synthetic tests) |
+| `python -m pytest` | ✅ **539 passed** (530 pre-P048 + 9 new P048 synthetic tests) |
 
 ### P038 at a glance
 
@@ -464,12 +465,12 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Post-P047 consistency audit | Verify docs/status/README consistency with P001–P047 scope |
-| 🟡 Med | Full five-PDF P001–P047 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P047 have no current counts |
+| 🟡 High | Post-P048 status refresh | Refresh docs/manifests after the P048 implementation PR merges |
+| 🟡 High | Post-P048 consistency audit | Verify docs/status/README consistency with P001–P048 scope |
+| 🟡 Med | Full five-PDF P001–P048 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P048 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
-| 🟡 Low | P048 implementation | Implement scoped LoT/LoF page-number right-column alignment (Q069/Q079); see `docs/planning/p048_scope_and_design.md` |
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.

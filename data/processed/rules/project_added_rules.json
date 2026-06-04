@@ -845,5 +845,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Conservative v1 PDF heuristic for Q026. Page targeted: BIOGRAPHICAL SKETCH only. Gate: requires >=2 non-hanging-indent multi-line blocks and >=3 lines per checked block. HANGING_THRESHOLD_PT=12.0, BULLET_MAX_GAP_PT=12.0, MAX_PARA_GAP_PT=20.0. Complements P045 (hanging-indent publication blocks). Does not read bullet text. issue_type: biosketch_bullet_section_not_single_spaced (Q026)."
+  },
+  {
+    "id": "P048",
+    "section": "PDF LoT/LoF page-number right-column alignment",
+    "question": "Are all List of Tables and List of Figures page numbers aligned vertically in a consistent right column?",
+    "rule_definition": "Conservative heuristic: detects List of Tables and List of Figures pages via detect_toc_like_pages. Extracts complete entry lines via extract_toc_entry_lines, using detected page-number token right edges. If fewer than MIN_ENTRIES=3 complete entries are found, skips the section. If any page-number right edge differs from the section median by more than RIGHT_EDGE_TOLERANCE_PT=10.0pt, emits a section-level finding. Complements P018 (generic TOC/List alignment), P031 (column labels), and P046 (entry-number left column). Findings contain geometry metadata only \u2014 no entry text, table/figure titles, captions, or page-number-adjacent text.",
+    "remediation": "Ensure all page numbers in the List of Tables and List of Figures are vertically aligned in one consistent right column.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_page_number_alignment",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Conservative v1 PDF heuristic for Q069 and Q079. Sections: list_of_tables, list_of_figures. Gate: requires >=3 complete entries per section with detected page-number right edges. RIGHT_EDGE_TOLERANCE_PT=10.0. Uses detect_toc_like_pages + extract_toc_entry_lines from pdf_toc_alignment.py. issue_types: lot_page_number_column_misaligned (Q069), lof_page_number_column_misaligned (Q079). Complements P018, P031, and P046."
   }
 ]
