@@ -1,8 +1,9 @@
 # P049 Scope and Design
 
 - **Date:** 2026-06-04
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented**
 - **Baseline main:** `3b49cfe` (PR #140 — post-P048 documentation consistency; P001–P048 implemented)
+- **Implementation PR:** rules/p049-lot-lof-column-header-refinement
 
 ---
 
