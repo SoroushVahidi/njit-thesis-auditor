@@ -11,7 +11,7 @@
 | Area | State |
 |------|-------|
 | P-rules | **43/43** implemented (`P001`–`P043`) |
-| Q-rules (raw inventory) | **79** total — **2** implemented, **11** partially_implemented, **66** not_implemented (inventory JSON lags actual coverage — many Q-rules are heuristically covered by existing P-rules) |
+| Q-rules (updated inventory, post-P044 audit) | **79** total — **2** implemented, **51** partially_implemented, **26** not_implemented (9 manual-only, 17 automatable gaps; see `docs/status/q_rule_coverage_after_p044.md`) |
 | General paragraph indentation | **P015** — covers all pages; Q002/Q003 partially addressed for abstract opening only |
 | Abstract-specific indentation | **Not yet implemented** — P015 checks the abstract opening paragraph (Q002 partial) but does not verify subsequent abstract paragraphs are indented (Q003 gap) |
 | Acknowledgements indentation | **P043** — Q044/Q045; directly analogous page-scoped indentation check |
