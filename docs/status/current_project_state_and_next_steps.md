@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `8485e52` (PR #120 — Implement P044 Abstract indentation checks; P001–P044 implemented)
+- **Latest main:** `9b1fed3` (PR #124 — tmux CLI test robustness; P001–P044 implemented)
+- **P045:** **scoped, not yet implemented** — Bio Sketch publication paragraph layout check (Q026/Q028/Q029); see `docs/planning/p045_scope_and_design.md`; module will be `src/njit_auditor/rules/pdf_biosketch_publication_layout.py`
 - **P044:** **implemented** — `src/njit_auditor/rules/pdf_abstract_indentation.py`; Abstract page paragraph indentation check (Q002/Q003); 9 synthetic tests added; see `docs/planning/p044_scope_and_design.md`, `docs/evaluation/p044_abstract_indentation_synthetic_validation.md`, and `docs/evaluation/p044_current_dataset_evaluation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible; Sebastian Fine is ZIP-only; v1 limitations: Q003 gate skips single-paragraph abstracts; compressed/flattened PDFs skipped
 - **P043:** **implemented** — `src/njit_auditor/rules/pdf_acknowledgements_indentation.py`; Acknowledgements paragraph indentation check (Q044/Q045); 7 synthetic tests added; see `docs/planning/p043_scope_and_design.md` and `docs/evaluation/p043_current_dataset_evaluation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
@@ -461,7 +462,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
-| 🟡 Low | P045 scoping | Recommended: Bio Sketch layout check (Q026/Q028/Q029) — geometry-only, builds on P043/P044 pattern; see `docs/status/q_rule_coverage_after_p044.md` |
+| 🟡 Low | P045 implementation | Bio Sketch publication layout (Q026/Q028/Q029) — scoped; see `docs/planning/p045_scope_and_design.md`; module: `pdf_biosketch_publication_layout.py` |
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
