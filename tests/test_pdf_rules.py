@@ -8,6 +8,7 @@ from njit_auditor.cli import app
 from njit_auditor.pdf_layout import _style_flags_from_font_name, load_pdf_layout
 from njit_auditor.pdf_models import BBox, PdfTextLine, PdfTextSpan
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
+from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
 from njit_auditor.rules.pdf_acknowledgements_indentation import (
     check_pdf_acknowledgements_indentation,
 )
@@ -5900,3 +5901,157 @@ def test_p043_finding_metadata_no_private_content(tmp_path: Path) -> None:
         assert "issue_type" in f.details
         assert "page_number" in f.details
         assert "source_q_rule_id" in f.details
+
+
+# ---------------------------------------------------------------------------
+# P044 helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_abstract_pdf(
+    path: Path,
+    para1_x: float = 108.0,
+    para2_x: float = 140.0,
+    include_heading: bool = True,
+    n_paras: int = 2,
+    pre_heading_x: float | None = None,
+) -> None:
+    """Synthetic Abstract PDF for P044 tests.
+
+    para1_x: first-line x of paragraph 1 (continuation lines at 108)
+    para2_x: first-line x of paragraph 2 (continuation lines at 108)
+    n_paras: 1 or 2 paragraph blocks below the heading
+    pre_heading_x: if set, insert a usable text line at this x above the heading
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    if pre_heading_x is not None:
+        page.insert_text(
+            (pre_heading_x, 50),
+            "Synthetic pre-heading text line for testing purposes only here.",
+        )
+    if include_heading:
+        page.insert_text((200, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    # Para 1: first line at para1_x, continuation flush-left at 108
+    page.insert_text((para1_x, 130), "Synthetic abstract body paragraph first line text here.")
+    page.insert_text((108.0, 144), "Continuation abstract first paragraph body text line here.")
+    page.insert_text((108.0, 158), "Another line in first abstract paragraph body text here.")
+    if n_paras >= 2:
+        # Para 2: large y gap from para1 ensures a separate paragraph block
+        page.insert_text((para2_x, 240), "Synthetic abstract body paragraph second line here.")
+        page.insert_text((108.0, 254), "Continuation abstract second paragraph body text line.")
+        page.insert_text((108.0, 268), "Another line in second abstract paragraph body text.")
+    doc.save(path)
+    doc.close()
+
+
+# ---------------------------------------------------------------------------
+# P044 tests
+# ---------------------------------------------------------------------------
+
+
+def test_p044_no_abstract_page_no_findings(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p044_no_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "ACKNOWLEDGEMENTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 130), "Synthetic body paragraph text for testing here.")
+    page.insert_text((108, 144), "Continuation of synthetic body paragraph text line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_indentation(model)
+    assert not any(f.rule_id == "P044" for f in findings)
+
+
+def test_p044_one_paragraph_q002_only_no_q003(tmp_path: Path) -> None:
+    """Single paragraph: Q002 (first para flush) checked; no Q003 subsequent check."""
+    pdf_path = tmp_path / "p044_one_para.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=108.0, n_paras=1)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "abstract_subsequent_paragraph_not_indented" not in issue_types
+
+
+def test_p044_correct_format_no_findings(tmp_path: Path) -> None:
+    """First para flush-left (x=108), second para indented (x=140) → no findings."""
+    pdf_path = tmp_path / "p044_ok.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=108.0, para2_x=140.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_indentation(model)
+    assert not any(f.rule_id == "P044" for f in findings)
+
+
+def test_p044_first_paragraph_indented_warns(tmp_path: Path) -> None:
+    """First para indented (x=150) → abstract_first_paragraph_indented."""
+    pdf_path = tmp_path / "p044_first_indent.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=150.0, para2_x=150.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "abstract_first_paragraph_indented" in issue_types
+
+
+def test_p044_subsequent_paragraph_not_indented_warns(tmp_path: Path) -> None:
+    """Second para flush-left when first is also flush → subsequent_not_indented finding."""
+    pdf_path = tmp_path / "p044_second_flush.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=108.0, para2_x=108.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "abstract_subsequent_paragraph_not_indented" in issue_types
+
+
+def test_p044_text_before_heading_ignored(tmp_path: Path) -> None:
+    """Pre-heading text at far-left x=40 must not contaminate the left margin calculation."""
+    pdf_path = tmp_path / "p044_pre_heading.pdf"
+    # If pre-heading text at x=40 were included, left_margin would be 40 and
+    # para1_x=108 would look indented (delta=68 > 18) → false positive.
+    _make_abstract_pdf(pdf_path, para1_x=108.0, para2_x=140.0, pre_heading_x=40.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_indentation(model)
+    assert not any(f.rule_id == "P044" for f in findings)
+
+
+def test_p044_finding_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must contain geometry metadata only — no paragraph body text."""
+    pdf_path = tmp_path / "p044_privacy.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=150.0, para2_x=108.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    assert findings
+    for f in findings:
+        for value in f.details.values():
+            assert "synthetic" not in str(value).lower()
+            assert "paragraph text" not in str(value).lower()
+        assert "issue_type" in f.details
+        assert "page_number" in f.details
+        assert "source_q_rule_id" in f.details
+
+
+def test_p044_q002_source_q_rule_id(tmp_path: Path) -> None:
+    """Q002 finding must have source_q_rule_id=Q002."""
+    pdf_path = tmp_path / "p044_q002_id.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=150.0, para2_x=140.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    q002_findings = [
+        f for f in findings if f.details.get("issue_type") == "abstract_first_paragraph_indented"
+    ]
+    assert q002_findings
+    assert all(f.details.get("source_q_rule_id") == "Q002" for f in q002_findings)
+
+
+def test_p044_q003_source_q_rule_id(tmp_path: Path) -> None:
+    """Q003 finding must have source_q_rule_id=Q003."""
+    pdf_path = tmp_path / "p044_q003_id.pdf"
+    _make_abstract_pdf(pdf_path, para1_x=108.0, para2_x=108.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    q003_findings = [
+        f for f in findings
+        if f.details.get("issue_type") == "abstract_subsequent_paragraph_not_indented"
+    ]
+    assert q003_findings
+    assert all(f.details.get("source_q_rule_id") == "Q003" for f in q003_findings)

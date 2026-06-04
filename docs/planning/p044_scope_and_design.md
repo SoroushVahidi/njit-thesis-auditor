@@ -1,7 +1,7 @@
 # P044 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** (implementation PR — P001–P044 implemented; see `docs/evaluation/p044_abstract_indentation_synthetic_validation.md`)
 - **Baseline main:** `afc2f43` (PR #118 — post-P043 consistency audit; P001–P043 implemented)
 
 ---

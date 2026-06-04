@@ -364,7 +364,7 @@
     "section": "Abstract word count",
     "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
     "rule_definition": "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
-    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
+    "remediation": "Shorten the abstract to within the applicable limit. PhD: \u2264350 words. MS: \u2264150 words.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -400,7 +400,7 @@
     "id": "P023",
     "section": "PDF body text double-spacing",
     "question": "Does any body-text page show line spacing that appears to be less than double-spaced?",
-    "rule_definition": "Body text paragraphs must be double-spaced (line spacing ≥ ~1.8–2.4× font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55× the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
+    "rule_definition": "Body text paragraphs must be double-spaced (line spacing \u2265 ~1.8\u20132.4\u00d7 font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55\u00d7 the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
     "remediation": "Set body text to double line spacing. In LaTeX: use \\doublespacing or \\setstretch{2.0}. In Word: set paragraph line spacing to 'Double'.",
     "severity": "warning",
     "source_file": "project_added",
@@ -412,7 +412,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_body_spacing",
     "priority": "high",
-    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55× is between single (≈1.1–1.3×) and double (≈2.0–2.3×) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0×) are excluded from spacing analysis."
+    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55\u00d7 is between single (\u22481.1\u20131.3\u00d7) and double (\u22482.0\u20132.3\u00d7) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0\u00d7) are excluded from spacing analysis."
   },
   {
     "id": "P024",
@@ -507,9 +507,9 @@
   {
     "id": "P029",
     "section": "PDF front-matter Roman numeral sequence",
-    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii…)?",
+    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii\u2026)?",
     "rule_definition": "Conservative heuristic that validates ordering of visible lowercase Roman numeral page numbers on front-matter pages. Flags repeated, decreasing, or skipped Roman numerals across consecutive visible numbered front-matter pages. Skips explicitly identified no-number pages and ambiguous region classifications.",
-    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, …).",
+    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, \u2026).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -652,7 +652,7 @@
     "id": "P037",
     "section": "PDF front-matter section-anchored Roman numerals",
     "question": "Do BIOGRAPHICAL SKETCH, DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, and LIST OF TABLES pages carry the expected lowercase Roman numerals per the NJIT template (bio=iv, ded=v, ack=vi, toc=vii, lot=viii)?",
-    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Subsequent sections (DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, LIST OF TABLES) are checked against fixed NJIT template expected values. DEDICATION is optional — if the heading is absent, the slot is still counted (page v may exist as an unnumbered dedication or blank). Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
+    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Subsequent sections (DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, LIST OF TABLES) are checked against fixed NJIT template expected values. DEDICATION is optional \u2014 if the heading is absent, the slot is still counted (page v may exist as an unnumbered dedication or blank). Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
     "remediation": "Ensure BIOGRAPHICAL SKETCH appears on the page numbered iv; DEDICATION (if present) on v; ACKNOWLEDGEMENTS on vi; TABLE OF CONTENTS on vii; LIST OF TABLES on viii, per NJIT front-matter pagination template.",
     "severity": "warning",
     "source_file": "project_added",
@@ -706,7 +706,7 @@
     "id": "P040",
     "section": "PDF List of Figures terminal punctuation",
     "question": "Does every List of Figures entry (figure description) end with a terminal punctuation mark?",
-    "rule_definition": "Conservative heuristic: identifies complete List of Figures entry lines (those with a detected page-number token) and checks that the figure description text, after stripping the Figure N. prefix, leader dots, and page-number token, ends with a terminal punctuation mark (period, question mark, or exclamation point). Skips wrap-continuation lines (no page-number token), lines shorter than 10 characters, and non-LoF pages (TOC and LoT excluded). Emits one finding per offending entry. Findings contain only geometric/count metadata — no figure description text.",
+    "rule_definition": "Conservative heuristic: identifies complete List of Figures entry lines (those with a detected page-number token) and checks that the figure description text, after stripping the Figure N. prefix, leader dots, and page-number token, ends with a terminal punctuation mark (period, question mark, or exclamation point). Skips wrap-continuation lines (no page-number token), lines shorter than 10 characters, and non-LoF pages (TOC and LoT excluded). Emits one finding per offending entry. Findings contain only geometric/count metadata \u2014 no figure description text.",
     "remediation": "Ensure every figure description in the List of Figures ends with a terminal punctuation mark (period, question mark, or exclamation point).",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -724,7 +724,7 @@
     "id": "P041",
     "section": "PDF Dedication page top-margin header",
     "question": "Is there no header text in the top margin area of the Dedication page?",
-    "rule_definition": "Conservative heuristic: detects the Dedication page by scanning the first _MAX_SCAN_PAGES (15) front-matter pages for a line whose normalized text equals \"DEDICATION\". If found, scans the top 15% of that page for text lines that are not page-number candidates, not the DEDICATION heading itself, and not whitespace/non-alphabetic. Emits at most one finding per Dedication page. Skips if no Dedication page is detected (optional section). Findings contain geometry/classification metadata only — no dedication content.",
+    "rule_definition": "Conservative heuristic: detects the Dedication page by scanning the first _MAX_SCAN_PAGES (15) front-matter pages for a line whose normalized text equals \"DEDICATION\". If found, scans the top 15% of that page for text lines that are not page-number candidates, not the DEDICATION heading itself, and not whitespace/non-alphabetic. Emits at most one finding per Dedication page. Skips if no Dedication page is detected (optional section). Findings contain geometry/classification metadata only \u2014 no dedication content.",
     "remediation": "Ensure the Dedication page does not have any running header or header text in the top margin area.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -741,7 +741,7 @@
   {
     "id": "P042",
     "section": "PDF TOC appendix entry format",
-    "question": "Are appendix entries in the Table of Contents formatted correctly — single appendix with a title, multiple appendices each identified by a letter?",
+    "question": "Are appendix entries in the Table of Contents formatted correctly \u2014 single appendix with a title, multiple appendices each identified by a letter?",
     "rule_definition": "Conservative heuristic: detects appendix entries on TABLE OF CONTENTS pages by matching lines whose cleaned text starts with \"appendix\" (case-insensitive). Single-appendix check (Q058): if exactly one appendix entry is found, verifies that there is title text after the word APPENDIX. Multiple-appendix check (Q059): if two or more are found, verifies each matches the pattern \"APPENDIX <single uppercase letter>\" immediately after APPENDIX. Skips LoT and LoF pages. Does not include TOC entry text in findings.",
     "remediation": "Ensure a single appendix TOC entry reads \"APPENDIX\" plus the appendix title. Ensure multiple appendix entries each use a letter identifier: \"APPENDIX A\", \"APPENDIX B\", etc.",
     "severity": "warning",
@@ -759,8 +759,8 @@
   {
     "id": "P043",
     "section": "PDF Acknowledgements paragraph indentation",
-    "question": "Does the Acknowledgements page follow the correct paragraph indentation style — first paragraph flush-left, subsequent paragraphs indented?",
-    "rule_definition": "Conservative heuristic: detects the ACKNOWLEDGEMENTS page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q044) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q045) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ACKNOWLEDGEMENTS page not detected or fewer than 2 paragraph blocks found. Complements P015 (general indentation), which may miss short Acknowledgements pages due to conservative thresholds. Findings contain only geometry metadata — no paragraph text.",
+    "question": "Does the Acknowledgements page follow the correct paragraph indentation style \u2014 first paragraph flush-left, subsequent paragraphs indented?",
+    "rule_definition": "Conservative heuristic: detects the ACKNOWLEDGEMENTS page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q044) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q045) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ACKNOWLEDGEMENTS page not detected or fewer than 2 paragraph blocks found. Complements P015 (general indentation), which may miss short Acknowledgements pages due to conservative thresholds. Findings contain only geometry metadata \u2014 no paragraph text.",
     "remediation": "Ensure the first paragraph on the Acknowledgements page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -773,5 +773,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q044 and Q045. Page targeted: ACKNOWLEDGEMENTS only (ACKNOWLEDGEMENTS is in EXPECTED_HEADINGS). Gate: requires >=2 paragraph blocks. Left margin derived from min body-line x0. INDENT_THRESHOLD_PT=18.0. Complements P015; does not replace it. issue_types: acknowledgements_first_paragraph_indented (Q044), acknowledgements_subsequent_paragraph_not_indented (Q045)."
+  },
+  {
+    "id": "P044",
+    "section": "PDF Abstract paragraph indentation",
+    "question": "Does the Abstract page follow the correct paragraph indentation style \u2014 first paragraph flush-left, subsequent paragraphs indented?",
+    "rule_definition": "Conservative heuristic: detects the ABSTRACT page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q002) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q003) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ABSTRACT page not detected; skip Q003 if fewer than 2 paragraph blocks found. Complements P015 (general indentation), which partially covers abstract opening but not subsequent paragraphs. Findings contain only geometry metadata \u2014 no paragraph text.",
+    "remediation": "Ensure the first paragraph on the Abstract page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_abstract_indentation",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q002 and Q003. Page targeted: ABSTRACT only (ABSTRACT is in EXPECTED_HEADINGS). Gate: Q002 requires >=1 paragraph block; Q003 requires >=2 paragraph blocks. Left margin derived from min body-line x0. INDENT_THRESHOLD_PT=18.0. Complements P015 and P043; does not replace them. issue_types: abstract_first_paragraph_indented (Q002), abstract_subsequent_paragraph_not_indented (Q003)."
   }
 ]

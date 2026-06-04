@@ -1,19 +1,19 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `afc2f43` (PR #118 — post-P043 consistency audit; P001–P043 implemented)
-- **P044:** **scoped, not yet implemented** — Abstract page paragraph indentation check (Q002/Q003); see `docs/planning/p044_scope_and_design.md`; module will be `src/njit_auditor/rules/pdf_abstract_indentation.py`
+- **Latest main:** `4220325` (PR #119 — Scope P044; P001–P043 implemented; P044 scoped)
+- **P044:** **implemented** — `src/njit_auditor/rules/pdf_abstract_indentation.py`; Abstract page paragraph indentation check (Q002/Q003); 9 synthetic tests added; see `docs/planning/p044_scope_and_design.md` and `docs/evaluation/p044_abstract_indentation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P043:** **implemented** — `src/njit_auditor/rules/pdf_acknowledgements_indentation.py`; Acknowledgements paragraph indentation check (Q044/Q045); 7 synthetic tests added; see `docs/planning/p043_scope_and_design.md` and `docs/evaluation/p043_current_dataset_evaluation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Validation:** ruff, mypy, **498 pytest** passed
-- **Auditor scope:** P001–P043 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Validation:** ruff, mypy, **507 pytest** passed
+- **Auditor scope:** P001–P044 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P043 rerun)
+- **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P044 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
-- **P-rules:** **43/43** implemented (`P001`–`P043` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **44/44** implemented (`P001`–`P044` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (raw inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **11** `partially_implemented`, **66** `not_implemented` (see coverage doc for manual-only split)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
