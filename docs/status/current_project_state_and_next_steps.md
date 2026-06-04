@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `1046f4f` (PR #137 — P048 scope; P001–P047 implemented before this branch)
-- **P048:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_page_number_alignment.py`; LoT/LoF page-number right-column alignment check (Q069/Q079); 9 synthetic tests added; see `docs/planning/p048_scope_and_design.md` and `docs/evaluation/p048_lot_lof_page_number_alignment_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
+- **Latest main:** `44ce38e` (PR #138 — P048 implementation; P001–P048 implemented)
+- **P048:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_page_number_alignment.py`; LoT/LoF page-number right-column alignment check (Q069/Q079); 9 synthetic tests added; see `docs/planning/p048_scope_and_design.md`, `docs/evaluation/p048_lot_lof_page_number_alignment_synthetic_validation.md`, and `docs/evaluation/p048_current_dataset_evaluation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P047:** **implemented** — `src/njit_auditor/rules/pdf_biosketch_bullet_spacing.py`; Bio Sketch bullet/list section single-spacing check (Q026); 6 synthetic tests added; see `docs/planning/p047_scope_and_design.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P046:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_number_alignment.py`; LoT/LoF entry number left-column alignment check (Q068/Q078); 9 synthetic tests added; see `docs/planning/p046_scope_and_design.md` and `docs/evaluation/p046_lot_lof_entry_number_alignment_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P045:** **implemented** — `src/njit_auditor/rules/pdf_biosketch_publication_layout.py`; Bio Sketch publication paragraph layout check (Q028/Q029); 8 synthetic tests added; see `docs/planning/p045_scope_and_design.md` and `docs/evaluation/p045_biosketch_publication_layout_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible; Sebastian Fine is ZIP-only; v1 covers Q029 (hanging indent) and Q028 (inter-entry spacing); Q026 (within-entry spacing) deferred to v2
@@ -11,8 +11,8 @@
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Validation:** ruff, mypy, **530 pytest** passed
-- **Auditor scope:** P001–P048 implemented on this branch; full Q001–Q079 / guideline source coverage is **not** complete
+- **Validation:** ruff, mypy, **539 pytest** passed on latest main
+- **Auditor scope:** P001–P048 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (canonical pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044/P045/P046/P047/P048 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P048 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
@@ -76,6 +76,7 @@
 - P042 synthetic validation: `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`
 - P042 current-dataset evaluation (not run): `docs/evaluation/p042_current_dataset_evaluation.md` — no P042 counts; evaluation PDFs unavailable
 - P043 current-dataset evaluation (not run): `docs/evaluation/p043_current_dataset_evaluation.md` — no P043 counts; evaluation PDFs unavailable
+- P048 current-dataset evaluation (not run): `docs/evaluation/p048_current_dataset_evaluation.md` — no P048 counts; only 4/5 evaluation PDFs directly accessible
 
 ### P030–P039 evaluation docs (chronological)
 
@@ -465,7 +466,6 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Post-P048 status refresh | Refresh docs/manifests after the P048 implementation PR merges |
 | 🟡 High | Post-P048 consistency audit | Verify docs/status/README consistency with P001–P048 scope |
 | 🟡 Med | Full five-PDF P001–P048 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P048 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
@@ -474,5 +474,5 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036, P037, P038, P039, P040, P041, P042, P043, or P044 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044 five-PDF aggregate evaluation remains at
+No P036, P037, P038, P039, P040, P041, P042, P043, P044, P045, P046, P047, or P048 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044/P045/P046/P047/P048 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).
