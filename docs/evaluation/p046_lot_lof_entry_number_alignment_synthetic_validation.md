@@ -3,7 +3,7 @@
 - **Date:** 2026-06-03
 - **Rule:** P046 — LoT/LoF entry number left-column alignment (Q068/Q078)
 - **Status:** **Synthetic validation only** — current-dataset audit not run (evaluation PDFs unavailable)
-- **Baseline main at implementation:** P046 implementation PR
+- **Baseline main at implementation:** `5be1edc` (PR #130 — Implement P046 LoT/LoF entry number alignment checks)
 
 ---
 
