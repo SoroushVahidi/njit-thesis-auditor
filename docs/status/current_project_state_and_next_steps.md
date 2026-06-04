@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `4220325` (PR #119 — Scope P044; P001–P043 implemented; P044 scoped)
-- **P044:** **implemented** — `src/njit_auditor/rules/pdf_abstract_indentation.py`; Abstract page paragraph indentation check (Q002/Q003); 9 synthetic tests added; see `docs/planning/p044_scope_and_design.md` and `docs/evaluation/p044_abstract_indentation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
+- **Latest main:** `8485e52` (PR #120 — Implement P044 Abstract indentation checks; P001–P044 implemented)
+- **P044:** **implemented** — `src/njit_auditor/rules/pdf_abstract_indentation.py`; Abstract page paragraph indentation check (Q002/Q003); 9 synthetic tests added; see `docs/planning/p044_scope_and_design.md`, `docs/evaluation/p044_abstract_indentation_synthetic_validation.md`, and `docs/evaluation/p044_current_dataset_evaluation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible; Sebastian Fine is ZIP-only; v1 limitations: Q003 gate skips single-paragraph abstracts; compressed/flattened PDFs skipped
 - **P043:** **implemented** — `src/njit_auditor/rules/pdf_acknowledgements_indentation.py`; Acknowledgements paragraph indentation check (Q044/Q045); 7 synthetic tests added; see `docs/planning/p043_scope_and_design.md` and `docs/evaluation/p043_current_dataset_evaluation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
@@ -185,7 +185,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P043) | 43 | 43 | — | — | — |
+| P-rules (P001–P044) | 44 | 44 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -380,13 +380,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines; entries shorter than 10 characters |
 | Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md` |
 
-## 6. Validation Status (main at `963e4da`)
+## 6. Validation Status (main at `8485e52`)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 57 source files |
-| `python -m pytest` | ✅ **498 passed** (491 pre-P043 + 7 new P043 synthetic tests) |
+| `mypy src` | ✅ No issues in 58 source files |
+| `python -m pytest` | ✅ **507 passed** (498 pre-P044 + 9 new P044 synthetic tests) |
 
 ### P038 at a glance
 
@@ -455,14 +455,14 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Post-P043 consistency audit | Verify docs/status/README consistency with P001–P043 scope |
-| 🟡 Med | Full five-PDF P001–P043 aggregate rerun | When evaluation PDFs available; canonical 1,446 baseline unchanged; P036–P043 have no current counts |
+| 🟡 High | Post-P044 consistency audit | Verify docs/status/README consistency with P001–P044 scope |
+| 🟡 Med | Full five-PDF P001–P044 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P044 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
-| 🟡 Low | P044 scoping | Only after post-P043 docs are clean |
+| 🟡 Low | P045 scoping | Only after post-P044 docs are clean |
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036, P037, P038, P039, P040, P041, P042, or P043 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039/P040/P041/P042/P043 five-PDF aggregate evaluation remains at
+No P036, P037, P038, P039, P040, P041, P042, P043, or P044 current-dataset counts exist yet. Full pre-P035/P036/P037/P038/P039/P040/P041/P042/P043/P044 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).
