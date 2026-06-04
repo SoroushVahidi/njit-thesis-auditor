@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `963e4da` (PR #117 — Refresh status after P043 implementation; P001–P043 implemented)
-- **Validation:** ruff, mypy, **498 pytest** on latest main
+- **Latest main:** `8485e52` (PR #120 — Implement P044 Abstract indentation checks; P001–P044 implemented)
+- **Validation:** ruff, mypy, **507 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 43 (P001–P043) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 44 (P001–P044) | Yes |
 
-P001–P043 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P044 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
