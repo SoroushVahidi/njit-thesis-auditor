@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-04
-- **Latest main:** `37b33ca` (PR #142 — P049 implementation; P001–P049 implemented)
+- **Latest main:** `8f2e2e5` (PR #144 — post-P049 documentation consistency; P001–P049 implemented)
+- **P050:** **scoped, not yet implemented** — LoT/LoF left-column header ("Table"/"Figure") bold-style check (Q063/Q072); see `docs/planning/p050_scope_and_design.md`; do not implement until the scoped P050 work starts
 - **P049:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_column_header_style_alignment.py`; LoT/LoF Page-column header right-alignment and bold-style refinement (Q064/Q073); 12 synthetic tests added; see `docs/planning/p049_scope_and_design.md` and `docs/evaluation/p049_lot_lof_column_header_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P048:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_page_number_alignment.py`; LoT/LoF page-number right-column alignment check (Q069/Q079); 9 synthetic tests added; see `docs/planning/p048_scope_and_design.md`, `docs/evaluation/p048_lot_lof_page_number_alignment_synthetic_validation.md`, and `docs/evaluation/p048_current_dataset_evaluation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P047:** **implemented** — `src/njit_auditor/rules/pdf_biosketch_bullet_spacing.py`; Bio Sketch bullet/list section single-spacing check (Q026); 6 synthetic tests added; see `docs/planning/p047_scope_and_design.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -467,7 +468,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | P050 scoping | Scope next P-rule; P049 implemented; candidates: copyright refinements (Q010/Q011), TOC/List case refinements, or remaining automatable Q-rule gaps |
+| 🟡 High | P050 implementation | Implement scoped LoT/LoF left-column header ("Table"/"Figure") bold-style check (Q063/Q072); see `docs/planning/p050_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P049 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P049 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
