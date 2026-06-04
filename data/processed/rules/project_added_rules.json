@@ -809,5 +809,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q026, Q028, and Q029. Page targeted: BIOGRAPHICAL SKETCH only. Gate: requires >=2 multi-line blocks. HANGING_THRESHOLD_PT=12.0, ENTRY_GAP_THRESHOLD_PT=20.0, MAX_WITHIN_ENTRY_GAP_PT=16.0. Does not read or quote publication text. issue_types: biosketch_publication_missing_hanging_indent (Q029), biosketch_publication_entry_spacing_not_double (Q028), biosketch_publication_wrapped_line_spacing_not_single (Q026)."
+  },
+  {
+    "id": "P046",
+    "section": "PDF LoT/LoF entry number left-column alignment",
+    "question": "Are all table numbers and figure numbers aligned vertically in a consistent left column in the List of Tables and List of Figures respectively?",
+    "rule_definition": "Conservative heuristic: detects List of Tables and List of Figures pages via detect_toc_like_pages. Extracts entry lines via extract_toc_entry_lines, preferring entries with detected page numbers (complete entries). Collects indent_x (x0 position) for each entry. If fewer than MIN_ENTRIES=3 entries are found, skips the section. If the x0 range (max-min) across all entries exceeds X0_RANGE_THRESHOLD_PT=6.0pt, emits a section-level finding. Complements P018 (page-number right-column) and P031 (column-label presence). Findings contain geometry metadata only \u2014 no entry text, table/figure titles, or captions.",
+    "remediation": "Ensure all table numbers in the List of Tables and all figure numbers in the List of Figures are vertically aligned at the same left margin.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_entry_number_alignment",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Conservative v1 PDF heuristic for Q068 and Q078. Sections: list_of_tables, list_of_figures. Gate: requires >=3 entries per section. X0_RANGE_THRESHOLD_PT=6.0. Uses detect_toc_like_pages + extract_toc_entry_lines from pdf_toc_alignment.py. issue_types: lot_entry_number_column_misaligned (Q068), lof_entry_number_column_misaligned (Q078). Complements P018 and P031."
   }
 ]
