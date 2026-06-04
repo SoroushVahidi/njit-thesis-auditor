@@ -10,12 +10,12 @@
 
 | Area | State |
 |------|-------|
-| P-rules | **46/46** implemented (`P001`–`P046`) |
-| Q-rules (updated inventory, post-P046) | **79** total — **2** implemented, **55** partially_implemented, **22** not_implemented (9 manual-only, 13 automatable gaps) |
+| P-rules | **47/47** implemented (`P001`–`P047`) |
+| Q-rules (updated inventory, post-P047) | **79** total — **2** implemented, **55** partially_implemented, **22** not_implemented (9 manual-only, 13 automatable gaps) |
 | Bio Sketch hanging indent / inter-entry spacing | **P045** — Q028/Q029; implemented |
 | LoT/LoF entry number left-column alignment | **P046** — Q068/Q078; implemented |
 | LoT/LoF page number right-column alignment | **P018** — Q069/Q079; partially covered via `misaligned_page_number_column` |
-| Bio Sketch bullet single-spacing | **Not yet implemented** — Q026; deferred from P045 v1 |
+| Bio Sketch bullet single-spacing | **P047** — Q026; implemented |
 
 **Gap:** Q026 ("Are the bullet items in the education section single-spaced within each bullet?") was deferred from P045 because the single-gap-threshold approach used in P043/P044/P045 cannot reliably distinguish within-bullet gaps from between-bullet gaps. A v2 approach using section-detection (finding the education/publications sub-sections by looking for characteristic patterns) would allow more targeted single-spacing checks.
 
