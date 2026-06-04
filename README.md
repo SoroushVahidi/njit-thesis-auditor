@@ -19,14 +19,14 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### PDF layout audit (P011–P046)
+### PDF layout audit (P011–P047)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P046 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P047 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P046):
+Current PDF checks (P011–P047):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -82,6 +82,7 @@ Current PDF checks (P011–P046):
 | P044 | Indentation | Abstract page paragraph indentation: first paragraph flush-left (Q002), subsequent paragraphs indented (Q003); Abstract-page-only complement to P015; gate: skip if ABSTRACT heading absent; skip Q003 if fewer than 2 paragraph blocks; privacy-safe geometry metadata only (no abstract text) |
 | P045 | Indentation | Biographical Sketch publication paragraph layout: hanging indent detection (Q029), inter-entry spacing (Q028); Biographical-Sketch-page-only; gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than 2 multi-line blocks; privacy-safe geometry metadata only (no publication text, author names, or citation content) |
 | P046 | TOC/List | LoT/LoF entry number left-column alignment: checks that table numbers (Q068) and figure numbers (Q078) are vertically aligned at a consistent left margin; LoT/LoF pages only; gate: skip if fewer than 3 entries detected; privacy-safe geometry metadata only (no table/figure title text) |
+| P047 | Indentation | Biographical Sketch bullet/list section single-spacing: checks non-hanging-indent multi-line blocks for excessive internal line gaps (Q026); Biographical-Sketch-page-only; gate: skip sparse/ambiguous blocks; privacy-safe geometry metadata only (no bullet text, names, or citation content) |
 
 All findings are heuristic warnings and require manual review.
 

@@ -135,7 +135,7 @@
 2. P047 emits nothing when no BIOGRAPHICAL SKETCH page is detected.
 3. P047 emits nothing when fewer than MIN_BULLET_BLOCKS non-hanging-indent multi-line blocks are found.
 4. P047 does not duplicate P045, P043/P044, or P015/P016 issue types.
-5. All existing 524 tests pass; new P047 synthetic tests added.
+5. All existing 524 tests pass; 6 new P047 synthetic tests added; post-merge suite has 530 tests.
 
 ---
 
