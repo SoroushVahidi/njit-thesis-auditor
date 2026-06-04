@@ -1211,14 +1211,14 @@
     "remediation": "Align all table numbers in the List of Tables into one vertical column.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output Partially covered: LoT entry x0 range check (pdf_lot_lof_entry_number_alignment.py)"
   },
   {
     "id": "Q069",
@@ -1381,14 +1381,14 @@
     "remediation": "Align all figure numbers in the List of Figures into one vertical left column.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Primarily visual/layout formatting check on compiled output Partially covered: LoF entry x0 range check (pdf_lot_lof_entry_number_alignment.py)"
   },
   {
     "id": "Q079",
