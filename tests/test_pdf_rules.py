@@ -39,6 +39,9 @@ from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
+from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
+    check_pdf_lot_lof_entry_number_alignment,
+)
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
 from njit_auditor.rules.pdf_page_numbers import (
@@ -6255,3 +6258,141 @@ def test_p045_q028_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q028
     assert all(f.details.get("source_q_rule_id") == "Q028" for f in q028)
+
+
+# ---------------------------------------------------------------------------
+# P046 tests
+# ---------------------------------------------------------------------------
+
+_P046_LOT_ALIGNED = [
+    ("Table 1 Synthetic experimental setup overview entry text here.", 108.0),
+    ("Table 2 Synthetic model performance comparison entry text here.", 108.0),
+    ("Table 3 Synthetic regression coefficients overview entry text.", 108.0),
+]
+
+_P046_LOT_MISALIGNED = [
+    ("Table 1 Synthetic experimental setup overview entry text here.", 108.0),
+    ("Table 2 Synthetic model performance comparison entry text here.", 130.0),
+    ("Table 3 Synthetic regression coefficients overview entry text.", 108.0),
+]
+
+_P046_LOF_ALIGNED = [
+    ("Figure 1 Synthetic workflow overview entry description text here.", 108.0),
+    ("Figure 2 Synthetic performance comparison entry description text.", 108.0),
+    ("Figure 3 Synthetic sample measurement distribution entry text.", 108.0),
+]
+
+_P046_LOF_MISALIGNED = [
+    ("Figure 1 Synthetic workflow overview entry description text here.", 108.0),
+    ("Figure 2 Synthetic performance comparison entry description text.", 134.0),
+    ("Figure 3 Synthetic sample measurement distribution entry text.", 108.0),
+]
+
+
+def test_p046_no_lot_lof_pages_no_findings(tmp_path: Path) -> None:
+    """No LoT/LoF heading detected → no P046 findings."""
+    pdf_path = tmp_path / "p046_no_list.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "Chapter 1 Introduction ............... 1")
+    page.insert_text((108, 150), "Chapter 2 Background ................ 5")
+    page.insert_text((108, 170), "Chapter 3 Methodology .............. 10")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_entry_number_alignment(model)
+    assert not any(f.rule_id == "P046" for f in findings)
+
+
+def test_p046_lot_aligned_no_findings(tmp_path: Path) -> None:
+    """LoT entries at consistent x0 → no P046 findings."""
+    pdf_path = tmp_path / "p046_lot_ok.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", _P046_LOT_ALIGNED)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_entry_number_alignment(model)
+    assert not any(f.rule_id == "P046" for f in findings)
+
+
+def test_p046_lot_misaligned_warns(tmp_path: Path) -> None:
+    """LoT entries with outlier x0 → lot_entry_number_column_misaligned."""
+    pdf_path = tmp_path / "p046_lot_bad.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", _P046_LOT_MISALIGNED)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lot_entry_number_column_misaligned" in issue_types
+
+
+def test_p046_lof_aligned_no_findings(tmp_path: Path) -> None:
+    """LoF entries at consistent x0 → no P046 findings."""
+    pdf_path = tmp_path / "p046_lof_ok.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF FIGURES", _P046_LOF_ALIGNED, left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_entry_number_alignment(model)
+    assert not any(f.rule_id == "P046" for f in findings)
+
+
+def test_p046_lof_misaligned_warns(tmp_path: Path) -> None:
+    """LoF entries with outlier x0 → lof_entry_number_column_misaligned."""
+    pdf_path = tmp_path / "p046_lof_bad.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF FIGURES", _P046_LOF_MISALIGNED, left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lof_entry_number_column_misaligned" in issue_types
+
+
+def test_p046_too_few_entries_no_findings(tmp_path: Path) -> None:
+    """Fewer than MIN_ENTRIES=3 entries → gate skips check."""
+    pdf_path = tmp_path / "p046_sparse.pdf"
+    sparse_entries = [
+        ("Table 1 Only one entry in the list for testing purposes.", 108.0),
+        ("Table 2 Second misaligned entry at different x position.", 130.0),
+    ]
+    _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", sparse_entries)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_entry_number_alignment(model)
+    assert not any(f.rule_id == "P046" for f in findings)
+
+
+def test_p046_finding_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must contain geometry metadata only — no entry text."""
+    pdf_path = tmp_path / "p046_privacy.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", _P046_LOT_MISALIGNED)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    assert findings
+    for f in findings:
+        for value in f.details.values():
+            assert "synthetic" not in str(value).lower()
+            assert "entry text" not in str(value).lower()
+        assert "issue_type" in f.details
+        assert "page_number" in f.details
+        assert "source_q_rule_id" in f.details
+
+
+def test_p046_q068_source_q_rule_id(tmp_path: Path) -> None:
+    """LoT misalignment finding must have source_q_rule_id=Q068."""
+    pdf_path = tmp_path / "p046_q068_id.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", _P046_LOT_MISALIGNED)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    q068 = [
+        f for f in findings if f.details.get("issue_type") == "lot_entry_number_column_misaligned"
+    ]
+    assert q068
+    assert all(f.details.get("source_q_rule_id") == "Q068" for f in q068)
+
+
+def test_p046_q078_source_q_rule_id(tmp_path: Path) -> None:
+    """LoF misalignment finding must have source_q_rule_id=Q078."""
+    pdf_path = tmp_path / "p046_q078_id.pdf"
+    _make_lot_lof_pdf(pdf_path, "LIST OF FIGURES", _P046_LOF_MISALIGNED, left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    q078 = [
+        f for f in findings if f.details.get("issue_type") == "lof_entry_number_column_misaligned"
+    ]
+    assert q078
+    assert all(f.details.get("source_q_rule_id") == "Q078" for f in q078)

@@ -1,7 +1,7 @@
 # P046 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** (implementation PR — P001–P046 implemented; see `docs/evaluation/p046_lot_lof_entry_number_alignment_synthetic_validation.md`)
 - **Baseline main:** `480cd6e` (PR #128 — post-P045 consistency audit; P001–P045 implemented)
 
 ---
