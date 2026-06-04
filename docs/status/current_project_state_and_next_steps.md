@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-03
-- **Latest main:** `70b37bc` (PR #116 — P043 Acknowledgements paragraph indentation; P001–P043 implemented)
+- **Latest main:** `963e4da` (PR #117 — Refresh status after P043 implementation; P001–P043 implemented)
 - **P043:** **implemented** — `src/njit_auditor/rules/pdf_acknowledgements_indentation.py`; Acknowledgements paragraph indentation check (Q044/Q045); 7 synthetic tests added; see `docs/planning/p043_scope_and_design.md` and `docs/evaluation/p043_current_dataset_evaluation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
@@ -379,7 +379,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines; entries shorter than 10 characters |
 | Current-dataset eval | **Not run** — evaluation PDFs unavailable; see `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md` |
 
-## 6. Validation Status (main at `70b37bc`)
+## 6. Validation Status (main at `963e4da`)
 
 | Check | Result |
 |-------|--------|
