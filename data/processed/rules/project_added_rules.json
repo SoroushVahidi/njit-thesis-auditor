@@ -863,5 +863,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Conservative v1 PDF heuristic for Q069 and Q079. Sections: list_of_tables, list_of_figures. Gate: requires >=3 complete entries per section with detected page-number right edges. RIGHT_EDGE_TOLERANCE_PT=10.0. Uses detect_toc_like_pages + extract_toc_entry_lines from pdf_toc_alignment.py. issue_types: lot_page_number_column_misaligned (Q069), lof_page_number_column_misaligned (Q079). Complements P018, P031, and P046."
+  },
+  {
+    "id": "P049",
+    "section": "PDF LoT/LoF column-header style/alignment refinement",
+    "question": "Is the 'Page' column header in the List of Tables and List of Figures right-aligned with the page-number column and formatted in bold?",
+    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Derives expected right-column anchor from the median of entry page_number_right_x values. Locates the 'Page' header label in the P031 header zone. If the header's right edge (x1) deviates from the anchor by more than RIGHT_ALIGNMENT_TOLERANCE_PT=25.0pt, emits a right-alignment finding. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected 'Page' header (handled by P031). Findings contain geometry and style metadata only — no entry text, captions, titles, or private content.",
+    "remediation": "Ensure the 'Page' column header in the List of Tables and List of Figures is bold and right-aligned over the page-number column.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_column_header_style_alignment",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Conservative v1 PDF heuristic for Q064 and Q073. Sections: list_of_tables, list_of_figures. Gate: requires >=3 complete entries with page_number_right_x. RIGHT_ALIGNMENT_TOLERANCE_PT=25.0. Uses detect_toc_like_pages, extract_toc_entry_lines, and P031 header-zone helpers. issue_types: lot_page_header_not_right_aligned (Q064), lof_page_header_not_right_aligned (Q073), lot_page_header_not_bold (Q064), lof_page_header_not_bold (Q073). Bold check skipped when font metadata unreliable. Complements P031, P046, P048."
   }
 ]

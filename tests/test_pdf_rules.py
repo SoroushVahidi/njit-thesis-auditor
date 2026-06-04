@@ -41,6 +41,9 @@ from njit_auditor.rules.pdf_heading_levels import (
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
+from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
+    check_pdf_lot_lof_column_header_style_alignment,
+)
 from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
@@ -6714,3 +6717,230 @@ def test_p048_finding_metadata_no_private_content(tmp_path: Path) -> None:
         for value in finding.details.values():
             value_lower = str(value).lower()
             assert all(term not in value_lower for term in forbidden_terms)
+
+
+# P049 tests
+
+
+def _make_p049_pdf(
+    path: Path,
+    heading: str,
+    *,
+    page_header_x: float = 490.0,
+    page_header_bold: bool = True,
+    num_entries: int = 3,
+    page_number_x: float = 500.0,
+    include_page_header: bool = True,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    prefix = "Figure" if "FIGURES" in heading else "Table"
+    page.insert_text((108, 115), prefix)
+    if include_page_header:
+        fontname = "Times-Bold" if page_header_bold else "helv"
+        page.insert_text((page_header_x, 115), "Page", fontname=fontname, fontsize=12)
+    for i in range(num_entries):
+        y = 140 + i * 24
+        page.insert_text(
+            (108, y),
+            f"{prefix} {i + 1} Synthetic placeholder entry text for column-header checks.",
+        )
+        page.insert_text((page_number_x, y), str(10 + i))
+    doc.save(path)
+    doc.close()
+
+
+def test_p049_no_lot_lof_pages_no_findings(tmp_path: Path) -> None:
+    """No LoT/LoF heading detected → no P049 findings."""
+    pdf_path = tmp_path / "p049_no_list.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "Chapter 1 Introduction ............... 1")
+    page.insert_text((108, 150), "Chapter 2 Background ................ 5")
+    page.insert_text((108, 170), "Chapter 3 Methodology .............. 10")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(f.rule_id == "P049" for f in findings)
+
+
+def test_p049_lot_page_header_right_aligned_no_findings(tmp_path: Path) -> None:
+    """LoT 'Page' header co-located with page-number column and bold → no P049 findings."""
+    pdf_path = tmp_path / "p049_lot_ok.pdf"
+    _make_p049_pdf(pdf_path, "LIST OF TABLES", page_header_x=490.0, page_header_bold=True)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(f.rule_id == "P049" for f in findings)
+
+
+def test_p049_lot_page_header_misaligned_warns(tmp_path: Path) -> None:
+    """LoT 'Page' header far from page-number column → lot_page_header_not_right_aligned."""
+    pdf_path = tmp_path / "p049_lot_bad_align.pdf"
+    _make_p049_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        page_header_x=200.0,
+        page_header_bold=True,
+        page_number_x=500.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_column_header_style_alignment(model)
+        if f.rule_id == "P049"
+    ]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lot_page_header_not_right_aligned" in issue_types
+    assert all(f.details.get("source_q_rule_id") == "Q064" for f in findings)
+
+
+def test_p049_lof_page_header_right_aligned_no_findings(tmp_path: Path) -> None:
+    """LoF 'Page' header co-located with page-number column and bold → no P049 findings."""
+    pdf_path = tmp_path / "p049_lof_ok.pdf"
+    _make_p049_pdf(pdf_path, "LIST OF FIGURES", page_header_x=490.0, page_header_bold=True)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(f.rule_id == "P049" for f in findings)
+
+
+def test_p049_lof_page_header_misaligned_warns(tmp_path: Path) -> None:
+    """LoF 'Page' header far from page-number column → lof_page_header_not_right_aligned."""
+    pdf_path = tmp_path / "p049_lof_bad_align.pdf"
+    _make_p049_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        page_header_x=200.0,
+        page_header_bold=True,
+        page_number_x=500.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_column_header_style_alignment(model)
+        if f.rule_id == "P049"
+    ]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lof_page_header_not_right_aligned" in issue_types
+    assert all(f.details.get("source_q_rule_id") == "Q073" for f in findings)
+
+
+def test_p049_lot_page_header_bold_no_bold_finding(tmp_path: Path) -> None:
+    """LoT 'Page' header with bold font → no lot_page_header_not_bold finding."""
+    pdf_path = tmp_path / "p049_lot_bold_ok.pdf"
+    _make_p049_pdf(pdf_path, "LIST OF TABLES", page_header_x=490.0, page_header_bold=True)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_column_header_style_alignment(model)
+        if f.rule_id == "P049"
+    ]
+    assert not any(f.details.get("issue_type") == "lot_page_header_not_bold" for f in findings)
+
+
+def test_p049_lot_page_header_not_bold_warns(tmp_path: Path) -> None:
+    """LoT 'Page' header with non-bold font and reliable metadata → lot_page_header_not_bold."""
+    pdf_path = tmp_path / "p049_lot_not_bold.pdf"
+    _make_p049_pdf(pdf_path, "LIST OF TABLES", page_header_x=490.0, page_header_bold=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_column_header_style_alignment(model)
+        if f.rule_id == "P049"
+    ]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lot_page_header_not_bold" in issue_types
+
+
+def test_p049_lof_page_header_not_bold_warns(tmp_path: Path) -> None:
+    """LoF 'Page' header with non-bold font → lof_page_header_not_bold."""
+    pdf_path = tmp_path / "p049_lof_not_bold.pdf"
+    _make_p049_pdf(pdf_path, "LIST OF FIGURES", page_header_x=490.0, page_header_bold=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_column_header_style_alignment(model)
+        if f.rule_id == "P049"
+    ]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lof_page_header_not_bold" in issue_types
+
+
+def test_p049_too_few_entries_skipped(tmp_path: Path) -> None:
+    """Fewer than MIN_COMPLETE_ENTRIES=3 → gate skips P049."""
+    pdf_path = tmp_path / "p049_sparse.pdf"
+    _make_p049_pdf(
+        pdf_path, "LIST OF TABLES", page_header_x=200.0, page_header_bold=False, num_entries=2
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(f.rule_id == "P049" for f in findings)
+
+
+def test_p049_no_page_header_skipped(tmp_path: Path) -> None:
+    """No 'Page' header detected in header zone → no P049 findings."""
+    pdf_path = tmp_path / "p049_no_page_header.pdf"
+    _make_p049_pdf(
+        pdf_path, "LIST OF TABLES", page_header_x=490.0, include_page_header=False
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(f.rule_id == "P049" for f in findings)
+
+
+def test_p049_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """P049 findings contain only privacy-safe metadata — no entry text or titles."""
+    pdf_path = tmp_path / "p049_privacy.pdf"
+    _make_p049_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        page_header_x=200.0,
+        page_header_bold=False,
+        page_number_x=500.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_column_header_style_alignment(model)
+        if f.rule_id == "P049"
+    ]
+    assert findings
+    alignment_keys = {
+        "page_number",
+        "issue_type",
+        "section_type",
+        "column_type",
+        "observed_x",
+        "expected_x",
+        "x_delta_points",
+        "allowed_delta_points",
+        "entry_count",
+        "triage_tier",
+        "source_q_rule_id",
+    }
+    bold_keys = {
+        "page_number",
+        "issue_type",
+        "section_type",
+        "column_type",
+        "entry_count",
+        "triage_tier",
+        "source_q_rule_id",
+    }
+    forbidden_terms = ("synthetic", "placeholder", "table 1", "caption", "title")
+    for finding in findings:
+        assert finding.details.keys() <= alignment_keys | bold_keys
+        for value in finding.details.values():
+            value_lower = str(value).lower()
+            assert all(term not in value_lower for term in forbidden_terms)
+
+
+def test_p049_import_and_wiring() -> None:
+    """P049 checker is importable and returns a list for an empty document."""
+    from njit_auditor.pdf_models import PdfDocument  # noqa: PLC0415
+
+    empty_doc = PdfDocument(path="test.pdf", pages=[])
+    result = check_pdf_lot_lof_column_header_style_alignment(empty_doc)
+    assert result == []
