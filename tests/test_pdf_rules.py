@@ -13,6 +13,9 @@ from njit_auditor.rules.pdf_acknowledgements_indentation import (
     check_pdf_acknowledgements_indentation,
 )
 from njit_auditor.rules.pdf_annotations import run_pdf_annotation_rule
+from njit_auditor.rules.pdf_biosketch_publication_layout import (
+    check_pdf_biosketch_publication_layout,
+)
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
@@ -6055,3 +6058,200 @@ def test_p044_q003_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q003_findings
     assert all(f.details.get("source_q_rule_id") == "Q003" for f in q003_findings)
+
+
+# ---------------------------------------------------------------------------
+# P045 helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_biosketch_pdf(
+    path: Path,
+    include_heading: bool = True,
+    n_hanging_blocks: int = 2,
+    hanging_first_x: float = 108.0,
+    hanging_rest_x: float = 126.0,
+    inter_block_gap: float = 40.0,
+    within_block_gap: float = 12.0,
+) -> None:
+    """Synthetic Biographical Sketch PDF for P045 tests.
+
+    hanging_first_x: x0 of first line in each pub entry (flush-left)
+    hanging_rest_x: x0 of continuation lines (indented — creates hanging indent)
+    inter_block_gap: vertical gap between consecutive entry blocks
+    within_block_gap: vertical gap between lines inside each entry block
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    if include_heading:
+        page.insert_text(
+            (200, 70), "BIOGRAPHICAL SKETCH", fontsize=14, fontname="Times-Bold"
+        )
+    y = 110.0
+    for _ in range(n_hanging_blocks):
+        # First line of entry (flush-left / start of hanging indent)
+        page.insert_text(
+            (hanging_first_x, y),
+            "Synthetic pub entry first line text for testing purposes here.",
+        )
+        y += within_block_gap
+        # Continuation line (indented — rest of hanging indent)
+        page.insert_text(
+            (hanging_rest_x, y),
+            "Synthetic publication continuation line body text here only.",
+        )
+        y += within_block_gap
+        # Another continuation line
+        page.insert_text(
+            (hanging_rest_x, y),
+            "Another continuation line for synthetic publication entry text.",
+        )
+        y += inter_block_gap
+    doc.save(path)
+    doc.close()
+
+
+# ---------------------------------------------------------------------------
+# P045 tests
+# ---------------------------------------------------------------------------
+
+
+def test_p045_no_biosketch_page_no_findings(tmp_path: Path) -> None:
+    """No BIOGRAPHICAL SKETCH heading → no P045 findings."""
+    pdf_path = tmp_path / "p045_no_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 70), "ACKNOWLEDGEMENTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 110), "Synthetic body paragraph text for testing here.")
+    page.insert_text((108, 124), "Continuation of synthetic paragraph body text line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_publication_layout(model)
+    assert not any(f.rule_id == "P045" for f in findings)
+
+
+def test_p045_too_few_blocks_no_findings(tmp_path: Path) -> None:
+    """Fewer than 2 multi-line blocks → gate skips all checks."""
+    pdf_path = tmp_path / "p045_one_block.pdf"
+    _make_biosketch_pdf(pdf_path, n_hanging_blocks=1)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_publication_layout(model)
+    assert not any(f.rule_id == "P045" for f in findings)
+
+
+def test_p045_correct_hanging_indent_no_findings(tmp_path: Path) -> None:
+    """Hanging indent present and inter-entry gap adequate → no findings."""
+    pdf_path = tmp_path / "p045_ok.pdf"
+    # inter_block_gap=40 gives geometric gap ~25pt > ENTRY_GAP_THRESHOLD_PT=20pt
+    _make_biosketch_pdf(
+        pdf_path,
+        n_hanging_blocks=2,
+        hanging_first_x=108.0,
+        hanging_rest_x=126.0,
+        inter_block_gap=40.0,
+        within_block_gap=12.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_biosketch_publication_layout(model)
+    assert not any(f.rule_id == "P045" for f in findings)
+
+
+def test_p045_missing_hanging_indent_warns(tmp_path: Path) -> None:
+    """All blocks flush (no hanging indent) → biosketch_publication_missing_hanging_indent."""
+    pdf_path = tmp_path / "p045_no_hang.pdf"
+    # Both first and rest lines at same x → no hanging indent
+    _make_biosketch_pdf(
+        pdf_path,
+        n_hanging_blocks=2,
+        hanging_first_x=108.0,
+        hanging_rest_x=108.0,
+        inter_block_gap=30.0,
+        within_block_gap=12.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_publication_layout(model) if f.rule_id == "P045"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "biosketch_publication_missing_hanging_indent" in issue_types
+
+
+def test_p045_entry_spacing_too_close_warns(tmp_path: Path) -> None:
+    """Hanging indent present but inter-entry gap too small → entry_spacing_not_double."""
+    pdf_path = tmp_path / "p045_close_entries.pdf"
+    # inter_block_gap=30 gives geometric gap ~15pt — above grouping threshold (14pt)
+    # so blocks are separate, but below ENTRY_GAP_THRESHOLD_PT (20pt) → Q028 fires.
+    _make_biosketch_pdf(
+        pdf_path,
+        n_hanging_blocks=2,
+        hanging_first_x=108.0,
+        hanging_rest_x=126.0,
+        inter_block_gap=30.0,
+        within_block_gap=12.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_publication_layout(model) if f.rule_id == "P045"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "biosketch_publication_entry_spacing_not_double" in issue_types
+
+
+def test_p045_finding_metadata_no_private_content(tmp_path: Path) -> None:
+    """Finding details must contain geometry metadata only — no publication text."""
+    pdf_path = tmp_path / "p045_privacy.pdf"
+    # Trigger missing_hanging_indent to get at least one finding
+    _make_biosketch_pdf(
+        pdf_path,
+        n_hanging_blocks=2,
+        hanging_first_x=108.0,
+        hanging_rest_x=108.0,  # no hanging indent
+        inter_block_gap=30.0,
+        within_block_gap=12.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_publication_layout(model) if f.rule_id == "P045"]
+    assert findings
+    for f in findings:
+        for value in f.details.values():
+            assert "synthetic" not in str(value).lower()
+            assert "entry first line" not in str(value).lower()
+        assert "issue_type" in f.details
+        assert "page_number" in f.details
+        assert "source_q_rule_id" in f.details
+
+
+def test_p045_q029_source_q_rule_id(tmp_path: Path) -> None:
+    """Missing-hanging-indent finding must have source_q_rule_id=Q029."""
+    pdf_path = tmp_path / "p045_q029_id.pdf"
+    _make_biosketch_pdf(
+        pdf_path,
+        n_hanging_blocks=2,
+        hanging_first_x=108.0,
+        hanging_rest_x=108.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_publication_layout(model) if f.rule_id == "P045"]
+    q029 = [
+        f for f in findings
+        if f.details.get("issue_type") == "biosketch_publication_missing_hanging_indent"
+    ]
+    assert q029
+    assert all(f.details.get("source_q_rule_id") == "Q029" for f in q029)
+
+
+def test_p045_q028_source_q_rule_id(tmp_path: Path) -> None:
+    """Entry-spacing finding must have source_q_rule_id=Q028."""
+    pdf_path = tmp_path / "p045_q028_id.pdf"
+    _make_biosketch_pdf(
+        pdf_path,
+        n_hanging_blocks=2,
+        hanging_first_x=108.0,
+        hanging_rest_x=126.0,
+        inter_block_gap=30.0,  # ~15pt geometric gap — separate blocks but < 20pt threshold
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_biosketch_publication_layout(model) if f.rule_id == "P045"]
+    q028 = [
+        f for f in findings
+        if f.details.get("issue_type") == "biosketch_publication_entry_spacing_not_double"
+    ]
+    assert q028
+    assert all(f.details.get("source_q_rule_id") == "Q028" for f in q028)

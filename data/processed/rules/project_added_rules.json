@@ -791,5 +791,23 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Conservative v1 PDF heuristic for Q002 and Q003. Page targeted: ABSTRACT only (ABSTRACT is in EXPECTED_HEADINGS). Gate: Q002 requires >=1 paragraph block; Q003 requires >=2 paragraph blocks. Left margin derived from min body-line x0. INDENT_THRESHOLD_PT=18.0. Complements P015 and P043; does not replace them. issue_types: abstract_first_paragraph_indented (Q002), abstract_subsequent_paragraph_not_indented (Q003)."
+  },
+  {
+    "id": "P045",
+    "section": "PDF Biographical Sketch publication paragraph layout",
+    "question": "Does the Biographical Sketch page follow the correct publication entry layout \u2014 hanging indent for all publication entries, single-spaced entries with a blank line between them, and single-spaced wrapped lines within each entry?",
+    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks. For multi-line blocks with hanging-indent pattern (continuation lines x0 > first line x0 by HANGING_THRESHOLD_PT=12pt), checks: (Q029) if no blocks have hanging indent despite >=2 multi-line blocks, emits missing_hanging_indent; (Q028) if consecutive hanging-indent blocks have inter-block gap < ENTRY_GAP_THRESHOLD_PT=20pt, emits entry_spacing_not_double; (Q026) if a hanging-indent block has internal line gap > MAX_WITHIN_ENTRY_GAP_PT=16pt, emits wrapped_line_spacing_not_single. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than 2 multi-line blocks. Findings are geometry-only \u2014 no publication text, citation content, or names.",
+    "remediation": "Ensure all publication/presentation entries on the Biographical Sketch page use hanging indentation, are single-spaced internally, and have a blank line between entries.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_biosketch_publication_layout",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Conservative v1 PDF heuristic for Q026, Q028, and Q029. Page targeted: BIOGRAPHICAL SKETCH only. Gate: requires >=2 multi-line blocks. HANGING_THRESHOLD_PT=12.0, ENTRY_GAP_THRESHOLD_PT=20.0, MAX_WITHIN_ENTRY_GAP_PT=16.0. Does not read or quote publication text. issue_types: biosketch_publication_missing_hanging_indent (Q029), biosketch_publication_entry_spacing_not_double (Q028), biosketch_publication_wrapped_line_spacing_not_single (Q026)."
   }
 ]

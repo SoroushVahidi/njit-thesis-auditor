@@ -1,7 +1,7 @@
 # P045 Scope and Design
 
 - **Date:** 2026-06-03
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented** (implementation PR — P001–P045 implemented; see `docs/evaluation/p045_biosketch_publication_layout_synthetic_validation.md`)
 - **Baseline main:** `9b1fed3` (PR #124 — tmux CLI test robustness; P001–P044 implemented)
 
 ---
