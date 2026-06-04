@@ -19,14 +19,14 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### PDF layout audit (P011–P036)
+### PDF layout audit (P011–P043)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P042 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P043 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P042):
+Current PDF checks (P011–P043):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -78,6 +78,7 @@ Current PDF checks (P011–P042):
 | P040 | TOC/List | List of Figures entry terminal punctuation: checks complete LoF entries (with page-number token) end with `.`, `?`, or `!`; LoF-only; skips wrap-continuation lines; privacy-safe counts/metadata only (no entry text); covers Q075 |
 | P041 | Front matter | Dedication page top-margin header: checks no running header text is in the top 15% of the Dedication page; gate: skips if DEDICATION heading not detected; privacy-safe geometry metadata only (no dedication text); covers Q032 |
 | P042 | TOC/List | TOC appendix entry format: single appendix should have APPENDIX + title; multiple appendices should each use APPENDIX + letter (A, B, C…); TOC-only; privacy-safe counts/metadata only (no entry text); covers Q058/Q059 |
+| P043 | Indentation | Acknowledgements page paragraph indentation: first paragraph flush-left (Q044), subsequent paragraphs indented (Q045); Acknowledgements-page-only complement to P015; gate: skip if ACKNOWLEDGEMENTS heading absent or fewer than 2 paragraph blocks; privacy-safe geometry metadata only (no acknowledgements text) |
 
 All findings are heuristic warnings and require manual review.
 
