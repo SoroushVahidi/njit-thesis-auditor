@@ -21,6 +21,11 @@ from fastapi.templating import Jinja2Templates
 from njit_auditor.audit_runner import AuditError, run_pdf_audit
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.web_samples import (
+    copy_builtin_sample_to_job,
+    get_builtin_sample,
+    list_builtin_samples,
+)
 from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
 
 # ---------------------------------------------------------------------------
@@ -114,7 +119,7 @@ def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLRe
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB},
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": list_builtin_samples()},
         status_code=status_code,
     )
 
@@ -209,7 +214,11 @@ def _run_audit_task(job_id: str) -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, error: str = "") -> HTMLResponse:
-    return _render(request, "index.html", {"error": error, "max_upload_mb": MAX_UPLOAD_MB})
+    return _render(
+        request,
+        "index.html",
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": list_builtin_samples()},
+    )
 
 
 @app.post("/audits", response_model=None)
@@ -285,6 +294,49 @@ async def submit_audit_url(
         shutil.rmtree(jdir, ignore_errors=True)
         return _index_error(request, str(exc))
 
+    job = JobState(
+        job_id=job_id,
+        state="pending",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name=safe_name,
+    )
+    _set_job(job)
+    background_tasks.add_task(_run_audit_task, job_id)
+    return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
+
+
+@app.post("/audits/sample", response_model=None)
+async def submit_audit_sample(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    sample_id: str = Form(default=""),
+) -> RedirectResponse | HTMLResponse:
+    sid = sample_id.strip()
+    if not sid:
+        return _index_error(request, "Please select a built-in sample.")
+
+    try:
+        info = get_builtin_sample(sid)
+    except ValueError:
+        return _index_error(request, "Unknown or invalid sample selection.")
+
+    job_id = secrets.token_urlsafe(16)
+    jdir = _job_dir(job_id)
+    jdir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        copy_builtin_sample_to_job(sid, jdir / "upload.pdf")
+    except FileNotFoundError:
+        shutil.rmtree(jdir, ignore_errors=True)
+        return _index_error(request, "The selected sample file is not available on this server.")
+    except ValueError as exc:
+        shutil.rmtree(jdir, ignore_errors=True)
+        return _index_error(request, str(exc))
+    except Exception:  # noqa: BLE001
+        shutil.rmtree(jdir, ignore_errors=True)
+        return _index_error(request, "An error occurred loading the sample file.")
+
+    safe_name = _safe_filename(Path(info.rel_path).name)
     job = JobState(
         job_id=job_id,
         state="pending",
