@@ -118,9 +118,10 @@ port 8000 firewall-restricted to localhost.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/` | Upload form + URL input form |
+| `GET` | `/` | Upload form + URL input form + built-in sample form |
 | `POST` | `/audits` | Accept PDF upload; validate; start background audit; redirect to job page |
 | `POST` | `/audits/url` | Accept public PDF URL; download safely; start background audit; redirect to job page |
+| `POST` | `/audits/sample` | Accept built-in sample ID; copy local sample; start background audit; redirect to job page |
 | `GET` | `/audits/{job_id}` | Job status page; auto-refreshes while running; shows findings when complete |
 | `GET` | `/audits/{job_id}/status` | JSON polling endpoint (`state`, `finding_count`, timestamps) |
 | `GET` | `/audits/{job_id}/download/json` | Download structured JSON report |
@@ -148,6 +149,19 @@ port 8000 firewall-restricted to localhost.
 5. Server validates that the downloaded bytes start with `%PDF`.
 6. Same background audit and results flow as file upload.
 
+### Built-in repository sample PDF
+
+1. User opens `/` and selects a sample from the dropdown.
+2. User clicks **Audit Sample**.
+3. Server looks up the sample ID in the curated registry (`src/njit_auditor/web_samples.py`).
+4. Server validates the local file (path stays under repo root; file exists; magic bytes are `%PDF`).
+5. Server copies the sample into the runtime job directory.
+6. Same background audit and results flow as file upload.
+
+**Privacy note:** Built-in samples are local repository evaluation files. They are available only
+on servers where the repository is checked out. Do not expose the built-in sample feature on a
+public site unless you are authorized to process those files.
+
 ### URL safety restrictions
 
 - Only `http://` and `https://` schemes are accepted.
@@ -162,14 +176,16 @@ port 8000 firewall-restricted to localhost.
 
 ## Privacy and safety
 
-- Uploaded PDFs and URL-downloaded PDFs are saved only under the runtime directory (gitignored).
+- Uploaded PDFs, URL-downloaded PDFs, and built-in sample copies are saved only under the runtime directory (gitignored).
 - Generated JSON/Markdown reports are saved only under the runtime directory.
-- No uploaded or downloaded content is committed to the repository.
+- No uploaded, downloaded, or sample content is committed to the repository.
 - Findings contain structural metadata only (page numbers, rule IDs, coordinates) — no
   dissertation body text, author names, or other private content.
 - Runtime files are never committed: `.runtime/` is in `.gitignore`.
 - URL downloads are SSRF-safe: private/internal IP ranges and `localhost` are blocked server-side.
+- Built-in sample IDs are a fixed curated list; arbitrary file paths cannot be submitted via the form.
 - Do not expose the web app to the public internet without a reverse proxy and TLS.
+- Do not expose built-in samples on a public site unless you are authorized to process those files.
 
 ---
 
@@ -180,7 +196,7 @@ Each job creates a directory under `NJIT_AUDITOR_WEB_RUNTIME_DIR`:
 ```
 .runtime/web_audits/
   {job_id}/
-    upload.pdf     ← uploaded file or URL-downloaded PDF
+    upload.pdf     ← uploaded file, URL-downloaded PDF, or built-in sample copy
     report.json    ← structured JSON audit report
     report.md      ← Markdown audit report
 ```

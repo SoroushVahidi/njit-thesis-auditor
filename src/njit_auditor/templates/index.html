@@ -37,6 +37,29 @@
   </form>
 </div>
 
+<div class="card">
+  <h2 style="margin-top:0;">Audit a built-in sample PDF</h2>
+  <form action="/audits/sample" method="post">
+    <label for="sample_id">Select sample</label>
+    {% if builtin_samples %}
+    <select id="sample_id" name="sample_id"
+            style="width:100%;padding:0.4rem;margin-bottom:0.75rem;border:1px solid #ccc;border-radius:4px;font-size:1rem;">
+      {% for sample in builtin_samples %}
+      <option value="{{ sample.sample_id }}">{{ sample.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="file-hint">
+      These are local repository evaluation files available on this server. &middot;
+      Use only if you are authorized to process these files. &middot;
+      Do not expose built-in samples on a public site unless authorized.
+    </p>
+    <button type="submit">Audit Sample</button>
+    {% else %}
+    <p class="file-hint" style="color:#c00;">No built-in samples are available on this server.</p>
+    {% endif %}
+  </form>
+</div>
+
 <h2>What it checks</h2>
 <p style="font-size:0.9rem;color:#555;">
   Runs P011–P056 heuristic formatting checks: margins, page numbering, heading styles,
