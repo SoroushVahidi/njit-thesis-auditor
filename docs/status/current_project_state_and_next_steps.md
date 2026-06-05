@@ -469,7 +469,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | P051 scoping | Scope next safest remaining automatable Q-rule; candidates: copyright refinements (Q010/Q011), TOC/list case refinements, or other medium-FP automatable gaps from Q-rule coverage audit |
+| 🟡 High | P051 implementation | **Scoped:** copyright page year-format refinement (Q010 improvement); extends P034 module; see `docs/planning/p051_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P050 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P050 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
