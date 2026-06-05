@@ -104,8 +104,8 @@ sketch hanging indent in publications (Q029 — medium FP), or a refine/extend e
 | Q060 | LoT: correct Roman numeral continuation | partial | P037 | LoT page detection dependent | No action |
 | Q061 | LoT: exact heading on first page | partial | P038 | Phrase-variant detection | No action |
 | Q062 | LoT: "(Continued)" on continuation pages | partial | P030 | Variant detection | No action |
-| Q063 | LoT: "Table" label left-aligned | partial | P031 | Presence and approximate alignment; bold not verified | No action |
-| Q064 | LoT: "Page" label right-aligned | partial | P031 | Presence and approximate alignment; bold not verified | No action |
+| Q063 | LoT: "Table" label left-aligned | partial | P031, P050 | Presence and approximate alignment (P031); bold-style check added by P050 when font metadata reliable | No action |
+| Q064 | LoT: "Page" label right-aligned | partial | P031, P049 | Presence and approximate alignment (P031); bold + right-edge alignment check added by P049 | No action |
 | Q065 | LoT: titles title case, no terminal period | partial | P024 | APA title-case and period checks | No action |
 | Q066 | LoT: wrapped table titles single-spaced | partial | P032 | Conservative gap detection | No action |
 | Q067 | LoT: double spacing between table entries | partial | P036 | Visual double-spacing check | No action |
@@ -113,8 +113,8 @@ sketch hanging indent in publications (Q029 — medium FP), or a refine/extend e
 | Q069 | LoT: page numbers right-column aligned | partial | P018 | `misaligned_page_number_column` check | No action |
 | Q070 | LoF: exact heading on first page | partial | P038 | Phrase-variant detection | No action |
 | Q071 | LoF: "(Continued)" on continuation pages | partial | P030 | Variant detection | No action |
-| Q072 | LoF: "Figure" label left-aligned | partial | P031 | Presence and approximate alignment | No action |
-| Q073 | LoF: "Page" label right-aligned | partial | P031 | Presence and approximate alignment | No action |
+| Q072 | LoF: "Figure" label left-aligned | partial | P031, P050 | Presence and approximate alignment (P031); bold-style check added by P050 when font metadata reliable | No action |
+| Q073 | LoF: "Page" label right-aligned | partial | P031, P049 | Presence and approximate alignment (P031); bold + right-edge alignment check added by P049 | No action |
 | Q074 | LoF: descriptions sentence case | partial | P024 | `list_of_figures_sentence_case`; conservative | No action |
 | Q075 | LoF: terminal punctuation on descriptions | partial | P040 | Wrap-continuation and short-line gates | No action |
 | Q076 | LoF: wrapped descriptions single-spaced | partial | P032 | Conservative gap detection | No action |
