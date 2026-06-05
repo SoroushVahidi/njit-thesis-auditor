@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-04
-- **Latest main:** `0290e68` (PR #151 — Refresh status after P051; P001–P051 implemented)
+- **Latest main:** `a315a65` (PR #154 — Implement P052 copyright author format refinement; P001–P052 implemented)
 - **P052:** **implemented** — `src/njit_auditor/rules/pdf_copyright_page.py` (extended); copyright page author-format refinement; emits `copyright_author_not_found` advisory when copyright page + year detected but no author extractable; adds `_extract_copyright_author_adjacent_lines` helper; 8 synthetic tests added; see `docs/planning/p052_scope_and_design.md` and `docs/evaluation/p052_copyright_author_format_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P051:** **implemented** — `src/njit_auditor/rules/pdf_copyright_page.py` (extended); copyright page year-format refinement; emits `copyright_year_not_found` advisory when copyright page detected but no year token found; adds `_extract_copyright_year_adjacent_lines` helper for adjacent-line year patterns; 9 synthetic tests added; see `docs/planning/p051_scope_and_design.md` and `docs/evaluation/p051_copyright_year_format_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P050:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_column_header_style_alignment.py` (extended); LoT/LoF left-column header ("Table"/"Figure") bold-style check (Q063/Q072); 9 synthetic tests added; see `docs/planning/p050_scope_and_design.md` and `docs/evaluation/p050_lot_lof_left_column_header_bold_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -478,8 +478,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | Priority | Task | Rationale |
 |----------|------|-----------|
 | 🟢 Done | P051 implementation | **Implemented:** copyright page year-format refinement (Q010); extends P034 module; see `docs/planning/p051_scope_and_design.md` |
-| 🟡 High | P052 implementation | **Scoped:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
-| 🟡 Med | Full five-PDF P001–P051 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P051 have no current counts |
+| 🟢 Done | P052 implementation | **Implemented:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
+| 🟡 Med | Full five-PDF P001–P052 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P052 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
