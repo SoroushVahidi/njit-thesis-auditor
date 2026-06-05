@@ -1007,5 +1007,35 @@
     "priority": "low",
     "notes": "Q063/Q072 practical extension. Planned module: njit_auditor.rules.pdf_lot_lof_number_format. issue_types: lot_mixed_numbering_format, lof_mixed_numbering_format. Gate: >=2 complete entries of each format type; entries shorter than 10 chars skipped; appendix-prefixed entries (A.1) skipped; pages with < 2 entries skipped. triage_tier: low. See docs/planning/p056_scope_and_design.md.",
     "implementation_module": "njit_auditor.rules.pdf_lot_lof_number_format"
+  },
+  {
+    "id": "P057",
+    "title": "LoT/LoF page-number ordering check",
+    "description": "Emits a warning when a List of Tables or List of Figures page contains complete entries whose listed page numbers are not in non-decreasing order. A decrease in page number between consecutive entries signals an out-of-order entry or copy-paste error.",
+    "phase": "pdf_layout",
+    "source_q_rule_ids": [
+      "Q069",
+      "Q079"
+    ],
+    "implementation_status": "scoped",
+    "implementation_module": null,
+    "triage_tier": "medium",
+    "issue_types": [
+      "lot_page_numbers_not_ascending",
+      "lof_page_numbers_not_ascending"
+    ],
+    "scope_doc": "docs/planning/p057_scope_and_design.md",
+    "section": "PDF Layout — List Pages",
+    "question": "Are the page numbers listed in the List of Tables and List of Figures entries in non-decreasing order?",
+    "rule_definition": "Entries in the List of Tables and List of Figures should reference page numbers in ascending (non-decreasing) order, consistent with the physical order of tables and figures in the document body.",
+    "remediation": "Reorder List of Tables or List of Figures entries so that page numbers appear in ascending order.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "checkability": "deterministic",
+    "input_required": [
+      "pdf"
+    ],
+    "priority": "medium",
+    "notes": "Conservative gate: ≥3 complete entries with integer page numbers and ≥2 inversions before flagging."
   }
 ]
