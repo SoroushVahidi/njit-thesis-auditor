@@ -59,6 +59,7 @@ from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
     check_pdf_lot_lof_column_header_style_alignment,
+    check_pdf_lot_lof_left_column_header_bold,
 )
 from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
@@ -217,6 +218,7 @@ def pdf(
     findings.extend(check_pdf_lot_lof_entry_number_alignment(pdf_doc))
     findings.extend(check_pdf_lot_lof_page_number_alignment(pdf_doc))
     findings.extend(check_pdf_lot_lof_column_header_style_alignment(pdf_doc))
+    findings.extend(check_pdf_lot_lof_left_column_header_bold(pdf_doc))
     findings.extend(check_pdf_toc_list_wrapped_spacing(pdf_doc))
     findings.extend(check_pdf_toc_list_entry_spacing(pdf_doc))
     findings.extend(check_pdf_toc_entry_hierarchy(pdf_doc))

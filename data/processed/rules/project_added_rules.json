@@ -881,5 +881,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Conservative v1 PDF heuristic for Q064 and Q073. Sections: list_of_tables, list_of_figures. Gate: requires >=3 complete entries with page_number_right_x. RIGHT_ALIGNMENT_TOLERANCE_PT=25.0. Uses detect_toc_like_pages, extract_toc_entry_lines, and P031 header-zone helpers. issue_types: lot_page_header_not_right_aligned (Q064), lof_page_header_not_right_aligned (Q073), lot_page_header_not_bold (Q064), lof_page_header_not_bold (Q073). Bold check skipped when font metadata unreliable. Complements P031, P046, P048."
+  },
+  {
+    "id": "P050",
+    "section": "PDF LoT/LoF left-column header bold-style check",
+    "question": "Is the left-column header ('Table'/'Figure') in the List of Tables and List of Figures formatted in bold?",
+    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Locates the left-column header label ('Table' for LoT, 'Figure' for LoF) in the P031 header zone using _matches_left_label. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected left header (handled by P031), sparse pages, image-only pages, and pages where font metadata is unavailable or ambiguous. Findings contain style metadata only — no entry text, captions, titles, header text, or private content.",
+    "remediation": "Ensure the 'Table' and 'Figure' column headers in the List of Tables and List of Figures are formatted in bold.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_column_header_style_alignment",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Conservative v1 PDF heuristic for Q063 and Q072. Sections: list_of_tables, list_of_figures. Gate: requires >=3 complete entries with page_number_right_x. Uses detect_toc_like_pages, extract_toc_entry_lines, _collect_header_zone_lines, and _matches_left_label. issue_types: lot_table_header_not_bold (Q063), lof_figure_header_not_bold (Q072). Bold check skipped when font metadata unreliable. Complements P031 and P049. Left-alignment not rechecked (P031 covers coarse alignment with 80pt tolerance)."
   }
 ]

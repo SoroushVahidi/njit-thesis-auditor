@@ -1,7 +1,7 @@
 # P050 Scope and Design
 
 - **Date:** 2026-06-04
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented**
 - **Baseline main:** `8f2e2e5` (PR #144 — post-P049 documentation consistency; P001–P049 implemented)
 
 ---
@@ -45,7 +45,7 @@ for the "Table" and "Figure" column headers, exactly as P049 added it for the "P
 - No left-column alignment refinement (P031 already checks with 80pt tolerance; risk of FP is higher for alignment than bold).
 - No LoT/LoF entry text, captions, titles, or arbitrary extracted text in findings.
 - No changes to P031 or P049 behavior.
-- No implementation in this scoping PR.
+- Implementation: extended `src/njit_auditor/rules/pdf_lot_lof_column_header_style_alignment.py` with `check_pdf_lot_lof_left_column_header_bold`. Wired into CLI and evaluation mapping. 9 synthetic tests added.
 
 ### Expected module path
 
