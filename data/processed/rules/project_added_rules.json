@@ -948,7 +948,7 @@
     "input_required": [
       "compiled_pdf"
     ],
-    "implementation_status": "scoped",
+    "implementation_status": "implemented",
     "implementation_module": "njit_auditor.rules.pdf_lot_terminal_period",
     "source_file": "project_added",
     "priority": "medium",

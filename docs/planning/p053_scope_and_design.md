@@ -1,7 +1,7 @@
 # P053 Scope and Design
 
 - **Date:** 2026-06-04
-- **Status:** **Scoped**
+- **Status:** **Implemented**
 - **Baseline main:** `0f46dc9` (PR #156 — post-P052 documentation consistency; P001–P052 implemented)
 
 ---
@@ -10,7 +10,7 @@
 
 | Area | State |
 |------|-------|
-| P-rules | **52/52** implemented (`P001`–`P052`) |
+| P-rules | **53/53** implemented (`P001`–`P053`) |
 | LoF terminal punctuation | **P040** — emits warning when LoF complete entries lack `.`/`?`/`!` (Q075); 9 synthetic tests |
 | LoT terminal punctuation gap | Q065 requires "no terminal period" on LoT titles; P024 partially covers title case but does not explicitly check for a stray trailing period on LoT entries |
 | Remaining automatable Q-rule gaps | Q023/Q024/Q025 (bio sketch content — high privacy risk); Q033/Q034 (dedication centering/italic — high FP); Q039–Q043 (acknowledgements semantic — high FP/privacy). All medium-FP addressable gaps have now been covered through P052. |

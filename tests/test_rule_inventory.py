@@ -235,12 +235,7 @@ def test_project_added_rules_implemented() -> None:
     )
     assert by_id["P021"]["phase"] == "tex_source"
     assert by_id["P021"]["implementation_module"] == "njit_auditor.rules.latex_abstract"
-    assert all(
-        item["implementation_status"] == "implemented"
-        for item in project_rules
-        if item["id"] != "P053"
-    )
-    assert by_id["P053"]["implementation_status"] == "scoped"
+    assert all(item["implementation_status"] == "implemented" for item in project_rules)
 
 
 def test_rule_loader_validates_all_rule_files() -> None:
