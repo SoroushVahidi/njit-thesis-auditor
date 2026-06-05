@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `df14d94` (post-P053 documentation consistency; P001–P053 implemented; P054 scoped)
+- **Latest main:** `e0a145b` (PR #161 — Scope P054 next rule; P001–P053 implemented; P054 scoped)
 - **Validation:** ruff, mypy, **588 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`

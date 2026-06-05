@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (post PR #138)
 
-- Date: 2026-06-04 (metadata refresh for P053)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P053 on `main` (`40963be` latest; manifest/eval baseline `00b9c2d`, **588** pytest)
+- Date: 2026-06-04 (metadata refresh for P053/P054 scoping)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P053 implemented, P054 scoped on `main` (`e0a145b` latest; manifest/eval baseline `00b9c2d`, **588** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -51,12 +51,12 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P053**) mapped to implemented modules/checks.
+  Project implementation rule set (**P001-P054**) — P001–P053 implemented; P054 scoped.
 
-From the strict post-P029 audit plus post-audit updates through P053
+From the strict post-P029 audit plus post-audit updates through P053/P054 scoping
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- P-rules: **53/53** implemented (historical audit snapshot listed 29/29 at P029).
+- P-rules: **53/53** implemented, **P054 scoped** (historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data
