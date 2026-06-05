@@ -129,10 +129,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 48,
-        "rule_id_range": "P001-P049",
+        "rule_count": 50,
+        "rule_id_range": "P001-P050",
         "tracked_status": "tracked",
-        "description": "Project implementation rule set mapped to audit modules (P001-P049 implemented)"
+        "description": "Project implementation rule set mapped to audit modules (P001-P050 implemented)"
       }
     ],
     "ef_commented_dissertations": [
