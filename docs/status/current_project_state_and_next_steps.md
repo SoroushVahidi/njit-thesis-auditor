@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-04
-- **Latest main:** `e0a145b` (PR #161 — Scope P054 next rule; P001–P053 implemented; P054 scoped)
+- **Latest main:** `0d0ee55` (PR #162 — Audit full repository state after P053; P001–P053 implemented; P054 scoped)
 - **P054:** **scoped** — `docs/planning/p054_scope_and_design.md`; TOC entry terminal-period absence check (Q050 refinement); planned module `pdf_toc_terminal_period.py`; issue type `toc_entry_has_terminal_period`; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; not yet implemented
 - **P053:** **implemented** — `src/njit_auditor/rules/pdf_lot_terminal_period.py` (new module); LoT entry terminal-period check (Q065 refinement); symmetric counterpart to P040; emits `lot_entry_has_terminal_period` warning when complete LoT entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; 9 synthetic tests added; see `docs/planning/p053_scope_and_design.md` and `docs/evaluation/p053_lot_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P052:** **implemented** — `src/njit_auditor/rules/pdf_copyright_page.py` (extended); copyright page author-format refinement; emits `copyright_author_not_found` advisory when copyright page + year detected but no author extractable; adds `_extract_copyright_author_adjacent_lines` helper; 9 synthetic tests added; see `docs/planning/p052_scope_and_design.md` and `docs/evaluation/p052_copyright_author_format_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
