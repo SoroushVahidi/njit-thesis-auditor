@@ -935,5 +935,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Q011 improvement. issue_type: copyright_author_not_found. Advisory only — emitted when year IS found but author cannot be extracted. Existing P034 author-mismatch finding covers the case where author IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles year/author split-across-lines pattern. Gate: only fires when year is confidently found (avoiding overlap with P051). triage_tier: low."
+  },
+  {
+    "id": "P053",
+    "section": "PDF List of Tables entry terminal-period check",
+    "question": "Do any List of Tables entries incorrectly end with a terminal period?",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q065) require that LoT entry titles use title case with no terminal period. P053 emits a warning when a complete LoT entry (with page-number token) ends with a period after stripping leaders and the 'Table X' prefix. Mirrors P040 (which checks that LoF entries DO have terminal punctuation). Findings contain only structural metadata — no entry text, no table titles.",
+    "remediation": "Remove the trailing period from List of Tables entry titles. Table titles should be in title case without terminal punctuation.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "scoped",
+    "implementation_module": "njit_auditor.rules.pdf_lot_terminal_period",
+    "source_file": "project_added",
+    "priority": "medium",
+    "notes": "Q065 refinement. issue_type: lot_entry_has_terminal_period. Symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have a terminal period). LoT pages only; gate: entry must have page_number_token and text ≥ 10 chars after stripping. Strip leader dots before checking. triage_tier: medium."
   }
 ]
