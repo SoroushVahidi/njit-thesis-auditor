@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `37b33ca` (PR #142 — P049 implementation; P001–P049 implemented)
-- **Validation:** ruff, mypy, **551 pytest** on latest main
+- **Latest main:** `924815d` (PR #146 — P050 implementation; P001–P050 implemented)
+- **Validation:** ruff, mypy, **560 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)

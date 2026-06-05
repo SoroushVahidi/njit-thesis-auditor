@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (post PR #138)
 
-- Date: 2026-06-04 (metadata refresh for P049)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P049 on `main` (`37b33ca` latest; manifest/eval baseline `00b9c2d`, **551** pytest)
+- Date: 2026-06-04 (metadata refresh for P050)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P050 on `main` (`924815d` latest; manifest/eval baseline `00b9c2d`, **560** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P049** implementation rules.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P050** implementation rules.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -51,12 +51,12 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P049**) mapped to implemented modules/checks.
+  Project implementation rule set (**P001-P050**) mapped to implemented modules/checks.
 
-From the strict post-P029 audit plus post-audit updates through P049
+From the strict post-P029 audit plus post-audit updates through P050
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- P-rules: **49/49** implemented (historical audit snapshot listed 29/29 at P029).
+- P-rules: **50/50** implemented (historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data
