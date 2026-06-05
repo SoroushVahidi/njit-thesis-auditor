@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `a315a65` (PR #154 — Implement P052 copyright author format refinement; P001–P052 implemented)
+- **Latest main:** `0f46dc9` (PR #156 — post-P052 documentation consistency; P001–P052 implemented; P053 scoped)
 - **Validation:** ruff, mypy, **579 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 52 (P001–P052) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 53 (P001–P053) | Yes |
 
-P001–P052 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P052 are implemented; P053 is scoped; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
