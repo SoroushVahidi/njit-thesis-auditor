@@ -19,6 +19,18 @@ pip install -e ".[dev]"
 
 ## Usage
 
+### Web upload UI
+
+A browser-based upload form is available via the bundled FastAPI application:
+
+```bash
+python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
+```
+
+Open `http://localhost:8000`, upload a PDF, and view findings in the browser.
+Download JSON or Markdown reports from the results page.
+See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, and deployment notes.
+
 ### PDF layout audit (P011–P053)
 
 ```bash
