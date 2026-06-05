@@ -4,7 +4,7 @@
 - **Module:** `src/njit_auditor/rules/pdf_copyright_page.py`
 - **Function:** `check_pdf_copyright_author_format`
 - **Date:** 2026-06-04
-- **Test file:** `tests/test_pdf_rules.py` (8 tests, `test_p052_*`)
+- **Test file:** `tests/test_pdf_rules.py` (9 tests, `test_p052_*`)
 
 ---
 

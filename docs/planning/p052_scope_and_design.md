@@ -10,7 +10,7 @@
 
 | Area | State |
 |------|-------|
-| P-rules | **51/51** implemented (`P001`–`P051`) |
+| P-rules | **52/52** implemented (`P001`–`P052`) |
 | Copyright page checks | **P034** — top-margin header (Q009), year match (Q010), author match (Q011); heuristic; year extracted on ~1/5 evaluation PDFs; author extracted on ~2/5 |
 | **P051** | Copyright page year-format refinement — year-not-found advisory, adjacent-line year extraction; implemented 2026-06-04 |
 | Copyright author remaining gap | Q011 author extraction recall is low; `_extract_copyright_author` only finds author when on the same line as the copyright marker; author on the next line is not currently detected |
@@ -44,7 +44,7 @@ P034 already handles Q011 but author extraction recall is low (~2/5 evaluation P
 - No changes to P034's existing author-mismatch or year-mismatch logic.
 - No changes to Q009 (top-margin header) or Q010 (year match).
 - No alignment or spacing checks.
-- Implementation: extended `pdf_copyright_page.py` with `_extract_copyright_author_adjacent_lines` helper and `check_pdf_copyright_author_format` (P052). Also extended `_AUTHOR_NOISE_RE` to exclude "all rights reserved" phrases. Wired into CLI and evaluation mapping. 8 synthetic tests added.
+- Implementation: extended `pdf_copyright_page.py` with `_extract_copyright_author_adjacent_lines` helper and `check_pdf_copyright_author_format` (P052). Also extended `_AUTHOR_NOISE_RE` to exclude "all rights reserved" phrases. Wired into CLI and evaluation mapping. 9 synthetic tests added.
 
 ### Expected module path
 
