@@ -24,12 +24,22 @@ pip install -e ".[dev]"
 A browser-based upload form is available via the bundled FastAPI application:
 
 ```bash
+./scripts/run_web_gui.sh              # starts on 0.0.0.0:8000
+# or
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:8000`, upload a PDF, and view findings in the browser.
 Download JSON or Markdown reports from the results page.
-See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, and deployment notes.
+For persistent always-on hosting, start in a detached tmux session:
+
+```bash
+tmux new -d -s thesis-auditor-web \
+  'cd /path/to/njit-thesis-auditor && ./scripts/run_web_gui.sh'
+```
+
+See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, firewall notes,
+reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
 
 ### PDF layout audit (P011–P053)
 
