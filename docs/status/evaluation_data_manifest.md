@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `bbea14b` (PR #167 — Implement P054 TOC terminal-period check; P001–P054 implemented; web GUI present)
+- **Latest main:** `01103fa` (PR #169 — audit post-P054 documentation consistency; P001–P054 implemented; P055 scoped; web GUI present)
 - **Validation:** ruff, mypy, **614 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`

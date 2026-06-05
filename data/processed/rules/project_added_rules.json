@@ -971,5 +971,22 @@
     "priority": "medium",
     "notes": "Q050 refinement (also Q049, Q051). Planned module: njit_auditor.rules.pdf_toc_terminal_period. issue_type: toc_entry_has_terminal_period. Symmetric counterpart to P053 (LoT no terminal period). TOC pages only (page_type == 'table_of_contents'); gate: entry must have page_number_token and text >= 10 chars after stripping. Strip leader dots before checking. triage_tier: medium. See docs/planning/p054_scope_and_design.md.",
     "implementation_module": "njit_auditor.rules.pdf_toc_terminal_period"
+  },
+  {
+    "id": "P055",
+    "section": "PDF List of Tables / List of Figures cross-type entry check",
+    "question": "Do any List of Tables entries start with 'Figure', or any List of Figures entries start with 'Table'?",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q063/Q072) define the List of Tables as containing only table entries and the List of Figures as containing only figure entries. P055 emits an advisory when a complete LoT entry (with page-number token) starts with 'Figure', or a complete LoF entry starts with 'Table'. This catches misplaced entries that indicate a copy-paste error or misconfigured template. Findings contain only structural metadata — no title text.",
+    "remediation": "Move the misplaced entry to the correct section (List of Tables for tables, List of Figures for figures).",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "scoped",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "priority": "medium",
+    "notes": "Q063/Q072 extension. Planned module: njit_auditor.rules.pdf_lot_lof_entry_type. issue_types: lot_entry_is_figure, lof_entry_is_table. Gate: entry must have page_number_token, text >= 10 chars; prefix must be 'Figure' or 'Table' followed by whitespace+digit. triage_tier: medium. See docs/planning/p055_scope_and_design.md."
   }
 ]
