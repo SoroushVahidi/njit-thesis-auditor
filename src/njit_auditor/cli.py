@@ -69,6 +69,7 @@ from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_colu
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_type
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
     check_pdf_lot_lof_page_number_alignment,
 )
@@ -234,6 +235,7 @@ def pdf(
     findings.extend(check_pdf_lof_terminal_punctuation(pdf_doc))
     findings.extend(check_pdf_lot_terminal_period(pdf_doc))
     findings.extend(check_pdf_toc_terminal_period(pdf_doc))
+    findings.extend(check_pdf_lot_lof_entry_type(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 
