@@ -953,5 +953,22 @@
     "source_file": "project_added",
     "priority": "medium",
     "notes": "Q065 refinement. issue_type: lot_entry_has_terminal_period. Symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have a terminal period). LoT pages only; gate: entry must have page_number_token and text ≥ 10 chars after stripping. Strip leader dots before checking. triage_tier: medium."
+  },
+  {
+    "id": "P054",
+    "section": "PDF Table of Contents entry terminal-period absence check",
+    "question": "Do any Table of Contents entries incorrectly end with a terminal period?",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q049/Q050/Q051) require TOC entries at all levels to be in specific case styles (all-caps L1, title case L2, sentence case L3) without terminal punctuation. P054 emits a warning when a complete TOC entry (with page-number token) ends with a period after stripping leaders and any level prefix. Mirrors P053 (LoT entries must not have terminal period). Findings contain only structural metadata — no heading text.",
+    "remediation": "Remove the trailing period from Table of Contents entries. TOC entries should not have terminal punctuation at any level.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "scoped",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "priority": "medium",
+    "notes": "Q050 refinement (also Q049, Q051). Planned module: njit_auditor.rules.pdf_toc_terminal_period. issue_type: toc_entry_has_terminal_period. Symmetric counterpart to P053 (LoT no terminal period). TOC pages only (page_type == 'table_of_contents'); gate: entry must have page_number_token and text >= 10 chars after stripping. Strip leader dots before checking. triage_tier: medium. See docs/planning/p054_scope_and_design.md."
   }
 ]

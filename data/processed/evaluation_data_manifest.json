@@ -23,7 +23,8 @@
     "p050_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p050_current_dataset_evaluation.md",
     "p051_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p051_current_dataset_evaluation.md",
     "p052_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p052_current_dataset_evaluation.md",
-    "p053_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p053_current_dataset_evaluation.md"
+    "p053_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p053_current_dataset_evaluation.md",
+    "p054_current_dataset_note": "P054 scoped only (not yet implemented). No evaluation run."
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -132,10 +133,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 53,
-        "rule_id_range": "P001-P053",
+        "rule_count": 54,
+        "rule_id_range": "P001-P054",
         "tracked_status": "tracked",
-        "description": "Project implementation rule set mapped to audit modules (P001-P053 implemented)"
+        "description": "Project implementation rule set mapped to audit modules (P001-P053 implemented; P054 scoped)"
       }
     ],
     "ef_commented_dissertations": [
