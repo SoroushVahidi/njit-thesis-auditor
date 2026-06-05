@@ -81,6 +81,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P053": "list_of_tables_figures_toc",
         "P054": "list_of_tables_figures_toc",
         "P055": "list_of_tables_figures_toc",
+        "P056": "list_of_tables_figures_toc",
         "P033": "title_page_metadata",
         "P034": "title_page_metadata",
         "P051": "title_page_metadata",

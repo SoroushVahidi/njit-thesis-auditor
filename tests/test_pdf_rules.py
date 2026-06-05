@@ -54,6 +54,7 @@ from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
 from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_type
+from njit_auditor.rules.pdf_lot_lof_number_format import check_pdf_lot_lof_number_format
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
     check_pdf_lot_lof_page_number_alignment,
 )
@@ -7831,3 +7832,230 @@ def test_p055_p053_p054_unaffected(tmp_path: Path) -> None:
     assert p053
     assert not p054
     assert not p055
+
+
+# ---------------------------------------------------------------------------
+# P056: LoT/LoF entry numbering format consistency checks
+# ---------------------------------------------------------------------------
+
+
+def _make_lot_lof_number_format_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+    heading: str = "LIST OF TABLES",
+) -> None:
+    """Build a synthetic LoT or LoF page for P056 testing."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p056_no_lot_lof_page_no_finding(tmp_path: Path) -> None:
+    """No LoT/LoF page → no P056 finding."""
+    pdf_path = tmp_path / "p056_no_list.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "Body text with no LoT or LoF.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_lot_consistent_sequential_no_finding(tmp_path: Path) -> None:
+    """LoT with all sequential (N) entries → no finding."""
+    pdf_path = tmp_path / "p056_lot_seq.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1 Results Overview", "5"),
+        ("Table 2 Comparison of Methods", "12"),
+        ("Table 3 Evaluation Summary", "20"),
+        ("Table 4 Statistical Analysis", "28"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_lot_consistent_chapter_based_no_finding(tmp_path: Path) -> None:
+    """LoT with all chapter-based (X.Y) entries → no finding."""
+    pdf_path = tmp_path / "p056_lot_chap.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1.1 First Chapter Results", "5"),
+        ("Table 1.2 Second Chapter Results", "12"),
+        ("Table 2.1 Another Chapter Table", "20"),
+        ("Table 2.2 More Results Here", "28"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_lot_mixed_format_warns(tmp_path: Path) -> None:
+    """LoT with mixed chapter-based and sequential entries → lot_mixed_numbering_format."""
+    pdf_path = tmp_path / "p056_lot_mixed.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1.1 Chapter Based Entry One", "5"),
+        ("Table 1.2 Chapter Based Entry Two", "12"),
+        ("Table 3 Sequential Entry One", "20"),
+        ("Table 4 Sequential Entry Two", "28"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lot_mixed_numbering_format"
+    assert findings[0].details.get("section_type") == "list_of_tables"
+
+
+def test_p056_lof_consistent_no_finding(tmp_path: Path) -> None:
+    """LoF with consistent numbering → no finding."""
+    pdf_path = tmp_path / "p056_lof_ok.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Figure 1 System Architecture Diagram", "3"),
+        ("Figure 2 Evaluation Results Chart", "7"),
+        ("Figure 3 Comparison Overview Plot", "11"),
+        ("Figure 4 Final Results Summary", "15"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_lof_mixed_format_warns(tmp_path: Path) -> None:
+    """LoF with mixed numbering formats → lof_mixed_numbering_format."""
+    pdf_path = tmp_path / "p056_lof_mixed.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Figure 1.1 Chapter One Architecture", "3"),
+        ("Figure 1.2 Chapter One Results", "7"),
+        ("Figure 3 Sequential Format Entry", "11"),
+        ("Figure 4 Another Sequential Entry", "15"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lof_mixed_numbering_format"
+    assert findings[0].details.get("section_type") == "list_of_figures"
+
+
+def test_p056_wrap_continuation_skipped(tmp_path: Path) -> None:
+    """Entries without page-number token (wrap continuations) are not classified."""
+    pdf_path = tmp_path / "p056_wrap.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1.1 A Long Table Title That Wraps", None),
+        ("  Continuation of Title Here", "5"),
+        ("Table 1.2 Another Entry Chapter Based", None),
+        ("  Continuation Line", "12"),
+        ("Table 2 Sequential Entry Only One", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_sparse_page_skipped(tmp_path: Path) -> None:
+    """LoT page with fewer than 2 entries → skipped."""
+    pdf_path = tmp_path / "p056_sparse.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1 Only One Entry Here", "5"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_toc_entries_unaffected(tmp_path: Path) -> None:
+    """TABLE OF CONTENTS page → P056 does not apply."""
+    pdf_path = tmp_path / "p056_toc.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Chapter 1 Introduction to the Research", "1"),
+        ("Chapter 2 Literature Review Overview", "15"),
+        ("Chapter 3 Methodology and Design", "30"),
+        ("Chapter 4 Results and Discussion", "45"),
+    ], heading="TABLE OF CONTENTS")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert not findings
+
+
+def test_p056_single_format_type_insufficient_no_finding(tmp_path: Path) -> None:
+    """Only one entry of each format type does not trigger (gate: >=2 each)."""
+    pdf_path = tmp_path / "p056_one_each.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1.1 Chapter Based Entry", "5"),
+        ("Table 2 Sequential Entry", "12"),
+        ("Table 3 Another Sequential Entry", "20"),
+        ("Table 4 Yet Another Sequential Entry", "28"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    # Only 1 chapter_based entry → below gate threshold → no finding
+    assert not findings
+
+
+def test_p056_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Findings must not include LoT/LoF entry text, titles, or private content."""
+    pdf_path = tmp_path / "p056_privacy.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Table 1.1 Chapter Based Entry One", "5"),
+        ("Table 1.2 Chapter Based Entry Two", "12"),
+        ("Table 3 Sequential Entry First", "20"),
+        ("Table 4 Sequential Entry Second", "28"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert findings
+    finding = findings[0]
+    allowed_keys = {
+        "issue_type",
+        "page",
+        "section_type",
+        "entry_count",
+        "format_counts",
+        "observed_formats",
+        "dominant_format",
+        "triage_tier",
+        "source_q_rule_id",
+    }
+    assert finding.details.keys() <= allowed_keys
+    assert finding.details.get("triage_tier") == "low"
+    assert finding.details.get("source_q_rule_id") == "Q063"
+    for value in finding.details.values():
+        value_lower = str(value).lower()
+        assert "chapter based entry" not in value_lower
+        assert "sequential entry" not in value_lower
+
+
+def test_p056_import_and_wiring(tmp_path: Path) -> None:
+    """P056 is importable and wired in cli.py."""
+    import inspect
+
+    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    from njit_auditor.rules.pdf_lot_lof_number_format import (
+        check_pdf_lot_lof_number_format as _check,
+    )
+    assert callable(_check)
+    src = inspect.getsource(pdf_cmd)
+    assert "check_pdf_lot_lof_number_format" in src
+
+
+def test_p056_p055_p053_unaffected(tmp_path: Path) -> None:
+    """P053 and P055 still fire correctly after P056 is added."""
+    pdf_path = tmp_path / "p056_unaffected.pdf"
+    _make_lot_lof_number_format_pdf(pdf_path, [
+        ("Figure 2 Misplaced Figure in LoT", "5"),
+        ("Table 2 Correct Table Entry Here", "12"),
+        ("Table 3 Another Correct Table Entry", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    p055 = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    p056 = [f for f in check_pdf_lot_lof_number_format(model) if f.rule_id == "P056"]
+    assert p055  # P055 still fires for the misplaced Figure entry
+    assert not p056  # P056 does not fire (only 1 chapter-based or mixed — insufficient)
