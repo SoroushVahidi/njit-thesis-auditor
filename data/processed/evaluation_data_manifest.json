@@ -2,9 +2,9 @@
   "schema_version": 1,
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P053",
-    "pytest_count_at_last_doc_refresh": 588,
-    "latest_main_at_last_doc_refresh": "40963be",
+    "p_rules_implemented": "P001-P055",
+    "pytest_count_at_last_doc_refresh": 624,
+    "latest_main_at_last_doc_refresh": "25145d8",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
@@ -24,7 +24,8 @@
     "p051_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p051_current_dataset_evaluation.md",
     "p052_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p052_current_dataset_evaluation.md",
     "p053_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p053_current_dataset_evaluation.md",
-    "p054_current_dataset_note": "P054 scoped only (not yet implemented). No evaluation run."
+    "p054_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p054_current_dataset_evaluation.md",
+    "p055_current_dataset_note": "No local audit run — only 4 of 5 evaluation PDFs directly accessible; canonical five-PDF run not possible. See docs/evaluation/p055_current_dataset_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
