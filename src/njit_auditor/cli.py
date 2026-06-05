@@ -97,6 +97,7 @@ from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hiera
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
+from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
 from njit_auditor.rules.title_page import run_title_page_month_check
 
 app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor")
@@ -232,6 +233,7 @@ def pdf(
     findings.extend(check_pdf_toc_appendix_format(pdf_doc))
     findings.extend(check_pdf_lof_terminal_punctuation(pdf_doc))
     findings.extend(check_pdf_lot_terminal_period(pdf_doc))
+    findings.extend(check_pdf_toc_terminal_period(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 

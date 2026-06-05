@@ -868,7 +868,7 @@
     "id": "P049",
     "section": "PDF LoT/LoF column-header style/alignment refinement",
     "question": "Is the 'Page' column header in the List of Tables and List of Figures right-aligned with the page-number column and formatted in bold?",
-    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Derives expected right-column anchor from the median of entry page_number_right_x values. Locates the 'Page' header label in the P031 header zone. If the header's right edge (x1) deviates from the anchor by more than RIGHT_ALIGNMENT_TOLERANCE_PT=25.0pt, emits a right-alignment finding. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected 'Page' header (handled by P031). Findings contain geometry and style metadata only — no entry text, captions, titles, or private content.",
+    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Derives expected right-column anchor from the median of entry page_number_right_x values. Locates the 'Page' header label in the P031 header zone. If the header's right edge (x1) deviates from the anchor by more than RIGHT_ALIGNMENT_TOLERANCE_PT=25.0pt, emits a right-alignment finding. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected 'Page' header (handled by P031). Findings contain geometry and style metadata only \u2014 no entry text, captions, titles, or private content.",
     "remediation": "Ensure the 'Page' column header in the List of Tables and List of Figures is bold and right-aligned over the page-number column.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -886,7 +886,7 @@
     "id": "P050",
     "section": "PDF LoT/LoF left-column header bold-style check",
     "question": "Is the left-column header ('Table'/'Figure') in the List of Tables and List of Figures formatted in bold?",
-    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Locates the left-column header label ('Table' for LoT, 'Figure' for LoF) in the P031 header zone using _matches_left_label. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected left header (handled by P031), sparse pages, image-only pages, and pages where font metadata is unavailable or ambiguous. Findings contain style metadata only — no entry text, captions, titles, header text, or private content.",
+    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Locates the left-column header label ('Table' for LoT, 'Figure' for LoF) in the P031 header zone using _matches_left_label. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected left header (handled by P031), sparse pages, image-only pages, and pages where font metadata is unavailable or ambiguous. Findings contain style metadata only \u2014 no entry text, captions, titles, header text, or private content.",
     "remediation": "Ensure the 'Table' and 'Figure' column headers in the List of Tables and List of Figures are formatted in bold.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -904,8 +904,8 @@
     "id": "P051",
     "section": "PDF copyright page year-format refinement",
     "question": "Is the copyright year present on the Copyright Page in a recognizable format?",
-    "rule_definition": "Conservative heuristic extension of P034. Uses _find_copyright_page (same gate as P034). Attempts year extraction via _extract_copyright_year (existing) and _extract_copyright_year_adjacent_lines (new: copyright marker on line N, standalone year on line N+1). If neither method extracts a year AND no year token exists anywhere on the page, emits a low-confidence advisory. Skips pages where any year token is present but unextractable (conservative false-negative preference). Findings contain only structural metadata — no copyright text, author names, or private content.",
-    "remediation": "Ensure the Copyright Page contains the copyright year in a clearly formatted line such as '© YYYY', 'Copyright YYYY', or '©YYYY'.",
+    "rule_definition": "Conservative heuristic extension of P034. Uses _find_copyright_page (same gate as P034). Attempts year extraction via _extract_copyright_year (existing) and _extract_copyright_year_adjacent_lines (new: copyright marker on line N, standalone year on line N+1). If neither method extracts a year AND no year token exists anywhere on the page, emits a low-confidence advisory. Skips pages where any year token is present but unextractable (conservative false-negative preference). Findings contain only structural metadata \u2014 no copyright text, author names, or private content.",
+    "remediation": "Ensure the Copyright Page contains the copyright year in a clearly formatted line such as '\u00a9 YYYY', 'Copyright YYYY', or '\u00a9YYYY'.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -916,14 +916,14 @@
     "implementation_module": "njit_auditor.rules.pdf_copyright_page",
     "source_file": "project_added",
     "priority": "low",
-    "notes": "Q010 improvement. issue_type: copyright_year_not_found. Advisory only — emitted when year is completely absent from copyright page text. Existing P034 year-mismatch finding covers the case where year IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles Copyright-marker/year split-across-lines pattern. triage_tier: low."
+    "notes": "Q010 improvement. issue_type: copyright_year_not_found. Advisory only \u2014 emitted when year is completely absent from copyright page text. Existing P034 year-mismatch finding covers the case where year IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles Copyright-marker/year split-across-lines pattern. triage_tier: low."
   },
   {
     "id": "P052",
     "section": "PDF copyright page author-format refinement",
     "question": "Is the copyright owner/author name present on the Copyright Page in a recognizable format?",
-    "rule_definition": "Conservative heuristic extension of P034/P051. Uses _find_copyright_page (same gate). Requires that a copyright year was already found (P034 or adjacent-line). Attempts author extraction via _extract_copyright_author (existing) and _extract_copyright_author_adjacent_lines (new: year on line N, author-like string on line N+1). If neither method extracts an author AND year was found, emits a low-confidence advisory. Skips when no year is found (P051's domain). Findings contain only structural metadata — no author names, no copyright text, no private content.",
-    "remediation": "Ensure the Copyright Page contains the copyright owner's full name in a clearly formatted line such as '© YYYY Author Name' or on the line immediately following the copyright year line.",
+    "rule_definition": "Conservative heuristic extension of P034/P051. Uses _find_copyright_page (same gate). Requires that a copyright year was already found (P034 or adjacent-line). Attempts author extraction via _extract_copyright_author (existing) and _extract_copyright_author_adjacent_lines (new: year on line N, author-like string on line N+1). If neither method extracts an author AND year was found, emits a low-confidence advisory. Skips when no year is found (P051's domain). Findings contain only structural metadata \u2014 no author names, no copyright text, no private content.",
+    "remediation": "Ensure the Copyright Page contains the copyright owner's full name in a clearly formatted line such as '\u00a9 YYYY Author Name' or on the line immediately following the copyright year line.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -934,13 +934,13 @@
     "implementation_module": "njit_auditor.rules.pdf_copyright_page",
     "source_file": "project_added",
     "priority": "low",
-    "notes": "Q011 improvement. issue_type: copyright_author_not_found. Advisory only — emitted when year IS found but author cannot be extracted. Existing P034 author-mismatch finding covers the case where author IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles year/author split-across-lines pattern. Gate: only fires when year is confidently found (avoiding overlap with P051). triage_tier: low."
+    "notes": "Q011 improvement. issue_type: copyright_author_not_found. Advisory only \u2014 emitted when year IS found but author cannot be extracted. Existing P034 author-mismatch finding covers the case where author IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles year/author split-across-lines pattern. Gate: only fires when year is confidently found (avoiding overlap with P051). triage_tier: low."
   },
   {
     "id": "P053",
     "section": "PDF List of Tables entry terminal-period check",
     "question": "Do any List of Tables entries incorrectly end with a terminal period?",
-    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q065) require that LoT entry titles use title case with no terminal period. P053 emits a warning when a complete LoT entry (with page-number token) ends with a period after stripping leaders and the 'Table X' prefix. Mirrors P040 (which checks that LoF entries DO have terminal punctuation). Findings contain only structural metadata — no entry text, no table titles.",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q065) require that LoT entry titles use title case with no terminal period. P053 emits a warning when a complete LoT entry (with page-number token) ends with a period after stripping leaders and the 'Table X' prefix. Mirrors P040 (which checks that LoF entries DO have terminal punctuation). Findings contain only structural metadata \u2014 no entry text, no table titles.",
     "remediation": "Remove the trailing period from List of Tables entry titles. Table titles should be in title case without terminal punctuation.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -952,23 +952,24 @@
     "implementation_module": "njit_auditor.rules.pdf_lot_terminal_period",
     "source_file": "project_added",
     "priority": "medium",
-    "notes": "Q065 refinement. issue_type: lot_entry_has_terminal_period. Symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have a terminal period). LoT pages only; gate: entry must have page_number_token and text ≥ 10 chars after stripping. Strip leader dots before checking. triage_tier: medium."
+    "notes": "Q065 refinement. issue_type: lot_entry_has_terminal_period. Symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have a terminal period). LoT pages only; gate: entry must have page_number_token and text \u2265 10 chars after stripping. Strip leader dots before checking. triage_tier: medium."
   },
   {
     "id": "P054",
     "section": "PDF Table of Contents entry terminal-period absence check",
     "question": "Do any Table of Contents entries incorrectly end with a terminal period?",
-    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q049/Q050/Q051) require TOC entries at all levels to be in specific case styles (all-caps L1, title case L2, sentence case L3) without terminal punctuation. P054 emits a warning when a complete TOC entry (with page-number token) ends with a period after stripping leaders and any level prefix. Mirrors P053 (LoT entries must not have terminal period). Findings contain only structural metadata — no heading text.",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q049/Q050/Q051) require TOC entries at all levels to be in specific case styles (all-caps L1, title case L2, sentence case L3) without terminal punctuation. P054 emits a warning when a complete TOC entry (with page-number token) ends with a period after stripping leaders and any level prefix. Mirrors P053 (LoT entries must not have terminal period). Findings contain only structural metadata \u2014 no heading text.",
     "remediation": "Remove the trailing period from Table of Contents entries. TOC entries should not have terminal punctuation at any level.",
     "severity": "warning",
     "source_file": "project_added",
-    "implementation_status": "scoped",
+    "implementation_status": "implemented",
     "phase": "pdf_layout",
     "checkability": "heuristic",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Q050 refinement (also Q049, Q051). Planned module: njit_auditor.rules.pdf_toc_terminal_period. issue_type: toc_entry_has_terminal_period. Symmetric counterpart to P053 (LoT no terminal period). TOC pages only (page_type == 'table_of_contents'); gate: entry must have page_number_token and text >= 10 chars after stripping. Strip leader dots before checking. triage_tier: medium. See docs/planning/p054_scope_and_design.md."
+    "notes": "Q050 refinement (also Q049, Q051). Planned module: njit_auditor.rules.pdf_toc_terminal_period. issue_type: toc_entry_has_terminal_period. Symmetric counterpart to P053 (LoT no terminal period). TOC pages only (page_type == 'table_of_contents'); gate: entry must have page_number_token and text >= 10 chars after stripping. Strip leader dots before checking. triage_tier: medium. See docs/planning/p054_scope_and_design.md.",
+    "implementation_module": "njit_auditor.rules.pdf_toc_terminal_period"
   }
 ]

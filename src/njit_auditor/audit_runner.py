@@ -68,6 +68,7 @@ from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hiera
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
+from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
 
 
 class AuditError(Exception):
@@ -75,7 +76,7 @@ class AuditError(Exception):
 
 
 def run_pdf_audit(pdf_path: Path) -> list[AuditFinding]:
-    """Run all P011–P053 PDF audit checks and return findings.
+    """Run all P011–P054 PDF audit checks and return findings.
 
     Raises AuditError if the file cannot be opened or is not a valid PDF.
     """
@@ -126,6 +127,7 @@ def run_pdf_audit(pdf_path: Path) -> list[AuditFinding]:
     findings.extend(check_pdf_toc_appendix_format(pdf_doc))
     findings.extend(check_pdf_lof_terminal_punctuation(pdf_doc))
     findings.extend(check_pdf_lot_terminal_period(pdf_doc))
+    findings.extend(check_pdf_toc_terminal_period(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(pdf_path)))
 

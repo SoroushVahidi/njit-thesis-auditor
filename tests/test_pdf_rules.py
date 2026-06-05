@@ -5919,6 +5919,165 @@ def test_p053_p040_unaffected(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# P054: TOC entry terminal-period absence check
+# ---------------------------------------------------------------------------
+
+
+from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period  # noqa: E402
+
+
+def _make_toc_terminal_period_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+    heading: str = "TABLE OF CONTENTS",
+) -> None:
+    """Build a synthetic TOC page for P054 testing.
+
+    entries: list of (entry_text, page_number) pairs.
+    If page_number is None the entry is a wrap continuation line.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p054_toc_entry_no_period_no_finding(tmp_path: Path) -> None:
+    """Complete TOC entries without terminal period → no P054 finding."""
+    pdf_path = tmp_path / "p054_no_period.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction and Background Overview", "1"),
+        ("Chapter 2 Literature Review of Related Work", "15"),
+        ("Chapter 3 Methodology and Experimental Design", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_toc_entry_with_period_warns(tmp_path: Path) -> None:
+    """Complete TOC entry ending with '.' → P054 toc_entry_has_terminal_period."""
+    pdf_path = tmp_path / "p054_period.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction and Background Overview.", "1"),
+        ("Chapter 2 Literature Review of Related Work", "15"),
+        ("Chapter 3 Methodology and Experimental Design", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "toc_entry_has_terminal_period"
+
+
+def test_p054_wrap_continuation_skipped(tmp_path: Path) -> None:
+    """Lines without page-number tokens (wrap continuations) are not flagged."""
+    pdf_path = tmp_path / "p054_wrap.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 A Very Long Chapter Title That Wraps", None),
+        ("  to the Next Line and Has No Period", "1"),
+        ("Chapter 2 Another Long Title That Also Wraps", None),
+        ("  Continuation Line Without Period", "15"),
+        ("Chapter 3 Methodology and Design", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_no_toc_page_no_finding(tmp_path: Path) -> None:
+    """No TABLE OF CONTENTS page → no P054 finding."""
+    pdf_path = tmp_path / "p054_no_toc.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "This is a body page with no TOC heading.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_lot_page_not_checked(tmp_path: Path) -> None:
+    """LIST OF TABLES page → P054 does not apply (LoT handled by P053)."""
+    pdf_path = tmp_path / "p054_lot.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Table 1 A Table Entry With Terminal Period.", "5"),
+        ("Table 2 Another Table With Terminal Period.", "12"),
+        ("Table 3 Third Table With Terminal Period.", "20"),
+    ], heading="LIST OF TABLES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_sparse_page_skipped(tmp_path: Path) -> None:
+    """TOC page with fewer than 2 entries → skipped."""
+    pdf_path = tmp_path / "p054_sparse.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction with Terminal Period.", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Findings must not include TOC entry text or chapter title text."""
+    pdf_path = tmp_path / "p054_privacy.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 A Chapter Title That Ends With Period.", "1"),
+        ("Chapter 2 Another Chapter Without Period Here", "15"),
+        ("Chapter 3 Third Chapter Also Without Period", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert findings
+    finding = findings[0]
+    assert "issue_type" in finding.details
+    assert "entry_index" in finding.details
+    assert "page" in finding.details
+    assert "section_type" in finding.details
+    assert finding.details["section_type"] == "table_of_contents"
+    assert finding.details.get("source_q_rule_id") == "Q050"
+    assert finding.details.get("triage_tier") == "medium"
+
+
+def test_p054_import_and_wiring(tmp_path: Path) -> None:
+    """P054 is importable and wired in cli.py."""
+    import inspect
+
+    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    from njit_auditor.rules.pdf_toc_terminal_period import (
+        check_pdf_toc_terminal_period as _check,
+    )
+    assert callable(_check)
+    src = inspect.getsource(pdf_cmd)
+    assert "check_pdf_toc_terminal_period" in src
+
+
+def test_p054_p053_unaffected(tmp_path: Path) -> None:
+    """P053 still fires correctly for LoT entries after P054 added."""
+    pdf_path = tmp_path / "p054_p053_unaffected.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 A Table Entry That Ends With Period.", "5"),
+        ("Table 2 Another Table Without Period", "12"),
+        ("Table 3 Third Table Without Period", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    p053 = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    p054 = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert p053
+    assert not p054
+
+
+# ---------------------------------------------------------------------------
 # P041: Dedication page top-margin header check
 # ---------------------------------------------------------------------------
 
