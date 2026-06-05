@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-05
-- **Latest main:** `bc12222` (PR #175 — Implement P056 LoT LoF numbering format checks; P001–P056 implemented; web GUI present)
+- **Latest main:** `cf86ee3` (PR #179 — Add public PDF URL audit support to web UI; P001–P056 implemented; web GUI present with URL audit)
 - **P056:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_number_format.py` (new module); LoT/LoF entry numbering format consistency check (Q063/Q072 extension); emits `lot_mixed_numbering_format` / `lof_mixed_numbering_format` when a section contains both chapter-based (X.Y) and sequential (N) entry numbering; gates: ≥2 entries of each format type, page_number_token present, ≥10 chars; appendix-prefixed entries skipped; triage_tier: low; 13 synthetic tests added; see `docs/planning/p056_scope_and_design.md` and `docs/evaluation/p056_lot_lof_number_format_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P055:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_type.py` (new module); LoT/LoF cross-type entry check (Q063/Q072 extension); emits `lot_entry_is_figure` when complete LoT entry starts with "Figure", `lof_entry_is_table` when complete LoF entry starts with "Table"; gates: ≥2 entries, page_number_token present, ≥10 chars, prefix must match `^figure\s+\d` or `^table\s+\d`; 10 synthetic tests added; see `docs/planning/p055_scope_and_design.md` and `docs/evaluation/p055_lot_lof_entry_type_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P054:** **implemented** — `src/njit_auditor/rules/pdf_toc_terminal_period.py` (already listed below)
@@ -20,8 +20,8 @@
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P054:** **implemented** — `src/njit_auditor/rules/pdf_toc_terminal_period.py` (new module); TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); emits `toc_entry_has_terminal_period` warning when complete TOC entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; 9 synthetic tests added; see `docs/planning/p054_scope_and_design.md` and `docs/evaluation/p054_toc_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
-- **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; upload form at `/`; background audit task (P011–P056); JSON/Markdown download; runtime files under gitignored `.runtime/web_audits/`; see `docs/web_gui_mvp.md`
-- **Validation:** ruff, mypy, **637 pytest** passed on latest main
+- **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; upload form + public PDF URL form at `/`; `POST /audits/url` with SSRF-safe download (`src/njit_auditor/web_url_fetch.py`); background audit task (P011–P056); JSON/Markdown download; runtime files under gitignored `.runtime/web_audits/`; see `docs/web_gui_mvp.md`
+- **Validation:** ruff, mypy, **663 pytest** passed on latest main
 - **Auditor scope:** P001–P056 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged; rerun threshold now P001–P056)
@@ -473,7 +473,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in 69 source files |
-| `python -m pytest` | ✅ **637 passed** (624 pre-P056 + 13 new P056 synthetic tests) |
+| `python -m pytest` | ✅ **663 passed** (637 pre-URL-audit + 26 new URL audit tests) |
 
 ### P038 at a glance
 
