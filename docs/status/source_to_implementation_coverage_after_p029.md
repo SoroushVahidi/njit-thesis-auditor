@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **51/51 implemented** (`P001`–`P051` in `project_added_rules.json`; updated through P051 — see post-P051 status doc for latest counts).
+- **P-rule implementation:** **52/52 implemented** (`P001`–`P052` in `project_added_rules.json`; updated through P052 — see post-P052 status doc for latest counts).
 - **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -22,7 +22,7 @@
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage updated after P044 audit: 2 implemented, 51 partial, 26 not fully implemented. |
-| `data/processed/rules/project_added_rules.json` | P001–P051 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 51 P-rules are marked implemented and wired in the CLI/testing/docs. |
+| `data/processed/rules/project_added_rules.json` | P001–P052 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | implemented | All 52 P-rules are marked implemented and wired in the CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
 | `data/raw/guidelines/Self-Self Assessment Sheet.pdf` | Checklist-style visual formatting expectations | `P011`, `P015`, `P016`, `P017`, `P026`, `P028` | partially implemented | Core layout signals covered heuristically; checklist semantics and some visual specifics remain unimplemented. |
@@ -267,7 +267,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P044 (consolidated current state)
 
-**Current repository (main `24f3922`; five-PDF eval baseline `00b9c2d`):** P001–P051 implemented; **570** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P051 current-dataset counts (only 4/5 evaluation PDFs accessible).
+**Current repository (main `a315a65`; five-PDF eval baseline `00b9c2d`):** P001–P052 implemented; **579** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P052 current-dataset counts (only 4/5 evaluation PDFs accessible).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -293,10 +293,11 @@ Top 3 next tasks:
 | **P049** | LoT/LoF Page-column header right-alignment and bold-style (Q064/Q073) | **Not run** — only 4/5 evaluation PDFs directly accessible | Checks 'Page' header right-edge alignment and bold style; see `docs/evaluation/p049_lot_lof_column_header_refinement_synthetic_validation.md` |
 | **P050** | LoT/LoF left-column header bold-style (Q063/Q072) | **Not run** — only 4/5 evaluation PDFs directly accessible | Checks 'Table'/'Figure' header bold style when font metadata is reliable; see `docs/evaluation/p050_lot_lof_left_column_header_bold_synthetic_validation.md` |
 | **P051** | Copyright page year-format refinement (Q010) | **Not run** — only 4/5 evaluation PDFs directly accessible | Emits advisory when copyright page detected but no year token found; adjacent-line extraction; see `docs/evaluation/p051_copyright_year_format_refinement_synthetic_validation.md` and `docs/evaluation/p051_current_dataset_evaluation.md` |
+| **P052** | Copyright page author-format refinement (Q011) | **Not run** — only 4/5 evaluation PDFs directly accessible | Emits advisory when copyright page + year detected but no author extractable; adjacent-line author extraction; only fires when year confirmed; hash-only metadata; see `docs/evaluation/p052_copyright_author_format_refinement_synthetic_validation.md` and `docs/evaluation/p052_current_dataset_evaluation.md` |
 
 Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation title text, author names, caption/body/entry text, or body text. Generated JSON summaries remain under `data/evaluation/generated/` (gitignored).
 
-**Full aggregate snapshot (2026-06-01, pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`). P035 local subset (+13 on Yin H 4th only), P036–P051 (not run) documented separately; do not add to 1,446 until a full P001–P051 rerun.
+**Full aggregate snapshot (2026-06-01, pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`). P035 local subset (+13 on Yin H 4th only), P036–P052 (not run) documented separately; do not add to 1,446 until a full P001–P052 rerun.
 
 **P013 reporting refinement (2026-06-01):** `docs/evaluation/p013_reporting_actionability_refinement.md` — `p013_triage` rollup and Markdown triage section; detection unchanged.
 
