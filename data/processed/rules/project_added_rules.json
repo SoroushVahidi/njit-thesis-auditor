@@ -989,5 +989,22 @@
     "priority": "medium",
     "notes": "Q063/Q072 extension. Planned module: njit_auditor.rules.pdf_lot_lof_entry_type. issue_types: lot_entry_is_figure, lof_entry_is_table. Gate: entry must have page_number_token, text >= 10 chars; prefix must be 'Figure' or 'Table' followed by whitespace+digit. triage_tier: medium. See docs/planning/p055_scope_and_design.md.",
     "implementation_module": "njit_auditor.rules.pdf_lot_lof_entry_type"
+  },
+  {
+    "id": "P056",
+    "section": "PDF List of Tables / List of Figures entry numbering format consistency",
+    "question": "Do entries in the List of Tables or List of Figures mix chapter-based (X.Y) and plain sequential (N) numbering formats?",
+    "rule_definition": "Conservative heuristic check. NJIT formatting guidelines (Q063/Q072) imply that LoT and LoF entries should follow a consistent naming convention. P056 emits an advisory when a complete LoT or LoF section contains a mix of chapter-based numbering (e.g., Table 1.2) and plain sequential numbering (e.g., Table 1). Findings contain only structural metadata — no title text.",
+    "remediation": "Choose one numbering format (chapter-based or plain sequential) and apply it consistently throughout the List of Tables and List of Figures.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "implementation_status": "scoped",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "priority": "low",
+    "notes": "Q063/Q072 practical extension. Planned module: njit_auditor.rules.pdf_lot_lof_number_format. issue_types: lot_mixed_numbering_format, lof_mixed_numbering_format. Gate: >=2 complete entries of each format type; entries shorter than 10 chars skipped; appendix-prefixed entries (A.1) skipped; pages with < 2 entries skipped. triage_tier: low. See docs/planning/p056_scope_and_design.md."
   }
 ]
