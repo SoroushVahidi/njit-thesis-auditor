@@ -227,7 +227,11 @@ def test_project_added_rules_implemented() -> None:
         == "njit_auditor.rules.pdf_lot_terminal_period"
     )
     assert by_id["P054"]["phase"] == "pdf_layout"
-    assert by_id["P054"]["implementation_status"] == "scoped"
+    assert by_id["P054"]["implementation_status"] == "implemented"
+    assert (
+        by_id["P054"]["implementation_module"]
+        == "njit_auditor.rules.pdf_toc_terminal_period"
+    )
     assert by_id["P019"]["phase"] == "pdf_layout"
     assert by_id["P019"]["implementation_module"] == "njit_auditor.rules.pdf_page_numbers"
     assert by_id["P020"]["phase"] == "pdf_layout"
@@ -237,9 +241,7 @@ def test_project_added_rules_implemented() -> None:
     )
     assert by_id["P021"]["phase"] == "tex_source"
     assert by_id["P021"]["implementation_module"] == "njit_auditor.rules.latex_abstract"
-    implemented = [r for r in project_rules if str(r["id"]) != "P054"]
-    assert all(item["implementation_status"] == "implemented" for item in implemented)
-    assert by_id["P054"]["implementation_status"] == "scoped"
+    assert all(item["implementation_status"] == "implemented" for item in project_rules)
 
 
 def test_rule_loader_validates_all_rule_files() -> None:

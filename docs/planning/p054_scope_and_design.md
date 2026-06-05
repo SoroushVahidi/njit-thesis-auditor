@@ -1,8 +1,9 @@
 # P054 Scope and Design
 
-- **Date:** 2026-06-04
-- **Status:** **Scoped**
-- **Baseline main:** `df14d94` (PR #160 — post-P053 documentation consistency; P001–P053 implemented)
+- **Date:** 2026-06-05
+- **Status:** **Implemented**
+- **Baseline main:** `4c9c3f5` (PR #166 — Polish web GUI deployment docs; P001–P053 implemented; web UI added)
+- **Implementation commit:** (PR #167 — Implement P054 TOC terminal-period check)
 
 ---
 
