@@ -1,8 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-05
-- **Latest main:** `01103fa` (PR #169 — audit post-P054 documentation consistency; P001–P054 implemented; web GUI present)
-- **P055:** **scoped** — `docs/planning/p055_scope_and_design.md`; LoT/LoF cross-type entry check (Q063/Q072 extension); planned module `pdf_lot_lof_entry_type.py`; issue types `lot_entry_is_figure`, `lof_entry_is_table`; warns when LoT entry starts with "Figure" or LoF entry starts with "Table"; not yet implemented
+- **Latest main:** `25145d8` (PR #171 — Implement P055 LoT LoF entry type checks; P001–P055 implemented; web GUI present)
+- **P055:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_type.py` (new module); LoT/LoF cross-type entry check (Q063/Q072 extension); emits `lot_entry_is_figure` when complete LoT entry starts with "Figure", `lof_entry_is_table` when complete LoF entry starts with "Table"; gates: ≥2 entries, page_number_token present, ≥10 chars, prefix must match `^figure\s+\d` or `^table\s+\d`; 10 synthetic tests added; see `docs/planning/p055_scope_and_design.md` and `docs/evaluation/p055_lot_lof_entry_type_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P054:** **implemented** — `src/njit_auditor/rules/pdf_toc_terminal_period.py` (already listed below)
 - **P053:** **implemented** — `src/njit_auditor/rules/pdf_lot_terminal_period.py` (new module); LoT entry terminal-period check (Q065 refinement); symmetric counterpart to P040; emits `lot_entry_has_terminal_period` warning when complete LoT entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; 9 synthetic tests added; see `docs/planning/p053_scope_and_design.md` and `docs/evaluation/p053_lot_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P052:** **implemented** — `src/njit_auditor/rules/pdf_copyright_page.py` (extended); copyright page author-format refinement; emits `copyright_author_not_found` advisory when copyright page + year detected but no author extractable; adds `_extract_copyright_author_adjacent_lines` helper; 9 synthetic tests added; see `docs/planning/p052_scope_and_design.md` and `docs/evaluation/p052_copyright_author_format_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -19,14 +19,14 @@
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P054:** **implemented** — `src/njit_auditor/rules/pdf_toc_terminal_period.py` (new module); TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); emits `toc_entry_has_terminal_period` warning when complete TOC entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; 9 synthetic tests added; see `docs/planning/p054_scope_and_design.md` and `docs/evaluation/p054_toc_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
-- **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; upload form at `/`; background audit task (P011–P054); JSON/Markdown download; runtime files under gitignored `.runtime/web_audits/`; see `docs/web_gui_mvp.md`
-- **Validation:** ruff, mypy, **614 pytest** passed on latest main
-- **Auditor scope:** P001–P054 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; upload form at `/`; background audit task (P011–P055); JSON/Markdown download; runtime files under gitignored `.runtime/web_audits/`; see `docs/web_gui_mvp.md`
+- **Validation:** ruff, mypy, **624 pytest** passed on latest main
+- **Auditor scope:** P001–P055 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged; rerun threshold now P001–P054)
+- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged; rerun threshold now P001–P055)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
-- **P-rules:** **54/54** implemented (`P001`–`P054`); P055 scoped; P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **55/55** implemented (`P001`–`P055`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (updated inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps; see `docs/status/q_rule_coverage_after_p044.md`)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
@@ -193,6 +193,7 @@
 | `pdf_copyright_page.py` | P052 | Copyright page author-format refinement: advisory when copyright page + year detected but no author extractable (Q011); adjacent-line author extraction; only fires when year is confirmed; hash-only privacy-safe metadata |
 | `pdf_lot_terminal_period.py` | P053 | List of Tables entry terminal-period check: emits warning when complete LoT entry ends with `.` (Q065); symmetric counterpart to P040 (LoF must have terminal punct; LoT must not); gates: ≥2 entries, page_number_token present, ≥10 chars; privacy-safe metadata only (no entry text, table titles) |
 | `pdf_toc_terminal_period.py` | P054 | TOC entry terminal-period absence check: emits warning when complete TOC entry ends with `.` (Q049/Q050/Q051 refinement); symmetric counterpart to P053 for TABLE OF CONTENTS pages; gates: ≥2 entries, page_number_token present, ≥10 chars; privacy-safe metadata only (no TOC entry text, chapter titles) |
+| `pdf_lot_lof_entry_type.py` | P055 | LoT/LoF cross-type entry check: emits warning when complete LoT entry starts with "Figure" (`lot_entry_is_figure`) or complete LoF entry starts with "Table" (`lof_entry_is_table`) (Q063/Q072 extension); gates: ≥2 entries, page_number_token present, ≥10 chars, prefix must match `^figure\s+\d` or `^table\s+\d`; privacy-safe metadata only (no entry text, figure/table titles) |
 
 ### Infrastructure
 
@@ -220,7 +221,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P054) | 54 | 54 | — | — | — |
+| P-rules (P001–P055) | 55 | 55 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -426,6 +427,17 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines (no page_number_token); short entries; sparse pages; ALL-CAPS ≤4-word headings (filtered by shared infrastructure) |
 | Current-dataset eval | **Not run** — only 4/5 evaluation PDFs directly accessible; see `docs/evaluation/p054_current_dataset_evaluation.md` |
 
+### P055 at a glance
+
+| Item | Notes |
+|------|--------|
+| Scope | LoT/LoF cross-type entry check: LoT entries must start with "Table"; LoF entries must start with "Figure" (Q063/Q072 extension) |
+| Gate | Only entries with `page_number_token is not None`; ≥2 entries on page; entry text ≥10 chars; prefix must match `^figure\s+\d` or `^table\s+\d` |
+| Pages checked | LIST OF TABLES and LIST OF FIGURES only; TOC excluded |
+| Issue types | `lot_entry_is_figure`, `lof_entry_is_table` |
+| v1 skips | Wrap-continuation lines (no page_number_token); short entries; sparse pages; ambiguous prefixes |
+| Current-dataset eval | **Not run** — only 4/5 evaluation PDFs directly accessible; see `docs/evaluation/p055_current_dataset_evaluation.md` |
+
 ### P053 at a glance
 
 | Item | Notes |
@@ -437,13 +449,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines (no page_number_token); short entries; sparse pages |
 | Current-dataset eval | **Not run** — only 4/5 evaluation PDFs directly accessible; see `docs/evaluation/p053_current_dataset_evaluation.md` |
 
-## 6. Validation Status (P054 implementation; post-merge)
+## 6. Validation Status (P055 implementation; post-merge)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 67 source files |
-| `python -m pytest` | ✅ **614 passed** (605 pre-P054 + 9 new P054 synthetic tests) |
+| `mypy src` | ✅ No issues in 68 source files |
+| `python -m pytest` | ✅ **624 passed** (614 pre-P055 + 10 new P055 synthetic tests) |
 
 ### P038 at a glance
 
@@ -516,10 +528,11 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟢 Done | P052 implementation | **Implemented:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
 | 🟢 Done | P053 implementation | **Implemented:** LoT entry terminal-period check (Q065 refinement); symmetric to P040; new `pdf_lot_terminal_period.py`; see `docs/planning/p053_scope_and_design.md` |
 | 🟢 Done | P054 scoping | **Scoped:** TOC entry terminal-period absence check (Q050 refinement); planned `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
-| 🟢 Done | Web upload UI | **Added:** FastAPI web app with background audit (P011–P054), polling, JSON/Markdown download; 17 tests; see `docs/web_gui_mvp.md` |
+| 🟢 Done | Web upload UI | **Added:** FastAPI web app with background audit (P011–P055), polling, JSON/Markdown download; 17 tests; see `docs/web_gui_mvp.md` |
 | 🟢 Done | P054 implementation | **Implemented:** TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); new `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
-| 🟡 Med | P055 scoping | Select next automatable Q-rule gap; see `docs/status/q_rule_coverage_after_p044.md` for remaining gaps |
-| 🟡 Med | Full five-PDF P001–P054 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P054 have no current counts |
+| 🟢 Done | P055 implementation | **Implemented:** LoT/LoF cross-type entry check (Q063/Q072 extension); new `pdf_lot_lof_entry_type.py`; issue types `lot_entry_is_figure`, `lof_entry_is_table`; see `docs/planning/p055_scope_and_design.md` |
+| 🟡 Med | P056 scoping | Select next automatable Q-rule gap or practical extension |
+| 🟡 Med | Full five-PDF P001–P055 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P055 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
