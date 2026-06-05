@@ -998,13 +998,14 @@
     "remediation": "Choose one numbering format (chapter-based or plain sequential) and apply it consistently throughout the List of Tables and List of Figures.",
     "severity": "warning",
     "source_file": "project_added",
-    "implementation_status": "scoped",
+    "implementation_status": "implemented",
     "phase": "pdf_layout",
     "checkability": "heuristic",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "low",
-    "notes": "Q063/Q072 practical extension. Planned module: njit_auditor.rules.pdf_lot_lof_number_format. issue_types: lot_mixed_numbering_format, lof_mixed_numbering_format. Gate: >=2 complete entries of each format type; entries shorter than 10 chars skipped; appendix-prefixed entries (A.1) skipped; pages with < 2 entries skipped. triage_tier: low. See docs/planning/p056_scope_and_design.md."
+    "notes": "Q063/Q072 practical extension. Planned module: njit_auditor.rules.pdf_lot_lof_number_format. issue_types: lot_mixed_numbering_format, lof_mixed_numbering_format. Gate: >=2 complete entries of each format type; entries shorter than 10 chars skipped; appendix-prefixed entries (A.1) skipped; pages with < 2 entries skipped. triage_tier: low. See docs/planning/p056_scope_and_design.md.",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_number_format"
   }
 ]
