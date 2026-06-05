@@ -30,6 +30,10 @@ data/evaluation/private/
 /tmp/rar_extract/
 /tmp/handouts/
 
+# Web upload runtime (uploaded PDFs and generated reports must never be committed)
+.runtime/
+var/web_audits/
+
 # OS/editor files
 .DS_Store
 .vscode/

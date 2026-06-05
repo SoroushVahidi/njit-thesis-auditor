@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}NJIT Thesis Auditor — Upload{% endblock %}
+
+{% block content %}
+<h1>NJIT Thesis Auditor</h1>
+<p class="subtitle">Upload a dissertation or thesis PDF to check formatting against NJIT guidelines.</p>
+
+{% if error %}
+<div class="alert-error">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+  <form action="/audits" method="post" enctype="multipart/form-data">
+    <label for="file">Select PDF file</label>
+    <input type="file" id="file" name="file" accept=".pdf" required>
+    <p class="file-hint">PDF only &middot; maximum {{ max_upload_mb }} MB &middot; file is not stored permanently</p>
+    <button type="submit">Audit PDF</button>
+  </form>
+</div>
+
+<h2>What it checks</h2>
+<p style="font-size:0.9rem;color:#555;">
+  Runs P011–P053 heuristic formatting checks: margins, page numbering, heading styles,
+  TOC/List alignment, font compliance, front-matter structure, copyright page, spacing, and more.
+  TeX source audit is available via the CLI only.
+</p>
+<p style="font-size:0.85rem;color:#888;">
+  Uploaded files are processed locally and not committed to any repository.
+  Findings contain structural metadata only — no document body text is stored or displayed.
+</p>
+{% endblock %}

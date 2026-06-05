@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NJIT Thesis Auditor{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      color: #1a1a1a;
+      background: #fafafa;
+      line-height: 1.5;
+    }
+    h1 { font-size: 1.7rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #555; margin-bottom: 2rem; font-size: 0.95rem; }
+    .card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+    input[type="file"] {
+      display: block;
+      padding: 0.4rem 0;
+      margin-bottom: 0.75rem;
+      width: 100%;
+    }
+    .file-hint { font-size: 0.82rem; color: #666; margin-bottom: 1rem; }
+    button, .btn {
+      background: #0059a8;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.55rem 1.4rem;
+      font-size: 1rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button:hover, .btn:hover { background: #004080; }
+    .btn-secondary {
+      background: #fff;
+      color: #0059a8;
+      border: 1px solid #0059a8;
+    }
+    .btn-secondary:hover { background: #eef4fb; }
+    .alert-error {
+      background: #fff3f3;
+      border: 1px solid #f5c6cb;
+      border-radius: 5px;
+      color: #721c24;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge-warn { background: #fff3cd; color: #856404; }
+    .badge-fail { background: #f8d7da; color: #721c24; }
+    .badge-pass { background: #d4edda; color: #155724; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; background: #f0f0f0;
+         border-bottom: 2px solid #d0d0d0; }
+    td { padding: 0.45rem 0.75rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .spinner {
+      display: inline-block;
+      width: 1.2rem; height: 1.2rem;
+      border: 3px solid #ddd;
+      border-top-color: #0059a8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .dl-links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .report-box {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    footer { margin-top: 3rem; color: #aaa; font-size: 0.8rem; text-align: center; }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  {% block content %}{% endblock %}
+  <footer>NJIT Thesis Auditor — heuristic checks only; all findings require human review.</footer>
+</body>
+</html>
