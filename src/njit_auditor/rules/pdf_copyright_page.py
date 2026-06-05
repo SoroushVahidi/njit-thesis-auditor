@@ -1,10 +1,11 @@
-"""Conservative Copyright Page metadata and layout checks (P034, P051).
+"""Conservative Copyright Page metadata and layout checks (P034, P051, P052).
 
 Partial PDF heuristic coverage for Q009–Q011:
   - Q009: no header text in the Copyright page top margin
   - Q010: copyright year matches title-page graduation year (P034);
           copyright year not found at all (P051)
-  - Q011: copyright author name matches title-page author name
+  - Q011: copyright author name matches title-page author name (P034);
+          copyright author not found at all (P052)
 
 Does not quote author names, title text, or body text in findings.
 Does not duplicate Q012 (no page number on copyright page) — see P022.
@@ -40,7 +41,8 @@ _COPYRIGHT_YEAR_LINE_RE = re.compile(
 )
 _AUTHOR_NOISE_RE = re.compile(
     r"^(submitted|a dissertation|a thesis|in partial fulfillment|"
-    r"new jersey institute|njit|doctor of|master of|ph\.?d|committee|date:)\b",
+    r"new jersey institute|njit|doctor of|master of|ph\.?d|committee|date:|"
+    r"all rights reserved|rights reserved)\b",
     re.IGNORECASE,
 )
 _MIN_AUTHOR_NORMALIZED_LEN = 4
@@ -291,6 +293,48 @@ def _extract_copyright_year_adjacent_lines(copyright_page: PdfPage) -> int | Non
     return None
 
 
+def _extract_copyright_author_adjacent_lines(
+    copyright_page: PdfPage,
+) -> tuple[str, str] | None:
+    """Return (normalized, hash) when copyright year and author appear on adjacent lines.
+
+    Handles the pattern where line N has the copyright year (© YYYY or Copyright YYYY)
+    but no recognizable author string, and line N+1 has a plausible author-like string
+    (2+ words, no copyright marker, no year token, no noise patterns).
+    """
+    lines = _sorted_lines(copyright_page)
+    for i, line in enumerate(lines[:-1]):
+        cleaned = line.text.strip()
+        if not cleaned:
+            continue
+        if not _COPYRIGHT_RE.search(cleaned):
+            continue
+        if not _YEAR_TOKEN_RE.search(cleaned):
+            continue  # need a year on this line for context
+        # Already has an author on this line? — handled by _extract_copyright_author
+        existing_match = re.search(
+            r"(?:©|\(c\)|copyright)\s*(?:©\s*)?(?:19|20)\d{2}\s+(.+)$",
+            cleaned,
+            re.IGNORECASE,
+        )
+        if existing_match and existing_match.group(1).strip():
+            continue  # same-line author already handled
+        next_text = lines[i + 1].text.strip()
+        if not next_text:
+            continue
+        if _COPYRIGHT_RE.search(next_text):
+            continue  # next line is another copyright marker line
+        if _YEAR_TOKEN_RE.search(next_text):
+            continue  # year on next line — too ambiguous
+        if _AUTHOR_NOISE_RE.match(next_text):
+            continue
+        normalized = _normalize_author(next_text)
+        if _author_confidence(normalized) != "high":
+            continue
+        return normalized, _stable_author_hash(normalized)
+    return None
+
+
 def _extract_copyright_author(copyright_page: PdfPage) -> tuple[str, str] | None:
     for line in _sorted_lines(copyright_page):
         raw = line.text.strip()
@@ -411,6 +455,46 @@ def check_pdf_copyright_year_format(pdf_document: PdfDocument) -> list[AuditFind
                 ).lower(),
                 "triage_tier": "low",
                 "source_q_rule_id": "Q010",
+            },
+        )
+    ]
+
+
+def check_pdf_copyright_author_format(pdf_document: PdfDocument) -> list[AuditFinding]:
+    """Emit P052 advisory when copyright page and year found but no author is extractable."""
+    copyright_page = _find_copyright_page(pdf_document)
+    if copyright_page is None:
+        return []
+    # Only fire when year IS found (confirming it is a real copyright page with year content)
+    if _extract_copyright_year(copyright_page) is None:
+        if _extract_copyright_year_adjacent_lines(copyright_page) is None:
+            return []  # year not found — P051 handles that; not our concern
+    # If P034 can already extract the author, no advisory needed
+    if _extract_copyright_author(copyright_page) is not None:
+        return []
+    if _extract_copyright_author_adjacent_lines(copyright_page) is not None:
+        return []
+    # Copyright page with year but no author string extractable
+    page_text = " ".join(line.text for line in _sorted_lines(copyright_page))
+    return [
+        AuditFinding(
+            rule_id="P052",
+            severity=Severity.WARNING,
+            page=copyright_page.page_number,
+            message=(
+                "Copyright Page detected with a copyright year but no author or "
+                "copyright-owner name could be confidently identified. Verify that "
+                "the copyright owner name is present and clearly formatted (Q011)."
+            ),
+            details={
+                "issue_type": "copyright_author_not_found",
+                "page": str(copyright_page.page_number),
+                "copyright_marker_detected": str(
+                    bool(_COPYRIGHT_RE.search(page_text))
+                ).lower(),
+                "year_detected": "true",
+                "triage_tier": "low",
+                "source_q_rule_id": "Q011",
             },
         )
     ]
