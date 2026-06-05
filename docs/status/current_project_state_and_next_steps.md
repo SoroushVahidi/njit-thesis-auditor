@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-04
-- **Latest main:** `0d0ee55` (PR #162 — Audit full repository state after P053; P001–P053 implemented; P054 scoped)
+- **Date:** 2026-06-05
+- **Latest main:** `1fe49a8` (PR #164 — Add web upload audit MVP; P001–P053 implemented; P054 scoped; web GUI added)
 - **P054:** **scoped** — `docs/planning/p054_scope_and_design.md`; TOC entry terminal-period absence check (Q050 refinement); planned module `pdf_toc_terminal_period.py`; issue type `toc_entry_has_terminal_period`; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; not yet implemented
 - **P053:** **implemented** — `src/njit_auditor/rules/pdf_lot_terminal_period.py` (new module); LoT entry terminal-period check (Q065 refinement); symmetric counterpart to P040; emits `lot_entry_has_terminal_period` warning when complete LoT entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; 9 synthetic tests added; see `docs/planning/p053_scope_and_design.md` and `docs/evaluation/p053_lot_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P052:** **implemented** — `src/njit_auditor/rules/pdf_copyright_page.py` (extended); copyright page author-format refinement; emits `copyright_author_not_found` advisory when copyright page + year detected but no author extractable; adds `_extract_copyright_author_adjacent_lines` helper; 9 synthetic tests added; see `docs/planning/p052_scope_and_design.md` and `docs/evaluation/p052_copyright_author_format_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -17,7 +17,8 @@
 - **P042:** **implemented** — `src/njit_auditor/rules/pdf_toc_appendix_format.py`; TOC appendix entry format check (Q058/Q059); 9 synthetic tests added; see `docs/planning/p042_scope_and_design.md` and `docs/evaluation/p042_toc_appendix_format_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P041:** **implemented** — `src/njit_auditor/rules/pdf_dedication_page.py`; Dedication page top-margin header check (Q032); 8 synthetic tests added; see `docs/planning/p041_scope_and_design.md` and `docs/evaluation/p041_dedication_page_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Validation:** ruff, mypy, **588 pytest** passed on latest main
+- **Web UI:** FastAPI web application added — `src/njit_auditor/web_app.py`; upload form at `/`; background audit task; JSON/Markdown download; runtime files under gitignored `.runtime/web_audits/`; see `docs/web_gui_mvp.md`
+- **Validation:** ruff, mypy, **605 pytest** passed on latest main
 - **Auditor scope:** P001–P053 implemented; P054 scoped; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P054 rerun)
@@ -194,6 +195,9 @@
 
 | Module | Purpose |
 |--------|---------|
+| `audit_runner.py` | Python API exposing `run_pdf_audit(pdf_path)` — used by CLI and web app |
+| `web_app.py` | FastAPI web application: upload form, background audit task, JSON/Markdown download |
+| `templates/` | Jinja2 HTML templates for the web UI (base, index, job) |
 | `report_outputs.py` | JSON/Markdown report generation; `build_grouped_summary`, `compact_page_list` added for triage summaries |
 | `cli.py` | CLI entry point for both TeX and PDF audit modes |
 | `pdf_layout.py` / `pdf_loader.py` | PDF geometry extraction (pdfplumber) |
@@ -419,13 +423,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines (no page_number_token); short entries; sparse pages |
 | Current-dataset eval | **Not run** — only 4/5 evaluation PDFs directly accessible; see `docs/evaluation/p053_current_dataset_evaluation.md` |
 
-## 6. Validation Status (P053 implementation; post-merge)
+## 6. Validation Status (web GUI MVP; post-merge)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
-| `mypy src` | ✅ No issues in 64 source files |
-| `python -m pytest` | ✅ **588 passed** (579 pre-P053 + 9 new P053 synthetic tests) |
+| `mypy src` | ✅ No issues in 66 source files |
+| `python -m pytest` | ✅ **605 passed** (588 pre-web + 17 new web app tests) |
 
 ### P038 at a glance
 
@@ -498,6 +502,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟢 Done | P052 implementation | **Implemented:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
 | 🟢 Done | P053 implementation | **Implemented:** LoT entry terminal-period check (Q065 refinement); symmetric to P040; new `pdf_lot_terminal_period.py`; see `docs/planning/p053_scope_and_design.md` |
 | 🟢 Done | P054 scoping | **Scoped:** TOC entry terminal-period absence check (Q050 refinement); planned `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
+| 🟢 Done | Web upload UI | **Added:** FastAPI web app with background audit, polling, JSON/Markdown download; 17 tests; see `docs/web_gui_mvp.md` |
+| 🟡 Med | P054 implementation | Implement TOC entry terminal-period check (`pdf_toc_terminal_period.py`); symmetric to P053; see `docs/planning/p054_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P054 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P053 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
