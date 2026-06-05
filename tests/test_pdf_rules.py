@@ -43,6 +43,7 @@ from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
     check_pdf_lot_lof_column_header_style_alignment,
+    check_pdf_lot_lof_left_column_header_bold,
 )
 from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
@@ -6943,4 +6944,144 @@ def test_p049_import_and_wiring() -> None:
 
     empty_doc = PdfDocument(path="test.pdf", pages=[])
     result = check_pdf_lot_lof_column_header_style_alignment(empty_doc)
+    assert result == []
+
+
+# P050 tests
+
+
+def _make_p050_pdf(
+    path: Path,
+    heading: str,
+    *,
+    left_header_bold: bool = True,
+    num_entries: int = 3,
+    page_number_x: float = 500.0,
+    include_left_header: bool = True,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    prefix = "Figure" if "FIGURES" in heading else "Table"
+    if include_left_header:
+        left_fontname = "Times-Bold" if left_header_bold else "helv"
+        page.insert_text((108, 115), prefix, fontname=left_fontname, fontsize=12)
+    page.insert_text((490, 115), "Page", fontname="Times-Bold", fontsize=12)
+    for i in range(num_entries):
+        y = 140 + i * 24
+        page.insert_text(
+            (108, y),
+            f"{prefix} {i + 1} Synthetic placeholder entry text for left-column header checks.",
+        )
+        page.insert_text((page_number_x, y), str(10 + i))
+    doc.save(path)
+    doc.close()
+
+
+def test_p050_no_lot_lof_pages_no_findings(tmp_path: Path) -> None:
+    """No LoT/LoF heading detected → no P050 findings."""
+    pdf_path = tmp_path / "p050_no_list.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "Chapter 1 Introduction ............... 1")
+    page.insert_text((108, 150), "Chapter 2 Background ................ 5")
+    page.insert_text((108, 170), "Chapter 3 Methodology .............. 10")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_left_column_header_bold(model)
+    assert not any(f.rule_id == "P050" for f in findings)
+
+
+def test_p050_lot_left_header_bold_no_findings(tmp_path: Path) -> None:
+    """LoT 'Table' header bold → no lot_table_header_not_bold finding."""
+    pdf_path = tmp_path / "p050_lot_bold_ok.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF TABLES", left_header_bold=True)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_left_column_header_bold(model)
+    assert not any(f.rule_id == "P050" for f in findings)
+
+
+def test_p050_lot_left_header_not_bold_warns(tmp_path: Path) -> None:
+    """LoT 'Table' header not bold with reliable metadata → lot_table_header_not_bold."""
+    pdf_path = tmp_path / "p050_lot_not_bold.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF TABLES", left_header_bold=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_left_column_header_bold(model) if f.rule_id == "P050"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lot_table_header_not_bold" in issue_types
+    assert all(f.details.get("source_q_rule_id") == "Q063" for f in findings)
+
+
+def test_p050_lof_left_header_bold_no_findings(tmp_path: Path) -> None:
+    """LoF 'Figure' header bold → no lof_figure_header_not_bold finding."""
+    pdf_path = tmp_path / "p050_lof_bold_ok.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF FIGURES", left_header_bold=True)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_left_column_header_bold(model)
+    assert not any(f.rule_id == "P050" for f in findings)
+
+
+def test_p050_lof_left_header_not_bold_warns(tmp_path: Path) -> None:
+    """LoF 'Figure' header not bold with reliable metadata → lof_figure_header_not_bold."""
+    pdf_path = tmp_path / "p050_lof_not_bold.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF FIGURES", left_header_bold=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_left_column_header_bold(model) if f.rule_id == "P050"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "lof_figure_header_not_bold" in issue_types
+    assert all(f.details.get("source_q_rule_id") == "Q072" for f in findings)
+
+
+def test_p050_missing_left_header_skipped(tmp_path: Path) -> None:
+    """No left-column header in header zone → no P050 findings (P031 handles this)."""
+    pdf_path = tmp_path / "p050_no_left_header.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF TABLES", include_left_header=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_left_column_header_bold(model)
+    assert not any(f.rule_id == "P050" for f in findings)
+
+
+def test_p050_too_few_entries_skipped(tmp_path: Path) -> None:
+    """Fewer than MIN_COMPLETE_ENTRIES=3 → gate skips P050."""
+    pdf_path = tmp_path / "p050_sparse.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF TABLES", left_header_bold=False, num_entries=2)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_left_column_header_bold(model)
+    assert not any(f.rule_id == "P050" for f in findings)
+
+
+def test_p050_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """P050 findings contain only privacy-safe metadata — no entry text, titles, or header text."""
+    pdf_path = tmp_path / "p050_privacy.pdf"
+    _make_p050_pdf(pdf_path, "LIST OF TABLES", left_header_bold=False)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_left_column_header_bold(model) if f.rule_id == "P050"]
+    assert findings
+    allowed_keys = {
+        "page_number",
+        "issue_type",
+        "section_type",
+        "column_type",
+        "style_signal",
+        "font_metadata_available",
+        "entry_count",
+        "triage_tier",
+        "source_q_rule_id",
+    }
+    forbidden_terms = ("synthetic", "placeholder", "table 1", "caption", "title")
+    for finding in findings:
+        assert finding.details.keys() <= allowed_keys
+        for value in finding.details.values():
+            value_lower = str(value).lower()
+            assert all(term not in value_lower for term in forbidden_terms)
+
+
+def test_p050_import_and_wiring() -> None:
+    """P050 checker is importable and returns a list for an empty document."""
+    from njit_auditor.pdf_models import PdfDocument  # noqa: PLC0415
+
+    empty_doc = PdfDocument(path="test.pdf", pages=[])
+    result = check_pdf_lot_lof_left_column_header_bold(empty_doc)
     assert result == []

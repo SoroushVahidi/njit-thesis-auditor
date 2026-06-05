@@ -1,8 +1,8 @@
-"""P049: LoT/LoF Page-column header right-alignment and bold-style checks.
+"""P049/P050: LoT/LoF column-header style checks.
 
-Partial heuristic PDF coverage for Q064 and Q073.
-Complements P031 (presence/coarse alignment) with tighter right-edge geometry
-and optional bold-style detection.
+P049: Page-column header right-alignment and bold-style (Q064/Q073).
+P050: Left-column header bold-style — "Table"/"Figure" labels (Q063/Q072).
+Complements P031 (presence/coarse alignment) with tighter geometry and style detection.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfTextLine
 from njit_auditor.rules.pdf_lot_lof_column_headers import (
     _collect_header_zone_lines,
+    _matches_left_label,
     _matches_page_label,
 )
 from njit_auditor.rules.pdf_toc_alignment import (
@@ -37,6 +38,16 @@ _ISSUE_TYPE_BOLD = {
 _Q_RULE = {
     "list_of_tables": "Q064",
     "list_of_figures": "Q073",
+}
+
+# P050 — left-column header bold check
+_ISSUE_TYPE_LEFT_BOLD = {
+    "list_of_tables": "lot_table_header_not_bold",
+    "list_of_figures": "lof_figure_header_not_bold",
+}
+_Q_RULE_LEFT = {
+    "list_of_tables": "Q063",
+    "list_of_figures": "Q072",
 }
 _SECTION_LABEL = {
     "list_of_tables": "List of Tables",
@@ -132,6 +143,60 @@ def check_pdf_lot_lof_column_header_style_alignment(
                         "issue_type": _ISSUE_TYPE_BOLD[section],
                         "section_type": section,
                         "column_type": "page",
+                        "entry_count": str(len(complete)),
+                        "triage_tier": "low",
+                        "source_q_rule_id": q_rule,
+                    },
+                )
+            )
+
+    return findings
+
+
+def check_pdf_lot_lof_left_column_header_bold(
+    pdf_document: PdfDocument,
+) -> list[AuditFinding]:
+    """Emit P050 warnings for LoT/LoF left-column header bold-style issues."""
+
+    findings: list[AuditFinding] = []
+
+    for context in detect_toc_like_pages(pdf_document):
+        if context.page_type not in _TARGET_SECTIONS:
+            continue
+
+        complete = _complete_entries(extract_toc_entry_lines(context))
+        if len(complete) < MIN_COMPLETE_ENTRIES:
+            continue
+
+        header_lines = _collect_header_zone_lines(context)
+        left_matches = [
+            ln for ln in header_lines if _matches_left_label(ln.text, context.page_type)
+        ]
+        if not left_matches:
+            continue  # P031 handles missing left header
+
+        left_line = min(left_matches, key=lambda ln: ln.bbox.x0)
+        section = context.page_type
+        page_num = context.page.page_number
+        q_rule = _Q_RULE_LEFT[section]
+
+        if _is_line_confidently_not_bold(left_line):
+            findings.append(
+                AuditFinding(
+                    rule_id="P050",
+                    severity=Severity.WARNING,
+                    page=page_num,
+                    message=(
+                        f"{_SECTION_LABEL[section]} left column header does not appear "
+                        f"to be bold, as required by NJIT guidelines ({q_rule})."
+                    ),
+                    details={
+                        "page_number": str(page_num),
+                        "issue_type": _ISSUE_TYPE_LEFT_BOLD[section],
+                        "section_type": section,
+                        "column_type": "left",
+                        "style_signal": "font_metadata",
+                        "font_metadata_available": "true",
                         "entry_count": str(len(complete)),
                         "triage_tier": "low",
                         "source_q_rule_id": q_rule,
