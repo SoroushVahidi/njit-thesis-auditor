@@ -19,7 +19,7 @@
 - **Validation:** ruff, mypy, **588 pytest** passed on latest main
 - **Auditor scope:** P001–P053 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P052 rerun)
+- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P053 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **53/53** implemented (`P001`–`P053` in `project_added_rules.json`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -212,7 +212,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P052) | 52 | 52 | — | — | — |
+| P-rules (P001–P053) | 53 | 53 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
