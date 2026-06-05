@@ -474,6 +474,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | Priority | Task | Rationale |
 |----------|------|-----------|
 | 🟢 Done | P051 implementation | **Implemented:** copyright page year-format refinement (Q010); extends P034 module; see `docs/planning/p051_scope_and_design.md` |
+| 🟡 High | P052 implementation | **Scoped:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P051 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P051 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
