@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-04
-- **Latest main:** `df14d94` (PR #160 — post-P053 documentation consistency; P001–P053 implemented; P054 scoped)
+- **Latest main:** `e0a145b` (PR #161 — Scope P054 next rule; P001–P053 implemented; P054 scoped)
 - **P054:** **scoped** — `docs/planning/p054_scope_and_design.md`; TOC entry terminal-period absence check (Q050 refinement); planned module `pdf_toc_terminal_period.py`; issue type `toc_entry_has_terminal_period`; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; not yet implemented
 - **P053:** **implemented** — `src/njit_auditor/rules/pdf_lot_terminal_period.py` (new module); LoT entry terminal-period check (Q065 refinement); symmetric counterpart to P040; emits `lot_entry_has_terminal_period` warning when complete LoT entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; 9 synthetic tests added; see `docs/planning/p053_scope_and_design.md` and `docs/evaluation/p053_lot_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P052:** **implemented** — `src/njit_auditor/rules/pdf_copyright_page.py` (extended); copyright page author-format refinement; emits `copyright_author_not_found` advisory when copyright page + year detected but no author extractable; adds `_extract_copyright_author_adjacent_lines` helper; 9 synthetic tests added; see `docs/planning/p052_scope_and_design.md` and `docs/evaluation/p052_copyright_author_format_refinement_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -20,7 +20,7 @@
 - **Validation:** ruff, mypy, **588 pytest** passed on latest main
 - **Auditor scope:** P001–P053 implemented; P054 scoped; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P053 rerun)
+- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged until full P001–P054 rerun)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **53/53** implemented (`P001`–`P053`); **P054 scoped** (`project_added_rules.json`; 54 entries total); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -497,12 +497,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟢 Done | P051 implementation | **Implemented:** copyright page year-format refinement (Q010); extends P034 module; see `docs/planning/p051_scope_and_design.md` |
 | 🟢 Done | P052 implementation | **Implemented:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
 | 🟢 Done | P053 implementation | **Implemented:** LoT entry terminal-period check (Q065 refinement); symmetric to P040; new `pdf_lot_terminal_period.py`; see `docs/planning/p053_scope_and_design.md` |
-| 🟡 Med | Full five-PDF P001–P053 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P053 have no current counts |
+| 🟢 Done | P054 scoping | **Scoped:** TOC entry terminal-period absence check (Q050 refinement); planned `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
+| 🟡 Med | Full five-PDF P001–P054 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P053 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
 | 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
 | 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
-No P036–P053 current-dataset counts exist yet. Full pre-P035 five-PDF aggregate evaluation remains at
+No P036–P053 current-dataset counts exist yet; P054 not yet implemented. Full pre-P035 five-PDF aggregate evaluation remains at
 `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings).
