@@ -35,4 +35,4 @@ P050 checks that the "Table" column header in the List of Tables and the "Figure
 
 ## Recommendation
 
-Do not add P050 counts to the 1,446 canonical aggregate until a full P001–P052 five-PDF rerun is completed with all five evaluation PDFs accessible.
+Do not add P050 counts to the 1,446 canonical aggregate until a full P001–P053 five-PDF rerun is completed with all five evaluation PDFs accessible.
