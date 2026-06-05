@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (post PR #138)
 
 - Date: 2026-06-04 (metadata refresh for P053/P054 scoping)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P053 implemented, P054 scoped on `main` (`e0a145b` latest; manifest/eval baseline `00b9c2d`, **588** pytest)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P053 implemented, P054 scoped on `main` (`0d0ee55` latest; manifest/eval baseline `00b9c2d`, **588** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
