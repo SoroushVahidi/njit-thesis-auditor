@@ -56,7 +56,7 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
 | `data/processed/rules/project_added_rules.json` | P | 54 (P001–P054) | Yes |
 
-P001–P053 are implemented; P054 is scoped but not yet implemented; full Q-rule / guideline source coverage is not complete
+P001–P054 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
