@@ -1,7 +1,7 @@
 # P051 Scope and Design
 
 - **Date:** 2026-06-04
-- **Status:** **Scoped — not yet implemented**
+- **Status:** **Implemented**
 - **Baseline main:** `4ee5bd3` (PR #148 — post-P050 documentation consistency; P001–P050 implemented)
 
 ---
@@ -47,7 +47,7 @@ P034 already handles Q009/Q010/Q011, but year and author extraction recall is lo
 - No changes to P034's existing year-mismatch or author-mismatch logic.
 - No changes to Q011 (author match) — author extraction recall improvement deferred.
 - No alignment or spacing checks (covered by P034's Q009 check).
-- No implementation in this scoping PR.
+- Implementation: extended `pdf_copyright_page.py` with `_extract_copyright_year_adjacent_lines` helper and `check_pdf_copyright_year_format` (P051). Wired into CLI and evaluation mapping. 9 synthetic tests added.
 
 ### Expected module path
 

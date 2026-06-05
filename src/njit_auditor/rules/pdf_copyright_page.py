@@ -1,8 +1,9 @@
-"""Conservative Copyright Page metadata and layout checks (P034).
+"""Conservative Copyright Page metadata and layout checks (P034, P051).
 
 Partial PDF heuristic coverage for Q009–Q011:
   - Q009: no header text in the Copyright page top margin
-  - Q010: copyright year matches title-page graduation year
+  - Q010: copyright year matches title-page graduation year (P034);
+          copyright year not found at all (P051)
   - Q011: copyright author name matches title-page author name
 
 Does not quote author names, title text, or body text in findings.
@@ -264,6 +265,32 @@ def _authors_match_with_middle_initial_tolerance(
     return extra in _NAME_SUFFIX_TOKENS
 
 
+def _extract_copyright_year_adjacent_lines(copyright_page: PdfPage) -> int | None:
+    """Return copyright year when marker and year appear on adjacent lines.
+
+    Handles the pattern where line N has a copyright marker but no year token
+    and line N+1 has exactly one year token with no other significant text.
+    """
+    lines = _sorted_lines(copyright_page)
+    for i, line in enumerate(lines[:-1]):
+        cleaned = line.text.strip()
+        if not cleaned:
+            continue
+        if not _COPYRIGHT_RE.search(cleaned):
+            continue
+        if _YEAR_TOKEN_RE.search(cleaned):
+            continue  # year on same line — existing _COPYRIGHT_YEAR_LINE_RE handles it
+        next_text = lines[i + 1].text.strip()
+        years = [int(m.group()) for m in _YEAR_TOKEN_RE.finditer(next_text)]
+        if len(years) != 1:
+            continue
+        non_year = _YEAR_TOKEN_RE.sub("", next_text).strip()
+        if re.search(r"[A-Za-z]{2,}", non_year):
+            continue  # other text alongside year — too ambiguous
+        return years[0]
+    return None
+
+
 def _extract_copyright_author(copyright_page: PdfPage) -> tuple[str, str] | None:
     for line in _sorted_lines(copyright_page):
         raw = line.text.strip()
@@ -352,6 +379,41 @@ def _check_author_consistency(
             "confidence": "high",
         },
     )
+
+
+def check_pdf_copyright_year_format(pdf_document: PdfDocument) -> list[AuditFinding]:
+    """Emit P051 advisory when copyright page is detected but no copyright year is found."""
+    copyright_page = _find_copyright_page(pdf_document)
+    if copyright_page is None:
+        return []
+    if _extract_copyright_year(copyright_page) is not None:
+        return []
+    if _extract_copyright_year_adjacent_lines(copyright_page) is not None:
+        return []
+    page_text = " ".join(line.text for line in _sorted_lines(copyright_page))
+    if _YEAR_TOKEN_RE.search(page_text):
+        return []  # year present but unextractable — conservative skip
+    return [
+        AuditFinding(
+            rule_id="P051",
+            severity=Severity.WARNING,
+            page=copyright_page.page_number,
+            message=(
+                "Copyright Page detected but no copyright year could be confidently "
+                "identified. Verify that the copyright year is present and correctly "
+                "formatted (Q010)."
+            ),
+            details={
+                "issue_type": "copyright_year_not_found",
+                "page": str(copyright_page.page_number),
+                "copyright_marker_detected": str(
+                    bool(_COPYRIGHT_RE.search(page_text))
+                ).lower(),
+                "triage_tier": "low",
+                "source_q_rule_id": "Q010",
+            },
+        )
+    ]
 
 
 def check_pdf_copyright_page(pdf_document: PdfDocument) -> list[AuditFinding]:
