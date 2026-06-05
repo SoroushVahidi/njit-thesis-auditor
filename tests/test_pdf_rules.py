@@ -56,6 +56,7 @@ from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
     check_pdf_lot_lof_page_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_terminal_period import check_pdf_lot_terminal_period
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
 from njit_auditor.rules.pdf_page_numbers import (
@@ -5755,6 +5756,166 @@ def test_p040_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P040" for item in payload.get("findings", []))
+
+
+# ---------------------------------------------------------------------------
+# P053: LoT entry terminal-period check
+# ---------------------------------------------------------------------------
+
+
+def _make_lot_terminal_period_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+    heading: str = "LIST OF TABLES",
+) -> None:
+    """Build a synthetic LoT page for P053 testing.
+
+    entries: list of (entry_text, page_number) pairs.
+    If page_number is None the entry is a wrap continuation line.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p053_lot_entry_no_period_no_finding(tmp_path: Path) -> None:
+    """Complete LoT entries without terminal period → no P053 finding."""
+    pdf_path = tmp_path / "p053_no_period.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Summary of Experimental Results", "5"),
+        ("Table 2 Comparison of Algorithm Performance", "12"),
+        ("Table 3 Overview of Evaluation Metrics", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_lot_entry_with_period_warns(tmp_path: Path) -> None:
+    """Complete LoT entry ending with '.' → P053 lot_entry_has_terminal_period."""
+    pdf_path = tmp_path / "p053_period.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Summary of Results With Terminal Period.", "5"),
+        ("Table 2 Another Table Without Period", "12"),
+        ("Table 3 Third Entry Without Period", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lot_entry_has_terminal_period"
+
+
+def test_p053_wrap_continuation_skipped(tmp_path: Path) -> None:
+    """Lines without page-number tokens (leading wrap lines) are not flagged."""
+    pdf_path = tmp_path / "p053_wrap.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 A Long Table Title That Wraps Onto", None),
+        ("  the Next Line and Has No Period", "5"),
+        ("Table 2 Another Entry That Also Wraps", None),
+        ("  Continuation Ending Without Period", "12"),
+        ("Table 3 Short Entry No Period Here", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_no_lot_page_no_finding(tmp_path: Path) -> None:
+    """No LIST OF TABLES page → no P053 finding."""
+    pdf_path = tmp_path / "p053_no_lot.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "This is a body page with no LoT heading.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_lof_page_not_checked(tmp_path: Path) -> None:
+    """LIST OF FIGURES page → P053 does not apply."""
+    pdf_path = tmp_path / "p053_lof.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Figure 1 An Example Figure Caption With Period.", "5"),
+        ("Figure 2 Another Figure Description With Period.", "12"),
+        ("Figure 3 Third Figure Also Has Period.", "20"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_sparse_page_skipped(tmp_path: Path) -> None:
+    """LoT page with fewer than 2 entries → skipped."""
+    pdf_path = tmp_path / "p053_sparse.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Only One Entry With Terminal Period Here.", "5"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Findings must not include table title text or entry text."""
+    pdf_path = tmp_path / "p053_privacy.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 A Table Entry That Ends With Period And Should Warn.", "5"),
+        ("Table 2 Another Entry Without Period", "12"),
+        ("Table 3 Third Entry Also Without Period", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert findings
+    finding = findings[0]
+    assert "issue_type" in finding.details
+    assert "entry_index" in finding.details
+    assert "page" in finding.details
+    assert "section_type" in finding.details
+    assert finding.details["section_type"] == "list_of_tables"
+    assert finding.details.get("source_q_rule_id") == "Q065"
+    assert finding.details.get("triage_tier") == "medium"
+    for key, value in finding.details.items():
+        assert "table" not in str(value).lower() or key in ("issue_type", "section_type"), (
+            f"Entry text may have leaked into details[{key!r}]"
+        )
+
+
+def test_p053_import_and_wiring(tmp_path: Path) -> None:
+    """P053 is importable and wired in cli.py."""
+    import inspect
+
+    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    from njit_auditor.rules.pdf_lot_terminal_period import (
+        check_pdf_lot_terminal_period as _check,
+    )
+    assert callable(_check)
+    src = inspect.getsource(pdf_cmd)
+    assert "check_pdf_lot_terminal_period" in src
+
+
+def test_p053_p040_unaffected(tmp_path: Path) -> None:
+    """P040 (LoF terminal punctuation) unaffected by P053 implementation."""
+    pdf_path = tmp_path / "p053_p040_unaffected.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Figure 1 Entry Without Terminal Punctuation", "5"),
+        ("Figure 2 Another Entry Without Punctuation", "12"),
+        ("Figure 3 Third Entry Also Missing Punctuation", "20"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    p040 = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    p053 = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert p040
+    assert not p053
 
 
 # ---------------------------------------------------------------------------
