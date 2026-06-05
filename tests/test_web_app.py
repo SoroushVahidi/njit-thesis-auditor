@@ -294,6 +294,303 @@ def test_runtime_dir_is_gitignored(tmp_path: Path) -> None:
     assert ".runtime/" in gitignore or ".runtime" in gitignore
 
 
+# ---------------------------------------------------------------------------
+# URL fetch module — SSRF / scheme / host unit tests (no web client needed)
+# ---------------------------------------------------------------------------
+
+
+def test_url_fetch_rejects_file_scheme() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _validate_url
+
+    with pytest.raises(FetchError, match="http"):
+        _validate_url("file:///etc/passwd")
+
+
+def test_url_fetch_rejects_ftp_scheme() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _validate_url
+
+    with pytest.raises(FetchError, match="http"):
+        _validate_url("ftp://example.com/thesis.pdf")
+
+
+def test_url_fetch_rejects_empty_host() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _validate_url
+
+    with pytest.raises(FetchError):
+        _validate_url("http:///x.pdf")
+
+
+def test_url_fetch_rejects_localhost() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _check_host
+
+    with pytest.raises(FetchError, match="localhost"):
+        _check_host("localhost")
+
+
+def test_url_fetch_rejects_loopback_ip() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _check_host
+
+    with pytest.raises(FetchError):
+        _check_host("127.0.0.1")
+
+
+def test_url_fetch_rejects_private_class_a() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _check_host
+
+    with pytest.raises(FetchError):
+        _check_host("10.0.0.1")
+
+
+def test_url_fetch_rejects_private_class_c() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _check_host
+
+    with pytest.raises(FetchError):
+        _check_host("192.168.1.100")
+
+
+def test_url_fetch_rejects_link_local() -> None:
+    from njit_auditor.web_url_fetch import FetchError, _check_host
+
+    with pytest.raises(FetchError):
+        _check_host("169.254.0.1")
+
+
+def test_url_fetch_rejects_private_via_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    import socket
+
+    from njit_auditor.web_url_fetch import FetchError, _check_host
+
+    original = socket.getaddrinfo
+
+    def fake_getaddrinfo(host: str, port: Any, *args: Any, **kwargs: Any) -> Any:
+        if "evil" in host:
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("192.168.10.10", 0))]
+        return original(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    with pytest.raises(FetchError, match="private"):
+        _check_host("evil.internal.example.com")
+
+
+def test_url_fetch_ip_is_private_v4() -> None:
+    from njit_auditor.web_url_fetch import _ip_is_private
+
+    assert _ip_is_private("10.10.10.10") is True
+    assert _ip_is_private("172.20.0.1") is True
+    assert _ip_is_private("192.168.0.1") is True
+    assert _ip_is_private("127.0.0.1") is True
+    assert _ip_is_private("169.254.1.1") is True
+
+
+def test_url_fetch_ip_is_private_v6() -> None:
+    from njit_auditor.web_url_fetch import _ip_is_private
+
+    assert _ip_is_private("::1") is True
+    assert _ip_is_private("fe80::1") is True
+    assert _ip_is_private("fc00::1") is True
+
+
+def test_url_fetch_public_ip_not_private() -> None:
+    from njit_auditor.web_url_fetch import _ip_is_private
+
+    assert _ip_is_private("8.8.8.8") is False
+    assert _ip_is_private("1.1.1.1") is False
+
+
+# ---------------------------------------------------------------------------
+# /audits/url route tests
+# ---------------------------------------------------------------------------
+
+
+def test_index_contains_url_form(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert b"pdf_url" in resp.content
+    assert b"/audits/url" in resp.content
+
+
+def test_url_audit_missing_url_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post("/audits/url", data={}, follow_redirects=False)
+    assert resp.status_code == 400
+    assert b"PDF URL" in resp.content or b"provide" in resp.content.lower()
+
+
+def test_url_audit_whitespace_url_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post("/audits/url", data={"pdf_url": "   "}, follow_redirects=False)
+    assert resp.status_code == 400
+
+
+def test_url_audit_non_http_scheme_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits/url",
+        data={"pdf_url": "file:///etc/passwd"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+    assert b"http" in resp.content.lower()
+
+
+def test_url_audit_localhost_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits/url",
+        data={"pdf_url": "http://localhost/thesis.pdf"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+
+
+def test_url_audit_loopback_ip_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits/url",
+        data={"pdf_url": "http://127.0.0.1/thesis.pdf"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+
+
+def test_url_audit_private_ip_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits/url",
+        data={"pdf_url": "http://10.0.0.1/thesis.pdf"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+
+
+def test_url_audit_resolves_to_private_rejected(
+    client: tuple[TestClient, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import socket
+
+    original = socket.getaddrinfo
+
+    def fake_getaddrinfo(host: str, port: Any, *args: Any, **kwargs: Any) -> Any:
+        if "evil" in host:
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("192.168.99.1", 0))]
+        return original(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    c, _ = client
+    resp = c.post(
+        "/audits/url",
+        data={"pdf_url": "http://evil.internal.corp/thesis.pdf"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+
+
+def test_url_audit_valid_public_url_creates_job(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+
+    def _fake_fetch(url: str, dest: Path, max_bytes: int) -> None:
+        dest.write_bytes(_MINIMAL_PDF)
+
+    with patch.object(wa, "fetch_pdf_url", _fake_fetch):
+        with patch.object(wa, "_run_audit_task", lambda job_id: None):
+            resp = c.post(
+                "/audits/url",
+                data={"pdf_url": "https://example.com/thesis.pdf"},
+                follow_redirects=False,
+            )
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/audits/")
+
+
+def test_url_audit_fetch_error_shows_error(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+    from njit_auditor.web_url_fetch import FetchError
+
+    def _raise(url: str, dest: Path, max_bytes: int) -> None:
+        raise FetchError("The URL does not point to a valid PDF file.")
+
+    with patch.object(wa, "fetch_pdf_url", _raise):
+        resp = c.post(
+            "/audits/url",
+            data={"pdf_url": "https://example.com/fake.bin"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 400
+    assert b"does not point to a valid PDF" in resp.content
+
+
+def test_url_audit_oversized_shows_error(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+    from njit_auditor.web_url_fetch import FetchError
+
+    def _raise(url: str, dest: Path, max_bytes: int) -> None:
+        raise FetchError("Download exceeds the maximum allowed size.")
+
+    with patch.object(wa, "fetch_pdf_url", _raise):
+        resp = c.post(
+            "/audits/url",
+            data={"pdf_url": "https://example.com/huge.pdf"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 400
+    assert b"exceeds" in resp.content.lower()
+
+
+def test_url_audit_job_download_json(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """URL-created job uses same download endpoints as file-upload jobs."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}/download/json")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "findings" in data
+
+
+def test_url_audit_job_download_markdown(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}/download/markdown")
+    assert resp.status_code == 200
+    ct = resp.headers["content-type"]
+    assert "text/markdown" in ct or "text/plain" in ct
+
+
+def test_url_audit_fetch_error_cleans_up_dir(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Failed URL fetch removes the job directory (no orphaned dirs)."""
+    c, wa = client
+    from njit_auditor.web_url_fetch import FetchError
+
+    runtime_dir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
+
+    def _raise(url: str, dest: Path, max_bytes: int) -> None:
+        raise FetchError("not a PDF")
+
+    with patch.object(wa, "fetch_pdf_url", _raise):
+        c.post(
+            "/audits/url",
+            data={"pdf_url": "https://example.com/fake.bin"},
+            follow_redirects=False,
+        )
+
+    if runtime_dir.exists():
+        job_dirs = list(runtime_dir.iterdir())
+        # Any dir left should have at least upload.pdf (a completed job from earlier)
+        for jdir in job_dirs:
+            assert (jdir / "upload.pdf").exists(), f"Orphaned dir without upload: {jdir}"
+
+
 def test_runtime_files_not_in_ls_files(tmp_path: Path) -> None:
     import subprocess
 

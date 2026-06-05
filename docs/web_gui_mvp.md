@@ -1,7 +1,8 @@
 # Web Upload UI — MVP Guide
 
 The NJIT Thesis Auditor includes a FastAPI web application that lets users upload a PDF
-dissertation and receive a formatted audit report in the browser — no CLI or Python knowledge required.
+dissertation (or paste a public PDF URL) and receive a formatted audit report in the browser
+— no CLI or Python knowledge required.
 
 ---
 
@@ -117,8 +118,9 @@ port 8000 firewall-restricted to localhost.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/` | Upload form |
+| `GET` | `/` | Upload form + URL input form |
 | `POST` | `/audits` | Accept PDF upload; validate; start background audit; redirect to job page |
+| `POST` | `/audits/url` | Accept public PDF URL; download safely; start background audit; redirect to job page |
 | `GET` | `/audits/{job_id}` | Job status page; auto-refreshes while running; shows findings when complete |
 | `GET` | `/audits/{job_id}/status` | JSON polling endpoint (`state`, `finding_count`, timestamps) |
 | `GET` | `/audits/{job_id}/download/json` | Download structured JSON report |
@@ -128,28 +130,45 @@ port 8000 firewall-restricted to localhost.
 
 ## UX flow
 
+### File upload
+
 1. User opens `/` and selects a PDF.
 2. User clicks **Audit PDF**.
 3. Server validates the file (extension, magic bytes, size limit) and starts a background job.
 4. User is redirected to `/audits/{job_id}`, which polls every 2 seconds.
-5. When complete, the page shows:
-   - finding count by severity
-   - grouped summary table (rules with 5+ findings)
-   - full findings table (rule, page, severity, issue type, message)
-   - copyable Markdown preview
-   - download links for JSON and Markdown reports
+5. When complete, the page shows findings and download links.
 6. If the audit fails, a clean error message is shown — no stack traces.
+
+### Public PDF URL
+
+1. User opens `/` and pastes a public direct PDF URL into the URL form.
+2. User clicks **Audit PDF URL**.
+3. Server validates scheme (`http`/`https` only), resolves the hostname, and rejects private/internal addresses.
+4. Server downloads the PDF into the runtime job directory (streamed; size-limited).
+5. Server validates that the downloaded bytes start with `%PDF`.
+6. Same background audit and results flow as file upload.
+
+### URL safety restrictions
+
+- Only `http://` and `https://` schemes are accepted.
+- `localhost`, `127.x.x.x`, `10.x.x.x`, `172.16–31.x.x`, `192.168.x.x`, `169.254.x.x`, IPv6 loopback/private/link-local are blocked.
+- Hostnames are resolved before download; any address mapping to a private range is rejected.
+- Redirects are checked at each hop — no redirect may target a private address.
+- Download timeout: 15 seconds.
+- Size limit: same `NJIT_AUDITOR_WEB_MAX_UPLOAD_MB` as file uploads.
+- ZIP files are not supported for URL audit (only direct PDF links work).
 
 ---
 
 ## Privacy and safety
 
-- Uploaded PDFs are saved only under the runtime directory (gitignored).
+- Uploaded PDFs and URL-downloaded PDFs are saved only under the runtime directory (gitignored).
 - Generated JSON/Markdown reports are saved only under the runtime directory.
-- No uploaded content is committed to the repository.
+- No uploaded or downloaded content is committed to the repository.
 - Findings contain structural metadata only (page numbers, rule IDs, coordinates) — no
   dissertation body text, author names, or other private content.
 - Runtime files are never committed: `.runtime/` is in `.gitignore`.
+- URL downloads are SSRF-safe: private/internal IP ranges and `localhost` are blocked server-side.
 - Do not expose the web app to the public internet without a reverse proxy and TLS.
 
 ---
@@ -161,7 +180,7 @@ Each job creates a directory under `NJIT_AUDITOR_WEB_RUNTIME_DIR`:
 ```
 .runtime/web_audits/
   {job_id}/
-    upload.pdf     ← original uploaded file
+    upload.pdf     ← uploaded file or URL-downloaded PDF
     report.json    ← structured JSON audit report
     report.md      ← Markdown audit report
 ```

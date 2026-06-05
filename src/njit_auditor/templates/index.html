@@ -3,13 +3,14 @@
 
 {% block content %}
 <h1>NJIT Thesis Auditor</h1>
-<p class="subtitle">Upload a dissertation or thesis PDF to check formatting against NJIT guidelines.</p>
+<p class="subtitle">Upload a dissertation or thesis PDF, or provide a public PDF URL, to check formatting against NJIT guidelines.</p>
 
 {% if error %}
 <div class="alert-error">{{ error }}</div>
 {% endif %}
 
 <div class="card">
+  <h2 style="margin-top:0;">Upload a PDF file</h2>
   <form action="/audits" method="post" enctype="multipart/form-data">
     <label for="file">Select PDF file</label>
     <input type="file" id="file" name="file" accept=".pdf" required>
@@ -18,14 +19,34 @@
   </form>
 </div>
 
+<div class="card">
+  <h2 style="margin-top:0;">Audit a public PDF URL</h2>
+  <form action="/audits/url" method="post">
+    <label for="pdf_url">Public PDF URL</label>
+    <input type="url" id="pdf_url" name="pdf_url"
+           placeholder="https://example.com/thesis.pdf"
+           style="width:100%;padding:0.4rem;margin-bottom:0.75rem;border:1px solid #ccc;border-radius:4px;font-size:1rem;"
+           required>
+    <p class="file-hint">
+      Only public direct PDF links are supported &middot;
+      Private/internal URLs are blocked &middot;
+      Maximum {{ max_upload_mb }} MB &middot;
+      ZIP files are not supported
+    </p>
+    <button type="submit">Audit PDF URL</button>
+  </form>
+</div>
+
 <h2>What it checks</h2>
 <p style="font-size:0.9rem;color:#555;">
-  Runs P011–P053 heuristic formatting checks: margins, page numbering, heading styles,
+  Runs P011–P056 heuristic formatting checks: margins, page numbering, heading styles,
   TOC/List alignment, font compliance, front-matter structure, copyright page, spacing, and more.
   TeX source audit is available via the CLI only.
 </p>
 <p style="font-size:0.85rem;color:#888;">
-  Uploaded files are processed locally and not committed to any repository.
+  Uploaded files and downloaded PDFs are processed locally and not committed to any repository.
   Findings contain structural metadata only — no document body text is stored or displayed.
+  Public URLs are validated for scheme and resolved host before download; private/internal
+  addresses are blocked.
 </p>
 {% endblock %}

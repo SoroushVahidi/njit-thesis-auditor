@@ -6,19 +6,22 @@ import json
 import os
 import re
 import secrets
+import shutil
 import threading
+import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, File, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from njit_auditor.audit_runner import AuditError, run_pdf_audit
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
 
 # ---------------------------------------------------------------------------
 # Configuration from environment
@@ -248,6 +251,48 @@ async def submit_audit(
     _set_job(job)
     background_tasks.add_task(_run_audit_task, job_id)
 
+    return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
+
+
+@app.post("/audits/url", response_model=None)
+async def submit_audit_url(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    pdf_url: str = Form(default=""),
+) -> RedirectResponse | HTMLResponse:
+    url = pdf_url.strip()
+    if not url:
+        return _index_error(request, "Please provide a PDF URL.")
+
+    job_id = secrets.token_urlsafe(16)
+    jdir = _job_dir(job_id)
+    jdir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        url_path = urllib.parse.urlparse(url).path
+        url_basename = Path(url_path).name
+        safe_name = (
+            _safe_filename(url_basename)
+            if url_basename.lower().endswith(".pdf")
+            else "url_download.pdf"
+        )
+    except Exception:
+        safe_name = "url_download.pdf"
+
+    try:
+        fetch_pdf_url(url, jdir / "upload.pdf", MAX_UPLOAD_BYTES)
+    except FetchError as exc:
+        shutil.rmtree(jdir, ignore_errors=True)
+        return _index_error(request, str(exc))
+
+    job = JobState(
+        job_id=job_id,
+        state="pending",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name=safe_name,
+    )
+    _set_job(job)
+    background_tasks.add_task(_run_audit_task, job_id)
     return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 
 

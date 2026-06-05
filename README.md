@@ -29,7 +29,14 @@ A browser-based upload form is available via the bundled FastAPI application:
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000`, upload a PDF, and view findings in the browser.
+Open `http://localhost:8000` in a browser. Two audit methods are available:
+
+- **Upload a PDF file** — select a local file and submit.
+- **Audit a public PDF URL** — paste a direct public PDF link (e.g. a GitHub raw PDF URL) and submit.
+  Server downloads the PDF safely: only `http://` and `https://` schemes are accepted;
+  `localhost`, private IP ranges (10.x.x.x, 172.16–31.x.x, 192.168.x.x, etc.), and
+  hostnames resolving to internal addresses are blocked. ZIP files are not supported for URL audit.
+
 Download JSON or Markdown reports from the results page.
 For persistent always-on hosting, start in a detached tmux session:
 
