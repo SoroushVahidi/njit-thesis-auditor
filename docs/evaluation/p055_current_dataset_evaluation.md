@@ -16,4 +16,4 @@ The synthetic validation (10 tests) confirms correct behavior. See `docs/evaluat
 
 ## When to rerun
 
-Run when all five evaluation PDFs are directly accessible. The rerun threshold is P001–P055. Do not add P055 findings to the 1,446 canonical aggregate without a full five-PDF rerun.
+Run when all five evaluation PDFs are directly accessible. The rerun threshold is P001–P056. Do not add P055 findings to the 1,446 canonical aggregate without a full five-PDF rerun.

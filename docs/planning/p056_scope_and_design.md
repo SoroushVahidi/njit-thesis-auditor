@@ -10,7 +10,7 @@
 
 | Area | State |
 |------|-------|
-| P-rules | **55/55** implemented (`P001`–`P055`) |
+| P-rules | **56/56** implemented (`P001`–`P056`) |
 | LoT/LoF column headers | **P031** — checks "Table"/"Figure" and "Page" label presence |
 | LoT/LoF entry number alignment | **P046** — checks left-column x-alignment of entry number tokens |
 | LoT/LoF page number alignment | **P048** — checks right-column alignment |
@@ -93,7 +93,7 @@ Students and Word templates occasionally mix chapter-based numbering (Table 1.1,
 3. Does NOT flag LoT/LoF pages where all entries use the same format.
 4. Does NOT flag TOC pages.
 5. Findings contain only structural metadata — no table/figure title text.
-6. All P001–P055 existing tests continue to pass.
+6. All P001–P056 existing tests continue to pass.
 
 ---
 
