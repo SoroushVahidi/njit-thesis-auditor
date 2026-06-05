@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **55/55 implemented** (`P001`–`P055`) — see `docs/planning/p055_scope_and_design.md` for P055 scope and design.
+- **P-rule implementation:** **56/56 implemented** (`P001`–`P056`) — see `docs/planning/p056_scope_and_design.md` for P056 scope and design.
 - **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -22,7 +22,7 @@
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage updated after P044 audit: 2 implemented, 51 partial, 26 not fully implemented. |
-| `data/processed/rules/project_added_rules.json` | P001–P055 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | 55 implemented | P001–P055 implemented and wired in CLI/testing/docs. |
+| `data/processed/rules/project_added_rules.json` | P001–P056 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | 56 implemented | P001–P056 implemented and wired in CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
 | `data/raw/guidelines/Self-Self Assessment Sheet.pdf` | Checklist-style visual formatting expectations | `P011`, `P015`, `P016`, `P017`, `P026`, `P028` | partially implemented | Core layout signals covered heuristically; checklist semantics and some visual specifics remain unimplemented. |
@@ -267,7 +267,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P044 (consolidated current state)
 
-**Current repository (main `25145d8`; five-PDF eval baseline `00b9c2d`):** P001–P055 implemented; web UI present; **624** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P055 current-dataset counts (only 4/5 evaluation PDFs accessible).
+**Current repository (main `bc12222`; five-PDF eval baseline `00b9c2d`):** P001–P056 implemented; web UI present; **637** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P056 current-dataset counts (only 4/5 evaluation PDFs accessible).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -297,6 +297,7 @@ Top 3 next tasks:
 | **P053** | LoT entry terminal-period check (Q065) | **Not run** — only 4/5 evaluation PDFs directly accessible | Emits warning when complete LoT entry ends with `.`; symmetric to P040 (LoF must have terminal punct); new `pdf_lot_terminal_period.py`; see `docs/evaluation/p053_lot_terminal_period_synthetic_validation.md` and `docs/evaluation/p053_current_dataset_evaluation.md` |
 | **P054** | TOC entry terminal-period absence check (Q049/Q050/Q051 refinement) | **Implemented** | `pdf_toc_terminal_period.py`; emits `toc_entry_has_terminal_period` when complete TOC entry ends with `.`; symmetric counterpart to P053 for TABLE OF CONTENTS pages; 9 synthetic tests; see `docs/planning/p054_scope_and_design.md` and `docs/evaluation/p054_toc_terminal_period_synthetic_validation.md` |
 | **P055** | LoT/LoF cross-type entry check (Q063/Q072 extension) | **Implemented** | `pdf_lot_lof_entry_type.py`; emits `lot_entry_is_figure` when complete LoT entry starts with "Figure", `lof_entry_is_table` when complete LoF entry starts with "Table"; 10 synthetic tests; see `docs/planning/p055_scope_and_design.md` and `docs/evaluation/p055_lot_lof_entry_type_synthetic_validation.md` |
+| **P056** | LoT/LoF entry numbering format consistency check (Q063/Q072 extension) | **Implemented** | `pdf_lot_lof_number_format.py`; emits advisory when section mixes chapter-based (X.Y) and sequential (N) numbering; gates: ≥2 entries of each format type, page_number_token present, ≥10 chars; appendix-prefixed entries skipped; triage_tier: low; 13 synthetic tests; **Not run** — only 4/5 evaluation PDFs accessible; see `docs/planning/p056_scope_and_design.md` and `docs/evaluation/p056_lot_lof_number_format_synthetic_validation.md` |
 
 Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation title text, author names, caption/body/entry text, or body text. Generated JSON summaries remain under `data/evaluation/generated/` (gitignored).
 
