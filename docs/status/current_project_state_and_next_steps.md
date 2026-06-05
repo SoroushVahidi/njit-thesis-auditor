@@ -531,7 +531,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟢 Done | Web upload UI | **Added:** FastAPI web app with background audit (P011–P055), polling, JSON/Markdown download; 17 tests; see `docs/web_gui_mvp.md` |
 | 🟢 Done | P054 implementation | **Implemented:** TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); new `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
 | 🟢 Done | P055 implementation | **Implemented:** LoT/LoF cross-type entry check (Q063/Q072 extension); new `pdf_lot_lof_entry_type.py`; issue types `lot_entry_is_figure`, `lof_entry_is_table`; see `docs/planning/p055_scope_and_design.md` |
-| 🟡 Med | P056 scoping | Select next automatable Q-rule gap or practical extension |
+| 🟢 Done | P056 scoping | **Scoped:** LoT/LoF entry numbering format consistency check; planned `pdf_lot_lof_number_format.py`; issue types `lot_mixed_numbering_format`, `lof_mixed_numbering_format`; see `docs/planning/p056_scope_and_design.md` |
+| 🟡 Med | P056 implementation | Implement LoT/LoF numbering format consistency check per `docs/planning/p056_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P055 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P055 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
