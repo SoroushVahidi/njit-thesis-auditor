@@ -551,7 +551,8 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟢 Done | P055 implementation | **Implemented:** LoT/LoF cross-type entry check (Q063/Q072 extension); new `pdf_lot_lof_entry_type.py`; issue types `lot_entry_is_figure`, `lof_entry_is_table`; see `docs/planning/p055_scope_and_design.md` |
 | 🟢 Done | P056 scoping | **Scoped:** LoT/LoF entry numbering format consistency check; planned `pdf_lot_lof_number_format.py`; issue types `lot_mixed_numbering_format`, `lof_mixed_numbering_format`; see `docs/planning/p056_scope_and_design.md` |
 | 🟢 Done | P056 implementation | **Implemented:** LoT/LoF entry numbering format consistency check; new `pdf_lot_lof_number_format.py`; issue types `lot_mixed_numbering_format`, `lof_mixed_numbering_format`; triage_tier low; 13 synthetic tests; see `docs/planning/p056_scope_and_design.md` and `docs/evaluation/p056_lot_lof_number_format_synthetic_validation.md` |
-| 🟡 Med | P057 scoping | Next rule — see `docs/planning/p057_scope_and_design.md` when created |
+| 🟢 Done | P057 scoping | **Scoped:** LoT/LoF page-number ordering check; planned `pdf_lot_lof_page_order.py`; issue types `lot_page_numbers_not_ascending`, `lof_page_numbers_not_ascending`; see `docs/planning/p057_scope_and_design.md` |
+| 🟡 Med | P057 implementation | Implement LoT/LoF page-number ordering check per `docs/planning/p057_scope_and_design.md` |
 | 🟡 Med | Full five-PDF P001–P056 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P056 have no current counts |
 | 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
 | 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
