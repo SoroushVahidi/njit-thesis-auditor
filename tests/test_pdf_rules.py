@@ -21,7 +21,10 @@ from njit_auditor.rules.pdf_biosketch_publication_layout import (
 )
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
-from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
+from njit_auditor.rules.pdf_copyright_page import (
+    check_pdf_copyright_page,
+    check_pdf_copyright_year_format,
+)
 from njit_auditor.rules.pdf_dedication_page import check_pdf_dedication_page
 from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
 from njit_auditor.rules.pdf_font_compliance import (
@@ -4552,6 +4555,136 @@ def test_p034_finding_details_privacy_safe(tmp_path: Path) -> None:
     assert "Test Author" not in blob
     assert "Wrong Name" not in blob
     assert "A Study of Synthetic" not in blob
+
+
+# ---------------------------------------------------------------------------
+# P051: Copyright page year-format refinement
+# ---------------------------------------------------------------------------
+
+
+def _make_p051_pdf(
+    path: Path,
+    copyright_page_lines: list[tuple[float, str]],
+    *,
+    with_title_page: bool = True,
+) -> None:
+    """Build a synthetic PDF with a custom copyright page for P051 testing."""
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    if with_title_page:
+        for idx, line in enumerate(_DEFAULT_TITLE_PAGE_LINES):
+            p1.insert_text((108, 100 + idx * 20), line, fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    for y, text in copyright_page_lines:
+        p2.insert_text((108, y), text, fontsize=12)
+    p_abs = doc.new_page(width=612, height=792)
+    p_abs.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p_abs.insert_text((108, 140), "Synthetic abstract for P051 testing.", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p051_standard_year_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_standard.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© 2024 Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_no_space_year_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_nospace.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="©2024 Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_copyright_word_year_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_word.pdf"
+    _make_copyright_page_pdf(
+        pdf_path, copyright_notice="Copyright 2024 Test Author. All Rights Reserved."
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_adjacent_line_year_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_adjacent.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[
+            (360, "©"),
+            (375, "2024"),
+            (500, "Series Volume 2020"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_no_year_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_no_year.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert any(f.details.get("issue_type") == "copyright_year_not_found" for f in findings)
+
+
+def test_p051_no_copyright_page_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_no_copyright.pdf"
+    _make_copyright_page_pdf(pdf_path, include_copyright_page=False)
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_year_present_unextractable_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_ambiguous.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[
+            (360, "© Test Author. All Rights Reserved."),
+            (400, "Published 2020"),
+            (420, "Revised 2024"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_privacy.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_copyright_year_format(model)
+    blob = " ".join(f.message for f in findings) + " " + " ".join(
+        f"{k}={v}" for f in findings for k, v in (f.details or {}).items()
+    )
+    assert "Test Author" not in blob
+    assert "A Study of Synthetic" not in blob
+    assert "All Rights Reserved" not in blob
+
+
+def test_p051_import_and_wiring(tmp_path: Path) -> None:
+    import inspect
+
+    from njit_auditor.cli import pdf as pdf_cmd
+    from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_year_format as fn
+
+    assert callable(fn)
+    src = inspect.getsource(pdf_cmd)
+    assert "check_pdf_copyright_year_format" in src
+
+
+def test_p051_p034_unaffected(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_p034.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2023 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p034 = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    p051 = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert any(f.details.get("issue_type") == "copyright_year_mismatch" for f in p034)
+    assert not p051
 
 
 # ---------------------------------------------------------------------------

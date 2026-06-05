@@ -44,7 +44,10 @@ from njit_auditor.rules.pdf_biosketch_publication_layout import (
 )
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
-from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_page
+from njit_auditor.rules.pdf_copyright_page import (
+    check_pdf_copyright_page,
+    check_pdf_copyright_year_format,
+)
 from njit_auditor.rules.pdf_dedication_page import check_pdf_dedication_page
 from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
 from njit_auditor.rules.pdf_font_compliance import check_pdf_font_compliance
@@ -198,6 +201,7 @@ def pdf(
     findings.extend(check_pdf_frontmatter_structure(pdf_doc))
     findings.extend(check_pdf_title_consistency(pdf_doc))
     findings.extend(check_pdf_copyright_page(pdf_doc))
+    findings.extend(check_pdf_copyright_year_format(pdf_doc))
     findings.extend(check_pdf_dedication_page(pdf_doc))
     findings.extend(check_pdf_abstract_word_count(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))

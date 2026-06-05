@@ -899,5 +899,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Conservative v1 PDF heuristic for Q063 and Q072. Sections: list_of_tables, list_of_figures. Gate: requires >=3 complete entries with page_number_right_x. Uses detect_toc_like_pages, extract_toc_entry_lines, _collect_header_zone_lines, and _matches_left_label. issue_types: lot_table_header_not_bold (Q063), lof_figure_header_not_bold (Q072). Bold check skipped when font metadata unreliable. Complements P031 and P049. Left-alignment not rechecked (P031 covers coarse alignment with 80pt tolerance)."
+  },
+  {
+    "id": "P051",
+    "section": "PDF copyright page year-format refinement",
+    "question": "Is the copyright year present on the Copyright Page in a recognizable format?",
+    "rule_definition": "Conservative heuristic extension of P034. Uses _find_copyright_page (same gate as P034). Attempts year extraction via _extract_copyright_year (existing) and _extract_copyright_year_adjacent_lines (new: copyright marker on line N, standalone year on line N+1). If neither method extracts a year AND no year token exists anywhere on the page, emits a low-confidence advisory. Skips pages where any year token is present but unextractable (conservative false-negative preference). Findings contain only structural metadata — no copyright text, author names, or private content.",
+    "remediation": "Ensure the Copyright Page contains the copyright year in a clearly formatted line such as '© YYYY', 'Copyright YYYY', or '©YYYY'.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_copyright_page",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Q010 improvement. issue_type: copyright_year_not_found. Advisory only — emitted when year is completely absent from copyright page text. Existing P034 year-mismatch finding covers the case where year IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles Copyright-marker/year split-across-lines pattern. triage_tier: low."
   }
 ]
