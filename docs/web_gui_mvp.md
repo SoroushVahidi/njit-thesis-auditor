@@ -11,16 +11,94 @@ dissertation and receive a formatted audit report in the browser — no CLI or P
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
-Then open `http://localhost:8000` in a browser.
-
-### Keeping it running in tmux
+Or use the helper script (works from any directory):
 
 ```bash
-tmux new -s thesis-auditor-web
-cd /path/to/njit-thesis-auditor
-python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
-# Detach with Ctrl-B D
+./scripts/run_web_gui.sh              # host=0.0.0.0, port=8000
+./scripts/run_web_gui.sh 127.0.0.1   # localhost only
+./scripts/run_web_gui.sh 0.0.0.0 8001  # alternate port
 ```
+
+Then open `http://localhost:8000` in a browser.
+
+---
+
+## Persistent server (always-on via tmux)
+
+### Start
+
+```bash
+tmux new -d -s thesis-auditor-web \
+  'cd /home/soroush/njit-thesis-auditor && ./scripts/run_web_gui.sh'
+```
+
+### Check logs / output
+
+```bash
+tmux capture-pane -t thesis-auditor-web -p -S -200
+tmux attach -t thesis-auditor-web   # attach (Ctrl-B D to detach)
+```
+
+### Restart
+
+```bash
+tmux kill-session -t thesis-auditor-web 2>/dev/null || true
+tmux new -d -s thesis-auditor-web \
+  'cd /home/soroush/njit-thesis-auditor && ./scripts/run_web_gui.sh'
+```
+
+### Stop
+
+```bash
+tmux kill-session -t thesis-auditor-web
+```
+
+### Verify it is running
+
+```bash
+tmux ls                                   # list sessions
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/   # should print 200
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/
+```
+
+---
+
+## Access URLs
+
+| Context | URL |
+|---|---|
+| Browser on same machine | `http://localhost:8000` |
+| Browser on same machine | `http://127.0.0.1:8000` |
+| Browser on LAN (if server IP is `10.x.x.x`) | `http://<server-lan-ip>:8000` |
+| Public internet (requires reverse proxy + TLS) | `https://<domain>/` |
+
+To find the server's LAN IP:
+
+```bash
+hostname -I
+```
+
+The server must be started with `--host 0.0.0.0` (default in `scripts/run_web_gui.sh`)
+for LAN access. `--host 127.0.0.1` restricts to localhost only.
+
+---
+
+## Firewall notes
+
+The helper script does not modify firewall rules. If your server runs UFW or firewalld and
+port 8000 is blocked, ask your admin or run one of:
+
+```bash
+# UFW
+sudo ufw allow 8000/tcp comment "NJIT Auditor web UI"
+
+# firewalld
+sudo firewall-cmd --permanent --add-port=8000/tcp
+sudo firewall-cmd --reload
+```
+
+For production, prefer exposing only port 443 via a reverse proxy (see below) and keeping
+port 8000 firewall-restricted to localhost.
 
 ---
 
@@ -30,6 +108,8 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 |---|---|---|
 | `NJIT_AUDITOR_WEB_RUNTIME_DIR` | `.runtime/web_audits` | Directory where uploaded PDFs and reports are written. Must be gitignored. |
 | `NJIT_AUDITOR_WEB_MAX_UPLOAD_MB` | `50` | Maximum upload file size in MB. |
+| `NJIT_AUDITOR_WEB_HOST` | `0.0.0.0` | Bind host for `scripts/run_web_gui.sh`. |
+| `NJIT_AUDITOR_WEB_PORT` | `8000` | Bind port for `scripts/run_web_gui.sh`. |
 
 ---
 
@@ -70,6 +150,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 - Findings contain structural metadata only (page numbers, rule IDs, coordinates) — no
   dissertation body text, author names, or other private content.
 - Runtime files are never committed: `.runtime/` is in `.gitignore`.
+- Do not expose the web app to the public internet without a reverse proxy and TLS.
 
 ---
 
@@ -90,15 +171,49 @@ state; existing on-disk reports remain accessible if you re-implement persistenc
 
 ---
 
-## Deployment note
+## Reverse proxy (nginx/Caddy) — optional
 
-This MVP provides app-level functionality without production hardening. For public access:
+For public or team access with TLS, run uvicorn on localhost and proxy from a public port.
 
-- Put nginx or Caddy in front (reverse proxy + TLS).
-- Add a firewall rule to restrict port 8000 from direct public access.
-- Consider adding authentication if the server handles sensitive dissertation PDFs.
-- For persistent job storage across restarts, replace the in-memory `_jobs` dict with a
-  database or file-backed store.
+**nginx snippet:**
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name auditor.example.com;
+    ssl_certificate     /etc/letsencrypt/live/auditor.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/auditor.example.com/privkey.pem;
+
+    client_max_body_size 60M;   # must exceed NJIT_AUDITOR_WEB_MAX_UPLOAD_MB
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+```
+
+**Caddy snippet (`Caddyfile`):**
+
+```
+auditor.example.com {
+    reverse_proxy localhost:8000 {
+        transport http {
+            read_buffer_size 60MB
+        }
+    }
+}
+```
+
+When using a reverse proxy, bind uvicorn to localhost only:
+
+```bash
+tmux new -d -s thesis-auditor-web \
+  'cd /home/soroush/njit-thesis-auditor && \
+   python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 8000'
+```
 
 ---
 
