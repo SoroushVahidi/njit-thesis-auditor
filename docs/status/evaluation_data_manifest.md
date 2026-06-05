@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `bc12222` (PR #175 — Implement P056 LoT LoF numbering format checks; P001–P056 implemented; web GUI present)
-- **Validation:** ruff, mypy, **637 pytest** on latest main
+- **Latest main:** `202b08e` (PR #181 — Add built-in sample PDF audit support to web UI; P001–P056 implemented; web GUI present with upload, URL audit, and built-in sample audit)
+- **Validation:** ruff, mypy, **683 pytest** on latest main
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
