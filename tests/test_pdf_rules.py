@@ -53,6 +53,7 @@ from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_colu
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_type
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
     check_pdf_lot_lof_page_number_alignment,
 )
@@ -7644,3 +7645,189 @@ def test_p050_import_and_wiring() -> None:
     empty_doc = PdfDocument(path="test.pdf", pages=[])
     result = check_pdf_lot_lof_left_column_header_bold(empty_doc)
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# P055: LoT/LoF cross-type entry checks
+# ---------------------------------------------------------------------------
+
+
+def _make_lot_lof_entry_type_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+    heading: str = "LIST OF TABLES",
+) -> None:
+    """Build a synthetic LoT or LoF page for P055 testing."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p055_lot_correct_entries_no_finding(tmp_path: Path) -> None:
+    """LoT entries starting with Table → no P055 finding."""
+    pdf_path = tmp_path / "p055_lot_ok.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Table 1 Summary of Experimental Results", "5"),
+        ("Table 2 Comparison of Algorithm Performance", "12"),
+        ("Table 3 Overview of Evaluation Metrics", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert not findings
+
+
+def test_p055_lot_figure_entry_warns(tmp_path: Path) -> None:
+    """LoT entry starting with 'Figure' → lot_entry_is_figure."""
+    pdf_path = tmp_path / "p055_lot_fig.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Table 1 Summary of Results", "5"),
+        ("Figure 2 Misplaced Figure Entry in LoT", "12"),
+        ("Table 3 Another Correct Table Entry", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lot_entry_is_figure"
+    assert findings[0].details.get("section_type") == "list_of_tables"
+    assert findings[0].details.get("observed_entry_type") == "figure"
+    assert findings[0].details.get("expected_entry_type") == "table"
+
+
+def test_p055_lof_correct_entries_no_finding(tmp_path: Path) -> None:
+    """LoF entries starting with Figure → no P055 finding."""
+    pdf_path = tmp_path / "p055_lof_ok.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Figure 1 System Architecture Overview Diagram", "3"),
+        ("Figure 2 Comparison Chart of Results", "7"),
+        ("Figure 3 Evaluation Workflow Summary", "11"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert not findings
+
+
+def test_p055_lof_table_entry_warns(tmp_path: Path) -> None:
+    """LoF entry starting with 'Table' → lof_entry_is_table."""
+    pdf_path = tmp_path / "p055_lof_tbl.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Figure 1 Correct Figure Entry Here", "3"),
+        ("Table 2 Misplaced Table Entry in LoF", "7"),
+        ("Figure 3 Another Correct Figure Entry", "11"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lof_entry_is_table"
+    assert findings[0].details.get("section_type") == "list_of_figures"
+    assert findings[0].details.get("observed_entry_type") == "table"
+    assert findings[0].details.get("expected_entry_type") == "figure"
+
+
+def test_p055_wrap_continuation_skipped(tmp_path: Path) -> None:
+    """Entries without page-number token (wrap continuations) are not checked."""
+    pdf_path = tmp_path / "p055_wrap.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Table 1 A Long Table Title That Wraps Onto", None),
+        ("  the Next Line Continuation Text Here", "5"),
+        ("Table 2 Another Entry Without Problem", "12"),
+        ("Table 3 Third Correct Entry Here", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert not findings
+
+
+def test_p055_sparse_page_skipped(tmp_path: Path) -> None:
+    """LoT page with fewer than 2 entries → skipped."""
+    pdf_path = tmp_path / "p055_sparse.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Figure 1 Only One Entry So Page Is Sparse", "5"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert not findings
+
+
+def test_p055_toc_entries_unaffected(tmp_path: Path) -> None:
+    """TABLE OF CONTENTS page → P055 does not apply."""
+    pdf_path = tmp_path / "p055_toc.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Figure 1 A Figure Reference in TOC", "5"),
+        ("Table 2 A Table Reference in TOC", "12"),
+        ("Chapter 3 Chapter Title Here", "20"),
+    ], heading="TABLE OF CONTENTS")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert not findings
+
+
+def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Findings must not include LoT/LoF entry text, titles, or private content."""
+    pdf_path = tmp_path / "p055_privacy.pdf"
+    _make_lot_lof_entry_type_pdf(pdf_path, [
+        ("Table 1 A Correct Table Entry Here", "5"),
+        ("Figure 2 Misplaced Figure Entry Metadata Test", "12"),
+        ("Table 3 Another Correct Table Entry", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert findings
+    finding = findings[0]
+    allowed_keys = {
+        "issue_type",
+        "page",
+        "section_type",
+        "entry_index",
+        "observed_entry_type",
+        "expected_entry_type",
+        "page_number_token_present",
+        "triage_tier",
+        "source_q_rule_id",
+    }
+    assert finding.details.keys() <= allowed_keys
+    assert finding.details.get("triage_tier") == "medium"
+    assert finding.details.get("source_q_rule_id") == "Q063"
+    for value in finding.details.values():
+        value_lower = str(value).lower()
+        assert "misplaced" not in value_lower
+        assert "metadata test" not in value_lower
+
+
+def test_p055_import_and_wiring(tmp_path: Path) -> None:
+    """P055 is importable and wired in cli.py."""
+    import inspect
+
+    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    from njit_auditor.rules.pdf_lot_lof_entry_type import (
+        check_pdf_lot_lof_entry_type as _check,
+    )
+    assert callable(_check)
+    src = inspect.getsource(pdf_cmd)
+    assert "check_pdf_lot_lof_entry_type" in src
+
+
+def test_p055_p053_p054_unaffected(tmp_path: Path) -> None:
+    """P053 and P054 still fire correctly after P055 is added."""
+    from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
+
+    pdf_path = tmp_path / "p055_unaffected.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 A Table Entry That Ends With Period.", "5"),
+        ("Table 2 Another Table Without Period", "12"),
+        ("Table 3 Third Table Without Period", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    p053 = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    p054 = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    p055 = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
+    assert p053
+    assert not p054
+    assert not p055

@@ -41,14 +41,14 @@ tmux new -d -s thesis-auditor-web \
 See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, firewall notes,
 reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
 
-### PDF layout audit (P011–P053)
+### PDF layout audit (P011–P055)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P053 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P055 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -64,7 +64,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P053):
+Current PDF checks (P011–P055):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -112,6 +112,7 @@ Current PDF checks (P011–P053):
 | P052 | Copyright | Copyright page author-format refinement: emits a low-confidence advisory when copyright page and year are detected but no copyright owner name can be extracted (Q011); extends P034/P051 detection; improved extraction handles adjacent-line author patterns; only fires when year is confirmed; privacy-safe hash-only metadata (no author names, copyright text, or titles) |
 | P053 | TOC/List | List of Tables entry terminal-period check: emits a warning when a complete LoT entry (with page-number token) ends with a terminal period (Q065); LoT pages only; gate: skip entries shorter than 10 chars and pages with fewer than 2 entries; symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have terminal period); privacy-safe metadata only (no entry text, table titles, or captions) |
 | P054 | TOC/List | TOC entry terminal-period absence check: emits a warning when a complete TOC entry ends with a terminal period (Q049/Q050/Q051); TOC pages only; gate: skip entries shorter than 10 chars and pages with fewer than 2 entries; symmetric counterpart to P053 (LoT entries must not have terminal period; TOC entries must not have terminal period); privacy-safe metadata only (no entry text, chapter titles, or headings) |
+| P055 | TOC/List | LoT/LoF cross-type entry check: emits a warning when a complete List of Tables entry starts with "Figure" (`lot_entry_is_figure`) or a complete List of Figures entry starts with "Table" (`lof_entry_is_table`) (Q063/Q072 extension); gate: entry must have page-number token, text ≥ 10 chars, and clear type prefix (Figure/Table followed by digit); pages with fewer than 2 entries are skipped; privacy-safe metadata only (no entry text, figure/table titles, or captions) |
 
 All findings are heuristic warnings and require manual review.
 

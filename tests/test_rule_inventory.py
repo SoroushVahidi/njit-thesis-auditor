@@ -232,6 +232,12 @@ def test_project_added_rules_implemented() -> None:
         by_id["P054"]["implementation_module"]
         == "njit_auditor.rules.pdf_toc_terminal_period"
     )
+    assert by_id["P055"]["phase"] == "pdf_layout"
+    assert by_id["P055"]["implementation_status"] == "implemented"
+    assert (
+        by_id["P055"]["implementation_module"]
+        == "njit_auditor.rules.pdf_lot_lof_entry_type"
+    )
     assert by_id["P019"]["phase"] == "pdf_layout"
     assert by_id["P019"]["implementation_module"] == "njit_auditor.rules.pdf_page_numbers"
     assert by_id["P020"]["phase"] == "pdf_layout"
@@ -244,7 +250,6 @@ def test_project_added_rules_implemented() -> None:
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules
-        if item["id"] not in {"P055"}
     )
 
 

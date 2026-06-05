@@ -1,7 +1,7 @@
 # P055 Scope and Design
 
 - **Date:** 2026-06-05
-- **Status:** **Scoped**
+- **Status:** **Implemented**
 - **Baseline main:** `01103fa` (PR #169 — post-P054 consistency audit; P001–P054 implemented)
 
 ---
