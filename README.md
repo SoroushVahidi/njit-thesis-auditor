@@ -19,14 +19,14 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### PDF layout audit (P011–P051)
+### PDF layout audit (P011–P052)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P051 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P052 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -42,7 +42,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P051):
+Current PDF checks (P011–P052):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -87,6 +87,7 @@ Current PDF checks (P011–P051):
 | P049 | TOC/List | LoT/LoF Page-column header right-alignment and bold-style refinement: checks that the 'Page' column header is right-aligned with the page-number column anchor (Q064/Q073) and formatted in bold when font metadata is reliable; LoT/LoF pages only; gate: skip fewer than 3 complete entries; privacy-safe geometry/style metadata only (no entry text, captions, or titles) |
 | P050 | TOC/List | LoT/LoF left-column header bold-style check: checks that the 'Table' column header (Q063) in LoT and 'Figure' column header (Q072) in LoF are formatted in bold when font metadata is reliable; LoT/LoF pages only; gate: skip if left-column header absent or fewer than 3 complete entries; bold check skipped when font metadata unavailable or ambiguous; privacy-safe style metadata only (no entry text, captions, header text, or titles) |
 | P051 | Copyright | Copyright page year-format refinement: emits a low-confidence advisory when copyright page is detected but no copyright year token is found anywhere on the page (Q010); extends P034 copyright detection; improved extraction handles adjacent-line year patterns; skips pages where a year token exists but cannot be confidently attributed; privacy-safe metadata only (no copyright text, author names, or titles) |
+| P052 | Copyright | Copyright page author-format refinement: emits a low-confidence advisory when copyright page and year are detected but no copyright owner name can be extracted (Q011); extends P034/P051 detection; improved extraction handles adjacent-line author patterns; only fires when year is confirmed; privacy-safe hash-only metadata (no author names, copyright text, or titles) |
 
 All findings are heuristic warnings and require manual review.
 

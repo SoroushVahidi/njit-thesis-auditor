@@ -917,5 +917,23 @@
     "source_file": "project_added",
     "priority": "low",
     "notes": "Q010 improvement. issue_type: copyright_year_not_found. Advisory only — emitted when year is completely absent from copyright page text. Existing P034 year-mismatch finding covers the case where year IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles Copyright-marker/year split-across-lines pattern. triage_tier: low."
+  },
+  {
+    "id": "P052",
+    "section": "PDF copyright page author-format refinement",
+    "question": "Is the copyright owner/author name present on the Copyright Page in a recognizable format?",
+    "rule_definition": "Conservative heuristic extension of P034/P051. Uses _find_copyright_page (same gate). Requires that a copyright year was already found (P034 or adjacent-line). Attempts author extraction via _extract_copyright_author (existing) and _extract_copyright_author_adjacent_lines (new: year on line N, author-like string on line N+1). If neither method extracts an author AND year was found, emits a low-confidence advisory. Skips when no year is found (P051's domain). Findings contain only structural metadata — no author names, no copyright text, no private content.",
+    "remediation": "Ensure the Copyright Page contains the copyright owner's full name in a clearly formatted line such as '© YYYY Author Name' or on the line immediately following the copyright year line.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "checkability": "heuristic",
+    "input_required": [
+      "compiled_pdf"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_copyright_page",
+    "source_file": "project_added",
+    "priority": "low",
+    "notes": "Q011 improvement. issue_type: copyright_author_not_found. Advisory only — emitted when year IS found but author cannot be extracted. Existing P034 author-mismatch finding covers the case where author IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles year/author split-across-lines pattern. Gate: only fires when year is confidently found (avoiding overlap with P051). triage_tier: low."
   }
 ]

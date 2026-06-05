@@ -22,6 +22,7 @@ from njit_auditor.rules.pdf_biosketch_publication_layout import (
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import (
+    check_pdf_copyright_author_format,
     check_pdf_copyright_page,
     check_pdf_copyright_year_format,
 )
@@ -4685,6 +4686,111 @@ def test_p051_p034_unaffected(tmp_path: Path) -> None:
     p051 = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
     assert any(f.details.get("issue_type") == "copyright_year_mismatch" for f in p034)
     assert not p051
+
+
+# ---------------------------------------------------------------------------
+# P052: Copyright page author-format refinement
+# ---------------------------------------------------------------------------
+
+
+def test_p052_standard_author_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_standard.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© 2024 Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P052" for f in check_pdf_copyright_author_format(model))
+
+
+def test_p052_no_year_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_no_year.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P052" for f in check_pdf_copyright_author_format(model))
+
+
+def test_p052_year_no_author_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_no_author.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[(360, "© 2024"), (380, "All Rights Reserved.")],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_author_format(model) if f.rule_id == "P052"]
+    assert any(f.details.get("issue_type") == "copyright_author_not_found" for f in findings)
+
+
+def test_p052_adjacent_line_author_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_adjacent.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[
+            (360, "© 2024"),
+            (376, "Test Author Name"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P052" for f in check_pdf_copyright_author_format(model))
+
+
+def test_p052_no_copyright_page_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_no_copyright.pdf"
+    _make_copyright_page_pdf(pdf_path, include_copyright_page=False)
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P052" for f in check_pdf_copyright_author_format(model))
+
+
+def test_p052_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_privacy.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[(360, "© 2024"), (380, "All Rights Reserved.")],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_copyright_author_format(model)
+    blob = " ".join(f.message for f in findings) + " " + " ".join(
+        f"{k}={v}" for f in findings for k, v in (f.details or {}).items()
+    )
+    assert "Test Author" not in blob
+    assert "All Rights Reserved" not in blob
+    assert "A Study of Synthetic" not in blob
+
+
+def test_p052_import_and_wiring(tmp_path: Path) -> None:
+    import inspect
+
+    from njit_auditor.cli import pdf as pdf_cmd
+    from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_author_format as fn
+
+    assert callable(fn)
+    src = inspect.getsource(pdf_cmd)
+    assert "check_pdf_copyright_author_format" in src
+
+
+def test_p052_p034_p051_unaffected(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_siblings.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2023 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p034 = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    p051 = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    p052 = [f for f in check_pdf_copyright_author_format(model) if f.rule_id == "P052"]
+    assert any(f.details.get("issue_type") == "copyright_year_mismatch" for f in p034)
+    assert not p051
+    assert not p052
+
+
+def test_p052_year_detected_flag_in_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p052_year_flag.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[(360, "© 2024"), (380, "All Rights Reserved.")],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_author_format(model) if f.rule_id == "P052"]
+    assert findings
+    assert findings[0].details.get("year_detected") == "true"
+    assert findings[0].details.get("source_q_rule_id") == "Q011"
 
 
 # ---------------------------------------------------------------------------
