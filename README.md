@@ -51,14 +51,14 @@ tmux new -d -s thesis-auditor-web \
 See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, firewall notes,
 reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
 
-### PDF layout audit (P011–P059)
+### PDF layout audit (P011–P060)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P059 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P060 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -74,7 +74,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P059):
+Current PDF checks (P011–P060):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -127,6 +127,7 @@ Current PDF checks (P011–P059):
 | P057 | TOC/List | LoT/LoF page-number ordering check: emits a warning when a List of Tables or List of Figures page contains complete entries whose listed page numbers are not in non-decreasing order (`lot_page_numbers_not_nondecreasing`, `lof_page_numbers_not_nondecreasing`) (Q069/Q079 refinement); gate: entry must have page-number token, text ≥ 10 chars, integer page number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; non-integer (roman numeral) page tokens skipped; TOC pages excluded; triage tier: medium; privacy-safe metadata only (no entry text, titles, or captions) |
 | P058 | TOC/List | TOC page-number ordering check: emits a warning when a Table of Contents page contains body entries whose page numbers are not in non-decreasing order (`toc_page_numbers_not_nondecreasing`) (Q057 refinement); gate: entry must have page-number token, text ≥ 10 chars, integer page number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; roman-numeral (front-matter) entries skipped; LoT/LoF pages excluded; triage tier: medium; privacy-safe metadata only |
 | P059 | TOC/List | LoT/LoF entry-number ordering check: emits a warning when a List of Tables or List of Figures page contains complete entries whose entry numbers (the numeric token following the "Table"/"Figure" label) are not in non-decreasing order (`lot_entry_numbers_not_nondecreasing`, `lof_entry_numbers_not_nondecreasing`) (Q063/Q072); gate: entry must have page-number token, text ≥ 10 chars, parseable entry number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; mixed sequential + chapter-based format pages skipped; appendix/letter-prefixed entries skipped; TOC pages excluded; triage tier: medium; privacy-safe metadata only |
+| P060 | TOC/List | TOC section-number ordering check: emits a warning when a Table of Contents page contains parseable numeric section entries (entries starting with a bare number, e.g. "1 Introduction", "1.1 Background") whose section numbers are not in non-decreasing order (`toc_entry_numbers_not_nondecreasing`) (Q056/Q057 implied); gate: entry must have page-number token, text ≥ 10 chars, parseable section number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF pages excluded; triage tier: medium; privacy-safe metadata only |
 
 All findings are heuristic warnings and require manual review.
 

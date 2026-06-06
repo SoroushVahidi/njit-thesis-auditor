@@ -1,7 +1,7 @@
 # P060 Scope and Design
 
 - **Date:** 2026-06-05
-- **Status:** Scoped (not yet implemented)
+- **Status:** **Implemented**
 - **Baseline main:** `fa120d9` (PR #194 — post-P059 consistency audit; P001–P059 implemented)
 
 ---

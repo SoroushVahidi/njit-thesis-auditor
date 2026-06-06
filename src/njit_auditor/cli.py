@@ -102,6 +102,9 @@ from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_appendix_format import check_pdf_toc_appendix_format
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hierarchy
+from njit_auditor.rules.pdf_toc_entry_number_ordering import (
+    check_pdf_toc_entry_number_ordering,
+)
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
@@ -250,6 +253,7 @@ def pdf(
     findings.extend(check_pdf_lot_lof_page_number_ordering(pdf_doc))
     findings.extend(check_pdf_toc_page_number_ordering(pdf_doc))
     findings.extend(check_pdf_lot_lof_entry_number_ordering(pdf_doc))
+    findings.extend(check_pdf_toc_entry_number_ordering(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 
