@@ -53,6 +53,9 @@ from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_colu
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_lof_entry_number_ordering import (
+    check_pdf_lot_lof_entry_number_ordering,
+)
 from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_type
 from njit_auditor.rules.pdf_lot_lof_number_format import check_pdf_lot_lof_number_format
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
@@ -60,9 +63,6 @@ from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
 )
 from njit_auditor.rules.pdf_lot_lof_page_number_ordering import (
     check_pdf_lot_lof_page_number_ordering,
-)
-from njit_auditor.rules.pdf_toc_page_number_ordering import (
-    check_pdf_toc_page_number_ordering,
 )
 from njit_auditor.rules.pdf_lot_terminal_period import check_pdf_lot_terminal_period
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -93,6 +93,9 @@ from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hiera
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
+from njit_auditor.rules.pdf_toc_page_number_ordering import (
+    check_pdf_toc_page_number_ordering,
+)
 
 runner = CliRunner()
 
@@ -8508,3 +8511,229 @@ def test_p058_lot_entries_unaffected_by_p058(tmp_path: Path) -> None:
     p057 = [f for f in check_pdf_lot_lof_page_number_ordering(model) if f.rule_id == "P057"]
     assert not p058
     assert p057  # P057 fires for LoT ordering violation
+
+
+# ---------------------------------------------------------------------------
+# P059 — LoT/LoF entry-number ordering check
+# ---------------------------------------------------------------------------
+
+
+def _make_lot_entry_num_ordering_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+    heading: str = "LIST OF TABLES",
+) -> None:
+    """Build a synthetic LoT/LoF page for P059 testing."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p059_no_lot_page_no_finding(tmp_path: Path) -> None:
+    """No LoT/LoF page → no P059 finding."""
+    pdf_path = tmp_path / "p059_no_lot.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "Body text with no List of Tables.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert not findings
+
+
+def test_p059_lot_ascending_no_finding(tmp_path: Path) -> None:
+    """LoT entry numbers non-decreasing → no finding."""
+    pdf_path = tmp_path / "p059_lot_asc.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1 Overview Survey", "10"),
+        ("Table 2 Analysis Report", "20"),
+        ("Table 3 Results Study", "30"),
+        ("Table 4 Evaluation Survey", "40"),
+        ("Table 5 Discussion Report", "50"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert not findings
+
+
+def test_p059_lot_one_inversion_no_finding(tmp_path: Path) -> None:
+    """LoT with exactly one inversion → no finding (conservative gate requires >= 2)."""
+    pdf_path = tmp_path / "p059_lot_one_inv.pdf"
+    # Entry numbers: 1, 3, 5, 2, 4 → 1 inversion (5>2)
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1 Overview Survey", "10"),
+        ("Table 3 Analysis Report", "30"),
+        ("Table 5 Results Study", "50"),
+        ("Table 2 Evaluation Survey", "20"),
+        ("Table 4 Discussion Report", "40"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert not findings
+
+
+def test_p059_lot_two_inversions_warns(tmp_path: Path) -> None:
+    """LoT with >= 2 entry-number inversions → lot_entry_numbers_not_nondecreasing."""
+    pdf_path = tmp_path / "p059_lot_two_inv.pdf"
+    # Entry numbers: 1, 5, 2, 4, 3 → 2 inversions (5>2 and 4>3)
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1 Overview Survey", "10"),
+        ("Table 5 Analysis Report", "45"),
+        ("Table 2 Results Study", "20"),
+        ("Table 4 Evaluation Survey", "35"),
+        ("Table 3 Discussion Report", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lot_entry_numbers_not_nondecreasing"
+    assert findings[0].details.get("section_type") == "list_of_tables"
+    assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def test_p059_lof_two_inversions_warns(tmp_path: Path) -> None:
+    """LoF with >= 2 entry-number inversions → lof_entry_numbers_not_nondecreasing."""
+    pdf_path = tmp_path / "p059_lof_two_inv.pdf"
+    # Entry numbers: 1, 5, 2, 4, 3 → 2 inversions (5>2 and 4>3)
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Figure 1 Overview Survey", "10"),
+        ("Figure 5 Analysis Report", "45"),
+        ("Figure 2 Results Study", "20"),
+        ("Figure 4 Evaluation Survey", "35"),
+        ("Figure 3 Discussion Report", "30"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lof_entry_numbers_not_nondecreasing"
+    assert findings[0].details.get("section_type") == "list_of_figures"
+    assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def test_p059_toc_unaffected(tmp_path: Path) -> None:
+    """TOC page → P059 does not fire."""
+    pdf_path = tmp_path / "p059_toc.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Chapter 5 Overview Survey", "10"),
+        ("Chapter 1 Analysis Report", "45"),
+        ("Chapter 3 Results Study", "20"),
+        ("Chapter 2 Evaluation Survey", "35"),
+        ("Chapter 4 Discussion Report", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    p059 = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert not p059
+
+
+def test_p059_sparse_lot_skipped(tmp_path: Path) -> None:
+    """Fewer than 3 parseable entry numbers → skipped."""
+    pdf_path = tmp_path / "p059_sparse.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 5 Overview Survey", "45"),
+        ("Table 2 Analysis Report", "10"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert not findings
+
+
+def test_p059_mixed_format_skipped(tmp_path: Path) -> None:
+    """Mixed sequential + chapter-based entry numbers → skipped."""
+    pdf_path = tmp_path / "p059_mixed.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1 Overview Survey", "10"),
+        ("Table 2.1 Analysis Report", "20"),
+        ("Table 3 Results Study", "30"),
+        ("Table 2.2 Evaluation Survey", "25"),
+        ("Table 5 Discussion Report", "50"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert not findings
+
+
+def test_p059_chapter_based_two_inversions_warns(tmp_path: Path) -> None:
+    """Chapter-based entry numbers with >= 2 inversions → finding."""
+    pdf_path = tmp_path / "p059_chapter.pdf"
+    # Entry tuples: (1,1), (1,5), (1,2), (1,4), (1,3) → 2 inversions
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1.1 Overview Survey", "10"),
+        ("Table 1.5 Analysis Report", "45"),
+        ("Table 1.2 Results Study", "20"),
+        ("Table 1.4 Evaluation Survey", "35"),
+        ("Table 1.3 Discussion Report", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lot_entry_numbers_not_nondecreasing"
+    assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def test_p059_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Finding details contain only structural metadata — no entry text or titles."""
+    pdf_path = tmp_path / "p059_privacy.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1 Overview Survey", "10"),
+        ("Table 5 Analysis Report", "45"),
+        ("Table 2 Results Study", "20"),
+        ("Table 4 Evaluation Survey", "35"),
+        ("Table 3 Discussion Report", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    assert findings
+    finding = findings[0]
+    allowed_keys = {
+        "issue_type", "page", "section_type", "entry_count",
+        "comparable_entry_number_count", "inversion_count",
+        "first_inversion_index", "triage_tier", "source_q_rule_id",
+    }
+    for key in finding.details:
+        assert key in allowed_keys, f"Unexpected metadata key: {key!r}"
+    for key, val in finding.details.items():
+        assert isinstance(val, str), f"Metadata value for {key!r} should be str"
+    assert finding.details.get("triage_tier") == "medium"
+    assert finding.details.get("source_q_rule_id") in {"Q063", "Q072"}
+
+
+def test_p059_import_and_wiring(tmp_path: Path) -> None:
+    """P059 is importable and wired into cli.py collect path."""
+    from njit_auditor.rules.pdf_lot_lof_entry_number_ordering import (
+        check_pdf_lot_lof_entry_number_ordering as fn,
+    )
+    assert callable(fn)
+    pdf_path = tmp_path / "p059_wire.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "No LoT/LoF page here.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = fn(model)
+    assert isinstance(findings, list)
+
+
+def test_p059_unparseable_entries_skipped(tmp_path: Path) -> None:
+    """Entries with no parseable Table/Figure prefix are silently excluded."""
+    pdf_path = tmp_path / "p059_unparse.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Table 1 Overview Survey", "10"),
+        ("Diagram 2 Random Analysis", "20"),   # not Table/Figure prefix
+        ("Table 5 Results Study", "50"),
+        ("Random Entry Content Here", "40"),    # no prefix
+        ("Table 3 Discussion Report", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    # Only 3 parseable entries (1, 5, 3) with 1 inversion (5>3) → below gate
+    assert not findings

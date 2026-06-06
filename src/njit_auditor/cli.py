@@ -69,6 +69,9 @@ from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_colu
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
+from njit_auditor.rules.pdf_lot_lof_entry_number_ordering import (
+    check_pdf_lot_lof_entry_number_ordering,
+)
 from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_type
 from njit_auditor.rules.pdf_lot_lof_number_format import check_pdf_lot_lof_number_format
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
@@ -76,9 +79,6 @@ from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
 )
 from njit_auditor.rules.pdf_lot_lof_page_number_ordering import (
     check_pdf_lot_lof_page_number_ordering,
-)
-from njit_auditor.rules.pdf_toc_page_number_ordering import (
-    check_pdf_toc_page_number_ordering,
 )
 from njit_auditor.rules.pdf_lot_terminal_period import check_pdf_lot_terminal_period
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
@@ -105,6 +105,9 @@ from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hiera
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
+from njit_auditor.rules.pdf_toc_page_number_ordering import (
+    check_pdf_toc_page_number_ordering,
+)
 from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
 from njit_auditor.rules.title_page import run_title_page_month_check
 
@@ -246,6 +249,7 @@ def pdf(
     findings.extend(check_pdf_lot_lof_number_format(pdf_doc))
     findings.extend(check_pdf_lot_lof_page_number_ordering(pdf_doc))
     findings.extend(check_pdf_toc_page_number_ordering(pdf_doc))
+    findings.extend(check_pdf_lot_lof_entry_number_ordering(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 

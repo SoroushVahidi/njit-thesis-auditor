@@ -1,7 +1,7 @@
 # P059 Scope and Design
 
 - **Date:** 2026-06-05
-- **Status:** **Scoped** (not yet implemented)
+- **Status:** **Implemented**
 - **Baseline main:** `1016857` (PR #190 — post-P058 consistency audit; P001–P058 implemented)
 
 ---
