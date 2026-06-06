@@ -77,6 +77,9 @@ from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
 from njit_auditor.rules.pdf_lot_lof_page_number_ordering import (
     check_pdf_lot_lof_page_number_ordering,
 )
+from njit_auditor.rules.pdf_toc_page_number_ordering import (
+    check_pdf_toc_page_number_ordering,
+)
 from njit_auditor.rules.pdf_lot_terminal_period import check_pdf_lot_terminal_period
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import (
@@ -242,6 +245,7 @@ def pdf(
     findings.extend(check_pdf_lot_lof_entry_type(pdf_doc))
     findings.extend(check_pdf_lot_lof_number_format(pdf_doc))
     findings.extend(check_pdf_lot_lof_page_number_ordering(pdf_doc))
+    findings.extend(check_pdf_toc_page_number_ordering(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 
