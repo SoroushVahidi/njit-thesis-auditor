@@ -1065,5 +1065,28 @@
     ],
     "priority": "medium",
     "notes": "Conservative gate: >=3 complete entries with integer page numbers and >=2 inversions before flagging. Roman-numeral (front-matter) entries excluded. Extends P057 pattern to TABLE OF CONTENTS."
+  },
+  {
+    "id": "P059",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_entry_number_ordering",
+    "issue_types": [
+      "lot_entry_numbers_not_nondecreasing",
+      "lof_entry_numbers_not_nondecreasing"
+    ],
+    "scope_doc": "docs/planning/p059_scope_and_design.md",
+    "section": "PDF Layout — List of Tables / List of Figures",
+    "question": "Are the entry numbers listed in the List of Tables or List of Figures in non-decreasing order?",
+    "rule_definition": "Entries in the List of Tables and List of Figures should be numbered in non-decreasing order (e.g., Table 1, Table 2, Table 3 or Table 1.1, Table 1.2, Table 2.1). An entry numbered Table 5 appearing before Table 2 indicates a copy-paste or reordering error. Appendix/letter-prefixed entries and mixed-format pages are excluded.",
+    "remediation": "Reorder List of Tables or List of Figures entries so that entry numbers appear in non-decreasing order.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "checkability": "deterministic",
+    "input_required": [
+      "pdf"
+    ],
+    "phase": "pdf_layout",
+    "priority": "medium",
+    "notes": "Conservative gate: >=3 entries with parseable entry numbers and >=2 inversions before flagging. Mixed sequential+chapter-based format pages skipped (P056 scope). Appendix/letter-prefixed entries skipped. TOC excluded."
   }
 ]
