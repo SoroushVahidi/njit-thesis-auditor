@@ -1,7 +1,7 @@
 # P057 Scope and Design
 
 - **Date:** 2026-06-05
-- **Status:** **Scoped** (not yet implemented)
+- **Status:** **Implemented**
 - **Baseline main:** `c6a21e2` (PR #177 — post-P056 consistency audit; P001–P056 implemented)
 
 ---

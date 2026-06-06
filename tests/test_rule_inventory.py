@@ -254,11 +254,14 @@ def test_project_added_rules_implemented() -> None:
     assert by_id["P021"]["phase"] == "tex_source"
     assert by_id["P021"]["implementation_module"] == "njit_auditor.rules.latex_abstract"
     assert by_id["P057"]["phase"] == "pdf_layout"
-    assert by_id["P057"]["implementation_status"] == "scoped"
+    assert by_id["P057"]["implementation_status"] == "implemented"
+    assert (
+        by_id["P057"]["implementation_module"]
+        == "njit_auditor.rules.pdf_lot_lof_page_number_ordering"
+    )
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules
-        if str(item["id"]) != "P057"
     )
 
 
