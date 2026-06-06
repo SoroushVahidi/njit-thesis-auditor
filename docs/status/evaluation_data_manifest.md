@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `202b08e` (PR #181 — Add built-in sample PDF audit support to web UI; P001–P056 implemented; web GUI present with upload, URL audit, and built-in sample audit)
-- **Validation:** ruff, mypy, **683 pytest** on latest main
+- **Latest main:** `5401802` (PR #183 — Refresh evaluation_data_manifest.md; P001–P056 implemented; web GUI present with upload, URL audit, and built-in sample audit; P057 implemented post-PR)
+- **Validation:** ruff, mypy, **695 pytest** after P057 implementation
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 56 (P001–P056) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 57 (P001–P057) | Yes |
 
-P001–P056 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P057 are implemented; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -144,6 +144,7 @@ files unless explicitly requested.
 - **P036 current-dataset evaluation (not run):** `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P055 current-dataset evaluation (not run):** `docs/evaluation/p055_current_dataset_evaluation.md`
 - **P056 current-dataset evaluation (not run):** `docs/evaluation/p056_current_dataset_evaluation.md`
+- **P057 current-dataset evaluation (not run):** `docs/evaluation/p057_current_dataset_evaluation.md`
 - **P039 current-dataset evaluation (not run):** `docs/evaluation/p039_current_dataset_evaluation.md`
 - **P040 current-dataset evaluation (not run):** `docs/evaluation/p040_current_dataset_evaluation.md`
 - **P041 current-dataset evaluation (not run):** `docs/evaluation/p041_current_dataset_evaluation.md`
