@@ -90,6 +90,9 @@ from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_appendix_format import check_pdf_toc_appendix_format
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
 from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hierarchy
+from njit_auditor.rules.pdf_toc_entry_number_ordering import (
+    check_pdf_toc_entry_number_ordering,
+)
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
@@ -8735,5 +8738,211 @@ def test_p059_unparseable_entries_skipped(tmp_path: Path) -> None:
     ])
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_lot_lof_entry_number_ordering(model) if f.rule_id == "P059"]
+    # Only 3 parseable entries (1, 5, 3) with 1 inversion (5>3) → below gate
+    assert not findings
+
+# ---------------------------------------------------------------------------
+# P060 — TOC section-number ordering check
+# ---------------------------------------------------------------------------
+
+def test_p060_no_toc_page_no_finding(tmp_path: Path) -> None:
+    """No TOC page → no P060 finding."""
+    pdf_path = tmp_path / "p060_no_toc.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "Body text with no Table of Contents.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert not findings
+
+
+def test_p060_toc_ascending_no_finding(tmp_path: Path) -> None:
+    """TOC section numbers non-decreasing → no finding."""
+    pdf_path = tmp_path / "p060_toc_asc.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("1 Overview Survey", "5"),
+        ("2 Analysis Report", "15"),
+        ("3 Results Study", "25"),
+        ("4 Evaluation Survey", "35"),
+        ("5 Discussion Report", "45"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert not findings
+
+
+def test_p060_toc_one_inversion_no_finding(tmp_path: Path) -> None:
+    """TOC with exactly one inversion → no finding (conservative gate requires >= 2)."""
+    pdf_path = tmp_path / "p060_toc_one_inv.pdf"
+    # Section numbers: 1, 3, 5, 2, 4 → 1 inversion (5>2)
+    _make_toc_ordering_pdf(pdf_path, [
+        ("1 Overview Survey", "5"),
+        ("3 Analysis Report", "25"),
+        ("5 Results Study", "45"),
+        ("2 Evaluation Survey", "15"),
+        ("4 Discussion Report", "35"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert not findings
+
+
+def test_p060_toc_two_inversions_warns(tmp_path: Path) -> None:
+    """TOC with >= 2 section-number inversions → toc_entry_numbers_not_nondecreasing."""
+    pdf_path = tmp_path / "p060_toc_two_inv.pdf"
+    # Section numbers: 1, 5, 2, 4, 3 → 2 inversions (5>2 and 4>3)
+    _make_toc_ordering_pdf(pdf_path, [
+        ("1 Overview Survey", "5"),
+        ("5 Analysis Report", "45"),
+        ("2 Results Study", "15"),
+        ("4 Evaluation Survey", "35"),
+        ("3 Discussion Report", "25"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "toc_entry_numbers_not_nondecreasing"
+    assert findings[0].details.get("section_type") == "table_of_contents"
+    assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def test_p060_lot_unaffected(tmp_path: Path) -> None:
+    """LoT page → P060 does not fire."""
+    pdf_path = tmp_path / "p060_lot.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("1 Overview Survey", "5"),
+        ("5 Analysis Report", "45"),
+        ("2 Results Study", "15"),
+        ("4 Evaluation Survey", "35"),
+        ("3 Discussion Report", "25"),
+    ], heading="LIST OF TABLES")
+    model = load_pdf_layout(str(pdf_path))
+    p060 = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert not p060
+
+
+def test_p060_lof_unaffected(tmp_path: Path) -> None:
+    """LoF page → P060 does not fire."""
+    pdf_path = tmp_path / "p060_lof.pdf"
+    _make_lot_entry_num_ordering_pdf(pdf_path, [
+        ("Figure 1 Overview Survey", "5"),
+        ("Figure 5 Analysis Report", "45"),
+        ("Figure 2 Results Study", "15"),
+        ("Figure 4 Evaluation Survey", "35"),
+        ("Figure 3 Discussion Report", "25"),
+    ], heading="LIST OF FIGURES")
+    model = load_pdf_layout(str(pdf_path))
+    p060 = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert not p060
+
+
+def test_p060_sparse_toc_skipped(tmp_path: Path) -> None:
+    """Fewer than 3 parseable section numbers → skipped."""
+    pdf_path = tmp_path / "p060_sparse.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("5 Overview Survey", "45"),
+        ("2 Analysis Report", "15"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert not findings
+
+
+def test_p060_word_prefix_entries_skipped(tmp_path: Path) -> None:
+    """Word-prefix entries (CHAPTER, ABSTRACT, APPENDIX) not counted."""
+    pdf_path = tmp_path / "p060_word_prefix.pdf"
+    # Only 3 numeric entries (1, 2, 5), with 1 inversion (5 appears before nothing → 
+    # actually 1, 2, 5 is non-decreasing → no finding)
+    # Plus word-prefix entries that should be silently excluded
+    _make_toc_ordering_pdf(pdf_path, [
+        ("ABSTRACT Overview Survey", "iv"),
+        ("1 Analysis Report", "5"),
+        ("2 Results Study", "15"),
+        ("APPENDIX Overview Notes", "98"),
+        ("5 Discussion Report", "45"),
+        ("3 Summary Notes", "25"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    # Numeric entries: (1,), (2,), (5,), (3,) → 1 inversion (5>3) → below gate of 2
+    assert not findings
+
+
+def test_p060_subsection_two_inversions_warns(tmp_path: Path) -> None:
+    """Subsection entries with >= 2 inversions → toc_entry_numbers_not_nondecreasing."""
+    pdf_path = tmp_path / "p060_subsect.pdf"
+    # Subsection tuples: (1,1), (1,5), (1,2), (1,4), (1,3) → 2 inversions
+    _make_toc_ordering_pdf(pdf_path, [
+        ("1.1 Overview Survey", "5"),
+        ("1.5 Analysis Report", "45"),
+        ("1.2 Results Study", "15"),
+        ("1.4 Evaluation Survey", "35"),
+        ("1.3 Discussion Report", "25"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "toc_entry_numbers_not_nondecreasing"
+    assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def test_p060_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Finding details contain only structural metadata — no entry text or titles."""
+    pdf_path = tmp_path / "p060_privacy.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("1 Overview Survey", "5"),
+        ("5 Analysis Report", "45"),
+        ("2 Results Study", "15"),
+        ("4 Evaluation Survey", "35"),
+        ("3 Discussion Report", "25"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
+    assert findings
+    finding = findings[0]
+    allowed_keys = {
+        "issue_type", "page", "section_type", "entry_count",
+        "comparable_entry_number_count", "inversion_count",
+        "first_inversion_index", "triage_tier", "source_q_rule_id",
+    }
+    for key in finding.details:
+        assert key in allowed_keys, f"Unexpected metadata key: {key!r}"
+    for key, val in finding.details.items():
+        assert isinstance(val, str), f"Metadata value for {key!r} should be str"
+    assert finding.details.get("triage_tier") == "medium"
+    assert finding.details.get("source_q_rule_id") == "Q056"
+
+
+def test_p060_import_and_wiring(tmp_path: Path) -> None:
+    """P060 is importable and wired into cli.py collect path."""
+    from njit_auditor.rules.pdf_toc_entry_number_ordering import (
+        check_pdf_toc_entry_number_ordering as fn,
+    )
+    assert callable(fn)
+    pdf_path = tmp_path / "p060_wire.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "No TOC page here.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = fn(model)
+    assert isinstance(findings, list)
+
+
+def test_p060_unparseable_entries_skipped(tmp_path: Path) -> None:
+    """Entries with no parseable section number are silently excluded."""
+    pdf_path = tmp_path / "p060_unparse.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("1 Overview Survey", "5"),
+        ("CHAPTER 3 Analysis Report", "25"),   # word-prefix, skipped
+        ("5 Results Study", "45"),
+        ("Random Content Notes", "40"),         # no numeric prefix, skipped
+        ("3 Discussion Report", "25"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
     # Only 3 parseable entries (1, 5, 3) with 1 inversion (5>3) → below gate
     assert not findings
