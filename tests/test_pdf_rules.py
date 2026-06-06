@@ -61,6 +61,9 @@ from njit_auditor.rules.pdf_lot_lof_page_number_alignment import (
 from njit_auditor.rules.pdf_lot_lof_page_number_ordering import (
     check_pdf_lot_lof_page_number_ordering,
 )
+from njit_auditor.rules.pdf_toc_page_number_ordering import (
+    check_pdf_toc_page_number_ordering,
+)
 from njit_auditor.rules.pdf_lot_terminal_period import check_pdf_lot_terminal_period
 from njit_auditor.rules.pdf_margins import run_pdf_margin_rule
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
@@ -8297,3 +8300,211 @@ def test_p057_toc_entries_unaffected(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     p057 = [f for f in check_pdf_lot_lof_page_number_ordering(model) if f.rule_id == "P057"]
     assert not p057
+
+
+# ---------------------------------------------------------------------------
+# P058: TOC page-number ordering checks
+# ---------------------------------------------------------------------------
+
+
+def _make_toc_ordering_pdf(
+    path: Path,
+    entries: list[tuple[str, str | None]],
+) -> None:
+    """Build a synthetic TOC page for P058 testing."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    y = 140.0
+    for text, pg_num in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        if pg_num is not None:
+            page.insert_text((500, y), pg_num, fontsize=12)
+        y += 22.0
+    doc.save(path)
+    doc.close()
+
+
+def test_p058_no_toc_page_no_finding(tmp_path: Path) -> None:
+    """No TOC page → no P058 finding."""
+    pdf_path = tmp_path / "p058_no_toc.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "Body text with no Table of Contents.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert not findings
+
+
+def test_p058_toc_ascending_no_finding(tmp_path: Path) -> None:
+    """TOC page numbers non-decreasing → no finding."""
+    pdf_path = tmp_path / "p058_toc_asc.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Chapter 1 Introduction Overview", "1"),
+        ("Chapter 2 Literature Survey", "15"),
+        ("Chapter 3 Methodology Approach", "30"),
+        ("Chapter 4 Results Discussion", "45"),
+        ("Chapter 5 Conclusion Future", "60"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert not findings
+
+
+def test_p058_toc_one_inversion_no_finding(tmp_path: Path) -> None:
+    """TOC with one inversion only → no finding (conservative gate requires >= 2)."""
+    pdf_path = tmp_path / "p058_toc_one_inv.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Chapter 1 Introduction Overview", "1"),
+        ("Chapter 2 Literature Survey", "15"),
+        ("Chapter 3 Methodology Approach", "10"),
+        ("Chapter 4 Results Discussion", "45"),
+        ("Chapter 5 Conclusion Future", "60"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert not findings
+
+
+def test_p058_toc_two_inversions_warns(tmp_path: Path) -> None:
+    """TOC with >= 2 inversions → toc_page_numbers_not_nondecreasing."""
+    pdf_path = tmp_path / "p058_toc_two_inv.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Chapter 1 Introduction Overview", "45"),
+        ("Chapter 2 Literature Survey", "10"),
+        ("Chapter 3 Methodology Approach", "55"),
+        ("Chapter 4 Results Discussion", "20"),
+        ("Chapter 5 Conclusion Future", "70"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "toc_page_numbers_not_nondecreasing"
+    assert findings[0].details.get("section_type") == "table_of_contents"
+    assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def test_p058_sparse_toc_skipped(tmp_path: Path) -> None:
+    """Fewer than 3 comparable entries → skipped."""
+    pdf_path = tmp_path / "p058_sparse.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Chapter 1 Introduction Overview", "45"),
+        ("Chapter 2 Literature Survey", "10"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert not findings
+
+
+def test_p058_roman_entries_skipped(tmp_path: Path) -> None:
+    """Roman-numeral page tokens are excluded from ordering comparison."""
+    pdf_path = tmp_path / "p058_roman.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Abstract Overview Content", "v"),
+        ("Acknowledgements Section", "vi"),
+        ("Table of Contents List", "vii"),
+        ("List of Tables Entry", "viii"),
+        ("List of Figures Entry", "ix"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert not findings
+
+
+def test_p058_lot_lof_unaffected(tmp_path: Path) -> None:
+    """LoT and LoF pages → P058 does not fire."""
+    pdf_path = tmp_path / "p058_lot_lof.pdf"
+    doc = fitz.open()
+    # LoT page with inversions
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    for text, pg in [
+        ("Table 1 Overview Introduction", "45"),
+        ("Table 2 Comparison Survey", "10"),
+        ("Table 3 Evaluation Approach", "55"),
+        ("Table 4 Results Discussion", "20"),
+        ("Table 5 Summary Conclusion", "70"),
+    ]:
+        y = 140.0 + 22.0 * ["Table 1 Overview Introduction", "Table 2 Comparison Survey",
+                              "Table 3 Evaluation Approach", "Table 4 Results Discussion",
+                              "Table 5 Summary Conclusion"].index(text)
+        page.insert_text((72.0, y), text, fontsize=12)
+        page.insert_text((500, y), pg, fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    p058 = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert not p058
+
+
+def test_p058_finding_metadata_privacy_safe(tmp_path: Path) -> None:
+    """Finding details contain only structural metadata — no entry text or titles."""
+    pdf_path = tmp_path / "p058_privacy.pdf"
+    _make_toc_ordering_pdf(pdf_path, [
+        ("Chapter 1 Introduction Overview", "45"),
+        ("Chapter 2 Literature Survey", "10"),
+        ("Chapter 3 Methodology Approach", "55"),
+        ("Chapter 4 Results Discussion", "20"),
+        ("Chapter 5 Conclusion Future", "70"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    assert findings
+    finding = findings[0]
+    allowed_keys = {
+        "issue_type", "page", "section_type", "entry_count",
+        "comparable_page_number_count", "inversion_count",
+        "first_inversion_index", "triage_tier", "source_q_rule_id",
+    }
+    for key in finding.details:
+        assert key in allowed_keys, f"Unexpected metadata key: {key!r}"
+    for key, val in finding.details.items():
+        assert isinstance(val, str), f"Metadata value for {key!r} should be str"
+    assert finding.details.get("triage_tier") == "medium"
+    assert finding.details.get("source_q_rule_id") == "Q057"
+
+
+def test_p058_import_and_wiring(tmp_path: Path) -> None:
+    """P058 is importable and wired into cli.py collect path."""
+    from njit_auditor.rules.pdf_toc_page_number_ordering import (
+        check_pdf_toc_page_number_ordering as fn,
+    )
+    assert callable(fn)
+    pdf_path = tmp_path / "p058_wire.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72.0, 200.0), "No TOC page here.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = fn(model)
+    assert isinstance(findings, list)
+
+
+def test_p058_lot_entries_unaffected_by_p058(tmp_path: Path) -> None:
+    """LoT with inversions is caught by P057, not P058."""
+    pdf_path = tmp_path / "p058_lot_only.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    entries = [
+        ("Table 1 Overview Introduction", "45"),
+        ("Table 2 Comparison Survey", "10"),
+        ("Table 3 Evaluation Approach", "55"),
+        ("Table 4 Results Discussion", "20"),
+        ("Table 5 Summary Conclusion", "70"),
+    ]
+    y = 140.0
+    for text, pg in entries:
+        page.insert_text((72.0, y), text, fontsize=12)
+        page.insert_text((500, y), pg, fontsize=12)
+        y += 22.0
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    p058 = [f for f in check_pdf_toc_page_number_ordering(model) if f.rule_id == "P058"]
+    p057 = [f for f in check_pdf_lot_lof_page_number_ordering(model) if f.rule_id == "P057"]
+    assert not p058
+    assert p057  # P057 fires for LoT ordering violation

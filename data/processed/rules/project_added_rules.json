@@ -1037,5 +1037,33 @@
     ],
     "priority": "medium",
     "notes": "Conservative gate: \u22653 complete entries with integer page numbers and \u22652 inversions before flagging."
+  },
+  {
+    "id": "P058",
+    "title": "TOC page-number ordering check",
+    "description": "Emits a warning when a Table of Contents page contains body entries whose listed page numbers are not in non-decreasing order. A decrease in page number between consecutive arabic-numbered entries signals a TOC ordering error or copy-paste mistake.",
+    "phase": "pdf_layout",
+    "source_q_rule_ids": [
+      "Q057"
+    ],
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_toc_page_number_ordering",
+    "triage_tier": "medium",
+    "issue_types": [
+      "toc_page_numbers_not_nondecreasing"
+    ],
+    "scope_doc": "docs/planning/p058_scope_and_design.md",
+    "section": "PDF Layout \u2014 Table of Contents",
+    "question": "Are the page numbers listed in the Table of Contents body entries in non-decreasing order?",
+    "rule_definition": "Body entries in the Table of Contents should reference page numbers in non-decreasing order, consistent with the physical order of chapters in the document body. Roman-numeral front-matter entries are excluded.",
+    "remediation": "Reorder Table of Contents entries so that page numbers appear in ascending order.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "checkability": "deterministic",
+    "input_required": [
+      "pdf"
+    ],
+    "priority": "medium",
+    "notes": "Conservative gate: >=3 complete entries with integer page numbers and >=2 inversions before flagging. Roman-numeral (front-matter) entries excluded. Extends P057 pattern to TABLE OF CONTENTS."
   }
 ]
