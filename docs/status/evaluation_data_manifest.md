@@ -2,7 +2,7 @@
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
 - **Latest main:** `8f00c36` (PR #192 — Implement P059 LoT LoF entry-number ordering checks; P001–P059 implemented; web GUI present with upload, URL audit, and built-in sample audit)
-- **Validation:** ruff, mypy, **717 pytest** after P058 implementation
+- **Validation:** ruff, mypy, **717 pytest** after P059 implementation
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
