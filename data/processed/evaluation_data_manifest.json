@@ -137,7 +137,7 @@
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
         "rule_count": 54,
-        "rule_id_range": "P001-P056",
+        "rule_id_range": "P001-P057",
         "tracked_status": "tracked",
         "description": "Project implementation rule set mapped to audit modules (P001-P053 implemented; P054 scoped)"
       }
