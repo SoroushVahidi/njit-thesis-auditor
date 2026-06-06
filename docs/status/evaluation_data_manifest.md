@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `5401802` (PR #183 — Refresh evaluation_data_manifest.md; P001–P056 implemented; web GUI present with upload, URL audit, and built-in sample audit; P057 implemented post-PR)
+- **Latest main:** `5547e3e` (PR #184 — Implement P057 LoT LoF page-number ordering checks; P001–P057 implemented; web GUI present with upload, URL audit, and built-in sample audit)
 - **Validation:** ruff, mypy, **695 pytest** after P057 implementation
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
