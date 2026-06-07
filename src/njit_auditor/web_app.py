@@ -46,7 +46,7 @@ MAX_UPLOAD_BYTES: int = MAX_UPLOAD_MB * 1024 * 1024
 # Job store (in-memory + runtime files on disk)
 # ---------------------------------------------------------------------------
 
-_ALLOWED_WEB_EXTENSIONS = {".pdf"}
+_ALLOWED_WEB_EXTENSIONS = frozenset({".pdf", ".tex", ".zip"})
 
 
 @dataclass
@@ -55,6 +55,7 @@ class JobState:
     state: str  # pending | running | complete | failed
     created_at: str
     file_name: str
+    audit_type: str = "pdf"
     finished_at: str | None = None
     finding_count: int = 0
     warn_count: int = 0
@@ -92,6 +93,25 @@ def _set_job(job: JobState) -> None:
 
 def _job_dir(job_id: str) -> Path:
     return RUNTIME_DIR / job_id
+
+
+def _stored_upload_path(jdir: Path, ext: str) -> Path:
+    """Return the on-disk path for a job upload with a known extension."""
+    return jdir / f"upload{ext}"
+
+
+def _resolve_job_upload_path(jdir: Path, file_name: str) -> Path:
+    """Locate the stored upload file for a job (PDF, TeX, or ZIP)."""
+    ext = Path(file_name).suffix.lower()
+    if ext in _ALLOWED_WEB_EXTENSIONS:
+        candidate = _stored_upload_path(jdir, ext)
+        if candidate.exists():
+            return candidate
+    for fallback_ext in (".pdf", ".tex", ".zip"):
+        candidate = _stored_upload_path(jdir, fallback_ext)
+        if candidate.exists():
+            return candidate
+    return _stored_upload_path(jdir, ".pdf")
 
 
 # ---------------------------------------------------------------------------
@@ -146,6 +166,30 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         {str(f.get("page")) for f in job.findings if f.get("page") is not None},
         key=lambda x: int(x),
     )
+    filter_locations = sorted(
+        {
+            str(f.get("location_label"))
+            for f in job.findings
+            if f.get("location_label")
+        }
+    )
+    ext = Path(job.file_name).suffix.lower()
+    audit_type = job.audit_type or ("tex" if ext in {".tex", ".zip"} else "pdf")
+    is_source_audit = audit_type == "tex"
+    locations_affected = 0
+    if is_source_audit:
+        locations_affected = len(
+            {
+                (f.get("source_file"), f.get("source_line"))
+                for f in job.findings
+                if f.get("source_file") or f.get("source_line")
+            }
+        )
+    audit_scope_label = (
+        "TeX source audit (P001–P010)"
+        if is_source_audit
+        else "PDF layout audit (P011–P061)"
+    )
 
     return {
         "job_id": job.job_id,
@@ -164,11 +208,15 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "highest_severity": highest_sev,
         "highest_severity_label": highest_label,
         "pages_affected": len(pages),
+        "locations_affected": locations_affected,
+        "is_source_audit": is_source_audit,
+        "audit_scope_label": audit_scope_label,
         "rules_flagged": len(counts_by_rule),
         "filter_rules": filter_rules,
         "filter_severities": filter_severities,
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
+        "filter_locations": filter_locations,
     }
 
 
@@ -186,7 +234,7 @@ def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLRe
 # ---------------------------------------------------------------------------
 
 def _run_audit_task(job_id: str) -> None:
-    """Execute the PDF audit in a background thread and update job state."""
+    """Execute an upload audit in a background thread and update job state."""
     job = _get_job(job_id)
     if job is None:
         return
@@ -195,11 +243,11 @@ def _run_audit_task(job_id: str) -> None:
     _set_job(job)
 
     jdir = _job_dir(job_id)
-    pdf_path = jdir / "upload.pdf"
+    upload_path = _resolve_job_upload_path(jdir, job.file_name)
 
     try:
         result = run_audit_for_uploaded_file(
-            pdf_path,
+            upload_path,
             max_size_bytes=MAX_UPLOAD_BYTES,
             work_dir=jdir,
         )
@@ -227,7 +275,7 @@ def _run_audit_task(job_id: str) -> None:
         "input_file_name": job.file_name,
         "audit_type": result.audit_type,
         "job_id": job_id,
-        "input_file_path": str(pdf_path),
+        "input_file_path": str(upload_path),
     }
     if result.audit_type == "tex":
         metadata["input_kind"] = (
@@ -280,6 +328,7 @@ def _run_audit_task(job_id: str) -> None:
     md_preview = md_report_path.read_text(encoding="utf-8")[:6000]
 
     job.state = "complete"
+    job.audit_type = result.audit_type
     job.finding_count = view.total_findings
     job.warn_count = int(view.counts_by_severity.get("WARNING", 0))
     job.fail_count = int(view.counts_by_severity.get("FAIL", 0))
@@ -316,7 +365,8 @@ async def submit_audit(
     if ext not in _ALLOWED_WEB_EXTENSIONS:
         return _index_error(
             request,
-            f"Only PDF files are accepted in the web UI. Got: {ext or '(no extension)'}",
+            "Supported uploads: PDF (.pdf), TeX source (.tex), and ZIP (.zip). "
+            f"Got: {ext or '(no extension)'}",
         )
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
@@ -327,21 +377,23 @@ async def submit_audit(
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
-    upload_path = jdir / "upload.pdf"
+    safe_name = sanitize_upload_filename(filename, default_ext=ext or ".pdf")
+    upload_path = _stored_upload_path(jdir, ext)
     upload_path.write_bytes(content)
 
     try:
-        validate_upload_path(upload_path, MAX_UPLOAD_BYTES, expected_kind=UploadKind.PDF)
+        validate_upload_path(upload_path, MAX_UPLOAD_BYTES)
     except UploadValidationError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
         return _index_error(request, str(exc))
 
+    pending_audit_type = "tex" if ext in {".tex", ".zip"} else "pdf"
     job = JobState(
         job_id=job_id,
         state="pending",
         created_at=datetime.now(timezone.utc).isoformat(),
         file_name=safe_name,
+        audit_type=pending_audit_type,
     )
     _set_job(job)
     background_tasks.add_task(_run_audit_task, job_id)

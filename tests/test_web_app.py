@@ -15,6 +15,11 @@ from fastapi.testclient import TestClient
 # Minimal synthetic PDF header — enough to pass the magic-byte check
 _MINIMAL_PDF = b"%PDF-1.4\n%%EOF\n"
 
+_MINIMAL_TEX = (
+    rb"\documentclass{report}"
+    b"\n\\begin{document}\n\\vspace{1cm}\nHello\n\\end{document}\n"
+)
+
 
 def _make_app(tmp_path: Path) -> Any:
     """Import the web app with RUNTIME_DIR pointed at a temp directory."""
@@ -50,7 +55,19 @@ def test_index_contains_file_input(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert b'type="file"' in resp.content
-    assert b'accept=".pdf"' in resp.content
+    assert b".pdf" in resp.content
+    assert b".tex" in resp.content
+    assert b".zip" in resp.content
+
+
+def test_index_advertises_pdf_tex_zip_support(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"P011" in resp.content
+    assert b"P001" in resp.content
+    assert b"ZIP" in resp.content or b"zip" in resp.content.lower()
+    assert b"no LaTeX compilation" in resp.content or b"no compilation" in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +88,7 @@ def test_upload_non_pdf_extension_rejected(client: tuple[TestClient, Any]) -> No
         follow_redirects=False,
     )
     assert resp.status_code == 400
-    assert b"Only PDF files" in resp.content
+    assert b"Supported uploads" in resp.content
 
 
 def test_upload_wrong_magic_bytes_rejected(client: tuple[TestClient, Any]) -> None:
@@ -121,6 +138,116 @@ def _fake_dispatch(pdf_path: Path, **kwargs: Any) -> Any:
         upload_kind=UploadKind.PDF,
         audit_type="pdf",
         findings=_fake_audit(pdf_path),
+    )
+
+
+def test_upload_tex_creates_job_and_redirects(client: tuple[TestClient, Any]) -> None:
+    c, wa = client
+    with patch.object(wa, "_run_audit_task", lambda job_id: None):
+        resp = c.post(
+            "/audits",
+            files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/audits/")
+
+
+def test_upload_tex_completes_with_source_report(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    resp = c.post(
+        "/audits",
+        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"TeX source audit" in resp.content or b"P001" in resp.content
+    assert b"Location" in resp.content
+    assert b"High-volume triage" not in resp.content
+    assert b"fig:secret" not in resp.content
+
+
+def test_tex_upload_json_and_markdown_downloads(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    post = c.post(
+        "/audits",
+        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+        follow_redirects=False,
+    )
+    job_id = post.headers["location"].split("/audits/")[1]
+    page = c.get(f"/audits/{job_id}")
+    assert page.status_code == 200
+    json_resp = c.get(f"/audits/{job_id}/download/json")
+    md_resp = c.get(f"/audits/{job_id}/download/markdown")
+    if json_resp.status_code == 200:
+        data = json_resp.json()
+        assert data["metadata"]["audit_type"] == "tex"
+        assert "findings" in data
+    if md_resp.status_code == 200:
+        assert b"Source Audit Report" in md_resp.content
+
+
+def test_zip_upload_json_and_markdown_downloads(client: tuple[TestClient, Any]) -> None:
+    import zipfile
+
+    c, _ = client
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as zf:
+        zf.writestr("main.tex", _MINIMAL_TEX)
+    zbuf.seek(0)
+    post = c.post(
+        "/audits",
+        files={"file": ("project.zip", zbuf, "application/zip")},
+        follow_redirects=False,
+    )
+    job_id = post.headers["location"].split("/audits/")[1]
+    c.get(f"/audits/{job_id}")
+    json_resp = c.get(f"/audits/{job_id}/download/json")
+    if json_resp.status_code == 200:
+        assert json_resp.json()["metadata"]["audit_type"] == "tex"
+
+
+def test_upload_zip_completes_with_source_report(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    import zipfile
+
+    c, _ = client
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as zf:
+        zf.writestr("main.tex", _MINIMAL_TEX)
+    zbuf.seek(0)
+    resp = c.post(
+        "/audits",
+        files={"file": ("project.zip", zbuf, "application/zip")},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"TeX source audit" in resp.content or b"P001" in resp.content
+    assert b"Location" in resp.content
+
+
+def test_unsafe_zip_upload_shows_safe_error(client: tuple[TestClient, Any]) -> None:
+    import zipfile
+
+    c, _ = client
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as zf:
+        zf.writestr("../evil.tex", _MINIMAL_TEX)
+    zbuf.seek(0)
+    resp = c.post(
+        "/audits",
+        files={"file": ("bad.zip", zbuf, "application/zip")},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"Traceback" not in resp.content
+    assert (
+        b"could not complete" in resp.content.lower()
+        or b"Unsafe ZIP" in resp.content
+        or b"unsafe" in resp.content.lower()
     )
 
 
@@ -298,17 +425,15 @@ def test_index_states_privacy_safe_local_processing(client: tuple[TestClient, An
     assert b"not stored permanently" in resp.content.lower()
 
 
-def test_index_states_pdf_support_and_tex_zip_limitations(
-    client: tuple[TestClient, Any],
-) -> None:
+def test_index_states_pdf_tex_zip_web_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
     assert b"Supported inputs" in resp.content
     assert b"PDF" in resp.content
     assert b"TeX source" in resp.content or b"TeX" in resp.content
-    assert b"CLI only" in resp.content
-    assert b"web upload not exposed" in resp.content.lower()
+    assert b"Supported" in resp.content
+    assert b"source only" in resp.content.lower() or b"not compiled" in resp.content.lower()
 
 
 def test_index_lists_what_you_get_deliverables(client: tuple[TestClient, Any]) -> None:

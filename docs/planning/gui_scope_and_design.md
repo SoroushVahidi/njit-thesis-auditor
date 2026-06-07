@@ -439,7 +439,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 |---|---|---|
 | **0** | Backend contract audit | **Done** — `run_pdf_audit_full()` / `collect_pdf_layout_findings()` shared by CLI and web; parity tests in `tests/test_audit_runner.py` |
 | **1** | Minimal polished UI | **Done** — enhanced Jinja templates: status banner, summary cards, triage-first layout, findings filters, privacy note |
-| **2** | Upload correctness | **Backend done** — `upload_handling.py`, `run_audit_for_uploaded_file()`; web UI TeX/ZIP exposure pending |
+| **2** | Upload correctness | **Done** — PDF/TeX/ZIP web upload via `upload_handling.py` and `run_audit_for_uploaded_file()` |
 | **3** | Report rendering tests | **Partially done** — `report_view.py` + `polished_comments.py` + polished Jinja results page; client-side filter tests added |
 | **4** | PDF page preview | Page thumbnails with finding markers (privacy-safe) |
 | **5** | Polished comment coverage | All high-volume rules; remediation from `rule_loader` |
@@ -466,7 +466,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 ### Known caveats before implementation
 
 - ~~**Web audit is behind CLI**~~ — resolved; web PDF uploads use full P011–P061 via `run_pdf_audit_full`
-- ~~**TeX has no JSON export today**~~ — resolved for backend/CLI; web TeX/ZIP upload UI still pending
+- ~~**TeX has no JSON export today**~~ — resolved; web UI accepts PDF/TeX/ZIP (ZIP audits source, not compiled PDF)
 - **URL fetch is not offline** — treat as advanced feature; offline-first messaging on landing page
 - **Built-in samples expose private evaluation PDFs** — disable on public deployments
 - **High-volume rules (P013/P026) remain noisy** — triage-first UX is essential for usability

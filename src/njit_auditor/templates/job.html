@@ -29,7 +29,10 @@
       var rule = document.getElementById("filter-rule").value;
       var severity = document.getElementById("filter-severity").value;
       var category = document.getElementById("filter-category").value;
-      var page = document.getElementById("filter-page").value;
+      var page = document.getElementById("filter-page");
+      var location = document.getElementById("filter-location");
+      var pageVal = page ? page.value : "";
+      var locationVal = location ? location.value : "";
       var rows = document.querySelectorAll(".finding-row");
       var visible = 0;
       rows.forEach(function(row) {
@@ -37,7 +40,8 @@
         if (rule && row.dataset.rule !== rule) show = false;
         if (severity && row.dataset.severity !== severity) show = false;
         if (category && row.dataset.category !== category) show = false;
-        if (page && row.dataset.page !== page) show = false;
+        if (pageVal && row.dataset.page !== pageVal) show = false;
+        if (locationVal && row.dataset.location !== locationVal) show = false;
         row.classList.toggle("finding-row--hidden", !show);
         if (show) visible += 1;
       });
@@ -46,14 +50,14 @@
         counter.textContent = "Showing " + visible + " of " + rows.length + " findings";
       }
     }
-    ["filter-rule", "filter-severity", "filter-category", "filter-page"].forEach(function(id) {
+    ["filter-rule", "filter-severity", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener("change", applyFilters);
     });
     var reset = document.getElementById("filter-reset");
     if (reset) {
       reset.addEventListener("click", function() {
-        ["filter-rule", "filter-severity", "filter-category", "filter-page"].forEach(function(id) {
+        ["filter-rule", "filter-severity", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
           var el = document.getElementById(id);
           if (el) el.value = "";
         });
@@ -76,7 +80,7 @@
   </div>
 </div>
 <div class="card">
-  <p>Your PDF is being audited against NJIT formatting rules. This page refreshes automatically when results are ready.</p>
+  <p>Your file is being audited ({{ audit_scope_label|default("PDF layout audit") }}). This page refreshes automatically when results are ready.</p>
   <p class="file-hint" style="margin:0.5rem 0 0;">Started: {{ created_at }}</p>
 </div>
 
@@ -91,7 +95,7 @@
   <strong>Something went wrong.</strong><br>
   {{ error_message }}
 </div>
-<p class="file-hint">If the file is not a valid PDF, try re-exporting it. Unsupported formats must use the CLI for TeX/ZIP audits.</p>
+<p class="file-hint">Check that the file is a valid PDF, TeX source, or ZIP archive. ZIP uploads must contain a detectable main .tex file.</p>
 <p><a href="/" class="btn btn-secondary">&larr; Try another file</a></p>
 
 {% elif state == "complete" %}
@@ -101,6 +105,7 @@
     <p class="status-banner__title">Audit complete</p>
     <p class="status-banner__meta">
       Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
+      &middot; {{ audit_scope_label }}
       {% if finished_at %} &middot; Finished {{ finished_at[:19] }}{% endif %}
     </p>
   </div>
@@ -132,8 +137,8 @@
       <div class="summary-card__value" style="font-size:1.1rem">{{ highest_severity_label }}</div>
     </div>
     <div class="summary-card">
-      <div class="summary-card__label">Pages affected</div>
-      <div class="summary-card__value">{{ pages_affected }}</div>
+      <div class="summary-card__label">{% if is_source_audit %}Source locations{% else %}Pages affected{% endif %}</div>
+      <div class="summary-card__value">{% if is_source_audit %}{{ locations_affected }}{% else %}{{ pages_affected }}{% endif %}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card__label">Rules flagged</div>
@@ -270,6 +275,17 @@
         {% endfor %}
       </select>
     </div>
+    {% if is_source_audit %}
+    <div>
+      <label for="filter-location">Location</label>
+      <select id="filter-location">
+        <option value="">All locations</option>
+        {% for loc in filter_locations %}
+        <option value="{{ loc }}">{{ loc }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% else %}
     <div>
       <label for="filter-page">Page</label>
       <select id="filter-page">
@@ -279,6 +295,7 @@
         {% endfor %}
       </select>
     </div>
+    {% endif %}
     <div class="filter-actions">
       <button type="button" id="filter-reset" class="btn btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.85rem">Reset filters</button>
     </div>
@@ -289,7 +306,7 @@
       <thead>
         <tr>
           <th>Rule</th>
-          <th>Page</th>
+          <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
           <th>Severity</th>
           <th>Category</th>
           <th>Issue / meta</th>
@@ -302,9 +319,16 @@
             data-rule="{{ f.rule_id }}"
             data-severity="{{ f.severity }}"
             data-category="{{ f.category }}"
-            data-page="{{ f.page if f.page is not none else '' }}">
+            data-page="{{ f.page if f.page is not none else '' }}"
+            data-location="{{ f.location_label if f.location_label else '' }}">
           <td><strong>{{ f.rule_id }}</strong></td>
-          <td>{{ f.page if f.page is not none else "—" }}</td>
+          <td>
+            {% if is_source_audit %}
+              {{ f.location_label if f.location_label else "—" }}
+            {% else %}
+              {{ f.page if f.page is not none else "—" }}
+            {% endif %}
+          </td>
           <td>
             {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
             {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
