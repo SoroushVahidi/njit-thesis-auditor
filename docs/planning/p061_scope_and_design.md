@@ -1,7 +1,7 @@
 # P061 Scope and Design
 
 - **Date:** 2026-06-06
-- **Status:** Scoped (not yet implemented)
+- **Status:** Implemented
 - **Baseline main:** `4f1ea71` (PR #198 — post-P060 consistency audit; P001–P060 implemented)
 
 ---

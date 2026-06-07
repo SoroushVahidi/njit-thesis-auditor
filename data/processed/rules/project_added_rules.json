@@ -1110,5 +1110,28 @@
     "phase": "pdf_layout",
     "priority": "medium",
     "notes": "Conservative gate: >=3 entries with parseable section numbers and >=2 inversions before flagging. Word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped. LoT and LoF excluded. Companion to P059 (LoT/LoF entry-number ordering)."
+  },
+  {
+    "id": "P061",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_lot_lof_cross_page_entry_ordering",
+    "issue_types": [
+      "lot_cross_page_entry_numbers_not_nondecreasing",
+      "lof_cross_page_entry_numbers_not_nondecreasing"
+    ],
+    "scope_doc": "docs/planning/p061_scope_and_design.md",
+    "section": "PDF Layout — List of Tables / List of Figures",
+    "question": "Are List of Tables or List of Figures entry numbers in non-decreasing order across consecutive pages?",
+    "rule_definition": "When a List of Tables or List of Figures spans multiple consecutive pages, entry numbers should remain in non-decreasing order across the full combined sequence (e.g., Table 8 on the last page of LoT page 1 followed by Table 2 on LoT page 2 indicates a cross-page ordering error). Single-page sections, mixed sequential+chapter-based runs, and appendix/letter-prefixed entries are excluded.",
+    "remediation": "Reorder List of Tables or List of Figures entries so entry numbers are non-decreasing across all pages in the section.",
+    "severity": "warning",
+    "source_file": "project_added",
+    "checkability": "deterministic",
+    "input_required": [
+      "pdf"
+    ],
+    "phase": "pdf_layout",
+    "priority": "medium",
+    "notes": "Cross-page companion to P059. Requires >=2 consecutive same-type pages, >=3 combined comparable entries, and >=2 inversions before flagging. LoT and LoF runs are evaluated separately; non-consecutive pages are not combined."
   }
 ]

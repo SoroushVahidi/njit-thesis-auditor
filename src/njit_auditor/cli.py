@@ -66,6 +66,9 @@ from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
     check_pdf_lot_lof_left_column_header_bold,
 )
 from njit_auditor.rules.pdf_lot_lof_column_headers import check_pdf_lot_lof_column_headers
+from njit_auditor.rules.pdf_lot_lof_cross_page_entry_ordering import (
+    check_pdf_lot_lof_cross_page_entry_ordering,
+)
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
@@ -254,6 +257,7 @@ def pdf(
     findings.extend(check_pdf_toc_page_number_ordering(pdf_doc))
     findings.extend(check_pdf_lot_lof_entry_number_ordering(pdf_doc))
     findings.extend(check_pdf_toc_entry_number_ordering(pdf_doc))
+    findings.extend(check_pdf_lot_lof_cross_page_entry_ordering(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(str(input_path)))
 

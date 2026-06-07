@@ -5,13 +5,15 @@
 - **Planned module:** `src/njit_auditor/rules/pdf_lot_lof_cross_page_entry_ordering.py`
 - **Baseline main at evaluation time:** `fcc9151` (PR #200 — docs refresh; P061 scoped only, not implemented)
 - **Validation at evaluation time:** ruff, mypy, **729 pytest** passed
-- **Evaluation type:** Structural inventory on all five evaluation PDFs; **formal P061 audit not run** (rule module absent)
+- **Evaluation type:** Pre-implementation structural inventory on all five evaluation PDFs (PR #201); **formal P061 audit not yet rerun** after implementation
 
 ## 1. Purpose and scope
 
 Document a privacy-safe current-dataset assessment for P061 on the five evaluation PDFs
-referenced in `data/processed/evaluation_data_manifest.json`. Because P061 is scoped but
-**not implemented** on `main`, the PDF auditor cannot emit P061 findings. This note records:
+referenced in `data/processed/evaluation_data_manifest.json`. At evaluation time (PR #201), P061 was scoped but **not implemented** on `main`. This note records the
+pre-implementation structural inventory. After P061 implementation lands, rerun `njit-audit pdf` on
+all five evaluation PDFs and refresh this doc with formal P061 finding counts. The pre-implementation
+inventory recorded:
 
 1. File availability (including Sebastian Fine Revision 3 extracted locally from the tracked ZIP)
 2. LoT/LoF page-run detection and comparable-entry metadata gathered with existing P059 parsing helpers
@@ -36,8 +38,8 @@ Generated outputs under `data/evaluation/generated/p061_evaluation/` were **not*
 
 | Item | Status |
 |---|---|
-| P061 implemented on `main`? | **No** — scope doc only (`docs/planning/p061_scope_and_design.md`, PR #199) |
-| `njit-audit pdf` P061 findings | **Not available** |
+| P061 implemented on `main` at PR #201? | **No** — scope doc only (`docs/planning/p061_scope_and_design.md`, PR #199) |
+| Formal post-implementation P061 audit | **Pending rerun** after P061 implementation PR merges |
 | Gitignored structural inventory | **Yes** — `data/evaluation/generated/p061_evaluation/structural_inventory.json` |
 
 ## 4. Structural inventory summary
