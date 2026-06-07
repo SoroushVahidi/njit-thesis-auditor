@@ -438,9 +438,9 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 | Phase | Scope | Deliverable |
 |---|---|---|
 | **0** | Backend contract audit | **Done** — `run_pdf_audit_full()` / `collect_pdf_layout_findings()` shared by CLI and web; parity tests in `tests/test_audit_runner.py` |
-| **1** | Minimal polished UI | Enhanced FastAPI templates: summary cards + triage panels |
+| **1** | Minimal polished UI | **Done** — enhanced Jinja templates: status banner, summary cards, triage-first layout, findings filters, privacy note |
 | **2** | Upload correctness | **Backend done** — `upload_handling.py`, `run_audit_for_uploaded_file()`; web UI TeX/ZIP exposure pending |
-| **3** | Report rendering tests | **Partially done** — `report_view.py` + `polished_comments.py` integrated in web results; filters/polished-comment coverage tests pending |
+| **3** | Report rendering tests | **Partially done** — `report_view.py` + `polished_comments.py` + polished Jinja results page; client-side filter tests added |
 | **4** | PDF page preview | Page thumbnails with finding markers (privacy-safe) |
 | **5** | Polished comment coverage | All high-volume rules; remediation from `rule_loader` |
 | **6** | Optional annotated PDF export | Highlight regions (no text injection) |
@@ -457,7 +457,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 5. ~~**Add `safe_extract_zip()`**~~ — **Done** — `upload_handling.py`
 6. ~~**Add `detect_main_tex()`**~~ — **Done** — `upload_handling.py`
 7. **Add `polished_comments.py`** — template map keyed by `(rule_id, issue_type)`
-8. **Enhance `web_app.py` templates** — summary cards, triage-first layout, filters (HTMX optional)
+8. ~~**Enhance `web_app.py` templates**~~ — **Done** — status banner, summary cards, triage-first layout, client-side filters, upload-page polish
 9. **Add TeX JSON/Markdown output** — extend `report_outputs.py` for `audit_type=tex`
 10. **Tests** — upload matrix, zip-slip, schema parity, polished-comment privacy, runner/CLI parity
 11. **Job TTL cleanup** — background sweeper or startup hook for stale `.runtime/web_audits/*`
