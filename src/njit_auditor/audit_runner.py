@@ -140,12 +140,6 @@ class AuditError(Exception):
     """Raised when the audit cannot proceed (corrupt/invalid PDF)."""
 
 
-TEX_JSON_EXPORT_LIMITATION = (
-    "TeX source audit completed, but JSON/Markdown web export is not yet supported. "
-    "Use njit-audit tex for console output."
-)
-
-
 @dataclass(frozen=True)
 class UploadedAuditResult:
     """Structured result from :func:`run_audit_for_uploaded_file`."""
@@ -294,8 +288,7 @@ def run_audit_for_uploaded_file(
             findings=findings,
             main_tex_path=main_path,
             loaded_tex_file_count=loaded_count,
-            json_export_supported=False,
-            limitation_note=TEX_JSON_EXPORT_LIMITATION,
+            json_export_supported=True,
         )
 
     if kind == UploadKind.ZIP:
@@ -323,8 +316,7 @@ def run_audit_for_uploaded_file(
             findings=findings,
             main_tex_path=main_path,
             loaded_tex_file_count=loaded_count,
-            json_export_supported=False,
-            limitation_note=TEX_JSON_EXPORT_LIMITATION,
+            json_export_supported=True,
         )
 
     unsupported = classify_upload(path)

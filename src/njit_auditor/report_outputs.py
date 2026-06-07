@@ -63,6 +63,100 @@ def _category_counts(findings: list[AuditFinding]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def derive_source_issue_type(rule_id: str, details: dict[str, str] | None = None) -> str:
+    """Map a source/TeX finding to a stable issue_type for export and comments."""
+    safe = details or {}
+    explicit = safe.get("issue_type", "").strip()
+    if explicit:
+        return explicit
+    if rule_id == "P001":
+        return "risky_command"
+    if rule_id == "P002":
+        return "duplicate_label"
+    if rule_id == "P003":
+        return "invalid_label"
+    if rule_id == "P004":
+        return "dangling_reference"
+    if rule_id == "P005":
+        return "missing_caption"
+    if rule_id == "P006":
+        return "missing_label"
+    if rule_id == "P007":
+        return "caption_punctuation"
+    if rule_id == "P008":
+        return "abstract_structure"
+    if rule_id == "P009":
+        return "chktex_warning"
+    if rule_id == "P010":
+        return "lacheck_warning"
+    return "source_check"
+
+
+def _source_location_basename(details: dict[str, str]) -> str:
+    file_path = details.get("file", "").strip()
+    if not file_path:
+        return ""
+    return Path(file_path).name
+
+
+def _prepare_findings_for_export(
+    findings: list[AuditFinding], audit_type: str
+) -> list[AuditFinding]:
+    """Return findings with export-friendly details (issue_type for source audits)."""
+    if audit_type != "tex":
+        return findings
+    prepared: list[AuditFinding] = []
+    for finding in findings:
+        details = dict(finding.details)
+        if not details.get("issue_type"):
+            details["issue_type"] = derive_source_issue_type(finding.rule_id, details)
+        prepared.append(
+            AuditFinding(
+                rule_id=finding.rule_id,
+                severity=finding.severity,
+                message=finding.message,
+                page=finding.page,
+                details=details,
+            )
+        )
+    return prepared
+
+
+def build_source_report(
+    findings: list[AuditFinding],
+    *,
+    input_file_path: str,
+    input_file_name: str,
+    input_kind: str = "tex",
+    main_tex_path: str = "",
+    loaded_tex_file_count: int | None = None,
+    job_id: str = "",
+) -> dict[str, Any]:
+    """Build a JSON-compatible source-audit report for TeX/ZIP uploads."""
+    metadata: dict[str, str] = {
+        "input_file_path": input_file_path,
+        "input_file_name": input_file_name,
+        "audit_type": "tex",
+        "input_kind": input_kind,
+        "main_tex_path": main_tex_path,
+        "loaded_tex_file_count": (
+            str(loaded_tex_file_count) if loaded_tex_file_count is not None else ""
+        ),
+        "job_id": job_id,
+    }
+    return audit_findings_to_json_dict(findings, metadata)
+
+
+def build_audit_report(
+    findings: list[AuditFinding],
+    metadata: dict[str, str],
+) -> dict[str, Any]:
+    """Build a JSON-compatible report for PDF or source audits."""
+    audit_type = metadata.get("audit_type", "pdf")
+    prepared = _prepare_findings_for_export(findings, audit_type)
+    return audit_findings_to_json_dict(prepared, metadata)
+
+
 def compact_page_list(pages: list[int], max_ranges: int = _MAX_COMPACT_RANGES) -> str:
     """Convert a list of page numbers to a compact range string.
 
@@ -512,30 +606,44 @@ def audit_findings_to_json_dict(
     findings: list[AuditFinding], metadata: dict[str, str]
 ) -> dict[str, Any]:
     """Convert findings + metadata into a structured serializable payload."""
+    audit_type = metadata.get("audit_type", "pdf")
+    prepared = _prepare_findings_for_export(findings, audit_type)
 
     serialized_findings: list[dict[str, Any]] = []
-    for finding in findings:
-        serialized_findings.append(
-            {
-                "rule_id": finding.rule_id,
-                "severity": finding.severity.value,
-                "message": finding.message,
-                "page": finding.page,
-                "details": _sanitize_details(finding.details),
-            }
-        )
+    for finding in prepared:
+        details = _sanitize_details(finding.details)
+        entry: dict[str, Any] = {
+            "rule_id": finding.rule_id,
+            "severity": finding.severity.value,
+            "message": finding.message,
+            "page": finding.page,
+            "details": details,
+        }
+        if audit_type == "tex":
+            entry["source_file"] = _source_location_basename(details)
+            entry["source_line"] = details.get("line", "")
+        serialized_findings.append(entry)
+
+    meta_block: dict[str, Any] = {
+        **metadata,
+        "total_findings": len(prepared),
+        "counts_by_severity": _severity_counts(prepared),
+        "counts_by_rule_id": _rule_counts(prepared),
+        "counts_by_category": _category_counts(prepared),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "note": "Findings are heuristic signals and require human review.",
+    }
+    if audit_type == "tex":
+        locations = {
+            (details.get("file", ""), details.get("line", ""))
+            for details in (f.details for f in prepared)
+            if details.get("file") or details.get("line")
+        }
+        meta_block["source_location_count"] = len(locations)
 
     return {
-        "metadata": {
-            **metadata,
-            "total_findings": len(findings),
-            "counts_by_severity": _severity_counts(findings),
-            "counts_by_rule_id": _rule_counts(findings),
-            "counts_by_category": _category_counts(findings),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "note": "Findings are heuristic signals and require human review.",
-        },
-        "grouped_summary": build_grouped_summary(findings),
+        "metadata": meta_block,
+        "grouped_summary": build_grouped_summary(prepared),
         "findings": serialized_findings,
     }
 
@@ -879,17 +987,46 @@ def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[di
     return dict(sorted(grouped.items()))
 
 
-def _finding_markdown_line(finding: dict[str, Any]) -> str:
-    page = finding.get("page")
-    page_text = f"p.{page}" if page is not None else "p.-"
+def format_source_location(details: dict[str, str]) -> str:
+    """Return a privacy-safe file:line label for source findings."""
+    file_name = _source_location_basename(details)
+    line = details.get("line", "").strip()
+    if file_name and line:
+        return f"{file_name}:{line}"
+    if file_name:
+        return file_name
+    return "source"
+
+
+def _safe_source_location(details: dict[str, str]) -> str:
+    return format_source_location(details)
+
+
+def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") -> str:
+    from njit_auditor.polished_comments import build_polished_comment
+
     details = finding.get("details", {})
-    details_text = ""
-    if details:
-        detail_parts = [f"{k}={v}" for k, v in details.items() if k != "suggested_fix"]
-        if detail_parts:
-            details_text = f" ({'; '.join(detail_parts)})"
-    line = f"- **{page_text}** [{finding['severity']}] {finding['message']}{details_text}"
-    suggested_fix = details.get("suggested_fix")
+    if not isinstance(details, dict):
+        details = {}
+    safe_details = {str(k): str(v) for k, v in details.items()}
+    issue_type = safe_details.get("issue_type", "")
+    page_raw = finding.get("page")
+    page = int(page_raw) if page_raw is not None else None
+
+    if audit_type == "tex":
+        loc_text = _safe_source_location(safe_details)
+    else:
+        loc_text = f"p.{page}" if page is not None else "p.-"
+
+    polished = build_polished_comment(
+        rule_id=str(finding.get("rule_id", "")),
+        issue_type=issue_type,
+        severity=str(finding.get("severity", "WARNING")),
+        page=page,
+        details=safe_details,
+    )
+    line = f"- **{loc_text}** [{finding['severity']}] {polished}"
+    suggested_fix = safe_details.get("suggested_fix")
     if suggested_fix:
         line += f" | Suggested fix: {suggested_fix}"
     return line
@@ -901,17 +1038,30 @@ def write_markdown_report(
     """Write student/office-friendly markdown audit report."""
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = audit_findings_to_json_dict(findings, metadata)
+    audit_type = metadata.get("audit_type", "pdf")
+    prepared = _prepare_findings_for_export(findings, audit_type)
+    payload = audit_findings_to_json_dict(prepared, metadata)
     meta = payload["metadata"]
     serialized_findings = payload["findings"]
     grouped_by_rule = _group_findings_by_rule(serialized_findings)
 
     lines: list[str] = []
-    lines.append("# NJIT PDF Audit Report")
+    title = (
+        "# NJIT Source Audit Report"
+        if audit_type == "tex"
+        else "# NJIT PDF Audit Report"
+    )
+    lines.append(title)
     lines.append("")
     lines.append(f"- Input file: `{meta.get('input_file_name', '-')}`")
     lines.append(f"- Input path: `{meta.get('input_file_path', '-')}`")
     lines.append(f"- Audit type: `{meta.get('audit_type', 'pdf')}`")
+    if audit_type == "tex":
+        lines.append(f"- Input kind: `{meta.get('input_kind', 'tex')}`")
+        if meta.get("main_tex_path"):
+            lines.append(f"- Main TeX file: `{meta.get('main_tex_path', '-')}`")
+        if meta.get("loaded_tex_file_count"):
+            lines.append(f"- Loaded TeX files: `{meta.get('loaded_tex_file_count', '-')}`")
     lines.append(f"- Generated at: `{meta.get('generated_at', '-')}`")
     lines.append("")
     lines.append("## Summary")
@@ -928,39 +1078,49 @@ def write_markdown_report(
     for category, count in meta["counts_by_category"].items():
         lines.append(f"- `{category}`: {count}")
 
-    # Grouped summary section (new).
+    # Grouped summary and PDF-only triage sections.
     lines.append("")
     grouped_section = _format_grouped_summary_section(payload["grouped_summary"])
     lines.extend(grouped_section)
 
-    p011_section = _format_p011_triage_section(payload["grouped_summary"])
-    lines.extend(p011_section)
+    if audit_type != "tex":
+        p011_section = _format_p011_triage_section(payload["grouped_summary"])
+        lines.extend(p011_section)
 
-    p013_section = _format_p013_triage_section(payload["grouped_summary"])
-    lines.extend(p013_section)
+        p013_section = _format_p013_triage_section(payload["grouped_summary"])
+        lines.extend(p013_section)
 
-    p026_section = _format_p026_triage_section(payload["grouped_summary"])
-    lines.extend(p026_section)
+        p026_section = _format_p026_triage_section(payload["grouped_summary"])
+        lines.extend(p026_section)
 
-    p012_section = _format_p012_triage_section(payload["grouped_summary"])
-    lines.extend(p012_section)
+        p012_section = _format_p012_triage_section(payload["grouped_summary"])
+        lines.extend(p012_section)
 
     lines.append("## Findings by Rule")
     lines.append("")
     for rule_id, rule_findings in grouped_by_rule.items():
         lines.append(f"### {rule_id}")
         lines.append("")
-        sorted_findings = sorted(
-            rule_findings,
-            key=lambda item: (item["page"] is None, item["page"] or 0, item["message"]),
-        )
+        if audit_type == "tex":
+            sort_key = lambda item: (  # noqa: E731
+                item.get("source_file", ""),
+                int(item.get("source_line") or 0),
+                item.get("rule_id", ""),
+            )
+        else:
+            sort_key = lambda item: (  # noqa: E731
+                item["page"] is None,
+                item["page"] or 0,
+                item["message"],
+            )
+        sorted_findings = sorted(rule_findings, key=sort_key)
         for finding in sorted_findings:
-            lines.append(_finding_markdown_line(finding))
+            lines.append(_finding_markdown_line(finding, audit_type=audit_type))
         lines.append("")
 
     lines.append("## Notes")
     lines.append("")
-    lines.append("- Privacy: report output avoids long dissertation text excerpts.")
+    lines.append("- Privacy: report output avoids dissertation body text and source line quotes.")
     lines.append("- Limitation: findings are heuristic and require human review.")
 
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

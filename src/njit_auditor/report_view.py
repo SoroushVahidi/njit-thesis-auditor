@@ -8,6 +8,7 @@ from typing import Any
 
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.polished_comments import build_polished_comment
+from njit_auditor.report_outputs import _source_location_basename, format_source_location
 
 _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
     ("p011_margin_triage", "P011", "Margin / overflow triage"),
@@ -39,6 +40,9 @@ class FindingView:
     polished_comment: str
     triage_tier: str = ""
     confidence: str = ""
+    source_file: str = ""
+    source_line: str = ""
+    location_label: str = ""
 
 
 @dataclass(frozen=True)
@@ -155,8 +159,12 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
                 )
             )
 
+    audit_type = str(metadata.get("audit_type", "pdf"))
+    is_source_audit = audit_type == "tex"
+
     finding_views: list[FindingView] = []
     pages: set[int] = set()
+    source_locations: set[tuple[str, str]] = set()
     raw_findings = report.get("findings", [])
     if isinstance(raw_findings, list):
         for item in raw_findings:
@@ -173,6 +181,15 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
             page = int(page_raw) if page_raw is not None else None
             if page is not None:
                 pages.add(page)
+            source_file = str(item.get("source_file", "")) or _source_location_basename(details)
+            source_line = str(item.get("source_line", "")) or details.get("line", "")
+            if source_file or source_line:
+                source_locations.add((source_file, source_line))
+            location_label = (
+                format_source_location(details)
+                if is_source_audit
+                else (str(page) if page is not None else "")
+            )
             issue_type = str(details.get("issue_type", ""))
             severity = str(item.get("severity", "WARNING"))
             category = map_finding_rule_to_category(rule_id, details)
@@ -194,8 +211,15 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
                     polished_comment=polished,
                     triage_tier=str(details.get("triage_tier", "")),
                     confidence=str(details.get("confidence", "")),
+                    source_file=source_file,
+                    source_line=source_line,
+                    location_label=location_label,
                 )
             )
+
+    location_count = int(metadata.get("source_location_count", 0) or 0)
+    if is_source_audit and not location_count:
+        location_count = len(source_locations)
 
     summary_cards = [
         SummaryCard(label="Total findings", value=str(total)),
@@ -203,8 +227,15 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
         SummaryCard(label="Errors", value=str(counts_by_severity.get("FAIL", 0))),
         SummaryCard(label="Categories", value=str(len(counts_by_category))),
         SummaryCard(label="Rules flagged", value=str(len(counts_by_rule))),
-        SummaryCard(label="Pages affected", value=str(len(pages))),
     ]
+    if is_source_audit:
+        summary_cards.append(
+            SummaryCard(label="Source locations", value=str(location_count))
+        )
+    else:
+        summary_cards.append(
+            SummaryCard(label="Pages affected", value=str(len(pages)))
+        )
 
     return ReportView(
         total_findings=total,

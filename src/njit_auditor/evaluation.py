@@ -97,6 +97,16 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "Q004": "abstract_language",
         "Q005": "abstract_language",
         "Q006": "title_page_metadata",
+        "P001": "formatting_override",
+        "P002": "labels_references",
+        "P003": "labels_references",
+        "P004": "labels_references",
+        "P005": "figure_table_format",
+        "P006": "figure_table_format",
+        "P007": "figure_table_format",
+        "P008": "abstract_structure",
+        "P009": "latex_linter",
+        "P010": "latex_linter",
     }
     return mapping.get(rule_id, "other")
 

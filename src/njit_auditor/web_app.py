@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 
 from njit_auditor.audit_runner import AuditError, run_audit_for_uploaded_file
-from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.report_outputs import build_audit_report, write_markdown_report
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.upload_handling import (
     UploadKind,
@@ -225,13 +225,22 @@ def _run_audit_task(job_id: str) -> None:
 
     metadata: dict[str, str] = {
         "input_file_name": job.file_name,
-        "audit_type": "pdf",
+        "audit_type": result.audit_type,
         "job_id": job_id,
+        "input_file_path": str(pdf_path),
     }
+    if result.audit_type == "tex":
+        metadata["input_kind"] = (
+            "zip" if result.upload_kind == UploadKind.ZIP else "tex"
+        )
+        if result.main_tex_path is not None:
+            metadata["main_tex_path"] = str(result.main_tex_path)
+        if result.loaded_tex_file_count is not None:
+            metadata["loaded_tex_file_count"] = str(result.loaded_tex_file_count)
 
     # Write JSON report
     json_report_path = jdir / "report.json"
-    payload = audit_findings_to_json_dict(findings, metadata)
+    payload = build_audit_report(findings, metadata)
     json_report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     # Write Markdown report
@@ -251,6 +260,9 @@ def _run_audit_task(job_id: str) -> None:
             "polished_comment": fv["polished_comment"],
             "triage_tier": fv.get("triage_tier", ""),
             "confidence": fv.get("confidence", ""),
+            "source_file": fv.get("source_file", ""),
+            "source_line": fv.get("source_line", ""),
+            "location_label": fv.get("location_label", ""),
         }
         for fv in view_dict.get("findings", [])
     ]

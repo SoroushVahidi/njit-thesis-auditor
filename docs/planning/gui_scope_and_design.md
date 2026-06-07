@@ -452,13 +452,13 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 
 1. ~~**Unify PDF audit entrypoint**~~ — **Done** — `run_pdf_audit_full()` in `audit_runner.py`; CLI and web call `collect_pdf_layout_findings` / `run_pdf_audit_full`
 2. **Create `src/njit_auditor/gui/` package** (or `web/` submodule) for view models separate from routes
-3. ~~**Add `run_audit_for_uploaded_file()`**~~ — **Done** — dispatches PDF / TeX / ZIP (TeX export limitation documented)
+3. ~~**Add `run_audit_for_uploaded_file()`**~~ — **Done** — dispatches PDF / TeX / ZIP with JSON/Markdown export parity for source audits
 4. ~~**Define report-view DTOs**~~ — **Done** — `ReportView`, `FindingView`, `TriagePanelView`, `SummaryCard` in `report_view.py`; `polished_comments.py` for GUI comments
 5. ~~**Add `safe_extract_zip()`**~~ — **Done** — `upload_handling.py`
 6. ~~**Add `detect_main_tex()`**~~ — **Done** — `upload_handling.py`
 7. **Add `polished_comments.py`** — template map keyed by `(rule_id, issue_type)`
 8. ~~**Enhance `web_app.py` templates**~~ — **Done** — status banner, summary cards, triage-first layout, client-side filters, upload-page polish
-9. **Add TeX JSON/Markdown output** — extend `report_outputs.py` for `audit_type=tex`
+9. ~~**Add TeX JSON/Markdown output**~~ — **Done** — `build_source_report()` / `build_audit_report()` in `report_outputs.py`; source polished comments; report-view file/line support
 10. **Tests** — upload matrix, zip-slip, schema parity, polished-comment privacy, runner/CLI parity
 11. **Job TTL cleanup** — background sweeper or startup hook for stale `.runtime/web_audits/*`
 12. **Docs** — update `docs/web_gui_mvp.md` after UI refresh; cross-link from README
@@ -466,7 +466,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 ### Known caveats before implementation
 
 - ~~**Web audit is behind CLI**~~ — resolved; web PDF uploads use full P011–P061 via `run_pdf_audit_full`
-- **TeX has no JSON export today** — GUI TeX mode needs report schema extension
+- ~~**TeX has no JSON export today**~~ — resolved for backend/CLI; web TeX/ZIP upload UI still pending
 - **URL fetch is not offline** — treat as advanced feature; offline-first messaging on landing page
 - **Built-in samples expose private evaluation PDFs** — disable on public deployments
 - **High-volume rules (P013/P026) remain noisy** — triage-first UX is essential for usability

@@ -198,7 +198,7 @@ def test_dispatcher_pdf_calls_run_pdf_audit_full(tmp_path: Path) -> None:
     assert result.json_export_supported is True
 
 
-def test_dispatcher_tex_returns_limitation(tmp_path: Path) -> None:
+def test_dispatcher_tex_export_supported(tmp_path: Path) -> None:
     tex = tmp_path / "main.tex"
     tex.write_text(
         r"\documentclass{report}" + "\n\\begin{document}\n\\end{document}\n",
@@ -212,8 +212,8 @@ def test_dispatcher_tex_returns_limitation(tmp_path: Path) -> None:
     mock_tex.assert_called_once()
     assert result.upload_kind == UploadKind.TEX
     assert result.audit_type == "tex"
-    assert result.json_export_supported is False
-    assert "not yet supported" in result.limitation_note.lower()
+    assert result.json_export_supported is True
+    assert result.limitation_note == ""
 
 
 def test_dispatcher_zip_extracts_and_audits_tex(tmp_path: Path) -> None:
@@ -232,7 +232,7 @@ def test_dispatcher_zip_extracts_and_audits_tex(tmp_path: Path) -> None:
     mock_tex.assert_called_once()
     assert result.upload_kind == UploadKind.ZIP
     assert result.audit_type == "tex"
-    assert result.json_export_supported is False
+    assert result.json_export_supported is True
 
 
 def test_dispatcher_unsupported_raises(tmp_path: Path) -> None:
