@@ -13,7 +13,7 @@
 |---|---|---|
 | Pre-implementation structural inventory | **#201** (`05f23a1`) | LoT/LoF page-run metadata using P059 parsing helpers; P061 module absent; projected 0 findings |
 | P061 implementation | **#202** (`82e8361`) | `pdf_lot_lof_cross_page_entry_ordering.py` wired into CLI/evaluation |
-| Formal post-implementation evaluation | **this doc refresh** | `check_pdf_lot_lof_cross_page_entry_ordering()` on five evaluation PDFs |
+| Formal post-implementation evaluation | **#204** (`8930c88`) | `check_pdf_lot_lof_cross_page_entry_ordering()` on five evaluation PDFs; **0** findings |
 
 ## 1. Purpose and scope
 

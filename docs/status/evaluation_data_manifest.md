@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `600241b` (PR #199 — scope P061 LoT/LoF cross-page entry-number ordering; code state remains P001–P060 implemented, P061 scoped only)
-- **Validation:** ruff, mypy, **729 pytest** at the latest docs/status refresh
+- **Latest main:** `8930c88` (PR #204 — formal P061 current-dataset evaluation refresh; P001–P061 implemented)
+- **Validation:** ruff, mypy, **744 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 60 (P001–P060) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 61 (P001–P061) | Yes |
 
-P001–P060 are implemented; P061 is scoped only; full Q-rule / guideline source coverage is not complete
+P001–P061 are implemented; P061 formal current-dataset evaluation complete (0 findings on five-PDF local subset); full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -150,6 +150,7 @@ files unless explicitly requested.
 - **P040 current-dataset evaluation (not run):** `docs/evaluation/p040_current_dataset_evaluation.md`
 - **P041 current-dataset evaluation (not run):** `docs/evaluation/p041_current_dataset_evaluation.md`
 - **P042 current-dataset evaluation (not run):** `docs/evaluation/p042_current_dataset_evaluation.md`
+- **P061 current-dataset evaluation (formal, post-implementation):** `docs/evaluation/p061_current_dataset_evaluation.md` — 0 findings on five-PDF local subset
 - P030–P042 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,

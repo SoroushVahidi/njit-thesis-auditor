@@ -195,7 +195,8 @@ More docs:
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
 - `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md` — P036 synthetic validation
 - `docs/evaluation/p036_current_dataset_evaluation.md` — P036 current-dataset status (not run; evaluation PDFs unavailable)
-- `docs/evaluation/p061_current_dataset_evaluation.md` — P061 current-dataset evaluation (0 findings on five-PDF local subset; not canonical aggregate)
+- `docs/planning/p061_scope_and_design.md` — P061 LoT/LoF cross-page entry-number ordering design
+- `docs/evaluation/p061_current_dataset_evaluation.md` — P061 formal current-dataset evaluation (PR #204; 0 findings on five-PDF local subset; sparse comparable entries; not canonical aggregate)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
