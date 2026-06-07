@@ -6,6 +6,7 @@
 # Environment variables:
 #   NJIT_AUDITOR_WEB_RUNTIME_DIR  — runtime upload/report directory (default: .runtime/web_audits)
 #   NJIT_AUDITOR_WEB_MAX_UPLOAD_MB — max upload size in MB (default: 50)
+#   NJIT_AUDITOR_WEB_JOB_TTL_SECONDS — completed job retention in seconds (default: 86400)
 set -euo pipefail
 HOST="${1:-${NJIT_AUDITOR_WEB_HOST:-0.0.0.0}}"
 PORT="${2:-${NJIT_AUDITOR_WEB_PORT:-8000}}"

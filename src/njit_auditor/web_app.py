@@ -8,6 +8,7 @@ import secrets
 import shutil
 import threading
 import urllib.parse
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 
 from njit_auditor.audit_runner import AuditError, run_audit_for_uploaded_file
+from njit_auditor.models import AuditFinding
 from njit_auditor.report_outputs import build_audit_report, write_markdown_report
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.upload_handling import (
@@ -38,9 +40,29 @@ from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
 # ---------------------------------------------------------------------------
 
 _DEFAULT_RUNTIME = Path(".runtime") / "web_audits"
+_DEFAULT_JOB_TTL_SECONDS = 86400
+
 RUNTIME_DIR = Path(os.environ.get("NJIT_AUDITOR_WEB_RUNTIME_DIR", str(_DEFAULT_RUNTIME)))
 MAX_UPLOAD_MB: int = int(os.environ.get("NJIT_AUDITOR_WEB_MAX_UPLOAD_MB", "50"))
 MAX_UPLOAD_BYTES: int = MAX_UPLOAD_MB * 1024 * 1024
+
+
+def _parse_positive_int_env(name: str, default: int) -> int:
+    """Parse a positive integer environment variable, falling back safely."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+JOB_TTL_SECONDS: int = _parse_positive_int_env(
+    "NJIT_AUDITOR_WEB_JOB_TTL_SECONDS",
+    _DEFAULT_JOB_TTL_SECONDS,
+)
 
 # ---------------------------------------------------------------------------
 # Job store (in-memory + runtime files on disk)
@@ -114,11 +136,136 @@ def _resolve_job_upload_path(jdir: Path, file_name: str) -> Path:
     return _stored_upload_path(jdir, ".pdf")
 
 
+def _parse_job_timestamp(value: str) -> datetime:
+    """Parse an ISO timestamp from job state, defaulting to epoch UTC."""
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return datetime.fromtimestamp(0, tz=timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_under_runtime(path: Path) -> bool:
+    """Return True when *path* resolves inside the configured runtime directory."""
+    try:
+        path.resolve().relative_to(RUNTIME_DIR.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def _delete_job_workspace(job_id: str) -> None:
+    """Delete a job workspace directory when it is safely under RUNTIME_DIR."""
+    jdir = _job_dir(job_id)
+    if not _is_under_runtime(jdir):
+        return
+    if jdir.exists():
+        shutil.rmtree(jdir, ignore_errors=True)
+
+
+def cleanup_expired_jobs(now: datetime | None = None) -> int:
+    """Evict expired in-memory jobs and delete their runtime workspaces.
+
+    Jobs in ``pending`` or ``running`` state are never removed, even when older
+    than the TTL. Orphan directories under :data:`RUNTIME_DIR` without an
+    in-memory job are removed when their mtime exceeds the TTL.
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    expired_ids: list[str] = []
+    with _jobs_lock:
+        for job_id, job in list(_jobs.items()):
+            if job.state in ("pending", "running"):
+                continue
+            created = _parse_job_timestamp(job.created_at)
+            if (now - created).total_seconds() > JOB_TTL_SECONDS:
+                expired_ids.append(job_id)
+        for job_id in expired_ids:
+            _jobs.pop(job_id, None)
+
+    removed = len(expired_ids)
+    for job_id in expired_ids:
+        _delete_job_workspace(job_id)
+
+    if RUNTIME_DIR.exists():
+        for child in RUNTIME_DIR.iterdir():
+            if not child.is_dir() or not _is_under_runtime(child):
+                continue
+            with _jobs_lock:
+                if child.name in _jobs:
+                    continue
+            mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
+            if (now - mtime).total_seconds() > JOB_TTL_SECONDS:
+                shutil.rmtree(child, ignore_errors=True)
+                removed += 1
+
+    return removed
+
+
+def _web_export_metadata(metadata: dict[str, str]) -> dict[str, str]:
+    """Return metadata with filesystem paths reduced to basenames for web export."""
+    exported = dict(metadata)
+    for key in ("input_file_path", "main_tex_path"):
+        value = exported.get(key, "").strip()
+        if value:
+            exported[key] = Path(value).name
+    return exported
+
+
+def _web_export_findings(findings: list[AuditFinding]) -> list[AuditFinding]:
+    """Return findings with source file paths reduced to basenames for web export."""
+    exported: list[AuditFinding] = []
+    for finding in findings:
+        details = dict(finding.details)
+        file_path = details.get("file", "").strip()
+        if file_path:
+            details["file"] = Path(file_path).name
+        exported.append(
+            AuditFinding(
+                rule_id=finding.rule_id,
+                severity=finding.severity,
+                message=finding.message,
+                page=finding.page,
+                details=details,
+            )
+        )
+    return exported
+
+
+def _new_job_id() -> str:
+    """Create a new job id after sweeping expired jobs."""
+    cleanup_expired_jobs()
+    return secrets.token_urlsafe(16)
+
+
+def _job_not_found_message(job_id: str) -> str:
+    ttl_hours = JOB_TTL_SECONDS / 3600
+    return (
+        f"Job '{job_id[:12]}' was not found. "
+        f"Completed jobs are removed after about {ttl_hours:g} hours."
+    )
+
+
 # ---------------------------------------------------------------------------
 # FastAPI app + templates
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="NJIT Thesis Auditor", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    cleanup_expired_jobs()
+    yield
+
+
+app = FastAPI(
+    title="NJIT Thesis Auditor",
+    docs_url=None,
+    redoc_url=None,
+    lifespan=_lifespan,
+)
 _templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
@@ -286,14 +433,17 @@ def _run_audit_task(job_id: str) -> None:
         if result.loaded_tex_file_count is not None:
             metadata["loaded_tex_file_count"] = str(result.loaded_tex_file_count)
 
-    # Write JSON report
+    export_metadata = _web_export_metadata(metadata)
+    export_findings = _web_export_findings(findings)
+
+    # Write JSON report (web exports use basename-only paths)
     json_report_path = jdir / "report.json"
-    payload = build_audit_report(findings, metadata)
+    payload = build_audit_report(export_findings, export_metadata)
     json_report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     # Write Markdown report
     md_report_path = jdir / "report.md"
-    write_markdown_report(findings, metadata, md_report_path)
+    write_markdown_report(export_findings, export_metadata, md_report_path)
 
     view = build_report_view(payload)
     view_dict = report_view_to_dict(view)
@@ -373,7 +523,7 @@ async def submit_audit(
     if len(content) > MAX_UPLOAD_BYTES:
         return _index_error(request, f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
 
-    job_id = secrets.token_urlsafe(16)
+    job_id = _new_job_id()
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
@@ -411,7 +561,7 @@ async def submit_audit_url(
     if not url:
         return _index_error(request, "Please provide a PDF URL.")
 
-    job_id = secrets.token_urlsafe(16)
+    job_id = _new_job_id()
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
@@ -458,7 +608,7 @@ async def submit_audit_sample(
     except ValueError:
         return _index_error(request, "Unknown or invalid sample selection.")
 
-    job_id = secrets.token_urlsafe(16)
+    job_id = _new_job_id()
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
@@ -488,11 +638,12 @@ async def submit_audit_sample(
 
 @app.get("/audits/{job_id}", response_class=HTMLResponse)
 async def job_page(request: Request, job_id: str) -> HTMLResponse:
+    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None:
         return _index_error(
             request,
-            f"Job '{job_id[:12]}' not found. It may have expired.",
+            _job_not_found_message(job_id),
             status_code=404,
         )
 

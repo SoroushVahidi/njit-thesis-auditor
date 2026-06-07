@@ -48,9 +48,11 @@ methods are available:
 Download JSON or Markdown reports from the results page. The results page shows a status
 banner, summary cards, severity/category overview, high-volume triage panels (P011/P013/P026),
 client-side finding filters (rule, severity, category, page), and privacy-safe polished
-comments per finding (raw JSON/Markdown schema unchanged). The upload page explains
-local privacy-safe processing and which input formats the web UI supports. Use
-`njit-audit tex --json-out report.json --md-out report.md` for source audit exports.
+comments per finding. Web-generated JSON/Markdown use basename-only paths (CLI exports are
+unchanged). Completed jobs and runtime files are removed automatically after 24 hours by default
+(`NJIT_AUDITOR_WEB_JOB_TTL_SECONDS`). The upload page explains local privacy-safe processing
+and which input formats the web UI supports. Use
+`njit-audit tex --json-out report.json --md-out report.md` for CLI source audit exports.
 For persistent always-on hosting, start in a detached tmux session:
 
 ```bash

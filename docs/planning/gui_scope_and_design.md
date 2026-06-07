@@ -1,10 +1,10 @@
 # GUI Scope and Design — NJIT Thesis Auditor
 
 - **Date:** 2026-06-07
-- **Baseline commit:** `2776c37` (PR #206 — full P061-era aggregate evaluation)
-- **Validation at design time:** ruff, mypy, **744 pytest** passed
-- **Status:** Planning/design only — no GUI implementation in this document
-- **Related:** `docs/web_gui_mvp.md` (existing FastAPI MVP operations guide)
+- **Baseline commit:** `fde8f9d` (PR #213 — TeX/ZIP web upload UI)
+- **Validation at design time:** ruff, mypy, **830 pytest** passed (after job TTL/docs PR)
+- **Status:** Design reference — FastAPI web UI is **implemented** on `main`; this doc tracks scope, phases, and follow-ups
+- **Related:** `docs/web_gui_mvp.md` (FastAPI operations guide)
 
 ---
 
@@ -46,7 +46,7 @@ Make the NJIT thesis auditor easier to use through a **local web/GUI interface**
 | Command | Input | Rules | Output |
 |---|---|---|---|
 | `njit-audit pdf <path>` | Single `.pdf` | **P011–P061** (full PDF layout audit) | Rich console report; optional `--json-out` / `--md-out` |
-| `njit-audit tex <main.tex>` | Single `.tex` (recursive `\input`/`\include`) | **P001–P010** TeX source checks | Console report only (no JSON/MD flags today) |
+| `njit-audit tex <main.tex>` | Single `.tex` (recursive `\input`/`\include`) | **P001–P010** TeX source checks | Console + `--json-out` / `--md-out` |
 | `njit-audit audit <path>` | Single `.pdf` | Legacy P001–P003 subset | Console report |
 | `njit-audit pdf-comments extract/clean` | Single `.pdf` | Annotation metadata / clean copy | JSON/MD or cleaned PDF |
 
@@ -63,16 +63,16 @@ from the filesystem. A future GUI must add **safe ZIP extraction** plus main-fil
 | `cli.py` → `collect_tex_findings()` | TeX P001–P010 | Wrap for GUI TeX mode |
 | `report_outputs.py` | JSON/Markdown serialization + triage rollups | **Direct reuse** |
 | `rule_loader.py` | Rule definitions with `remediation` text | **Reuse for polished comments** |
-| `web_app.py` | FastAPI upload UI (PDF only) | **Evolve in place** |
+| `web_app.py` | FastAPI upload UI (PDF, TeX, ZIP) | **Implemented** |
 
 ### Expected inputs (current + proposed)
 
 | Input type | Supported today | Proposed v1 GUI |
 |---|---|---|
 | Single PDF | CLI, web upload, URL fetch, built-in samples | Yes |
-| Single `.tex` | CLI only | Yes (upload + temp dir) |
+| Single `.tex` | CLI, web upload | Yes (upload + temp dir) |
 | LaTeX project directory | CLI if path known | Indirect via ZIP upload |
-| `.zip` LaTeX project | No | Yes (safe extract + main `.tex` detection) |
+| `.zip` LaTeX project | Web upload | Yes (safe extract + main `.tex` detection) |
 
 ### Current outputs
 
@@ -141,7 +141,7 @@ Already implements:
 
 **Gaps vs target GUI:**
 
-- No TeX or ZIP upload
+- ~~No TeX or ZIP upload~~ — **Done** (PR #213)
 - No category/severity summary cards
 - No P011/P013/P026 triage-first panels (only `high_volume_rules` subset)
 - No rule/category/page filters
@@ -159,7 +159,8 @@ Already implements:
 | `run_pdf_audit_full` / CLI `pdf()` | **Done** | Shared via `collect_pdf_layout_findings()` |
 | `run_audit_for_uploaded_file()` | **Done** | Web uses for PDF; TeX/ZIP backend-ready |
 | `collect_tex_findings` | Yes | Upload handler + optional linters flag |
-| ZIP handling | **Backend utility** (`safe_extract_zip`, `detect_main_tex`) | Web UI exposure deferred |
+| ZIP handling | **Done** (`safe_extract_zip`, `detect_main_tex`) | Web UI + dispatcher |
+| Job TTL cleanup | **Done** (`cleanup_expired_jobs`, `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS`) | Default 24 h |
 | Polished comments | No | New template layer from `rule_loader` + finding metadata |
 | Report view DTOs | **Done** | `report_view.py` + minimal web results integration |
 | Polished comments | **Done** | `polished_comments.py` (privacy-safe templates) |
@@ -423,12 +424,12 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 | No persistent user storage | Job dirs ephemeral under `.runtime/` | Partial — add TTL cleanup |
 | Gitignored runtime | `.runtime/` in `.gitignore` | Met |
 | Privacy-safe logs | Log job_id, rule counts, filenames — not finding details | Review needed |
-| Path traversal prevention | Sanitize names; zip-slip guards | Partial — ZIP not implemented |
+| Path traversal prevention | Sanitize names; zip-slip guards | **Done** — `upload_handling.py` |
 | ZIP extraction safety | Limits + allowlist | Not implemented |
 | SSRF protection (URL fetch) | `web_url_fetch.py` blocks private IPs | Met — keep opt-in/advanced |
 | Upload size cap | `MAX_UPLOAD_BYTES` | Met |
 | No private text in UI defaults | Truncated JSON details; no body quotes | Partial — improve templates |
-| File deletion policy | Delete on failure + scheduled TTL | Document + implement |
+| File deletion policy | Delete on failure + scheduled TTL | **Done** — `cleanup_expired_jobs()` |
 | Bind to localhost by default for demos | `127.0.0.1` in docs | Document in ops guide |
 
 ---
