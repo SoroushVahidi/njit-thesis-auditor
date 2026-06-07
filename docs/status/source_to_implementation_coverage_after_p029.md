@@ -305,7 +305,9 @@ Top 3 next tasks:
 
 Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation title text, author names, caption/body/entry text, or body text. Generated JSON summaries remain under `data/evaluation/generated/` (gitignored).
 
-**Full aggregate snapshot (2026-06-01, pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p034/`). P035 local subset (+13 on Yin H 4th only), P036–P060 (mostly not run), P061 formal local subset (0 findings) documented separately; do not add to 1,446 until a full P001–P061 rerun.
+**Full aggregate snapshot (2026-06-07, P061-era):** `docs/evaluation/current_auditor_after_p061_evaluation.md` — five-PDF run with P011–P061; **1,587** total findings (gitignored per-file JSON under `data/evaluation/generated/current_auditor_after_p061/`). P011–P034 subtotal unchanged at **1,446**; +141 from P035–P061; P061 **0** (sparse comparable LoT/LoF entries).
+
+**Historical aggregate snapshot (2026-06-01, pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` — five-PDF run with P011–P034; **1,446** total findings (`generated_for_commit: 00b9c2d`).
 
 **P013 reporting refinement (2026-06-01):** `docs/evaluation/p013_reporting_actionability_refinement.md` — `p013_triage` rollup and Markdown triage section; detection unchanged.
 
