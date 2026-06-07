@@ -32,7 +32,9 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 Open `http://localhost:8000` in a browser. The web UI currently accepts **PDF uploads only**,
 but runs the same full **P011–P061** audit backend as `njit-audit pdf` (via
 `run_audit_for_uploaded_file()`). Backend utilities also support TeX and ZIP classification
-for future GUI work; TeX/ZIP web upload is not yet exposed. Three audit methods are available:
+for future GUI work. TeX/ZIP source audits support JSON/Markdown export via the CLI and
+shared report pipeline, but web upload for TeX/ZIP is not yet exposed. Three audit methods
+are available:
 
 - **Upload a PDF file** — select a local file and submit.
 - **Audit a public PDF URL** — paste a direct public PDF link and submit.
@@ -47,7 +49,8 @@ Download JSON or Markdown reports from the results page. The results page shows 
 banner, summary cards, severity/category overview, high-volume triage panels (P011/P013/P026),
 client-side finding filters (rule, severity, category, page), and privacy-safe polished
 comments per finding (raw JSON/Markdown schema unchanged). The upload page explains
-local privacy-safe processing and which input formats the web UI supports.
+local privacy-safe processing and which input formats the web UI supports. Use
+`njit-audit tex --json-out report.json --md-out report.md` for source audit exports.
 For persistent always-on hosting, start in a detached tmux session:
 
 ```bash

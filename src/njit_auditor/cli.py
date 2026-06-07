@@ -52,7 +52,12 @@ def audit(pdf_path: str) -> None:
 
 
 @app.command()
-def tex(main_tex_path: str, linters: bool = False) -> None:
+def tex(
+    main_tex_path: str,
+    linters: bool = False,
+    json_out: str | None = typer.Option(None, "--json-out", help="Path to JSON report output."),
+    md_out: str | None = typer.Option(None, "--md-out", help="Path to Markdown report output."),
+) -> None:
     """Audit a TeX source project without compiling it."""
     input_path = Path(main_tex_path)
     if not input_path.exists():
@@ -72,6 +77,33 @@ def tex(main_tex_path: str, linters: bool = False) -> None:
         loaded_file_count=loaded_file_count,
         findings=findings,
     )
+
+    report_metadata = {
+        "input_file_path": str(input_path),
+        "input_file_name": input_path.name,
+        "audit_type": "tex",
+        "input_kind": "tex",
+        "main_tex_path": str(main_path),
+        "loaded_tex_file_count": str(loaded_file_count),
+    }
+    if json_out:
+        json_path = Path(json_out)
+        try:
+            write_json_report(findings, report_metadata, json_path)
+        except OSError as exc:
+            console.print(f"[red]Unable to write JSON report:[/red] {json_path}")
+            console.print(f"[yellow]Reason:[/yellow] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(f"[green]JSON report:[/green] {json_path}")
+    if md_out:
+        md_path = Path(md_out)
+        try:
+            write_markdown_report(findings, report_metadata, md_path)
+        except OSError as exc:
+            console.print(f"[red]Unable to write Markdown report:[/red] {md_path}")
+            console.print(f"[yellow]Reason:[/yellow] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(f"[green]Markdown report:[/green] {md_path}")
 
 
 @app.command()

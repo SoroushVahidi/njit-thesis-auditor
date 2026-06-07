@@ -5,6 +5,8 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from njit_auditor.report_outputs import derive_source_issue_type
+
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Heuristic signal — please verify against NJIT guidelines manually."
 
@@ -26,7 +28,13 @@ _BLOCKED_DETAIL_KEYS: frozenset[str] = frozenset(
         "extracted_text",
         "annotation_text",
         "comment_text",
+        "label",
+        "ref",
     }
+)
+
+_SOURCE_RULE_IDS = frozenset(
+    {"P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009", "P010"}
 )
 
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
@@ -86,6 +94,46 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "List of Figures entry numbers may not be non-decreasing across pages {page_range}. "
         "Verify cross-page numbering continuity in the LoF."
     ),
+    ("P001", "risky_command"): (
+        "Risky formatting command '\\{command}' at {location}. "
+        "Manual overrides can break NJIT layout requirements."
+    ),
+    ("P002", "duplicate_label"): (
+        "Duplicate label detected at {location}. "
+        "Rename one label and update related references."
+    ),
+    ("P003", "invalid_label"): (
+        "Label format issue at {location}. "
+        "Use label keys without spaces (e.g. fig:result_plot)."
+    ),
+    ("P004", "dangling_reference"): (
+        "Reference may point to an undefined label at {location}. "
+        "Define the missing label or correct the reference key."
+    ),
+    ("P005", "missing_caption"): (
+        "Figure/table environment may be missing a \\caption at {location}. "
+        "Add a descriptive caption for the float."
+    ),
+    ("P006", "missing_label"): (
+        "Figure/table environment may be missing a \\label at {location}. "
+        "Add a unique label for cross-references."
+    ),
+    ("P007", "caption_punctuation"): (
+        "Caption punctuation may need review at {location}. "
+        "End caption text with ., !, or ? as appropriate."
+    ),
+    ("P008", "abstract_structure"): (
+        "Abstract structure issue detected at {location}. "
+        "Verify abstract block presence and NJIT abstract requirements."
+    ),
+    ("P009", "chktex_warning"): (
+        "CHKTeX linter warning at {location}. "
+        "Review the flagged source pattern against NJIT formatting rules."
+    ),
+    ("P010", "lacheck_warning"): (
+        "lacheck linter warning at {location}. "
+        "Review the flagged source pattern against NJIT formatting rules."
+    ),
 }
 
 _RULE_FALLBACKS: dict[str, str] = {
@@ -117,6 +165,19 @@ _RULE_FALLBACKS: dict[str, str] = {
         "LoT/LoF cross-page entry ordering on pages {page_range}. "
         "Review list numbering continuity."
     ),
+    "P001": (
+        "Risky formatting override at {location}. "
+        "Remove manual layout commands and rely on template defaults."
+    ),
+    "P002": "Label/reference consistency issue at {location}. Review labels and refs.",
+    "P003": "Label format issue at {location}. Review label key formatting.",
+    "P004": "Unresolved reference at {location}. Verify label definitions.",
+    "P005": "Figure/table caption issue at {location}. Review float captions.",
+    "P006": "Figure/table label issue at {location}. Review float labels.",
+    "P007": "Caption punctuation issue at {location}. Review caption endings.",
+    "P008": "Abstract structure issue at {location}. Review abstract block.",
+    "P009": "LaTeX linter warning at {location}. Review flagged source pattern.",
+    "P010": "LaTeX linter warning at {location}. Review flagged source pattern.",
 }
 
 
@@ -153,6 +214,17 @@ def _safe_page_label(page: int | None) -> str:
     return str(page) if page is not None else "document level"
 
 
+def _safe_location_label(details: dict[str, str]) -> str:
+    file_path = details.get("file", "").strip()
+    line = details.get("line", "").strip()
+    if file_path:
+        name = Path(file_path).name
+        if line:
+            return f"{name}:{line}"
+        return name
+    return "source level"
+
+
 def _safe_page_range(details: dict[str, str]) -> str:
     start = details.get("run_start_page", "")
     end = details.get("run_end_page", "")
@@ -166,11 +238,14 @@ def _safe_page_range(details: dict[str, str]) -> str:
 def _format_template(template: str, *, page: int | None, details: dict[str, str]) -> str:
     side = details.get("side", "document") or "document"
     position_type = details.get("position_type", "unknown position") or "unknown position"
+    command = details.get("command", "formatting command") or "formatting command"
     return template.format(
         page=_safe_page_label(page),
         side=side.replace("_", " "),
         position_type=position_type.replace("_", " "),
         page_range=_safe_page_range(details),
+        location=_safe_location_label(details),
+        command=command,
     )
 
 
@@ -188,12 +263,18 @@ def build_polished_comment(
         k: v for k, v in (details or {}).items() if k not in _BLOCKED_DETAIL_KEYS
     }
     issue = issue_type or safe_details.get("issue_type", "")
+    if rule_id in _SOURCE_RULE_IDS and not issue:
+        issue = derive_source_issue_type(rule_id, safe_details)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))
     if template is None:
         template = _RULE_FALLBACKS.get(
             rule_id,
-            "Formatting check {rule_id} flagged issue type '{issue}' on page {page}.",
+            (
+                "Formatting check {rule_id} flagged issue type '{issue}' at {location}."
+                if rule_id in _SOURCE_RULE_IDS
+                else "Formatting check {rule_id} flagged issue type '{issue}' on page {page}."
+            ),
         )
         if "{rule_id}" in template:
             body = template.format(
@@ -201,6 +282,8 @@ def build_polished_comment(
                 issue=issue or "unspecified",
                 page=_safe_page_label(page),
                 page_range=_safe_page_range(safe_details),
+                location=_safe_location_label(safe_details),
+                command=safe_details.get("command", "formatting command"),
             )
         else:
             body = _format_template(template, page=page, details=safe_details)
