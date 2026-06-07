@@ -29,9 +29,10 @@ A browser-based upload form is available via the bundled FastAPI application:
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in a browser. Web PDF uploads run the same full **P011–P061**
-audit backend as `njit-audit pdf` (via shared `run_pdf_audit_full()`). Three audit methods
-are available:
+Open `http://localhost:8000` in a browser. The web UI currently accepts **PDF uploads only**,
+but runs the same full **P011–P061** audit backend as `njit-audit pdf` (via
+`run_audit_for_uploaded_file()`). Backend utilities also support TeX and ZIP classification
+for future GUI work; TeX/ZIP web upload is not yet exposed. Three audit methods are available:
 
 - **Upload a PDF file** — select a local file and submit.
 - **Audit a public PDF URL** — paste a direct public PDF link and submit.

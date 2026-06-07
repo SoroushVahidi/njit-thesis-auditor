@@ -2,15 +2,28 @@
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from pymupdf import FileDataError
 
+from njit_auditor.latex_linters import run_optional_latex_linters
+from njit_auditor.latex_loader import load_tex_project
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.rules.latex_abstract import (
+    run_latex_abstract_checks,
+    run_latex_abstract_word_count_check,
+)
+from njit_auditor.rules.latex_figures_tables import run_latex_figure_table_checks
+from njit_auditor.rules.latex_labels import run_latex_label_checks
+from njit_auditor.rules.latex_metadata import run_latex_graduation_month_check
+from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_checks
+from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
 from njit_auditor.rules.pdf_acknowledgements_indentation import (
@@ -88,6 +101,17 @@ from njit_auditor.rules.pdf_toc_page_number_ordering import (
     check_pdf_toc_page_number_ordering,
 )
 from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
+from njit_auditor.upload_handling import (
+    DEFAULT_MAX_UPLOAD_BYTES,
+    MainTexDetectionError,
+    UploadKind,
+    UploadValidationError,
+    ZipExtractionError,
+    classify_upload,
+    detect_main_tex,
+    safe_extract_zip,
+    validate_upload_path,
+)
 
 # Rule IDs added in P055–P061 (post-P054). Used by parity tests.
 PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
@@ -114,6 +138,44 @@ PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
 
 class AuditError(Exception):
     """Raised when the audit cannot proceed (corrupt/invalid PDF)."""
+
+
+TEX_JSON_EXPORT_LIMITATION = (
+    "TeX source audit completed, but JSON/Markdown web export is not yet supported. "
+    "Use njit-audit tex for console output."
+)
+
+
+@dataclass(frozen=True)
+class UploadedAuditResult:
+    """Structured result from :func:`run_audit_for_uploaded_file`."""
+
+    upload_kind: UploadKind
+    audit_type: str
+    findings: list[AuditFinding]
+    main_tex_path: Path | None = None
+    loaded_tex_file_count: int | None = None
+    json_export_supported: bool = True
+    limitation_note: str = ""
+
+
+def collect_tex_findings(
+    main_tex_path: str | Path, include_optional_linters: bool = False
+) -> tuple[Path, int, list[AuditFinding]]:
+    """Load TeX project and run all P001–P010 source checks."""
+    input_path = Path(main_tex_path)
+    project = load_tex_project(input_path)
+    findings: list[AuditFinding] = []
+    findings.extend(run_latex_abstract_checks(project))
+    findings.extend(run_latex_abstract_word_count_check(project))
+    findings.extend(run_latex_graduation_month_check(project))
+    findings.extend(run_latex_structure_checks(project))
+    findings.extend(run_latex_risky_command_checks(project))
+    findings.extend(run_latex_label_checks(project))
+    findings.extend(run_latex_figure_table_checks(project))
+    if include_optional_linters:
+        findings.extend(run_optional_latex_linters(input_path))
+    return project.main_path, len(project.files), findings
 
 
 def collect_pdf_layout_findings(
@@ -195,6 +257,79 @@ def run_pdf_audit_full(pdf_path: str | Path) -> list[AuditFinding]:
 def run_pdf_audit(pdf_path: Path) -> list[AuditFinding]:
     """Backward-compatible alias for :func:`run_pdf_audit_full`."""
     return run_pdf_audit_full(pdf_path)
+
+
+def run_audit_for_uploaded_file(
+    path: Path,
+    *,
+    max_size_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
+    work_dir: Path | None = None,
+    include_optional_linters: bool = False,
+) -> UploadedAuditResult:
+    """Dispatch an on-disk upload to the correct audit mode (PDF, TeX, or ZIP→TeX)."""
+    kind = validate_upload_path(path, max_size_bytes)
+
+    if kind == UploadKind.PDF:
+        try:
+            findings = run_pdf_audit_full(path)
+        except AuditError as exc:
+            raise UploadValidationError(str(exc)) from exc
+        return UploadedAuditResult(
+            upload_kind=kind,
+            audit_type="pdf",
+            findings=findings,
+            json_export_supported=True,
+        )
+
+    if kind == UploadKind.TEX:
+        try:
+            main_path, loaded_count, findings = collect_tex_findings(
+                path, include_optional_linters=include_optional_linters
+            )
+        except (FileNotFoundError, OSError, ValueError) as exc:
+            raise UploadValidationError(f"Cannot audit TeX file: {exc}") from exc
+        return UploadedAuditResult(
+            upload_kind=kind,
+            audit_type="tex",
+            findings=findings,
+            main_tex_path=main_path,
+            loaded_tex_file_count=loaded_count,
+            json_export_supported=False,
+            limitation_note=TEX_JSON_EXPORT_LIMITATION,
+        )
+
+    if kind == UploadKind.ZIP:
+        extract_parent = work_dir if work_dir is not None else path.parent
+        extract_dir = extract_parent / f"{path.stem}_extracted"
+        cleanup_extract = work_dir is None
+        try:
+            safe_extract_zip(path, extract_dir)
+            main_tex = detect_main_tex(extract_dir)
+            main_path, loaded_count, findings = collect_tex_findings(
+                main_tex, include_optional_linters=include_optional_linters
+            )
+        except (ZipExtractionError, MainTexDetectionError) as exc:
+            if cleanup_extract and extract_dir.exists():
+                shutil.rmtree(extract_dir, ignore_errors=True)
+            raise UploadValidationError(str(exc)) from exc
+        except (FileNotFoundError, OSError, ValueError) as exc:
+            if cleanup_extract and extract_dir.exists():
+                shutil.rmtree(extract_dir, ignore_errors=True)
+            raise UploadValidationError(f"Cannot audit extracted TeX project: {exc}") from exc
+
+        return UploadedAuditResult(
+            upload_kind=kind,
+            audit_type="tex",
+            findings=findings,
+            main_tex_path=main_path,
+            loaded_tex_file_count=loaded_count,
+            json_export_supported=False,
+            limitation_note=TEX_JSON_EXPORT_LIMITATION,
+        )
+
+    unsupported = classify_upload(path)
+    msg = f"Unsupported upload type: {unsupported.value}"
+    raise UploadValidationError(msg)
 
 
 def iter_pdf_audit_post_p054_callables() -> list[tuple[str, Callable[..., Any]]]:

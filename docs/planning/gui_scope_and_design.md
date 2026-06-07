@@ -156,9 +156,10 @@ Already implements:
 | `audit_findings_to_json_dict` | Yes | — |
 | `write_markdown_report` | Yes | — |
 | `build_grouped_summary` + triage builders | Yes | View-model mapper for UI cards |
-| `run_pdf_audit` / CLI `pdf()` | Partial | **Unify** into single `run_pdf_audit_full()` |
+| `run_pdf_audit_full` / CLI `pdf()` | **Done** | Shared via `collect_pdf_layout_findings()` |
+| `run_audit_for_uploaded_file()` | **Done** | Web uses for PDF; TeX/ZIP backend-ready |
 | `collect_tex_findings` | Yes | Upload handler + optional linters flag |
-| ZIP handling | No | New `safe_zip_extract()` utility |
+| ZIP handling | **Backend utility** (`safe_extract_zip`, `detect_main_tex`) | Web UI exposure deferred |
 | Polished comments | No | New template layer from `rule_loader` + finding metadata |
 | Report view DTOs | No | New `gui/report_view.py` (or `web/report_view.py`) |
 
@@ -437,7 +438,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 |---|---|---|
 | **0** | Backend contract audit | **Done** — `run_pdf_audit_full()` / `collect_pdf_layout_findings()` shared by CLI and web; parity tests in `tests/test_audit_runner.py` |
 | **1** | Minimal polished UI | Enhanced FastAPI templates: summary cards + triage panels |
-| **2** | Upload correctness | TeX upload; `safe_zip_extract`; validation tests |
+| **2** | Upload correctness | **Backend done** — `upload_handling.py`, `run_audit_for_uploaded_file()`; web UI TeX/ZIP exposure pending |
 | **3** | Report rendering tests | DTO layer; filter tests; polished comment templates |
 | **4** | PDF page preview | Page thumbnails with finding markers (privacy-safe) |
 | **5** | Polished comment coverage | All high-volume rules; remediation from `rule_loader` |
@@ -450,10 +451,10 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 
 1. ~~**Unify PDF audit entrypoint**~~ — **Done** — `run_pdf_audit_full()` in `audit_runner.py`; CLI and web call `collect_pdf_layout_findings` / `run_pdf_audit_full`
 2. **Create `src/njit_auditor/gui/` package** (or `web/` submodule) for view models separate from routes
-3. **Add `run_audit_for_uploaded_file(path: Path) -> AuditResult`** — dispatches PDF vs TeX vs ZIP
+3. ~~**Add `run_audit_for_uploaded_file()`**~~ — **Done** — dispatches PDF / TeX / ZIP (TeX export limitation documented)
 4. **Define report-view DTOs** — `AuditSummaryView`, `TriagePanelView`, `FindingRowView`, `PolishedComment`
-5. **Add `safe_zip_extract()`** — zip-slip protection, count/size limits, extension allowlist
-6. **Add `detect_main_tex()`** — `\documentclass` heuristic with ambiguity errors
+5. ~~**Add `safe_extract_zip()`**~~ — **Done** — `upload_handling.py`
+6. ~~**Add `detect_main_tex()`**~~ — **Done** — `upload_handling.py`
 7. **Add `polished_comments.py`** — template map keyed by `(rule_id, issue_type)`
 8. **Enhance `web_app.py` templates** — summary cards, triage-first layout, filters (HTMX optional)
 9. **Add TeX JSON/Markdown output** — extend `report_outputs.py` for `audit_type=tex`

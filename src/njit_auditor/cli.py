@@ -8,9 +8,7 @@ import typer
 from pymupdf import FileDataError
 from rich.console import Console
 
-from njit_auditor.audit_runner import collect_pdf_layout_findings
-from njit_auditor.latex_linters import run_optional_latex_linters
-from njit_auditor.latex_loader import load_tex_project
+from njit_auditor.audit_runner import collect_pdf_layout_findings, collect_tex_findings
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_comments import (
     extract_pdf_annotations,
@@ -23,40 +21,12 @@ from njit_auditor.pdf_loader import load_document_info
 from njit_auditor.report import render_pdf_layout_report, render_report, render_tex_report
 from njit_auditor.report_outputs import write_json_report, write_markdown_report
 from njit_auditor.rules.abstract import run_abstract_checks
-from njit_auditor.rules.latex_abstract import (
-    run_latex_abstract_checks,
-    run_latex_abstract_word_count_check,
-)
-from njit_auditor.rules.latex_figures_tables import run_latex_figure_table_checks
-from njit_auditor.rules.latex_labels import run_latex_label_checks
-from njit_auditor.rules.latex_metadata import run_latex_graduation_month_check
-from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_checks
-from njit_auditor.rules.latex_structure import run_latex_structure_checks
 from njit_auditor.rules.page_numbers import run_page_number_rule
 from njit_auditor.rules.title_page import run_title_page_month_check
 
 app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor")
 pdf_comments_app = typer.Typer(help="PDF annotation extraction and clean-copy workflow.")
 console = Console()
-
-
-def collect_tex_findings(
-    main_tex_path: str, include_optional_linters: bool = False
-) -> tuple[Path, int, list[AuditFinding]]:
-    """Load TeX project and run all phase-1 source checks."""
-    input_path = Path(main_tex_path)
-    project = load_tex_project(input_path)
-    findings: list[AuditFinding] = []
-    findings.extend(run_latex_abstract_checks(project))
-    findings.extend(run_latex_abstract_word_count_check(project))
-    findings.extend(run_latex_graduation_month_check(project))
-    findings.extend(run_latex_structure_checks(project))
-    findings.extend(run_latex_risky_command_checks(project))
-    findings.extend(run_latex_label_checks(project))
-    findings.extend(run_latex_figure_table_checks(project))
-    if include_optional_linters:
-        findings.extend(run_optional_latex_linters(input_path))
-    return project.main_path, len(project.files), findings
 
 
 @app.command()
