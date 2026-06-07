@@ -30,7 +30,8 @@
 - **P061:** **implemented** (PR #202) — `src/njit_auditor/rules/pdf_lot_lof_cross_page_entry_ordering.py`; LoT/LoF cross-page entry-number ordering (Q063/Q072 extension); 15 synthetic tests in `tests/test_p061_lot_lof_cross_page_entry_ordering.py`; see `docs/planning/p061_scope_and_design.md`; **formal current-dataset evaluation** (PR #204): **0** findings on five PDFs — sparse comparable LoT/LoF entries; does not prove compliance — see `docs/evaluation/p061_current_dataset_evaluation.md`
 - **Auditor scope:** P001–P061 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
-- **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged; rerun threshold now P001–P061)
+- **Five-PDF aggregate (P061-era full rerun):** **1,587** total — P013 **461**, P026 **415**, P011 **169**, P012 **143**, P036 **77**; P061 **0**; see `docs/evaluation/current_auditor_after_p061_evaluation.md`
+- **Five-PDF aggregate (historical pre-P035 baseline):** 1,446 total — P011–P034 only; `generated_for_commit: 00b9c2d`
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P-rules:** **61/61** implemented (`P001`–`P061`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
@@ -45,7 +46,8 @@
 - Strict coverage audit (historical baseline P029; updates through P036): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
-- **Current full-auditor snapshot (pre-P035/P036 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs; baseline `00b9c2d`)
+- **Current full-auditor snapshot (P061-era):** `docs/evaluation/current_auditor_after_p061_evaluation.md` (**1,587** findings across five PDFs; P011–P061; commit `ffea4e3`)
+- **Historical full-auditor snapshot (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md` (1,446 findings across five PDFs; baseline `00b9c2d`)
 - **P036 current-dataset evaluation (not run):** `docs/evaluation/p036_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
 - **P037 current-dataset evaluation (not run):** `docs/evaluation/p037_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable
 - **P038 current-dataset evaluation (not run):** `docs/evaluation/p038_current_dataset_evaluation.md` — no local audit; evaluation PDFs unavailable

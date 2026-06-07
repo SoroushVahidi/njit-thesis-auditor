@@ -137,7 +137,8 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Current full P001–P034 PDF evaluation (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md`
+- **Current full P001–P061 PDF evaluation (P061-era):** `docs/evaluation/current_auditor_after_p061_evaluation.md` — **1,587** findings; gitignored outputs under `data/evaluation/generated/current_auditor_after_p061/`
+- **Historical full P001–P034 PDF evaluation (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md`
 - **P035 current-dataset subset (local 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — P011/P012/P013/P026 triage rollups; see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`
 - Historical generated folders (superseded): `current_auditor_after_p034/`, `current_auditor_after_p034_p013_triage/`, `current_auditor_after_p034_p026_triage/`
