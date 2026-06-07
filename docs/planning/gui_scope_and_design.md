@@ -59,7 +59,7 @@ from the filesystem. A future GUI must add **safe ZIP extraction** plus main-fil
 | Module | Role | Reuse for GUI |
 |---|---|---|
 | `cli.py` → `pdf()` | Canonical P011–P061 PDF pipeline | **Refactor target:** extract shared `run_pdf_audit_full()` used by CLI and web |
-| `audit_runner.py` → `run_pdf_audit()` | Python API without Typer | **Partial reuse** — currently runs P011–P054 only; **missing P055–P061** vs CLI |
+| `audit_runner.py` → `run_pdf_audit_full()` | Python API without Typer | **Shared entrypoint** — P011–P061; used by CLI (`collect_pdf_layout_findings`) and web UI |
 | `cli.py` → `collect_tex_findings()` | TeX P001–P010 | Wrap for GUI TeX mode |
 | `report_outputs.py` | JSON/Markdown serialization + triage rollups | **Direct reuse** |
 | `rule_loader.py` | Rule definitions with `remediation` text | **Reuse for polished comments** |
@@ -146,7 +146,7 @@ Already implements:
 - No P011/P013/P026 triage-first panels (only `high_volume_rules` subset)
 - No rule/category/page filters
 - No polished comment templates
-- `audit_runner.py` not aligned with CLI P055–P061
+- ~~`audit_runner.py` not aligned with CLI P055–P061~~ — **resolved** (shared `run_pdf_audit_full` / `collect_pdf_layout_findings`)
 - No temp-file TTL cleanup policy documented
 
 ### Reuse vs thin wrapper needs
@@ -435,7 +435,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 
 | Phase | Scope | Deliverable |
 |---|---|---|
-| **0** | Backend contract audit | Unify `run_pdf_audit_full()`; align web with P061; fixture parity tests |
+| **0** | Backend contract audit | **Done** — `run_pdf_audit_full()` / `collect_pdf_layout_findings()` shared by CLI and web; parity tests in `tests/test_audit_runner.py` |
 | **1** | Minimal polished UI | Enhanced FastAPI templates: summary cards + triage panels |
 | **2** | Upload correctness | TeX upload; `safe_zip_extract`; validation tests |
 | **3** | Report rendering tests | DTO layer; filter tests; polished comment templates |
@@ -448,7 +448,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 
 ## 11. Implementation-ready next tasks
 
-1. **Unify PDF audit entrypoint** — extract `run_pdf_audit_full()` from `cli.py` `pdf()`; update `audit_runner.py` to include P055–P061; web and CLI call the same function
+1. ~~**Unify PDF audit entrypoint**~~ — **Done** — `run_pdf_audit_full()` in `audit_runner.py`; CLI and web call `collect_pdf_layout_findings` / `run_pdf_audit_full`
 2. **Create `src/njit_auditor/gui/` package** (or `web/` submodule) for view models separate from routes
 3. **Add `run_audit_for_uploaded_file(path: Path) -> AuditResult`** — dispatches PDF vs TeX vs ZIP
 4. **Define report-view DTOs** — `AuditSummaryView`, `TriagePanelView`, `FindingRowView`, `PolishedComment`
@@ -463,7 +463,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 
 ### Known caveats before implementation
 
-- **Web audit is behind CLI** — `audit_runner.py` omits P055–P061; must fix before claiming P061 in web UI
+- ~~**Web audit is behind CLI**~~ — resolved; web PDF uploads use full P011–P061 via `run_pdf_audit_full`
 - **TeX has no JSON export today** — GUI TeX mode needs report schema extension
 - **URL fetch is not offline** — treat as advanced feature; offline-first messaging on landing page
 - **Built-in samples expose private evaluation PDFs** — disable on public deployments

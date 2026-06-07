@@ -4682,11 +4682,11 @@ def test_p051_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 def test_p051_import_and_wiring(tmp_path: Path) -> None:
     import inspect
 
-    from njit_auditor.cli import pdf as pdf_cmd
+    import njit_auditor.audit_runner as audit_runner
     from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_year_format as fn
 
     assert callable(fn)
-    src = inspect.getsource(pdf_cmd)
+    src = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_copyright_year_format" in src
 
 
@@ -4772,11 +4772,11 @@ def test_p052_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 def test_p052_import_and_wiring(tmp_path: Path) -> None:
     import inspect
 
-    from njit_auditor.cli import pdf as pdf_cmd
+    import njit_auditor.audit_runner as audit_runner
     from njit_auditor.rules.pdf_copyright_page import check_pdf_copyright_author_format as fn
 
     assert callable(fn)
-    src = inspect.getsource(pdf_cmd)
+    src = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_copyright_author_format" in src
 
 
@@ -5905,15 +5905,15 @@ def test_p053_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 
 
 def test_p053_import_and_wiring(tmp_path: Path) -> None:
-    """P053 is importable and wired in cli.py."""
+    """P053 is importable and wired in audit_runner."""
     import inspect
 
-    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    import njit_auditor.audit_runner as audit_runner
     from njit_auditor.rules.pdf_lot_terminal_period import (
         check_pdf_lot_terminal_period as _check,
     )
     assert callable(_check)
-    src = inspect.getsource(pdf_cmd)
+    src = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_lot_terminal_period" in src
 
 
@@ -6064,15 +6064,15 @@ def test_p054_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 
 
 def test_p054_import_and_wiring(tmp_path: Path) -> None:
-    """P054 is importable and wired in cli.py."""
+    """P054 is importable and wired in audit_runner."""
     import inspect
 
-    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    import njit_auditor.audit_runner as audit_runner
     from njit_auditor.rules.pdf_toc_terminal_period import (
         check_pdf_toc_terminal_period as _check,
     )
     assert callable(_check)
-    src = inspect.getsource(pdf_cmd)
+    src = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_toc_terminal_period" in src
 
 
@@ -7815,15 +7815,15 @@ def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 
 
 def test_p055_import_and_wiring(tmp_path: Path) -> None:
-    """P055 is importable and wired in cli.py."""
+    """P055 is importable and wired in audit_runner."""
     import inspect
 
-    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    import njit_auditor.audit_runner as audit_runner
     from njit_auditor.rules.pdf_lot_lof_entry_type import (
         check_pdf_lot_lof_entry_type as _check,
     )
     assert callable(_check)
-    src = inspect.getsource(pdf_cmd)
+    src = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_lot_lof_entry_type" in src
 
 
@@ -8046,15 +8046,15 @@ def test_p056_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 
 
 def test_p056_import_and_wiring(tmp_path: Path) -> None:
-    """P056 is importable and wired in cli.py."""
+    """P056 is importable and wired in audit_runner."""
     import inspect
 
-    from njit_auditor.cli import pdf as pdf_cmd  # noqa: F401
+    import njit_auditor.audit_runner as audit_runner
     from njit_auditor.rules.pdf_lot_lof_number_format import (
         check_pdf_lot_lof_number_format as _check,
     )
     assert callable(_check)
-    src = inspect.getsource(pdf_cmd)
+    src = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_lot_lof_number_format" in src
 
 

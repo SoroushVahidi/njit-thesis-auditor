@@ -245,7 +245,7 @@ def test_p061_finding_metadata_privacy_safe(tmp_path: Path) -> None:
 
 
 def test_p061_import_and_wiring(tmp_path: Path) -> None:
-    """Module importable; returns list; wired into cli.py."""
+    """Module importable; returns list; wired into audit_runner."""
     from njit_auditor.rules.pdf_lot_lof_cross_page_entry_ordering import (
         check_pdf_lot_lof_cross_page_entry_ordering as fn,
     )
@@ -253,9 +253,9 @@ def test_p061_import_and_wiring(tmp_path: Path) -> None:
     assert callable(fn)
     import inspect
 
-    import njit_auditor.cli as cli_module
+    import njit_auditor.audit_runner as audit_runner
 
-    source = inspect.getsource(cli_module)
+    source = inspect.getsource(audit_runner.collect_pdf_layout_findings)
     assert "check_pdf_lot_lof_cross_page_entry_ordering" in source
 
     pdf_path = tmp_path / "p061_wire.pdf"

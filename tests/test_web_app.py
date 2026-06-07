@@ -176,7 +176,7 @@ def test_status_endpoint_returns_pending(client: tuple[TestClient, Any]) -> None
 
 def test_status_endpoint_complete_after_audit(client: tuple[TestClient, Any]) -> None:
     c, wa = client
-    with patch.object(wa, "run_pdf_audit", _fake_audit):
+    with patch.object(wa, "run_pdf_audit_full", _fake_audit):
         post = c.post(
             "/audits",
             files={"file": ("thesis.pdf", io.BytesIO(_MINIMAL_PDF), "application/pdf")},

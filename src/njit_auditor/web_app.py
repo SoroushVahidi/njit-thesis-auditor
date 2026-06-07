@@ -18,7 +18,7 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from njit_auditor.audit_runner import AuditError, run_pdf_audit
+from njit_auditor.audit_runner import AuditError, run_pdf_audit_full
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
 from njit_auditor.web_samples import (
@@ -141,7 +141,7 @@ def _run_audit_task(job_id: str) -> None:
     pdf_path = jdir / "upload.pdf"
 
     try:
-        findings: list[AuditFinding] = run_pdf_audit(pdf_path)
+        findings: list[AuditFinding] = run_pdf_audit_full(pdf_path)
     except AuditError as exc:
         job.state = "failed"
         job.error_message = str(exc)
