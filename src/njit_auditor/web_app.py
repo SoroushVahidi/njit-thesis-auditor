@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import secrets
 import shutil
 import threading
@@ -18,9 +17,15 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from njit_auditor.audit_runner import AuditError, run_pdf_audit_full
-from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.audit_runner import AuditError, run_audit_for_uploaded_file
+from njit_auditor.models import Severity
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.upload_handling import (
+    UploadKind,
+    UploadValidationError,
+    sanitize_upload_filename,
+    validate_upload_path,
+)
 from njit_auditor.web_samples import (
     copy_builtin_sample_to_job,
     get_builtin_sample,
@@ -41,14 +46,7 @@ MAX_UPLOAD_BYTES: int = MAX_UPLOAD_MB * 1024 * 1024
 # Job store (in-memory + runtime files on disk)
 # ---------------------------------------------------------------------------
 
-_ALLOWED_EXTENSIONS = {".pdf"}
-_SAFE_NAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
-
-
-def _safe_filename(name: str) -> str:
-    stem = Path(name).stem
-    safe = _SAFE_NAME_RE.sub("_", stem)[:80] or "upload"
-    return f"{safe}.pdf"
+_ALLOWED_WEB_EXTENSIONS = {".pdf"}
 
 
 @dataclass
@@ -141,7 +139,18 @@ def _run_audit_task(job_id: str) -> None:
     pdf_path = jdir / "upload.pdf"
 
     try:
-        findings: list[AuditFinding] = run_pdf_audit_full(pdf_path)
+        result = run_audit_for_uploaded_file(
+            pdf_path,
+            max_size_bytes=MAX_UPLOAD_BYTES,
+            work_dir=jdir,
+        )
+        findings = result.findings
+    except UploadValidationError as exc:
+        job.state = "failed"
+        job.error_message = str(exc)
+        job.finished_at = datetime.now(timezone.utc).isoformat()
+        _set_job(job)
+        return
     except AuditError as exc:
         job.state = "failed"
         job.error_message = str(exc)
@@ -230,26 +239,29 @@ async def submit_audit(
     filename = file.filename or "upload.bin"
     ext = Path(filename).suffix.lower()
 
-    if ext not in _ALLOWED_EXTENSIONS:
+    if ext not in _ALLOWED_WEB_EXTENSIONS:
         return _index_error(
             request,
-            f"Only PDF files are accepted. Got: {ext or '(no extension)'}",
+            f"Only PDF files are accepted in the web UI. Got: {ext or '(no extension)'}",
         )
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         return _index_error(request, f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
-    if len(content) < 8:
-        return _index_error(request, "File is too small to be a valid PDF.")
-    if not content[:4].startswith(b"%PDF"):
-        return _index_error(request, "The uploaded file does not appear to be a PDF.")
 
     job_id = secrets.token_urlsafe(16)
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = _safe_filename(filename)
-    (jdir / "upload.pdf").write_bytes(content)
+    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
+    upload_path = jdir / "upload.pdf"
+    upload_path.write_bytes(content)
+
+    try:
+        validate_upload_path(upload_path, MAX_UPLOAD_BYTES, expected_kind=UploadKind.PDF)
+    except UploadValidationError as exc:
+        shutil.rmtree(jdir, ignore_errors=True)
+        return _index_error(request, str(exc))
 
     job = JobState(
         job_id=job_id,
@@ -281,7 +293,7 @@ async def submit_audit_url(
         url_path = urllib.parse.urlparse(url).path
         url_basename = Path(url_path).name
         safe_name = (
-            _safe_filename(url_basename)
+            sanitize_upload_filename(url_basename, default_ext=".pdf")
             if url_basename.lower().endswith(".pdf")
             else "url_download.pdf"
         )
@@ -336,7 +348,7 @@ async def submit_audit_sample(
         shutil.rmtree(jdir, ignore_errors=True)
         return _index_error(request, "An error occurred loading the sample file.")
 
-    safe_name = _safe_filename(Path(info.rel_path).name)
+    safe_name = sanitize_upload_filename(Path(info.rel_path).name, default_ext=".pdf")
     job = JobState(
         job_id=job_id,
         state="pending",

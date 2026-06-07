@@ -82,7 +82,7 @@ def test_upload_wrong_magic_bytes_rejected(client: tuple[TestClient, Any]) -> No
         follow_redirects=False,
     )
     assert resp.status_code == 400
-    assert b"does not appear to be a PDF" in resp.content
+    assert b"valid PDF" in resp.content
 
 
 def test_upload_too_small_rejected(client: tuple[TestClient, Any]) -> None:
@@ -111,6 +111,17 @@ def _fake_audit(pdf_path: Path) -> list[Any]:
             details={"issue_type": "margin_boundary_violation", "side": "left"},
         )
     ]
+
+
+def _fake_dispatch(pdf_path: Path, **kwargs: Any) -> Any:
+    from njit_auditor.audit_runner import UploadedAuditResult
+    from njit_auditor.upload_handling import UploadKind
+
+    return UploadedAuditResult(
+        upload_kind=UploadKind.PDF,
+        audit_type="pdf",
+        findings=_fake_audit(pdf_path),
+    )
 
 
 def test_upload_pdf_creates_job_and_redirects(
@@ -176,7 +187,7 @@ def test_status_endpoint_returns_pending(client: tuple[TestClient, Any]) -> None
 
 def test_status_endpoint_complete_after_audit(client: tuple[TestClient, Any]) -> None:
     c, wa = client
-    with patch.object(wa, "run_pdf_audit_full", _fake_audit):
+    with patch.object(wa, "run_audit_for_uploaded_file", _fake_dispatch):
         post = c.post(
             "/audits",
             files={"file": ("thesis.pdf", io.BytesIO(_MINIMAL_PDF), "application/pdf")},

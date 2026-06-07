@@ -83,8 +83,8 @@ def test_cli_and_shared_backend_use_same_collect_function(tmp_path: Path) -> Non
     assert args[1] == pdf_path
 
 
-def test_web_audit_uses_run_pdf_audit_full(tmp_path: Path) -> None:
-    """Web background task must call run_pdf_audit_full (full P011–P061)."""
+def test_web_audit_uses_run_audit_for_uploaded_file(tmp_path: Path) -> None:
+    """Web background task must call run_audit_for_uploaded_file (PDF dispatch)."""
     import importlib
     import os
 
@@ -111,10 +111,21 @@ def test_web_audit_uses_run_pdf_audit_full(tmp_path: Path) -> None:
     )
     wa._set_job(job)
 
-    with patch.object(wa, "run_pdf_audit_full", return_value=[]) as mock_full:
+    from njit_auditor.audit_runner import UploadedAuditResult
+    from njit_auditor.upload_handling import UploadKind
+
+    empty_result = UploadedAuditResult(
+        upload_kind=UploadKind.PDF,
+        audit_type="pdf",
+        findings=[],
+    )
+    with patch.object(
+        wa, "run_audit_for_uploaded_file", return_value=empty_result
+    ) as mock_dispatch:
         wa._run_audit_task(job_id)
 
-    mock_full.assert_called_once_with(jdir / "upload.pdf")
+    mock_dispatch.assert_called_once()
+    assert mock_dispatch.call_args[0][0] == jdir / "upload.pdf"
 
 
 def test_web_report_includes_triage_keys(tmp_path: Path) -> None:
@@ -181,7 +192,15 @@ def test_web_report_includes_triage_keys(tmp_path: Path) -> None:
     )
     wa._set_job(job)
 
-    with patch.object(wa, "run_pdf_audit_full", return_value=findings):
+    from njit_auditor.audit_runner import UploadedAuditResult
+    from njit_auditor.upload_handling import UploadKind
+
+    dispatch_result = UploadedAuditResult(
+        upload_kind=UploadKind.PDF,
+        audit_type="pdf",
+        findings=findings,
+    )
+    with patch.object(wa, "run_audit_for_uploaded_file", return_value=dispatch_result):
         wa._run_audit_task(job_id)
 
     report_path = jdir / "report.json"
