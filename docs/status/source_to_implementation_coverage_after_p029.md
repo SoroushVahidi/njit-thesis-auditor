@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **60/60 implemented** (`P001`–`P060`) — `main` is at `600241b`; P061 has a scope doc only (`docs/planning/p061_scope_and_design.md`).
+- **P-rule implementation:** **61/61 implemented** (`P001`–`P061`) — `main` is at `82e8361` (PR #202).
 - **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -158,7 +158,7 @@
 
 | Source/Q basis | Expected implementation approach | Risk/noise |
 |---|---|---|
-| LoT/LoF cross-page entry ordering (`Q063`, `Q072` extension) | Implement scoped P061 companion to P059 using combined multi-page ordering checks | Medium (cross-page grouping and sparse-page gating) |
+| LoT/LoF cross-page entry ordering (`Q063`, `Q072` extension) | **Implemented as P061** — see `docs/planning/p061_scope_and_design.md` and `docs/evaluation/p061_current_dataset_evaluation.md` | Medium (cross-page grouping and sparse-page gating) |
 | Figure/table body detection on image-heavy PDFs | Extend P035 beyond text-layer bodies, likely via image-block extraction in `pdf_layout.py` | High (image geometry reliability and false positives) |
 | Canonical five-PDF aggregate refresh | Re-run full P001–P060 evaluation only when all five evaluation PDFs are directly accessible | Low implementation risk; blocked by data access |
 
@@ -194,7 +194,7 @@ Rules that should remain manual-only or process-only for now:
 
 Top 3 next tasks:
 
-1. Implement scoped **P061** cross-page LoT/LoF entry-number ordering and validate it synthetically first.
+1. Rerun full five-PDF **P001–P061** canonical aggregate when evaluation workflow permits (P061 local subset: 0 findings).
 2. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
 3. Keep reporting/evaluation canonical by preserving `00b9c2d` until a full five-PDF P001–P060 rerun is reproducible.
 
@@ -266,7 +266,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P044 (consolidated current state)
 
-**Current repository (main `600241b`; five-PDF eval baseline `00b9c2d`):** P001–P060 implemented; P061 scoped only; web UI present; **729** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P060 current-dataset counts (only 4/5 evaluation PDFs accessible).
+**Current repository (main `82e8361`; five-PDF eval baseline `00b9c2d`):** P001–P061 implemented; web UI present; **744** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P060 current-dataset counts (only 4/5 evaluation PDFs accessible).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -301,7 +301,7 @@ Top 3 next tasks:
 | **P058** | TOC page-number ordering check (Q057 refinement) | **Implemented** | `pdf_toc_page_number_ordering.py`; emits advisory when TABLE OF CONTENTS entries have page numbers that are not non-decreasing; gates: ≥3 comparable integer entries, ≥2 inversions; non-integer tokens skipped; LoT/LoF excluded; triage_tier: medium; 10 synthetic tests; **Not run** — only 4/5 evaluation PDFs accessible |
 | **P059** | LoT/LoF entry-number ordering check (Q063/Q072 refinement) | **Implemented** | `pdf_lot_lof_entry_number_ordering.py`; emits warning when List of Tables or List of Figures entries have entry numbers that are not non-decreasing; gates: ≥3 comparable entries, ≥2 inversions; mixed sequential+chapter-based pages skipped; appendix/letter-prefixed entries skipped; TOC excluded; triage_tier: medium; 12 synthetic tests; **Not run** — only 4/5 evaluation PDFs accessible; see `docs/evaluation/p059_lot_lof_entry_number_ordering_synthetic_validation.md` |
 | **P060** | TOC section-number ordering check (Q056/Q057 implied) | **Implemented** | `pdf_toc_entry_number_ordering.py`; emits warning when parseable numeric section entries in TABLE OF CONTENTS are not non-decreasing; word-prefix entries (CHAPTER, ABSTRACT, APPENDIX) skipped; conservative gates: ≥3 comparable entries, ≥2 inversions; triage_tier: medium; 12 synthetic tests; **Not run** — only 4/5 evaluation PDFs accessible; see `docs/evaluation/p060_toc_entry_number_ordering_synthetic_validation.md` |
-| **P061** | LoT/LoF cross-page entry-number ordering check (Q063/Q072 extension) | **Scoped** | Planned `pdf_lot_lof_cross_page_entry_ordering.py`; issue types `lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`; requires ≥2 LoT/LoF pages; conservative gates: ≥3 combined comparable entries, ≥2 inversions; cross-page companion to P059; triage_tier: medium; see `docs/planning/p061_scope_and_design.md`; structural current-dataset inventory (formal audit blocked — module not implemented): `docs/evaluation/p061_current_dataset_evaluation.md` |
+| **P061** | LoT/LoF cross-page entry-number ordering check (Q063/Q072 extension) | **0** on five-PDF local subset (not canonical aggregate) | `pdf_lot_lof_cross_page_entry_ordering.py`; issue types `lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`; requires ≥2 consecutive same-type pages; gates: ≥3 combined comparable entries, ≥2 inversions; see `docs/evaluation/p061_current_dataset_evaluation.md` |
 
 Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation title text, author names, caption/body/entry text, or body text. Generated JSON summaries remain under `data/evaluation/generated/` (gitignored).
 
