@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-05
-- **Latest main:** `35cb885` (PR #196 — Implement P060 TOC entry-number ordering checks; P001–P060 implemented; web GUI present with upload, URL audit, and built-in sample audit)
+- **Date:** 2026-06-07
+- **Latest main:** `600241b` (PR #199 — scope P061 LoT/LoF cross-page entry-number ordering; code state remains P001–P060 implemented, P061 scoped only)
 - **P059:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_number_ordering.py` (new module); LoT/LoF entry-number ordering check (Q063/Q072 refinement); emits `lot_entry_numbers_not_nondecreasing` / `lof_entry_numbers_not_nondecreasing` when entry numbers (numeric token following "Table"/"Figure" label) are not non-decreasing; gates: ≥3 entries with parseable entry numbers, ≥2 inversions; mixed sequential+chapter-based pages skipped; appendix/letter-prefixed entries skipped; TOC excluded; triage_tier: medium; 12 synthetic tests added; see `docs/planning/p059_scope_and_design.md` and `docs/evaluation/p059_lot_lof_entry_number_ordering_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P060:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_number_ordering.py` (new module); TOC section-number ordering check (Q056/Q057 implied); emits `toc_entry_numbers_not_nondecreasing` when parseable numeric section entries in TABLE OF CONTENTS are not non-decreasing; gates: ≥3 entries with parseable section numbers, ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF excluded; triage_tier: medium; 12 synthetic tests added; see `docs/planning/p060_scope_and_design.md` and `docs/evaluation/p060_toc_entry_number_ordering_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P058:** **implemented** — `src/njit_auditor/rules/pdf_toc_page_number_ordering.py` (new module); TOC page-number ordering check (Q057 refinement); emits `toc_page_numbers_not_nondecreasing` when TABLE OF CONTENTS entries have page numbers that are not non-decreasing; gates: ≥3 entries with integer page numbers, ≥2 inversions; non-integer (roman numeral) tokens skipped; LoT/LoF excluded; triage_tier: medium; 10 synthetic tests added; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -25,8 +25,8 @@
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P054:** **implemented** — `src/njit_auditor/rules/pdf_toc_terminal_period.py` (new module); TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); emits `toc_entry_has_terminal_period` warning when complete TOC entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; 9 synthetic tests added; see `docs/planning/p054_scope_and_design.md` and `docs/evaluation/p054_toc_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; three audit input methods at `/`: file upload, public PDF URL (`POST /audits/url` with SSRF-safe download via `src/njit_auditor/web_url_fetch.py`), and built-in sample PDF dropdown (`POST /audits/sample` with curated registry in `src/njit_auditor/web_samples.py`); background audit task (P011–P060); JSON/Markdown download; runtime files under gitignored `.runtime/web_audits/`; see `docs/web_gui_mvp.md`
-- **Validation:** ruff, mypy, **729 pytest** passed after P060 implementation
-- **Auditor scope:** P001–P060 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Validation:** ruff, mypy, **729 pytest** remain the latest verified local baseline at this docs refresh
+- **Auditor scope:** P001–P060 implemented; P061 scoped only; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (canonical pre-P035 baseline):** 1,446 total — P013 **461**, P026 **415**, P011 **169**, P012 **143**; P030 **3**; P031–P034 **0** (unchanged; rerun threshold now P001–P060)
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
@@ -159,7 +159,7 @@
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
 | `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
 
-### PDF Layout Audit (P011–P052)
+### PDF Layout Audit (P011–P060)
 
 | Module | Rule(s) | What It Does |
 |--------|---------|-------------|
@@ -314,19 +314,18 @@
 
 ---
 
-## 4. Remaining Gaps After P039 (Prioritized)
+## 4. Remaining Gaps After P060 (Prioritized)
 
 ### A. Automatable / partial (not yet fully covered)
 
 | Priority | Gap | Type | Notes |
 |----------|-----|------|-------|
-| 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image floats skipped in v1 |
-| 🟡 High | P034 copyright year/author extraction recall | Refinement | Year comparison ran 1/5; author 2/5; expand without quoting names in findings |
-| ~~🟡 Med~~ | ~~Section-anchored Roman numerals (bio=iv, template offsets)~~ | ~~**Scoped as P037**~~ | ~~P029 covers relative sequence; P037 adds template anchors~~ — **Implemented as P037**; LOF anchor deferred to v2 |
-| 🟡 Med | Heading bold/italic enforcement beyond P027 | Partial | Level style partially covered |
-| 🟡 Med | Body-page spacing (P016 front-matter focus) | Refinement | EF feedback suggests body gaps underrepresented |
-| 🟡 Med | References/citations deterministic checks | Automatable partial | If TeX/BibTeX path feasible |
-| 🟡 Med | Front-matter dedication/bio-sketch (Q023–Q029, Q033–Q034) | Partial/manual | Not covered by P025/P034 |
+| 🟡 High | Full five-PDF P001–P060 rerun | Data/eval | Only 4/5 evaluation PDFs are directly accessible; keep `00b9c2d` and 1,446 findings as the canonical baseline until a full rerun is reproducible |
+| 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image-only floats are skipped in v1 |
+| 🟡 Med | P061 cross-page LoT/LoF ordering | Scoped | `docs/planning/p061_scope_and_design.md` exists; implementation not started |
+| 🟡 Med | Heading bold/italic enforcement beyond P027/P049/P050 | Partial | Still constrained by PDF font-style metadata quality |
+| 🟡 Med | Front-matter dedication/bio-sketch semantics (Q023–Q030, Q033–Q034) | Partial/manual | Content, chronology, centering, and italics remain incomplete |
+| 🟡 Med | Approval/Acknowledgements semantics (Q015–Q020, Q037–Q043) | Manual/partial | Committee rank/order and paragraph-intent checks remain manual-only |
 | 🟡 Low | Evaluation-set expansion | Data/eval | More extractable EF-comment PDFs from archive |
 | 🟡 Low | EF category ↔ rule mapping at scale | Eval | Page/category precision/recall vs human comments |
 
@@ -525,7 +524,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines (no page_number_token); short entries; sparse pages |
 | Current-dataset eval | **Not run** — only 4/5 evaluation PDFs directly accessible; see `docs/evaluation/p053_current_dataset_evaluation.md` |
 
-## 6. Validation Status (P060 implementation; post-merge)
+## 6. Current Validation Status
 
 | Check | Result |
 |-------|--------|
@@ -600,29 +599,11 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟢 Done | P051 implementation | **Implemented:** copyright page year-format refinement (Q010); extends P034 module; see `docs/planning/p051_scope_and_design.md` |
-| 🟢 Done | P052 implementation | **Implemented:** copyright page author-format refinement (Q011 improvement); extends P034/P051 module; see `docs/planning/p052_scope_and_design.md` |
-| 🟢 Done | P053 implementation | **Implemented:** LoT entry terminal-period check (Q065 refinement); symmetric to P040; new `pdf_lot_terminal_period.py`; see `docs/planning/p053_scope_and_design.md` |
-| 🟢 Done | P054 scoping | **Scoped:** TOC entry terminal-period absence check (Q050 refinement); planned `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
-| 🟢 Done | Web upload UI | **Added:** FastAPI web app with background audit (P011–P055), polling, JSON/Markdown download; 17 tests; see `docs/web_gui_mvp.md` |
-| 🟢 Done | P054 implementation | **Implemented:** TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); new `pdf_toc_terminal_period.py`; see `docs/planning/p054_scope_and_design.md` |
-| 🟢 Done | P055 implementation | **Implemented:** LoT/LoF cross-type entry check (Q063/Q072 extension); new `pdf_lot_lof_entry_type.py`; issue types `lot_entry_is_figure`, `lof_entry_is_table`; see `docs/planning/p055_scope_and_design.md` |
-| 🟢 Done | P056 scoping | **Scoped:** LoT/LoF entry numbering format consistency check; planned `pdf_lot_lof_number_format.py`; issue types `lot_mixed_numbering_format`, `lof_mixed_numbering_format`; see `docs/planning/p056_scope_and_design.md` |
-| 🟢 Done | P056 implementation | **Implemented:** LoT/LoF entry numbering format consistency check; new `pdf_lot_lof_number_format.py`; issue types `lot_mixed_numbering_format`, `lof_mixed_numbering_format`; triage_tier low; 13 synthetic tests; see `docs/planning/p056_scope_and_design.md` and `docs/evaluation/p056_lot_lof_number_format_synthetic_validation.md` |
-| 🟢 Done | P057 scoping | **Scoped:** LoT/LoF page-number ordering check; planned `pdf_lot_lof_page_order.py`; issue types `lot_page_numbers_not_nondecreasing`, `lof_page_numbers_not_nondecreasing`; see `docs/planning/p057_scope_and_design.md` |
-| 🟢 Done | P057 implementation | **Implemented:** LoT/LoF page-number ordering check; new `pdf_lot_lof_page_number_ordering.py`; issue types `lot_page_numbers_not_nondecreasing`, `lof_page_numbers_not_nondecreasing`; triage_tier medium; 12 synthetic tests; see `docs/planning/p057_scope_and_design.md` and `docs/evaluation/p057_lot_lof_page_number_ordering_synthetic_validation.md` |
-| 🟢 Done | P058 scoping | **Scoped:** TOC page-number ordering check; planned `pdf_toc_page_number_ordering.py`; issue type `toc_page_numbers_not_nondecreasing`; conservative gates: ≥3 arabic integer entries, ≥2 inversions; roman-numeral (front-matter) entries skipped; triage_tier: medium; see `docs/planning/p058_scope_and_design.md` |
-| 🟢 Done | P058 implementation | **Implemented:** TOC page-number ordering check; new `pdf_toc_page_number_ordering.py`; issue type `toc_page_numbers_not_nondecreasing`; triage_tier medium; 10 synthetic tests |
-| 🟢 Done | P059 scoping | **Scoped:** LoT/LoF entry-number ordering check; planned `pdf_lot_lof_entry_number_ordering.py`; issue types `lot_entry_numbers_not_nondecreasing`, `lof_entry_numbers_not_nondecreasing`; conservative gates: ≥3 parseable entry numbers, ≥2 inversions; mixed-format pages skipped; triage_tier: medium; see `docs/planning/p059_scope_and_design.md` |
-| 🟢 Done | P059 implementation | **Implemented:** LoT/LoF entry-number ordering check; new `pdf_lot_lof_entry_number_ordering.py`; issue types `lot_entry_numbers_not_nondecreasing`, `lof_entry_numbers_not_nondecreasing`; triage_tier medium; 12 synthetic tests; see `docs/evaluation/p059_lot_lof_entry_number_ordering_synthetic_validation.md` |
-| 🟢 Done | P060 scoping | **Scoped:** TOC section-number ordering check; planned `pdf_toc_entry_number_ordering.py`; issue type `toc_entry_numbers_not_nondecreasing`; conservative gates: ≥3 parseable numeric section entries, ≥2 inversions; word-prefix entries (CHAPTER, ABSTRACT, APPENDIX) skipped; mixed-hierarchy pages skipped; triage_tier: medium; see `docs/planning/p060_scope_and_design.md` |
-| 🟢 Done | P060 implementation | **Implemented:** TOC section-number ordering check; new `pdf_toc_entry_number_ordering.py`; issue type `toc_entry_numbers_not_nondecreasing`; triage_tier medium; 12 synthetic tests; see `docs/evaluation/p060_toc_entry_number_ordering_synthetic_validation.md` |
-| 🟢 Done | P061 scoping | **Scoped:** LoT/LoF cross-page entry-number ordering check; planned `pdf_lot_lof_cross_page_entry_ordering.py`; issue types `lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`; requires ≥2 LoT/LoF pages; conservative gates: ≥3 combined comparable entries, ≥2 inversions; triage_tier: medium; cross-page companion to P059; Q063/Q072 basis; see `docs/planning/p061_scope_and_design.md` |
-| 🟡 Med | Full five-PDF P001–P060 aggregate rerun | When all five evaluation PDFs are directly accessible; canonical 1,446 baseline unchanged; P036–P060 have no current counts |
-| 🟡 Med | EF overlap expansion | Map EF comments to P-rule findings on additional extractable PDFs (privacy-safe, aggregate only) |
-| 🟡 Low | P035 image-block support | Enable image bbox extraction in `pdf_layout.py` to reduce P035 skips for image-only floats |
-| 🟡 Low | P020 font-size fallback | CMR body PDFs may still show P020=0 where bold metadata is absent |
-| 🟡 Low | YAML university-spec configuration | Future enhancement; reference: AndrewGreenbaum/thesis-compliance YAML concept |
+| 🟡 High | Implement P061 | Scoped cross-page LoT/LoF entry-number ordering is the clearest next incremental rule after P059/P060 |
+| 🟡 High | Re-run full five-PDF P001–P060 aggregate when data access permits | Canonical totals should not change until all five evaluation PDFs are directly accessible again |
+| 🟡 Med | Extend P035 to image-heavy pages | Reduce skipped figure/table pages caused by text-layer-only detection |
+| 🟡 Med | Expand EF overlap on extractable PDFs only | Improve actionability without committing raw generated outputs |
+| 🟡 Low | Investigate configurable institution-spec layering | Longer-term architecture option; not needed for immediate status cleanup |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
 No P036–P060 current-dataset counts exist yet. Full pre-P035 five-PDF aggregate evaluation remains at
