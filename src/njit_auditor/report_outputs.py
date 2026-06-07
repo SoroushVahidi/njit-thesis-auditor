@@ -648,6 +648,101 @@ def audit_findings_to_json_dict(
     }
 
 
+# Detail keys that may contain private source content (label names, ref keys,
+# body text, author/title info).  These are removed from web-exported JSON
+# findings for source (TeX) audits.  Numeric/structural keys are preserved.
+_UNSAFE_SOURCE_DETAIL_KEYS: frozenset[str] = frozenset(
+    {
+        "label",
+        "ref",
+        "caption",
+        "caption_text",
+        "title",
+        "title_text",
+        "author",
+        "author_name",
+        "body",
+        "text",
+        "line_text",
+        "body_text",
+        "extracted_text",
+        "entry_text",
+        "heading_text",
+        "observed_summary",
+        "annotation_text",
+        "comment_text",
+    }
+)
+
+# Source rule IDs whose message fields may embed private label/ref/caption names.
+_SOURCE_RULE_IDS_FOR_SANITIZE: frozenset[str] = frozenset(
+    {"P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009", "P010"}
+)
+
+
+def _privacy_safe_source_message(rule_id: str, issue_type: str, details: dict[str, str]) -> str:
+    """Return a generic privacy-safe message for a source-audit finding.
+
+    This replaces the raw ``message`` field (which may contain label/ref/caption
+    names) with a short structural description suitable for web export.
+    """
+    location = format_source_location(details)
+    rule_label = f"{rule_id} ({issue_type})" if issue_type else rule_id
+    return f"{rule_label} issue detected at {location}. See polished comment for details."
+
+
+def sanitize_report_for_web_export(report: dict[str, Any]) -> dict[str, Any]:
+    """Return a privacy-reduced copy of an audit report for web JSON/Markdown export.
+
+    Applied only to source (TeX) audits.  PDF audit reports are returned unchanged.
+
+    Sanitization rules:
+    - ``findings[].message`` for source rules (P001–P010) is replaced with a
+      generic structural message that does not embed label names, ref keys,
+      caption text, or other private content.
+    - Unsafe detail keys (``label``, ``ref``, ``caption``, ``title``, ``author``,
+      ``body``, ``text``, and related source-snippet keys) are removed from each
+      finding's ``details`` dict.
+    - Safe structural keys (``file``, ``line``, ``issue_type``, ``command``,
+      ``confidence``, ``triage_tier``, ``suggested_fix``, numeric counts, etc.)
+      are preserved.
+    - Finding counts, rule IDs, severity, category, ``source_file``, and
+      ``source_line`` are never altered.
+    - PDF report structure (``grouped_summary``, ``metadata``) is not modified.
+    """
+    import copy
+
+    audit_type = str(report.get("metadata", {}).get("audit_type", "pdf"))
+    if audit_type != "tex":
+        return report
+
+    result = copy.deepcopy(report)
+    sanitized_findings: list[dict[str, Any]] = []
+    for finding in result.get("findings", []):
+        rule_id = str(finding.get("rule_id", ""))
+        details_raw = finding.get("details", {})
+        if isinstance(details_raw, dict):
+            # Remove unsafe keys; keep safe structural / numeric keys.
+            clean_details = {
+                k: v
+                for k, v in details_raw.items()
+                if k not in _UNSAFE_SOURCE_DETAIL_KEYS
+            }
+        else:
+            clean_details = {}
+        finding["details"] = clean_details
+
+        # Replace raw message for source rules to avoid leaking label/ref names.
+        if rule_id in _SOURCE_RULE_IDS_FOR_SANITIZE:
+            issue_type = str(clean_details.get("issue_type", ""))
+            finding["message"] = _privacy_safe_source_message(
+                rule_id, issue_type, {str(k): str(v) for k, v in clean_details.items()}
+            )
+        sanitized_findings.append(finding)
+    result["findings"] = sanitized_findings
+    return result
+
+
 def write_json_report(
     findings: list[AuditFinding], metadata: dict[str, str], output_path: Path
 ) -> None:

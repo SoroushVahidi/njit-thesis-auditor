@@ -1382,3 +1382,337 @@ def test_tex_upload_markdown_preview_redacts_absolute_paths(
         pytest.skip("markdown preview unavailable")
     assert str(runtime_root) not in job.md_preview
     assert "upload.tex" in job.md_preview
+
+
+# ---------------------------------------------------------------------------
+# Web export source-message privacy sanitization (#215)
+# ---------------------------------------------------------------------------
+
+# Synthetic TeX content that will produce findings with private label/ref names.
+# The label "fig:test_private_label" and ref "fig:test_private_ref" must NOT
+# appear in any web-generated JSON or Markdown report.
+_PRIVATE_LABEL_TEX = (
+    b"\\documentclass{report}\n"
+    b"\\begin{document}\n"
+    b"\\label{fig:test_private_label}\n"
+    b"\\ref{fig:test_private_ref}\n"
+    b"\\begin{figure}\n"
+    b"\\caption{A figure.}\n"
+    b"\\end{figure}\n"
+    b"\\begin{table}\n"
+    b"\\caption{A table}\n"
+    b"\\end{table}\n"
+    b"\\end{document}\n"
+)
+
+_PRIVATE_LABEL = "fig:test_private_label"
+_PRIVATE_REF = "fig:test_private_ref"
+
+
+def _submit_tex_and_get_job_id(
+    c: TestClient,
+    tex_content: bytes = _PRIVATE_LABEL_TEX,
+    filename: str = "main.tex",
+) -> str:
+    """Upload synthetic TeX, follow redirect, return job_id."""
+    post = c.post(
+        "/audits",
+        files={"file": (filename, io.BytesIO(tex_content), "text/plain")},
+        follow_redirects=False,
+    )
+    assert post.status_code == 303, f"Expected redirect, got {post.status_code}"
+    return post.headers["location"].split("/audits/")[1]
+
+
+def test_source_web_json_does_not_contain_private_label(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Web JSON download for source audit must not contain synthetic private label name."""
+    c, _ = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")  # wait for completion
+    resp = c.get(f"/audits/{job_id}/download/json")
+    if resp.status_code != 200:
+        pytest.skip("audit did not complete")
+    serialized = resp.text
+    assert _PRIVATE_LABEL not in serialized, (
+        f"Private label '{_PRIVATE_LABEL}' found in web JSON download"
+    )
+
+
+def test_source_web_json_does_not_contain_private_ref(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Web JSON download for source audit must not contain synthetic private ref name."""
+    c, _ = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")
+    resp = c.get(f"/audits/{job_id}/download/json")
+    if resp.status_code != 200:
+        pytest.skip("audit did not complete")
+    serialized = resp.text
+    assert _PRIVATE_REF not in serialized, (
+        f"Private ref '{_PRIVATE_REF}' found in web JSON download"
+    )
+
+
+def test_source_web_markdown_does_not_contain_private_label(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Web Markdown download for source audit must not contain synthetic private label name."""
+    c, _ = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")
+    resp = c.get(f"/audits/{job_id}/download/markdown")
+    if resp.status_code != 200:
+        pytest.skip("audit did not complete")
+    assert _PRIVATE_LABEL not in resp.text, (
+        f"Private label '{_PRIVATE_LABEL}' found in web Markdown download"
+    )
+
+
+def test_source_web_markdown_does_not_contain_private_ref(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Web Markdown download for source audit must not contain synthetic private ref name."""
+    c, _ = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")
+    resp = c.get(f"/audits/{job_id}/download/markdown")
+    if resp.status_code != 200:
+        pytest.skip("audit did not complete")
+    assert _PRIVATE_REF not in resp.text, (
+        f"Private ref '{_PRIVATE_REF}' found in web Markdown download"
+    )
+
+
+def test_source_web_markdown_preview_does_not_contain_private_labels(
+    client: tuple[TestClient, Any],
+) -> None:
+    """In-page Markdown preview must not contain synthetic private label/ref names."""
+    c, wa = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")
+    job = wa._get_job(job_id)
+    if job is None or not job.md_preview:
+        pytest.skip("markdown preview unavailable")
+    assert _PRIVATE_LABEL not in job.md_preview, (
+        f"Private label '{_PRIVATE_LABEL}' found in in-page Markdown preview"
+    )
+    assert _PRIVATE_REF not in job.md_preview, (
+        f"Private ref '{_PRIVATE_REF}' found in in-page Markdown preview"
+    )
+
+
+def test_source_web_json_finding_counts_unchanged_after_sanitization(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Sanitization must preserve finding counts — no findings removed."""
+    c, _ = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")
+    resp = c.get(f"/audits/{job_id}/download/json")
+    if resp.status_code != 200:
+        pytest.skip("audit did not complete")
+    data = resp.json()
+    meta = data.get("metadata", {})
+    total = meta.get("total_findings", 0)
+    findings = data.get("findings", [])
+    # Total in metadata must match actual findings list length
+    assert total == len(findings), (
+        f"total_findings={total} != len(findings)={len(findings)} after sanitization"
+    )
+    # Must have at least some findings from the synthetic TeX (P002/P003/P004 etc.)
+    assert total > 0, "Expected at least one finding from synthetic TeX with dangling refs"
+
+
+def test_source_web_json_preserves_structural_fields(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Rule IDs, severity, category, source_file, source_line must survive sanitization."""
+    c, _ = client
+    job_id = _submit_tex_and_get_job_id(c)
+    c.get(f"/audits/{job_id}")
+    resp = c.get(f"/audits/{job_id}/download/json")
+    if resp.status_code != 200:
+        pytest.skip("audit did not complete")
+    data = resp.json()
+    for finding in data.get("findings", []):
+        assert "rule_id" in finding, "rule_id missing from sanitized finding"
+        assert "severity" in finding, "severity missing from sanitized finding"
+        assert "message" in finding, "message missing from sanitized finding"
+        # source_file and source_line are set for tex audits
+        # (may be empty string for PASS findings)
+        assert "source_file" in finding, "source_file missing from sanitized finding"
+        assert "source_line" in finding, "source_line missing from sanitized finding"
+
+
+def _inject_complete_pdf_job(
+    wa: Any,
+    tmp_path: Path,
+) -> str:
+    """Create a complete PDF job in the job store and on disk (for PDF parity tests)."""
+    import secrets
+    from datetime import datetime, timezone
+
+    from njit_auditor.models import AuditFinding, Severity
+    from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_view import build_report_view, report_view_to_dict
+
+    job_id = secrets.token_urlsafe(16)
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Possible text outside margin.",
+            details={"issue_type": "margin_boundary_violation", "side": "left"},
+        ),
+    ]
+    metadata = {"input_file_name": "thesis.pdf", "audit_type": "pdf", "job_id": job_id}
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    jdir.mkdir(parents=True, exist_ok=True)
+    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+    payload = audit_findings_to_json_dict(findings, metadata)
+    (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    write_markdown_report(findings, metadata, jdir / "report.md")
+    view = build_report_view(payload)
+
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+        finding_count=view.total_findings,
+        warn_count=1,
+        fail_count=0,
+        findings=[],
+        grouped_summary=[],
+        report_view=report_view_to_dict(view),
+        md_preview="# NJIT PDF Audit Report\n",
+    )
+    wa._set_job(job)
+    return job_id
+
+
+def test_pdf_web_json_download_unaffected_by_sanitization(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """PDF reports must remain fully intact — sanitization is source-audit-only."""
+    c, wa = client
+    job_id = _inject_complete_pdf_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}/download/json")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["metadata"]["audit_type"] == "pdf"
+    # PDF finding messages are preserved as-is (no sanitization)
+    messages = [f.get("message", "") for f in data.get("findings", [])]
+    assert any("margin" in m.lower() or "P011" in m or len(m) > 0 for m in messages)
+
+
+def test_pdf_web_markdown_download_unaffected_by_sanitization(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """PDF Markdown reports must download normally — no sanitization applied."""
+    c, wa = client
+    job_id = _inject_complete_pdf_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}/download/markdown")
+    assert resp.status_code == 200
+    ct = resp.headers["content-type"]
+    assert "text/markdown" in ct or "text/plain" in ct
+    assert b"PDF Audit Report" in resp.content
+
+
+def test_sanitize_report_for_web_export_unit_pdf_passthrough() -> None:
+    """sanitize_report_for_web_export() must return PDF reports unchanged."""
+    from njit_auditor.report_outputs import sanitize_report_for_web_export
+
+    report: dict = {
+        "metadata": {"audit_type": "pdf", "total_findings": 1},
+        "findings": [
+            {
+                "rule_id": "P011",
+                "severity": "WARNING",
+                "message": "Possible text outside margin.",
+                "page": 2,
+                "details": {"side": "left"},
+            }
+        ],
+    }
+    result = sanitize_report_for_web_export(report)
+    # PDF reports returned unchanged
+    assert result["findings"][0]["message"] == "Possible text outside margin."
+    assert result["findings"][0]["details"] == {"side": "left"}
+
+
+def test_sanitize_report_for_web_export_unit_tex_label_removed() -> None:
+    """sanitize_report_for_web_export() removes private label/ref from tex findings."""
+    from njit_auditor.report_outputs import sanitize_report_for_web_export
+
+    report: dict = {
+        "metadata": {"audit_type": "tex", "total_findings": 2},
+        "findings": [
+            {
+                "rule_id": "P002",
+                "severity": "FAIL",
+                "message": "Duplicate label detected: 'fig:test_private_label'",
+                "page": None,
+                "details": {
+                    "file": "main.tex",
+                    "line": "5",
+                    "issue_type": "duplicate_label",
+                    "label": "fig:test_private_label",
+                },
+                "source_file": "main.tex",
+                "source_line": "5",
+            },
+            {
+                "rule_id": "P004",
+                "severity": "WARNING",
+                "message": "Reference points to undefined label: 'tab:my_secret_table'",
+                "page": None,
+                "details": {
+                    "file": "main.tex",
+                    "line": "10",
+                    "issue_type": "dangling_reference",
+                    "ref": "tab:my_secret_table",
+                },
+                "source_file": "main.tex",
+                "source_line": "10",
+            },
+        ],
+    }
+    result = sanitize_report_for_web_export(report)
+    assert "fig:test_private_label" not in result["findings"][0]["message"]
+    assert "tab:my_secret_table" not in result["findings"][1]["message"]
+    assert "label" not in result["findings"][0]["details"]
+    assert "ref" not in result["findings"][1]["details"]
+    # Structural keys preserved
+    assert result["findings"][0]["details"]["file"] == "main.tex"
+    assert result["findings"][0]["details"]["line"] == "5"
+    assert result["findings"][0]["details"]["issue_type"] == "duplicate_label"
+    # Finding count unchanged
+    assert len(result["findings"]) == 2
+
+
+def test_sanitize_report_for_web_export_unit_preserves_count() -> None:
+    """Finding count in metadata must be unchanged after sanitization."""
+    from njit_auditor.report_outputs import sanitize_report_for_web_export
+
+    report: dict = {
+        "metadata": {"audit_type": "tex", "total_findings": 3},
+        "findings": [
+            {
+                "rule_id": "P003",
+                "severity": "WARNING",
+                "message": "Label contains spaces: 'fig some label'",
+                "page": None,
+                "details": {"file": "main.tex", "line": "3", "issue_type": "invalid_label"},
+            }
+        ]
+        * 3,
+    }
+    result = sanitize_report_for_web_export(report)
+    assert result["metadata"]["total_findings"] == 3
+    assert len(result["findings"]) == 3

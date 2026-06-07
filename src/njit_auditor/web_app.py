@@ -20,7 +20,11 @@ from fastapi.templating import Jinja2Templates
 
 from njit_auditor.audit_runner import AuditError, run_audit_for_uploaded_file
 from njit_auditor.models import AuditFinding
-from njit_auditor.report_outputs import build_audit_report, write_markdown_report
+from njit_auditor.report_outputs import (
+    build_audit_report,
+    sanitize_report_for_web_export,
+    write_markdown_report,
+)
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.upload_handling import (
     UploadKind,
@@ -436,16 +440,41 @@ def _run_audit_task(job_id: str) -> None:
     export_metadata = _web_export_metadata(metadata)
     export_findings = _web_export_findings(findings)
 
-    # Write JSON report (web exports use basename-only paths)
+    # Write JSON report (web exports use basename-only paths, source labels/refs redacted)
     json_report_path = jdir / "report.json"
     payload = build_audit_report(export_findings, export_metadata)
-    json_report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    # Sanitize before writing: replace raw messages embedding label/ref names with
+    # generic privacy-safe descriptions for source (TeX) audits.
+    web_payload = sanitize_report_for_web_export(payload)
+    json_report_path.write_text(json.dumps(web_payload, indent=2), encoding="utf-8")
 
-    # Write Markdown report
+    # Write Markdown report using sanitized findings so label/ref names do not
+    # appear in the downloaded .md or in the in-page preview.
     md_report_path = jdir / "report.md"
-    write_markdown_report(export_findings, export_metadata, md_report_path)
+    if result.audit_type == "tex":
+        # Rebuild AuditFinding list from sanitized JSON payload so Markdown
+        # report message fields are also privacy-safe.
+        from njit_auditor.models import Severity as _Severity
 
-    view = build_report_view(payload)
+        sanitized_findings: list[AuditFinding] = []
+        for entry in web_payload.get("findings", []):
+            sanitized_findings.append(
+                AuditFinding(
+                    rule_id=str(entry.get("rule_id", "")),
+                    severity=_Severity(str(entry.get("severity", "WARNING"))),
+                    message=str(entry.get("message", "")),
+                    page=entry.get("page"),
+                    details={
+                        str(k): str(v)
+                        for k, v in (entry.get("details") or {}).items()
+                    },
+                )
+            )
+        write_markdown_report(sanitized_findings, export_metadata, md_report_path)
+    else:
+        write_markdown_report(export_findings, export_metadata, md_report_path)
+
+    view = build_report_view(web_payload)
     view_dict = report_view_to_dict(view)
 
     serialized = [

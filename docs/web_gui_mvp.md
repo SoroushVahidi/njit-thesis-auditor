@@ -185,6 +185,16 @@ public site unless you are authorized to process those files.
 - Generated JSON/Markdown reports are saved only under the runtime directory.
 - Web-generated JSON/Markdown exports use **basename-only** paths (no absolute server paths in
   metadata or source `details.file`). The HTML findings table shows polished comments only.
+- **Source audit exports (TeX/ZIP) are privacy-reduced by default:** web-generated JSON and
+  Markdown downloads replace raw ``message`` fields (which may embed LaTeX label names, `\ref`
+  keys, caption text, or other source-private content) with generic structural descriptions.
+  Private detail keys (``label``, ``ref``, ``caption``, ``title``, ``author``, ``body``,
+  ``text``, and related source-snippet keys) are removed from exported finding ``details``.
+  Structural metadata (rule ID, severity, category, ``file`` basename, ``line`` number,
+  ``issue_type``, ``command``, confidence, triage tier, suggested fix) and all finding counts
+  are preserved. This sanitization is applied only on the web export path — CLI behavior and
+  PDF reports are not affected. Note: this is "privacy-reduced" for known fields, not a guarantee
+  of perfect anonymization.
 - No uploaded, downloaded, or sample content is committed to the repository.
 - Findings contain structural metadata only (page numbers, rule IDs, coordinates, basename:line
   for source) — no dissertation body text, author names, or other private content in the default UI.
