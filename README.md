@@ -51,14 +51,14 @@ tmux new -d -s thesis-auditor-web \
 See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, firewall notes,
 reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
 
-### PDF layout audit (P011–P060)
+### PDF layout audit (P011–P061)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P060 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P061 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -74,7 +74,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P060):
+Current PDF checks (P011–P061):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -128,6 +128,7 @@ Current PDF checks (P011–P060):
 | P058 | TOC/List | TOC page-number ordering check: emits a warning when a Table of Contents page contains body entries whose page numbers are not in non-decreasing order (`toc_page_numbers_not_nondecreasing`) (Q057 refinement); gate: entry must have page-number token, text ≥ 10 chars, integer page number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; roman-numeral (front-matter) entries skipped; LoT/LoF pages excluded; triage tier: medium; privacy-safe metadata only |
 | P059 | TOC/List | LoT/LoF entry-number ordering check: emits a warning when a List of Tables or List of Figures page contains complete entries whose entry numbers (the numeric token following the "Table"/"Figure" label) are not in non-decreasing order (`lot_entry_numbers_not_nondecreasing`, `lof_entry_numbers_not_nondecreasing`) (Q063/Q072); gate: entry must have page-number token, text ≥ 10 chars, parseable entry number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; mixed sequential + chapter-based format pages skipped; appendix/letter-prefixed entries skipped; TOC pages excluded; triage tier: medium; privacy-safe metadata only |
 | P060 | TOC/List | TOC section-number ordering check: emits a warning when a Table of Contents page contains parseable numeric section entries (entries starting with a bare number, e.g. "1 Introduction", "1.1 Background") whose section numbers are not in non-decreasing order (`toc_entry_numbers_not_nondecreasing`) (Q056/Q057 implied); gate: entry must have page-number token, text ≥ 10 chars, parseable section number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF pages excluded; triage tier: medium; privacy-safe metadata only |
+| P061 | TOC/List | LoT/LoF cross-page entry-number ordering check: emits a warning when consecutive same-type List of Tables or List of Figures pages span multiple pages and the combined entry-number sequence is not non-decreasing (`lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`) (Q063/Q072 extension); gate: requires ≥2 consecutive pages, ≥3 combined comparable entries, and ≥2 inversions; mixed sequential + chapter-based runs skipped; non-consecutive pages not combined; cross-page companion to P059; triage tier: medium; privacy-safe metadata only |
 
 All findings are heuristic warnings and require manual review.
 
@@ -194,7 +195,7 @@ More docs:
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
 - `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md` — P036 synthetic validation
 - `docs/evaluation/p036_current_dataset_evaluation.md` — P036 current-dataset status (not run; evaluation PDFs unavailable)
-- `docs/evaluation/p061_current_dataset_evaluation.md` — P061 structural current-dataset inventory (formal audit blocked; P061 scoped only)
+- `docs/evaluation/p061_current_dataset_evaluation.md` — P061 pre-implementation structural inventory (formal post-implementation audit pending rerun)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
