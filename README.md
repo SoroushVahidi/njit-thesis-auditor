@@ -254,6 +254,11 @@ Raw findings are always preserved in full.
 
 This version is designed for local processing only. Keep thesis/dissertation files on your own machine.
 
+- **Local/runtime processing:** no external API calls during audit by default. Optional URL fetch (`POST /audits/url`) is the only network operation and is SSRF-guarded.
+- **Web export privacy reduction:** web-generated JSON/Markdown downloads use basename-only paths and, for TeX/ZIP source audits, replace raw messages and remove private detail keys (`label`, `ref`, `caption`, `title`, `author`, `body`, `text`, and related source-snippet fields) via `sanitize_report_for_web_export()`. CLI `--json-out`/`--md-out` output is not sanitized. Note: web exports are privacy-reduced, not guaranteed fully anonymized.
+- **Job TTL cleanup:** completed/failed jobs and their runtime files are automatically removed after `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 h). In-memory job state is lost on server restart; on-disk files remain until TTL cleanup.
+- **No authentication or rate limiting by default.** Public deployments need a reverse proxy, TLS, authentication, and rate limiting. See [docs/web_gui_mvp.md](docs/web_gui_mvp.md).
+
 ## Development
 
 ```bash

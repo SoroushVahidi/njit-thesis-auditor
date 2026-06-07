@@ -283,3 +283,17 @@ python -m pytest tests/test_web_app.py -v
 
 Tests use `fastapi.testclient.TestClient` with monkeypatching of the audit runner;
 no real PDF audit is needed for the web route tests.
+
+---
+
+## Known limitations
+
+| Limitation | Notes |
+|---|---|
+| No LaTeX compilation | TeX/ZIP uploads run P001–P010 source checks only; a compiled PDF is not produced |
+| Optional linters require local install | `chktex` (P009) and `lacheck` (P010) need the respective binaries on `PATH`; gracefully skipped if absent |
+| No PDF annotation overlays | Finding markers on page images are not yet implemented |
+| No authentication or rate limiting by default | Bind to `127.0.0.1` for local use; public deployments need a reverse proxy, TLS, authentication, and rate limiting |
+| In-memory job state lost on restart | Job list is cleared on server restart; on-disk job files remain until TTL cleanup or manual deletion |
+| Web exports are privacy-reduced, not fully anonymized | `sanitize_report_for_web_export()` removes known private keys and replaces source messages for P001–P010; future rules that add new private-content detail fields require updating `_UNSAFE_SOURCE_DETAIL_KEYS` in `report_outputs.py` |
+| CLI exports are not sanitized | The web sanitizer applies only to the web JSON/Markdown download path; `njit-audit tex --json-out` output is unchanged |
