@@ -62,6 +62,8 @@ tmux new -d -s thesis-auditor-web \
 
 See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, firewall notes,
 reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
+See [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the manual browser
+QA checklist (upload flows, download verification, privacy checks, known limitations).
 
 ### PDF layout audit (P011–P061)
 
