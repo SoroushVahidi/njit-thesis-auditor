@@ -29,12 +29,12 @@ A browser-based upload form is available via the bundled FastAPI application:
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in a browser. The web UI currently accepts **PDF uploads only**,
-but runs the same full **P011–P061** audit backend as `njit-audit pdf` (via
-`run_audit_for_uploaded_file()`). Backend utilities also support TeX and ZIP classification
-for future GUI work. TeX/ZIP source audits support JSON/Markdown export via the CLI and
-shared report pipeline, but web upload for TeX/ZIP is not yet exposed. Three audit methods
-are available:
+Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
+**ZIP** uploads through the same form. PDF uploads run the full **P011–P061** layout audit;
+TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
+`.tex` is detected — no LaTeX compilation). All supported uploads use
+`run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
+methods are available:
 
 - **Upload a PDF file** — select a local file and submit.
 - **Audit a public PDF URL** — paste a direct public PDF link and submit.

@@ -4,7 +4,7 @@
 {% block content %}
 <h1>NJIT Thesis Auditor</h1>
 <p class="subtitle">
-  Check dissertation and thesis PDF formatting against NJIT guidelines.
+  Check dissertation and thesis formatting against NJIT guidelines.
   Processing runs locally on this server — files are not committed to any repository.
 </p>
 
@@ -17,20 +17,27 @@
 
 <div class="alert-info">
   <strong>Privacy-safe processing.</strong>
-  Uploaded and downloaded PDFs are processed in a temporary runtime directory and are not stored permanently.
+  Uploaded files are processed in a temporary runtime directory and are not stored permanently.
   Findings use structural metadata only — no dissertation body text, titles, author names, or captions are
   displayed in the web UI by default.
 </div>
 
 <div class="input-methods input-methods--triple section">
   <div class="card">
-    <h2 style="margin-top:0;">Upload a PDF file</h2>
+    <h2 style="margin-top:0;">Upload a file</h2>
     <form action="/audits" method="post" enctype="multipart/form-data">
-      <label for="file">Select PDF file</label>
-      <input type="file" id="file" name="file" accept=".pdf" required>
-      <p class="file-hint">PDF only &middot; maximum {{ max_upload_mb }} MB &middot; processed locally</p>
-      <button type="submit">Audit PDF</button>
+      <label for="file">Select PDF, TeX, or ZIP</label>
+      <input type="file" id="file" name="file" accept=".pdf,.tex,.zip" required>
+      <p class="file-hint">
+        PDF, .tex, or .zip &middot; maximum {{ max_upload_mb }} MB &middot; processed locally
+      </p>
+      <button type="submit">Start audit</button>
     </form>
+    <ul class="bullet-list" style="margin-top:0.75rem">
+      <li><strong>PDF</strong> — layout audit rules P011–P061</li>
+      <li><strong>TeX (.tex)</strong> — source audit rules P001–P010 (no compilation)</li>
+      <li><strong>ZIP (.zip)</strong> — safe extract, detect main .tex, then P001–P010 source audit</li>
+    </ul>
   </div>
 
   <div class="card">
@@ -40,7 +47,7 @@
       <input type="url" id="pdf_url" name="pdf_url"
              placeholder="https://example.com/thesis.pdf" required>
       <p class="file-hint">
-        Direct public PDF links only &middot; private/internal URLs blocked &middot;
+        PDF only &middot; direct public links &middot; private/internal URLs blocked &middot;
         maximum {{ max_upload_mb }} MB
       </p>
       <button type="submit">Audit PDF URL</button>
@@ -73,23 +80,23 @@
     <h2 style="margin-top:0;">Supported inputs</h2>
     <table class="support-table">
       <thead>
-        <tr><th>Format</th><th>Web UI</th><th>Notes</th></tr>
+        <tr><th>Format</th><th>Web UI</th><th>Rule scope</th></tr>
       </thead>
       <tbody>
         <tr>
           <td><strong>PDF</strong></td>
           <td class="support-yes">Supported</td>
-          <td>Full P011–P061 audit; JSON and Markdown export</td>
+          <td>P011–P061 layout audit; JSON and Markdown export</td>
         </tr>
         <tr>
           <td><strong>TeX source</strong></td>
-          <td class="support-no">CLI only</td>
-          <td>JSON/Markdown export supported; web upload not exposed yet</td>
+          <td class="support-yes">Supported</td>
+          <td>P001–P010 source audit; no LaTeX compilation</td>
         </tr>
         <tr>
           <td><strong>ZIP archive</strong></td>
-          <td class="support-no">CLI only</td>
-          <td>Safe extract + source audit export; web upload not exposed yet</td>
+          <td class="support-yes">Supported</td>
+          <td>Safe extract → main .tex → P001–P010 (source only, not compiled PDF)</td>
         </tr>
       </tbody>
     </table>
@@ -99,8 +106,8 @@
     <h2 style="margin-top:0;">What you get</h2>
     <ul class="bullet-list">
       <li><strong>JSON report</strong> — full structured findings for downstream tools</li>
-      <li><strong>Markdown report</strong> — human-readable summary with triage sections</li>
-      <li><strong>Triage summaries</strong> — compact rollups for high-volume rules (P011, P013, P026)</li>
+      <li><strong>Markdown report</strong> — human-readable summary</li>
+      <li><strong>Triage summaries</strong> — PDF high-volume rollups (P011, P013, P026) when applicable</li>
       <li><strong>Polished comments</strong> — privacy-safe review guidance per finding</li>
     </ul>
   </div>
@@ -109,8 +116,9 @@
 <div class="section">
   <h2>What it checks</h2>
   <p style="font-size:0.9rem;color:var(--color-muted);margin:0;">
-    Runs P011–P061 heuristic formatting checks: margins, page numbering, heading styles,
-    TOC/List alignment, font compliance, front-matter structure, copyright page, spacing, and more.
+    <strong>PDF uploads</strong> run P011–P061 heuristic layout checks.
+    <strong>TeX and ZIP uploads</strong> run P001–P010 source checks without compiling the project.
+    ZIP support audits LaTeX source files — it does not generate or audit a compiled PDF.
     All findings are advisory signals — please verify against NJIT guidelines manually.
   </p>
 </div>
