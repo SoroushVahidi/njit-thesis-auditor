@@ -3,8 +3,8 @@
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P061",
-    "pytest_count_at_last_doc_refresh": 744,
-    "latest_main_at_last_doc_refresh": "8930c88",
+    "pytest_count_at_last_doc_refresh": 842,
+    "latest_main_at_last_doc_refresh": "b8aeec8",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",

@@ -1,8 +1,8 @@
 # GUI Scope and Design — NJIT Thesis Auditor
 
 - **Date:** 2026-06-07
-- **Baseline commit:** `fde8f9d` (PR #213 — TeX/ZIP web upload UI)
-- **Validation at design time:** ruff, mypy, **830 pytest** passed (after job TTL/docs PR)
+- **Baseline commit:** `b8aeec8` (PR #215 — web export privacy hardening; `sanitize_report_for_web_export`)
+- **Validation at design time:** ruff, mypy, **842 pytest** passed
 - **Status:** Design reference — FastAPI web UI is **implemented** on `main`; this doc tracks scope, phases, and follow-ups
 - **Related:** `docs/web_gui_mvp.md` (FastAPI operations guide)
 
@@ -139,15 +139,20 @@ Already implements:
 - Built-in sample PDF dropdown (`web_samples.py`)
 - Runtime under gitignored `.runtime/web_audits/`
 
-**Gaps vs target GUI:**
+**Gaps vs target GUI (as of PR #215):**
 
 - ~~No TeX or ZIP upload~~ — **Done** (PR #213)
-- No category/severity summary cards
-- No P011/P013/P026 triage-first panels (only `high_volume_rules` subset)
-- No rule/category/page filters
-- ~~No polished comment templates~~ — **resolved** (`polished_comments.py`, `report_view.py`)
-- ~~`audit_runner.py` not aligned with CLI P055–P061~~ — **resolved** (shared `run_pdf_audit_full` / `collect_pdf_layout_findings`)
-- No temp-file TTL cleanup policy documented
+- ~~No category/severity summary cards~~ — **Done** (PR #211)
+- ~~No P011/P013/P026 triage-first panels~~ — **Done** (PR #211)
+- ~~No rule/category/page filters~~ — **Done** (PR #211)
+- ~~No polished comment templates~~ — **Done** (`polished_comments.py`, `report_view.py`)
+- ~~`audit_runner.py` not aligned with CLI P055–P061~~ — **Done** (shared `run_pdf_audit_full` / `collect_pdf_layout_findings`)
+- ~~No temp-file TTL cleanup~~ — **Done** (`cleanup_expired_jobs()` with `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS`, default 24 h)
+- ~~Web source exports leaked raw messages / private detail keys~~ — **Done** (PR #215: `sanitize_report_for_web_export()`)
+- No PDF page preview / annotation overlay (Phase 4+)
+- No server-side filter/search endpoint (optional; Phase 3+)
+- No screenshot or demo documentation with synthetic files
+- No public deployment hardening guide (no auth/rate limiting by default)
 
 ### Reuse vs thin wrapper needs
 
@@ -428,9 +433,9 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 | ZIP extraction safety | Limits + allowlist | Not implemented |
 | SSRF protection (URL fetch) | `web_url_fetch.py` blocks private IPs | Met — keep opt-in/advanced |
 | Upload size cap | `MAX_UPLOAD_BYTES` | Met |
-| No private text in UI defaults | Truncated JSON details; no body quotes in UI | **Done** — web JSON/MD exports sanitize source messages and remove private detail keys (label, ref, caption, title, author, body, text, etc.); basename-only paths; PDF reports unaffected |
-| File deletion policy | Delete on failure + scheduled TTL | **Done** — `cleanup_expired_jobs()` |
-| Bind to localhost by default for demos | `127.0.0.1` in docs | Document in ops guide |
+| No private text in UI defaults | Truncated JSON details; no body quotes in UI | **Done** — web JSON/MD exports sanitize source messages and remove private detail keys (`label`, `ref`, `caption`, `title`, `author`, `body`, `text`, and related source-snippet keys) via `sanitize_report_for_web_export()`; basename-only paths; PDF reports and CLI unaffected; note: privacy-reduced, not guaranteed fully anonymized |
+| File deletion policy | Delete on failure + scheduled TTL | **Done** — `cleanup_expired_jobs()` with `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 h) |
+| Bind to localhost by default for demos | `127.0.0.1` in docs | Documented in `docs/web_gui_mvp.md`; public deployments need reverse proxy + TLS + auth + rate limiting |
 
 ---
 
@@ -441,36 +446,45 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 | **0** | Backend contract audit | **Done** — `run_pdf_audit_full()` / `collect_pdf_layout_findings()` shared by CLI and web; parity tests in `tests/test_audit_runner.py` |
 | **1** | Minimal polished UI | **Done** — enhanced Jinja templates: status banner, summary cards, triage-first layout, findings filters, privacy note |
 | **2** | Upload correctness | **Done** — PDF/TeX/ZIP web upload via `upload_handling.py` and `run_audit_for_uploaded_file()` |
-| **3** | Report rendering tests | **Partially done** — `report_view.py` + `polished_comments.py` + polished Jinja results page; client-side filter tests added |
-| **4** | PDF page preview | Page thumbnails with finding markers (privacy-safe) |
+| **3** | Report rendering tests + security | **Done** — `report_view.py` + `polished_comments.py` + polished Jinja results page; client-side filter tests; PR #215 web export privacy hardening (`sanitize_report_for_web_export()`; 12 new tests; 842 total) |
+| **3a** | Web smoke / manual QA | **Recommended next** — full end-to-end browser test with PDF, TeX, ZIP inputs; confirm triage panels, polished comments, JSON/Markdown downloads |
+| **3b** | Demo documentation | Screenshot or workflow demo using synthetic files only (no private dissertation content) |
+| **4** | PDF page preview | Page thumbnails with finding markers (privacy-safe geometry only) |
+| **4a** | Optional server-side filtering | HTMX or JSON endpoint complementing client-side filters |
 | **5** | Polished comment coverage | All high-volume rules; remediation from `rule_loader` |
 | **6** | Optional annotated PDF export | Highlight regions (no text injection) |
-| **7** | Packaging / docs / demo | `pip` extra `[web]`; updated `docs/web_gui_mvp.md`; demo script |
+| **7** | Optional public deployment hardening | Auth, rate limiting, TLS; guide in `docs/web_gui_mvp.md` |
+| **8** | Packaging / docs / demo | `pip` extra `[web]`; synthetic demo dataset; demo script |
 
 ---
 
 ## 11. Implementation-ready next tasks
 
 1. ~~**Unify PDF audit entrypoint**~~ — **Done** — `run_pdf_audit_full()` in `audit_runner.py`; CLI and web call `collect_pdf_layout_findings` / `run_pdf_audit_full`
-2. **Create `src/njit_auditor/gui/` package** (or `web/` submodule) for view models separate from routes
+2. **Create `src/njit_auditor/gui/` package** (or `web/` submodule) for view models separate from routes (optional; current structure is functional)
 3. ~~**Add `run_audit_for_uploaded_file()`**~~ — **Done** — dispatches PDF / TeX / ZIP with JSON/Markdown export parity for source audits
 4. ~~**Define report-view DTOs**~~ — **Done** — `ReportView`, `FindingView`, `TriagePanelView`, `SummaryCard` in `report_view.py`; `polished_comments.py` for GUI comments
 5. ~~**Add `safe_extract_zip()`**~~ — **Done** — `upload_handling.py`
 6. ~~**Add `detect_main_tex()`**~~ — **Done** — `upload_handling.py`
-7. **Add `polished_comments.py`** — template map keyed by `(rule_id, issue_type)`
+7. ~~**Add `polished_comments.py`**~~ — **Done** — template map keyed by `(rule_id, issue_type)`
 8. ~~**Enhance `web_app.py` templates**~~ — **Done** — status banner, summary cards, triage-first layout, client-side filters, upload-page polish
 9. ~~**Add TeX JSON/Markdown output**~~ — **Done** — `build_source_report()` / `build_audit_report()` in `report_outputs.py`; source polished comments; report-view file/line support
-10. **Tests** — upload matrix, zip-slip, schema parity, polished-comment privacy, runner/CLI parity
-11. **Job TTL cleanup** — background sweeper or startup hook for stale `.runtime/web_audits/*`
-12. **Docs** — update `docs/web_gui_mvp.md` after UI refresh; cross-link from README
+10. ~~**Job TTL cleanup**~~ — **Done** — `cleanup_expired_jobs()` with `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 h)
+11. ~~**Web export privacy hardening**~~ — **Done** (PR #215) — `sanitize_report_for_web_export()` replaces raw source messages and removes private detail keys; 12 new tests
+12. **Web smoke / manual QA** — end-to-end browser verification of PDF, TeX, ZIP flows; confirm triage panels and polished comments render
+13. **Demo documentation** — screenshot or step-by-step walkthrough using `examples/latex/` fixtures and a synthetic PDF; no private dissertation content
 
-### Known caveats before implementation
+### Known caveats (current state)
 
 - ~~**Web audit is behind CLI**~~ — resolved; web PDF uploads use full P011–P061 via `run_pdf_audit_full`
 - ~~**TeX has no JSON export today**~~ — resolved; web UI accepts PDF/TeX/ZIP (ZIP audits source, not compiled PDF)
+- ~~**No web export privacy reduction for source audits**~~ — resolved (PR #215)
 - **URL fetch is not offline** — treat as advanced feature; offline-first messaging on landing page
 - **Built-in samples expose private evaluation PDFs** — disable on public deployments
 - **High-volume rules (P013/P026) remain noisy** — triage-first UX is essential for usability
+- **No authentication or rate limiting by default** — public deployments need reverse proxy + TLS + auth + rate limiting
+- **In-memory job state lost on restart** — job list is cleared on server restart; on-disk files remain until TTL cleanup
+- **Sanitizer key list requires maintenance** — update `_UNSAFE_SOURCE_DETAIL_KEYS` in `report_outputs.py` if future source rules add new private-content detail fields
 
 ---
 
