@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-06
 - **Status:** Implemented
-- **Baseline main:** `4f1ea71` (PR #198 — post-P060 consistency audit; P001–P060 implemented)
+- **Baseline main:** `8930c88` (PR #204 — post-P061 status refresh; P061 implemented in PR #202)
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Area | State |
 |------|-------|
-| P-rules | **60/60** implemented (`P001`–`P060`) |
+| P-rules | **61/61** implemented (`P001`–`P061`) |
 | LoT/LoF page-number ordering (within page) | **P057** — warns when entries on a single LoT/LoF page have page numbers not in non-decreasing order |
 | TOC page-number ordering (within page) | **P058** — warns when entries on a single TOC page have page numbers not in non-decreasing order |
 | LoT/LoF entry-number ordering (within page) | **P059** — warns when entries on a single LoT/LoF page have entry numbers not in non-decreasing order |
