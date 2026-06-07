@@ -428,7 +428,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 | ZIP extraction safety | Limits + allowlist | Not implemented |
 | SSRF protection (URL fetch) | `web_url_fetch.py` blocks private IPs | Met — keep opt-in/advanced |
 | Upload size cap | `MAX_UPLOAD_BYTES` | Met |
-| No private text in UI defaults | Truncated JSON details; no body quotes | Partial — improve templates |
+| No private text in UI defaults | Truncated JSON details; no body quotes in UI | **Done** — web JSON/MD exports sanitize source messages and remove private detail keys (label, ref, caption, title, author, body, text, etc.); basename-only paths; PDF reports unaffected |
 | File deletion policy | Delete on failure + scheduled TTL | **Done** — `cleanup_expired_jobs()` |
 | Bind to localhost by default for demos | `127.0.0.1` in docs | Document in ops guide |
 
