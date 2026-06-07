@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; five-PDF aggregate unchanged)
-- **Latest main:** `35cb885` (PR #196 — Implement P060 TOC entry-number ordering checks; P001–P060 implemented; web GUI present with upload, URL audit, and built-in sample audit)
-- **Validation:** ruff, mypy, **729 pytest** after P060 implementation
+- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
+- **Latest main:** `600241b` (PR #199 — scope P061 LoT/LoF cross-page entry-number ordering; code state remains P001–P060 implemented, P061 scoped only)
+- **Validation:** ruff, mypy, **729 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -56,7 +56,7 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
 | `data/processed/rules/project_added_rules.json` | P | 60 (P001–P060) | Yes |
 
-P001–P060 are implemented; full Q-rule / guideline source coverage is not complete
+P001–P060 are implemented; P061 is scoped only; full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -139,7 +139,7 @@ files unless explicitly requested.
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - **Current full P001–P034 PDF evaluation (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md`
 - **P035 current-dataset subset (local 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md`
-- **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`
+- **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — P011/P012/P013/P026 triage rollups; see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`
 - Historical generated folders (superseded): `current_auditor_after_p034/`, `current_auditor_after_p034_p013_triage/`, `current_auditor_after_p034_p026_triage/`
 - **P036 current-dataset evaluation (not run):** `docs/evaluation/p036_current_dataset_evaluation.md`
 - **P055 current-dataset evaluation (not run):** `docs/evaluation/p055_current_dataset_evaluation.md`

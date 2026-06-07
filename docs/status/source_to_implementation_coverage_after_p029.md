@@ -1,21 +1,21 @@
 # Source-to-Implementation Coverage Audit (after P001-P029)
 
-- Date: 2026-05-30
+- Date: 2026-06-07
 - Baseline main before this branch: `7139e76a9fe5`
 - Scope: strict source-to-implementation verification of current rule/guideline sources and implementation surface (no new rule additions)
 
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **60/60 implemented** (`P001`–`P060`) — see `docs/planning/p060_scope_and_design.md` for P060 scope and design.
+- **P-rule implementation:** **60/60 implemented** (`P001`–`P060`) — `main` is at `600241b`; P061 has a scope doc only (`docs/planning/p061_scope_and_design.md`).
 - **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
 - **Guideline-source coverage:** core formatting signals are partially automated via P-rules; semantic/admin/process requirements remain mostly manual or process-only.
 - **Biggest remaining gaps:**
-  1. TOC/List deep formatting details (continued-page headings, wrapped-entry spacing, column-label formatting/alignment).
-  2. Approval/Acknowledgements/Biographical semantic checks (committee rank/order, required paragraph intent/content).
-  3. Cross-page semantic consistency checks (e.g., title/metadata consistency and department-specific title-page variants).
+  1. Approval/Acknowledgements/Biographical semantic checks (committee rank/order, required paragraph intent/content).
+  2. Dedication/Biographical visual-semantic checks and richer figure/table body detection on image-heavy PDFs.
+  3. A refreshed full five-PDF P001–P060 evaluation is still blocked by dataset accessibility; `00b9c2d` remains the canonical aggregate baseline.
 
 ## 2. Source file coverage table
 
@@ -158,25 +158,24 @@
 
 | Source/Q basis | Expected implementation approach | Risk/noise |
 |---|---|---|
-| TOC/List continued headings (`Q048`, `Q062`, `Q071`) | Add explicit multi-page continued-heading detection and page-role linking in `pdf_toc_alignment.py`/`pdf_toc_list_formatting.py` | Medium (heading variants and OCR/text-layer variance) |
-| Wrapped-entry spacing rules (`Q053-Q055`, `Q066-Q067`, `Q076-Q077`) | Add entry block reconstruction and intra-entry/inter-entry spacing checks | High (line wrapping ambiguity can inflate false positives) |
-| TOC/List column-label + alignment checks (`Q063-Q064`, `Q068-Q069`, `Q072-Q073`, `Q078-Q079`) | Add robust column anchor detection and tolerance-based alignment validators | Medium |
+| LoT/LoF cross-page entry ordering (`Q063`, `Q072` extension) | Implement scoped P061 companion to P059 using combined multi-page ordering checks | Medium (cross-page grouping and sparse-page gating) |
+| Figure/table body detection on image-heavy PDFs | Extend P035 beyond text-layer bodies, likely via image-block extraction in `pdf_layout.py` | High (image geometry reliability and false positives) |
+| Canonical five-PDF aggregate refresh | Re-run full P001–P060 evaluation only when all five evaluation PDFs are directly accessible | Low implementation risk; blocked by data access |
 
 ### Medium priority
 
 | Source/Q basis | Expected implementation approach | Risk/noise |
 |---|---|---|
-| TOC title-case/case hierarchy checks (`Q049-Q051`, `Q065`, `Q074-Q075`) | Extend current title/case logic to TOC/list entry extraction pipeline | Medium |
-| Front-matter page heading exact-format checks (`Q013`, `Q021`, `Q036`, `Q047`, `Q061`, `Q070`) | Reuse named-heading detector with stricter phrase/style assertions | Medium |
-| Cross-page metadata consistency (`Q010-Q011` and title-page consistency cues) | Add normalized string-extraction + cross-page comparison in `pdf_frontmatter_structure.py` | Medium-High |
+| Dedication visual checks (`Q033-Q034`) | Add centered-block and italic-style heuristics on detected Dedication pages | High (weak text-style metadata) |
+| Biographical content/ordering checks (`Q023-Q030`) | Build a conservative Bio Sketch section parser for chronology/order/layout cues | High (semantic parsing complexity) |
+| Heading/list exact-style enforcement | Extend current style checks where bold/italic metadata is reliable; keep privacy-safe reporting | Medium |
 
 ### Low priority
 
 | Source/Q basis | Expected implementation approach | Risk/noise |
 |---|---|---|
-| Dedication visual centering/italic details (`Q033-Q034`) | Add text-block centroid + style checks on detected Dedication page | High (weak text-style metadata) |
-| Biographical ordering/content structure checks (`Q023-Q030`) | Section parser for Bio Sketch bullets and chronology patterns | High (semantic parsing complexity) |
 | Process/doc-driven admin requirements (review roadmap/process docs) | Keep as documentation/checklist hooks, not hard-coded audit rules | Low |
+| Configurable institution-spec layer | Keep as a future architecture option rather than immediate rule work | Medium |
 
 ## 6. Manual-only / process-only backlog
 
@@ -190,14 +189,14 @@ Rules that should remain manual-only or process-only for now:
 
 ## 7. Recommendation
 
-- **Should more rules be implemented now?** Yes, but only targeted high-value automatable TOC/List rules where signal quality is defensible.
+- **Should more rules be implemented now?** Yes, but only targeted high-value automation with defensible signal quality and a clear path to evaluation.
 - **Should focus stay on EF overlap/refinement/reporting?** **Yes.** Current evidence shows this gives safer precision/recall gains than broad semantic automation.
 
 Top 3 next tasks:
 
-1. Implement multi-page TOC/List `(Continued)` coverage and column-label/alignment checks (`Q048/Q062/Q071`, `Q063/Q064/Q072/Q073`).
-2. Add wrapped-entry spacing checks for TOC/LoT/LoF (`Q053-Q055`, `Q066-Q067`, `Q076-Q077`) with conservative grouping thresholds.
-3. Expand structured reporting to clearly separate **automated-pass**, **partial-coverage**, and **manual-review-required** items per source section.
+1. Implement scoped **P061** cross-page LoT/LoF entry-number ordering and validate it synthetically first.
+2. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
+3. Keep reporting/evaluation canonical by preserving `00b9c2d` until a full five-PDF P001–P060 rerun is reproducible.
 
 ## 8. Post-audit update (P030)
 
@@ -267,7 +266,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P044 (consolidated current state)
 
-**Current repository (main `35cb885`; five-PDF eval baseline `00b9c2d`):** P001–P060 implemented; web UI present; **729** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P060 current-dataset counts (only 4/5 evaluation PDFs accessible).
+**Current repository (main `600241b`; five-PDF eval baseline `00b9c2d`):** P001–P060 implemented; P061 scoped only; web UI present; **729** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). No P036–P060 current-dataset counts (only 4/5 evaluation PDFs accessible).
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
@@ -318,4 +317,4 @@ Privacy: per-rule evaluation docs are aggregate-only; do not quote dissertation 
 
 **P012 reporting refinement (2026-06-01):** `docs/evaluation/p012_reporting_actionability_refinement.md` — `p012_annotation_triage` rollup; raw P012 count expected unchanged (143 on five-PDF snapshot).
 
-**Canonical full-triage outputs (2026-06-01):** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — use `current_auditor_after_p034_p011_triage/` for latest JSON/MD with P011/P012/P013/P026 triage rollups (regenerate locally after PR #79 for `p012_annotation_triage`); older `current_auditor_after_p034*` folders are historical.
+**Canonical full-triage outputs (2026-06-01):** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — use `current_auditor_after_p034_p011_triage/` for latest JSON/MD with P011/P012/P013/P026 triage rollups; older `current_auditor_after_p034*` folders are historical.

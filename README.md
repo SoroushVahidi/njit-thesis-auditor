@@ -187,7 +187,7 @@ More docs:
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — canonical pre-P035 full PDF audit snapshot (P011–P034, five evaluation PDFs; **1,446** findings)
 - `docs/evaluation/p035_current_dataset_evaluation.md` — P035 local four-PDF subset (not a new canonical aggregate)
-- `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with all triage rollups (`current_auditor_after_p034_p011_triage/`)
+- `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with P011/P012/P013/P026 triage rollups (`current_auditor_after_p034_p011_triage/`; older `current_auditor_after_p034*` folders are historical/superseded)
 - `docs/evaluation/p011_reporting_actionability_refinement.md` — P011 `p011_margin_triage` rollup
 - `docs/evaluation/p012_reporting_actionability_refinement.md` — P012 `p012_annotation_triage` rollup
 - `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup

@@ -1,7 +1,7 @@
-# Data Inventory and Evaluation Sources (post PR #138)
+# Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-05 (metadata refresh after P058 implementation)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P060 implemented, web UI present on `main` (`35cb885` latest; manifest/eval baseline `00b9c2d`, **729** pytest)
+- Date: 2026-06-07 (metadata refresh after PR #199 docs-only scope update)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P060 implemented, P061 scoped only, web UI present on `main` (`600241b` latest; manifest/eval baseline `00b9c2d`, **729** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -92,7 +92,7 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 | Historical full P001-P029 evaluation across 5 PDFs | EF-commented subset + clean baseline PDF | Rule-volume snapshot at P029 milestone | Historical baseline doc | `docs/evaluation/current_auditor_after_p014_p029_evaluation.md` |
 | Per-rule P030-P042 current-dataset evaluations | 5-PDF set (P035: local 4-PDF subset; P036–P042: not run) | Privacy-safe counts per new rule | Aggregate-only; no entry/body text quoted | `docs/evaluation/p030_current_dataset_evaluation.md` through `p042_current_dataset_evaluation.md` |
 | Generated audit snapshots | Local PDF runs | All evaluation reruns | Gitignored | `data/evaluation/generated/` |
-| Canonical full-triage five-PDF rerun | Same 5-PDF set | Latest JSON/MD with P011+P013+P026 triage | Gitignored; not committed | `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`) |
+| Canonical full-triage five-PDF rerun | Same 5-PDF set | Latest JSON/MD with P011+P012+P013+P026 triage | Gitignored; not committed | `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`) |
 | EF comment-vs-tool overlap | Extractable-comment PDFs only | Page/category overlap against extractable EF comments | Excludes flattened-comment PDFs from comment extraction logic | `docs/evaluation/current_ef_comment_vs_tool_comparison.md` + `data/evaluation/generated/current_ef_comment_comparison/` (gitignored) |
 | EF overlap refinement round 1 | Extractable PDFs + clean baseline | P013 noise-reduction impact measurement | Clean baseline included for stability/noise check; no EF-overlap role | `docs/evaluation/ef_overlap_driven_refinement_evaluation.md` + `data/evaluation/generated/ef_overlap_refinement/` (gitignored) |
 | EF overlap refinement round 2 | Extractable PDFs + clean baseline | P018/P024 heading-variant robustness impact | Flattened-comment PDFs not used for comment extraction | `docs/evaluation/ef_overlap_refinement_round2_evaluation.md` + `data/evaluation/generated/ef_overlap_refinement_round2/` (gitignored) |
@@ -108,6 +108,6 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 
 ## 10. Recommended next 3 data/evaluation tasks
 
-1. Create a machine-readable manifest for committed evaluation PDFs with comment-extractability status and intended evaluation role.
-2. Add a privacy-safe evaluation dataset index (dataset, commit/date, run purpose, output path) for documented runs.
-3. Expand EF-overlap evaluation only with additional extractable-comment PDFs, while keeping generated raw outputs under gitignored paths.
+1. Run a new full five-PDF P001–P060 aggregate only when all five evaluation PDFs are directly accessible again; until then keep `00b9c2d` and the 1,446-finding P034 snapshot as the canonical baseline.
+2. Expand EF-overlap evaluation only with additional extractable-comment PDFs, while keeping generated raw outputs under gitignored paths.
+3. Keep using `data/evaluation/generated/current_auditor_after_p034_p011_triage/` as the canonical local triage-output path and treat older `current_auditor_after_p034*` folders as historical.
