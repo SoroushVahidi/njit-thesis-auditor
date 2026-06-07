@@ -323,7 +323,7 @@
 |----------|-----|------|-------|
 | 🟡 High | Full five-PDF P001–P060 rerun | Data/eval | Only 4/5 evaluation PDFs are directly accessible; keep `00b9c2d` and 1,446 findings as the canonical baseline until a full rerun is reproducible |
 | 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image-only floats are skipped in v1 |
-| 🟡 Med | P061 cross-page LoT/LoF ordering | **Implemented** | `docs/planning/p061_scope_and_design.md`; formal current-dataset rerun pending — `docs/evaluation/p061_current_dataset_evaluation.md` |
+| 🟡 Med | P061 cross-page LoT/LoF ordering | **Implemented** | `docs/planning/p061_scope_and_design.md`; formal current-dataset evaluation rerun after PR #202 — **0** findings — `docs/evaluation/p061_current_dataset_evaluation.md` |
 | 🟡 Med | Heading bold/italic enforcement beyond P027/P049/P050 | Partial | Still constrained by PDF font-style metadata quality |
 | 🟡 Med | Front-matter dedication/bio-sketch semantics (Q023–Q030, Q033–Q034) | Partial/manual | Content, chronology, centering, and italics remain incomplete |
 | 🟡 Med | Approval/Acknowledgements semantics (Q015–Q020, Q037–Q043) | Manual/partial | Committee rank/order and paragraph-intent checks remain manual-only |
