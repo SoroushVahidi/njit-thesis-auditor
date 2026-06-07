@@ -322,7 +322,7 @@
 |----------|-----|------|-------|
 | 🟡 High | Full five-PDF P001–P060 rerun | Data/eval | Only 4/5 evaluation PDFs are directly accessible; keep `00b9c2d` and 1,446 findings as the canonical baseline until a full rerun is reproducible |
 | 🟡 High | Figure/table centering and placement | **Partial (P035)** | Text-layer bodies only; image-only floats are skipped in v1 |
-| 🟡 Med | P061 cross-page LoT/LoF ordering | Scoped | `docs/planning/p061_scope_and_design.md` exists; implementation not started |
+| 🟡 Med | P061 cross-page LoT/LoF ordering | Scoped | `docs/planning/p061_scope_and_design.md` exists; implementation not started; structural inventory in `docs/evaluation/p061_current_dataset_evaluation.md` (formal audit blocked) |
 | 🟡 Med | Heading bold/italic enforcement beyond P027/P049/P050 | Partial | Still constrained by PDF font-style metadata quality |
 | 🟡 Med | Front-matter dedication/bio-sketch semantics (Q023–Q030, Q033–Q034) | Partial/manual | Content, chronology, centering, and italics remain incomplete |
 | 🟡 Med | Approval/Acknowledgements semantics (Q015–Q020, Q037–Q043) | Manual/partial | Committee rank/order and paragraph-intent checks remain manual-only |
@@ -599,7 +599,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 
 | Priority | Task | Rationale |
 |----------|------|-----------|
-| 🟡 High | Implement P061 | Scoped cross-page LoT/LoF entry-number ordering is the clearest next incremental rule after P059/P060 |
+| 🟡 High | Implement P061 | Scoped cross-page LoT/LoF entry-number ordering is the clearest next incremental rule after P059/P060; current-dataset structural inventory complete — see `docs/evaluation/p061_current_dataset_evaluation.md` |
 | 🟡 High | Re-run full five-PDF P001–P060 aggregate when data access permits | Canonical totals should not change until all five evaluation PDFs are directly accessible again |
 | 🟡 Med | Extend P035 to image-heavy pages | Reduce skipped figure/table pages caused by text-layer-only detection |
 | 🟡 Med | Expand EF overlap on extractable PDFs only | Improve actionability without committing raw generated outputs |
