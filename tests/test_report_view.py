@@ -191,6 +191,8 @@ def test_polished_comment_fallback_unknown_rule() -> None:
 
 
 def test_web_results_render_polished_comments(tmp_path: Path) -> None:
+    from datetime import datetime, timezone
+
     os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"] = str(tmp_path / "web_audits")
     import importlib
 
@@ -205,7 +207,7 @@ def test_web_results_render_polished_comments(tmp_path: Path) -> None:
     job = wa.JobState(
         job_id="rv1",
         state="complete",
-        created_at="2026-01-01T00:00:00Z",
+        created_at=datetime.now(timezone.utc).isoformat(),
         file_name="thesis.pdf",
         finding_count=view.total_findings,
         warn_count=1,

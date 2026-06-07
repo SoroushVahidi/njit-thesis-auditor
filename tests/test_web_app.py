@@ -1178,3 +1178,207 @@ def test_sample_audit_no_private_text_in_response(client: tuple[TestClient, Any]
     assert resp.status_code == 400
     # Response should be a normal HTML page with a short error message
     assert b"<html" in resp.content or b"<!DOCTYPE" in resp.content
+
+
+# ---------------------------------------------------------------------------
+# Job TTL cleanup
+# ---------------------------------------------------------------------------
+
+
+def _reload_web_app(tmp_path: Path, **env_overrides: str) -> Any:
+    os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"] = str(tmp_path / "web_audits")
+    for key, value in env_overrides.items():
+        os.environ[key] = value
+    import importlib
+
+    import njit_auditor.web_app as wa
+
+    importlib.reload(wa)
+    with wa._jobs_lock:
+        wa._jobs.clear()
+    return wa
+
+
+def test_invalid_job_ttl_env_falls_back_to_default(tmp_path: Path) -> None:
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="not-a-number")
+    assert wa.JOB_TTL_SECONDS == 86400
+
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="-5")
+    assert wa.JOB_TTL_SECONDS == 86400
+
+
+def test_cleanup_expired_jobs_evicts_memory_and_deletes_directory(tmp_path: Path) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="60")
+    old_time = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    job_id = "expiredjob123456"
+    jdir = wa._job_dir(job_id)
+    jdir.mkdir(parents=True)
+    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=old_time,
+        file_name="thesis.pdf",
+    )
+    wa._set_job(job)
+
+    removed = wa.cleanup_expired_jobs()
+    assert removed >= 1
+    assert wa._get_job(job_id) is None
+    assert not jdir.exists()
+
+
+def test_cleanup_missing_job_directory_does_not_fail(tmp_path: Path) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="60")
+    old_time = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    job_id = "missingdirjob12"
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=old_time,
+        file_name="thesis.pdf",
+    )
+    wa._set_job(job)
+    assert not wa._job_dir(job_id).exists()
+
+    removed = wa.cleanup_expired_jobs()
+    assert removed >= 1
+    assert wa._get_job(job_id) is None
+
+
+def test_cleanup_keeps_non_expired_job(tmp_path: Path) -> None:
+    from datetime import datetime, timezone
+
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="3600")
+    job_id = "freshjob123456"
+    jdir = wa._job_dir(job_id)
+    jdir.mkdir(parents=True)
+    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="thesis.pdf",
+    )
+    wa._set_job(job)
+
+    removed = wa.cleanup_expired_jobs()
+    assert removed == 0
+    assert wa._get_job(job_id) is not None
+    assert jdir.exists()
+
+
+def test_cleanup_skips_running_jobs_even_when_old(tmp_path: Path) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="60")
+    old_time = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    job_id = "runningjob12345"
+    jdir = wa._job_dir(job_id)
+    jdir.mkdir(parents=True)
+    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+
+    job = wa.JobState(
+        job_id=job_id,
+        state="running",
+        created_at=old_time,
+        file_name="thesis.pdf",
+    )
+    wa._set_job(job)
+
+    removed = wa.cleanup_expired_jobs()
+    assert removed == 0
+    assert wa._get_job(job_id) is not None
+    assert jdir.exists()
+
+
+def test_cleanup_does_not_delete_paths_outside_runtime_root(tmp_path: Path) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="60")
+    outside_dir = tmp_path / "outside_runtime"
+    outside_dir.mkdir()
+    marker = outside_dir / "keep.txt"
+    marker.write_text("stay", encoding="utf-8")
+
+    old_time = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    job_id = "outsidejob1234"
+    with patch.object(wa, "_job_dir", return_value=outside_dir):
+        job = wa.JobState(
+            job_id=job_id,
+            state="complete",
+            created_at=old_time,
+            file_name="thesis.pdf",
+        )
+        wa._set_job(job)
+        removed = wa.cleanup_expired_jobs()
+
+    assert removed >= 1
+    assert marker.exists()
+
+
+def test_job_not_found_message_mentions_expiration(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/audits/doesnotexistjob")
+    assert resp.status_code == 404
+    assert b"not found" in resp.content.lower()
+    assert b"hours" in resp.content.lower()
+
+
+# ---------------------------------------------------------------------------
+# Web export path redaction
+# ---------------------------------------------------------------------------
+
+
+def test_tex_upload_json_redacts_absolute_paths(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    post = c.post(
+        "/audits",
+        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+        follow_redirects=False,
+    )
+    job_id = post.headers["location"].split("/audits/")[1]
+    c.get(f"/audits/{job_id}")
+    json_resp = c.get(f"/audits/{job_id}/download/json")
+    if json_resp.status_code != 200:
+        pytest.skip("audit did not complete in time")
+    data = json_resp.json()
+    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
+    serialized = json.dumps(data)
+    assert str(runtime_root) not in serialized
+    assert data["metadata"]["input_file_path"] == "upload.tex"
+    for finding in data.get("findings", []):
+        details = finding.get("details", {})
+        file_path = details.get("file", "")
+        if file_path:
+            assert "/" not in file_path
+            assert "\\" not in file_path
+
+
+def test_tex_upload_markdown_preview_redacts_absolute_paths(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+    post = c.post(
+        "/audits",
+        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+        follow_redirects=False,
+    )
+    job_id = post.headers["location"].split("/audits/")[1]
+    page = c.get(f"/audits/{job_id}")
+    if page.status_code != 200:
+        pytest.skip("audit did not complete in time")
+    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
+    job = wa._get_job(job_id)
+    if job is None or not job.md_preview:
+        pytest.skip("markdown preview unavailable")
+    assert str(runtime_root) not in job.md_preview
+    assert "upload.tex" in job.md_preview

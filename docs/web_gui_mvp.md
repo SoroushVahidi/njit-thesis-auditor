@@ -1,8 +1,9 @@
 # Web Upload UI — MVP Guide
 
-The NJIT Thesis Auditor includes a FastAPI web application that lets users upload a PDF
-dissertation (or paste a public PDF URL) and receive a formatted audit report in the browser
-— no CLI or Python knowledge required.
+The NJIT Thesis Auditor includes a FastAPI web application that lets users upload a
+dissertation **PDF**, **TeX source (.tex)**, or **LaTeX project ZIP**, paste a public PDF URL,
+or audit a built-in sample PDF, and receive a formatted audit report in the browser — no CLI
+or Python knowledge required.
 
 ---
 
@@ -107,8 +108,9 @@ port 8000 firewall-restricted to localhost.
 
 | Variable | Default | Description |
 |---|---|---|
-| `NJIT_AUDITOR_WEB_RUNTIME_DIR` | `.runtime/web_audits` | Directory where uploaded PDFs and reports are written. Must be gitignored. |
+| `NJIT_AUDITOR_WEB_RUNTIME_DIR` | `.runtime/web_audits` | Directory where uploaded files and reports are written. Must be gitignored. |
 | `NJIT_AUDITOR_WEB_MAX_UPLOAD_MB` | `50` | Maximum upload file size in MB. |
+| `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` | `86400` (24 h) | How long completed/failed jobs remain in memory and on disk before automatic cleanup. Invalid or non-positive values fall back to the default. |
 | `NJIT_AUDITOR_WEB_HOST` | `0.0.0.0` | Bind host for `scripts/run_web_gui.sh`. |
 | `NJIT_AUDITOR_WEB_PORT` | `8000` | Bind port for `scripts/run_web_gui.sh`. |
 
@@ -119,7 +121,7 @@ port 8000 firewall-restricted to localhost.
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/` | Upload form + URL input form + built-in sample form |
-| `POST` | `/audits` | Accept PDF upload; validate; start background audit; redirect to job page |
+| `POST` | `/audits` | Accept PDF, TeX, or ZIP upload; validate; start background audit; redirect to job page |
 | `POST` | `/audits/url` | Accept public PDF URL; download safely; start background audit; redirect to job page |
 | `POST` | `/audits/sample` | Accept built-in sample ID; copy local sample; start background audit; redirect to job page |
 | `GET` | `/audits/{job_id}` | Job status page; auto-refreshes while running; shows findings when complete |
@@ -131,14 +133,16 @@ port 8000 firewall-restricted to localhost.
 
 ## UX flow
 
-### File upload
+### File upload (PDF, TeX, or ZIP)
 
-1. User opens `/` and selects a PDF.
-2. User clicks **Audit PDF**.
+1. User opens `/` and selects a **PDF**, **.tex**, or **.zip** file.
+2. User clicks **Start audit**.
 3. Server validates the file (extension, magic bytes, size limit) and starts a background job.
-4. User is redirected to `/audits/{job_id}`, which polls every 2 seconds.
-5. When complete, the page shows findings and download links.
-6. If the audit fails, a clean error message is shown — no stack traces.
+4. **PDF** uploads run layout rules **P011–P061**. **TeX** and **ZIP** uploads run source rules
+   **P001–P010** (ZIP is safely extracted, main `.tex` is detected — **no LaTeX compilation**).
+5. User is redirected to `/audits/{job_id}`, which polls every 2 seconds.
+6. When complete, the page shows findings, JSON/Markdown download links, and a Markdown preview.
+7. If the audit fails, a clean error message is shown — no stack traces.
 
 ### Public PDF URL
 
@@ -176,33 +180,42 @@ public site unless you are authorized to process those files.
 
 ## Privacy and safety
 
-- Uploaded PDFs, URL-downloaded PDFs, and built-in sample copies are saved only under the runtime directory (gitignored).
+- Uploaded PDFs/TeX/ZIP files, URL-downloaded PDFs, and built-in sample copies are saved only
+  under the runtime directory (gitignored).
 - Generated JSON/Markdown reports are saved only under the runtime directory.
+- Web-generated JSON/Markdown exports use **basename-only** paths (no absolute server paths in
+  metadata or source `details.file`). The HTML findings table shows polished comments only.
 - No uploaded, downloaded, or sample content is committed to the repository.
-- Findings contain structural metadata only (page numbers, rule IDs, coordinates) — no
-  dissertation body text, author names, or other private content.
+- Findings contain structural metadata only (page numbers, rule IDs, coordinates, basename:line
+  for source) — no dissertation body text, author names, or other private content in the default UI.
 - Runtime files are never committed: `.runtime/` is in `.gitignore`.
 - URL downloads are SSRF-safe: private/internal IP ranges and `localhost` are blocked server-side.
 - Built-in sample IDs are a fixed curated list; arbitrary file paths cannot be submitted via the form.
-- Do not expose the web app to the public internet without a reverse proxy and TLS.
+- **Public hosting:** the default bind is `0.0.0.0`. Do not expose the web app to the public
+  internet without a reverse proxy, TLS, authentication, and rate limiting.
 - Do not expose built-in samples on a public site unless you are authorized to process those files.
 
 ---
 
-## Runtime storage
+## Runtime storage and job TTL
 
 Each job creates a directory under `NJIT_AUDITOR_WEB_RUNTIME_DIR`:
 
 ```
 .runtime/web_audits/
   {job_id}/
-    upload.pdf     ← uploaded file, URL-downloaded PDF, or built-in sample copy
+    upload.pdf     ← PDF upload, URL download, or built-in sample copy
+    upload.tex     ← TeX upload
+    upload.zip     ← ZIP upload (extracted under the same job dir)
     report.json    ← structured JSON audit report
     report.md      ← Markdown audit report
 ```
 
-Job state is held in memory while the server runs. Restarting the server clears in-memory
-state; existing on-disk reports remain accessible if you re-implement persistence.
+Job state is held in memory while the server runs. **Automatic cleanup** removes completed and
+failed jobs (and their directories) after `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 hours).
+Cleanup runs on server startup, before new jobs are created, and when job pages are rendered.
+Jobs still `pending` or `running` are never removed early. Restarting the server clears
+in-memory state; on-disk files remain until TTL cleanup or manual deletion.
 
 ---
 
