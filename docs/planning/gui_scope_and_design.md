@@ -145,7 +145,7 @@ Already implements:
 - No category/severity summary cards
 - No P011/P013/P026 triage-first panels (only `high_volume_rules` subset)
 - No rule/category/page filters
-- No polished comment templates
+- ~~No polished comment templates~~ — **resolved** (`polished_comments.py`, `report_view.py`)
 - ~~`audit_runner.py` not aligned with CLI P055–P061~~ — **resolved** (shared `run_pdf_audit_full` / `collect_pdf_layout_findings`)
 - No temp-file TTL cleanup policy documented
 
@@ -161,7 +161,8 @@ Already implements:
 | `collect_tex_findings` | Yes | Upload handler + optional linters flag |
 | ZIP handling | **Backend utility** (`safe_extract_zip`, `detect_main_tex`) | Web UI exposure deferred |
 | Polished comments | No | New template layer from `rule_loader` + finding metadata |
-| Report view DTOs | No | New `gui/report_view.py` (or `web/report_view.py`) |
+| Report view DTOs | **Done** | `report_view.py` + minimal web results integration |
+| Polished comments | **Done** | `polished_comments.py` (privacy-safe templates) |
 
 ---
 
@@ -439,7 +440,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 | **0** | Backend contract audit | **Done** — `run_pdf_audit_full()` / `collect_pdf_layout_findings()` shared by CLI and web; parity tests in `tests/test_audit_runner.py` |
 | **1** | Minimal polished UI | Enhanced FastAPI templates: summary cards + triage panels |
 | **2** | Upload correctness | **Backend done** — `upload_handling.py`, `run_audit_for_uploaded_file()`; web UI TeX/ZIP exposure pending |
-| **3** | Report rendering tests | DTO layer; filter tests; polished comment templates |
+| **3** | Report rendering tests | **Partially done** — `report_view.py` + `polished_comments.py` integrated in web results; filters/polished-comment coverage tests pending |
 | **4** | PDF page preview | Page thumbnails with finding markers (privacy-safe) |
 | **5** | Polished comment coverage | All high-volume rules; remediation from `rule_loader` |
 | **6** | Optional annotated PDF export | Highlight regions (no text injection) |
@@ -452,7 +453,7 @@ web and CLI must produce identical finding counts on shared synthetic fixtures.
 1. ~~**Unify PDF audit entrypoint**~~ — **Done** — `run_pdf_audit_full()` in `audit_runner.py`; CLI and web call `collect_pdf_layout_findings` / `run_pdf_audit_full`
 2. **Create `src/njit_auditor/gui/` package** (or `web/` submodule) for view models separate from routes
 3. ~~**Add `run_audit_for_uploaded_file()`**~~ — **Done** — dispatches PDF / TeX / ZIP (TeX export limitation documented)
-4. **Define report-view DTOs** — `AuditSummaryView`, `TriagePanelView`, `FindingRowView`, `PolishedComment`
+4. ~~**Define report-view DTOs**~~ — **Done** — `ReportView`, `FindingView`, `TriagePanelView`, `SummaryCard` in `report_view.py`; `polished_comments.py` for GUI comments
 5. ~~**Add `safe_extract_zip()`**~~ — **Done** — `upload_handling.py`
 6. ~~**Add `detect_main_tex()`**~~ — **Done** — `upload_handling.py`
 7. **Add `polished_comments.py`** — template map keyed by `(rule_id, issue_type)`

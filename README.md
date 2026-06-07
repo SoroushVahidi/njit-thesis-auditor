@@ -43,7 +43,9 @@ for future GUI work; TeX/ZIP web upload is not yet exposed. Three audit methods 
   and submit. These are private dissertation samples available only on servers where the repository
   is checked out. Do not expose built-in samples on a public site unless authorized.
 
-Download JSON or Markdown reports from the results page.
+Download JSON or Markdown reports from the results page. The results page also shows
+summary cards, high-volume triage panels (P011/P013/P026), and privacy-safe polished
+comments per finding (raw JSON/Markdown schema unchanged).
 For persistent always-on hosting, start in a detached tmux session:
 
 ```bash

@@ -213,6 +213,7 @@ def _inject_complete_job(wa: Any, tmp_path: Path) -> str:
 
     from njit_auditor.models import AuditFinding, Severity
     from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_view import build_report_view, report_view_to_dict
 
     job_id = secrets.token_urlsafe(16)
     findings = [
@@ -231,25 +232,36 @@ def _inject_complete_job(wa: Any, tmp_path: Path) -> str:
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
+    view = build_report_view(payload)
 
     job = wa.JobState(
         job_id=job_id,
         state="complete",
         created_at=datetime.now(timezone.utc).isoformat(),
         file_name="thesis.pdf",
-        finding_count=1,
+        finding_count=view.total_findings,
         warn_count=1,
         fail_count=0,
         findings=[
             {
-                "rule_id": "P011",
-                "severity": "WARNING",
-                "page": 2,
-                "issue_type": "margin_boundary_violation",
-                "message": "Left margin too narrow.",
+                "rule_id": fv.rule_id,
+                "severity": fv.severity,
+                "page": fv.page,
+                "issue_type": fv.issue_type,
+                "category": fv.category,
+                "polished_comment": fv.polished_comment,
             }
+            for fv in view.findings
         ],
-        grouped_summary=[],
+        grouped_summary=[
+            {
+                "rule_id": rs.rule_id,
+                "count": rs.count,
+                "category": rs.category,
+            }
+            for rs in view.rule_summaries
+        ],
+        report_view=report_view_to_dict(view),
         md_preview="# Audit Report\n",
     )
     wa._set_job(job)

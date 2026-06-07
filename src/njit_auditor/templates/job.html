@@ -65,12 +65,47 @@
   </div>
 </div>
 
+{% if report_view and report_view.summary_cards %}
+<h2>Summary</h2>
+<div class="card" style="display:flex;flex-wrap:wrap;gap:1rem;padding:1rem">
+  {% for card in report_view.summary_cards %}
+  <div style="min-width:120px">
+    <div style="font-size:0.8rem;color:#666">{{ card.label }}</div>
+    <div style="font-size:1.25rem;font-weight:600">{{ card.value }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if report_view and report_view.triage_panels %}
+<h2>High-volume triage</h2>
+{% for panel in report_view.triage_panels %}
+<div class="card" style="margin-bottom:1rem">
+  <strong>{{ panel.title }}</strong> ({{ panel.rule_id }})
+  <span class="badge badge-warn" style="margin-left:0.5rem">{{ panel.raw_finding_count }} findings</span>
+  {% if panel.triage_note %}
+  <p style="font-size:0.9rem;margin:0.5rem 0 0">{{ panel.triage_note }}</p>
+  {% endif %}
+  {% if panel.affected_pages_compact %}
+  <p style="font-size:0.85rem;color:#555;margin:0.25rem 0 0">Pages: {{ panel.affected_pages_compact }}</p>
+  {% endif %}
+  {% if panel.highlights %}
+  <ul style="font-size:0.85rem;margin:0.5rem 0 0;padding-left:1.2rem">
+    {% for label, value in panel.highlights %}
+    <li><strong>{{ label }}:</strong> {{ value }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
 {% if grouped_summary %}
 <h2>Summary by rule</h2>
 <div class="card" style="padding:0.75rem">
   <table>
     <thead>
-      <tr><th>Rule</th><th>Count</th><th>Category</th><th>Top issue types</th></tr>
+      <tr><th>Rule</th><th>Count</th><th>Category</th></tr>
     </thead>
     <tbody>
     {% for row in grouped_summary %}
@@ -78,7 +113,6 @@
         <td><strong>{{ row.rule_id }}</strong></td>
         <td>{{ row.count }}</td>
         <td>{{ row.category }}</td>
-        <td>{{ row.top_issue_types }}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -95,8 +129,8 @@
         <th>Rule</th>
         <th>Page</th>
         <th>Severity</th>
-        <th>Issue type</th>
-        <th>Message</th>
+        <th>Category</th>
+        <th>Polished comment</th>
       </tr>
     </thead>
     <tbody>
@@ -109,8 +143,8 @@
           {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
           {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
         </td>
-        <td><code>{{ f.issue_type }}</code></td>
-        <td>{{ f.message }}</td>
+        <td>{{ f.category }}</td>
+        <td>{{ f.polished_comment }}</td>
       </tr>
     {% endfor %}
     </tbody>

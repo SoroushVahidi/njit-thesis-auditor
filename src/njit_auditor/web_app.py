@@ -18,8 +18,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 
 from njit_auditor.audit_runner import AuditError, run_audit_for_uploaded_file
-from njit_auditor.models import Severity
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.upload_handling import (
     UploadKind,
     UploadValidationError,
@@ -62,6 +62,7 @@ class JobState:
     error_message: str = ""
     findings: list[dict[str, Any]] = field(default_factory=list)
     grouped_summary: list[dict[str, Any]] = field(default_factory=list)
+    report_view: dict[str, Any] = field(default_factory=dict)
     md_preview: str = ""
 
     def to_status_dict(self) -> dict[str, Any]:
@@ -179,39 +180,40 @@ def _run_audit_task(job_id: str) -> None:
     md_report_path = jdir / "report.md"
     write_markdown_report(findings, metadata, md_report_path)
 
-    # Build display structures (privacy-safe: issue_type and message only)
+    view = build_report_view(payload)
+    view_dict = report_view_to_dict(view)
+
     serialized = [
         {
-            "rule_id": f.rule_id,
-            "severity": f.severity.value,
-            "page": f.page,
-            "issue_type": f.details.get("issue_type", ""),
-            "message": f.message,
+            "rule_id": fv["rule_id"],
+            "severity": fv["severity"],
+            "page": fv["page"],
+            "issue_type": fv["issue_type"],
+            "category": fv["category"],
+            "polished_comment": fv["polished_comment"],
         }
-        for f in findings
+        for fv in view_dict.get("findings", [])
     ]
 
-    grouped_rows: list[dict[str, Any]] = []
-    for entry in payload.get("grouped_summary", {}).get("high_volume_rules", []):
-        grouped_rows.append(
-            {
-                "rule_id": entry.get("rule_id", ""),
-                "count": entry.get("count", 0),
-                "category": entry.get("category", ""),
-                "top_issue_types": ", ".join(
-                    t.get("issue_type", "") for t in entry.get("top_issue_types", [])[:3]
-                ),
-            }
-        )
+    grouped_rows = [
+        {
+            "rule_id": rs["rule_id"],
+            "count": rs["count"],
+            "category": rs["category"],
+            "top_issue_types": "",
+        }
+        for rs in view_dict.get("rule_summaries", [])
+    ]
 
     md_preview = md_report_path.read_text(encoding="utf-8")[:6000]
 
     job.state = "complete"
-    job.finding_count = len(findings)
-    job.warn_count = sum(1 for f in findings if f.severity == Severity.WARNING)
-    job.fail_count = sum(1 for f in findings if f.severity == Severity.FAIL)
+    job.finding_count = view.total_findings
+    job.warn_count = int(view.counts_by_severity.get("WARNING", 0))
+    job.fail_count = int(view.counts_by_severity.get("FAIL", 0))
     job.findings = serialized
     job.grouped_summary = grouped_rows
+    job.report_view = view_dict
     job.md_preview = md_preview
     job.finished_at = datetime.now(timezone.utc).isoformat()
     _set_job(job)
@@ -385,6 +387,7 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
             "error_message": job.error_message,
             "findings": job.findings,
             "grouped_summary": job.grouped_summary,
+            "report_view": job.report_view,
             "md_preview": job.md_preview,
         },
     )
