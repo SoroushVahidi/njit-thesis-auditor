@@ -22,141 +22,336 @@
   })();
 </script>
 {% endif %}
+{% if state == "complete" and findings %}
+<script>
+  (function() {
+    function applyFilters() {
+      var rule = document.getElementById("filter-rule").value;
+      var severity = document.getElementById("filter-severity").value;
+      var category = document.getElementById("filter-category").value;
+      var page = document.getElementById("filter-page").value;
+      var rows = document.querySelectorAll(".finding-row");
+      var visible = 0;
+      rows.forEach(function(row) {
+        var show = true;
+        if (rule && row.dataset.rule !== rule) show = false;
+        if (severity && row.dataset.severity !== severity) show = false;
+        if (category && row.dataset.category !== category) show = false;
+        if (page && row.dataset.page !== page) show = false;
+        row.classList.toggle("finding-row--hidden", !show);
+        if (show) visible += 1;
+      });
+      var counter = document.getElementById("filter-count");
+      if (counter) {
+        counter.textContent = "Showing " + visible + " of " + rows.length + " findings";
+      }
+    }
+    ["filter-rule", "filter-severity", "filter-category", "filter-page"].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener("change", applyFilters);
+    });
+    var reset = document.getElementById("filter-reset");
+    if (reset) {
+      reset.addEventListener("click", function() {
+        ["filter-rule", "filter-severity", "filter-category", "filter-page"].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.value = "";
+        });
+        applyFilters();
+      });
+    }
+    applyFilters();
+  })();
+</script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
-<h1>
-  {% if state in ("pending", "running") %}
-  <span class="spinner"></span> Processing audit&hellip;
-  {% elif state == "complete" %}
-  Audit complete
-  {% else %}
-  Audit failed
-  {% endif %}
-</h1>
-<p class="subtitle">Job <code>{{ job_id[:8] }}</code></p>
 
 {% if state in ("pending", "running") %}
+<div class="status-banner status-banner--pending">
+  <div>
+    <p class="status-banner__title"><span class="spinner"></span> Processing audit&hellip;</p>
+    <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
+  </div>
+</div>
 <div class="card">
-  <p>Your PDF is being audited. This page will update automatically when results are ready.</p>
-  <p style="font-size:0.85rem;color:#888;">Started: {{ created_at }}</p>
+  <p>Your PDF is being audited against NJIT formatting rules. This page refreshes automatically when results are ready.</p>
+  <p class="file-hint" style="margin:0.5rem 0 0;">Started: {{ created_at }}</p>
 </div>
 
 {% elif state == "failed" %}
-<div class="alert-error">
-  <strong>The audit could not complete.</strong><br>
+<div class="status-banner status-banner--failed">
+  <div>
+    <p class="status-banner__title">Audit could not complete</p>
+    <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
+  </div>
+</div>
+<div class="alert-error" role="alert">
+  <strong>Something went wrong.</strong><br>
   {{ error_message }}
 </div>
+<p class="file-hint">If the file is not a valid PDF, try re-exporting it. Unsupported formats must use the CLI for TeX/ZIP audits.</p>
 <p><a href="/" class="btn btn-secondary">&larr; Try another file</a></p>
 
 {% elif state == "complete" %}
 
-<div class="card">
-  <strong>{{ finding_count }} finding{{ "s" if finding_count != 1 else "" }}</strong>
-  ({{ warn_count }} warning{{ "s" if warn_count != 1 else "" }},
-   {{ fail_count }} error{{ "s" if fail_count != 1 else "" }})
-  &nbsp;&middot;&nbsp;
-  {{ file_name }}
+<div class="status-banner status-banner--complete">
+  <div>
+    <p class="status-banner__title">Audit complete</p>
+    <p class="status-banner__meta">
+      Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
+      {% if finished_at %} &middot; Finished {{ finished_at[:19] }}{% endif %}
+    </p>
+  </div>
+  <div>
+    {% if highest_severity == "FAIL" %}
+    <span class="badge badge-fail">Highest severity: FAIL</span>
+    {% elif highest_severity == "WARNING" %}
+    <span class="badge badge-warn">Highest severity: WARNING</span>
+    {% elif highest_severity == "PASS" %}
+    <span class="badge badge-pass">Highest severity: PASS</span>
+    {% else %}
+    <span class="badge badge-pass">No issues</span>
+    {% endif %}
+  </div>
+</div>
 
+<section class="section" aria-label="Summary">
+  <div class="section-header">
+    <h2>Summary</h2>
+    <span class="section-note">Heuristic counts — verify manually</span>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-card__label">Total findings</div>
+      <div class="summary-card__value">{{ finding_count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Highest severity</div>
+      <div class="summary-card__value" style="font-size:1.1rem">{{ highest_severity_label }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Pages affected</div>
+      <div class="summary-card__value">{{ pages_affected }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Rules flagged</div>
+      <div class="summary-card__value">{{ rules_flagged }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Warnings / errors</div>
+      <div class="summary-card__value" style="font-size:1.05rem">{{ warn_count }} / {{ fail_count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Exports</div>
+      <div class="summary-card__value" style="font-size:1.05rem">JSON + MD</div>
+    </div>
+  </div>
+</section>
+
+{% if report_view and (report_view.counts_by_severity or report_view.counts_by_category) %}
+<section class="section" aria-label="Overview">
+  <div class="section-header"><h2>Severity &amp; category overview</h2></div>
+  <div class="card card-compact">
+    {% if report_view.counts_by_severity %}
+    <p style="margin:0 0 0.5rem;font-size:0.88rem;font-weight:600;">By severity</p>
+    <div class="overview-chips">
+      {% for sev, count in report_view.counts_by_severity.items() %}
+      <span class="chip">
+        {% if sev == "WARNING" %}<span class="badge badge-warn">WARN</span>
+        {% elif sev == "FAIL" %}<span class="badge badge-fail">FAIL</span>
+        {% else %}<span class="badge badge-pass">{{ sev }}</span>{% endif %}
+        <strong>{{ count }}</strong>
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if report_view.counts_by_category %}
+    <p style="margin:0.85rem 0 0.5rem;font-size:0.88rem;font-weight:600;">By category</p>
+    <div class="overview-chips">
+      {% for cat, count in report_view.counts_by_category.items() %}
+      <span class="chip"><strong>{{ count }}</strong> {{ cat }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if report_view and report_view.triage_panels %}
+<section class="section" aria-label="High-volume triage">
+  <div class="section-header">
+    <h2>High-volume triage</h2>
+    <span class="section-note">Review these rollups first</span>
+  </div>
+  {% for panel in report_view.triage_panels %}
+  <div class="card triage-panel">
+    <div class="triage-panel__header">
+      <span class="triage-panel__title">{{ panel.title }}</span>
+      <span class="badge badge-info">{{ panel.rule_id }}</span>
+      <span class="badge badge-warn">{{ panel.raw_finding_count }} findings</span>
+      {% if panel.triage_tier %}
+      <span class="badge badge-muted">tier: {{ panel.triage_tier }}</span>
+      {% endif %}
+    </div>
+    {% if panel.triage_note %}
+    <p style="font-size:0.9rem;margin:0 0 0.5rem">{{ panel.triage_note }}</p>
+    {% endif %}
+    {% if panel.affected_pages_compact %}
+    <p class="file-hint" style="margin:0 0 0.5rem"><strong>Affected pages:</strong> {{ panel.affected_pages_compact }}</p>
+    {% endif %}
+    {% if panel.highlights %}
+    <ul class="bullet-list" style="margin:0">
+      {% for label, value in panel.highlights %}
+      <li><strong>{{ label }}:</strong> {{ value }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if grouped_summary %}
+<section class="section" aria-label="Summary by rule">
+  <div class="section-header"><h2>Summary by rule</h2></div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <table>
+      <thead>
+        <tr><th>Rule</th><th>Count</th><th>Category</th></tr>
+      </thead>
+      <tbody>
+      {% for row in grouped_summary %}
+        <tr>
+          <td><strong>{{ row.rule_id }}</strong></td>
+          <td>{{ row.count }}</td>
+          <td>{{ row.category }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="section" aria-label="Findings">
+  <div class="section-header">
+    <h2>Findings</h2>
+    <span id="filter-count" class="filter-count"></span>
+  </div>
+
+  {% if findings %}
+  <div class="filter-bar">
+    <div>
+      <label for="filter-rule">Rule</label>
+      <select id="filter-rule">
+        <option value="">All rules</option>
+        {% for rule in filter_rules %}
+        <option value="{{ rule }}">{{ rule }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-severity">Severity</label>
+      <select id="filter-severity">
+        <option value="">All severities</option>
+        {% for sev in filter_severities %}
+        <option value="{{ sev }}">{{ sev }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-category">Category</label>
+      <select id="filter-category">
+        <option value="">All categories</option>
+        {% for cat in filter_categories %}
+        <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-page">Page</label>
+      <select id="filter-page">
+        <option value="">All pages</option>
+        {% for pg in filter_pages %}
+        <option value="{{ pg }}">{{ pg }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button type="button" id="filter-reset" class="btn btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.85rem">Reset filters</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <table>
+      <thead>
+        <tr>
+          <th>Rule</th>
+          <th>Page</th>
+          <th>Severity</th>
+          <th>Category</th>
+          <th>Issue / meta</th>
+          <th>Polished comment</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for f in findings %}
+        <tr class="finding-row"
+            data-rule="{{ f.rule_id }}"
+            data-severity="{{ f.severity }}"
+            data-category="{{ f.category }}"
+            data-page="{{ f.page if f.page is not none else '' }}">
+          <td><strong>{{ f.rule_id }}</strong></td>
+          <td>{{ f.page if f.page is not none else "—" }}</td>
+          <td>
+            {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
+            {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
+            {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+          </td>
+          <td>{{ f.category }}</td>
+          <td class="meta-cell">
+            {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
+            {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
+            {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
+          </td>
+          <td class="comment-cell">{{ f.polished_comment }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card"><p>No findings — all checks passed.</p></div>
+  {% endif %}
+</section>
+
+<section class="section export-section" aria-label="Downloads">
+  <h2 style="margin-top:0;">Download reports</h2>
+  <p class="file-hint" style="margin-top:0">
+    Raw JSON and Markdown schemas are unchanged — use these for archival or downstream tooling.
+  </p>
   <div class="dl-links">
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a>
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
   </div>
-</div>
+</section>
 
-{% if report_view and report_view.summary_cards %}
-<h2>Summary</h2>
-<div class="card" style="display:flex;flex-wrap:wrap;gap:1rem;padding:1rem">
-  {% for card in report_view.summary_cards %}
-  <div style="min-width:120px">
-    <div style="font-size:0.8rem;color:#666">{{ card.label }}</div>
-    <div style="font-size:1.25rem;font-weight:600">{{ card.value }}</div>
-  </div>
-  {% endfor %}
-</div>
+{% if md_preview %}
+<section class="section">
+  <details class="collapsible card card-compact">
+    <summary>Markdown report preview</summary>
+    <textarea class="report-box" readonly>{{ md_preview }}</textarea>
+  </details>
+</section>
 {% endif %}
 
-{% if report_view and report_view.triage_panels %}
-<h2>High-volume triage</h2>
-{% for panel in report_view.triage_panels %}
-<div class="card" style="margin-bottom:1rem">
-  <strong>{{ panel.title }}</strong> ({{ panel.rule_id }})
-  <span class="badge badge-warn" style="margin-left:0.5rem">{{ panel.raw_finding_count }} findings</span>
-  {% if panel.triage_note %}
-  <p style="font-size:0.9rem;margin:0.5rem 0 0">{{ panel.triage_note }}</p>
-  {% endif %}
-  {% if panel.affected_pages_compact %}
-  <p style="font-size:0.85rem;color:#555;margin:0.25rem 0 0">Pages: {{ panel.affected_pages_compact }}</p>
-  {% endif %}
-  {% if panel.highlights %}
-  <ul style="font-size:0.85rem;margin:0.5rem 0 0;padding-left:1.2rem">
-    {% for label, value in panel.highlights %}
-    <li><strong>{{ label }}:</strong> {{ value }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-</div>
-{% endfor %}
-{% endif %}
-
-{% if grouped_summary %}
-<h2>Summary by rule</h2>
-<div class="card" style="padding:0.75rem">
-  <table>
-    <thead>
-      <tr><th>Rule</th><th>Count</th><th>Category</th></tr>
-    </thead>
-    <tbody>
-    {% for row in grouped_summary %}
-      <tr>
-        <td><strong>{{ row.rule_id }}</strong></td>
-        <td>{{ row.count }}</td>
-        <td>{{ row.category }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
-{% if findings %}
-<h2>All findings</h2>
-<div class="card" style="padding:0.75rem">
-  <table>
-    <thead>
-      <tr>
-        <th>Rule</th>
-        <th>Page</th>
-        <th>Severity</th>
-        <th>Category</th>
-        <th>Polished comment</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for f in findings %}
-      <tr>
-        <td><strong>{{ f.rule_id }}</strong></td>
-        <td>{{ f.page if f.page is not none else "—" }}</td>
-        <td>
-          {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
-          {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-          {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
-        </td>
-        <td>{{ f.category }}</td>
-        <td>{{ f.polished_comment }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% else %}
-<div class="card"><p>No findings — all checks passed.</p></div>
-{% endif %}
-
-<h2>Markdown report</h2>
-<div class="card" style="padding:0.75rem">
-  <textarea class="report-box" style="width:100%;height:220px;border:none;background:transparent;resize:vertical;">{{ md_preview }}</textarea>
+<div class="privacy-note">
+  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, confidence, triage tier).
+  No dissertation body text, titles, author names, committee names, or captions are shown.
+  Heuristic findings require manual verification against NJIT guidelines.
 </div>
 
 {% endif %}

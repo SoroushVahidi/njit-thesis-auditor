@@ -206,7 +206,12 @@ def test_status_endpoint_complete_after_audit(client: tuple[TestClient, Any]) ->
 # Results rendering
 # ---------------------------------------------------------------------------
 
-def _inject_complete_job(wa: Any, tmp_path: Path) -> str:
+def _inject_complete_job(
+    wa: Any,
+    tmp_path: Path,
+    *,
+    finding_count: int = 1,
+) -> str:
     """Create a complete job in the job store and on disk."""
     import secrets
     from datetime import datetime, timezone
@@ -220,10 +225,15 @@ def _inject_complete_job(wa: Any, tmp_path: Path) -> str:
         AuditFinding(
             rule_id="P011",
             severity=Severity.WARNING,
-            page=2,
+            page=i + 1,
             message="Left margin too narrow.",
-            details={"issue_type": "margin_boundary_violation"},
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "medium",
+            },
         )
+        for i in range(finding_count)
     ]
     metadata = {"input_file_name": "thesis.pdf", "audit_type": "pdf", "job_id": job_id}
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
@@ -250,6 +260,8 @@ def _inject_complete_job(wa: Any, tmp_path: Path) -> str:
                 "issue_type": fv.issue_type,
                 "category": fv.category,
                 "polished_comment": fv.polished_comment,
+                "triage_tier": fv.triage_tier,
+                "confidence": fv.confidence,
             }
             for fv in view.findings
         ],
@@ -275,6 +287,122 @@ def test_results_page_shows_findings(client: tuple[TestClient, Any], tmp_path: P
     assert resp.status_code == 200
     assert b"P011" in resp.content
     assert b"complete" in resp.content.lower() or b"finding" in resp.content.lower()
+
+
+def test_index_states_privacy_safe_local_processing(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"Privacy-safe processing" in resp.content
+    assert b"processed locally" in resp.content.lower() or b"locally" in resp.content.lower()
+    assert b"not stored permanently" in resp.content.lower()
+
+
+def test_index_states_pdf_support_and_tex_zip_limitations(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"Supported inputs" in resp.content
+    assert b"PDF" in resp.content
+    assert b"TeX source" in resp.content or b"TeX" in resp.content
+    assert b"CLI only" in resp.content
+    assert b"web upload not exposed" in resp.content.lower()
+
+
+def test_index_lists_what_you_get_deliverables(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"What you get" in resp.content
+    assert b"JSON report" in resp.content
+    assert b"Markdown report" in resp.content
+    assert b"Triage summaries" in resp.content
+    assert b"Polished comments" in resp.content
+
+
+def test_results_page_shows_summary_cards(client: tuple[TestClient, Any], tmp_path: Path) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Total findings" in resp.content
+    assert b"Highest severity" in resp.content
+    assert b"Pages affected" in resp.content
+    assert b"Rules flagged" in resp.content
+
+
+def test_results_page_shows_triage_panels(client: tuple[TestClient, Any], tmp_path: Path) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"High-volume triage" in resp.content
+    assert b"Margin" in resp.content or b"P011" in resp.content
+
+
+def test_results_page_renders_polished_comments(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Polished comment" in resp.content
+    assert b"Review needed" in resp.content
+
+
+def test_results_page_has_client_side_filters(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"filter-rule" in resp.content
+    assert b"filter-severity" in resp.content
+    assert b"filter-category" in resp.content
+    assert b"filter-page" in resp.content
+
+
+def test_results_page_shows_privacy_note(client: tuple[TestClient, Any], tmp_path: Path) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Privacy note" in resp.content
+    assert b"body text" in resp.content.lower()
+
+
+def test_results_polished_comments_exclude_private_sample_text(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    forbidden = b"John Smith Dissertation Title"
+    assert forbidden not in resp.content
+
+
+def test_failed_job_shows_safe_error_no_stack_trace(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+    from datetime import datetime, timezone
+
+    job = wa.JobState(
+        job_id="failedjob1",
+        state="failed",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="bad.pdf",
+        error_message="File does not appear to be a valid PDF.",
+    )
+    wa._set_job(job)
+    resp = c.get("/audits/failedjob1")
+    assert resp.status_code == 200
+    assert b"Traceback" not in resp.content
+    assert b"valid PDF" in resp.content or b"could not complete" in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------

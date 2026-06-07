@@ -114,6 +114,64 @@ def _render(
     )
 
 
+def _highest_severity_label(counts: dict[str, int]) -> tuple[str, str]:
+    """Return (severity code, human label) for the highest present severity."""
+    if counts.get("FAIL", 0) > 0:
+        return "FAIL", "Error (FAIL)"
+    if counts.get("WARNING", 0) > 0:
+        return "WARNING", "Warning"
+    if counts.get("PASS", 0) > 0:
+        return "PASS", "Pass"
+    return "NONE", "None"
+
+
+def _job_page_context(job: JobState) -> dict[str, Any]:
+    """Build template context for the job results page."""
+    report_view = job.report_view or {}
+    counts_by_severity = report_view.get("counts_by_severity", {}) or {}
+    highest_sev, highest_label = _highest_severity_label(
+        {str(k): int(v) for k, v in counts_by_severity.items()}
+    )
+    pages = report_view.get("pages", []) or []
+    counts_by_rule = report_view.get("counts_by_rule", {}) or {}
+
+    filter_rules = sorted({str(f.get("rule_id", "")) for f in job.findings if f.get("rule_id")})
+    filter_severities = sorted(
+        {str(f.get("severity", "")) for f in job.findings if f.get("severity")}
+    )
+    filter_categories = sorted(
+        {str(f.get("category", "")) for f in job.findings if f.get("category")}
+    )
+    filter_pages = sorted(
+        {str(f.get("page")) for f in job.findings if f.get("page") is not None},
+        key=lambda x: int(x),
+    )
+
+    return {
+        "job_id": job.job_id,
+        "state": job.state,
+        "created_at": job.created_at,
+        "finished_at": job.finished_at,
+        "file_name": job.file_name,
+        "finding_count": job.finding_count,
+        "warn_count": job.warn_count,
+        "fail_count": job.fail_count,
+        "error_message": job.error_message,
+        "findings": job.findings,
+        "grouped_summary": job.grouped_summary,
+        "report_view": job.report_view,
+        "md_preview": job.md_preview,
+        "highest_severity": highest_sev,
+        "highest_severity_label": highest_label,
+        "pages_affected": len(pages),
+        "rules_flagged": len(counts_by_rule),
+        "filter_rules": filter_rules,
+        "filter_severities": filter_severities,
+        "filter_categories": filter_categories,
+        "filter_pages": filter_pages,
+    }
+
+
 def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
     return _render(
         request,
@@ -191,6 +249,8 @@ def _run_audit_task(job_id: str) -> None:
             "issue_type": fv["issue_type"],
             "category": fv["category"],
             "polished_comment": fv["polished_comment"],
+            "triage_tier": fv.get("triage_tier", ""),
+            "confidence": fv.get("confidence", ""),
         }
         for fv in view_dict.get("findings", [])
     ]
@@ -372,25 +432,7 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
             status_code=404,
         )
 
-    return _render(
-        request,
-        "job.html",
-        {
-            "job_id": job.job_id,
-            "state": job.state,
-            "created_at": job.created_at,
-            "finished_at": job.finished_at,
-            "file_name": job.file_name,
-            "finding_count": job.finding_count,
-            "warn_count": job.warn_count,
-            "fail_count": job.fail_count,
-            "error_message": job.error_message,
-            "findings": job.findings,
-            "grouped_summary": job.grouped_summary,
-            "report_view": job.report_view,
-            "md_preview": job.md_preview,
-        },
-    )
+    return _render(request, "job.html", _job_page_context(job))
 
 
 @app.get("/audits/{job_id}/status")
