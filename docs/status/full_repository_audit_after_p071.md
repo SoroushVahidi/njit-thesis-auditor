@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-08
 - **Branch:** main
-- **Latest commit:** `3c175fe` (PR #257 — post-P071 EF overlap refresh)
+- **Latest commit:** `b2fd6ef` (PR #258 — repository polish after P071 full audit)
 - **Auditor scope:** P001–P071 implemented; **1000 pytest**; ruff clean; mypy 87 source files, no issues
 - **Canonical aggregate:** **1,543** findings (post-P070 / post-P071 unchanged) — `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md`
@@ -15,7 +15,7 @@
 | Check | Result |
 |---|---|
 | Branch | `main` |
-| Latest commit | `3c175fe` |
+| Latest commit | `b2fd6ef` |
 | Local vs `origin/main` | In sync |
 | Working tree | Clean |
 | Untracked notable files | None (generated outputs under `data/evaluation/generated/` are gitignored) |
@@ -159,26 +159,29 @@ From `data/processed/rules/njit_rule_inventory.json` (79 Q-rules):
 
 ## 7. Documentation and Metadata Consistency
 
-### Consistent (post PR #257)
+### Consistent (post PR #258 polish)
 
 - `docs/status/current_project_state_and_next_steps.md` — P071 implemented; EF overlap after P071 linked
 - `docs/evaluation/ef_overlap_after_p071_evaluation.md` — complete
 - `tests/test_rule_inventory.py` — expects 71 P-rules; P069–P071 metadata assertions present
 - `data/processed/evaluation_data_manifest.json` — `p_rules_implemented: P001-P071`, pytest 1000, EF overlap after P071 note
 
-### Stale or inconsistent (cleanup recommended)
+### Stale references resolved (repository polish PR #258)
 
-| Location | Issue |
-|---|---|
-| `data/processed/evaluation_data_manifest.json` | `rule_count: 70` under processed P-rule source (should be **71**) |
-| `data/processed/evaluation_data_manifest.json` | `latest_main_at_last_doc_refresh: 08c1a8d` (should advance to **`3c175fe`** after this audit) |
-| `docs/status/current_project_state_and_next_steps.md` §2 table | Still says **P001–P070 / 70** |
-| `docs/status/data_inventory_and_evaluation_sources.md` header | Still says **P001–P070**, **988 pytest** |
-| `docs/evaluation/current_auditor_after_p070_evaluation.md` | Header says **988 pytest**, **P001–P070** |
-| `docs/planning/p071_references_section_localization_recall_refinement_scope_and_design.md` | Status still says **PR pending** (merged #256) |
-| `src/njit_auditor/audit_runner.py` docstrings | Say **P011–P068** though P064–P068 checks are present; P069–P071 are embedded refinements |
-| `docs/status/source_to_implementation_coverage_after_p029.md` §2 | P001–P068 row count |
-| `README.md` | Does not index `docs/status/full_repository_audit_after_p071.md` |
+The following items were stale at audit time and have been corrected in the polish pass:
+
+- Manifest `latest_main_at_last_doc_refresh` → **`b2fd6ef`**
+- `data_inventory` header → **P001–P071**, **1000 pytest**
+- P071 planning doc status → implemented/merged (PRs #255–#257)
+- `current_auditor_after_p070_evaluation.md` → clarifies historical **988 pytest** vs current **1000**
+- `audit_runner.py` docstrings → current implemented PDF rule set wording
+- README PDF audit sections → current implemented PDF rule set (includes embedded P069–P071 refinements)
+
+### Remaining intentionally historical
+
+- P034-era **1,446**, P061–P067-era **1,587**, P068/P069-era **1,590** aggregate docs
+- P070-era evaluation docs citing **988 pytest** at implementation time
+- `source_to_implementation_coverage_after_p029.md` baseline tables (post-P029 audit snapshot)
 
 No P072 scope doc exists yet (`docs/planning/p072_*` absent).
 
@@ -190,7 +193,7 @@ No P072 scope doc exists yet (`docs/planning/p072_*` absent).
 
 | # | Task | Type | Rationale | Risk | Privacy |
 |---|---|---|---|---|---|
-| 1 | **Metadata/doc stale-field cleanup** | documentation | Fix rule_count 70→71, P001–P071/pytest 1000 references, P071 scope doc status, audit_runner docstrings | Low | None |
+| 1 | **Metadata/doc stale-field cleanup** | documentation | Fix remaining historical doc headers; keep era snapshots clearly labeled | Low | None |
 | 2 | **Optional post-P071 aggregate pointer** | documentation | Add one-line note to `current_auditor_after_p070_evaluation.md` cross-linking P071 eval instead of rerunning full audit | Low | None |
 
 ### Scope needed before implementation
@@ -252,6 +255,9 @@ No P072 scope doc exists yet (`docs/planning/p072_*` absent).
 - Prior full audit (P063 era): `docs/status/full_repository_audit_after_p063.md`
 - Canonical aggregate: `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - EF overlap (latest): `docs/evaluation/ef_overlap_after_p071_evaluation.md`
+- Repository polish (post-audit): completed PR #258 after this audit doc
+
+---
 - P071 localization eval: `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md`
 - Q/P inventories: `data/processed/rules/njit_rule_inventory.json`, `data/processed/rules/project_added_rules.json`
 - Evaluation manifest: `data/processed/evaluation_data_manifest.json`, `docs/status/evaluation_data_manifest.md`

@@ -1,8 +1,10 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `b0ec5e4` (merge PR #253 — P070 current-dataset eval docs; canonical post-P070 aggregate 1,543 findings; see `docs/evaluation/current_auditor_after_p070_evaluation.md`)
-- **Validation:** ruff, mypy, **976 pytest** at the latest docs/status refresh
+- **Generated for commit:** `b2fd6ef` (repository polish after P071 full audit; PR #258)
+- **Latest main:** `b2fd6ef` (PR #258 — full repository audit after P071)
+- **Validation:** ruff, mypy, **1000 pytest** at the latest docs/status refresh
+- **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 (infrastructure-only); no separate `current_auditor_after_p071_evaluation.md`
+- **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; P064 reach 2/2; `references_citations` gap unchanged (9 EF, 0 tool)
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)

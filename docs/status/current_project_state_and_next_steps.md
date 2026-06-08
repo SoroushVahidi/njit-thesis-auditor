@@ -1,8 +1,10 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-08
-- **Latest main:** `3c175fe` (PR #257) — post-P071 EF overlap refresh complete
+- **Latest main:** `b2fd6ef` (PR #258) — full repository audit after P071; repository polish complete
+- **Validation:** P001–P071 implemented; **1000 pytest**; canonical five-PDF aggregate **1,543** (unchanged post-P071)
 - **Full repository audit (P071 era):** `docs/status/full_repository_audit_after_p071.md`
+- **Next before P072 implementation:** scope **P072 approval-page heading-gate recall** (infrastructure companion to P068) unless data acquisition (Sebastian Fine EF side) is prioritized first
 - **P071:** **implemented** — references section localization recall refinement (`pdf_references_citations_structural.py`); infrastructure-only; 12 synthetic tests; five-PDF eval: P064 reach 2/5→5/5; aggregate unchanged at 1,543; **EF overlap refresh complete:** P064 now reaches 2/2 comparison PDFs but `references_citations` gap unchanged (9 EF, 0 tool); see `docs/evaluation/p071_references_section_localization_recall_synthetic_validation.md`, `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md`, and `docs/evaluation/ef_overlap_after_p071_evaluation.md`
 - **P070:** **implemented** — TOC/LoT/LoF entry parser recall refinement (`pdf_toc_alignment.py`); infrastructure-only; 12 synthetic tests; **current-dataset evaluation complete** — all 5 PDFs accessible; parser entries 185→167 (pre-P070 comparator); post-P070 aggregate 1,543; see `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_synthetic_validation.md`, `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md`, and `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **P069:** **implemented** — front-matter heading gate recall refinement (shared infrastructure); see `src/njit_auditor/rules/pdf_frontmatter_heading_gate.py`, `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md`, and `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md`; no standalone issue types; ACKNOWLEDGEMENTS variant recall +4 on five-PDF set; P065–P068 finding totals unchanged on current dataset
@@ -70,7 +72,7 @@
 - Strict coverage audit (historical baseline P029; updates through P036): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
-- **Current full-auditor snapshot (P070-era):** `docs/evaluation/current_auditor_after_p070_evaluation.md` (**1,543** findings across five PDFs; P011–P070; P070 infrastructure-only; −47 vs P069-era; commit `b0ec5e4`)
+- **Current full-auditor snapshot (P070-era, still canonical):** `docs/evaluation/current_auditor_after_p070_evaluation.md` (**1,543** findings across five PDFs; P011–P070 at snapshot time; P071 infra-only with unchanged total; commit `b0ec5e4`)
 - **Prior full-auditor snapshot (P069-era):** `docs/evaluation/current_auditor_after_p069_evaluation.md` (**1,590** findings across five PDFs; P011–P069; P069 infrastructure-only; delta 0 vs P068-era; commit `e045817`)
 - **Full-auditor snapshot (P068-era, historical):** `docs/evaluation/current_auditor_after_p068_evaluation.md` (**1,590** findings; P068 adds 3; commit `5d8ebaf`)
 - **Prior full-auditor snapshot (P067-era):** `docs/evaluation/current_auditor_after_p067_evaluation.md` (**1,587** findings across five PDFs; P011–P067; P067 adds 0; 3/5 files skipped at heading detection and 2/5 reached BIOGRAPHICAL SKETCH without a qualifying Publications boundary; commit `afe4ef6`)
