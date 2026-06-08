@@ -90,6 +90,9 @@ from njit_auditor.rules.pdf_title_consistency import check_pdf_title_consistency
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_appendix_format import check_pdf_toc_appendix_format
 from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
+from njit_auditor.rules.pdf_toc_cross_page_entry_ordering import (
+    check_pdf_toc_cross_page_entry_ordering,
+)
 from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hierarchy
 from njit_auditor.rules.pdf_toc_entry_number_ordering import (
     check_pdf_toc_entry_number_ordering,
@@ -113,7 +116,7 @@ from njit_auditor.upload_handling import (
     validate_upload_path,
 )
 
-# Rule IDs added in P055–P061 (post-P054). Used by parity tests.
+# Rule IDs added in P055–P062 (post-P054). Used by parity tests.
 PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
     "P055",
     "P056",
@@ -122,9 +125,10 @@ PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
     "P059",
     "P060",
     "P061",
+    "P062",
 )
 
-# Callable names for P055–P061 checks in execution order (parity tests).
+# Callable names for P055–P062 checks in execution order (parity tests).
 PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
     "check_pdf_lot_lof_entry_type",
     "check_pdf_lot_lof_number_format",
@@ -133,6 +137,7 @@ PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
     "check_pdf_lot_lof_entry_number_ordering",
     "check_pdf_toc_entry_number_ordering",
     "check_pdf_lot_lof_cross_page_entry_ordering",
+    "check_pdf_toc_cross_page_entry_ordering",
 )
 
 
@@ -230,6 +235,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_lot_lof_entry_number_ordering(pdf_doc))
     findings.extend(check_pdf_toc_entry_number_ordering(pdf_doc))
     findings.extend(check_pdf_lot_lof_cross_page_entry_ordering(pdf_doc))
+    findings.extend(check_pdf_toc_cross_page_entry_ordering(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(path_str))
     return findings
