@@ -237,6 +237,7 @@ More docs:
 - `docs/planning/p064_references_citations_structural_check_scope_and_design.md` — P064 references/citations structural check scope and design (implemented PR #228)
 - `docs/evaluation/p064_references_citations_structural_synthetic_validation.md` — P064 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/current_auditor_after_p064_evaluation.md` — P064 formal current-dataset evaluation and full aggregate snapshot (2026-06-08; 0 P064 findings; post-P064 aggregate 1,587; 3/5 files skipped by conservative gates)
+- `docs/planning/p065_dedication_centering_italic_scope_and_design.md` — P065 scope and design: dedication page centering/italic check (Q033/Q034; scoped 2026-06-08; ready for implementation)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
