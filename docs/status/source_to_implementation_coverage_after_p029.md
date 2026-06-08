@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **61/61 implemented** (`P001`–`P061`) — `main` is at `8930c88` (PR #204 post-P061 status refresh; P061 implemented in PR #202).
+- **P-rule implementation:** **64/64 implemented** (`P001`–`P064`) — `main` is at `769d580` (PR #229 P064 evaluation; P062 implemented PR #220; P063 implemented PR #222; P064 implemented PR #228; post-P064 full aggregate confirmed at 1,587; 910 pytest; see `docs/evaluation/current_auditor_after_p064_evaluation.md`).
 - **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.

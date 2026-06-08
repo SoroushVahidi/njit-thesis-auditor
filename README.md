@@ -213,6 +213,7 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
+- `docs/evaluation/current_auditor_after_p064_evaluation.md` — full PDF audit snapshot at P064 era (P011–P064, five evaluation PDFs; **1,587** findings; P064 adds 0; post-P064 aggregate confirmed)
 - `docs/evaluation/current_auditor_after_p063_evaluation.md` — full PDF audit snapshot at P063 era (P011–P063, five evaluation PDFs; **1,587** findings; P063 adds 0; prior to P064)
 - `docs/evaluation/ef_overlap_after_p063_evaluation.md` — EF comment-vs-tool overlap refresh after P063; Cibaku (78 EF / 325 tool) and Yin Haotian (65 EF / 346 tool); P064 recommendation: references/citations structural check
 - `docs/evaluation/p064_current_dataset_evaluation.md` — P064 five-PDF evaluation (2026-06-08, commit `dd0f022`); all 5 PDFs accessible; 0 P064 findings; 3 of 5 skipped by conservative gates; 2 of 5 reached entry checks and passed
@@ -235,6 +236,7 @@ More docs:
 - `docs/evaluation/current_auditor_after_p063_evaluation.md` — P063 formal current-dataset evaluation (2026-06-07; 0 P063 findings on five-PDF set; no qualifying body-region appendix heading sequence detected)
 - `docs/planning/p064_references_citations_structural_check_scope_and_design.md` — P064 references/citations structural check scope and design (implemented PR #228)
 - `docs/evaluation/p064_references_citations_structural_synthetic_validation.md` — P064 synthetic test coverage, privacy model, and limitations
+- `docs/evaluation/current_auditor_after_p064_evaluation.md` — P064 formal current-dataset evaluation and full aggregate snapshot (2026-06-08; 0 P064 findings; post-P064 aggregate 1,587; 3/5 files skipped by conservative gates)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema

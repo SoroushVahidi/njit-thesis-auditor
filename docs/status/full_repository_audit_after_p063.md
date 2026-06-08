@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064 implemented in PR #228 — see `docs/evaluation/p064_references_citations_structural_synthetic_validation.md`; scope updated to P001–P064; 910 pytest; mypy 82 source files, no issues
+- **Update (2026-06-08):** P064 implemented in PR #228 — see `docs/evaluation/p064_references_citations_structural_synthetic_validation.md`; scope updated to P001–P064; 910 pytest; mypy 82 source files, no issues; P064 current-dataset evaluation completed in PR #229 (0 findings; full five-PDF aggregate confirmed at 1,587); see `docs/evaluation/current_auditor_after_p064_evaluation.md`
 
 ---
 
