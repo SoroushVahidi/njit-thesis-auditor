@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `e045817` (merge PR #249 — P069 implemented; post-P069 five-PDF aggregate confirmed at 1,590 unchanged vs P068-era; see `docs/evaluation/current_auditor_after_p069_evaluation.md`)
+- **Latest main:** `f0d8294` (merge PR #252 — P070 implemented; P070 five-PDF parser-reach eval complete; post-P070 aggregate 1,543 findings; see `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md`)
 - **Validation:** ruff, mypy, **976 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
@@ -138,6 +138,7 @@ files unless explicitly requested.
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - **Current full P001–P069 PDF evaluation (P069-era):** `docs/evaluation/current_auditor_after_p069_evaluation.md` — **1,590** findings (unchanged vs P068-era; P069 infrastructure-only); gitignored outputs under `data/evaluation/generated/current_auditor_after_p069/`
+- **P070 parser-reach evaluation:** `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` — all 5 PDFs accessible; parser entries 185→167; post-P070 aggregate 1,543 (−47 vs P069-era)
 - **P069 gate-reach evaluation:** `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged
 - **Prior full P001–P068 PDF evaluation (P068-era):** `docs/evaluation/current_auditor_after_p068_evaluation.md` — **1,590** findings (P068 adds 3); gitignored outputs under `data/evaluation/generated/current_auditor_after_p068/`
 - **P068 current-dataset evaluation:** `docs/evaluation/p068_current_dataset_evaluation.md` — 3 findings on 2/5 files; 3/5 skipped at APPROVAL PAGE detection gate
