@@ -216,7 +216,12 @@ fixtures and referencing the manual QA checklist.
 
 ---
 
-## 6. Acceptance Criteria (Implemented — PR #218)
+## 6. Acceptance Criteria (Implemented — PR #218; Demo Guide Added — PR #219)
+
+For the end-to-end demo workflow using these fixtures, see
+[`docs/web_ui_demo_guide.md`](../web_ui_demo_guide.md) — it covers install, run commands,
+step-by-step upload flow for all five fixtures, privacy invariant verification, and
+`scripts/web_demo_smoke.sh` (the quick smoke check).
 
 A PR implementing these fixtures is ready to merge when all of the following are true:
 

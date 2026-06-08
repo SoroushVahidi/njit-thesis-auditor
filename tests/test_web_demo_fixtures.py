@@ -470,3 +470,19 @@ def test_issues_tex_web_json_preserves_finding_count(
         f"but findings list has {len(findings)}"
     )
     assert total > 0, "Expected at least one finding from issues_tex.tex"
+
+
+# ---------------------------------------------------------------------------
+# 22. Smoke script existence
+# ---------------------------------------------------------------------------
+
+
+def test_web_demo_smoke_script_exists() -> None:
+    """scripts/web_demo_smoke.sh must exist and be executable."""
+    import stat
+
+    scripts_dir = Path(__file__).parent.parent / "scripts"
+    smoke = scripts_dir / "web_demo_smoke.sh"
+    assert smoke.exists(), f"Missing smoke script: {smoke}"
+    assert smoke.stat().st_size > 0, "Smoke script is empty"
+    assert smoke.stat().st_mode & stat.S_IXUSR, "Smoke script is not executable"
