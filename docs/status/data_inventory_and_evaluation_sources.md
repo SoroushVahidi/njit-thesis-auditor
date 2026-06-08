@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-08 (metadata refresh after P066 evaluation snapshot)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P069 implemented, web UI present on `main` (`e045817` latest code baseline for this status refresh; manifest/eval baseline `00b9c2d`, **976** pytest)
+- Date: 2026-06-08 (metadata refresh after P070 current-dataset evaluation)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P070 implemented, web UI present on `main` (`f0d8294` latest code baseline for this status refresh; manifest/eval baseline `00b9c2d`, **988** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P067** implementation rules.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P070** implementation rules.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -51,7 +51,7 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P069**) — P001–P069 all implemented; P069 is infrastructure-only.
+  Project implementation rule set (**P001-P070**) — P001–P070 all implemented; P069–P070 are infrastructure-only.
 
 From the strict post-P029 audit plus post-audit updates through P062
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
@@ -108,7 +108,7 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 
 ## 10. Recommended next 3 data/evaluation tasks
 
-1. The P069-era full five-PDF aggregate is now available: see `docs/evaluation/current_auditor_after_p069_evaluation.md` (1,590 findings; unchanged vs P068-era; commit `e045817`). The P068 snapshot (`5d8ebaf`), P067 snapshot (`afe4ef6`, 1,587 findings), P066 snapshot (`e5caace`), P065 snapshot (`b233f3b`), P061 snapshot (`ffea4e3`), and P034 snapshot (1,446 findings, `00b9c2d`) remain historical baselines.
-2. Improve LoT/LoF entry extraction recall for P059/P060/P061/P062 ordering checks; formal P062 eval found no qualifying cross-page TOC numeric sequence on this dataset.
+1. The P070-era five-PDF parser-reach evaluation is complete: see `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` (post-P070 aggregate 1,543 findings; −47 vs P069-era 1,590). The P069 snapshot (`e045817`, 1,590 findings), P068 snapshot (`5d8ebaf`), and earlier aggregates remain historical baselines.
+2. P061/P062 ordering checks remain 0 on this dataset despite LoF page detection on Yin H 4th; cross-page comparable sequences still not found.
 3. EF-overlap after P068 complete on two extractable-comment PDFs: see `docs/evaluation/ef_overlap_after_p068_evaluation.md` (P064–P068 unchanged overlap; next: P069 heading-gate recall). Expand comparison set only with additional extractable-comment PDFs; keep generated raw outputs gitignored. See also `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`.
 4. Keep using `data/evaluation/generated/current_auditor_after_p034_p011_triage/` as the canonical local triage-output path for P011/P012/P013/P026 rollup reports; treat older `current_auditor_after_p034*` folders as historical.
