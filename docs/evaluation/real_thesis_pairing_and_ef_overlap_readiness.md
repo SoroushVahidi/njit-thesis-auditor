@@ -310,10 +310,9 @@ python scripts/evaluate_current_ef_comment_overlap.py
 
 ### Immediate
 
-1. **Refresh EF overlap after P068** — Re-run page/category overlap on the two extractable-comment
-   PDFs using the P068-era audit snapshot (`current_auditor_after_p068/`). Produce
-   `docs/evaluation/ef_overlap_after_p068_evaluation.md` to measure P064–P068 impact on
-   `references_citations` and `committee_approval_page` categories.
+1. **EF overlap after P068 complete** — See `docs/evaluation/ef_overlap_after_p068_evaluation.md`.
+   P064–P068 added 0 findings on the two extractable-comment PDFs; `references_citations` and
+   `committee_approval_page` gaps unchanged. Next overlap refresh after P069 implementation.
 
 2. **Implement P069 heading gate recall** — Scoped infrastructure refinement to reduce repeated
    P065–P068 skip pattern; see
@@ -351,6 +350,7 @@ python scripts/evaluate_current_ef_comment_overlap.py
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - EF comment-vs-tool comparison (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap after P063: `docs/evaluation/ef_overlap_after_p063_evaluation.md`
+- EF overlap after P068: `docs/evaluation/ef_overlap_after_p068_evaluation.md`
 - P068-era full five-PDF snapshot: `docs/evaluation/current_auditor_after_p068_evaluation.md`
 - EF overlap round 1 refinement: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`
 - EF overlap round 2 refinement: `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`

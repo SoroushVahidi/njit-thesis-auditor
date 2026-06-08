@@ -84,6 +84,7 @@
 - **P013 triage refresh (historical):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — superseded by canonical path above for full reports
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - **Real-thesis pairing and EF overlap readiness (P068-era refresh):** `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — data inventory, raw/commented pair table, extractability table, overlap-readiness table, recommended evaluation cadence, next actions (refreshed 2026-06-08 after P068 aggregate)
+- **EF overlap after P068 (comparison PDFs):** `docs/evaluation/ef_overlap_after_p068_evaluation.md` — page/category overlap refresh on 2 extractable-comment PDFs; P064–P068 added 0 findings on comparison set; `references_citations` and `committee_approval_page` gaps unchanged; reinforces P069 heading-gate recall scope
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
 - EF-overlap refinement evaluation: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`
