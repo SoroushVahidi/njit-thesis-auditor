@@ -8,8 +8,8 @@
 | **Rule name** | References Section Localization Recall Refinement |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `12f01b3` (PR #254 — post-P070 canonical aggregate snapshot) |
-| **Status** | **Scoped only — not implemented** |
-| **Validation baseline** | 988 pytest (`ruff check .`, `mypy src`, 87 source files) |
+| **Status** | **Implemented** (PR pending — branch `rules/p071-references-section-localization-recall`) |
+| **Validation baseline** | 1000 pytest (`ruff check .`, `mypy src`, 87 source files) |
 | **Type** | **Shared infrastructure / localization recall refinement** (not a new semantic checker) |
 | **Companion module** | `src/njit_auditor/rules/pdf_references_citations_structural.py` (P064) |
 | **Expected issue types in v1** | **None new** — P064 issue types only when checks reach the section |
@@ -357,6 +357,23 @@ P071 v1 is sufficiently specified to open an implementation PR on branch
 
 **Do not implement P072** in the same PR. Committee approval v2 and further TOC parser work
 remain separate tracks.
+
+---
+
+## 12. Implementation note (2026-06-08)
+
+P071 v1 implemented in `pdf_references_citations_structural.py`:
+
+1. `_matches_chapter_appendix_heading()` — collapsed `CHAPTER1` / `APPENDIXA` tolerance.
+2. `_localize_references_heading()` — forward scan plus tail fallback (min 20 pages, window min(30, 25%)).
+3. `_TOC_LEADER_RE` rejection in `_is_references_heading()`.
+4. `_cluster_lines_by_x0()` / `_dominant_entry_cluster()` — cluster-based x-variance for skip gate only.
+5. `check_pdf_references_citations_structural()` — allows tail path when `body_start` is None on long docs.
+
+**Synthetic validation:** `docs/evaluation/p071_references_section_localization_recall_synthetic_validation.md` (12 tests).
+
+**Current-dataset evaluation:** `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` —
+P064 reach improved from 2/5 to 5/5 files; aggregate unchanged at 1,543 findings.
 
 ---
 

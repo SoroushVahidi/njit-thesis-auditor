@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **70/70 implemented** (`P001`–`P070`); **P071 scoped** (references section localization recall — infrastructure). Post-P070 aggregate is **1,543** (−47 vs P069-era 1,590); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Next: `docs/planning/p071_references_section_localization_recall_refinement_scope_and_design.md`.
+- **P-rule implementation:** **71/71 implemented** (`P001`–`P071`); **P071 implemented** (references section localization recall — infrastructure companion to P064). Post-P070 aggregate remains **1,543**; P071 improves P064 reach 2/5→5/5 on five-PDF set without changing aggregate; see `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md`.
 - **Q-rule coverage (current inventory):** **79** total = **2** `implemented`, **60** `partially_implemented`, **17** `not_implemented` (9 manual-only, 8 automatable gaps after P065–P067 inventory refresh).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 12 automatable not_implemented = 21 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.

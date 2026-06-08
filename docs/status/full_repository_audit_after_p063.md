@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064–P070 implemented; P071 scoped (references section localization recall — infrastructure companion to P064); **988 pytest**; canonical post-P070 aggregate **1,543** findings; see `docs/planning/p071_references_section_localization_recall_refinement_scope_and_design.md` and `docs/evaluation/current_auditor_after_p070_evaluation.md`
+- **Update (2026-06-08):** P064–P071 implemented; P071 references section localization recall (infrastructure companion to P064); **1000 pytest**; canonical post-P070 aggregate **1,543** findings; P071 five-PDF eval: P064 reach 5/5; see `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md`
 
 ---
 
