@@ -215,6 +215,7 @@ More docs:
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
 - `docs/evaluation/current_auditor_after_p063_evaluation.md` — full PDF audit snapshot at P063 era (P011–P063, five evaluation PDFs; **1,587** findings; P063 adds 0; prior to P064)
 - `docs/evaluation/ef_overlap_after_p063_evaluation.md` — EF comment-vs-tool overlap refresh after P063; Cibaku (78 EF / 325 tool) and Yin Haotian (65 EF / 346 tool); P064 recommendation: references/citations structural check
+- `docs/evaluation/p064_current_dataset_evaluation.md` — P064 five-PDF evaluation (2026-06-08, commit `dd0f022`); all 5 PDFs accessible; 0 P064 findings; 3 of 5 skipped by conservative gates; 2 of 5 reached entry checks and passed
 - `docs/evaluation/current_auditor_after_p062_evaluation.md` — prior full PDF audit snapshot (P011–P062, five evaluation PDFs; **1,587** findings; P062 adds 0)
 - `docs/evaluation/current_auditor_after_p061_evaluation.md` — historical full PDF audit snapshot (P011–P061, five evaluation PDFs; **1,587** findings; historical)
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — historical pre-P035 full PDF audit snapshot (P011–P034; **1,446** findings)
