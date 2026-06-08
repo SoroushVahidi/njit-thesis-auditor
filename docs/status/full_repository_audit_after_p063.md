@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064 implemented in PR #228; P065 implemented in PR #232 (dedication centering/italic; Q033/Q034; 0 P065 findings; all skipped by detection gate); P066 implemented in PR #236 (bio-sketch degree ordering; Q025; year-ordering heuristic); PR #237 committed the full post-P066 aggregate snapshot; next scoped candidate is P067 Bio Sketch publication/presentation reverse chronology (`Q027`) in `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md`; local web-demo ZIP extraction artifacts are now gitignored
+- **Update (2026-06-08):** P064 implemented in PR #228; P065 implemented in PR #232 (dedication centering/italic; Q033/Q034; 0 P065 findings; all skipped by detection gate); P066 implemented in PR #236 (bio-sketch degree ordering; Q025; year-ordering heuristic); PR #237 committed the full post-P066 aggregate snapshot; P067 is now implemented as the Bio Sketch publication/presentation reverse-chronology heuristic for Q027 (`src/njit_auditor/rules/pdf_biosketch_publication_ordering.py`); current-dataset P067 evaluation records 0 findings with 3/5 files skipped at heading detection and 0/5 reaching a qualifying Publications boundary; local web-demo ZIP extraction artifacts are now gitignored
 
 ---
 
@@ -126,7 +126,7 @@ Source: `njit_rule_inventory.json` (79 entries, Q001–Q079), validated by `test
 | Q-rule | Topic | Gap |
 |---|---|---|
 | Q023–Q025 | Bio Sketch degree chronology | Content-level ordering; partially addressed by P045/P047 for layout |
-| Q027, Q030 | Bio Sketch publication ordering/citation style | Manual/heuristic; citation style detection not automated |
+| Q027, Q030 | Bio Sketch publication ordering/citation style | Q027 now partially covered by P067; Q030 citation style remains manual/heuristic |
 | Q033–Q034 | Dedication centering and italic | Visual layout requiring image analysis or font-style extraction |
 | Q037–Q043 | Acknowledgements paragraph intent | Semantic; requires NLP-level interpretation |
 | Q015–Q020 | Approval page committee order/rank | Semantic; requires knowledge of institutional roles |
