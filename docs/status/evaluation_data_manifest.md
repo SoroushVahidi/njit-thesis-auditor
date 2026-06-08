@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `71b3823` (PR #223 — P063: body-page appendix heading label check; P001–P063 implemented)
+- **Latest main:** `f170be5` (PR #224 — P063 evaluation snapshot; P001–P063 implemented; five-PDF aggregate run complete)
 - **Validation:** ruff, mypy, **889 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
@@ -56,7 +56,7 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
 | `data/processed/rules/project_added_rules.json` | P | 63 (P001–P063) | Yes |
 
-P001–P063 are implemented; P062 formal current-dataset evaluation complete (0 findings on five-PDF local subset; no qualifying cross-page TOC numeric sequence detected); P063 current-dataset audit not run (only 4/5 evaluation PDFs directly accessible); full Q-rule / guideline source coverage is not complete
+P001–P063 are implemented; P063 formal current-dataset evaluation complete (0 findings on five-PDF set; no qualifying body-region appendix heading sequence detected; does not prove appendix compliance); see `docs/evaluation/current_auditor_after_p063_evaluation.md`. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---

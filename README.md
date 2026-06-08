@@ -212,8 +212,9 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
-- `docs/evaluation/current_auditor_after_p062_evaluation.md` — current full PDF audit snapshot (P011–P062, five evaluation PDFs; **1,587** findings; P062 adds 0)
-- `docs/evaluation/current_auditor_after_p061_evaluation.md` — prior full PDF audit snapshot (P011–P061, five evaluation PDFs; **1,587** findings; historical)
+- `docs/evaluation/current_auditor_after_p063_evaluation.md` — current full PDF audit snapshot (P011–P063, five evaluation PDFs; **1,587** findings; P063 adds 0)
+- `docs/evaluation/current_auditor_after_p062_evaluation.md` — prior full PDF audit snapshot (P011–P062, five evaluation PDFs; **1,587** findings; P062 adds 0)
+- `docs/evaluation/current_auditor_after_p061_evaluation.md` — historical full PDF audit snapshot (P011–P061, five evaluation PDFs; **1,587** findings; historical)
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — historical pre-P035 full PDF audit snapshot (P011–P034; **1,446** findings)
 - `docs/evaluation/p035_current_dataset_evaluation.md` — P035 local four-PDF subset (not a new canonical aggregate)
 - `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with P011/P012/P013/P026 triage rollups (`current_auditor_after_p034_p011_triage/`; older `current_auditor_after_p034*` folders are historical/superseded)
@@ -227,7 +228,8 @@ More docs:
 - `docs/planning/p061_scope_and_design.md` — P061 LoT/LoF cross-page entry-number ordering design
 - `docs/evaluation/p061_current_dataset_evaluation.md` — P061 formal current-dataset evaluation (PR #204; 0 findings on five-PDF local subset; sparse comparable entries)
 - `docs/planning/p062_scope_and_design.md` — P062 TOC cross-page section-number ordering design
-- `docs/evaluation/current_auditor_after_p062_evaluation.md` — P062 formal current-dataset evaluation (2026-06-07; 0 P062 findings on five-PDF set; no qualifying cross-page TOC sequence detected)
+- `docs/planning/p063_scope_and_design.md` — P063 body-page appendix heading label check design
+- `docs/evaluation/current_auditor_after_p063_evaluation.md` — P063 formal current-dataset evaluation (2026-06-07; 0 P063 findings on five-PDF set; no qualifying body-region appendix heading sequence detected)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
