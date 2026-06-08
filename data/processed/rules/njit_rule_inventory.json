@@ -483,16 +483,14 @@
     "remediation": "Reorder \u201cPublications and Presentations\u201d entries from most recent to oldest.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
-    "phase": "mixed",
+    "implementation_status": "partially_implemented",
+    "phase": "pdf_layout",
     "checkability": "heuristic",
     "input_required": [
-      "tex_source",
-      "human_metadata",
-      "template_reference"
+      "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Partial conservative PDF heuristic: Bio Sketch publication/presentation reverse-chronology check via grouped entry year ordering only (pdf_biosketch_publication_ordering.py). Skips ambiguous multi-year citations, image-only pages, missing BIOGRAPHICAL SKETCH heading, and missing Publications/Presentations boundary. Does not validate citation style, titles, venues, authorship, DOI/URL content, or semantic publication correctness."
   },
   {
     "id": "Q028",

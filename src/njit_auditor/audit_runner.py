@@ -38,6 +38,9 @@ from njit_auditor.rules.pdf_biosketch_degree_ordering import (
 from njit_auditor.rules.pdf_biosketch_publication_layout import (
     check_pdf_biosketch_publication_layout,
 )
+from njit_auditor.rules.pdf_biosketch_publication_ordering import (
+    check_pdf_biosketch_publication_ordering,
+)
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import (
@@ -126,7 +129,7 @@ from njit_auditor.upload_handling import (
     validate_upload_path,
 )
 
-# Rule IDs added in P055–P066 (post-P054). Used by parity tests.
+# Rule IDs added in P055–P067 (post-P054). Used by parity tests.
 PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
     "P055",
     "P056",
@@ -140,9 +143,10 @@ PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
     "P064",
     "P065",
     "P066",
+    "P067",
 )
 
-# Callable names for P055–P066 checks in execution order (parity tests).
+# Callable names for P055–P067 checks in execution order (parity tests).
 PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
     "check_pdf_lot_lof_entry_type",
     "check_pdf_lot_lof_number_format",
@@ -156,6 +160,7 @@ PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
     "check_pdf_references_citations_structural",
     "check_pdf_dedication_centering_italic",
     "check_pdf_biosketch_degree_ordering",
+    "check_pdf_biosketch_publication_ordering",
 )
 
 
@@ -198,7 +203,7 @@ def collect_tex_findings(
 def collect_pdf_layout_findings(
     pdf_doc: PdfDocument, pdf_path: str | Path
 ) -> list[AuditFinding]:
-    """Run the full P011–P066 PDF layout audit on a loaded document.
+    """Run the full P011–P067 PDF layout audit on a loaded document.
 
     This is the canonical rule sequence shared by the CLI and web UI.
     """
@@ -258,13 +263,14 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_references_citations_structural(pdf_doc))
     findings.extend(check_pdf_dedication_centering_italic(pdf_doc))
     findings.extend(check_pdf_biosketch_degree_ordering(pdf_doc))
+    findings.extend(check_pdf_biosketch_publication_ordering(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(path_str))
     return findings
 
 
 def run_pdf_audit_full(pdf_path: str | Path) -> list[AuditFinding]:
-    """Run all P011–P066 PDF audit checks and return findings.
+    """Run all P011–P067 PDF audit checks and return findings.
 
     Raises AuditError if the file cannot be opened or is not a valid PDF.
     """
@@ -353,7 +359,7 @@ def run_audit_for_uploaded_file(
 
 
 def iter_pdf_audit_post_p054_callables() -> list[tuple[str, Callable[..., Any]]]:
-    """Return P055–P061 rule callables in audit execution order (for tests)."""
+    """Return P055–P067 rule callables in audit execution order (for tests)."""
     import njit_auditor.audit_runner as mod
 
     return [(name, getattr(mod, name)) for name in PDF_AUDIT_POST_P054_CALLABLE_NAMES]

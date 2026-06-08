@@ -35,11 +35,13 @@ def test_post_p054_rule_ids_include_p062() -> None:
     assert "P064" in PDF_AUDIT_POST_P054_RULE_IDS
     assert "P065" in PDF_AUDIT_POST_P054_RULE_IDS
     assert "P066" in PDF_AUDIT_POST_P054_RULE_IDS
+    assert "P067" in PDF_AUDIT_POST_P054_RULE_IDS
     assert "check_pdf_toc_cross_page_entry_ordering" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
     assert "check_pdf_appendix_body_headings" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
     assert "check_pdf_references_citations_structural" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
     assert "check_pdf_dedication_centering_italic" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
-    assert PDF_AUDIT_POST_P054_CALLABLE_NAMES[-1] == "check_pdf_biosketch_degree_ordering"
+    assert "check_pdf_biosketch_degree_ordering" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
+    assert PDF_AUDIT_POST_P054_CALLABLE_NAMES[-1] == "check_pdf_biosketch_publication_ordering"
 
 
 def test_run_pdf_audit_full_calls_post_p054_rules(tmp_path: Path) -> None:

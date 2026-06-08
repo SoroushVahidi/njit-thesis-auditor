@@ -3,8 +3,17 @@
 - **P-rule:** P067
 - **Date:** 2026-06-08
 - **Baseline commit:** `100cac7`
-- **Status:** Scoped only, not implemented
+- **Status:** Implemented after scope approval; see `src/njit_auditor/rules/pdf_biosketch_publication_ordering.py`
 - **Validation baseline:** 937 pytest, `ruff check .`, `mypy src`
+
+## Implementation Note
+
+This scope was implemented as `src/njit_auditor/rules/pdf_biosketch_publication_ordering.py`
+with issue type `biosketch_publication_order_suspicious`. The implementation stayed within
+the scoped v1 boundaries: unique Bio Sketch page detection, explicit Publications/
+Presentations subsection gating, grouped citation-like entry blocks, representative year-only
+ordering checks, and privacy-safe findings. Current-dataset evaluation is documented in
+`docs/evaluation/p067_current_dataset_evaluation.md`.
 
 ## 1. Motivation
 

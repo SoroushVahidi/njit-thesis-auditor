@@ -1268,5 +1268,30 @@
     "remediation": "Reorder postgraduate degree entries in the Biographical Sketch from most recent to oldest. Q023 (no birthplace/date) and Q024 (no work experience) require manual review.",
     "source_file": "project_added",
     "notes": "Conservative v1 PDF heuristic for Q025 (degree ordering) only. Q023 (no birthplace/date of birth) and Q024 (no work experience) are manual-only — require NLP and content reading; high privacy risk. Q025 'NJIT first' sub-requirement deferred — requires institution name recognition. False-positive risk: year tokens from narrative prose mitigated by line-length threshold (_MAX_DEGREE_LINE_CHARS=120), one-year-per-line gate, and 3-candidate minimum. If bio-sketch page is image-rendered, P066 returns 0 findings (expected). Companion to P045 (Q028/Q029) and P047 (Q026)."
+  },
+  {
+    "id": "P067",
+    "title": "Biographical Sketch publication/presentation ordering check",
+    "description": "Heuristic PDF check for Q027: publication/presentation entries in the Biographical Sketch must be listed from most recent to oldest. Detects a unique BIOGRAPHICAL SKETCH page, requires a clear Publications/Presentations subsection boundary, groups citation-like entry blocks, extracts only representative 4-digit year metadata (1960-2029), and checks whether comparable entries are in non-increasing order. Emits biosketch_publication_order_suspicious when a later-listed entry year is greater than an earlier-listed year by more than 1 year among >= 3 comparable entries. Titles, venues, author names, DOI/URL strings, and citation text are out of scope and never exposed.",
+    "section": "Biographical Sketch",
+    "question": "Are publication/presentation entries listed from most recent to oldest?",
+    "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page; (2) locate a clear Publications/Presentations subsection heading; (3) group citation-like entry blocks using Bio Sketch publication-layout geometry; (4) keep only entries with exactly one unique representative 4-digit year token (1960-2029); (5) skip ambiguous multi-year entries and sparse/flattened zones; (6) emit biosketch_publication_order_suspicious if any adjacent comparable pair has a later-listed year > earlier-listed year + 1. Findings contain counts and year integers only — no citation text, titles, names, venues, DOI strings, URLs, or bio-sketch prose.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_biosketch_publication_ordering",
+    "source_q_rule_ids": [
+      "Q027"
+    ],
+    "source_files": [
+      "data/processed/rules/njit_rule_inventory.json",
+      "data/raw/guidelines/260330_YESNO_audit_logic_matrix.xlsx"
+    ],
+    "issue_types": [
+      "biosketch_publication_order_suspicious"
+    ],
+    "remediation": "Reorder publication/presentation entries in the Biographical Sketch from most recent to oldest. Manual review is still required for citation style, authorship, title correctness, venue correctness, and ambiguous multi-year entries.",
+    "source_file": "project_added",
+    "notes": "Conservative v1 PDF heuristic for Q027 only. Requires a unique BIOGRAPHICAL SKETCH heading and a clear Publications/Presentations subsection heading on the same page. Skips image-only pages, ambiguous multiple headings, suspected multi-column layouts, DOI/URL-heavy entries, ambiguous multi-year citations, and zones with fewer than 3 comparable entries. Companion to P045 (publication layout), P047 (bullet spacing), and P066 (education ordering)."
   }
 ]
