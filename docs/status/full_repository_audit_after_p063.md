@@ -419,7 +419,9 @@ None at this time. All validation passes (ruff, mypy, pytest).
 - Evaluation data manifest (human): `docs/status/evaluation_data_manifest.md`
 - Evaluation data manifest (machine): `data/processed/evaluation_data_manifest.json`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
-- Latest full evaluation snapshot (P062-era): `docs/evaluation/current_auditor_after_p062_evaluation.md`
+- Latest full evaluation snapshot (P063-era): `docs/evaluation/current_auditor_after_p063_evaluation.md`
+- **EF overlap after P063 (refreshed):** `docs/evaluation/ef_overlap_after_p063_evaluation.md`
 - EF overlap readiness: `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`
+- Prior EF overlap (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - Web UI docs: `docs/web_gui_mvp.md`, `docs/web_ui_manual_qa_checklist.md`, `docs/web_ui_demo_guide.md`
 - P063 design: `docs/planning/p063_scope_and_design.md`
