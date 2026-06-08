@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **68/68 implemented** (`P001`–`P068`) — P068 adds approval page committee/signature-block structural checks; post-P068 aggregate is **1,590** (+3 vs P067-era).
+- **P-rule implementation:** **69/69 implemented** (`P001`–`P069`) — P069 is infrastructure-only (heading gate recall); post-P069 aggregate is **1,590** (unchanged vs P068-era).
 - **Q-rule coverage (current inventory):** **79** total = **2** `implemented`, **60** `partially_implemented`, **17** `not_implemented` (9 manual-only, 8 automatable gaps after P065–P067 inventory refresh).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 12 automatable not_implemented = 21 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -195,7 +195,7 @@ Rules that should remain manual-only or process-only for now:
 Top 3 next tasks:
 
 1. **P069 implemented** — front-matter heading gate recall refinement; see `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` and current-dataset eval doc.
-2. Maintain the full five-PDF **P001–P068** aggregate snapshot and re-run it only when detector behavior changes.
+2. Maintain the full five-PDF **P001–P069** aggregate snapshot (`docs/evaluation/current_auditor_after_p069_evaluation.md`) and re-run only when detector behavior changes.
 3. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
 
 ## 8. Post-audit update (P030)
