@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `b233f3b` (PR #233 — P065 current-dataset evaluation complete; P001–P065 implemented; post-P065 five-PDF aggregate confirmed at 1,587; see `docs/evaluation/current_auditor_after_p065_evaluation.md`)
-- **Validation:** ruff, mypy, **925 pytest** at the latest docs/status refresh
+- **Latest main:** `e5caace` (merge PR #236 — P066 implemented; P001–P066 implemented; post-P066 five-PDF aggregate confirmed at 1,587; see `docs/evaluation/current_auditor_after_p066_evaluation.md`)
+- **Validation:** ruff, mypy, **937 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 63 (P001–P063) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 66 (P001–P066) | Yes |
 
-P001–P063 are implemented; P063 formal current-dataset evaluation complete (0 findings on five-PDF set; no qualifying body-region appendix heading sequence detected; does not prove appendix compliance); see `docs/evaluation/current_auditor_after_p063_evaluation.md`. Full Q-rule / guideline source coverage is not complete
+P001–P066 are implemented; P066 formal current-dataset evaluation complete (0 findings on five-PDF set; 3/5 files skipped at BIOGRAPHICAL SKETCH detection; 2/5 files reached year-ordering checks and passed) and the full post-P066 aggregate remains unchanged at 1,587 findings; see `docs/evaluation/p066_current_dataset_evaluation.md` and `docs/evaluation/current_auditor_after_p066_evaluation.md`. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -137,7 +137,9 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Current full P001–P062 PDF evaluation (P062-era):** `docs/evaluation/current_auditor_after_p062_evaluation.md` — **1,587** findings (P062 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p062/`
+- **Current full P001–P066 PDF evaluation (P066-era):** `docs/evaluation/current_auditor_after_p066_evaluation.md` — **1,587** findings (P066 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p066/`
+- **P065-era PDF evaluation (prior full snapshot):** `docs/evaluation/current_auditor_after_p065_evaluation.md` — **1,587** findings; gitignored outputs under `data/evaluation/generated/current_auditor_after_p065/`
+- **P062-era PDF evaluation (historical full snapshot):** `docs/evaluation/current_auditor_after_p062_evaluation.md` — **1,587** findings (P062 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p062/`
 - **P061-era PDF evaluation (prior full snapshot):** `docs/evaluation/current_auditor_after_p061_evaluation.md` — **1,587** findings; gitignored outputs under `data/evaluation/generated/current_auditor_after_p061/`
 - **Historical full P001–P034 PDF evaluation (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md`
 - **P035 current-dataset subset (local 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md`

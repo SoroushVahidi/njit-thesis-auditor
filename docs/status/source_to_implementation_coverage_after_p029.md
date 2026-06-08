@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **65/65 implemented** (`P001`–`P065`) — `main` is at `b233f3b` (PR #233 P065 evaluation; P065 implemented PR #232; post-P065 full aggregate confirmed at 1,587; 925 pytest; see `docs/evaluation/current_auditor_after_p065_evaluation.md`).
+- **P-rule implementation:** **66/66 implemented** (`P001`–`P066`) — `main` is at `e5caace` (merge PR #236; post-P066 full aggregate confirmed at 1,587; 937 pytest; see `docs/evaluation/current_auditor_after_p066_evaluation.md`).
 - **Q-rule coverage (updated inventory, post-P044 audit):** **79** total = **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 17 automatable not_implemented = 26 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -15,14 +15,14 @@
 - **Biggest remaining gaps:**
   1. Approval/Acknowledgements/Biographical semantic checks (committee rank/order, required paragraph intent/content).
   2. Dedication/Biographical visual-semantic checks and richer figure/table body detection on image-heavy PDFs.
-  3. A refreshed full five-PDF P001–P061 evaluation is still blocked by dataset accessibility; `00b9c2d` remains the canonical aggregate baseline.
+  3. A reproducible full five-PDF P001–P066 evaluation now exists; `00b9c2d` remains the historical pre-P035 baseline and `e5caace` is the current post-P066 aggregate snapshot.
 
 ## 2. Source file coverage table
 
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage updated after P044 audit: 2 implemented, 51 partial, 26 not fully implemented. |
-| `data/processed/rules/project_added_rules.json` | P001–P061 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | 61 implemented | P001–P061 implemented and wired in CLI/testing/docs. |
+| `data/processed/rules/project_added_rules.json` | P001–P066 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | 66 implemented | P001–P066 implemented and wired in CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
 | `data/raw/guidelines/Self-Self Assessment Sheet.pdf` | Checklist-style visual formatting expectations | `P011`, `P015`, `P016`, `P017`, `P026`, `P028` | partially implemented | Core layout signals covered heuristically; checklist semantics and some visual specifics remain unimplemented. |
@@ -160,7 +160,7 @@
 |---|---|---|
 | LoT/LoF cross-page entry ordering (`Q063`, `Q072` extension) | **Implemented as P061** — see `docs/planning/p061_scope_and_design.md` and `docs/evaluation/p061_current_dataset_evaluation.md` | Medium (cross-page grouping and sparse-page gating) |
 | Figure/table body detection on image-heavy PDFs | Extend P035 beyond text-layer bodies, likely via image-block extraction in `pdf_layout.py` | High (image geometry reliability and false positives) |
-| Canonical five-PDF aggregate refresh | Re-run full P001–P061 evaluation only when all five evaluation PDFs are directly accessible | Low implementation risk; blocked by data access |
+| Canonical five-PDF aggregate refresh | Maintain the committed P001–P066 aggregate snapshot and re-run only when audit behavior changes | Low implementation risk; current aggregate is already reproducible |
 
 ### Medium priority
 
@@ -194,9 +194,9 @@ Rules that should remain manual-only or process-only for now:
 
 Top 3 next tasks:
 
-1. Rerun full five-PDF **P001–P061** canonical aggregate when evaluation workflow permits (P061 local subset: 0 findings).
+1. Maintain the full five-PDF **P001–P066** aggregate snapshot and re-run it only when detector behavior changes.
 2. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
-3. Keep reporting/evaluation canonical by preserving `00b9c2d` until a full five-PDF P001–P061 rerun is reproducible.
+3. Keep reporting/evaluation canonical by preserving `00b9c2d` as the historical pre-P035 baseline and `e5caace` as the current post-P066 full aggregate snapshot.
 
 ## 8. Post-audit update (P030)
 
@@ -266,7 +266,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P044 (consolidated current state)
 
-**Current repository (main `8930c88`; five-PDF eval baseline `00b9c2d`):** P001–P061 implemented; web UI present; **744** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). P061 formal local subset: **0** findings; most P036–P060 per-rule current-dataset audits not run.
+**Current repository (main `e5caace`; five-PDF historical baseline `00b9c2d`):** P001–P066 implemented; web UI present; **937** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on the pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). The current full aggregate snapshot is `docs/evaluation/current_auditor_after_p066_evaluation.md` at **1,587** findings with **0** P066 findings.
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|
