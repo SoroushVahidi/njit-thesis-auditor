@@ -1321,5 +1321,50 @@
     "remediation": "Ensure the Approval Page includes an advisor-role label and sufficient date/signature structural blocks for each committee entry. Manual review is still required for honorifics, rank order, NJIT/external ordering, institution completeness, and signature authenticity.",
     "source_file": "project_added",
     "notes": "Conservative v1 PDF heuristic. Skips when no unique APPROVAL PAGE heading is detected, the page is image-only, body lines are sparse/noisy, or fewer than 2 role-label phrases are found. Does not duplicate P014 (heading style), P025 (sparse body line count), P038 (heading phrase presence), or P022 (no page number). Q015-Q020 remain manual-only."
+  },
+  {
+    "id": "P069",
+    "title": "Front-Matter Heading Gate Recall Refinement",
+    "description": "Shared PDF text-layer infrastructure that improves canonical front-matter heading resolution for dependent rule gates. Adds curated variant mapping, continued-list-heading suffix normalization, trailing-punctuation tolerance, and standalone-line gates. Wired into P041, P044-P047, P065-P068, and TOC/list page detection. No standalone findings in v1.",
+    "section": "Front Matter",
+    "question": "Can dependent front-matter rules reliably localize canonical section headings when tolerated variants or continued list headings appear in the text layer?",
+    "rule_definition": "Infrastructure refinement only: (1) resolve candidate lines on front-matter/ambiguous pages through exact, curated-variant, continued-suffix, or punctuation-stripped matches; (2) reject long prose and sentence-like lines; (3) expose gate matches to dependent consumers without exporting raw heading text from real PDFs.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_heading_gate",
+    "rule_type": "infrastructure_refinement",
+    "source_q_rule_ids": [
+      "Q013",
+      "Q021",
+      "Q031",
+      "Q032",
+      "Q035",
+      "Q036",
+      "Q047",
+      "Q061",
+      "Q070"
+    ],
+    "source_files": [
+      "data/processed/rules/njit_rule_inventory.json",
+      "docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md",
+      "src/njit_auditor/rules/pdf_frontmatter_headings.py",
+      "src/njit_auditor/rules/pdf_toc_alignment.py"
+    ],
+    "issue_types": [],
+    "affected_rules": [
+      "P041",
+      "P044",
+      "P045",
+      "P046",
+      "P047",
+      "P065",
+      "P066",
+      "P067",
+      "P068"
+    ],
+    "remediation": "No direct remediation — improved gate recall allows dependent rules to run when front-matter sections use tolerated heading variants. Manual review remains required for semantics, image-only headings, and guideline compliance.",
+    "source_file": "project_added",
+    "notes": "Infrastructure-only v1. No OCR, no fuzzy typo matching, no standalone findings. P014 style checks remain strict. Image-only headings remain undetectable. LoT/LoF entry parsing is a separate follow-up track."
   }
 ]

@@ -24,6 +24,10 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage
+from njit_auditor.rules.pdf_frontmatter_heading_gate import (
+    line_resolves_to_gate_heading,
+    resolve_gate_heading_from_line,
+)
 from njit_auditor.rules.pdf_headings import (
     find_named_frontmatter_headings,
     normalize_heading_text,
@@ -101,13 +105,13 @@ def _lines_below_heading(page: PdfPage, heading: str) -> list[str]:
     result: list[str] = []
     for block in page.text_blocks:
         for line in block.lines:
-            norm = normalize_heading_text(line.text).upper()
-            if norm == heading:
+            if line_resolves_to_gate_heading(line.text, heading):
                 heading_seen = True
                 continue
             if not heading_seen:
                 continue
-            if norm in _NAMED_HEADINGS:
+            resolved = resolve_gate_heading_from_line(line.text)
+            if resolved is not None and resolved[0] in _NAMED_HEADINGS:
                 return result
             text = line.text.strip()
             if text:

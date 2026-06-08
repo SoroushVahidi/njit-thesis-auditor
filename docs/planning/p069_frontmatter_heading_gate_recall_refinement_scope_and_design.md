@@ -8,7 +8,7 @@
 | **Rule name** | Front-Matter Heading Gate Recall Refinement |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `8766359` (PR #245 — post-P068 aggregate evaluation snapshot) |
-| **Status** | **Scoped only — not implemented** |
+| **Status** | **Implemented (v1)** — see `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` |
 | **Validation baseline** | 963 pytest (`ruff check .`, `mypy src`) |
 | **Type** | **Shared infrastructure / gate refinement** (not a standalone semantic checker) |
 | **Companion rules** | P038 (`pdf_frontmatter_headings.py` — variant reporting), P014 (`pdf_headings.py` — strict style checks), P065–P068 and other front-matter consumers |
@@ -367,7 +367,9 @@ After implementation:
 
 ## 14. Recommendation
 
-**Ready for implementation** as an infrastructure/refinement PR after this scope doc merges.
+**Implemented (2026-06-08):** `src/njit_auditor/rules/pdf_frontmatter_heading_gate.py`; wired into
+P041, P044–P047, P065–P068, and TOC/list detection. Synthetic validation and five-PDF
+current-dataset evaluation docs added. No standalone P069 findings in v1.
 
 Suggested implementation PR:
 

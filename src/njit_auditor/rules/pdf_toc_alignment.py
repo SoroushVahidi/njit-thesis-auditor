@@ -70,6 +70,16 @@ def _normalize_toc_heading_variant(text: str) -> str:
 
 
 def _detect_toc_page_type(line_text: str) -> str | None:
+    from njit_auditor.rules.pdf_frontmatter_heading_gate import (
+        passes_standalone_line_gate,
+        resolve_gate_heading_from_line,
+    )
+
+    if not passes_standalone_line_gate(line_text):
+        return None
+    resolved = resolve_gate_heading_from_line(line_text)
+    if resolved is not None:
+        return TOC_HEADING_MAP.get(resolved[0])
     normalized = _normalize_toc_heading_variant(line_text)
     return TOC_HEADING_MAP.get(normalized)
 

@@ -45,6 +45,10 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, PdfTextSpan
+from njit_auditor.rules.pdf_frontmatter_heading_gate import (
+    find_gate_matches_for_heading,
+    line_resolves_to_gate_heading,
+)
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
 
@@ -72,33 +76,25 @@ def _is_page_number_line(text: str) -> bool:
     return bool(_PAGE_NUM_RE.match(text))
 
 
-def _is_dedication_heading(text: str) -> bool:
-    return normalize_heading_text(text).upper() == _DEDICATION_HEADING
-
-
 def _find_dedication_page_unique(pdf_document: PdfDocument) -> PdfPage | None:
-    """Return the dedication page iff exactly one DEDICATION heading exists in first
-    _MAX_SCAN_PAGES pages.  Returns None if no heading is found or if multiple
-    competing headings are detected (ambiguous layout)."""
-    candidates: list[PdfPage] = []
-    for page in pdf_document.pages[:_MAX_SCAN_PAGES]:
-        for block in page.text_blocks:
-            for line in block.lines:
-                if _is_dedication_heading(line.text):
-                    candidates.append(page)
-                    break
-            if candidates and candidates[-1] is page:
-                break
-    if len(candidates) != 1:
+    """Return the dedication page iff exactly one DEDICATION gate match exists."""
+    matches = find_gate_matches_for_heading(
+        pdf_document, _DEDICATION_HEADING, max_scan_pages=_MAX_SCAN_PAGES
+    )
+    if len(matches) != 1:
         return None
-    return candidates[0]
+    page_number = matches[0].page_number
+    for page in pdf_document.pages:
+        if page.page_number == page_number:
+            return page
+    return None
 
 
 def _find_heading_y(page: PdfPage) -> float | None:
     """Return the y1 (bottom) of the DEDICATION heading line, for use as a cutoff."""
     for block in page.text_blocks:
         for line in block.lines:
-            if _is_dedication_heading(line.text):
+            if line_resolves_to_gate_heading(line.text, _DEDICATION_HEADING):
                 return line.bbox.y1
     return None
 
@@ -117,7 +113,7 @@ def _collect_dedication_text_lines(page: PdfPage, heading_y: float) -> list[PdfT
             cleaned = normalize_heading_text(line.text)
             if not cleaned:
                 continue
-            if _is_dedication_heading(cleaned):
+            if line_resolves_to_gate_heading(cleaned, _DEDICATION_HEADING):
                 continue
             if _is_page_number_line(cleaned):
                 continue
