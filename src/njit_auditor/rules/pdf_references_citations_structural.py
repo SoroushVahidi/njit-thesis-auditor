@@ -54,6 +54,7 @@ Conservative skip conditions:
 
 from __future__ import annotations
 
+import math
 import re
 import statistics
 
@@ -87,6 +88,23 @@ _MAX_HEADING_LEN = 60
 
 # Body chapter/appendix pattern — used to find body start page and section ends.
 _CHAPTER_APPENDIX_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+", re.IGNORECASE)
+_COLLAPSED_CHAPTER_APPENDIX_RE = re.compile(
+    r"^(CHAPTER|APPENDIX)([IVXLC\d]+)$",
+    re.IGNORECASE,
+)
+_TOC_LEADER_RE = re.compile(r"\.{2,}|\s{2,}[\dIVXLC]+$", re.IGNORECASE)
+
+# P071 localization: body heading should appear in the upper third of the page.
+_BODY_HEADING_MAX_Y_FRAC = 0.33
+_TAIL_HEADING_MAX_Y_FRAC = 0.5
+_MAX_BODY_HEADING_LEN = 80
+
+# P071 tail-scan window for back-matter references heading fallback.
+_TAIL_SCAN_MAX_PAGES = 30
+_TAIL_SCAN_MIN_DOC_PAGES = 20
+
+# P071 cluster-based x-variance (dominant entry-indent band).
+_CLUSTER_X_TOLERANCE_PT = 12.0
 
 # Minimum body pages needed before heading absence is flagged.
 _MIN_BODY_PAGES_FOR_HEADING_CHECK = 5
@@ -142,15 +160,51 @@ _MIN_ENTRIES_FOR_SECTION_NONEMPTY = 2  # skip if barely any entries
 # ---------------------------------------------------------------------------
 
 
+def _collapsed_heading_text(text: str) -> str:
+    return re.sub(r"\s+", "", text.strip()).upper()
+
+
+def _matches_chapter_appendix_heading(text: str) -> bool:
+    clean = " ".join(text.strip().split())
+    if _CHAPTER_APPENDIX_RE.match(clean):
+        return True
+    return bool(_COLLAPSED_CHAPTER_APPENDIX_RE.match(_collapsed_heading_text(text)))
+
+
+def _is_standalone_body_heading_line(line: PdfTextLine, page: PdfPage) -> bool:
+    clean = " ".join(line.text.strip().split())
+    if len(clean) > _MAX_BODY_HEADING_LEN:
+        return False
+    if page.height <= 0:
+        return True
+    return line.bbox.y0 <= page.height * _BODY_HEADING_MAX_Y_FRAC
+
+
+def _is_tail_heading_line(line: PdfTextLine, page: PdfPage) -> bool:
+    clean = " ".join(line.text.strip().split())
+    if len(clean) > _MAX_HEADING_LEN:
+        return False
+    if page.height <= 0:
+        return True
+    return line.bbox.y0 <= page.height * _TAIL_HEADING_MAX_Y_FRAC
+
+
 def _find_body_start_page(pdf_doc: PdfDocument) -> int | None:
     """Return the first page number where a CHAPTER or APPENDIX body heading is found."""
     for page in pdf_doc.pages:
         for block in page.text_blocks:
             for line in block.lines:
                 clean = " ".join(line.text.strip().split())
-                if _CHAPTER_APPENDIX_RE.match(clean):
+                if _matches_chapter_appendix_heading(clean) and _is_standalone_body_heading_line(
+                    line, page
+                ):
                     return page.page_number
     return None
+
+
+def _tail_scan_start_page(page_count: int) -> int:
+    window = min(_TAIL_SCAN_MAX_PAGES, math.ceil(page_count * 0.25))
+    return max(1, page_count - window + 1)
 
 
 def _normalized_heading(text: str) -> str:
@@ -169,7 +223,10 @@ def _is_references_heading(line: PdfTextLine) -> str | None:
     - It does not look like a numbered/lettered section heading prefix (e.g.,
       "3.1 References" — avoid matching numbered subsection headings in body).
     """
-    clean = _normalized_heading(line.text)
+    raw = line.text
+    if _TOC_LEADER_RE.search(raw):
+        return None
+    clean = _normalized_heading(raw)
     if len(clean) > _MAX_HEADING_LEN:
         return None
     # Reject lines that begin with a digit (numbered section headings like "3. References")
@@ -187,13 +244,10 @@ def _is_references_heading(line: PdfTextLine) -> str | None:
     return None
 
 
-def _find_references_heading(
+def _find_references_heading_forward(
     pdf_doc: PdfDocument, body_start: int
 ) -> tuple[int, str] | None:
-    """Return (page_number, heading_keyword) for the first references heading found.
-
-    Scans body pages only.  Returns None if no heading is found.
-    """
+    """Return (page_number, heading_keyword) scanning forward from body_start."""
     for page in pdf_doc.pages:
         if page.page_number < body_start:
             continue
@@ -203,6 +257,44 @@ def _find_references_heading(
                 if kw is not None:
                     return page.page_number, kw
     return None
+
+
+def _find_references_heading_tail(pdf_doc: PdfDocument) -> tuple[int, str] | None:
+    """Conservative back-matter tail scan for a standalone references heading."""
+    page_count = len(pdf_doc.pages)
+    if page_count < _TAIL_SCAN_MIN_DOC_PAGES:
+        return None
+
+    tail_start = _tail_scan_start_page(page_count)
+    matches: list[tuple[int, str]] = []
+    for page in pdf_doc.pages:
+        if page.page_number < tail_start:
+            continue
+        for block in page.text_blocks:
+            for line in block.lines:
+                if not _is_tail_heading_line(line, page):
+                    continue
+                kw = _is_references_heading(line)
+                if kw is not None:
+                    matches.append((page.page_number, kw))
+                    break
+
+    if len(matches) != 1:
+        return None
+    return matches[0]
+
+
+def _localize_references_heading(
+    pdf_doc: PdfDocument,
+    body_start: int | None,
+) -> tuple[int, str] | None:
+    """P071: forward scan from body_start, then conservative tail fallback."""
+    if body_start is not None:
+        forward = _find_references_heading_forward(pdf_doc, body_start)
+        if forward is not None:
+            return forward
+
+    return _find_references_heading_tail(pdf_doc)
 
 
 def _count_body_pages(pdf_doc: PdfDocument, body_start: int) -> int:
@@ -234,8 +326,8 @@ def _collect_references_section_pages(
             # Check if a new major structural heading starts on this page.
             for block in page.text_blocks:
                 for line in block.lines:
-                    clean = " ".join(line.text.strip().split()).upper()
-                    if _CHAPTER_APPENDIX_RE.match(clean):
+                    clean = " ".join(line.text.strip().split())
+                    if _matches_chapter_appendix_heading(clean):
                         # New chapter/appendix starts — end references section.
                         return section_pages
 
@@ -314,11 +406,33 @@ def _group_entries(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
     return groups
 
 
+def _cluster_lines_by_x0(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
+    if not lines:
+        return []
+    sorted_lines = sorted(lines, key=lambda line: line.bbox.x0)
+    clusters: list[list[PdfTextLine]] = [[sorted_lines[0]]]
+    for line in sorted_lines[1:]:
+        if abs(line.bbox.x0 - clusters[-1][-1].bbox.x0) <= _CLUSTER_X_TOLERANCE_PT:
+            clusters[-1].append(line)
+        else:
+            clusters.append([line])
+    return clusters
+
+
+def _dominant_entry_cluster(lines: list[PdfTextLine]) -> list[PdfTextLine]:
+    """Return lines in the largest left-margin cluster (P071 noise filter)."""
+    clusters = _cluster_lines_by_x0(lines)
+    if not clusters:
+        return []
+    return max(clusters, key=len)
+
+
 def _compute_x_variance(lines: list[PdfTextLine]) -> float:
-    """Return standard deviation of x0 coordinates across all lines."""
-    if len(lines) < 2:
+    """Return standard deviation of x0 on the dominant entry cluster (P071)."""
+    cluster = _dominant_entry_cluster(lines)
+    if len(cluster) < 2:
         return 0.0
-    x0s = [line.bbox.x0 for line in lines]
+    x0s = [line.bbox.x0 for line in cluster]
     return statistics.stdev(x0s)
 
 
@@ -354,7 +468,7 @@ def _check_heading(
     If the heading is not found and the document is long enough, a finding is emitted.
     If the document is too short to expect a references section, returns (None, None, None).
     """
-    heading_result = _find_references_heading(pdf_doc, body_start)
+    heading_result = _localize_references_heading(pdf_doc, body_start)
 
     if heading_result is not None:
         heading_page, heading_kw = heading_result
@@ -578,16 +692,21 @@ def check_pdf_references_citations_structural(
     if not pdf_doc.pages:
         return []
 
+    page_count = len(pdf_doc.pages)
     body_start = _find_body_start_page(pdf_doc)
-    if body_start is None:
-        # No body region detected — likely front-matter only or image-only PDF.
+    if body_start is not None:
+        body_page_count = _count_body_pages(pdf_doc, body_start)
+        effective_body_start = body_start
+    elif page_count >= _TAIL_SCAN_MIN_DOC_PAGES:
+        tail_start = _tail_scan_start_page(page_count)
+        body_page_count = page_count - tail_start + 1
+        effective_body_start = tail_start
+    else:
         return []
 
-    body_page_count = _count_body_pages(pdf_doc, body_start)
-
-    # --- Check A: Heading detection ---
+    # --- Check A: Heading detection (P071 localization wired in _check_heading) ---
     heading_finding, heading_page, heading_kw = _check_heading(
-        pdf_doc, body_start, body_page_count
+        pdf_doc, effective_body_start, body_page_count
     )
 
     if heading_finding is not None:
@@ -612,7 +731,7 @@ def check_pdf_references_citations_structural(
         # No text-layer content — image-only or flattened pages.
         return []
 
-    # Skip: high x-coordinate variance (noisy geometry).
+    # P071: cluster-based x-variance skip (annotation outliers); entry checks use all lines.
     x_var = _compute_x_variance(lines)
     if x_var > _HIGH_X_VARIANCE_THRESHOLD_PT:
         return []
