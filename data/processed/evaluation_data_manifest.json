@@ -4,7 +4,7 @@
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P070",
     "pytest_count_at_last_doc_refresh": 988,
-    "latest_main_at_last_doc_refresh": "e045817",
+    "latest_main_at_last_doc_refresh": "b0ec5e4",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
@@ -46,7 +46,8 @@
     "ef_overlap_after_p068_note": "EF overlap refresh (2026-06-08, commit 6446c24): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged vs P063-era; P064–P068 fired 0 on comparison PDFs; references_citations and committee_approval_page gaps unchanged. See docs/evaluation/ef_overlap_after_p068_evaluation.md",
     "p069_current_dataset_note": "Gate-reach evaluation (2026-06-08, commit e045817): ACKNOWLEDGEMENTS gate +4 on five-PDF set; P065–P068 finding totals unchanged (0/0/0/3). See docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md",
     "post_p069_aggregate_note": "Full five-PDF audit (2026-06-08, commit e045817): 1,590 total findings — unchanged from P068-era; P069 infrastructure-only (0 standalone findings); P065–P068 counts unchanged. See docs/evaluation/current_auditor_after_p069_evaluation.md",
-    "p070_current_dataset_note": "Parser-reach evaluation complete (2026-06-08, commit f0d8294): all 5 PDFs accessible; 3/5 no TOC/LoT/LoF pages detected; parser entries 185→167 (pre-P070 comparator); recovery: 4 wrapped, 4 split-pair, 9 prefix; post-P070 full audit 1,543 findings (−47 vs P069-era 1,590); list_of_tables_figures_toc 84 (−46); EF-overlap gaps not expected to change on comparison PDFs. See docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md"
+    "p070_current_dataset_note": "Parser-reach evaluation complete (2026-06-08, commit f0d8294): all 5 PDFs accessible; 3/5 no TOC/LoT/LoF pages detected; parser entries 185→167 (pre-P070 comparator); recovery: 4 wrapped, 4 split-pair, 9 prefix; EF-overlap gaps not expected to change on comparison PDFs. See docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md",
+    "post_p070_aggregate_note": "Full five-PDF audit (2026-06-08, commit b0ec5e4): 1,543 total findings — −47 vs P069-era 1,590; P070 infrastructure-only (0 standalone findings); list_of_tables_figures_toc 84 (−46); largest rule deltas P036 −22, P040 −12, P018 −6 on Yin H 4th only; P061/P062 remain 0. See docs/evaluation/current_auditor_after_p070_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -379,5 +380,5 @@
   },
   "p_rules_implemented": "P001-P070",
   "pytest_count_at_last_doc_refresh": 988,
-  "latest_main_at_last_doc_refresh": "e045817"
+  "latest_main_at_last_doc_refresh": "b0ec5e4"
 }
