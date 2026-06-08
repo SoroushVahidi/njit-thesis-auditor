@@ -83,7 +83,7 @@
 - **Canonical full-triage generated outputs:** `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — gitignored `data/evaluation/generated/current_auditor_after_p034_p011_triage/` (P011+P012+P013+P026 triage rollups; 1,446 total unchanged; regenerate locally to include `p012_annotation_triage` after PR #79)
 - **P013 triage refresh (historical):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — superseded by canonical path above for full reports
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Real-thesis pairing and EF overlap readiness (P062-era):** `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — data inventory, raw/commented pair table, extractability table, overlap-readiness table, recommended evaluation cadence, next actions (PR #221)
+- **Real-thesis pairing and EF overlap readiness (P068-era refresh):** `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — data inventory, raw/commented pair table, extractability table, overlap-readiness table, recommended evaluation cadence, next actions (refreshed 2026-06-08 after P068 aggregate)
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF-overlap refinement notes: `docs/evaluation/ef_overlap_driven_refinement_notes.md`
 - EF-overlap refinement evaluation: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`

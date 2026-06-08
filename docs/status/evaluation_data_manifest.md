@@ -161,5 +161,7 @@ files unless explicitly requested.
 - **P061 current-dataset evaluation (formal, post-implementation):** `docs/evaluation/p061_current_dataset_evaluation.md` — 0 findings on five-PDF local subset
 - P030–P042 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
+- EF overlap after P063: `docs/evaluation/ef_overlap_after_p063_evaluation.md`
+- Real thesis pairing and EF overlap readiness (P068-era): `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
   `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`
