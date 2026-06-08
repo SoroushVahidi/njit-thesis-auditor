@@ -231,6 +231,7 @@ More docs:
 - `docs/planning/p062_scope_and_design.md` — P062 TOC cross-page section-number ordering design
 - `docs/planning/p063_scope_and_design.md` — P063 body-page appendix heading label check design
 - `docs/evaluation/current_auditor_after_p063_evaluation.md` — P063 formal current-dataset evaluation (2026-06-07; 0 P063 findings on five-PDF set; no qualifying body-region appendix heading sequence detected)
+- `docs/planning/p064_references_citations_structural_check_scope_and_design.md` — P064 references/citations structural check scope and design (SCOPED ONLY; not yet implemented)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema

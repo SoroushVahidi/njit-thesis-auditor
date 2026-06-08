@@ -389,7 +389,7 @@ None at this time. All validation passes (ruff, mypy, pytest).
 
 | Item | Notes |
 |---|---|
-| References/citations rule (P064 candidate) | No dedicated rule yet; EF comments flag reference-list formatting issues |
+| References/citations rule (P064 candidate) | Scope doc complete: `docs/planning/p064_references_citations_structural_check_scope_and_design.md`; ready for implementation in next PR |
 | Committee/approval-page structural refinements | P025/P038 cover heading presence; rank/order/signature-line detail remains manual |
 | Image-heavy page detection for P035 | v1 skips image-only floats; extend to rasterized figure detection |
 | No PDF page preview or annotation overlay | GUI Phase 4+; privacy-safe geometry markers only |
