@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **68/68 implemented** (`P001`–`P068`) — P068 adds approval page committee/signature-block structural checks; post-P067 aggregate remains at 1,587 until refreshed.
+- **P-rule implementation:** **68/68 implemented** (`P001`–`P068`) — P068 adds approval page committee/signature-block structural checks; post-P068 aggregate is **1,590** (+3 vs P067-era).
 - **Q-rule coverage (current inventory):** **79** total = **2** `implemented`, **60** `partially_implemented`, **17** `not_implemented` (9 manual-only, 8 automatable gaps after P065–P067 inventory refresh).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 12 automatable not_implemented = 21 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -15,7 +15,7 @@
 - **Biggest remaining gaps:**
   1. Approval/Acknowledgements/Biographical semantic checks (committee rank/order, required paragraph intent/content).
   2. Dedication/Biographical visual-semantic checks and richer figure/table body detection on image-heavy PDFs.
-  3. A reproducible full five-PDF P001–P067 evaluation now exists; `00b9c2d` remains the historical pre-P035 baseline and `afe4ef6` is the current post-P067 aggregate snapshot.
+  3. A reproducible full five-PDF P001–P068 evaluation now exists; `00b9c2d` remains the historical pre-P035 baseline and `5d8ebaf` is the current post-P068 aggregate snapshot (`afe4ef6` / 1,587 remains the P067-era historical baseline).
 
 ## 2. Source file coverage table
 
@@ -196,7 +196,7 @@ Top 3 next tasks:
 
 1. Maintain the full five-PDF **P001–P067** aggregate snapshot and re-run it only when detector behavior changes.
 2. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
-3. Keep reporting/evaluation canonical by preserving `00b9c2d` as the historical pre-P035 baseline and `afe4ef6` as the current post-P067 full aggregate snapshot.
+3. Keep reporting/evaluation canonical by preserving `00b9c2d` as the historical pre-P035 baseline and `5d8ebaf` as the current post-P068 full aggregate snapshot.
 
 ## 8. Post-audit update (P030)
 
@@ -266,7 +266,7 @@ Top 3 next tasks:
 
 ## 15. Post-audit updates through P044 (consolidated current state)
 
-**Current repository (main `afe4ef6`; five-PDF historical baseline `00b9c2d`):** P001–P067 implemented; web UI present; **950** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on the pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). The current full aggregate snapshot is `docs/evaluation/current_auditor_after_p067_evaluation.md` at **1,587** findings with **0** P067 findings.
+**Current repository (main `5d8ebaf`; five-PDF historical baseline `00b9c2d`):** P001–P068 implemented; web UI present; **963** pytest; full guideline/Q-rule coverage remains incomplete. Reporting triage rollups: `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` (detection unchanged on the pre-P035 five-PDF snapshot; raw counts 169 / 143 / 461 / 415). The current full aggregate snapshot is `docs/evaluation/current_auditor_after_p068_evaluation.md` at **1,590** findings with **3** P068 findings.
 
 | Rule | Q basis (partial) | Current-dataset snapshot (5 PDFs) | Notes |
 |---|---|---|---|

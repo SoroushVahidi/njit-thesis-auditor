@@ -217,6 +217,7 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
+- `docs/evaluation/current_auditor_after_p068_evaluation.md` — full PDF audit snapshot at P068 era (P011–P068, five evaluation PDFs; **1,590** findings; P068 adds 3; 3/5 files skipped at APPROVAL PAGE detection gate; 2/5 reached structural checks)
 - `docs/evaluation/current_auditor_after_p067_evaluation.md` — full PDF audit snapshot at P067 era (P011–P067, five evaluation PDFs; **1,587** findings; P067 adds 0; 3/5 files skipped at heading detection; 2/5 reached BIOGRAPHICAL SKETCH but no qualifying Publications boundary)
 - `docs/evaluation/current_auditor_after_p066_evaluation.md` — full PDF audit snapshot at P066 era (P011–P066, five evaluation PDFs; **1,587** findings; P066 adds 0; 3/5 files skipped at heading detection; 2/5 bio sketches detected and passed)
 - `docs/evaluation/current_auditor_after_p065_evaluation.md` — full PDF audit snapshot at P065 era (P011–P065, five evaluation PDFs; **1,587** findings; P065 adds 0)
@@ -252,6 +253,7 @@ More docs:
 - `docs/evaluation/p068_current_dataset_evaluation.md` — P068 current-dataset evaluation (3 findings on 2/5 files; 3/5 skipped at detection gate; 2026-06-08)
 - `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md` — P065 synthetic test coverage and gate verification (15/15 tests pass)
 - `docs/evaluation/p065_current_dataset_evaluation.md` — P065 current-dataset evaluation (2026-06-08; 0 findings; all 5 PDFs skipped — no machine-readable DEDICATION heading detected)
+- `docs/evaluation/current_auditor_after_p068_evaluation.md` — post-P068 full five-PDF aggregate snapshot (P011–P068; 1,590 findings; P068 adds 3; 2026-06-08)
 - `docs/evaluation/current_auditor_after_p067_evaluation.md` — post-P067 full five-PDF aggregate snapshot (P011–P067; 1,587 findings; P067 adds 0; 2026-06-08)
 - `docs/evaluation/current_auditor_after_p066_evaluation.md` — post-P066 full five-PDF aggregate snapshot (P011–P066; 1,587 findings; P066 adds 0; 2026-06-08)
 - `docs/evaluation/current_auditor_after_p065_evaluation.md` — post-P065 full five-PDF aggregate snapshot (P011–P065; 1,587 findings; P065 adds 0; 2026-06-08)
