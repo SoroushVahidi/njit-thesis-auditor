@@ -239,6 +239,7 @@ More docs:
 - `docs/evaluation/p064_references_citations_structural_synthetic_validation.md` — P064 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/current_auditor_after_p064_evaluation.md` — P064 formal current-dataset evaluation and full aggregate snapshot (2026-06-08; 0 P064 findings; post-P064 aggregate 1,587; 3/5 files skipped by conservative gates)
 - `docs/planning/p065_dedication_centering_italic_scope_and_design.md` — P065 scope and design: dedication page centering/italic check (Q033/Q034; implemented 2026-06-08)
+- `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; scoped 2026-06-08; ready for implementation)
 - `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md` — P065 synthetic test coverage and gate verification (15/15 tests pass)
 - `docs/evaluation/p065_current_dataset_evaluation.md` — P065 current-dataset evaluation (2026-06-08; 0 findings; all 5 PDFs skipped — no machine-readable DEDICATION heading detected)
 - `docs/evaluation/current_auditor_after_p065_evaluation.md` — post-P065 full five-PDF aggregate snapshot (P011–P065; 1,587 findings; P065 adds 0; 2026-06-08)
