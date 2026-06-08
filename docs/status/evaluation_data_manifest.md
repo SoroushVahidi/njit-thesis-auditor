@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `afe4ef6` (merge PR #240 — P067 implemented; P001–P067 implemented; post-P067 five-PDF aggregate confirmed at 1,587; see `docs/evaluation/current_auditor_after_p067_evaluation.md`)
-- **Validation:** ruff, mypy, **950 pytest** at the latest docs/status refresh
+- **Latest main:** `5d8ebaf` (merge PR #244 — P068 current-dataset evaluation; P001–P068 implemented; post-P068 five-PDF aggregate confirmed at 1,590; see `docs/evaluation/current_auditor_after_p068_evaluation.md`)
+- **Validation:** ruff, mypy, **963 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 67 (P001–P067) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 68 (P001–P068) | Yes |
 
-P001–P067 are implemented; P067 formal current-dataset evaluation complete (0 findings on five-PDF set; 3/5 files skipped at BIOGRAPHICAL SKETCH detection; 2/5 reached BIOGRAPHICAL SKETCH but 0/5 reached a qualifying Publications/Presentations boundary) and the full post-P067 aggregate remains unchanged at 1,587 findings; see `docs/evaluation/p067_current_dataset_evaluation.md` and `docs/evaluation/current_auditor_after_p067_evaluation.md`. Full Q-rule / guideline source coverage is not complete
+P001–P068 are implemented; P068 formal current-dataset evaluation complete (3 findings on 2/5 files; 3/5 skipped at APPROVAL PAGE detection gate) and the full post-P068 aggregate is 1,590 findings (+3 vs P067-era); see `docs/evaluation/p068_current_dataset_evaluation.md` and `docs/evaluation/current_auditor_after_p068_evaluation.md`. The P067-era snapshot (`afe4ef6`, 1,587 findings) remains a historical baseline. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -137,7 +137,9 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Current full P001–P067 PDF evaluation (P067-era):** `docs/evaluation/current_auditor_after_p067_evaluation.md` — **1,587** findings (P067 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p067/`
+- **Current full P001–P068 PDF evaluation (P068-era):** `docs/evaluation/current_auditor_after_p068_evaluation.md` — **1,590** findings (P068 adds 3); gitignored outputs under `data/evaluation/generated/current_auditor_after_p068/`
+- **P068 current-dataset evaluation:** `docs/evaluation/p068_current_dataset_evaluation.md` — 3 findings on 2/5 files; 3/5 skipped at APPROVAL PAGE detection gate
+- **Prior full P001–P067 PDF evaluation (P067-era):** `docs/evaluation/current_auditor_after_p067_evaluation.md` — **1,587** findings (P067 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p067/`
 - **P067 current-dataset evaluation:** `docs/evaluation/p067_current_dataset_evaluation.md` — 0 findings; 3/5 files skipped at heading detection; 2/5 reached BIOGRAPHICAL SKETCH but no qualifying Publications boundary
 - **Prior full P001–P066 PDF evaluation (P066-era):** `docs/evaluation/current_auditor_after_p066_evaluation.md` — **1,587** findings (P066 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p066/`
 - **P065-era PDF evaluation (prior full snapshot):** `docs/evaluation/current_auditor_after_p065_evaluation.md` — **1,587** findings; gitignored outputs under `data/evaluation/generated/current_auditor_after_p065/`

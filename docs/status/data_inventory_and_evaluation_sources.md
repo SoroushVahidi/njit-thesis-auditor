@@ -108,7 +108,7 @@ This baseline is used for false-positive behavior checks and is excluded from EF
 
 ## 10. Recommended next 3 data/evaluation tasks
 
-1. The P067-era full five-PDF aggregate is now available: see `docs/evaluation/current_auditor_after_p067_evaluation.md` (1,587 findings; P067 adds 0; commit `afe4ef6`). The P066 snapshot (`e5caace`), P065 snapshot (`b233f3b`), P061 snapshot (`ffea4e3`), and P034 snapshot (1,446 findings, `00b9c2d`) remain historical baselines.
+1. The P068-era full five-PDF aggregate is now available: see `docs/evaluation/current_auditor_after_p068_evaluation.md` (1,590 findings; P068 adds 3; commit `5d8ebaf`). The P067 snapshot (`afe4ef6`, 1,587 findings), P066 snapshot (`e5caace`), P065 snapshot (`b233f3b`), P061 snapshot (`ffea4e3`), and P034 snapshot (1,446 findings, `00b9c2d`) remain historical baselines.
 2. Improve LoT/LoF entry extraction recall for P059/P060/P061/P062 ordering checks; formal P062 eval found no qualifying cross-page TOC numeric sequence on this dataset.
 3. Expand EF-overlap evaluation only with additional extractable-comment PDFs, while keeping generated raw outputs under gitignored paths.
 4. Keep using `data/evaluation/generated/current_auditor_after_p034_p011_triage/` as the canonical local triage-output path for P011/P012/P013/P026 rollup reports; treat older `current_auditor_after_p034*` folders as historical.
