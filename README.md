@@ -265,6 +265,7 @@ More docs:
 - `docs/evaluation/p066_current_dataset_evaluation.md` — P066 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped — heading not detected; 2/5 detected and passed)
 - `docs/evaluation/p067_biosketch_publication_ordering_synthetic_validation.md` — P067 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/p067_current_dataset_evaluation.md` — P067 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped at heading detection; 2/5 reached Bio Sketch but no qualifying Publications boundary detected)
+- `docs/evaluation/current_auditor_after_p070_evaluation.md` — full PDF audit snapshot at P070 era (P011–P070, five evaluation PDFs; **1,543** findings; −47 vs P069-era; P070 infrastructure-only)
 - `docs/evaluation/current_auditor_after_p069_evaluation.md` — full PDF audit snapshot at P069 era (P011–P069, five evaluation PDFs; **1,590** findings; unchanged vs P068-era; P069 infrastructure-only)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` — P069 synthetic validation (infrastructure-only; 13 tests; no standalone findings)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — P069 five-PDF gate-reach evaluation (ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged)

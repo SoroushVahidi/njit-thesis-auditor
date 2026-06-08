@@ -68,7 +68,8 @@
 - Strict coverage audit (historical baseline P029; updates through P036): `docs/status/source_to_implementation_coverage_after_p029.md`
 - Data inventory: `docs/status/data_inventory_and_evaluation_sources.md`
 - Evaluation data manifest: `docs/status/evaluation_data_manifest.md`
-- **Current full-auditor snapshot (P069-era):** `docs/evaluation/current_auditor_after_p069_evaluation.md` (**1,590** findings across five PDFs; P011–P069; P069 infrastructure-only; delta 0 vs P068-era; commit `e045817`)
+- **Current full-auditor snapshot (P070-era):** `docs/evaluation/current_auditor_after_p070_evaluation.md` (**1,543** findings across five PDFs; P011–P070; P070 infrastructure-only; −47 vs P069-era; commit `b0ec5e4`)
+- **Prior full-auditor snapshot (P069-era):** `docs/evaluation/current_auditor_after_p069_evaluation.md` (**1,590** findings across five PDFs; P011–P069; P069 infrastructure-only; delta 0 vs P068-era; commit `e045817`)
 - **Full-auditor snapshot (P068-era, historical):** `docs/evaluation/current_auditor_after_p068_evaluation.md` (**1,590** findings; P068 adds 3; commit `5d8ebaf`)
 - **Prior full-auditor snapshot (P067-era):** `docs/evaluation/current_auditor_after_p067_evaluation.md` (**1,587** findings across five PDFs; P011–P067; P067 adds 0; 3/5 files skipped at heading detection and 2/5 reached BIOGRAPHICAL SKETCH without a qualifying Publications boundary; commit `afe4ef6`)
 - **Prior full-auditor snapshot (P066-era):** `docs/evaluation/current_auditor_after_p066_evaluation.md` (**1,587** findings across five PDFs; P011–P066; commit `e5caace`; P066 adds 0)
