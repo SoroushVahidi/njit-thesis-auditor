@@ -1,10 +1,15 @@
 # P064 — References/Citations Structural Check: Scope and Design
 
+> **Implemented in PR #228** (2026-06-08).  Scope history preserved below.
+> Module: `src/njit_auditor/rules/pdf_references_citations_structural.py`
+> Tests: `tests/test_p064_references_citations_structural.py` (21 tests)
+> Synthetic validation: `docs/evaluation/p064_references_citations_structural_synthetic_validation.md`
+
 - **Rule name:** P064 — References/Citations Structural Check
 - **Date:** 2026-06-08
 - **Baseline commit:** `8cd9abd`
-- **Status:** SCOPED ONLY — not implemented
-- **Validation baseline:** 889 tests (ruff clean; mypy no issues)
+- **Status:** IMPLEMENTED (PR #228) — was SCOPED ONLY
+- **Validation baseline:** 889 tests (ruff clean; mypy no issues); post-implementation: 910 tests
 
 ---
 

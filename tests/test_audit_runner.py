@@ -32,8 +32,10 @@ def test_post_p054_rule_ids_include_p062() -> None:
     assert "P061" in PDF_AUDIT_POST_P054_RULE_IDS
     assert "P062" in PDF_AUDIT_POST_P054_RULE_IDS
     assert "P063" in PDF_AUDIT_POST_P054_RULE_IDS
+    assert "P064" in PDF_AUDIT_POST_P054_RULE_IDS
     assert "check_pdf_toc_cross_page_entry_ordering" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
-    assert PDF_AUDIT_POST_P054_CALLABLE_NAMES[-1] == "check_pdf_appendix_body_headings"
+    assert "check_pdf_appendix_body_headings" in PDF_AUDIT_POST_P054_CALLABLE_NAMES
+    assert PDF_AUDIT_POST_P054_CALLABLE_NAMES[-1] == "check_pdf_references_citations_structural"
 
 
 def test_run_pdf_audit_full_calls_post_p054_rules(tmp_path: Path) -> None:

@@ -83,6 +83,9 @@ from njit_auditor.rules.pdf_page_numbers import (
     check_pdf_page_number_sequence,
     run_pdf_page_number_candidates_rule,
 )
+from njit_auditor.rules.pdf_references_citations_structural import (
+    check_pdf_references_citations_structural,
+)
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
@@ -117,7 +120,7 @@ from njit_auditor.upload_handling import (
     validate_upload_path,
 )
 
-# Rule IDs added in P055–P063 (post-P054). Used by parity tests.
+# Rule IDs added in P055–P064 (post-P054). Used by parity tests.
 PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
     "P055",
     "P056",
@@ -128,9 +131,10 @@ PDF_AUDIT_POST_P054_RULE_IDS: tuple[str, ...] = (
     "P061",
     "P062",
     "P063",
+    "P064",
 )
 
-# Callable names for P055–P063 checks in execution order (parity tests).
+# Callable names for P055–P064 checks in execution order (parity tests).
 PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
     "check_pdf_lot_lof_entry_type",
     "check_pdf_lot_lof_number_format",
@@ -141,6 +145,7 @@ PDF_AUDIT_POST_P054_CALLABLE_NAMES: tuple[str, ...] = (
     "check_pdf_lot_lof_cross_page_entry_ordering",
     "check_pdf_toc_cross_page_entry_ordering",
     "check_pdf_appendix_body_headings",
+    "check_pdf_references_citations_structural",
 )
 
 
@@ -183,7 +188,7 @@ def collect_tex_findings(
 def collect_pdf_layout_findings(
     pdf_doc: PdfDocument, pdf_path: str | Path
 ) -> list[AuditFinding]:
-    """Run the full P011–P063 PDF layout audit on a loaded document.
+    """Run the full P011–P064 PDF layout audit on a loaded document.
 
     This is the canonical rule sequence shared by the CLI and web UI.
     """
@@ -240,13 +245,14 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_lot_lof_cross_page_entry_ordering(pdf_doc))
     findings.extend(check_pdf_toc_cross_page_entry_ordering(pdf_doc))
     findings.extend(check_pdf_appendix_body_headings(pdf_doc))
+    findings.extend(check_pdf_references_citations_structural(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
     findings.extend(run_pdf_annotation_rule(path_str))
     return findings
 
 
 def run_pdf_audit_full(pdf_path: str | Path) -> list[AuditFinding]:
-    """Run all P011–P063 PDF audit checks and return findings.
+    """Run all P011–P064 PDF audit checks and return findings.
 
     Raises AuditError if the file cannot be opened or is not a valid PDF.
     """
