@@ -33,6 +33,7 @@ data/evaluation/private/
 # Web upload runtime (uploaded PDFs and generated reports must never be committed)
 .runtime/
 var/web_audits/
+tests/fixtures/web_demo/demo_project_extracted/
 
 # OS/editor files
 .DS_Store
