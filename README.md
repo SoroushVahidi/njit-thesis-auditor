@@ -262,6 +262,7 @@ More docs:
 - `docs/evaluation/p066_current_dataset_evaluation.md` — P066 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped — heading not detected; 2/5 detected and passed)
 - `docs/evaluation/p067_biosketch_publication_ordering_synthetic_validation.md` — P067 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/p067_current_dataset_evaluation.md` — P067 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped at heading detection; 2/5 reached Bio Sketch but no qualifying Publications boundary detected)
+- `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — real thesis data inventory, raw/commented pairing, EF comment extractability, overlap-readiness, and recurring evaluation workflow (P068-era refresh)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
