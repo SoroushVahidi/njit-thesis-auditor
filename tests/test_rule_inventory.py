@@ -27,11 +27,11 @@ def test_njit_inventory_implementation_status_counts() -> None:
     inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
     status = Counter(str(item.get("implementation_status")) for item in inventory)
     assert status["implemented"] == 2
-    assert status["partially_implemented"] == 56
-    assert status["not_implemented"] == 21
+    assert status["partially_implemented"] == 60
+    assert status["not_implemented"] == 17
     manual_only = sum(1 for item in inventory if item.get("checkability") == "manual")
     assert manual_only == 9
-    assert manual_only + 12 == status["not_implemented"]
+    assert manual_only + 8 == status["not_implemented"]
 
 
 def test_q004_q005_q006_mappings() -> None:

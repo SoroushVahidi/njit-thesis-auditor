@@ -8,7 +8,7 @@
 
 - **Are all source rules implemented?** **No.**
 - **P-rule implementation:** **67/67 implemented** (`P001`–`P067`) — `main` is at `afe4ef6` (merge PR #240; post-P067 full aggregate confirmed at 1,587; 950 pytest; see `docs/evaluation/current_auditor_after_p067_evaluation.md`).
-- **Q-rule coverage (current inventory):** **79** total = **2** `implemented`, **56** `partially_implemented`, **21** `not_implemented` (9 manual-only, 12 automatable gaps).
+- **Q-rule coverage (current inventory):** **79** total = **2** `implemented`, **60** `partially_implemented`, **17** `not_implemented` (9 manual-only, 8 automatable gaps after P065–P067 inventory refresh).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 12 automatable not_implemented = 21 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
 - **Guideline-source coverage:** core formatting signals are partially automated via P-rules; semantic/admin/process requirements remain mostly manual or process-only.

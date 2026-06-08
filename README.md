@@ -246,6 +246,7 @@ More docs:
 - `docs/planning/p065_dedication_centering_italic_scope_and_design.md` — P065 scope and design: dedication page centering/italic check (Q033/Q034; implemented 2026-06-08)
 - `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; implemented PR #236)
 - `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md` — P067 scope and design: bio-sketch publication/presentation reverse-chronology check (Q027; implemented)
+- `docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md` — P068 scope and design: approval page committee/signature-block structural check (scoped only; not implemented)
 - `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md` — P065 synthetic test coverage and gate verification (15/15 tests pass)
 - `docs/evaluation/p065_current_dataset_evaluation.md` — P065 current-dataset evaluation (2026-06-08; 0 findings; all 5 PDFs skipped — no machine-readable DEDICATION heading detected)
 - `docs/evaluation/current_auditor_after_p067_evaluation.md` — post-P067 full five-PDF aggregate snapshot (P011–P067; 1,587 findings; P067 adds 0; 2026-06-08)
