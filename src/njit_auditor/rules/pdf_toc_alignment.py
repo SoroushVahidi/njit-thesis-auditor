@@ -16,7 +16,10 @@ TOC_HEADING_MAP = {
 }
 HEADING_SUFFIX_RE = re.compile(r"[\s:.\-]+(?:\((?:continued)\)|continued)\s*$", re.IGNORECASE)
 TRAILING_PUNCT_RE = re.compile(r"[.:]+$")
-PAGE_NUMBER_TOKEN_RE = re.compile(r"(?P<num>(?:[0-9]+|[ivxlcdm]+))$", re.IGNORECASE)
+PAGE_NUMBER_TOKEN_RE = re.compile(
+    r"(?:(?:\.{2,}\s*)|(?:\s{2,}))(?P<num>(?:[0-9]+|[ivxlcdm]+))$",
+    re.IGNORECASE,
+)
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
 LINE_PREVIEW_MAX_LEN = 80
@@ -24,6 +27,13 @@ RIGHT_EDGE_TOLERANCE_PT = 10.0
 INDENT_CLUSTER_TOLERANCE_PT = 12.0
 MIN_ENTRIES_FOR_DOT_STYLE = 4
 PAGE_NUMBER_LINE_Y_TOLERANCE_PT = 5.0
+PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT = 8.0
+RIGHT_COLUMN_MIN_X_OFFSET_PT = 200.0
+WRAPPED_ENTRY_Y_GAP_PT = 12.0
+PREFIX_ENTRY_MIN_LEN = 4
+DEFAULT_ENTRY_MIN_LEN = 8
+PREFIX_ENTRY_RE = re.compile(r"^(TABLE|FIGURE|CHAPTER|APPENDIX)\b", re.IGNORECASE)
+NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\s")
 
 
 class TocEntryLine:
@@ -37,6 +47,8 @@ class TocEntryLine:
         page_number_right_x: float | None,
         indent_x: float,
         has_leader_dots: bool,
+        *,
+        is_wrapped: bool = False,
     ) -> None:
         self.line = line
         self.cleaned_text = cleaned_text
@@ -44,6 +56,7 @@ class TocEntryLine:
         self.page_number_right_x = page_number_right_x
         self.indent_x = indent_x
         self.has_leader_dots = has_leader_dots
+        self.is_wrapped = is_wrapped
 
 
 class TocPageContext:
@@ -52,7 +65,25 @@ class TocPageContext:
     def __init__(self, page: PdfPage, page_type: str, heading_bottom_y: float) -> None:
         self.page = page
         self.page_type = page_type
-        self.heading_bottom_y = heading_bottom_y
+        self.heading_below_y = heading_bottom_y
+
+    @property
+    def heading_bottom_y(self) -> float:
+        return self.heading_below_y
+
+
+class TocPageRun:
+    """Consecutive same-type TOC/LoT/LoF pages for cross-page consumers."""
+
+    def __init__(self, page_type: str, contexts: list[TocPageContext]) -> None:
+        self.page_type = page_type
+        self.contexts = contexts
+
+    def iter_entries(self) -> list[TocEntryLine]:
+        combined: list[TocEntryLine] = []
+        for context in self.contexts:
+            combined.extend(extract_toc_entry_lines(context))
+        return combined
 
 
 def _clean_text(text: str) -> str:
@@ -133,67 +164,223 @@ def _extract_page_number_token(
     return token, right_x
 
 
-def _likely_entry_line(cleaned_text: str) -> bool:
-    if len(cleaned_text) < 8:
-        return False
+def _has_prefix_entry_shape(cleaned_text: str) -> bool:
+    upper = cleaned_text.upper()
+    return bool(PREFIX_ENTRY_RE.match(upper) or NUMERIC_PREFIX_RE.match(cleaned_text))
+
+
+def _has_leader_dot_pattern(cleaned_text: str) -> bool:
+    return "..." in cleaned_text or cleaned_text.rstrip().endswith("....")
+
+
+def _likely_entry_line(cleaned_text: str, *, has_page_number_signal: bool = False) -> bool:
     if NUMERIC_ONLY_RE.match(cleaned_text):
         return False
-    if cleaned_text.isupper() and len(cleaned_text.split()) <= 4:
+    has_prefix = _has_prefix_entry_shape(cleaned_text)
+    if (
+        cleaned_text.endswith(".")
+        and len(cleaned_text.split()) > 6
+        and not _has_leader_dot_pattern(cleaned_text)
+        and not has_prefix
+    ):
+        return False
+    min_len = (
+        PREFIX_ENTRY_MIN_LEN
+        if has_prefix or has_page_number_signal
+        else DEFAULT_ENTRY_MIN_LEN
+    )
+    if len(cleaned_text) < min_len:
+        return False
+    if (
+        cleaned_text.isupper()
+        and len(cleaned_text.split()) <= 4
+        and not has_page_number_signal
+        and not has_prefix
+    ):
         return False
     return bool(ENTRY_START_RE.match(cleaned_text))
+
+
+def _is_list_heading_line(cleaned_text: str) -> bool:
+    return classify_toc_heading_line(cleaned_text) is not None
+
+
+def _y_tolerance_for_pairing(entry_indent_x: float, numeric_x0: float) -> float:
+    if numeric_x0 >= entry_indent_x + RIGHT_COLUMN_MIN_X_OFFSET_PT:
+        return PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT
+    return PAGE_NUMBER_LINE_Y_TOLERANCE_PT
+
+
+def _pair_right_column_number(
+    entry: TocEntryLine,
+    numeric_lines: list[PdfTextLine],
+    *,
+    max_y_gap: float,
+    require_below: bool = False,
+    relax_y_tolerance: bool = False,
+) -> PdfTextLine | None:
+    best_idx: int | None = None
+    best_delta = 9999.0
+    for idx, num_line in enumerate(numeric_lines):
+        y_delta = num_line.bbox.y0 - entry.line.bbox.y0
+        if require_below and y_delta < 0:
+            continue
+        y_delta_abs = abs(y_delta)
+        if y_delta_abs > max_y_gap:
+            continue
+        if num_line.bbox.x0 <= (entry.indent_x + 100):
+            continue
+        tolerance = max_y_gap if relax_y_tolerance else _y_tolerance_for_pairing(
+            entry.indent_x,
+            num_line.bbox.x0,
+        )
+        if y_delta_abs > tolerance:
+            continue
+        if y_delta_abs < best_delta:
+            best_delta = y_delta_abs
+            best_idx = idx
+    if best_idx is None:
+        return None
+    return numeric_lines.pop(best_idx)
+
+
+def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
+    page_num, page_right_x = _extract_page_number_token(line, cleaned)
+    return TocEntryLine(
+        line=line,
+        cleaned_text=cleaned,
+        page_number_token=page_num,
+        page_number_right_x=page_right_x,
+        indent_x=line.bbox.x0,
+        has_leader_dots="..." in cleaned or " ." in cleaned,
+    )
+
+
+def _merge_wrapped_entries(
+    entries: list[TocEntryLine],
+    numeric_lines: list[PdfTextLine],
+) -> list[TocEntryLine]:
+    if not entries:
+        return entries
+
+    merged: list[TocEntryLine] = []
+    skip_next = False
+    sorted_entries = sorted(entries, key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
+    for idx, entry in enumerate(sorted_entries):
+        if skip_next:
+            skip_next = False
+            continue
+        if entry.page_number_token is None:
+            matched = _pair_right_column_number(
+                entry,
+                numeric_lines,
+                max_y_gap=WRAPPED_ENTRY_Y_GAP_PT,
+                require_below=True,
+                relax_y_tolerance=True,
+            )
+            if matched is not None:
+                entry.page_number_token = _clean_text(matched.text)
+                entry.page_number_right_x = matched.bbox.x1
+                entry.is_wrapped = True
+            elif idx + 1 < len(sorted_entries):
+                nxt = sorted_entries[idx + 1]
+                y_gap = nxt.line.bbox.y0 - entry.line.bbox.y0
+                if (
+                    y_gap <= WRAPPED_ENTRY_Y_GAP_PT
+                    and nxt.page_number_token is not None
+                    and entry.page_number_token is None
+                ):
+                    entry.page_number_token = nxt.page_number_token
+                    entry.page_number_right_x = nxt.page_number_right_x
+                    entry.is_wrapped = True
+                    skip_next = True
+        merged.append(entry)
+    return merged
+
+
+def _drop_merge_orphans(entries: list[TocEntryLine]) -> list[TocEntryLine]:
+    retained: list[TocEntryLine] = []
+    for entry in entries:
+        if entry.page_number_token is not None:
+            retained.append(entry)
+            continue
+        if _likely_entry_line(entry.cleaned_text):
+            retained.append(entry)
+            continue
+        if _has_prefix_entry_shape(entry.cleaned_text) and len(entry.cleaned_text) >= (
+            PREFIX_ENTRY_MIN_LEN
+        ):
+            retained.append(entry)
+    return retained
 
 
 def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
     """Extract likely entry lines below TOC/List heading on a page."""
 
-    entries: list[TocEntryLine] = []
-    numeric_lines: list[PdfTextLine] = []
+    ordered_lines: list[PdfTextLine] = []
     for block in context.page.text_blocks:
         for line in block.lines:
             if line.bbox.y0 <= context.heading_bottom_y + 2:
                 continue
-            cleaned = _clean_text(line.text)
-            if NUMERIC_ONLY_RE.match(cleaned):
-                numeric_lines.append(line)
-                continue
-            if not _likely_entry_line(cleaned):
-                continue
-            page_num, page_right_x = _extract_page_number_token(line, cleaned)
-            entries.append(
-                TocEntryLine(
-                    line=line,
-                    cleaned_text=cleaned,
-                    page_number_token=page_num,
-                    page_number_right_x=page_right_x,
-                    indent_x=line.bbox.x0,
-                    has_leader_dots="..." in cleaned or " ." in cleaned,
-                )
-            )
+            ordered_lines.append(line)
+    ordered_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
 
-    # Pair right-column numeric-only lines with nearby entry lines when page numbers are split.
+    entries: list[TocEntryLine] = []
+    numeric_lines: list[PdfTextLine] = []
+    for line in ordered_lines:
+        cleaned = _clean_text(line.text)
+        if _is_list_heading_line(cleaned):
+            continue
+        if NUMERIC_ONLY_RE.match(cleaned):
+            numeric_lines.append(line)
+            continue
+        page_num, page_right_x = _extract_page_number_token(line, cleaned)
+        has_signal = page_num is not None or page_right_x is not None
+        if not _likely_entry_line(cleaned, has_page_number_signal=has_signal):
+            continue
+        entries.append(_make_entry_from_line(line, cleaned))
+
     unused_numeric = sorted(numeric_lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
     for entry in entries:
         if entry.page_number_right_x is not None:
             continue
-        best_idx: int | None = None
-        best_delta = 9999.0
-        for idx, num_line in enumerate(unused_numeric):
-            y_delta = abs(num_line.bbox.y0 - entry.line.bbox.y0)
-            if y_delta > PAGE_NUMBER_LINE_Y_TOLERANCE_PT:
-                continue
-            if num_line.bbox.x0 <= (entry.indent_x + 100):
-                continue
-            if y_delta < best_delta:
-                best_delta = y_delta
-                best_idx = idx
-        if best_idx is not None:
-            matched_line = unused_numeric.pop(best_idx)
-            matched_text = _clean_text(matched_line.text)
-            entry.page_number_token = matched_text
-            entry.page_number_right_x = matched_line.bbox.x1
+        matched = _pair_right_column_number(
+            entry,
+            unused_numeric,
+            max_y_gap=PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT,
+        )
+        if matched is not None:
+            entry.page_number_token = _clean_text(matched.text)
+            entry.page_number_right_x = matched.bbox.x1
 
+    entries = _merge_wrapped_entries(entries, unused_numeric)
+    entries = _drop_merge_orphans(entries)
     entries.sort(key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
     return entries
+
+
+def group_toc_page_runs(contexts: list[TocPageContext]) -> list[TocPageRun]:
+    """Group consecutive pages of the same TOC/List type into runs."""
+
+    by_type: dict[str, list[TocPageContext]] = {}
+    for context in contexts:
+        by_type.setdefault(context.page_type, []).append(context)
+
+    runs: list[TocPageRun] = []
+    for page_type, typed_contexts in by_type.items():
+        sorted_contexts = sorted(typed_contexts, key=lambda ctx: ctx.page.page_number)
+        current: list[TocPageContext] = []
+        for ctx in sorted_contexts:
+            page_number = ctx.page.page_number
+            if not current or page_number <= current[-1].page.page_number + 1:
+                current.append(ctx)
+            else:
+                if current:
+                    runs.append(TocPageRun(page_type, current))
+                current = [ctx]
+        if current:
+            runs.append(TocPageRun(page_type, current))
+    return runs
 
 
 def _find_indent_outliers(indents: list[float]) -> list[float]:
