@@ -194,9 +194,9 @@ Rules that should remain manual-only or process-only for now:
 
 Top 3 next tasks:
 
-1. Maintain the full five-PDF **P001–P067** aggregate snapshot and re-run it only when detector behavior changes.
-2. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
-3. Keep reporting/evaluation canonical by preserving `00b9c2d` as the historical pre-P035 baseline and `5d8ebaf` as the current post-P068 full aggregate snapshot.
+1. Implement **P069** front-matter heading gate recall refinement — see `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md`.
+2. Maintain the full five-PDF **P001–P068** aggregate snapshot and re-run it only when detector behavior changes.
+3. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
 
 ## 8. Post-audit update (P030)
 
