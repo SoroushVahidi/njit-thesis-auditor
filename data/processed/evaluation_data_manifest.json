@@ -2,8 +2,8 @@
   "schema_version": 1,
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P069",
-    "pytest_count_at_last_doc_refresh": 976,
+    "p_rules_implemented": "P001-P070",
+    "pytest_count_at_last_doc_refresh": 988,
     "latest_main_at_last_doc_refresh": "e045817",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
@@ -45,7 +45,8 @@
     "post_p068_aggregate_note": "Full five-PDF audit (2026-06-08, commit 5d8ebaf): 1,590 total findings — +3 from P067-era; P068 adds 3 findings on 2/5 files with detected APPROVAL PAGE headings; 3/5 files skipped at detection gate. See docs/evaluation/current_auditor_after_p068_evaluation.md",
     "ef_overlap_after_p068_note": "EF overlap refresh (2026-06-08, commit 6446c24): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged vs P063-era; P064–P068 fired 0 on comparison PDFs; references_citations and committee_approval_page gaps unchanged. See docs/evaluation/ef_overlap_after_p068_evaluation.md",
     "p069_current_dataset_note": "Gate-reach evaluation (2026-06-08, commit e045817): ACKNOWLEDGEMENTS gate +4 on five-PDF set; P065–P068 finding totals unchanged (0/0/0/3). See docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md",
-    "post_p069_aggregate_note": "Full five-PDF audit (2026-06-08, commit e045817): 1,590 total findings — unchanged from P068-era; P069 infrastructure-only (0 standalone findings); P065–P068 counts unchanged. See docs/evaluation/current_auditor_after_p069_evaluation.md"
+    "post_p069_aggregate_note": "Full five-PDF audit (2026-06-08, commit e045817): 1,590 total findings — unchanged from P068-era; P069 infrastructure-only (0 standalone findings); P065–P068 counts unchanged. See docs/evaluation/current_auditor_after_p069_evaluation.md",
+    "p070_current_dataset_note": "Parser-reach evaluation pending — five-PDF set not available in workspace. Synthetic validation complete (12 tests). See docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -155,9 +156,9 @@
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
         "rule_count": 69,
-        "rule_id_range": "P001-P069",
+        "rule_id_range": "P001-P070",
         "tracked_status": "tracked",
-        "description": "Project implementation rule set mapped to audit modules (P001-P069 implemented)"
+        "description": "Project implementation rule set mapped to audit modules (P001-P070 implemented)"
       }
     ],
     "ef_commented_dissertations": [
@@ -376,7 +377,7 @@
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
   },
-  "p_rules_implemented": "P001-P069",
-  "pytest_count_at_last_doc_refresh": 976,
+  "p_rules_implemented": "P001-P070",
+  "pytest_count_at_last_doc_refresh": 988,
   "latest_main_at_last_doc_refresh": "e045817"
 }

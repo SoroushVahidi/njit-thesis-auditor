@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064–P069 implemented; P069 front-matter heading gate recall (`pdf_frontmatter_heading_gate.py`); post-P069 full aggregate **1,590** findings (unchanged vs P068-era); **976 pytest**; **P070 scoped** — TOC/LoT/LoF entry parser recall refinement (`docs/planning/p070_toc_lot_lof_entry_parser_recall_refinement_scope_and_design.md`); see `docs/evaluation/current_auditor_after_p069_evaluation.md`
+- **Update (2026-06-08):** P064–P070 implemented; P070 TOC/LoT/LoF entry parser recall (`pdf_toc_alignment.py`); infrastructure-only; **988 pytest**; post-P069 aggregate **1,590** findings; five-PDF P070 parser-reach eval pending; see `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_synthetic_validation.md`
 
 ---
 

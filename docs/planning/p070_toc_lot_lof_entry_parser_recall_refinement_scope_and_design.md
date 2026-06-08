@@ -8,7 +8,7 @@
 | **Rule name** | TOC/LoT/LoF Entry Parser Recall Refinement |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `738a39b` (PR #250 — post-P069 aggregate evaluation snapshot) |
-| **Status** | **Scoped only — not implemented** |
+| **Status** | **Implemented (v1)** — see `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_synthetic_validation.md` |
 | **Validation baseline** | 976 pytest (`ruff check .`, `mypy src`, 87 source files) |
 | **Type** | **Shared infrastructure / parser recall refinement** (not a standalone semantic checker) |
 | **Companion utilities** | `pdf_toc_alignment.py` (`detect_toc_like_pages`, `extract_toc_entry_lines`, `TocEntryLine`, `TocPageContext`); P069 gate helpers already wired into TOC/List page-type detection |
@@ -383,7 +383,9 @@ No private text in evaluation docs.
 
 ## 14. Recommendation
 
-**Ready for implementation** as an infrastructure/refinement PR after this scope doc merges.
+**Implemented (2026-06-08):** parser refinements in `pdf_toc_alignment.py`; 12 synthetic
+tests; five-PDF current-dataset before/after evaluation **pending** (PDFs unavailable in
+workspace). No standalone P070 findings.
 
 Exact next PR:
 
