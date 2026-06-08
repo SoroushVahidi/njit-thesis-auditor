@@ -7,7 +7,7 @@
 ## 1. Executive summary
 
 - **Are all source rules implemented?** **No.**
-- **P-rule implementation:** **67/67 implemented** (`P001`–`P067`) — `main` is at `afe4ef6` (merge PR #240; post-P067 full aggregate confirmed at 1,587; 950 pytest; see `docs/evaluation/current_auditor_after_p067_evaluation.md`).
+- **P-rule implementation:** **68/68 implemented** (`P001`–`P068`) — P068 adds approval page committee/signature-block structural checks; post-P067 aggregate remains at 1,587 until refreshed.
 - **Q-rule coverage (current inventory):** **79** total = **2** `implemented`, **60** `partially_implemented`, **17** `not_implemented` (9 manual-only, 8 automatable gaps after P065–P067 inventory refresh).
 - **Q-rule coverage (framing used in this audit):** 9 manual-only (`checkability=manual`) + 12 automatable not_implemented = 21 raw `not_implemented`; see `docs/status/q_rule_coverage_after_p044.md` for full detail.
 - **Reporting triage (not new P-rules):** `p011_margin_triage`, `p012_annotation_triage`, `p013_triage`, `p026_font_triage` improve JSON/Markdown actionability only; detector counts unchanged.
@@ -22,7 +22,7 @@
 | Source file | Rule/requirement area | Implemented by | Status | Notes |
 |---|---|---|---|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q001-Q079 authoritative inventory | `tests/test_rule_inventory.py`, mapped modules in `src/njit_auditor/rules/` | partially implemented | Inventory is complete and represented; implementation coverage updated after P044 audit: 2 implemented, 51 partial, 26 not fully implemented. |
-| `data/processed/rules/project_added_rules.json` | P001–P067 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | 67 implemented | P001–P067 implemented and wired in CLI/testing/docs. |
+| `data/processed/rules/project_added_rules.json` | P001–P068 project rule set | `src/njit_auditor/rules/*.py`, `src/njit_auditor/cli.py`, `tests/` | 68 implemented | P001–P068 implemented and wired in CLI/testing/docs. |
 | `data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx` | Core format rules (margins, headings, spacing, page numbering, front matter) | `P011-P029` family (PDF) plus `P021` (abstract length) | partially implemented | Broad heuristic coverage exists; many detailed/semantic checks are still missing or manual. |
 | `data/raw/guidelines/Titles Examples Level 1 to 5.docx` | Heading capitalization/style by level | `P020`, `P024`, `P027` | partially implemented | Level-style coverage is present for targeted scopes; full visual/typographic enforcement is incomplete. |
 | `data/raw/guidelines/Self-Self Assessment Sheet.pdf` | Checklist-style visual formatting expectations | `P011`, `P015`, `P016`, `P017`, `P026`, `P028` | partially implemented | Core layout signals covered heuristically; checklist semantics and some visual specifics remain unimplemented. |

@@ -1293,5 +1293,33 @@
     "remediation": "Reorder publication/presentation entries in the Biographical Sketch from most recent to oldest. Manual review is still required for citation style, authorship, title correctness, venue correctness, and ambiguous multi-year entries.",
     "source_file": "project_added",
     "notes": "Conservative v1 PDF heuristic for Q027 only. Requires a unique BIOGRAPHICAL SKETCH heading and a clear Publications/Presentations subsection heading on the same page. Skips image-only pages, ambiguous multiple headings, suspected multi-column layouts, DOI/URL-heavy entries, ambiguous multi-year citations, and zones with fewer than 3 comparable entries. Companion to P045 (publication layout), P047 (bullet spacing), and P066 (education ordering)."
+  },
+  {
+    "id": "P068",
+    "title": "Approval Page committee block structural check",
+    "description": "Heuristic PDF check for the Approval Page structural extension of Q013: a uniquely detected APPROVAL PAGE should include advisor/committee role-label template phrases and sufficient date/signature structural indicators. Counts role-label lines, date labels, signature labels, and underscore blank lines only. Committee-member names, honorifics, affiliations, signature authenticity, and Q015-Q020 semantic ordering rules are out of scope.",
+    "section": "Approval Page",
+    "question": "Does the Approval Page include recognizable committee role labels and signature/date structural blocks?",
+    "rule_definition": "Conservative structural heuristic: (1) detect exactly one APPROVAL PAGE heading; (2) scan body lines below the heading; (3) count curated advisor/committee role-label phrases in line prefixes; (4) count date:, signature, and underscore-blank indicators; (5) emit approval_page_advisor_role_label_missing when no advisor-role phrase is detected among >= 2 role labels; (6) emit approval_page_signature_blocks_sparse when indicator count is below max(2, role_label_count). Findings contain counts and booleans only.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_approval_page_committee_blocks",
+    "source_q_rule_ids": [
+      "Q013"
+    ],
+    "source_files": [
+      "data/processed/rules/njit_rule_inventory.json",
+      "data/raw/guidelines/260330_YESNO_audit_logic_matrix.xlsx",
+      "data/raw/guidelines/Front Matter Pages Lorem Ipsum.pdf",
+      "data/raw/guidelines/Self-Self Assessment Sheet.pdf"
+    ],
+    "issue_types": [
+      "approval_page_advisor_role_label_missing",
+      "approval_page_signature_blocks_sparse"
+    ],
+    "remediation": "Ensure the Approval Page includes an advisor-role label and sufficient date/signature structural blocks for each committee entry. Manual review is still required for honorifics, rank order, NJIT/external ordering, institution completeness, and signature authenticity.",
+    "source_file": "project_added",
+    "notes": "Conservative v1 PDF heuristic. Skips when no unique APPROVAL PAGE heading is detected, the page is image-only, body lines are sparse/noisy, or fewer than 2 role-label phrases are found. Does not duplicate P014 (heading style), P025 (sparse body line count), P038 (heading phrase presence), or P022 (no page number). Q015-Q020 remain manual-only."
   }
 ]

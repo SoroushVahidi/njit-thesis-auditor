@@ -8,10 +8,21 @@
 | **Rule name** | Approval Page Committee Block Structural Check |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `ee7af73` (PR #241 — post-P067 aggregate evaluation snapshot) |
-| **Status** | **Scoped only — not implemented** |
+| **Status** | **Implemented** — `src/njit_auditor/rules/pdf_approval_page_committee_blocks.py` (PR after `fc4037c`) |
 | **Validation baseline** | 950 pytest (`ruff check .`, `mypy src`) |
-| **Planned module** | `src/njit_auditor/rules/pdf_approval_page_committee_blocks.py` |
+| **Module** | `src/njit_auditor/rules/pdf_approval_page_committee_blocks.py` |
 | **Companion rules** | P014 (`pdf_headings.py` — Q013 layout), P025 (`pdf_frontmatter_structure.py` — sparse body), P038 (`pdf_frontmatter_headings.py` — heading presence), P022 (`pdf_frontmatter_no_page_number.py` — Q014) |
+
+---
+
+## Implementation Note
+
+Implemented as `check_pdf_approval_page_committee_blocks()` with issue types
+`approval_page_advisor_role_label_missing` and `approval_page_signature_blocks_sparse`.
+The optional advisory `approval_page_committee_blocks_sparse` was not implemented in v1 to
+limit noise, per the scope recommendation. Synthetic validation:
+`docs/evaluation/p068_approval_page_committee_blocks_synthetic_validation.md`.
+Current-dataset evaluation is pending (`docs/evaluation/p068_current_dataset_evaluation.md`).
 
 ---
 

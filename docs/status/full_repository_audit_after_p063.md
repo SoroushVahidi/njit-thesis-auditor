@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064–P067 implemented (references structural, dedication centering/italic, bio-sketch degree ordering, bio-sketch publication ordering); post-P067 aggregate at **1,587** findings (`docs/evaluation/current_auditor_after_p067_evaluation.md`, commit `ee7af73`); **950 pytest**; **P068 scoped** — approval page committee/signature-block structural check (`docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md`); Q-rule inventory lag corrected for Q025/Q026/Q033/Q034 partial coverage via P066/P047/P065
+- **Update (2026-06-08):** P064–P068 implemented; P068 adds approval page committee/signature-block structural checks (`pdf_approval_page_committee_blocks.py`); post-P067 aggregate remains **1,587** findings until refreshed; **963+ pytest** after P068 implementation
 
 ---
 
@@ -391,7 +391,7 @@ None at this time. All validation passes (ruff, mypy, pytest).
 | Item | Notes |
 |---|---|
 | References/citations rule (P064 candidate) | Scope doc complete: `docs/planning/p064_references_citations_structural_check_scope_and_design.md`; ready for implementation in next PR |
-| Committee/approval-page structural refinements | **P068 scoped** — committee/signature-block counts; Q015–Q020 remain manual |
+| Committee/approval-page structural refinements | **P068 implemented** — role-label and signature/date block counts; Q015–Q020 remain manual |
 | Image-heavy page detection for P035 | v1 skips image-only floats; extend to rasterized figure detection |
 | No PDF page preview or annotation overlay | GUI Phase 4+; privacy-safe geometry markers only |
 | No auth/rate limiting by default | Public deployments require reverse proxy, TLS, authentication, rate limiting |
