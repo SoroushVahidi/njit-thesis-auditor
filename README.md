@@ -249,7 +249,7 @@ More docs:
 - `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md` — P067 scope and design: bio-sketch publication/presentation reverse-chronology check (Q027; implemented)
 - `docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md` — P068 scope and design: approval page committee/signature-block structural check (implemented)
 - `docs/evaluation/p068_approval_page_committee_blocks_synthetic_validation.md` — P068 synthetic test coverage, privacy model, and limitations
-- `docs/evaluation/p068_current_dataset_evaluation.md` — P068 current-dataset evaluation (pending; evaluation PDFs unavailable in workspace)
+- `docs/evaluation/p068_current_dataset_evaluation.md` — P068 current-dataset evaluation (3 findings on 2/5 files; 3/5 skipped at detection gate; 2026-06-08)
 - `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md` — P065 synthetic test coverage and gate verification (15/15 tests pass)
 - `docs/evaluation/p065_current_dataset_evaluation.md` — P065 current-dataset evaluation (2026-06-08; 0 findings; all 5 PDFs skipped — no machine-readable DEDICATION heading detected)
 - `docs/evaluation/current_auditor_after_p067_evaluation.md` — post-P067 full five-PDF aggregate snapshot (P011–P067; 1,587 findings; P067 adds 0; 2026-06-08)
