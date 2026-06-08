@@ -3,7 +3,8 @@
 - **Date:** 2026-06-07
 - **Baseline commit:** `4f3a70e` (post PR #216)
 - **Scope:** Manual browser verification of the FastAPI web UI (PDF, TeX, ZIP uploads; JSON/Markdown downloads; triage panels; privacy controls)
-- **Related:** `docs/web_gui_mvp.md` (setup and operations), `docs/planning/synthetic_web_demo_fixtures.md` (planned demo fixtures), `docs/planning/gui_scope_and_design.md` (design reference)
+- **Related:** `docs/web_gui_mvp.md` (setup and operations), `docs/planning/synthetic_web_demo_fixtures.md` (fixture details), `docs/planning/gui_scope_and_design.md` (design reference)
+- **Demo guide:** See [`docs/web_ui_demo_guide.md`](web_ui_demo_guide.md) for the quick-start end-to-end demo using the committed synthetic fixtures (install, run, step-by-step upload flow, privacy statement, caveats).
 
 ---
 

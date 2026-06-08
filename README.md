@@ -64,6 +64,8 @@ See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment varia
 reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
 See [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the manual browser
 QA checklist (upload flows, download verification, privacy checks, known limitations).
+See [docs/web_ui_demo_guide.md](docs/web_ui_demo_guide.md) for the end-to-end demo guide using
+synthetic fixtures (install, run, step-by-step upload flow, privacy statement, caveats).
 
 **Demo fixtures:** The directory `tests/fixtures/web_demo/` contains committed synthetic
 test files (PDF, TeX, ZIP) for manual QA and automated smoke tests. All content is
