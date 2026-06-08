@@ -213,7 +213,8 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
-- `docs/evaluation/current_auditor_after_p065_evaluation.md` — full PDF audit snapshot at P066 era (P011–P066, five evaluation PDFs; **1,587** findings; P066 adds 0; 2/5 bio sketch detected and passed)
+- `docs/evaluation/current_auditor_after_p066_evaluation.md` — full PDF audit snapshot at P066 era (P011–P066, five evaluation PDFs; **1,587** findings; P066 adds 0; 3/5 files skipped at heading detection; 2/5 bio sketches detected and passed)
+- `docs/evaluation/current_auditor_after_p065_evaluation.md` — full PDF audit snapshot at P065 era (P011–P065, five evaluation PDFs; **1,587** findings; P065 adds 0)
 - `docs/evaluation/current_auditor_after_p064_evaluation.md` — full PDF audit snapshot at P064 era (P011–P064, five evaluation PDFs; **1,587** findings; P064 adds 0; post-P064 aggregate confirmed)
 - `docs/evaluation/current_auditor_after_p063_evaluation.md` — full PDF audit snapshot at P063 era (P011–P063, five evaluation PDFs; **1,587** findings; P063 adds 0; prior to P064)
 - `docs/evaluation/ef_overlap_after_p063_evaluation.md` — EF comment-vs-tool overlap refresh after P063; Cibaku (78 EF / 325 tool) and Yin Haotian (65 EF / 346 tool); P064 recommendation: references/citations structural check
@@ -242,6 +243,7 @@ More docs:
 - `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; implemented PR #236)
 - `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md` — P065 synthetic test coverage and gate verification (15/15 tests pass)
 - `docs/evaluation/p065_current_dataset_evaluation.md` — P065 current-dataset evaluation (2026-06-08; 0 findings; all 5 PDFs skipped — no machine-readable DEDICATION heading detected)
+- `docs/evaluation/current_auditor_after_p066_evaluation.md` — post-P066 full five-PDF aggregate snapshot (P011–P066; 1,587 findings; P066 adds 0; 2026-06-08)
 - `docs/evaluation/current_auditor_after_p065_evaluation.md` — post-P065 full five-PDF aggregate snapshot (P011–P065; 1,587 findings; P065 adds 0; 2026-06-08)
 - `docs/evaluation/p066_biosketch_degree_ordering_synthetic_validation.md` — P066 synthetic test coverage and gate verification (12/12 tests pass)
 - `docs/evaluation/p066_current_dataset_evaluation.md` — P066 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped — heading not detected; 2/5 detected and passed)
