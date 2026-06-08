@@ -247,7 +247,7 @@ Plus `demo_project_extracted/` as an untracked runtime directory (safe to gitign
 | P034-era (historical canonical) | P011–P034 | 1,446 | P013: 461, P026: ~388, P011: 169 | `00b9c2d` |
 | P061-era | P011–P061 | 1,587 | P013: 461, P026: 415, P036: 77 | `ffea4e3` |
 | P062-era (latest full five-PDF) | P011–P062 | 1,587 | P013: 461, P026: 415, P011: 169, P012: 143, P036: 77; P062: 0 | `36373c9` |
-| P063-era | P011–P063 | not run | current-dataset audit not run | `71b3823` |
+| P063-era (full five-PDF run, 2026-06-07) | P011–P063 | **1,587** | P013: 461, P026: 415, P011: 169, P012: 143, P036: 77; P063: 0 | `f170be5` |
 
 ### Top rules from P062-era snapshot (five PDFs)
 
@@ -262,7 +262,7 @@ Plus `demo_project_extracted/` as an untracked runtime directory (safe to gitign
 ### P062 / P063 behavior on five-file set
 
 - **P062:** 0 findings (no qualifying cross-page TOC numeric sequence on this dataset).
-- **P063:** not run on dataset. 0 confirmed behavior unknown on current five PDFs.
+- **P063:** 0 findings on five-PDF set (2026-06-07, commit `f170be5`). No qualifying body-region appendix heading sequence detected on this dataset; does not prove compliance if body heading gate not met. See `docs/evaluation/current_auditor_after_p063_evaluation.md`.
 
 ### Generated output folders
 
@@ -365,7 +365,7 @@ None at this time. All validation passes (ruff, mypy, pytest).
 | Issue | Notes |
 |---|---|
 | Stale P-rule scope in several status docs | `current_project_state_and_next_steps.md`, `data_inventory_and_evaluation_sources.md`, `evaluation_data_manifest.md`, `evaluation_data_manifest.json`, `real_thesis_pairing_and_ef_overlap_readiness.md` all say P001–P062 or 62/62 instead of P063 |
-| No post-P063 current-dataset evaluation | P063 (and most rules P036–P063) have never been run on the five-evaluation-PDF set; behavior on real dissertations is unknown |
+| No EF overlap refresh since P029 era | Rules P030–P063 added substantial new coverage; the EF overlap comparison has not been refreshed |
 
 ### Medium
 
