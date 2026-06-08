@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `b8aeec8` (PR #215 — web export privacy hardening; P001–P061 implemented)
-- **Validation:** ruff, mypy, **842 pytest** at the latest docs/status refresh
+- **Latest main:** `36373c9` (PR #221 — real-thesis pairing and EF overlap readiness doc; P001–P062 implemented)
+- **Validation:** ruff, mypy, **876 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -54,9 +54,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 61 (P001–P061) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 62 (P001–P062) | Yes |
 
-P001–P061 are implemented; P061 formal current-dataset evaluation complete (0 findings on five-PDF local subset); full Q-rule / guideline source coverage is not complete
+P001–P062 are implemented; P062 formal current-dataset evaluation complete (0 findings on five-PDF local subset; no qualifying cross-page TOC numeric sequence detected); full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`).
 
 ---
@@ -137,7 +137,8 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Current full P001–P061 PDF evaluation (P061-era):** `docs/evaluation/current_auditor_after_p061_evaluation.md` — **1,587** findings; gitignored outputs under `data/evaluation/generated/current_auditor_after_p061/`
+- **Current full P001–P062 PDF evaluation (P062-era):** `docs/evaluation/current_auditor_after_p062_evaluation.md` — **1,587** findings (P062 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p062/`
+- **P061-era PDF evaluation (prior full snapshot):** `docs/evaluation/current_auditor_after_p061_evaluation.md` — **1,587** findings; gitignored outputs under `data/evaluation/generated/current_auditor_after_p061/`
 - **Historical full P001–P034 PDF evaluation (pre-P035 canonical):** `docs/evaluation/current_auditor_after_p034_evaluation.md`
 - **P035 current-dataset subset (local 4 PDFs):** `docs/evaluation/p035_current_dataset_evaluation.md`
 - **Canonical full-triage generated reports (gitignored):** `data/evaluation/generated/current_auditor_after_p034_p011_triage/` — P011/P012/P013/P026 triage rollups; see `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`

@@ -30,7 +30,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
-**ZIP** uploads through the same form. PDF uploads run the full **P011–P061** layout audit;
+**ZIP** uploads through the same form. PDF uploads run the full **P011–P062** layout audit;
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
 `run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
@@ -75,14 +75,14 @@ for fixture details and
 [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the QA
 scenario mapping.
 
-### PDF layout audit (P011–P061)
+### PDF layout audit (P011–P062)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P061 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P062 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -98,7 +98,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P061):
+Current PDF checks (P011–P062):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -153,6 +153,7 @@ Current PDF checks (P011–P061):
 | P059 | TOC/List | LoT/LoF entry-number ordering check: emits a warning when a List of Tables or List of Figures page contains complete entries whose entry numbers (the numeric token following the "Table"/"Figure" label) are not in non-decreasing order (`lot_entry_numbers_not_nondecreasing`, `lof_entry_numbers_not_nondecreasing`) (Q063/Q072); gate: entry must have page-number token, text ≥ 10 chars, parseable entry number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; mixed sequential + chapter-based format pages skipped; appendix/letter-prefixed entries skipped; TOC pages excluded; triage tier: medium; privacy-safe metadata only |
 | P060 | TOC/List | TOC section-number ordering check: emits a warning when a Table of Contents page contains parseable numeric section entries (entries starting with a bare number, e.g. "1 Introduction", "1.1 Background") whose section numbers are not in non-decreasing order (`toc_entry_numbers_not_nondecreasing`) (Q056/Q057 implied); gate: entry must have page-number token, text ≥ 10 chars, parseable section number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF pages excluded; triage tier: medium; privacy-safe metadata only |
 | P061 | TOC/List | LoT/LoF cross-page entry-number ordering check: emits a warning when consecutive same-type List of Tables or List of Figures pages span multiple pages and the combined entry-number sequence is not non-decreasing (`lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`) (Q063/Q072 extension); gate: requires ≥2 consecutive pages, ≥3 combined comparable entries, and ≥2 inversions; mixed sequential + chapter-based runs skipped; non-consecutive pages not combined; cross-page companion to P059; triage tier: medium; privacy-safe metadata only |
+| P062 | TOC/List | TOC cross-page section-number ordering check: emits a warning when consecutive TABLE OF CONTENTS pages have a combined section-number sequence that is not non-decreasing (`toc_cross_page_entry_numbers_not_nondecreasing`) (Q056/Q057 extension); gate: requires ≥2 consecutive TOC pages, ≥3 combined comparable entries, and ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) skipped; non-consecutive pages not combined; cross-page companion to P060 and symmetric counterpart to P061; triage tier: medium; privacy-safe metadata only |
 
 All findings are heuristic warnings and require manual review.
 
@@ -210,7 +211,8 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
-- `docs/evaluation/current_auditor_after_p061_evaluation.md` — current full PDF audit snapshot (P011–P061, five evaluation PDFs; **1,587** findings)
+- `docs/evaluation/current_auditor_after_p062_evaluation.md` — current full PDF audit snapshot (P011–P062, five evaluation PDFs; **1,587** findings; P062 adds 0)
+- `docs/evaluation/current_auditor_after_p061_evaluation.md` — prior full PDF audit snapshot (P011–P061, five evaluation PDFs; **1,587** findings; historical)
 - `docs/evaluation/current_auditor_after_p034_evaluation.md` — historical pre-P035 full PDF audit snapshot (P011–P034; **1,446** findings)
 - `docs/evaluation/p035_current_dataset_evaluation.md` — P035 local four-PDF subset (not a new canonical aggregate)
 - `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md` — canonical gitignored full reports with P011/P012/P013/P026 triage rollups (`current_auditor_after_p034_p011_triage/`; older `current_auditor_after_p034*` folders are historical/superseded)
@@ -222,7 +224,9 @@ More docs:
 - `docs/evaluation/p036_current_dataset_evaluation.md` — P036 current-dataset status (not run; evaluation PDFs unavailable)
 - `docs/planning/gui_scope_and_design.md` — GUI/web UI scope and design (local-only; evolve FastAPI MVP)
 - `docs/planning/p061_scope_and_design.md` — P061 LoT/LoF cross-page entry-number ordering design
-- `docs/evaluation/p061_current_dataset_evaluation.md` — P061 formal current-dataset evaluation (PR #204; 0 findings on five-PDF local subset; sparse comparable entries; not canonical aggregate)
+- `docs/evaluation/p061_current_dataset_evaluation.md` — P061 formal current-dataset evaluation (PR #204; 0 findings on five-PDF local subset; sparse comparable entries)
+- `docs/planning/p062_scope_and_design.md` — P062 TOC cross-page section-number ordering design
+- `docs/evaluation/current_auditor_after_p062_evaluation.md` — P062 formal current-dataset evaluation (2026-06-07; 0 P062 findings on five-PDF set; no qualifying cross-page TOC sequence detected)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
