@@ -1243,5 +1243,30 @@
     "notes": "Conservative v1 PDF heuristic for Q033/Q034. Gate: skip if no unique DEDICATION heading in first 15 pages. Centering: offset > 20 pt threshold; ≥2 text lines required. Italic: ratio < 0.5; ≥3 spans required; skips if all font metadata is None. Does not check dedication content/professionalism (manual-only). Companion to P041 (Q032). issue_types: dedication_text_not_centered, dedication_text_not_italic.",
     "remediation": "Ensure the dedication text block is horizontally centered within the text area. Format dedication text in italic; check that the font applied to the body of the dedication is an italic or oblique variant.",
     "source_file": "project_added"
+  },
+  {
+    "id": "P066",
+    "title": "Biographical Sketch degree ordering check",
+    "description": "Heuristic PDF check for Q025: postgraduate degree entries in the Biographical Sketch must be listed most recent to oldest. Detects 4-digit year tokens in short education-zone candidate lines (below the BIOGRAPHICAL SKETCH heading, above any detectable Publications/Presentations sub-section boundary) and checks whether the year sequence is non-increasing (most recent first). Emits biosketch_degree_order_suspicious when a clear inversion (> 2-year gap) is found among >= 3 candidate lines. Q023 (no birthplace/date of birth), Q024 (no work experience), and the 'NJIT first' sub-requirement of Q025 are explicitly out of scope for v1 — all three require reading biographical content and/or NLP.",
+    "section": "Biographical Sketch",
+    "question": "Are postgraduate degrees listed from most recent to oldest?",
+    "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings; (2) find Publications/Presentations boundary line if present; (3) collect short lines (<= 120 chars) with exactly one 4-digit year token (1960-2099) in the education zone; (4) skip if < 3 such candidates or all years equal; (5) emit biosketch_degree_order_suspicious if any adjacent pair has a later-listed year > earlier-listed year by > 2 years. Findings contain counts and year integers only — no bio-sketch text, degree names, institution names, or biographical prose.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_biosketch_degree_ordering",
+    "source_q_rule_ids": [
+      "Q025"
+    ],
+    "source_files": [
+      "data/raw/guidelines/260330_YESNO_audit_logic_matrix.xlsx",
+      "data/raw/guidelines/Self-Self Assessment Sheet.pdf"
+    ],
+    "issue_types": [
+      "biosketch_degree_order_suspicious"
+    ],
+    "remediation": "Reorder postgraduate degree entries in the Biographical Sketch from most recent to oldest. Q023 (no birthplace/date) and Q024 (no work experience) require manual review.",
+    "source_file": "project_added",
+    "notes": "Conservative v1 PDF heuristic for Q025 (degree ordering) only. Q023 (no birthplace/date of birth) and Q024 (no work experience) are manual-only — require NLP and content reading; high privacy risk. Q025 'NJIT first' sub-requirement deferred — requires institution name recognition. False-positive risk: year tokens from narrative prose mitigated by line-length threshold (_MAX_DEGREE_LINE_CHARS=120), one-year-per-line gate, and 3-candidate minimum. If bio-sketch page is image-rendered, P066 returns 0 findings (expected). Companion to P045 (Q028/Q029) and P047 (Q026)."
   }
 ]

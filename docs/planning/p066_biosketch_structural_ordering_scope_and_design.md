@@ -6,8 +6,8 @@
 - **Rule name:** Biographical Sketch Structural/Ordering Check
 - **Date scoped:** 2026-06-08
 - **Baseline commit:** `cf3b533` (post PR #234)
-- **Status:** Scoped only — not yet implemented
-- **Validation baseline:** 925 pytest, ruff clean, mypy 83 source files
+- **Status:** Implemented — PR #236
+- **Validation baseline:** 925 pytest, ruff clean, mypy 83 source files (scoping); 937 pytest, ruff clean, mypy 84 source files (post-implementation)
 - **Source Q-rules:** Q025 (primary); Q023, Q024 (deferred)
 - **Module (planned):** `src/njit_auditor/rules/pdf_biosketch_degree_ordering.py`
 - **Companion rules:** P045 (`pdf_biosketch_publication_layout.py` — Q028/Q029),
