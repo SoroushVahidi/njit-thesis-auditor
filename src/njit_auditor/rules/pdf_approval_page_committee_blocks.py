@@ -14,8 +14,9 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage
+from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_matches_for_heading
 from njit_auditor.rules.pdf_frontmatter_structure import _lines_below_heading
-from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings, normalize_heading_text
+from njit_auditor.rules.pdf_headings import normalize_heading_text
 
 _APPROVAL_HEADING = "APPROVAL PAGE"
 _RULE_ID = "P068"
@@ -172,11 +173,7 @@ def _make_finding(
 
 def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P068 warnings when approval-page committee blocks look structurally sparse."""
-    approval_matches = [
-        match
-        for match in find_named_frontmatter_headings(pdf_document)
-        if match.heading == _APPROVAL_HEADING
-    ]
+    approval_matches = find_gate_matches_for_heading(pdf_document, _APPROVAL_HEADING)
     if len(approval_matches) != 1:
         return []
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.rules.pdf_frontmatter_heading_gate import FRONTMATTER_HEADING_VARIANTS
 from njit_auditor.rules.pdf_headings import (
     find_named_frontmatter_headings,
     normalize_heading_text,
@@ -28,12 +29,8 @@ _OPTIONAL_HEADINGS: tuple[str, ...] = (
     "LIST OF FIGURES",
 )
 
-# Curated map of safe known variant spellings → canonical expected phrase.
-# Only phrases in this map are used for heading_phrase_not_exact detection;
-# arbitrary extracted text is never included in findings to protect privacy.
-_KNOWN_VARIANTS: dict[str, str] = {
-    "ACKNOWLEDGMENTS": "ACKNOWLEDGEMENTS",
-}
+# Shared curated variant map (P069 gate resolver + P038 phrase checks).
+_KNOWN_VARIANTS: dict[str, str] = FRONTMATTER_HEADING_VARIANTS
 
 _SECTION_KEYS: dict[str, str] = {
     "APPROVAL PAGE": "approval_page",

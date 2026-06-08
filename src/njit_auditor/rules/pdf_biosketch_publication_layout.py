@@ -20,7 +20,7 @@ from statistics import median as _median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
-from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings, normalize_heading_text
+from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_heading_page_and_y
 
 HANGING_THRESHOLD_PT = 12.0
 MAX_PARA_GAP_PT = 14.0
@@ -45,17 +45,7 @@ def _find_biosketch_page_and_heading_y(
     pdf_document: PdfDocument,
 ) -> tuple[PdfPage, float] | None:
     """Return (page, heading_bottom_y) for the BIOGRAPHICAL SKETCH page, or None."""
-    for match in find_named_frontmatter_headings(pdf_document):
-        if match.heading != _HEADING_LABEL:
-            continue
-        for page in pdf_document.pages:
-            if page.page_number != match.page_number:
-                continue
-            for block in page.text_blocks:
-                for line in block.lines:
-                    if normalize_heading_text(line.text).upper() == _HEADING_LABEL:
-                        return page, line.bbox.y1
-    return None
+    return find_gate_heading_page_and_y(pdf_document, _HEADING_LABEL)
 
 
 def _lines_below_heading(

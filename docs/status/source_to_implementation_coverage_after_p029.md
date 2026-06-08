@@ -194,7 +194,7 @@ Rules that should remain manual-only or process-only for now:
 
 Top 3 next tasks:
 
-1. Implement **P069** front-matter heading gate recall refinement — see `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md`.
+1. **P069 implemented** — front-matter heading gate recall refinement; see `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` and current-dataset eval doc.
 2. Maintain the full five-PDF **P001–P068** aggregate snapshot and re-run it only when detector behavior changes.
 3. Extend **P035** beyond text-layer-only bodies so image-heavy figure/table pages are no longer skipped by default.
 

@@ -14,6 +14,10 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.rules.pdf_frontmatter_heading_gate import (
+    find_gate_heading_page_and_y,
+    line_resolves_to_gate_heading,
+)
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 
 _TOP_ZONE_RATIO = 0.15
@@ -36,13 +40,16 @@ def _is_page_number_candidate(cleaned: str) -> bool:
 
 
 def _find_dedication_page(pdf_document: PdfDocument) -> PdfPage | None:
-    """Return the first page with a DEDICATION heading in the first _MAX_SCAN_PAGES pages."""
-    for page in pdf_document.pages[:_MAX_SCAN_PAGES]:
-        for block in page.text_blocks:
-            for line in block.lines:
-                if normalize_heading_text(line.text).upper() == _DEDICATION_HEADING:
-                    return page
-    return None
+    """Return the first page with a gate-resolved DEDICATION heading."""
+    result = find_gate_heading_page_and_y(
+        pdf_document,
+        _DEDICATION_HEADING,
+        max_scan_pages=_MAX_SCAN_PAGES,
+        require_unique=False,
+    )
+    if result is None:
+        return None
+    return result[0]
 
 
 def check_pdf_dedication_page(pdf_document: PdfDocument) -> list[AuditFinding]:
@@ -62,7 +69,7 @@ def check_pdf_dedication_page(pdf_document: PdfDocument) -> list[AuditFinding]:
             continue
         if _is_page_number_candidate(cleaned):
             continue
-        if cleaned.upper() == _DEDICATION_HEADING:
+        if line_resolves_to_gate_heading(cleaned, _DEDICATION_HEADING):
             continue
         if not re.search(r"[A-Za-z]", cleaned):
             continue
