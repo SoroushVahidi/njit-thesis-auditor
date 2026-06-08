@@ -249,6 +249,7 @@ More docs:
 - `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; implemented PR #236)
 - `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md` — P067 scope and design: bio-sketch publication/presentation reverse-chronology check (Q027; implemented)
 - `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md` — P069 scope and design: front-matter heading gate recall refinement (implemented; infrastructure)
+- `docs/planning/p070_toc_lot_lof_entry_parser_recall_refinement_scope_and_design.md` — P070 scope and design: TOC/LoT/LoF entry parser recall refinement (scoped; infrastructure)
 - `docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md` — P068 scope and design: approval page committee/signature-block structural check (implemented)
 - `docs/evaluation/p068_approval_page_committee_blocks_synthetic_validation.md` — P068 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/p068_current_dataset_evaluation.md` — P068 current-dataset evaluation (3 findings on 2/5 files; 3/5 skipped at detection gate; 2026-06-08)
