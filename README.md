@@ -30,7 +30,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
-**ZIP** uploads through the same form. PDF uploads run the full **P011–P062** layout audit;
+**ZIP** uploads through the same form. PDF uploads run the full **P011–P063** layout audit;
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
 `run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
@@ -75,14 +75,14 @@ for fixture details and
 [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the QA
 scenario mapping.
 
-### PDF layout audit (P011–P062)
+### PDF layout audit (P011–P063)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P062 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P063 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -98,7 +98,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P062):
+Current PDF checks (P011–P063):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -154,6 +154,7 @@ Current PDF checks (P011–P062):
 | P060 | TOC/List | TOC section-number ordering check: emits a warning when a Table of Contents page contains parseable numeric section entries (entries starting with a bare number, e.g. "1 Introduction", "1.1 Background") whose section numbers are not in non-decreasing order (`toc_entry_numbers_not_nondecreasing`) (Q056/Q057 implied); gate: entry must have page-number token, text ≥ 10 chars, parseable section number, and ≥ 3 comparable entries with ≥ 2 inversions before flagging; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF pages excluded; triage tier: medium; privacy-safe metadata only |
 | P061 | TOC/List | LoT/LoF cross-page entry-number ordering check: emits a warning when consecutive same-type List of Tables or List of Figures pages span multiple pages and the combined entry-number sequence is not non-decreasing (`lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`) (Q063/Q072 extension); gate: requires ≥2 consecutive pages, ≥3 combined comparable entries, and ≥2 inversions; mixed sequential + chapter-based runs skipped; non-consecutive pages not combined; cross-page companion to P059; triage tier: medium; privacy-safe metadata only |
 | P062 | TOC/List | TOC cross-page section-number ordering check: emits a warning when consecutive TABLE OF CONTENTS pages have a combined section-number sequence that is not non-decreasing (`toc_cross_page_entry_numbers_not_nondecreasing`) (Q056/Q057 extension); gate: requires ≥2 consecutive TOC pages, ≥3 combined comparable entries, and ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) skipped; non-consecutive pages not combined; cross-page companion to P060 and symmetric counterpart to P061; triage tier: medium; privacy-safe metadata only |
+| P063 | Appendices | Body-page appendix heading label check: emits a warning when body-page APPENDIX headings do not follow NJIT label conventions — a single appendix must use APPENDIX (no letter suffix); multiple appendices must each use APPENDIX A, APPENDIX B, etc. with consecutive letters starting from A (`single_appendix_uses_letter_label`, `multiple_appendix_missing_letter`, `appendix_letter_sequence_gap`, `appendix_letter_sequence_repeat`) (Q058/Q059 body-page extension); companion to P042 (TOC-side); gate: requires body region detection (CHAPTER/APPENDIX body heading) before scanning; skips documents with no body region detected; triage tier: medium; privacy-safe metadata only |
 
 All findings are heuristic warnings and require manual review.
 
