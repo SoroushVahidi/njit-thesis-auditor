@@ -30,7 +30,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
-**ZIP** uploads through the same form. PDF uploads run the full **P011–P063** layout audit;
+**ZIP** uploads through the same form. PDF uploads run the full **P011–P064** layout audit;
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
 `run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
@@ -75,14 +75,14 @@ for fixture details and
 [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the QA
 scenario mapping.
 
-### PDF layout audit (P011–P063)
+### PDF layout audit (P011–P064)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P063 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P064 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -98,7 +98,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P063):
+Current PDF checks (P011–P064):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -155,6 +155,7 @@ Current PDF checks (P011–P063):
 | P061 | TOC/List | LoT/LoF cross-page entry-number ordering check: emits a warning when consecutive same-type List of Tables or List of Figures pages span multiple pages and the combined entry-number sequence is not non-decreasing (`lot_cross_page_entry_numbers_not_nondecreasing`, `lof_cross_page_entry_numbers_not_nondecreasing`) (Q063/Q072 extension); gate: requires ≥2 consecutive pages, ≥3 combined comparable entries, and ≥2 inversions; mixed sequential + chapter-based runs skipped; non-consecutive pages not combined; cross-page companion to P059; triage tier: medium; privacy-safe metadata only |
 | P062 | TOC/List | TOC cross-page section-number ordering check: emits a warning when consecutive TABLE OF CONTENTS pages have a combined section-number sequence that is not non-decreasing (`toc_cross_page_entry_numbers_not_nondecreasing`) (Q056/Q057 extension); gate: requires ≥2 consecutive TOC pages, ≥3 combined comparable entries, and ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) skipped; non-consecutive pages not combined; cross-page companion to P060 and symmetric counterpart to P061; triage tier: medium; privacy-safe metadata only |
 | P063 | Appendices | Body-page appendix heading label check: emits a warning when body-page APPENDIX headings do not follow NJIT label conventions — a single appendix must use APPENDIX (no letter suffix); multiple appendices must each use APPENDIX A, APPENDIX B, etc. with consecutive letters starting from A (`single_appendix_uses_letter_label`, `multiple_appendix_missing_letter`, `appendix_letter_sequence_gap`, `appendix_letter_sequence_repeat`) (Q058/Q059 body-page extension); companion to P042 (TOC-side); gate: requires body region detection (CHAPTER/APPENDIX body heading) before scanning; skips documents with no body region detected; triage tier: medium; privacy-safe metadata only |
+| P064 | References | References/citations structural check: emits a warning when no REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading is found in a document with ≥5 body pages (`references_section_heading_not_detected`); emits a warning when multi-line reference entries show inconsistent hanging-indent patterns (`references_entry_indentation_inconsistent`); emits a warning when inter-entry vertical gaps are highly irregular (`references_entry_spacing_inconsistent`); does NOT enforce citation style (APA/IEEE/etc.) — style is advisor-dependent; gate: body region detection required; ≥5 entry candidates for B/C; ≥3 multi-line entries for B; x-variance < 50 pt; no multi-column layout; consistent blank-line separation between entries required for reliable grouping; triage tier: medium/low; privacy-safe geometry metadata only (no entry text, author names, DOIs, URLs) |
 
 All findings are heuristic warnings and require manual review.
 
@@ -212,7 +213,7 @@ More docs:
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
-- `docs/evaluation/current_auditor_after_p063_evaluation.md` — current full PDF audit snapshot (P011–P063, five evaluation PDFs; **1,587** findings; P063 adds 0)
+- `docs/evaluation/current_auditor_after_p063_evaluation.md` — full PDF audit snapshot at P063 era (P011–P063, five evaluation PDFs; **1,587** findings; P063 adds 0; prior to P064)
 - `docs/evaluation/ef_overlap_after_p063_evaluation.md` — EF comment-vs-tool overlap refresh after P063; Cibaku (78 EF / 325 tool) and Yin Haotian (65 EF / 346 tool); P064 recommendation: references/citations structural check
 - `docs/evaluation/current_auditor_after_p062_evaluation.md` — prior full PDF audit snapshot (P011–P062, five evaluation PDFs; **1,587** findings; P062 adds 0)
 - `docs/evaluation/current_auditor_after_p061_evaluation.md` — historical full PDF audit snapshot (P011–P061, five evaluation PDFs; **1,587** findings; historical)
@@ -231,7 +232,8 @@ More docs:
 - `docs/planning/p062_scope_and_design.md` — P062 TOC cross-page section-number ordering design
 - `docs/planning/p063_scope_and_design.md` — P063 body-page appendix heading label check design
 - `docs/evaluation/current_auditor_after_p063_evaluation.md` — P063 formal current-dataset evaluation (2026-06-07; 0 P063 findings on five-PDF set; no qualifying body-region appendix heading sequence detected)
-- `docs/planning/p064_references_citations_structural_check_scope_and_design.md` — P064 references/citations structural check scope and design (SCOPED ONLY; not yet implemented)
+- `docs/planning/p064_references_citations_structural_check_scope_and_design.md` — P064 references/citations structural check scope and design (implemented PR #228)
+- `docs/evaluation/p064_references_citations_structural_synthetic_validation.md` — P064 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 
 ## Report schema
