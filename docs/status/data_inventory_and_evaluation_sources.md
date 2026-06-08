@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
 - Date: 2026-06-08 (metadata refresh after P066 evaluation snapshot)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P067 implemented, web UI present on `main` (`afe4ef6` latest code baseline for this status refresh; manifest/eval baseline `00b9c2d`, **950** pytest)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P068 implemented, web UI present on `main` (`8766359` latest code baseline for this status refresh; manifest/eval baseline `00b9c2d`, **963** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -51,7 +51,7 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P067**) — P001–P067 all implemented.
+  Project implementation rule set (**P001-P068**) — P001–P068 all implemented; P069 scoped.
 
 From the strict post-P029 audit plus post-audit updates through P062
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
