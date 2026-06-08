@@ -445,16 +445,14 @@
     "remediation": "Reorder postgraduate degree entries from most recent to oldest.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
-    "phase": "mixed",
+    "implementation_status": "partially_implemented",
+    "phase": "pdf_layout",
     "checkability": "heuristic",
     "input_required": [
-      "tex_source",
-      "human_metadata",
-      "template_reference"
+      "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Partial conservative PDF heuristic: Bio Sketch education-section year ordering only (pdf_biosketch_degree_ordering.py, P066). Skips ambiguous headings, image-only pages, and sparse year lines. NJIT-first sub-requirement deferred. Does not read degree titles, institutions, or biographical prose."
   },
   {
     "id": "Q026",
@@ -464,16 +462,14 @@
     "remediation": "Single-space each bullet item in the education section.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
-    "phase": "mixed",
+    "implementation_status": "partially_implemented",
+    "phase": "pdf_layout",
     "checkability": "heuristic",
     "input_required": [
-      "tex_source",
-      "human_metadata",
-      "template_reference"
+      "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Needs human metadata/template interpretation beyond strict source parsing."
+    "notes": "Partial conservative PDF heuristic: Bio Sketch bullet/list internal single-spacing via vertical-gap geometry (pdf_biosketch_bullet_spacing.py, P047). Skips ambiguous Bio Sketch heading detection and image-only pages."
   },
   {
     "id": "Q027",
@@ -592,14 +588,14 @@
     "remediation": "Center the full dedication text block on the page.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Partial conservative PDF heuristic: dedication text block centering via bbox geometry (pdf_dedication_centering_italic.py, P065). Skips when no unique DEDICATION heading is detected, sparse text, or ambiguous layout."
   },
   {
     "id": "Q034",
@@ -609,14 +605,14 @@
     "remediation": "Italicize the dedication text.",
     "severity": "warning",
     "source_file": "260330_YESNO_audit_logic_matrix.xlsx",
-    "implementation_status": "not_implemented",
+    "implementation_status": "partially_implemented",
     "phase": "pdf_layout",
     "checkability": "visual",
     "input_required": [
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output."
+    "notes": "Partial conservative PDF heuristic: dedication italic ratio from span font metadata (pdf_dedication_centering_italic.py, P065). Skips when font metadata is absent or dedication heading is not detected."
   },
   {
     "id": "Q035",
