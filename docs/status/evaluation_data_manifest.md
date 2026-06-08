@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `dd0f022` (P065 implemented — dedication centering/italic check; P001–P065 implemented; see `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md`)
+- **Latest main:** `b233f3b` (PR #233 — P065 current-dataset evaluation complete; P001–P065 implemented; post-P065 five-PDF aggregate confirmed at 1,587; see `docs/evaluation/current_auditor_after_p065_evaluation.md`)
 - **Validation:** ruff, mypy, **925 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
