@@ -28,13 +28,14 @@ def _make_minimal_pdf(path: Path) -> None:
     doc.close()
 
 
-def test_post_p054_rule_ids_include_p061() -> None:
+def test_post_p054_rule_ids_include_p062() -> None:
     assert "P061" in PDF_AUDIT_POST_P054_RULE_IDS
-    assert PDF_AUDIT_POST_P054_CALLABLE_NAMES[-1] == "check_pdf_lot_lof_cross_page_entry_ordering"
+    assert "P062" in PDF_AUDIT_POST_P054_RULE_IDS
+    assert PDF_AUDIT_POST_P054_CALLABLE_NAMES[-1] == "check_pdf_toc_cross_page_entry_ordering"
 
 
 def test_run_pdf_audit_full_calls_post_p054_rules(tmp_path: Path) -> None:
-    """Regression: web/CLI shared path must invoke P055–P061, not stop at P054."""
+    """Regression: web/CLI shared path must invoke P055–P062, not stop at P054."""
     pdf_path = tmp_path / "thesis.pdf"
     _make_minimal_pdf(pdf_path)
 
@@ -63,6 +64,7 @@ def test_run_pdf_audit_full_calls_post_p054_rules(tmp_path: Path) -> None:
 
     assert called == list(PDF_AUDIT_POST_P054_CALLABLE_NAMES)
     assert "check_pdf_lot_lof_cross_page_entry_ordering" in called
+    assert "check_pdf_toc_cross_page_entry_ordering" in called
 
 
 def test_cli_and_shared_backend_use_same_collect_function(tmp_path: Path) -> None:

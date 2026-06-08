@@ -1,9 +1,10 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-07
-- **Latest main:** post PR #219 — web UI demo guide and smoke script added
+- **Latest main:** post PR #220 — P062 TOC cross-page section-number ordering implemented
 - **Web UI demo guide:** `docs/web_ui_demo_guide.md` — end-to-end demo guide using committed synthetic fixtures; covers install, run commands, environment variables, fixture table, step-by-step upload flow, privacy invariant checks, expected UI elements, and known caveats; `scripts/web_demo_smoke.sh` added as a convenience smoke check (prints fixture paths, runs `pytest tests/test_web_demo_fixtures.py -q`; does not start a server)
 - **Synthetic web demo fixtures:** Implemented (PR #218) — `tests/fixtures/web_demo/` now contains five committed safe fixtures: `clean_minimal.pdf`, `issues_pdf.pdf`, `clean_minimal.tex`, `issues_tex.tex`, `demo_project.zip`; all synthetic placeholder text only; 21 automated smoke tests in `tests/test_web_demo_fixtures.py` covering upload success, findings detection, JSON/Markdown downloads, path redaction, and privacy sanitization; see `docs/planning/synthetic_web_demo_fixtures.md`
+- **P062:** **implemented** (PR #220) — `src/njit_auditor/rules/pdf_toc_cross_page_entry_ordering.py`; TOC cross-page section-number ordering check (Q056/Q057 extension; cross-page companion to P060); emits `toc_cross_page_entry_numbers_not_nondecreasing` when consecutive TABLE OF CONTENTS pages have a combined section-number sequence that is not non-decreasing; gates: ≥2 consecutive TOC pages, ≥3 combined comparable entries, ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) skipped; non-consecutive pages not combined; triage_tier: medium; 12 synthetic tests in `tests/test_p062_toc_cross_page_entry_ordering.py`; see `docs/planning/p062_scope_and_design.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **Status/metadata cleanup:** complete through PR #215; P061 implemented in PR #202; formal P061 evaluation in `docs/evaluation/p061_current_dataset_evaluation.md`
 - **P059:** **implemented** — `src/njit_auditor/rules/pdf_lot_lof_entry_number_ordering.py` (new module); LoT/LoF entry-number ordering check (Q063/Q072 refinement); emits `lot_entry_numbers_not_nondecreasing` / `lof_entry_numbers_not_nondecreasing` when entry numbers (numeric token following "Table"/"Figure" label) are not non-decreasing; gates: ≥3 entries with parseable entry numbers, ≥2 inversions; mixed sequential+chapter-based pages skipped; appendix/letter-prefixed entries skipped; TOC excluded; triage_tier: medium; 12 synthetic tests added; see `docs/planning/p059_scope_and_design.md` and `docs/evaluation/p059_lot_lof_entry_number_ordering_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **P060:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_number_ordering.py` (new module); TOC section-number ordering check (Q056/Q057 implied); emits `toc_entry_numbers_not_nondecreasing` when parseable numeric section entries in TABLE OF CONTENTS are not non-decreasing; gates: ≥3 entries with parseable section numbers, ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF excluded; triage_tier: medium; 12 synthetic tests added; see `docs/planning/p060_scope_and_design.md` and `docs/evaluation/p060_toc_entry_number_ordering_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
@@ -28,15 +29,15 @@
 - **P040:** **implemented** — `src/njit_auditor/rules/pdf_lof_terminal_punctuation.py`; LoF entry terminal punctuation check (Q075); 9 synthetic tests added; see `docs/planning/p040_scope_and_design.md` and `docs/evaluation/p040_lof_terminal_punctuation_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **P054:** **implemented** — `src/njit_auditor/rules/pdf_toc_terminal_period.py` (new module); TOC entry terminal-period absence check (Q049/Q050/Q051 refinement); emits `toc_entry_has_terminal_period` warning when complete TOC entries end with `.`; gates: ≥2 entries, page_number_token present, ≥10 chars after stripping; symmetric counterpart to P053 (LoT no terminal period) for TOC pages; 9 synthetic tests added; see `docs/planning/p054_scope_and_design.md` and `docs/evaluation/p054_toc_terminal_period_synthetic_validation.md`; **current-dataset audit not run** — only 4/5 evaluation PDFs directly accessible
 - **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; file upload accepts **PDF, TeX, and ZIP** (P011–P061 for PDF; P001–P010 source audit for TeX/ZIP with safe ZIP extraction); plus public PDF URL (`POST /audits/url`) and built-in sample PDF (`POST /audits/sample`); **dispatcher:** `run_audit_for_uploaded_file()`; **reports:** JSON/Markdown/report-view for all supported upload kinds; **display:** `report_view.py` + polished Jinja results (file:line for source, pages for PDF); **job TTL cleanup:** `cleanup_expired_jobs()` with `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 h); **web export privacy:** basename-only paths in web-generated JSON/Markdown; **source audit export sanitization:** `sanitize_report_for_web_export()` in `report_outputs.py` replaces raw source messages (which may contain label/ref names) with generic privacy-safe descriptions and removes unsafe detail keys (`label`, `ref`, `caption`, `title`, `author`, `body`, `text`, and related source-snippet fields) from web-exported TeX findings; PDF reports and CLI unaffected; see `docs/web_gui_mvp.md` and `docs/planning/gui_scope_and_design.md`
-- **Validation:** ruff, mypy, **842 pytest** passed (830 pre-PR #215 + 12 new source-export privacy tests; confirmed at `b8aeec8`; unchanged at `4f3a70e` — docs-only PR)
+- **Validation:** ruff, mypy, **876 pytest** passed (864 pre-PR #220 + 12 new P062 synthetic tests)
 - **P061:** **implemented** (PR #202) — `src/njit_auditor/rules/pdf_lot_lof_cross_page_entry_ordering.py`; LoT/LoF cross-page entry-number ordering (Q063/Q072 extension); 15 synthetic tests in `tests/test_p061_lot_lof_cross_page_entry_ordering.py`; see `docs/planning/p061_scope_and_design.md`; **formal current-dataset evaluation** (PR #204): **0** findings on five PDFs — sparse comparable LoT/LoF entries; does not prove compliance — see `docs/evaluation/p061_current_dataset_evaluation.md`
-- **Auditor scope:** P001–P061 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Auditor scope:** P001–P062 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (P061-era full rerun):** **1,587** total — P013 **461**, P026 **415**, P011 **169**, P012 **143**, P036 **77**; P061 **0**; see `docs/evaluation/current_auditor_after_p061_evaluation.md`
 - **Five-PDF aggregate (historical pre-P035 baseline):** 1,446 total — P011–P034 only; `generated_for_commit: 00b9c2d`
 - **P035 local subset (4 available PDFs, not canonical):** **13** findings — Yin H 4th compressed only; see `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P036 current-dataset audit:** **not run** — evaluation PDFs unavailable in workspace; see `docs/evaluation/p036_current_dataset_evaluation.md`
-- **P-rules:** **61/61** implemented (`P001`–`P061`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
+- **P-rules:** **62/62** implemented (`P001`–`P062`); P012 triage is a **reporting refinement** on existing P012 (not a new rule)
 - **Q-rules (updated inventory):** **79** in `njit_rule_inventory.json` — **2** `implemented`, **51** `partially_implemented`, **26** `not_implemented` (9 manual-only, 17 automatable gaps; see `docs/status/q_rule_coverage_after_p044.md`)
 - **Status/metadata cleanup:** complete through PR #89; P036 implemented — see `docs/planning/p036_scope_and_design.md`, `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md`, `docs/evaluation/p036_current_dataset_evaluation.md`; P035 docs in `docs/planning/p035_scope_and_design.md`, `docs/evaluation/p035_current_dataset_evaluation.md`
 - **P037:** **implemented** — `src/njit_auditor/rules/pdf_roman_section_anchors.py`; section-anchored front-matter Roman numerals (Q022, Q031, Q035, Q046, Q060); 12 synthetic tests added; see `docs/planning/p037_scope_and_design.md` and `docs/evaluation/p037_roman_section_anchors_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable; see `docs/evaluation/p037_current_dataset_evaluation.md`; v1 limitations: DEDICATION detection requires verbatim heading; compressed PDFs may produce false negatives; LOF anchor deferred to v2
@@ -217,12 +218,13 @@
 | `pdf_lot_lof_entry_number_ordering.py` | P059 | LoT/LoF entry-number ordering check: emits warning when List of Tables or List of Figures entries have entry numbers (numeric token following "Table"/"Figure" label) that are not non-decreasing (Q063/Q072 refinement); gates: ≥3 comparable entries, ≥2 inversions; mixed sequential+chapter-based pages skipped; appendix/letter-prefixed entries skipped; TOC excluded; triage_tier: medium; privacy-safe metadata only |
 | `pdf_toc_entry_number_ordering.py` | P060 | TOC section-number ordering check: emits warning when parseable numeric section entries in TABLE OF CONTENTS (entries starting with a bare number, e.g. "1 Introduction", "1.1 Background") are not in non-decreasing order (Q056/Q057 implied); gates: ≥3 comparable entries, ≥2 inversions; word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped; LoT/LoF excluded; triage_tier: medium; privacy-safe metadata only |
 | `pdf_lot_lof_cross_page_entry_ordering.py` | P061 | LoT/LoF cross-page entry-number ordering check: emits warning when consecutive same-type LoT or LoF pages span multiple pages and combined entry numbers are not non-decreasing (Q063/Q072 extension); gates: ≥2 consecutive pages, ≥3 combined comparable entries, ≥2 inversions; mixed-format runs skipped; cross-page companion to P059; triage_tier: medium; privacy-safe metadata only |
+| `pdf_toc_cross_page_entry_ordering.py` | P062 | TOC cross-page section-number ordering check: emits warning when consecutive TABLE OF CONTENTS pages have a combined section-number sequence that is not non-decreasing (Q056/Q057 extension); gates: ≥2 consecutive TOC pages, ≥3 combined comparable entries, ≥2 inversions; word-prefix entries skipped; cross-page companion to P060 and symmetric counterpart to P061; triage_tier: medium; privacy-safe metadata only |
 
 ### Infrastructure
 
 | Module | Purpose |
 |--------|---------|
-| `audit_runner.py` | Shared PDF API: `run_pdf_audit_full()` / `collect_pdf_layout_findings()` — P011–P061; used by CLI and web app |
+| `audit_runner.py` | Shared PDF API: `run_pdf_audit_full()` / `collect_pdf_layout_findings()` — P011–P062; used by CLI and web app |
 | `web_app.py` | FastAPI web application: upload form, background audit task, JSON/Markdown download |
 | `templates/` | Jinja2 HTML templates for the web UI (base, index, job) |
 | `report_outputs.py` | JSON/Markdown report generation; `build_grouped_summary`, `compact_page_list` added for triage summaries |
@@ -244,7 +246,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P061) | 61 | 61 | — | — | — |
+| P-rules (P001–P062) | 62 | 62 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 
@@ -531,13 +533,13 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | v1 skips | Wrap-continuation lines (no page_number_token); short entries; sparse pages |
 | Current-dataset eval | **Not run** — only 4/5 evaluation PDFs directly accessible; see `docs/evaluation/p053_current_dataset_evaluation.md` |
 
-## 6. Current Validation Status (main at `4f3a70e`)
+## 6. Current Validation Status (post PR #220)
 
 | Check | Result |
 |-------|--------|
 | `ruff check .` | ✅ All checks passed |
 | `mypy src` | ✅ No issues in source files |
-| `python -m pytest` | ✅ **842 passed** (unchanged from PR #215; PR #216 is docs-only) |
+| `python -m pytest` | ✅ **876 passed** (864 pre-PR #220 + 12 new P062 synthetic tests) |
 
 ### P038 at a glance
 
@@ -635,7 +637,7 @@ See `docs/evaluation/current_auditor_after_p034_full_triage_refresh.md`.
 | 🟡 Low | Optional public deployment hardening | Reverse proxy, TLS, authentication, rate limiting; document in `docs/web_gui_mvp.md` |
 | 🟡 Low | Optional synthetic demo dataset | Committed synthetic PDF/TeX with known-bad formatting for live demo |
 | 🟡 Low | Sanitizer key-list maintenance | If future source rules add private fields, update `_UNSAFE_SOURCE_DETAIL_KEYS` in `report_outputs.py` |
-| 🟡 Low | Scope next P-rule only after status/manifests stable | No P062 in this refresh |
+| 🟢 Done | P062 TOC cross-page ordering | Implemented in PR #220 — see `docs/planning/p062_scope_and_design.md` |
 
 Do **not** treat the local four-PDF P035 subset (+13) as an updated canonical grand total.
 P061 formal local subset: **0** findings. Most P036–P060 per-rule current-dataset audits remain not run.
