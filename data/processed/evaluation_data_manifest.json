@@ -2,9 +2,9 @@
   "schema_version": 1,
   "generated_for_commit": "00b9c2d",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P066",
-    "pytest_count_at_last_doc_refresh": 937,
-    "latest_main_at_last_doc_refresh": "e5caace",
+    "p_rules_implemented": "P001-P067",
+    "pytest_count_at_last_doc_refresh": 950,
+    "latest_main_at_last_doc_refresh": "afe4ef6",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
@@ -38,7 +38,9 @@
     "p065_current_dataset_note": "Formal post-implementation audit on five PDFs (2026-06-08, commit 414a774): 0 P065 findings; all 5 files skipped by detection gate — no machine-readable standalone DEDICATION heading found in first 15 pages of any file; Cibaku/Yin PDFs: no DEDICATION text in first 15 pages; Sebastian Fine: 'DEDICATION' appears only in body prose (not a heading); P041 also finds no dedication page on these files — shared detection limitation; zero findings do not prove compliance. See docs/evaluation/p065_current_dataset_evaluation.md",
     "post_p065_aggregate_note": "Full five-PDF audit (2026-06-08, commit b233f3b): 1,587 total findings — unchanged from P064-era; P065 adds 0 findings; all 5 files skipped at DEDICATION detection gate (no machine-readable standalone heading found). See docs/evaluation/current_auditor_after_p065_evaluation.md",
     "p066_current_dataset_note": "Formal post-implementation audit on five PDFs (2026-06-08, commit e5caace): 0 P066 findings; 3/5 files skipped (BIOGRAPHICAL SKETCH heading not detected by frontmatter scan); 2/5 files reached year-ordering checks (Yin H 4th: 4 candidates, years non-increasing; Sebastian Fine: 3 candidates, years non-increasing); zero findings do not prove Q025 compliance. See docs/evaluation/p066_current_dataset_evaluation.md",
-    "post_p066_aggregate_note": "Full five-PDF audit (2026-06-08, commit e5caace): 1,587 total findings — unchanged from P065-era; P066 adds 0 findings; 3/5 files skipped at BIOGRAPHICAL SKETCH detection gate and 2/5 files reached year-ordering checks with no inversions. See docs/evaluation/current_auditor_after_p066_evaluation.md"
+    "post_p066_aggregate_note": "Full five-PDF audit (2026-06-08, commit e5caace): 1,587 total findings — unchanged from P065-era; P066 adds 0 findings; 3/5 files skipped at BIOGRAPHICAL SKETCH detection gate and 2/5 files reached year-ordering checks with no inversions. See docs/evaluation/current_auditor_after_p066_evaluation.md",
+    "p067_current_dataset_note": "Formal post-implementation audit on five PDFs (2026-06-08, commit afe4ef6): 0 P067 findings; 3/5 files skipped at BIOGRAPHICAL SKETCH heading detection; 2/5 files reached BIOGRAPHICAL SKETCH detection but 0/5 reached a qualifying Publications/Presentations boundary; zero findings do not prove Q027 compliance. See docs/evaluation/p067_current_dataset_evaluation.md",
+    "post_p067_aggregate_note": "Full five-PDF audit (2026-06-08, commit afe4ef6): 1,587 total findings — unchanged from P066-era; P067 adds 0 findings because no file reached a qualifying Publications/Presentations boundary with enough comparable entries. See docs/evaluation/current_auditor_after_p067_evaluation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -147,10 +149,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 66,
-        "rule_id_range": "P001-P066",
+        "rule_count": 67,
+        "rule_id_range": "P001-P067",
         "tracked_status": "tracked",
-        "description": "Project implementation rule set mapped to audit modules (P001-P066 implemented)"
+        "description": "Project implementation rule set mapped to audit modules (P001-P067 implemented)"
       }
     ],
     "ef_commented_dissertations": [
@@ -369,7 +371,7 @@
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
   },
-  "p_rules_implemented": "P001-P066",
-  "pytest_count_at_last_doc_refresh": 937,
-  "latest_main_at_last_doc_refresh": "e5caace"
+  "p_rules_implemented": "P001-P067",
+  "pytest_count_at_last_doc_refresh": 950,
+  "latest_main_at_last_doc_refresh": "afe4ef6"
 }
