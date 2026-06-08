@@ -248,7 +248,7 @@ More docs:
 - `docs/planning/p065_dedication_centering_italic_scope_and_design.md` — P065 scope and design: dedication page centering/italic check (Q033/Q034; implemented 2026-06-08)
 - `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; implemented PR #236)
 - `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md` — P067 scope and design: bio-sketch publication/presentation reverse-chronology check (Q027; implemented)
-- `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md` — P069 scope and design: front-matter heading gate recall refinement (scoped only; infrastructure)
+- `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md` — P069 scope and design: front-matter heading gate recall refinement (implemented; infrastructure)
 - `docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md` — P068 scope and design: approval page committee/signature-block structural check (implemented)
 - `docs/evaluation/p068_approval_page_committee_blocks_synthetic_validation.md` — P068 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/p068_current_dataset_evaluation.md` — P068 current-dataset evaluation (3 findings on 2/5 files; 3/5 skipped at detection gate; 2026-06-08)
@@ -262,6 +262,7 @@ More docs:
 - `docs/evaluation/p066_current_dataset_evaluation.md` — P066 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped — heading not detected; 2/5 detected and passed)
 - `docs/evaluation/p067_biosketch_publication_ordering_synthetic_validation.md` — P067 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/p067_current_dataset_evaluation.md` — P067 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped at heading detection; 2/5 reached Bio Sketch but no qualifying Publications boundary detected)
+- `docs/evaluation/current_auditor_after_p069_evaluation.md` — full PDF audit snapshot at P069 era (P011–P069, five evaluation PDFs; **1,590** findings; unchanged vs P068-era; P069 infrastructure-only)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` — P069 synthetic validation (infrastructure-only; 13 tests; no standalone findings)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — P069 five-PDF gate-reach evaluation (ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged)
 - `docs/evaluation/ef_overlap_after_p068_evaluation.md` — EF comment-vs-tool overlap refresh after P068 on 2 extractable-comment PDFs (143 annotations; P064–P068 unchanged overlap on comparison set)

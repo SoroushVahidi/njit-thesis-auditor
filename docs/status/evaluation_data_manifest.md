@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `5d8ebaf` (merge PR #244 — P068 current-dataset evaluation; P001–P068 implemented; post-P068 five-PDF aggregate confirmed at 1,590; see `docs/evaluation/current_auditor_after_p068_evaluation.md`)
-- **Validation:** ruff, mypy, **963 pytest** at the latest docs/status refresh
+- **Latest main:** `e045817` (merge PR #249 — P069 implemented; post-P069 five-PDF aggregate confirmed at 1,590 unchanged vs P068-era; see `docs/evaluation/current_auditor_after_p069_evaluation.md`)
+- **Validation:** ruff, mypy, **976 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -137,7 +137,9 @@ files unless explicitly requested.
 - Ester materials catalog: `docs/sources/ester_materials.md`
 - Rule coverage audit: `docs/status/source_to_implementation_coverage_after_p029.md`
 - Historical full P001–P029 evaluation: `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
-- **Current full P001–P068 PDF evaluation (P068-era):** `docs/evaluation/current_auditor_after_p068_evaluation.md` — **1,590** findings (P068 adds 3); gitignored outputs under `data/evaluation/generated/current_auditor_after_p068/`
+- **Current full P001–P069 PDF evaluation (P069-era):** `docs/evaluation/current_auditor_after_p069_evaluation.md` — **1,590** findings (unchanged vs P068-era; P069 infrastructure-only); gitignored outputs under `data/evaluation/generated/current_auditor_after_p069/`
+- **P069 gate-reach evaluation:** `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged
+- **Prior full P001–P068 PDF evaluation (P068-era):** `docs/evaluation/current_auditor_after_p068_evaluation.md` — **1,590** findings (P068 adds 3); gitignored outputs under `data/evaluation/generated/current_auditor_after_p068/`
 - **P068 current-dataset evaluation:** `docs/evaluation/p068_current_dataset_evaluation.md` — 3 findings on 2/5 files; 3/5 skipped at APPROVAL PAGE detection gate
 - **Prior full P001–P067 PDF evaluation (P067-era):** `docs/evaluation/current_auditor_after_p067_evaluation.md` — **1,587** findings (P067 adds 0); gitignored outputs under `data/evaluation/generated/current_auditor_after_p067/`
 - **P067 current-dataset evaluation:** `docs/evaluation/p067_current_dataset_evaluation.md` — 0 findings; 3/5 files skipped at heading detection; 2/5 reached BIOGRAPHICAL SKETCH but no qualifying Publications boundary
