@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-08
-- **Latest main:** `08c1a8d` (PR #256) — P071 implemented
+- **Latest main:** `3c175fe` (PR #257) — post-P071 EF overlap refresh complete
+- **Full repository audit (P071 era):** `docs/status/full_repository_audit_after_p071.md`
 - **P071:** **implemented** — references section localization recall refinement (`pdf_references_citations_structural.py`); infrastructure-only; 12 synthetic tests; five-PDF eval: P064 reach 2/5→5/5; aggregate unchanged at 1,543; **EF overlap refresh complete:** P064 now reaches 2/2 comparison PDFs but `references_citations` gap unchanged (9 EF, 0 tool); see `docs/evaluation/p071_references_section_localization_recall_synthetic_validation.md`, `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md`, and `docs/evaluation/ef_overlap_after_p071_evaluation.md`
 - **P070:** **implemented** — TOC/LoT/LoF entry parser recall refinement (`pdf_toc_alignment.py`); infrastructure-only; 12 synthetic tests; **current-dataset evaluation complete** — all 5 PDFs accessible; parser entries 185→167 (pre-P070 comparator); post-P070 aggregate 1,543; see `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_synthetic_validation.md`, `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md`, and `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **P069:** **implemented** — front-matter heading gate recall refinement (shared infrastructure); see `src/njit_auditor/rules/pdf_frontmatter_heading_gate.py`, `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md`, and `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md`; no standalone issue types; ACKNOWLEDGEMENTS variant recall +4 on five-PDF set; P065–P068 finding totals unchanged on current dataset
@@ -90,6 +91,7 @@
 - **P013 triage refresh (historical):** `docs/evaluation/current_auditor_after_p034_p013_triage_refresh.md` — superseded by canonical path above for full reports
 - Historical full-auditor snapshot (P001–P029): `docs/evaluation/current_auditor_after_p014_p029_evaluation.md`
 - **Real-thesis pairing and EF overlap readiness (P068-era refresh):** `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — data inventory, raw/commented pair table, extractability table, overlap-readiness table, recommended evaluation cadence, next actions (refreshed 2026-06-08 after P068 aggregate)
+- **Full repository audit after P071:** `docs/status/full_repository_audit_after_p071.md` — post-P071 comprehensive audit; canonical aggregate 1,543; EF overlap current through PR #257
 - **EF overlap after P071 (comparison PDFs):** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — post-P071 refresh on 2 extractable-comment PDFs; P064 now reaches both comparison PDFs (localization fixed) but `references_citations` EF gap unchanged (9 EF, 0 tool); total tool findings still 671; `committee_approval_page` and `list_of_tables_figures_toc` gaps unchanged
 - **EF overlap after P068 (comparison PDFs):** `docs/evaluation/ef_overlap_after_p068_evaluation.md` — page/category overlap refresh on 2 extractable-comment PDFs; P064–P068 added 0 findings on comparison set; historical baseline before P071 localization fix
 - Historical EF overlap study (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
@@ -278,7 +280,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P070) | 70 | 70 | — | — | — |
+| P-rules (P001–P071) | 71 | 71 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 

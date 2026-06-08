@@ -214,6 +214,7 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 
 More docs:
 - `docs/status/current_project_state_and_next_steps.md` — current implementation state and next steps
+- `docs/status/full_repository_audit_after_p071.md` — comprehensive post-P071 repository audit (P001–P071, EF overlap, gaps, next priorities)
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit
 - `docs/demo/graduate_studies_pdf_audit_workflow.md` — Graduate Studies workflow
