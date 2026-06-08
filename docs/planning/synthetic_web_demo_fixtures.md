@@ -1,9 +1,21 @@
-# Synthetic Web Demo Fixtures — Plan
+# Synthetic Web Demo Fixtures
 
 - **Date:** 2026-06-07
 - **Baseline commit:** `4f3a70e` (post PR #216)
-- **Status:** Planning only — fixtures not yet implemented
+- **Status:** Implemented — all five fixtures committed in `tests/fixtures/web_demo/` (PR #218)
 - **Related:** `docs/web_ui_manual_qa_checklist.md`, `docs/web_gui_mvp.md`, `docs/planning/gui_scope_and_design.md`
+
+## Committed Fixture Paths
+
+| Fixture | Path | Size | Notes |
+|---|---|---|---|
+| Clean minimal PDF | `tests/fixtures/web_demo/clean_minimal.pdf` | ~2 KB | Generated with PyMuPDF; synthetic text only |
+| Issues PDF | `tests/fixtures/web_demo/issues_pdf.pdf` | ~2.4 KB | Triggers P011 (margin overflow) and P013; synthetic text only |
+| Clean minimal TeX | `tests/fixtures/web_demo/clean_minimal.tex` | ~400 B | Minimal TeX; no risky commands; few/no source findings |
+| Issues TeX | `tests/fixtures/web_demo/issues_tex.tex` | ~900 B | Triggers P001, P002, P004, P005, P007, P008; synthetic only |
+| Demo ZIP | `tests/fixtures/web_demo/demo_project.zip` | ~350 B | ZIP with `main.tex`; safe extraction; produces source report |
+
+All fixtures are covered by 21 automated tests in `tests/test_web_demo_fixtures.py`.
 
 ---
 
@@ -204,7 +216,7 @@ fixtures and referencing the manual QA checklist.
 
 ---
 
-## 6. Acceptance Criteria for a Future Fixture Implementation PR
+## 6. Acceptance Criteria (Implemented — PR #218)
 
 A PR implementing these fixtures is ready to merge when all of the following are true:
 

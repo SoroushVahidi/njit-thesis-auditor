@@ -99,14 +99,31 @@ To stop the server: press `Ctrl+C` in the terminal where uvicorn is running.
 
 ---
 
-## 5. Creating Synthetic Test Inputs
+## 5. Recommended Synthetic Fixtures
 
-Until `tests/fixtures/web_demo/` is populated (see `docs/planning/synthetic_web_demo_fixtures.md`),
-create minimal synthetic inputs by hand:
+The committed fixtures in `tests/fixtures/web_demo/` are ready to use for manual QA.
+They contain only synthetic placeholder text — no real dissertation content, real names,
+or private data. Use them as drop-in upload inputs during browser QA:
+
+| Scenario | Fixture file | Expected outcome |
+|---|---|---|
+| Clean PDF upload (no findings) | `tests/fixtures/web_demo/clean_minimal.pdf` | Audit completes; few findings; no triage panels needed |
+| PDF with issues (P011/P013) | `tests/fixtures/web_demo/issues_pdf.pdf` | P011 margin warnings and P013 finding appear; triage panel if counts high enough |
+| Clean TeX source | `tests/fixtures/web_demo/clean_minimal.tex` | Source audit completes; few/no source findings; "TeX source audit" scope label |
+| TeX with issues (P001–P008) | `tests/fixtures/web_demo/issues_tex.tex` | P001/P002/P004/P005/P007/P008 source findings; sanitized web JSON |
+| ZIP project upload | `tests/fixtures/web_demo/demo_project.zip` | ZIP extracted; `main.tex` detected; source report produced |
+| Unsafe ZIP (path traversal) | Generate at test time with `tmp_path` — never committed | Server rejects with 400 or `failed` state |
+
+These fixtures are also used by the 21 automated tests in `tests/test_web_demo_fixtures.py`.
+
+### Creating Synthetic Test Inputs
+
+For additional manual testing beyond the committed fixtures, create minimal synthetic
+inputs by hand:
 
 **Minimal synthetic PDF (clean):**
-Use PyMuPDF (`fitz`) or any PDF writer to create a single-page document with a line of
-generic text. No real dissertation content.
+Use the committed `tests/fixtures/web_demo/clean_minimal.pdf`, or use PyMuPDF (`fitz`)
+to create a single-page document with generic text. No real dissertation content.
 
 **Minimal synthetic TeX:**
 ```latex

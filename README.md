@@ -65,6 +65,14 @@ reverse proxy configuration (nginx/Caddy), and operations commands (check logs, 
 See [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the manual browser
 QA checklist (upload flows, download verification, privacy checks, known limitations).
 
+**Demo fixtures:** The directory `tests/fixtures/web_demo/` contains committed synthetic
+test files (PDF, TeX, ZIP) for manual QA and automated smoke tests. All content is
+synthetic placeholder text — no real dissertation content. See
+[docs/planning/synthetic_web_demo_fixtures.md](docs/planning/synthetic_web_demo_fixtures.md)
+for fixture details and
+[docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the QA
+scenario mapping.
+
 ### PDF layout audit (P011–P061)
 
 ```bash
