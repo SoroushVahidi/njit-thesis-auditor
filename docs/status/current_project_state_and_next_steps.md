@@ -33,7 +33,7 @@
 - **Web UI:** FastAPI web application present — `src/njit_auditor/web_app.py`; file upload accepts **PDF, TeX, and ZIP** (P011–P061 for PDF; P001–P010 source audit for TeX/ZIP with safe ZIP extraction); plus public PDF URL (`POST /audits/url`) and built-in sample PDF (`POST /audits/sample`); **dispatcher:** `run_audit_for_uploaded_file()`; **reports:** JSON/Markdown/report-view for all supported upload kinds; **display:** `report_view.py` + polished Jinja results (file:line for source, pages for PDF); **job TTL cleanup:** `cleanup_expired_jobs()` with `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 h); **web export privacy:** basename-only paths in web-generated JSON/Markdown; **source audit export sanitization:** `sanitize_report_for_web_export()` in `report_outputs.py` replaces raw source messages (which may contain label/ref names) with generic privacy-safe descriptions and removes unsafe detail keys (`label`, `ref`, `caption`, `title`, `author`, `body`, `text`, and related source-snippet fields) from web-exported TeX findings; PDF reports and CLI unaffected; see `docs/web_gui_mvp.md` and `docs/planning/gui_scope_and_design.md`
 - **Validation:** ruff, mypy, **889 pytest** passed (876 pre-PR #222 + 13 new P063 synthetic tests)
 - **P061:** **implemented** (PR #202) — `src/njit_auditor/rules/pdf_lot_lof_cross_page_entry_ordering.py`; LoT/LoF cross-page entry-number ordering (Q063/Q072 extension); 15 synthetic tests in `tests/test_p061_lot_lof_cross_page_entry_ordering.py`; see `docs/planning/p061_scope_and_design.md`; **formal current-dataset evaluation** (PR #204): **0** findings on five PDFs — sparse comparable LoT/LoF entries; does not prove compliance — see `docs/evaluation/p061_current_dataset_evaluation.md`
-- **Auditor scope:** P001–P062 implemented; full Q001–Q079 / guideline source coverage is **not** complete
+- **Auditor scope:** P001–P063 implemented; full Q001–Q079 / guideline source coverage is **not** complete
 - **P039:** **implemented** — `src/njit_auditor/rules/pdf_toc_entry_hierarchy.py`; TOC level indentation hierarchy check (Q056); 9 synthetic tests added; see `docs/planning/p039_scope_and_design.md` and `docs/evaluation/p039_toc_entry_hierarchy_synthetic_validation.md`; **current-dataset audit not run** — evaluation PDFs unavailable
 - **Five-PDF aggregate (P062-era full rerun, 2026-06-07):** **1,587** total — P013 **461**, P026 **415**, P011 **169**, P012 **143**, P036 **77**; P062 **0** (no qualifying cross-page TOC sequence on dataset); see `docs/evaluation/current_auditor_after_p062_evaluation.md`
 - **Five-PDF aggregate (P061-era full rerun, historical):** **1,587** total — P013 **461**, P026 **415**, P011 **169**, P012 **143**, P036 **77**; P061 **0**; see `docs/evaluation/current_auditor_after_p061_evaluation.md`
@@ -230,7 +230,7 @@
 
 | Module | Purpose |
 |--------|---------|
-| `audit_runner.py` | Shared PDF API: `run_pdf_audit_full()` / `collect_pdf_layout_findings()` — P011–P062; used by CLI and web app |
+| `audit_runner.py` | Shared PDF API: `run_pdf_audit_full()` / `collect_pdf_layout_findings()` — P011–P063; used by CLI and web app |
 | `web_app.py` | FastAPI web application: upload form, background audit task, JSON/Markdown download |
 | `templates/` | Jinja2 HTML templates for the web UI (base, index, job) |
 | `report_outputs.py` | JSON/Markdown report generation; `build_grouped_summary`, `compact_page_list` added for triage summaries |
@@ -252,7 +252,7 @@
 | Category | Total | Implemented | Partial | Not Implemented | Manual-Only |
 |----------|------:|:-----------:|:-------:|:--------------:|:-----------:|
 | Q-rules (Q001–Q079) | 79 | 2 (Q004, Q005) | ~38 | ~17 | ~22 |
-| P-rules (P001–P062) | 62 | 62 | — | — | — |
+| P-rules (P001–P063) | 63 | 63 | — | — | — |
 
 ### Q-Rule Not-Implemented Clusters (automatable)
 

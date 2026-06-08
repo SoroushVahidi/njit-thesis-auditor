@@ -1,7 +1,7 @@
 # Real Thesis Pairing and EF Overlap Readiness
 
 - **Date:** 2026-06-07
-- **Auditor scope:** P001–P062 implemented; 876 pytest
+- **Auditor scope:** P001–P063 implemented; 889 pytest
 - **Source docs:** `data/processed/evaluation_data_manifest.json`,
   `docs/status/evaluation_data_manifest.md`,
   `docs/status/data_inventory_and_evaluation_sources.md`,
