@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064–P071 implemented; P071 references section localization recall (infrastructure companion to P064); **1000 pytest**; canonical post-P070 aggregate **1,543** findings; P071 five-PDF eval: P064 reach 5/5; **EF overlap after P071:** P064 reaches 2/2 comparison PDFs; `references_citations` gap unchanged; see `docs/evaluation/ef_overlap_after_p071_evaluation.md`
+- **Update (2026-06-08):** P064–P071 implemented; post-P071 EF overlap refresh complete (PR #257); **full repository audit:** `docs/status/full_repository_audit_after_p071.md`
 
 ---
 
@@ -412,6 +412,8 @@ None at this time. All validation passes (ruff, mypy, pytest).
 | 8 | Consider adding `p063_current_dataset_note` to manifest JSON | Keeps machine-readable manifest consistent with other per-rule notes |
 
 ---
+
+- **Successor audit (P071 era):** `docs/status/full_repository_audit_after_p071.md`
 
 ## Cross-References
 
