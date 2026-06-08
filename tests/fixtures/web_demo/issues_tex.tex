@@ -1,0 +1,36 @@
+\documentclass[12pt]{report}
+\usepackage{setspace}
+\begin{document}
+\doublespacing
+
+\chapter{Introduction}
+This is a sample chapter for demonstration purposes.
+\vspace{1cm}
+Some additional sample text after a risky vertical space command.
+
+\section{Figures and Tables}
+See Figure \ref{fig:demo_label} and Table \ref{tab:demo_table} for details.
+
+\begin{figure}
+\label{fig:demo_label}
+Sample figure placeholder.
+\end{figure}
+
+\begin{figure}
+\label{fig:demo_label}
+Duplicate label — this triggers a duplicate label finding.
+\end{figure}
+
+\begin{figure}
+Sample figure with no caption — triggers missing caption finding.
+\end{figure}
+
+\begin{figure}
+\caption{A sample figure caption with no terminal period}
+\label{fig:demo_caption}
+Sample figure content.
+\end{figure}
+
+\chapter{Conclusion}
+This is a sample conclusion chapter with synthetic placeholder text only.
+\end{document}
