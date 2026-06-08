@@ -1,11 +1,11 @@
 # P033 Current Dataset Evaluation
 
-- **Date:** 2026-06-01 (refreshed after PR #63)
-- **Current baseline commit:** `0addb84` (post–PR #63 below-heading recall refinement)
-- **Auditor scope:** P001–P033 (P033 only reported here)
+- **Date:** 2026-06-08 (rerun on current main)
+- **Current baseline commit:** `563a1dc` (current main; P033 behavior reconfirmed after PR #63 refinement)
+- **Auditor scope:** P001–P066 (P033 only reported here)
 - **Generated artifacts (gitignored):**
   - Initial run (PR #62): `data/evaluation/generated/p033_evaluation/`
-  - Post–PR #63 refresh: `data/evaluation/generated/p033_evaluation_after_recall_refinement/`
+  - Post–PR #63 refreshes: `data/evaluation/generated/p033_evaluation_after_recall_refinement/`
 
 ## 1. Purpose and scope
 
@@ -13,10 +13,12 @@ Evaluate the conservative P033 cross-page front-matter title consistency rule on
 repository’s documented evaluation PDF set identified in
 `data/processed/evaluation_data_manifest.json`.
 
-This document tracks **two evaluation snapshots**:
+This document tracks **three evaluation snapshots**:
 
 1. **Before PR #63** (commits through PR #62, `5f27b0b`) — comparison never ran on any file.
-2. **After PR #63** (commit `0addb84`) — below-heading title extraction fallback; rerun confirms
+2. **Immediate post–PR #63 rerun** (commit `0addb84`) — below-heading title extraction fallback; rerun confirmed
+   comparison on two files.
+3. **Current-main rerun** (commit `563a1dc`) — same post–PR #63 behavior persists; rerun again confirms
    comparison on two files.
 
 Reporting is **aggregate-only**. No dissertation title text, title previews, author names,
@@ -31,7 +33,8 @@ rule-matrix XLSX and archive-only materials not verified locally.
 |---|---|---:|---:|---|
 | PR #62 initial evaluation | `5f27b0b` | **No** (0/5 files) | 0 | Documented in this file (pre-PR #63 sections) |
 | PR #63 recall investigation | `0addb84` | — | — | Below-heading fallback; see investigation doc |
-| PR #63 post-fix rerun | `0addb84` | **Yes** (2/5 files) | **0** | Confirmed by re-run (this refresh) |
+| PR #63 post-fix rerun | `0addb84` | **Yes** (2/5 files) | **0** | First confirmation after the below-heading fallback |
+| Current-main rerun | `563a1dc` | **Yes** (2/5 files) | **0** | Reconfirmed on current `main`; no behavioral change from the post-fix state |
 
 See `docs/evaluation/p033_candidate_extraction_recall_investigation.md` for the structural
 explanation (titles below ABSTRACT/APPROVAL headings, not above).
@@ -53,7 +56,7 @@ explanation (titles below ABSTRACT/APPROVAL headings, not above).
 | Sebastian Fine 1st review (EF annotated) | Referenced in manifest; not present as a standalone tracked path |
 | Rule matrix XLSX | Not a PDF evaluation input |
 
-**Total P033 findings after PR #63:** **0** across all five evaluated PDFs.
+**Total P033 findings in the current-main rerun:** **0** across all five evaluated PDFs.
 
 **Comparison ran on 2 of 5 files** (Yin H 4th, Sebastian Fine clean baseline).
 
@@ -103,9 +106,10 @@ Sebastian.
 
 ## 6. Interpretation (current behavior)
 
-**Overall:** After PR #63, P033 still reports **0 findings** on all five PDFs, but
-**cross-page comparison now runs on two files** (Yin H 4th and Sebastian). This is a
-meaningful recall improvement over PR #62, where comparison never ran.
+**Overall:** On current `main`, P033 still reports **0 findings** on all five PDFs, and
+the post–PR #63 recall improvement remains intact: **cross-page comparison runs on two
+files** (Yin H 4th and Sebastian). This remains a meaningful improvement over PR #62,
+where comparison never ran.
 
 **Zero findings do not prove title consistency** across the dissertation.
 
@@ -137,8 +141,8 @@ above). **0 P033 findings** in that run reflected non-comparison, not verified c
 - Below-heading band uses strict line/word/gap caps; unusual layouts may still be missed.
 - Similarity threshold (0.92) not validated against human review on this dataset.
 - Sebastian Fine PDF extracted locally from the tracked ZIP; not committed.
-- Pre–PR #63 counts reflect above-heading-only behavior; current behavior is defined by the
-  post–PR #63 rerun at commit `0addb84`.
+- Pre–PR #63 counts reflect above-heading-only behavior; current behavior was introduced by
+  the post–PR #63 rerun at commit `0addb84` and reconfirmed here on commit `563a1dc`.
 
 ## 9. Related docs
 
