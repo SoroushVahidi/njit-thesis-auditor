@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `00b9c2d` (intentional last substantive code/eval baseline; canonical five-PDF aggregate unchanged)
-- **Latest main:** `769d580` (PR #229 — P064 current-dataset evaluation complete; P001–P064 implemented; five-PDF aggregate confirmed at 1,587; see `docs/evaluation/current_auditor_after_p064_evaluation.md`)
-- **Validation:** ruff, mypy, **910 pytest** at the latest docs/status refresh
+- **Latest main:** `dd0f022` (P065 implemented — dedication centering/italic check; P001–P065 implemented; see `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md`)
+- **Validation:** ruff, mypy, **925 pytest** at the latest docs/status refresh
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)

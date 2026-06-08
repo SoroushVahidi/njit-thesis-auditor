@@ -364,5 +364,8 @@
     "rule_matrix_files": 1,
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
-  }
+  },
+  "p_rules_implemented": "P001-P065",
+  "pytest_count_at_last_doc_refresh": 925,
+  "latest_main_at_last_doc_refresh": "dd0f022"
 }
