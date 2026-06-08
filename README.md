@@ -249,6 +249,7 @@ More docs:
 - `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; implemented PR #236)
 - `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md` — P067 scope and design: bio-sketch publication/presentation reverse-chronology check (Q027; implemented)
 - `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md` — P069 scope and design: front-matter heading gate recall refinement (implemented; infrastructure)
+- `docs/planning/p071_references_section_localization_recall_refinement_scope_and_design.md` — P071 scope and design: references section localization recall refinement (scoped; infrastructure companion to P064)
 - `docs/planning/p070_toc_lot_lof_entry_parser_recall_refinement_scope_and_design.md` — P070 scope and design: TOC/LoT/LoF entry parser recall refinement (implemented; infrastructure)
 - `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_synthetic_validation.md` — P070 synthetic validation (infrastructure-only; 12 tests)
 - `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` — P070 five-PDF parser-reach eval (complete; post-P070 aggregate 1,543 findings)
@@ -265,7 +266,7 @@ More docs:
 - `docs/evaluation/p066_current_dataset_evaluation.md` — P066 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped — heading not detected; 2/5 detected and passed)
 - `docs/evaluation/p067_biosketch_publication_ordering_synthetic_validation.md` — P067 synthetic test coverage, privacy model, and limitations
 - `docs/evaluation/p067_current_dataset_evaluation.md` — P067 current-dataset evaluation (2026-06-08; 0 findings; 3/5 skipped at heading detection; 2/5 reached Bio Sketch but no qualifying Publications boundary detected)
-- `docs/evaluation/current_auditor_after_p070_evaluation.md` — full PDF audit snapshot at P070 era (P011–P070, five evaluation PDFs; **1,543** findings; −47 vs P069-era; P070 infrastructure-only)
+- `docs/evaluation/current_auditor_after_p070_evaluation.md` — **current** full PDF audit snapshot (P011–P070, five evaluation PDFs; **1,543** findings; −47 vs P069-era; P070 infrastructure-only)
 - `docs/evaluation/current_auditor_after_p069_evaluation.md` — full PDF audit snapshot at P069 era (P011–P069, five evaluation PDFs; **1,590** findings; unchanged vs P068-era; P069 infrastructure-only)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` — P069 synthetic validation (infrastructure-only; 13 tests; no standalone findings)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — P069 five-PDF gate-reach evaluation (ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged)
