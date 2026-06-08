@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064 implemented in PR #228; P064 evaluation + post-P064 aggregate snapshot completed in PRs #229/#230 (0 P064 findings; full five-PDF aggregate confirmed at 1,587); P065 scoped in `docs/planning/p065_dedication_centering_italic_scope_and_design.md` (Q033/Q034 dedication centering/italic; ready for implementation); see `docs/evaluation/current_auditor_after_p064_evaluation.md`
+- **Update (2026-06-08):** P064 implemented in PR #228; P064 evaluation + post-P064 aggregate snapshot completed in PRs #229/#230 (0 P064 findings; full five-PDF aggregate confirmed at 1,587); P065 implemented in PR #232 (dedication centering/italic; Q033/Q034; 0 P065 findings on five-PDF set — all skipped by detection gate; no machine-readable DEDICATION heading found in first 15 pages on this dataset); see `docs/evaluation/current_auditor_after_p064_evaluation.md` and `docs/evaluation/p065_current_dataset_evaluation.md`
 
 ---
 
