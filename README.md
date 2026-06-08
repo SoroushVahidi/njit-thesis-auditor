@@ -271,6 +271,7 @@ More docs:
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` — P069 synthetic validation (infrastructure-only; 13 tests; no standalone findings)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — P069 five-PDF gate-reach evaluation (ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged)
 - `docs/evaluation/ef_overlap_after_p068_evaluation.md` — EF comment-vs-tool overlap refresh after P068 on 2 extractable-comment PDFs (143 annotations; P064–P068 unchanged overlap on comparison set)
+- `docs/evaluation/ef_overlap_after_p071_evaluation.md` — EF comment-vs-tool overlap refresh after P071; P064 reaches 2/2 comparison PDFs; `references_citations` gap unchanged (9 EF, 0 tool)
 - `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — real thesis data inventory, raw/commented pairing, EF comment extractability, overlap-readiness, and recurring evaluation workflow (P068-era refresh)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
 

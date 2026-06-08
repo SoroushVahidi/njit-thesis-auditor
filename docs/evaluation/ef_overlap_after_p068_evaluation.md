@@ -265,6 +265,8 @@ This reinforces the scoped **P069 front-matter heading gate recall** infrastruct
 
 ## Cross-References
 
+- **Successor (P071 era):** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — P064 reaches
+  2/2 comparison PDFs after P071 localization; `references_citations` gap unchanged
 - Prior EF overlap (P063): `docs/evaluation/ef_overlap_after_p063_evaluation.md`
 - P068-era full five-PDF aggregate: `docs/evaluation/current_auditor_after_p068_evaluation.md`
 - Real thesis pairing readiness: `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`

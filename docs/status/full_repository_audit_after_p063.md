@@ -4,7 +4,7 @@
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
 - **Auditor scope:** P001–P063 implemented; 889 pytest; ruff clean; mypy 81 source files, no issues
-- **Update (2026-06-08):** P064–P071 implemented; P071 references section localization recall (infrastructure companion to P064); **1000 pytest**; canonical post-P070 aggregate **1,543** findings; P071 five-PDF eval: P064 reach 5/5; see `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md`
+- **Update (2026-06-08):** P064–P071 implemented; P071 references section localization recall (infrastructure companion to P064); **1000 pytest**; canonical post-P070 aggregate **1,543** findings; P071 five-PDF eval: P064 reach 5/5; **EF overlap after P071:** P064 reaches 2/2 comparison PDFs; `references_citations` gap unchanged; see `docs/evaluation/ef_overlap_after_p071_evaluation.md`
 
 ---
 
@@ -423,6 +423,7 @@ None at this time. All validation passes (ruff, mypy, pytest).
 - Latest full evaluation snapshot (P063-era): `docs/evaluation/current_auditor_after_p063_evaluation.md`
 - **EF overlap after P063 (refreshed):** `docs/evaluation/ef_overlap_after_p063_evaluation.md`
 - **EF overlap after P068 (refreshed):** `docs/evaluation/ef_overlap_after_p068_evaluation.md` — P064–P068 unchanged on 2 extractable-comment PDFs
+- **EF overlap after P071 (refreshed):** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — P064 reaches 2/2 comparison PDFs; `references_citations` gap unchanged
 - EF overlap readiness: `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`
 - Prior EF overlap (P001–P029 scope): `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - Web UI docs: `docs/web_gui_mvp.md`, `docs/web_ui_manual_qa_checklist.md`, `docs/web_ui_demo_guide.md`

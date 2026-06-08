@@ -310,9 +310,9 @@ python scripts/evaluate_current_ef_comment_overlap.py
 
 ### Immediate
 
-1. **EF overlap after P068 complete** — See `docs/evaluation/ef_overlap_after_p068_evaluation.md`.
-   P064–P068 added 0 findings on the two extractable-comment PDFs; `references_citations` and
-   `committee_approval_page` gaps unchanged. Next overlap refresh after P069 implementation.
+1. **EF overlap after P071 complete** — See `docs/evaluation/ef_overlap_after_p071_evaluation.md`.
+   P064 now reaches 2/2 comparison PDFs; `references_citations` gap unchanged (9 EF, 0 tool).
+   Prior baseline: `docs/evaluation/ef_overlap_after_p068_evaluation.md`.
 
 2. **Implement P069 heading gate recall** — Scoped infrastructure refinement to reduce repeated
    P065–P068 skip pattern; see

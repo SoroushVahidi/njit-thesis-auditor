@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_for_commit": "00b9c2d",
+  "generated_for_commit": "08c1a8d",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P071",
     "pytest_count_at_last_doc_refresh": 1000,
-    "latest_main_at_last_doc_refresh": "b0ec5e4",
+    "latest_main_at_last_doc_refresh": "08c1a8d",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run — evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
@@ -44,6 +44,7 @@
     "p068_current_dataset_note": "Formal post-implementation audit on five PDFs (2026-06-08, commit 5d8ebaf): 3 P068 findings on 2/5 files; 3/5 skipped at APPROVAL PAGE detection gate; issue types: approval_page_signature_blocks_sparse (2), approval_page_advisor_role_label_missing (1); zero findings on skipped files do not prove compliance. See docs/evaluation/p068_current_dataset_evaluation.md",
     "post_p068_aggregate_note": "Full five-PDF audit (2026-06-08, commit 5d8ebaf): 1,590 total findings — +3 from P067-era; P068 adds 3 findings on 2/5 files with detected APPROVAL PAGE headings; 3/5 files skipped at detection gate. See docs/evaluation/current_auditor_after_p068_evaluation.md",
     "ef_overlap_after_p068_note": "EF overlap refresh (2026-06-08, commit 6446c24): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged vs P063-era; P064–P068 fired 0 on comparison PDFs; references_citations and committee_approval_page gaps unchanged. See docs/evaluation/ef_overlap_after_p068_evaluation.md",
+    "ef_overlap_after_p071_note": "EF overlap refresh (2026-06-08, commit 08c1a8d): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged vs P068-era; P064 now reaches 2/2 comparison PDFs after P071 localization; references_citations gap unchanged (9 EF, 0 tool). See docs/evaluation/ef_overlap_after_p071_evaluation.md",
     "p069_current_dataset_note": "Gate-reach evaluation (2026-06-08, commit e045817): ACKNOWLEDGEMENTS gate +4 on five-PDF set; P065–P068 finding totals unchanged (0/0/0/3). See docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md",
     "post_p069_aggregate_note": "Full five-PDF audit (2026-06-08, commit e045817): 1,590 total findings — unchanged from P068-era; P069 infrastructure-only (0 standalone findings); P065–P068 counts unchanged. See docs/evaluation/current_auditor_after_p069_evaluation.md",
     "p070_current_dataset_note": "Parser-reach evaluation complete (2026-06-08, commit f0d8294): all 5 PDFs accessible; 3/5 no TOC/LoT/LoF pages detected; parser entries 185→167 (pre-P070 comparator); recovery: 4 wrapped, 4 split-pair, 9 prefix; EF-overlap gaps not expected to change on comparison PDFs. See docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md",
@@ -380,5 +381,5 @@
   },
   "p_rules_implemented": "P001-P071",
   "pytest_count_at_last_doc_refresh": 1000,
-  "latest_main_at_last_doc_refresh": "b0ec5e4"
+  "latest_main_at_last_doc_refresh": "08c1a8d"
 }

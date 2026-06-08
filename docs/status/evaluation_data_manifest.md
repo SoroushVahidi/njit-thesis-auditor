@@ -166,7 +166,8 @@ files unless explicitly requested.
 - P030–P042 per-rule evaluations: see `docs/status/current_project_state_and_next_steps.md` (evaluation index)
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap after P063: `docs/evaluation/ef_overlap_after_p063_evaluation.md`
-- **EF overlap after P068:** `docs/evaluation/ef_overlap_after_p068_evaluation.md` — 2 extractable-comment PDFs; 143 EF annotations; P064–P068 unchanged overlap on comparison set
+- **EF overlap after P071:** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — 2 extractable-comment PDFs; 143 EF annotations; P064 reaches 2/2 comparison PDFs after P071; `references_citations` gap unchanged (9 EF, 0 tool)
+- **EF overlap after P068:** `docs/evaluation/ef_overlap_after_p068_evaluation.md` — 2 extractable-comment PDFs; 143 EF annotations; P064–P068 unchanged overlap on comparison set (historical baseline)
 - Real thesis pairing and EF overlap readiness (P068-era): `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`
 - EF overlap refinements: `docs/evaluation/ef_overlap_driven_refinement_evaluation.md`,
   `docs/evaluation/ef_overlap_refinement_round2_evaluation.md`
