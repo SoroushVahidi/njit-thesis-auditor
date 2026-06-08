@@ -30,7 +30,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
-**ZIP** uploads through the same form. PDF uploads run the full **P011–P067** layout audit;
+**ZIP** uploads through the same form. PDF uploads run the full **P011–P068** layout audit;
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
 `run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
@@ -75,14 +75,14 @@ for fixture details and
 [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the QA
 scenario mapping.
 
-### PDF layout audit (P011–P067)
+### PDF layout audit (P011–P068)
 
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
-Runs P011–P067 layout and formatting checks on digital PDFs. Optional `--json-out`
+Runs P011–P068 layout and formatting checks on digital PDFs. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -98,7 +98,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P067):
+Current PDF checks (P011–P068):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -159,6 +159,7 @@ Current PDF checks (P011–P067):
 | P065 | Front matter | Dedication page centering and italic style check: emits `dedication_text_not_centered` and `dedication_text_not_italic` on a uniquely detected DEDICATION page when the main dedication text block is off-center or insufficiently italic; gates: ≥2 text lines for centering, ≥3 usable spans for italic, font metadata required for italic; privacy-safe geometry/style metadata only |
 | P066 | Front matter | Biographical Sketch degree ordering check: detects year-bearing education entries above any Publications boundary and warns with `biosketch_degree_order_suspicious` when degree years are not most-recent-first; gates: unique BIOGRAPHICAL SKETCH heading, ≥3 comparable lines, >2-year inversion threshold; privacy-safe counts/year metadata only |
 | P067 | Front matter | Biographical Sketch publication/presentation reverse-chronology check: detects a Publications/Presentations subsection on a uniquely detected Bio Sketch page, groups citation-like entries, extracts one representative year per entry, and warns with `biosketch_publication_order_suspicious` when comparable entries are not in descending order; skips ambiguous multi-year, DOI/URL-heavy, sparse, and nonstandard layouts; privacy-safe counts/year metadata only |
+| P068 | Front matter | Approval Page committee/signature-block structural check: on a uniquely detected APPROVAL PAGE, counts curated advisor/committee role-label phrases and date/signature/underscore-blank indicators; warns with `approval_page_advisor_role_label_missing` or `approval_page_signature_blocks_sparse`; skips sparse/noisy/image-only pages; no committee names or signature text in findings |
 
 All findings are heuristic warnings and require manual review.
 
@@ -246,7 +247,9 @@ More docs:
 - `docs/planning/p065_dedication_centering_italic_scope_and_design.md` — P065 scope and design: dedication page centering/italic check (Q033/Q034; implemented 2026-06-08)
 - `docs/planning/p066_biosketch_structural_ordering_scope_and_design.md` — P066 scope and design: bio-sketch degree ordering check (Q025; implemented PR #236)
 - `docs/planning/p067_biosketch_publication_date_ordering_scope_and_design.md` — P067 scope and design: bio-sketch publication/presentation reverse-chronology check (Q027; implemented)
-- `docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md` — P068 scope and design: approval page committee/signature-block structural check (scoped only; not implemented)
+- `docs/planning/p068_approval_page_committee_block_structural_scope_and_design.md` — P068 scope and design: approval page committee/signature-block structural check (implemented)
+- `docs/evaluation/p068_approval_page_committee_blocks_synthetic_validation.md` — P068 synthetic test coverage, privacy model, and limitations
+- `docs/evaluation/p068_current_dataset_evaluation.md` — P068 current-dataset evaluation (pending; evaluation PDFs unavailable in workspace)
 - `docs/evaluation/p065_dedication_centering_italic_synthetic_validation.md` — P065 synthetic test coverage and gate verification (15/15 tests pass)
 - `docs/evaluation/p065_current_dataset_evaluation.md` — P065 current-dataset evaluation (2026-06-08; 0 findings; all 5 PDFs skipped — no machine-readable DEDICATION heading detected)
 - `docs/evaluation/current_auditor_after_p067_evaluation.md` — post-P067 full five-PDF aggregate snapshot (P011–P067; 1,587 findings; P067 adds 0; 2026-06-08)
