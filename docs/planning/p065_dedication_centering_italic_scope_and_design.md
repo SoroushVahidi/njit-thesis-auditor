@@ -6,8 +6,8 @@
 - **Rule name:** Dedication Page Centering/Italic Formatting Check
 - **Date scoped:** 2026-06-08
 - **Baseline commit:** `01aebfb` (post PR #230)
-- **Status:** Scoped only — not yet implemented
-- **Validation baseline:** 910 pytest, ruff clean, mypy 82 source files
+- **Status:** Implemented — see `src/njit_auditor/rules/pdf_dedication_centering_italic.py`
+- **Validation baseline:** 925 pytest (15 P065 tests added), ruff clean, mypy 83 source files
 - **Source Q-rules:** Q033, Q034
 - **Module (planned):** `src/njit_auditor/rules/pdf_dedication_centering_italic.py`
 - **Companion rule:** P041 (`pdf_dedication_page.py`) — covers Q032 (no header in top margin)
