@@ -208,9 +208,10 @@ def collect_tex_findings(
 def collect_pdf_layout_findings(
     pdf_doc: PdfDocument, pdf_path: str | Path
 ) -> list[AuditFinding]:
-    """Run the full P011–P068 PDF layout audit on a loaded document.
+    """Run the current implemented PDF layout audit on a loaded document.
 
-    This is the canonical rule sequence shared by the CLI and web UI.
+    This is the canonical rule sequence shared by the CLI and web UI, including
+    embedded infrastructure refinements (P069–P071) wired through existing checks.
     """
     path_str = str(pdf_path)
     findings: list[AuditFinding] = []
@@ -276,7 +277,7 @@ def collect_pdf_layout_findings(
 
 
 def run_pdf_audit_full(pdf_path: str | Path) -> list[AuditFinding]:
-    """Run all P011–P068 PDF audit checks and return findings.
+    """Run all registered PDF layout audit checks and return findings.
 
     Raises AuditError if the file cannot be opened or is not a valid PDF.
     """

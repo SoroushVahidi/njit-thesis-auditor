@@ -2,9 +2,14 @@
 
 **Date:** 2026-06-08  
 **Baseline commit:** `b0ec5e4` (merge PR #253 — P070 current-dataset evaluation docs; P070 code at `f0d8294`)  
-**Auditor scope:** P001–P070 implemented; PDF audit path includes all rules through P070  
+**Auditor scope:** P001–P070 implemented at snapshot time; PDF audit path includes all rules through P070  
 **P070 note:** Infrastructure-only (`infrastructure_refinement`); **no standalone P070 findings**  
-**Validation:** ruff clean, mypy 87 source files, **988 pytest** passed
+**Validation at snapshot time:** ruff clean, mypy 87 source files, **988 pytest** passed  
+**Current repository validation (post-P071):** **1000 pytest** — P069/P071 added 12 tests each; aggregate total unchanged at **1,543**  
+**Post-P071 note:** P071 is infrastructure-only (P064 localization recall); no separate
+`current_auditor_after_p071_evaluation.md` — see
+`docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` and
+`docs/evaluation/ef_overlap_after_p071_evaluation.md`
 
 ---
 

@@ -8,7 +8,7 @@
 | **Rule name** | References Section Localization Recall Refinement |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `12f01b3` (PR #254 — post-P070 canonical aggregate snapshot) |
-| **Status** | **Implemented** (PR pending — branch `rules/p071-references-section-localization-recall`) |
+| **Status** | **Implemented** — scoped PR #255; merged PR #256; EF overlap refresh PR #257; polish PR #258 |
 | **Validation baseline** | 1000 pytest (`ruff check .`, `mypy src`, 87 source files) |
 | **Type** | **Shared infrastructure / localization recall refinement** (not a new semantic checker) |
 | **Companion module** | `src/njit_auditor/rules/pdf_references_citations_structural.py` (P064) |
@@ -345,18 +345,7 @@ EF-overlap refresh recommended only if comparison PDFs gain `references_citation
 
 ## 14. Recommendation
 
-**Status: scoped only — ready for implementation.**
-
-P071 v1 is sufficiently specified to open an implementation PR on branch
-`rules/p071-references-section-localization-recall` that:
-
-1. Adds localization helpers to P064's module (or thin companion).
-2. Does not introduce new issue types.
-3. Adds 12 synthetic tests plus P064 regression coverage.
-4. Runs five-PDF before/after localization evaluation.
-
-**Do not implement P072** in the same PR. Committee approval v2 and further TOC parser work
-remain separate tracks.
+**Status: implemented (v1).** Scoped PR #255; merged PR #256; post-P071 EF overlap refresh PR #257.
 
 ---
 
@@ -374,6 +363,13 @@ P071 v1 implemented in `pdf_references_citations_structural.py`:
 
 **Current-dataset evaluation:** `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` —
 P064 reach improved from 2/5 to 5/5 files; aggregate unchanged at 1,543 findings.
+
+**Post-P071 EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — P064 reach on
+comparison PDFs 0/2→2/2; `references_citations` EF gap unchanged (9 EF, 0 tool); gap is now
+semantic/style/manual-only after localization (Q030 manual-only).
+
+**Do not implement P072** in follow-on polish PRs without a scope doc. Strongest next candidate:
+approval-page heading-gate recall (P068 companion).
 
 ---
 
