@@ -1,9 +1,10 @@
 # Real Thesis Pairing and EF Overlap Readiness
 
-- **Date:** 2026-06-08 (refreshed after P068 aggregate snapshot)
-- **Auditor scope:** P001–P068 implemented; **963 pytest**
-- **Latest main (scope refresh):** `4b5b003` (PR #246 — P069 scoped)
-- **Current full aggregate:** `docs/evaluation/current_auditor_after_p068_evaluation.md` — **1,590** findings (commit `5d8ebaf`)
+- **Date:** 2026-06-08 (refreshed after P068 aggregate snapshot; recovery note added 2026-06-09)
+- **Auditor scope at last refresh:** P001–P068 implemented; **963 pytest** (current: P001–P072, **1014 pytest**)
+- **Latest main (scope refresh):** `4b5b003` (PR #246 — P069 scoped); **current main:** `e3ca516` (PR #264)
+- **Current full aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings (canonical; unchanged post-P072)
+- **Sebastian Fine EF recovery attempt (2026-06-09):** BLOCKED — EF-annotated version not found locally; original Google Drive RAR not present; comparison set remains 2 extractable files; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
 - **Source docs:** `data/processed/evaluation_data_manifest.json`,
   `docs/status/evaluation_data_manifest.md`,
   `docs/status/data_inventory_and_evaluation_sources.md`,

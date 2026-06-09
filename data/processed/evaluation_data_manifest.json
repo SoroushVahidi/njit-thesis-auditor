@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_for_commit": "b889e5f",
+  "generated_for_commit": "e3ca516",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P072",
     "pytest_count_at_last_doc_refresh": 1014,
-    "latest_main_at_last_doc_refresh": "b889e5f",
+    "latest_main_at_last_doc_refresh": "e3ca516",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "No local audit run \u2014 evaluation PDFs unavailable in workspace. See docs/evaluation/p036_current_dataset_evaluation.md",
     "p037_current_dataset_note": "No local audit run \u2014 evaluation PDFs unavailable in workspace. See docs/evaluation/p037_current_dataset_evaluation.md",
@@ -52,7 +52,8 @@
     "post_p071_aggregate_note": "P071 infrastructure-only (0 standalone findings); five-PDF total remains 1,543 \u2014 unchanged vs post-P070; no separate current_auditor_after_p071_evaluation.md. See docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md",
     "full_repository_audit_after_p071_note": "Full repository audit (2026-06-08, commit b2fd6ef, PR #258): P001\u2013P071 implemented; 1000 pytest; canonical aggregate 1,543; EF overlap current through ef_overlap_after_p071_evaluation.md. See docs/status/full_repository_audit_after_p071.md",
     "p072_current_dataset_note": "Structural fallback evaluation (2026-06-08, commit 1476a51, all 5 PDFs evaluated): fallback returned 0 candidates on Cibaku, Yin Haotian 2nd Review, Yin H 2nd Review (all eligible pages noise-only, image-embedded approval pages confirmed); heading gate unchanged on Yin H 4th (1 finding) and Sebastian Fine (2 findings). Aggregate remains 1,543. See docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md",
-    "ef_overlap_after_p072_note": "EF overlap refresh (2026-06-08, commit 1476a51): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged; committee_approval_page gap unchanged (5 EF, 0 tool); structural fallback found 0 candidates on both comparison PDFs. See docs/evaluation/ef_overlap_after_p072_evaluation.md"
+    "ef_overlap_after_p072_note": "EF overlap refresh (2026-06-08, commit 1476a51): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged; committee_approval_page gap unchanged (5 EF, 0 tool); structural fallback found 0 candidates on both comparison PDFs. See docs/evaluation/ef_overlap_after_p072_evaluation.md",
+    "sebastian_fine_ef_recovery_note": "Recovery attempt (2026-06-09, commit e3ca516): BLOCKED — EF-annotated version not found in any tracked or local path; original Google Drive RAR not present locally; comparison set remains 2 extractable files (143 EF annotations). See docs/evaluation/sebastian_fine_ef_archive_recovery.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
