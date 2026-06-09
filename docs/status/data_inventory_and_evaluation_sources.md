@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated: post-P076 status refresh; P076 P036 triage evaluation complete; see `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md`)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P076, web UI present on `main` (`722dac0` PR #278; **1056** pytest); project-added rule inventory spans P001–P074 plus P076 (75 entries, with P075 documented separately as non-inventory)
+- Date: 2026-06-09 (updated: post-P077 P038 front-matter heading triage rollup)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P077, web UI present on `main` (`2c958a9` PR #279; **1068** pytest); project-added rule inventory spans P001–P074 plus P076–P077 (76 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076** implementation rules; repository-level progress is **P001-P076** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P077**.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076–P077** implementation rules; repository-level progress is **P001-P077** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P078**.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.

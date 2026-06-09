@@ -29,6 +29,7 @@ P012_RULE_ID = "P012"
 P012_ISSUE_TYPE = "pdf_annotation_detected"
 P019_RULE_ID = "P019"
 P036_RULE_ID = "P036"
+P038_RULE_ID = "P038"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -656,6 +657,66 @@ def build_p036_toc_list_spacing_triage_summary(
     }
 
 
+def build_p038_frontmatter_heading_triage_summary(
+    findings: list[AuditFinding],
+) -> dict[str, Any] | None:
+    """Build a P038-specific rollup for front-matter heading presence/phrase triage."""
+    p038_findings = [f for f in findings if f.rule_id == P038_RULE_ID]
+    if not p038_findings:
+        return None
+
+    pages = sorted({f.page for f in p038_findings if f.page is not None})
+    issue_type_counts: Counter[str] = Counter()
+    expected_heading_counts: Counter[str] = Counter()
+    missing_heading_counts: Counter[str] = Counter()
+    inexact_phrase_counts: Counter[str] = Counter()
+    triage_tier_counts: Counter[str] = Counter()
+    confidence_counts: Counter[str] = Counter()
+
+    for finding in p038_findings:
+        details = finding.details or {}
+        issue_type = details.get("issue_type", "")
+        if issue_type:
+            issue_type_counts[issue_type] += 1
+
+        expected_heading = details.get("expected_heading", "")
+        if expected_heading:
+            expected_heading_counts[expected_heading] += 1
+            if issue_type == "required_heading_missing":
+                missing_heading_counts[expected_heading] += 1
+            elif issue_type == "heading_phrase_not_exact":
+                inexact_phrase_counts[expected_heading] += 1
+
+        triage_tier = details.get("triage_tier", "").strip()
+        if triage_tier:
+            triage_tier_counts[triage_tier] += 1
+
+        confidence = details.get("confidence", "").strip()
+        if confidence:
+            confidence_counts[confidence] += 1
+
+    return {
+        "raw_finding_count": len(p038_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "issue_type_counts": dict(sorted(issue_type_counts.items())),
+        "expected_heading_counts": dict(sorted(expected_heading_counts.items())),
+        "missing_heading_counts": dict(sorted(missing_heading_counts.items())),
+        "inexact_phrase_counts": dict(sorted(inexact_phrase_counts.items())),
+        "triage_tier_counts": dict(sorted(triage_tier_counts.items())),
+        "confidence_counts": dict(sorted(confidence_counts.items())),
+        "triage_note": (
+            "P038 identifies required front-matter headings that are missing or use "
+            "non-exact phrases. These are advisory warnings for manual NJIT verification."
+        ),
+        "recommended_action": (
+            "Confirm that all required front-matter headings are present and use the "
+            "exact NJIT canonical phrase (APPROVAL PAGE, BIOGRAPHICAL SKETCH, "
+            "ACKNOWLEDGEMENTS, TABLE OF CONTENTS)."
+        ),
+    }
+
+
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     """Build a grouped summary structure for triage use in JSON/Markdown reports.
 
@@ -756,6 +817,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p036_triage = build_p036_toc_list_spacing_triage_summary(findings)
     if p036_triage is not None:
         result["p036_toc_list_spacing_triage"] = p036_triage
+    p038_triage = build_p038_frontmatter_heading_triage_summary(findings)
+    if p038_triage is not None:
+        result["p038_frontmatter_heading_triage"] = p038_triage
     return result
 
 
@@ -1373,6 +1437,80 @@ def _format_p036_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p038_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P038-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p038_frontmatter_heading_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P038 Front-Matter Heading Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P038 findings | {triage['raw_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    lines.append("")
+
+    issue_counts = triage.get("issue_type_counts", {})
+    if issue_counts:
+        lines.append("### Issue type counts")
+        lines.append("")
+        for issue_type, count in sorted(issue_counts.items()):
+            lines.append(f"- `{issue_type}`: {count}")
+        lines.append("")
+
+    missing_counts = triage.get("missing_heading_counts", {})
+    if missing_counts:
+        lines.append("### Missing heading counts")
+        lines.append("")
+        for heading, count in sorted(missing_counts.items()):
+            lines.append(f"- `{heading}`: {count}")
+        lines.append("")
+
+    inexact_counts = triage.get("inexact_phrase_counts", {})
+    if inexact_counts:
+        lines.append("### Non-exact phrase counts")
+        lines.append("")
+        for heading, count in sorted(inexact_counts.items()):
+            lines.append(f"- `{heading}`: {count}")
+        lines.append("")
+
+    tier_counts = triage.get("triage_tier_counts", {})
+    if tier_counts:
+        lines.append("### Triage tier counts")
+        lines.append("")
+        for tier, count in sorted(tier_counts.items()):
+            lines.append(f"- `{tier}`: {count}")
+        lines.append("")
+
+    confidence_counts = triage.get("confidence_counts", {})
+    if confidence_counts:
+        lines.append("### Confidence counts")
+        lines.append("")
+        for conf, count in sorted(confidence_counts.items()):
+            lines.append(f"- `{conf}`: {count}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    recommended_action = triage.get("recommended_action", "")
+    if recommended_action:
+        lines.append(f"**Recommended action:** {recommended_action}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P038 findings are listed under **Findings by Rule → P038** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -1494,6 +1632,9 @@ def write_markdown_report(
 
         p036_section = _format_p036_triage_section(payload["grouped_summary"])
         lines.extend(p036_section)
+
+        p038_section = _format_p038_triage_section(payload["grouped_summary"])
+        lines.extend(p038_section)
 
     lines.append("## Findings by Rule")
     lines.append("")

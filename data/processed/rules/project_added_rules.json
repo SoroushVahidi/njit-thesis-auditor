@@ -1585,8 +1585,33 @@
     "affected_rules": [
       "P036"
     ],
-    "remediation": "No direct remediation — P076 adds report-level triage for existing P036 findings so reviewers can prioritize repeated same-section spacing issues and artifact-prone compressed-PDF cases.",
+    "remediation": "No direct remediation \u2014 P076 adds report-level triage for existing P036 findings so reviewers can prioritize repeated same-section spacing issues and artifact-prone compressed-PDF cases.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P036 findings, detail keys, and detection behavior remain unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
+  },
+  {
+    "id": "P077",
+    "title": "P038 Front-Matter Heading Triage Rollup",
+    "description": "Reporting-only refinement that adds a privacy-safe grouped triage summary for P038 front-matter heading findings in JSON and Markdown reports. Aggregates raw P038 findings by issue type, expected heading, triage tier, confidence, and page ranges without changing P038 detection behavior or canonical aggregate counts.",
+    "section": "Front Matter",
+    "question": "Are P038 front-matter heading findings organized for reviewer triage in JSON and Markdown reports?",
+    "rule_definition": "Reporting refinement only: collect existing P038 findings after detection, summarize by issue_type (required_heading_missing / heading_phrase_not_exact), expected_heading, triage_tier, confidence, and compact page ranges, then expose the rollup via grouped_summary.p038_frontmatter_heading_triage and a Markdown 'P038 Front-Matter Heading Triage' section. No raw finding mutation, no new issue types, and no change to P038 detection logic.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.report_outputs",
+    "rule_type": "reporting_refinement",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/report_outputs.py",
+      "tests/test_report_outputs.py"
+    ],
+    "issue_types": [],
+    "affected_rules": [
+      "P038"
+    ],
+    "remediation": "No direct remediation \u2014 P077 adds report-level triage for existing P038 findings so reviewers can identify which required front-matter headings are missing or use non-exact phrases.",
+    "source_file": "project_added",
+    "notes": "Reporting-only. Raw P038 findings, detail keys, and detection behavior remain unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
   }
 ]
