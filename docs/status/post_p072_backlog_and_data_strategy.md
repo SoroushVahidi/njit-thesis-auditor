@@ -307,6 +307,10 @@ expands the comparison set from 2 to 3 files, which would:
 - Clarification of `list_of_tables_figures_toc` gap on Sebastian Fine (does list-page detection fire?)
 - Improved metric confidence for all three remaining EF category gaps
 
+**Recovery attempts:**
+- **PR #265 (2026-06-09, commit e3ca516):** BLOCKED — original Google Drive RAR not present locally.
+- **Retry 2 (2026-06-09, commit 42e10fb):** BLOCKED — `data/evaluation/private/` absent; no new archives found in workspace or home directory to depth 6. File must be manually placed at `data/evaluation/private/` (gitignored) before next attempt can proceed.
+
 **Branch name:** `data/sebastian-ef-archive-recovery`
 
 ### Recommendation 2 (Secondary): Evaluation gap-fill for P036–P063 ✅ COMPLETE

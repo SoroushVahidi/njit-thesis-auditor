@@ -4,7 +4,7 @@
 - **Latest main:** `eb66d4a` (PR #267 — P073 scope doc)
 - **P073 P019 triage rollup:** complete (2026-06-09) — docs-only triage; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md`
 - **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
-- **Sebastian Fine EF recovery:** BLOCKED (2026-06-09) — EF-annotated version not found in any local path or tracked archive; comparison set remains 2 extractable files; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
+- **Sebastian Fine EF recovery:** BLOCKED (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
 - **Validation:** ruff, mypy, **1014 pytest** at the latest docs/status refresh
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; `committee_approval_page` gap unchanged (5 EF, 0 tool); `references_citations` gap unchanged (9 EF, 0 tool)

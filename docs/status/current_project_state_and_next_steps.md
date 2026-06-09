@@ -1,11 +1,11 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-09 (updated: P073 v1 P019 triage rollup doc created — see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md`)
-- **Latest main:** `eb66d4a` (PR #267 — P073 scope doc); prior: `5b8a657` (PR #266 — P036–P063 gap-fill); `85a1326` (PR #265) Sebastian Fine EF recovery
-- **P073 status:** P019 page-numbering triage rollup **implemented** (v1 docs-only triage rollup complete; v2 code rollup deferred); see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`; branch: `docs/p073-p019-page-numbering-triage-rollup`
+- **Date:** 2026-06-09 (updated: Sebastian Fine EF recovery Retry 2 — still BLOCKED; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`)
+- **Latest main:** `42e10fb` (PR #268 — P073 v1 P019 triage rollup); prior: `eb66d4a` (PR #267 — P073 scope doc)
+- **P073 status:** P019 page-numbering triage rollup **implemented** (v1 docs-only triage rollup complete; v2 code rollup deferred); see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`
 - **Evaluation gap-fill status:** P036–P063 five-PDF current-dataset evaluation **complete** (PR #266); 27 rules; 88 total findings; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
-- **Data acquisition status:** Sebastian Fine EF archive recovery **BLOCKED** — original Google Drive RAR not locally present; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
-- **Recommended next step:** Manual retrieval of original Google Drive RAR to unblock Sebastian Fine EF recovery (Recommendation 1 in `docs/status/post_p072_backlog_and_data_strategy.md`); or new P-rule implementation
+- **Data acquisition status:** Sebastian Fine EF archive recovery **BLOCKED** (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
+- **Recommended next step:** Repository owner must place original Google Drive archive at `data/evaluation/private/` (gitignored path) for recovery to proceed; or proceed with new P-rule implementation
 - **Validation:** P001–P072 implemented; **1014 pytest**; canonical five-PDF aggregate **1,543** (unchanged post-P072)
 - **Full repository audit (P071 era):** `docs/status/full_repository_audit_after_p071.md`
 - **P072 post-implementation evaluation:** **complete** — full five-PDF current-dataset eval (commit `1476a51`): structural fallback found 0 candidates on all 3 non-detecting PDFs (Cibaku, Yin H 2nd flattened, Yin Haotian 2nd) — all eligible pages return noise-only text, confirming image-embedded approval pages; P068 reach 2/5 unchanged; aggregate 1,543 unchanged; **EF-overlap refresh after P072 complete:** `committee_approval_page` gap unchanged (5 EF, 0 tool); total tool findings on comparison PDFs 671 (unchanged); see `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` and `docs/evaluation/ef_overlap_after_p072_evaluation.md`

@@ -1,11 +1,13 @@
 # Sebastian Fine EF Archive Recovery — Search and Status
 
-- **Date:** 2026-06-09
-- **Baseline commit:** `e3ca516` (PR #264 — post-P072 backlog and data strategy)
+- **Date:** 2026-06-09 (Retry 2: 2026-06-09, baseline `42e10fb`)
+- **Original baseline commit:** `e3ca516` (PR #264 — post-P072 backlog and data strategy)
+- **Retry 2 baseline commit:** `42e10fb` (PR #268 — P073 v1 P019 triage rollup)
 - **Auditor scope:** P001–P072 implemented; **1014 pytest**
 - **Purpose:** Document the attempt to recover the Sebastian Fine EF-annotated dissertation PDF
   from locally available archives, per the primary recommendation in
   `docs/status/post_p072_backlog_and_data_strategy.md`.
+- **Recovery status (Retry 2):** **BLOCKED** — original archive still not present locally
 - **Privacy:** Aggregate-only. No dissertation body text, author names, EF comment text, or other
   private content quoted. File metadata (sizes, member names) only.
 
@@ -165,6 +167,44 @@ was not created.
 - Real dissertation files remain in `data/raw/ester/` (tracked, high privacy risk).
 - Generated and private paths remain gitignored and uncommitted.
 - No OCR was performed. No external network calls were made.
+
+---
+
+---
+
+## 10. Retry 2 — 2026-06-09 (baseline `42e10fb`, PR #268)
+
+A second search was conducted after the user indicated the original archive may have been manually
+placed locally. All locally searchable paths were inspected.
+
+### Paths searched in Retry 2
+
+| Location | Status |
+|---|---|
+| `data/evaluation/private/` | Directory does not exist |
+| `data/raw/ester/` (tracked PDFs) | Unchanged — same 4 EF PDFs and 1 clean-baseline ZIP |
+| `data/evaluation/generated/` (gitignored) | Clean variants only — no EF-annotated Sebastian Fine version |
+| Home directory (`/home/soroush/`, depth ≤ 6) | Searched for `*.rar`, `*.zip`, `*dissertation*`, `*ester*`, `*EF*` — no new archives found |
+| Project root and all subdirectories (depth ≤ 5) | No new files |
+
+### Retry 2 result
+
+The original Google Drive RAR archive is **still not present** in any locally searchable path.
+`data/evaluation/private/` was not created and contains no files. No new archives or PDFs
+matching the expected target filename were found anywhere on the local filesystem.
+
+**Recovery remains BLOCKED (Retry 2).** No updates to comparison set or EF overlap counts.
+
+### Next manual action required
+
+The repository owner must manually place the original archive (or the extracted EF PDF) in
+`data/evaluation/private/` (a gitignored, never-committed path) before a recovery attempt can
+proceed. Once placed:
+
+1. Re-run Step 3 (list archive members) and Step 4 (extract and verify annotations).
+2. The target path for extraction is `data/evaluation/generated/sebastian_fine_recovery/`
+   (gitignored).
+3. Commit only the updated docs — never the archive, extracted PDF, or generated outputs.
 
 ---
 
