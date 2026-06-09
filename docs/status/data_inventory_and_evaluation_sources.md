@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-08 (metadata refresh after P071 full repository audit and polish)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P071 implemented, web UI present on `main` (`97f2b30` latest status refresh, PR #259; **1000** pytest)
+- Date: 2026-06-08 (updated after P072 post-implementation evaluation and EF-overlap refresh)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P072 implemented, web UI present on `main` (`1476a51` PR #262; **1014** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P071** implementation rules.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P072** implementation rules.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.

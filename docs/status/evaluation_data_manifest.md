@@ -1,10 +1,10 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** see PR #262 (P072 implementation)
-- **Latest main:** see PR #262
+- **Generated for commit:** `1476a51` (PR #262 — P072 implementation)
+- **Latest main:** `1476a51` (PR #262)
 - **Validation:** ruff, mypy, **1014 pytest** at the latest docs/status refresh
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`
-- **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; P064 reach 2/2; `references_citations` gap unchanged (9 EF, 0 tool)
+- **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; `committee_approval_page` gap unchanged (5 EF, 0 tool); `references_citations` gap unchanged (9 EF, 0 tool)
 - **Schema version:** 1
 - **Machine-readable source:** `data/processed/evaluation_data_manifest.json`
 - **Status:** Privacy-safe index of repository evaluation and guideline data (post PR #48)
@@ -169,6 +169,8 @@ files unless explicitly requested.
 - EF overlap comparison: `docs/evaluation/current_ef_comment_vs_tool_comparison.md`
 - EF overlap after P063: `docs/evaluation/ef_overlap_after_p063_evaluation.md`
 - **Full repository audit after P071:** `docs/status/full_repository_audit_after_p071.md`
+- **EF overlap after P072:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings; `committee_approval_page` gap unchanged (5 EF, 0 tool); structural fallback found 0 candidates (image-embedded approval pages)
+- **P072 current-dataset evaluation:** `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` — all 5 PDFs evaluated; fallback 0 candidates on 3 non-detecting files; aggregate 1,543 unchanged
 - **EF overlap after P071:** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — 2 extractable-comment PDFs; 143 EF annotations; P064 reaches 2/2 comparison PDFs after P071; `references_citations` gap unchanged (9 EF, 0 tool)
 - **EF overlap after P068:** `docs/evaluation/ef_overlap_after_p068_evaluation.md` — 2 extractable-comment PDFs; 143 EF annotations; P064–P068 unchanged overlap on comparison set (historical baseline)
 - Real thesis pairing and EF overlap readiness (P068-era): `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md`
