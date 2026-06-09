@@ -99,6 +99,79 @@ def _extract_abstract_body_text(page: PdfPage) -> str:
     return " ".join(lines)
 
 
+# Mirrors FORBIDDEN_WORD_RE and FIRST_PERSON_RE from latex_abstract.py (Q004/Q005 TeX checks).
+_PDF_FORBIDDEN_WORD_RE = re.compile(r"\b(paper|papers|article|articles)\b", re.IGNORECASE)
+_PDF_FIRST_PERSON_RE = re.compile(r"\b(i|me|my|mine|we|us|our|ours)\b", re.IGNORECASE)
+
+
+def check_pdf_abstract_keywords(pdf_document: PdfDocument) -> list[AuditFinding]:
+    """Emit P078 warnings for Q004 forbidden terms and Q005 first-person pronouns
+    found in the Abstract page body text only.
+
+    Scoped to the single Abstract page via existing helpers; does not scan body,
+    references, TOC, or other sections.
+    """
+    abstract_page: PdfPage | None = None
+    for page in pdf_document.pages:
+        if _page_has_abstract_heading(page):
+            abstract_page = page
+            break
+    if abstract_page is None:
+        return []
+
+    body_text = _extract_abstract_body_text(abstract_page)
+    if not body_text:
+        return []
+
+    findings: list[AuditFinding] = []
+
+    for term in sorted(
+        {m.group(1).lower() for m in _PDF_FORBIDDEN_WORD_RE.finditer(body_text)}
+    ):
+        findings.append(
+            AuditFinding(
+                rule_id="P078",
+                severity=Severity.WARNING,
+                page=abstract_page.page_number,
+                message=(
+                    f"Abstract uses forbidden term '{term}' "
+                    "under NJIT abstract wording guidance."
+                ),
+                details={
+                    "issue_type": "abstract_pdf_forbidden_term",
+                    "term": term,
+                    "source_q_rule_ids": "Q004",
+                    "triage_tier": "check",
+                    "confidence": "medium",
+                },
+            )
+        )
+
+    for pronoun in sorted(
+        {m.group(1).lower() for m in _PDF_FIRST_PERSON_RE.finditer(body_text)}
+    ):
+        findings.append(
+            AuditFinding(
+                rule_id="P078",
+                severity=Severity.WARNING,
+                page=abstract_page.page_number,
+                message=(
+                    f"Abstract uses first-person pronoun '{pronoun}' "
+                    "under NJIT abstract wording guidance."
+                ),
+                details={
+                    "issue_type": "abstract_pdf_first_person_pronoun",
+                    "pronoun": pronoun,
+                    "source_q_rule_ids": "Q005",
+                    "triage_tier": "check",
+                    "confidence": "medium",
+                },
+            )
+        )
+
+    return findings
+
+
 def check_pdf_abstract_word_count(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit a conservative P021 warning if the abstract text on the Abstract page
     appears to exceed word-count limits.

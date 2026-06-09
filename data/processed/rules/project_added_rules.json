@@ -1613,5 +1613,33 @@
     "remediation": "No direct remediation \u2014 P077 adds report-level triage for existing P038 findings so reviewers can identify which required front-matter headings are missing or use non-exact phrases.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P038 findings, detail keys, and detection behavior remain unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
+  },
+  {
+    "id": "P078",
+    "title": "PDF Abstract Forbidden-Term and Pronoun Check",
+    "description": "PDF-side detection rule that checks the Abstract page body text for Q004 forbidden terms (paper, papers, article, articles) and Q005 first-person pronouns (i, me, my, mine, we, us, our, ours). Scoped to the single Abstract page via existing _page_has_abstract_heading and _extract_abstract_body_text helpers. Emits at most one finding per unique token. Privacy-safe: findings include only the matched token, not surrounding abstract text.",
+    "section": "Abstract",
+    "question": "Does the Abstract page avoid forbidden terms (paper/article) and first-person pronouns under NJIT abstract wording guidance?",
+    "rule_definition": "Locate the Abstract page using _page_has_abstract_heading(). Extract body text using _extract_abstract_body_text(). Match \\b(paper|papers|article|articles)\\b (Q004) and \\b(i|me|my|mine|we|us|our|ours)\\b (Q005) against the body text. Emit one WARNING finding per unique matched token (deduplicated, lowercased). Do not scan headings, TOC, body chapters, references, or acknowledgements. If no Abstract page is found, return no findings.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_abstract",
+    "rule_type": "detection",
+    "source_q_rule_ids": [
+      "Q004",
+      "Q005"
+    ],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_abstract.py",
+      "src/njit_auditor/audit_runner.py"
+    ],
+    "issue_types": [
+      "abstract_pdf_forbidden_term",
+      "abstract_pdf_first_person_pronoun"
+    ],
+    "remediation": "Remove or replace the flagged forbidden term or pronoun from the dissertation abstract.",
+    "source_file": "project_added",
+    "notes": "PDF companion to TeX Q004/Q005 abstract checks in latex_abstract.py. Scoped to Abstract page body text only; does not scan the full document. Privacy-safe token-only findings: message and details include only the matched token. Deduplication ensures at most one finding per unique token per document. Confidence: medium. Triage tier: check."
   }
 ]

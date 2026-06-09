@@ -31,7 +31,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
 **ZIP** uploads through the same form. PDF uploads run the **current implemented PDF layout
-audit** (P011–P068 and P074 standalone checks plus P069–P073, P076, and P077 infrastructure/reporting
+audit** (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, and P077 infrastructure/reporting
 refinements);
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
@@ -85,7 +85,7 @@ njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
 Runs the current implemented PDF layout and formatting checks on digital PDFs (P011–P068
-and P074 standalone rules plus P069–P073, P076, and P077 infrastructure/reporting refinements). Optional `--json-out`
+and P074 and P078 standalone rules plus P069–P073, P076, and P077 infrastructure/reporting refinements). Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -104,7 +104,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P019/P026/P036/P038
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P068 and P074 standalone; P069–P073, P076, and P077 are infrastructure/reporting refinements with no standalone issue types):
+Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, and P077 are infrastructure/reporting refinements with no standalone issue types):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -167,17 +167,18 @@ Current PDF checks (P011–P068 and P074 standalone; P069–P073, P076, and P077
 | P067 | Front matter | Biographical Sketch publication/presentation reverse-chronology check: detects a Publications/Presentations subsection on a uniquely detected Bio Sketch page, groups citation-like entries, extracts one representative year per entry, and warns with `biosketch_publication_order_suspicious` when comparable entries are not in descending order; skips ambiguous multi-year, DOI/URL-heavy, sparse, and nonstandard layouts; privacy-safe counts/year metadata only |
 | P068 | Front matter | Approval Page committee/signature-block structural check: on a uniquely detected APPROVAL PAGE, counts curated advisor/committee role-label phrases and date/signature/underscore-blank indicators; warns with `approval_page_advisor_role_label_missing` or `approval_page_signature_blocks_sparse`; skips sparse/noisy/image-only pages; no committee names or signature text in findings |
 | P074 | Front matter | Title Page graduation month validation: emits `title_page_graduation_month_invalid` when a detected title-page month/year line uses a month other than August, December, or May; silent when no month/year line is extractable; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P074 findings |
+| P078 | Abstract | PDF Abstract forbidden-term and pronoun check: emits `abstract_pdf_forbidden_term` (Q004) when forbidden terms (paper, papers, article, articles) appear in the Abstract page body text; emits `abstract_pdf_first_person_pronoun` (Q005) when first-person pronouns (i, me, my, mine, we, us, our, ours) appear; scoped to Abstract page only via existing heading and body-text helpers; at most one finding per unique token (deduplicated); privacy-safe token-only findings; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P078 findings |
 
 **Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall (P064 companion); P072 approval-page heading-gate recall; P073 P019 page-numbering triage rollup; P076 P036 TOC/LoT/LoF spacing triage rollup; P077 P038 front-matter heading triage rollup.
 
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (post-P077)
+### Current canonical artifacts (post-P078)
 
 | Artifact | Path |
 |---|---|
 | Full repository audit | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
-| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P077) |
+| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P078) |
 | Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
 | P036/P076 triage eval | `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` |
 | P069 gate-recall eval | `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` |
@@ -185,11 +186,11 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Current validation | Repository progress: P001–P077 (76 inventory rules spanning P001–P077, with P075 documented as a non-inventory project task); **1068 pytest** |
+| Current validation | Repository progress: P001–P078 (77 inventory rules spanning P001–P078, with P075 documented as a non-inventory project task); **1082 pytest** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
-project-added rule inventory entry should be `P078` while accidental gaps, duplicates, and
+project-added rule inventory entry should be `P079` while accidental gaps, duplicates, and
 out-of-order IDs still fail tests.
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
