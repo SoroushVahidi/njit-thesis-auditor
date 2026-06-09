@@ -234,13 +234,17 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
 
     assert manifest["p_rules_implemented"] == "P001-P075"
     assert auditor_rule_state["p_rules_implemented"] == "P001-P075"
-    assert manifest["pytest_count_at_last_doc_refresh"] == 1043
-    assert auditor_rule_state["pytest_count_at_last_doc_refresh"] == 1043
+    assert manifest["pytest_count_at_last_doc_refresh"] == 1045
+    assert auditor_rule_state["pytest_count_at_last_doc_refresh"] == 1045
 
     assert manifest["project_added_rule_inventory_count"] == 74
     assert manifest["project_added_rule_inventory_range"] == "P001-P074"
     assert auditor_rule_state["project_added_rule_inventory_count"] == 74
     assert auditor_rule_state["project_added_rule_inventory_range"] == "P001-P074"
+    assert manifest["non_inventory_project_task_ids"] == ["P075"]
+    assert auditor_rule_state["non_inventory_project_task_ids"] == ["P075"]
+    assert manifest["next_project_added_rule_id"] == "P076"
+    assert auditor_rule_state["next_project_added_rule_id"] == "P076"
 
     assert (
         manifest["canonical_aggregate_doc"]
@@ -253,6 +257,15 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
     )
     assert auditor_rule_state["canonical_aggregate_findings"] == 1543
     assert "test-only" in str(auditor_rule_state["p075_status_note"])
+    assert "no detection behavior" in str(
+        manifest["non_inventory_project_task_notes"]["P075"]
+    )
+    assert "no aggregate impact" in str(
+        manifest["non_inventory_project_task_notes"]["P075"]
+    )
+    assert manifest["non_inventory_project_task_notes"]["P075"] == (
+        auditor_rule_state["non_inventory_project_task_notes"]["P075"]
+    )
 
     p_inventory = next(
         entry
@@ -278,8 +291,11 @@ def test_manifest_current_state_docs_are_aligned() -> None:
     for text in (readme, current_state_doc, manifest_doc, data_inventory_doc):
         assert "1042 pytest" not in text
         assert "f4c0c4d" not in text
+        assert "non-inventory project task" in text
+        assert "P076" in text
 
     assert "P001\u2013P075" in readme
     assert latest_main in current_state_doc
     assert latest_main in manifest_doc
     assert latest_main in data_inventory_doc
+    assert "1045 pytest" in readme
