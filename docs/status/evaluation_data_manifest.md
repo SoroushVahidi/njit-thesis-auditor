@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `eb66d4a` (PR #267 — P073 scope doc; last substantive eval data collection)
-- **Latest main:** `bf43062` (PR #271 — post-P270 status refresh; P074 pending)
+- **Latest main:** `f4c0c4d` (PR #272 — P074 title-page graduation month; P073 inventory repair)
 - **P073 P019 triage rollup:** complete (2026-06-09) — docs-only triage; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged; 1042 pytest
 - **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
@@ -60,7 +60,7 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 72 (P001–P072) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 74 (P001–P074) | Yes |
 
 P001–P074 are implemented; P069–P073 are infrastructure-only (no standalone findings); P074 adds `title_page_graduation_month_invalid` (0 findings on current dataset). Canonical five-PDF aggregate is **1,543** (unchanged through P074); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`). Post-P072 backlog and data strategy: `docs/status/post_p072_backlog_and_data_strategy.md`.

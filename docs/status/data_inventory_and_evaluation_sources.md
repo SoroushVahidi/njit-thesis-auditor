@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
 - Date: 2026-06-09 (updated: P036–P063 five-PDF evaluation gap-fill complete; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P072 implemented, web UI present on `main` (`85a1326` PR #265; **1014** pytest)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P074 implemented, web UI present on `main` (`f4c0c4d` PR #272; **1042** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P072** implementation rules.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074** implementation rules.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -51,12 +51,12 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P072**) — P001–P072 all implemented; P069–P072 are infrastructure-only.
+  Project implementation rule set (**P001-P074**) — P001–P074 all implemented; P069–P073 are infrastructure-only; P074 adds `title_page_graduation_month_invalid`.
 
-From the strict post-P029 audit plus post-audit updates through P072
+From the strict post-P029 audit plus post-audit updates through P074
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- P-rules: **72/72** implemented (historical audit snapshot listed 29/29 at P029).
+- P-rules: **74/74** implemented (historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data
