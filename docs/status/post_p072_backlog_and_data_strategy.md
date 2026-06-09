@@ -321,14 +321,17 @@ all consistent with canonical 1,543. See `docs/evaluation/p036_p063_current_data
 
 **Branch name:** `docs/p036-p063-current-dataset-gap-fill`
 
-### Recommendation 3 (Engineering fallback): P073 — P019 reporting triage
+### Recommendation 3 (Engineering fallback): P073 — P019 reporting triage ✅ SCOPED
 
 If data acquisition is blocked (file not in current archive or not recoverable), the best
 engineering task is adding a triage rollup to P019 (page-numbering sequence/style/position
 inconsistencies, 67 five-PDF findings). This follows the established pattern of P011/P013/P026
 triage rollups and improves actionability without narrowing coverage.
 
-**Branch name:** `rules/p073-p019-page-numbering-triage`
+**Status:** Scoped (2026-06-09, commit `<PR#267 TBD>`). P073 v1 is docs/evaluation-only (triage doc);
+v2 code rollup deferred. See `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`.
+
+**Branch name:** `docs/p073-p019-page-numbering-triage-rollup`
 
 ### Deferred / rejected
 
