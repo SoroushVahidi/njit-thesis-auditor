@@ -8,7 +8,7 @@
 | **Rule name** | References Section Localization Recall Refinement |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `12f01b3` (PR #254 — post-P070 canonical aggregate snapshot) |
-| **Status** | **Implemented** — scoped PR #255; merged PR #256; EF overlap refresh PR #257; polish PR #258 |
+| **Status** | **Implemented** — scoped PR #255; merged PR #256; EF overlap refresh PR #257; full audit doc PR #258; repository polish PR #259 |
 | **Validation baseline** | 1000 pytest (`ruff check .`, `mypy src`, 87 source files) |
 | **Type** | **Shared infrastructure / localization recall refinement** (not a new semantic checker) |
 | **Companion module** | `src/njit_auditor/rules/pdf_references_citations_structural.py` (P064) |

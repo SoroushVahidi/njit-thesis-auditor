@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-08
 - **Branch:** main
-- **Latest commit:** `b2fd6ef` (PR #258 — repository polish after P071 full audit)
+- **Latest commit at audit time:** `b2fd6ef` (PR #258 — full audit doc and status link refresh); **repository polish:** `97f2b30` (PR #259)
 - **Auditor scope:** P001–P071 implemented; **1000 pytest**; ruff clean; mypy 87 source files, no issues
 - **Canonical aggregate:** **1,543** findings (post-P070 / post-P071 unchanged) — `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md`
