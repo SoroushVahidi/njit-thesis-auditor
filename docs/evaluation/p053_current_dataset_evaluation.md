@@ -1,4 +1,8 @@
-# P053 Current Dataset Evaluation
+# P053 Current Dataset Evaluation (see gap-fill for five-PDF results)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Full five-PDF current-dataset audit now complete.
+> P053 total: **1** finding (`lot_entry_has_terminal_period`: 1 on Yin H 4th compressed; 0 on other four files).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Rule:** P053 — List of Tables entry terminal-period check (Q065 refinement)
 - **Date:** 2026-06-04

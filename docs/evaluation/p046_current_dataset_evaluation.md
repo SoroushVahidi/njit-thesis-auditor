@@ -1,4 +1,8 @@
-# P046 Current Dataset Evaluation
+# P046 Current Dataset Evaluation (see gap-fill for five-PDF results)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Full five-PDF current-dataset audit now complete.
+> P046 total: **2** findings on Yin H 4th (compressed) (`lot_entry_number_column_misaligned`: 1, `lof_entry_number_column_misaligned`: 1).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Date:** 2026-06-03
 - **Rule:** P046 — LoT/LoF entry number left-column alignment (Q068/Q078)

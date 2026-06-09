@@ -1,7 +1,8 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `e3ca516` (PR #264 — post-P072 backlog and data strategy)
-- **Latest main:** `e3ca516` (PR #264)
+- **Generated for commit:** `85a1326` (PR #265 — Sebastian Fine EF archive recovery documented; P036–P063 gap-fill complete)
+- **Latest main:** `85a1326` (PR #265)
+- **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Sebastian Fine EF recovery:** BLOCKED (2026-06-09) — EF-annotated version not found in any local path or tracked archive; comparison set remains 2 extractable files; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
 - **Validation:** ruff, mypy, **1014 pytest** at the latest docs/status refresh
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`

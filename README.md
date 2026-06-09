@@ -255,7 +255,8 @@ More docs:
 - `docs/evaluation/p013_reporting_actionability_refinement.md` — P013 `p013_triage` rollup
 - `docs/evaluation/p026_reporting_actionability_refinement.md` — P026 `p026_font_triage` rollup
 - `docs/evaluation/p036_toc_list_entry_spacing_synthetic_validation.md` — P036 synthetic validation
-- `docs/evaluation/p036_current_dataset_evaluation.md` — P036 current-dataset status (not run; evaluation PDFs unavailable)
+- `docs/evaluation/p036_current_dataset_evaluation.md` — P036 current-dataset status (gap-fill: 55 findings on Yin H 4th)
+- `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` — **P036–P063 five-PDF evaluation gap-fill** (2026-06-09): 27 rules; 8 with findings (P036: 55, P038: 16, P044: 7, P051: 3, P037: 3, P046: 2, P040: 1, P053: 1); all consistent with canonical 1,543
 - `docs/planning/gui_scope_and_design.md` — GUI/web UI scope and design (local-only; evolve FastAPI MVP)
 - `docs/planning/p061_scope_and_design.md` — P061 LoT/LoF cross-page entry-number ordering design
 - `docs/evaluation/p061_current_dataset_evaluation.md` — P061 formal current-dataset evaluation (PR #204; 0 findings on five-PDF local subset; sparse comparable entries)
@@ -298,7 +299,11 @@ More docs:
 - `docs/evaluation/ef_overlap_after_p071_evaluation.md` — EF comment-vs-tool overlap refresh after P071; P064 reaches 2/2 comparison PDFs; `references_citations` gap unchanged (9 EF, 0 tool)
 - `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — real thesis data inventory, raw/commented pairing, EF comment extractability, overlap-readiness, and recurring evaluation workflow (P068-era refresh; Sebastian Fine EF recovery note added 2026-06-09)
 - `docs/evaluation/sebastian_fine_ef_archive_recovery.md` — Sebastian Fine EF archive recovery attempt (2026-06-09): BLOCKED — EF-annotated version not found locally; comparison set remains 2 extractable files
-- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
+- `docs/evaluation/p047_current_dataset_evaluation.md` — P047 gap-fill: 0 findings; Bio Sketch heading not detected
+- `docs/evaluation/p058_current_dataset_evaluation.md` — P058 gap-fill: 0 findings; no TOC page-number ordering violations
+- `docs/evaluation/p062_current_dataset_evaluation.md` — P062 gap-fill: 0 findings; no qualifying cross-page TOC sequence detected
+- `docs/evaluation/p063_current_dataset_evaluation.md` — P063 gap-fill: 0 findings; body-region appendix detection gate not met
+- `docs/evaluation/` — per-rule and historical evaluation docs (P011–P072 scope)
 
 ## Report schema
 

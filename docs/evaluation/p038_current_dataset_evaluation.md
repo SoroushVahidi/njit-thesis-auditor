@@ -1,4 +1,8 @@
-# P038 Current Dataset Evaluation (Not Run)
+# P038 Current Dataset Evaluation (Not Run — see gap-fill below)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Five-PDF current-dataset audit now complete.
+> P038 total: **16** findings on all five files (`required_heading_missing`: 14, `heading_phrase_not_exact`: 2).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Date:** 2026-06-03
 - **Implementation commit:** `cb0f4e0` (PR #96 — P038 front-matter heading phrase and missing-section checks)

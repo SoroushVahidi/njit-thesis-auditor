@@ -1,4 +1,8 @@
-# P040 Current Dataset Evaluation (Not Run)
+# P040 Current Dataset Evaluation (Not Run — see gap-fill below)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Five-PDF current-dataset audit now complete.
+> P040 total: **1** finding (`lof_entry_missing_terminal_punctuation`: 1 on Sebastian Fine).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Date:** 2026-06-03
 - **Implementation commit:** `f331dde` (PR #104 — P040 LoF terminal punctuation checks)
