@@ -24,7 +24,10 @@ from njit_auditor.rules.latex_labels import run_latex_label_checks
 from njit_auditor.rules.latex_metadata import run_latex_graduation_month_check
 from njit_auditor.rules.latex_risky_commands import run_latex_risky_command_checks
 from njit_auditor.rules.latex_structure import run_latex_structure_checks
-from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
+from njit_auditor.rules.pdf_abstract import (
+    check_pdf_abstract_keywords,
+    check_pdf_abstract_word_count,
+)
 from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
 from njit_auditor.rules.pdf_acknowledgements_indentation import (
     check_pdf_acknowledgements_indentation,
@@ -235,6 +238,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_copyright_author_format(pdf_doc))
     findings.extend(check_pdf_dedication_page(pdf_doc))
     findings.extend(check_pdf_abstract_word_count(pdf_doc))
+    findings.extend(check_pdf_abstract_keywords(pdf_doc))
     findings.extend(check_pdf_indentation(pdf_doc))
     findings.extend(check_pdf_abstract_indentation(pdf_doc))
     findings.extend(check_pdf_acknowledgements_indentation(pdf_doc))

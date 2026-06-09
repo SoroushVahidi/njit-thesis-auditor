@@ -232,19 +232,19 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
     manifest = _load_manifest()
     auditor_rule_state = manifest["auditor_rule_state"]
 
-    assert manifest["p_rules_implemented"] == "P001-P077"
-    assert auditor_rule_state["p_rules_implemented"] == "P001-P077"
-    assert manifest["pytest_count_at_last_doc_refresh"] == 1068
-    assert auditor_rule_state["pytest_count_at_last_doc_refresh"] == 1068
+    assert manifest["p_rules_implemented"] == "P001-P078"
+    assert auditor_rule_state["p_rules_implemented"] == "P001-P078"
+    assert manifest["pytest_count_at_last_doc_refresh"] == 1082
+    assert auditor_rule_state["pytest_count_at_last_doc_refresh"] == 1082
 
-    assert manifest["project_added_rule_inventory_count"] == 76
-    assert manifest["project_added_rule_inventory_range"] == "P001-P077"
-    assert auditor_rule_state["project_added_rule_inventory_count"] == 76
-    assert auditor_rule_state["project_added_rule_inventory_range"] == "P001-P077"
+    assert manifest["project_added_rule_inventory_count"] == 77
+    assert manifest["project_added_rule_inventory_range"] == "P001-P078"
+    assert auditor_rule_state["project_added_rule_inventory_count"] == 77
+    assert auditor_rule_state["project_added_rule_inventory_range"] == "P001-P078"
     assert manifest["non_inventory_project_task_ids"] == ["P075"]
     assert auditor_rule_state["non_inventory_project_task_ids"] == ["P075"]
-    assert manifest["next_project_added_rule_id"] == "P078"
-    assert auditor_rule_state["next_project_added_rule_id"] == "P078"
+    assert manifest["next_project_added_rule_id"] == "P079"
+    assert auditor_rule_state["next_project_added_rule_id"] == "P079"
 
     assert (
         manifest["canonical_aggregate_doc"]
@@ -274,14 +274,20 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
     assert "P038" in str(auditor_rule_state["p077_status_note"])
     assert "no standalone issue types" in str(auditor_rule_state["p077_status_note"])
     assert "1,543" in str(auditor_rule_state["p077_status_note"])
+    assert "Q004" in str(auditor_rule_state["p078_status_note"])
+    assert "Q005" in str(auditor_rule_state["p078_status_note"])
+    assert "abstract_pdf_forbidden_term" in str(auditor_rule_state["p078_status_note"])
+    assert "abstract_pdf_first_person_pronoun" in str(auditor_rule_state["p078_status_note"])
+    assert "0 P078 findings" in str(auditor_rule_state["p078_current_dataset_note"])
+    assert "1,543" in str(auditor_rule_state["p078_current_dataset_note"])
 
     p_inventory = next(
         entry
         for entry in manifest["categories"]["processed_rule_sources"]
         if entry["rule_prefix"] == "P"
     )
-    assert p_inventory["rule_count"] == 76
-    assert p_inventory["rule_id_range"] == "P001-P077"
+    assert p_inventory["rule_count"] == 77
+    assert p_inventory["rule_id_range"] == "P001-P078"
 
 
 def test_manifest_current_state_docs_are_aligned() -> None:
@@ -302,9 +308,10 @@ def test_manifest_current_state_docs_are_aligned() -> None:
         assert "non-inventory project task" in text
         assert "P076" in text
         assert "P077" in text
+        assert "P078" in text
 
-    assert "P001\u2013P077" in readme
+    assert "P001\u2013P078" in readme
     assert latest_main in current_state_doc
     assert latest_main in manifest_doc
     assert latest_main in data_inventory_doc
-    assert "1068 pytest" in readme
+    assert "1082 pytest" in readme
