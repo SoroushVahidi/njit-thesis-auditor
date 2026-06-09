@@ -17,6 +17,7 @@ from njit_auditor.report_outputs import (
     build_p019_page_numbering_triage_summary,
     build_p026_font_triage_summary,
     build_p036_toc_list_spacing_triage_summary,
+    build_p038_frontmatter_heading_triage_summary,
     compact_page_list,
     write_json_report,
     write_markdown_report,
@@ -850,6 +851,67 @@ def _p036_mixed_findings() -> list[AuditFinding]:
     ]
 
 
+def _p038_mixed_findings() -> list[AuditFinding]:
+    return [
+        AuditFinding(
+            rule_id="P038",
+            severity=Severity.WARNING,
+            page=None,
+            message="Required front-matter heading 'APPROVAL PAGE' not detected.",
+            details={
+                "issue_type": "required_heading_missing",
+                "section_key": "approval_page",
+                "expected_heading": "APPROVAL PAGE",
+                "triage_tier": "check",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P038",
+            severity=Severity.WARNING,
+            page=None,
+            message="Required front-matter heading 'BIOGRAPHICAL SKETCH' not detected.",
+            details={
+                "issue_type": "required_heading_missing",
+                "section_key": "biographical_sketch",
+                "expected_heading": "BIOGRAPHICAL SKETCH",
+                "triage_tier": "check",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P038",
+            severity=Severity.WARNING,
+            page=None,
+            message="Required front-matter heading 'ACKNOWLEDGEMENTS' not detected.",
+            details={
+                "issue_type": "required_heading_missing",
+                "section_key": "acknowledgements",
+                "expected_heading": "ACKNOWLEDGEMENTS",
+                "triage_tier": "check",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P038",
+            severity=Severity.WARNING,
+            page=3,
+            message=(
+                "Front-matter heading uses variant 'ACKNOWLEDGMENTS'; "
+                "expected canonical 'ACKNOWLEDGEMENTS'."
+            ),
+            details={
+                "issue_type": "heading_phrase_not_exact",
+                "section_key": "acknowledgements",
+                "expected_heading": "ACKNOWLEDGEMENTS",
+                "observed_heading_normalized": "ACKNOWLEDGMENTS",
+                "triage_tier": "check",
+                "confidence": "medium",
+            },
+        ),
+    ]
+
+
 # ---- P019 triage summary tests ----
 
 
@@ -1051,3 +1113,110 @@ def test_all_six_triage_rollups_coexist() -> None:
     assert "p026_font_triage" in summary
     assert "p019_page_numbering_triage" in summary
     assert "p036_toc_list_spacing_triage" in summary
+
+
+# ---- P038 frontmatter heading triage tests ----
+
+
+def test_p038_triage_absent_when_no_findings() -> None:
+    assert build_p038_frontmatter_heading_triage_summary([]) is None
+
+
+def test_p038_triage_absent_when_no_p038_findings() -> None:
+    assert build_p038_frontmatter_heading_triage_summary(_p026_findings(5)) is None
+    summary = build_grouped_summary(_p026_findings(5))
+    assert "p038_frontmatter_heading_triage" not in summary
+
+
+def test_p038_triage_in_grouped_summary() -> None:
+    summary = build_grouped_summary(_p038_mixed_findings())
+    assert "p038_frontmatter_heading_triage" in summary
+    assert summary["p038_frontmatter_heading_triage"]["raw_finding_count"] == 4
+
+
+def test_p038_triage_issue_type_counts() -> None:
+    triage = build_p038_frontmatter_heading_triage_summary(_p038_mixed_findings())
+    assert triage is not None
+    assert triage["issue_type_counts"]["required_heading_missing"] == 3
+    assert triage["issue_type_counts"]["heading_phrase_not_exact"] == 1
+
+
+def test_p038_triage_expected_heading_counts() -> None:
+    triage = build_p038_frontmatter_heading_triage_summary(_p038_mixed_findings())
+    assert triage is not None
+    assert triage["expected_heading_counts"]["ACKNOWLEDGEMENTS"] == 2
+    assert triage["expected_heading_counts"]["APPROVAL PAGE"] == 1
+    assert triage["expected_heading_counts"]["BIOGRAPHICAL SKETCH"] == 1
+
+
+def test_p038_triage_missing_heading_counts() -> None:
+    triage = build_p038_frontmatter_heading_triage_summary(_p038_mixed_findings())
+    assert triage is not None
+    assert triage["missing_heading_counts"]["APPROVAL PAGE"] == 1
+    assert triage["missing_heading_counts"]["BIOGRAPHICAL SKETCH"] == 1
+    assert triage["missing_heading_counts"]["ACKNOWLEDGEMENTS"] == 1
+
+
+def test_p038_triage_inexact_phrase_counts() -> None:
+    triage = build_p038_frontmatter_heading_triage_summary(_p038_mixed_findings())
+    assert triage is not None
+    assert triage["inexact_phrase_counts"]["ACKNOWLEDGEMENTS"] == 1
+
+
+def test_p038_triage_affected_pages() -> None:
+    triage = build_p038_frontmatter_heading_triage_summary(_p038_mixed_findings())
+    assert triage is not None
+    # required_heading_missing findings have page=None; only the phrase-not-exact
+    # finding (page=3) contributes to the page set.
+    assert triage["affected_page_count"] == 1
+    assert triage["affected_pages_compact"] == "3"
+
+
+def test_p038_triage_tier_and_confidence_counts() -> None:
+    triage = build_p038_frontmatter_heading_triage_summary(_p038_mixed_findings())
+    assert triage is not None
+    assert triage["triage_tier_counts"]["check"] == 4
+    assert triage["confidence_counts"]["medium"] == 4
+
+
+def test_markdown_report_includes_p038_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "p038_report.md"
+    write_markdown_report(_p038_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P038 Front-Matter Heading Triage" in text
+    assert "Missing heading counts" in text
+    assert (
+        "Raw per-page P038 findings are listed under **Findings by Rule → P038** below."
+        in text
+    )
+    triage_pos = text.index("P038 Front-Matter Heading Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+
+
+def test_p038_raw_findings_preserved_in_json() -> None:
+    findings = _p038_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 4
+    assert all(f["rule_id"] == "P038" for f in payload["findings"])
+    assert payload["grouped_summary"]["p038_frontmatter_heading_triage"]["raw_finding_count"] == 4
+
+
+def test_all_seven_triage_rollups_coexist() -> None:
+    findings = (
+        _p011_mixed_findings()
+        + _p012_mixed_findings()
+        + _p013_findings(8)
+        + _p026_findings(10)
+        + _p019_mixed_findings()
+        + _p036_mixed_findings()
+        + _p038_mixed_findings()
+    )
+    summary = build_grouped_summary(findings)
+    assert "p011_margin_triage" in summary
+    assert "p012_annotation_triage" in summary
+    assert "p013_triage" in summary
+    assert "p026_font_triage" in summary
+    assert "p019_page_numbering_triage" in summary
+    assert "p036_toc_list_spacing_triage" in summary
+    assert "p038_frontmatter_heading_triage" in summary
