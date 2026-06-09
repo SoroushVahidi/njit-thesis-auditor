@@ -1641,5 +1641,28 @@
     "remediation": "Remove or replace the flagged forbidden term or pronoun from the dissertation abstract.",
     "source_file": "project_added",
     "notes": "PDF companion to TeX Q004/Q005 abstract checks in latex_abstract.py. Scoped to Abstract page body text only; does not scan the full document. Privacy-safe token-only findings: message and details include only the matched token. Deduplication ensures at most one finding per unique token per document. Confidence: medium. Triage tier: check."
+  },
+  {
+    "id": "P079",
+    "title": "P044 Abstract Indentation Triage Rollup",
+    "description": "Reporting-only refinement that adds a privacy-safe grouped triage summary for P044 Abstract paragraph indentation findings in JSON and Markdown reports. Aggregates raw P044 findings by issue type, source Q-rule, triage tier, paragraph index, and page ranges without changing P044 detection behavior or canonical aggregate counts.",
+    "section": "Abstract",
+    "question": "Are P044 Abstract paragraph indentation findings organized for reviewer triage in JSON and Markdown reports?",
+    "rule_definition": "Reporting refinement only: collect existing P044 findings after detection, summarize by issue_type (abstract_first_paragraph_indented / abstract_subsequent_paragraph_not_indented), source_q_rule_id, triage_tier, paragraph_index, and compact page ranges, then expose the rollup via grouped_summary.p044_abstract_indentation_triage and a Markdown 'P044 Abstract Indentation Triage' section. No raw finding mutation, no new issue types, and no change to P044 detection logic.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.report_outputs",
+    "rule_type": "reporting_refinement",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/report_outputs.py",
+      "tests/test_report_outputs.py"
+    ],
+    "issue_types": [],
+    "affected_rules": ["P044"],
+    "remediation": "No direct remediation — P079 adds report-level triage for existing P044 findings so reviewers can identify first-paragraph indentation issues and unindented subsequent paragraphs in the Abstract.",
+    "source_file": "project_added",
+    "notes": "Reporting-only. Raw P044 findings, details, and detection behavior unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
   }
 ]
