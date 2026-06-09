@@ -1,7 +1,8 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `85a1326` (PR #265 — Sebastian Fine EF archive recovery documented; P036–P063 gap-fill complete)
-- **Latest main:** `85a1326` (PR #265)
+- **Generated for commit:** `eb66d4a` (PR #267 — P073 scope doc; P073 v1 triage rollup doc pending merge)
+- **Latest main:** `eb66d4a` (PR #267 — P073 scope doc)
+- **P073 P019 triage rollup:** complete (2026-06-09) — docs-only triage; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md`
 - **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Sebastian Fine EF recovery:** BLOCKED (2026-06-09) — EF-annotated version not found in any local path or tracked archive; comparison set remains 2 extractable files; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
 - **Validation:** ruff, mypy, **1014 pytest** at the latest docs/status refresh
