@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
 - **Date:** 2026-06-09 (updated: Sebastian Fine EF recovery Retry 2 — still BLOCKED; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`)
-- **Latest main:** `42e10fb` (PR #268 — P073 v1 P019 triage rollup); prior: `eb66d4a` (PR #267 — P073 scope doc)
+- **Latest main:** `2e248b6` (PR #270 — P073 v2 P019 triage code rollup); prior: `5448fa9` (PR #269 — Sebastian Fine EF recovery Retry 2 documented as still blocked)
 - **P073 status:** P019 page-numbering triage rollup **fully implemented** (v1 docs-only triage rollup + v2 code rollup complete); triage metadata on P019 findings; `build_p019_page_numbering_triage_summary()` in JSON/Markdown reports; 17 new tests; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md`, `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`, and `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`
 - **Evaluation gap-fill status:** P036–P063 five-PDF current-dataset evaluation **complete** (PR #266); 27 rules; 88 total findings; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Data acquisition status:** Sebastian Fine EF archive recovery **BLOCKED** (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
