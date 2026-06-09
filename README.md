@@ -178,7 +178,7 @@ All findings are heuristic warnings and require manual review.
 | P070 parser-recall eval | `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` |
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
-| Current validation | P001–P072 implemented; P073 v1+v2 complete; **1031 pytest** |
+| Current validation | P001–P074 implemented; **1042 pytest** |
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
 

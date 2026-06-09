@@ -2,9 +2,9 @@
   "schema_version": 1,
   "generated_for_commit": "85a1326",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P072",
-    "pytest_count_at_last_doc_refresh": 1014,
-    "latest_main_at_last_doc_refresh": "85a1326",
+    "p_rules_implemented": "P001-P074",
+    "pytest_count_at_last_doc_refresh": 1042,
+    "latest_main_at_last_doc_refresh": "bf43062",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "55 findings (Yin H 4th compressed only) — toc_inter_entry_spacing_too_tight: 42, lof: 9, lot: 4. Five-PDF current-dataset audit completed 2026-06-09 (commit 85a1326). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
     "p037_current_dataset_note": "3 findings — roman_section_wrong_value: 2 (Yin H 4th), roman_bio_sketch_not_iv: 1 (Sebastian Fine). Five-PDF current-dataset audit completed 2026-06-09 (commit 85a1326). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
@@ -55,7 +55,8 @@
     "ef_overlap_after_p072_note": "EF overlap refresh (2026-06-08, commit 1476a51): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged; committee_approval_page gap unchanged (5 EF, 0 tool); structural fallback found 0 candidates on both comparison PDFs. See docs/evaluation/ef_overlap_after_p072_evaluation.md",
     "sebastian_fine_ef_recovery_note": "Recovery attempt (2026-06-09, commit e3ca516): BLOCKED — EF-annotated version not found in any tracked or local path; original Google Drive RAR not present locally. Retry 2 (2026-06-09, commit 42e10fb): BLOCKED — data/evaluation/private/ absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations). See docs/evaluation/sebastian_fine_ef_archive_recovery.md",
     "p036_p063_gap_fill_note": "P036–P063 five-PDF gap-fill evaluation complete (2026-06-09, commit 85a1326): 27 rules evaluated; 8 rules with findings: P036 55, P038 16, P044 7, P051 3, P037 3, P046 2, P040 1, P053 1; total P036–P063 contribution 88; consistent with canonical 1,543. Generated outputs: data/evaluation/generated/p036_p063_gap_fill/ (gitignored). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
-    "p073_p019_triage_note": "P073 v1+v2 complete (2026-06-09): v1 docs-only triage rollup — 67 P019 findings across five PDFs; multiple_page_numbers 28, mixed_numbering_style 23, inconsistent_position 10, sequence_gap 6; sequence_gap highest-actionability (all 5 files); v2 code rollup — triage_tier/p019_triage_category/triage_reason metadata on all P019 findings; build_p019_page_numbering_triage_summary() wired in JSON/Markdown reports; 17 new tests; aggregate 1,543 unchanged. See docs/evaluation/p073_p019_page_numbering_triage_rollup.md and docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md"
+    "p073_p019_triage_note": "P073 v1+v2 complete (2026-06-09): v1 docs-only triage rollup — 67 P019 findings across five PDFs; multiple_page_numbers 28, mixed_numbering_style 23, inconsistent_position 10, sequence_gap 6; sequence_gap highest-actionability (all 5 files); v2 code rollup — triage_tier/p019_triage_category/triage_reason metadata on all P019 findings; build_p019_page_numbering_triage_summary() wired in JSON/Markdown reports; 17 new tests; aggregate 1,543 unchanged. See docs/evaluation/p073_p019_page_numbering_triage_rollup.md and docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md",
+    "p074_current_dataset_note": "P074 implementation (2026-06-09): 0 findings on all five PDFs — all current-dataset PDFs use valid graduation months (or no month/year pattern is extractable from title page). Rule fires only when an invalid month is detected; canonical aggregate 1,543 unchanged. Q073 inventory drift also repaired: P073 entry added to project_added_rules.json. 1042 pytest."
   },
   "privacy_policy": {
     "contains_real_student_data": true,

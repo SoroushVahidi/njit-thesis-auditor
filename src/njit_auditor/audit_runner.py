@@ -61,7 +61,10 @@ from njit_auditor.rules.pdf_frontmatter_headings import check_pdf_frontmatter_he
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
-from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
+from njit_auditor.rules.pdf_frontmatter_structure import (
+    check_pdf_frontmatter_structure,
+    check_pdf_title_page_graduation_month,
+)
 from njit_auditor.rules.pdf_heading_levels import check_pdf_heading_level_styles
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
@@ -225,6 +228,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_named_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_frontmatter_structure(pdf_doc))
+    findings.extend(check_pdf_title_page_graduation_month(pdf_doc))
     findings.extend(check_pdf_title_consistency(pdf_doc))
     findings.extend(check_pdf_copyright_page(pdf_doc))
     findings.extend(check_pdf_copyright_year_format(pdf_doc))
