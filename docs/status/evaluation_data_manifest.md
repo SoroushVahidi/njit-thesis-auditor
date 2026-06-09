@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `b2fd6ef` (repository polish after P071 full audit; PR #258)
-- **Latest main:** `b2fd6ef` (PR #258 — full repository audit after P071)
+- **Generated for commit:** `97f2b30` (repository polish after P071 full audit; PR #259)
+- **Latest main:** `97f2b30` (PR #259 — repository polish after P071 full audit)
 - **Validation:** ruff, mypy, **1000 pytest** at the latest docs/status refresh
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 (infrastructure-only); no separate `current_auditor_after_p071_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; P064 reach 2/2; `references_citations` gap unchanged (9 EF, 0 tool)
