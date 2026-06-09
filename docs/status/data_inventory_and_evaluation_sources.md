@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated: P036–P063 five-PDF evaluation gap-fill complete; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P076, web UI present on `main` (`bb647ad` PR #277; **1056** pytest); project-added rule inventory spans P001–P074 plus P076 (75 entries, with P075 documented separately as non-inventory)
+- Date: 2026-06-09 (updated: post-P076 status refresh; P076 P036 triage evaluation complete; see `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md`)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P076, web UI present on `main` (`722dac0` PR #278; **1056** pytest); project-added rule inventory spans P001–P074 plus P076 (75 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary

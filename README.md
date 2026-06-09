@@ -171,17 +171,19 @@ Current PDF checks (P011–P068 and P074 standalone; P069–P073 and P076 are in
 
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (P072 era)
+### Current canonical artifacts (post-P076)
 
 | Artifact | Path |
 |---|---|
 | Full repository audit | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
-| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P072) |
+| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P076) |
 | Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
+| P036/P076 triage eval | `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` |
 | P069 gate-recall eval | `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` |
 | P070 parser-recall eval | `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` |
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
+| P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
 | Current validation | Repository progress: P001–P076 (75 inventory rules spanning P001–P076, with P075 documented as a non-inventory project task); **1056 pytest** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
@@ -284,6 +286,7 @@ More docs:
 - `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md` — P073 scope and design: P019 page-numbering triage rollup (v1+v2 implemented)
 - `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` — **P073 P019 triage rollup** (2026-06-09): 67 P019 findings classified; `sequence_gap` (6, all files) highest-signal; `multiple_page_numbers` + `inconsistent_position` on EF PDFs likely artifact-driven
 - `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md` — P073 v2 code rollup validation: triage metadata added to P019 findings; `build_p019_page_numbering_triage_summary()` wired in JSON/Markdown reports; 17 new tests; canonical aggregate 1,543 unchanged
+- `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` — **P076 P036 spacing triage current-dataset evaluation** (2026-06-09, commit `722dac0`): triage present on Yin H 4th only (55 findings); TOC 42 + LoF 9 + LoT 4; 48 slightly_tight + 7 very_tight; all high tier; aggregate 1,543 unchanged
 - `docs/evaluation/p072_approval_page_heading_gate_recall_synthetic_validation.md` — P072 synthetic validation (infrastructure-only; 14 tests)
 - `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` — P072 full five-PDF detection-mode eval (complete; structural fallback 0 candidates on all 3 non-detecting files; image-embedded approval pages confirmed; aggregate unchanged 1,543)
 - `docs/planning/p070_toc_lot_lof_entry_parser_recall_refinement_scope_and_design.md` — P070 scope and design: TOC/LoT/LoF entry parser recall refinement (implemented; infrastructure)
