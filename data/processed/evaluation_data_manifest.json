@@ -3,36 +3,37 @@
   "generated_for_commit": "722dac0",
   "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
   "canonical_aggregate_findings": 1543,
-  "project_added_rule_inventory_count": 77,
-  "project_added_rule_inventory_range": "P001-P078",
+  "project_added_rule_inventory_count": 78,
+  "project_added_rule_inventory_range": "P001-P079",
   "non_inventory_project_task_ids": [
     "P075"
   ],
   "non_inventory_project_task_notes": {
     "P075": "Test-only inventory/status hygiene from PR #274; documented non-inventory project task; not a project-added rule entry; no detection behavior and no aggregate impact."
   },
-  "next_project_added_rule_id": "P079",
+  "next_project_added_rule_id": "P080",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P078",
-    "pytest_count_at_last_doc_refresh": 1082,
-    "latest_main_at_last_doc_refresh": "01c5f22",
+    "p_rules_implemented": "P001-P079",
+    "pytest_count_at_last_doc_refresh": 1091,
+    "latest_main_at_last_doc_refresh": "d666452",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
-    "project_added_rule_inventory_count": 77,
-    "project_added_rule_inventory_range": "P001-P078",
+    "project_added_rule_inventory_count": 78,
+    "project_added_rule_inventory_range": "P001-P079",
     "non_inventory_project_task_ids": [
       "P075"
     ],
     "non_inventory_project_task_notes": {
       "P075": "Test-only inventory/status hygiene from PR #274; documented non-inventory project task; not a project-added rule entry; no detection behavior and no aggregate impact."
     },
-    "next_project_added_rule_id": "P079",
+    "next_project_added_rule_id": "P080",
     "p075_status_note": "P075 merged in PR #274 as test-only inventory/status hygiene: explicit P073/P074 assertions plus a sequential P-rule guard in tests/test_rule_inventory.py. It is not a project-added rule entry, is now documented as a non-inventory project task, changes no detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p076_status_note": "P076 fully implemented and merged (PR #278, 2026-06-09) as a reporting-only P036 triage rollup: grouped_summary.p036_toc_list_spacing_triage plus a Markdown 'P036 TOC/List Spacing Triage' section in src/njit_auditor/report_outputs.py. It adds no standalone issue types, does not change P036 detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p076_current_dataset_note": "P036 triage rollup: 55 findings on Yin H 4th compressed only (0 on four other files). Triage: toc_inter_entry_spacing_too_tight 42, lof 9, lot 4; section_type: table_of_contents 42, list_of_figures 9, list_of_tables 4; spacing_gap_bucket: slightly_tight 48, very_tight 7; triage_tier: high 55; affected_pages_compact 11-14, 17; gap_ratio min 0.06, max 0.85. Five-PDF evaluation completed 2026-06-09 (commit 722dac0). See docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md",
     "p077_status_note": "P077 fully implemented and merged (PR #280, 2026-06-09) as a reporting-only P038 front-matter heading triage rollup: grouped_summary.p038_frontmatter_heading_triage plus a Markdown 'P038 Front-Matter Heading Triage' section in src/njit_auditor/report_outputs.py. It adds no standalone issue types, does not change P038 detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p078_status_note": "P078 implemented (2026-06-09) as a PDF-side detection rule checking Abstract page body text for Q004 forbidden terms (paper, papers, article, articles) and Q005 first-person pronouns (i, me, my, mine, we, us, our, ours). Scoped to the single Abstract page via existing _page_has_abstract_heading and _extract_abstract_body_text helpers. Issues: abstract_pdf_forbidden_term (Q004) and abstract_pdf_first_person_pronoun (Q005). Privacy-safe token-only findings. 14 synthetic tests in tests/test_p078_pdf_abstract_keywords.py.",
     "p078_current_dataset_note": "Five-PDF evaluation (2026-06-09, commit 01c5f22): 0 P078 findings on all five PDFs — no forbidden terms or first-person pronouns detected in any file's Abstract page body text. Canonical aggregate remains 1,543 unchanged.",
+    "p079_status_note": "P079 implemented (2026-06-09) as a reporting-only P044 Abstract paragraph indentation triage rollup: grouped_summary.p044_abstract_indentation_triage plus a Markdown 'P044 Abstract Indentation Triage' section in src/njit_auditor/report_outputs.py. Aggregates raw P044 findings by issue type (abstract_first_paragraph_indented / abstract_subsequent_paragraph_not_indented), source Q-rule (Q002 / Q003), triage tier, paragraph index, and page ranges. It adds no standalone issue types, does not change P044 detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "55 findings (Yin H 4th compressed only) \u2014 toc_inter_entry_spacing_too_tight: 42, lof: 9, lot: 4. Five-PDF current-dataset audit completed 2026-06-09 (commit 85a1326). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
     "p037_current_dataset_note": "3 findings \u2014 roman_section_wrong_value: 2 (Yin H 4th), roman_bio_sketch_not_iv: 1 (Sebastian Fine). Five-PDF current-dataset audit completed 2026-06-09 (commit 85a1326). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
@@ -193,10 +194,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 77,
-        "rule_id_range": "P001-P078",
+        "rule_count": 78,
+        "rule_id_range": "P001-P079",
         "tracked_status": "tracked",
-        "description": "Project-added rule inventory with 77 implemented entries spanning P001-P078, with P075 documented separately as a non-inventory project task."
+        "description": "Project-added rule inventory with 78 implemented entries spanning P001-P079, with P075 documented separately as a non-inventory project task."
       }
     ],
     "ef_commented_dissertations": [
@@ -415,7 +416,7 @@
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
   },
-  "p_rules_implemented": "P001-P078",
-  "pytest_count_at_last_doc_refresh": 1082,
-  "latest_main_at_last_doc_refresh": "01c5f22"
+  "p_rules_implemented": "P001-P079",
+  "pytest_count_at_last_doc_refresh": 1091,
+  "latest_main_at_last_doc_refresh": "d666452"
 }

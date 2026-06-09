@@ -18,6 +18,7 @@ from njit_auditor.report_outputs import (
     build_p026_font_triage_summary,
     build_p036_toc_list_spacing_triage_summary,
     build_p038_frontmatter_heading_triage_summary,
+    build_p044_abstract_indentation_triage_summary,
     compact_page_list,
     write_json_report,
     write_markdown_report,
@@ -1220,3 +1221,143 @@ def test_all_seven_triage_rollups_coexist() -> None:
     assert "p019_page_numbering_triage" in summary
     assert "p036_toc_list_spacing_triage" in summary
     assert "p038_frontmatter_heading_triage" in summary
+
+
+# ---- P044 abstract indentation triage tests ----
+
+
+def _p044_mixed_findings() -> list[AuditFinding]:
+    return [
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=1,
+            message="First Abstract paragraph is indented.",
+            details={
+                "issue_type": "abstract_first_paragraph_indented",
+                "paragraph_index": "0",
+                "observed_x0": "130.4",
+                "expected_left_margin": "108.4",
+                "indent_delta_points": "22.0",
+                "required_indent_points": "0.0",
+                "triage_tier": "medium",
+                "source_q_rule_id": "Q002",
+            },
+        ),
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=1,
+            message="Subsequent Abstract paragraph is not indented.",
+            details={
+                "issue_type": "abstract_subsequent_paragraph_not_indented",
+                "paragraph_index": "1",
+                "observed_x0": "108.4",
+                "expected_left_margin": "108.4",
+                "indent_delta_points": "0.0",
+                "required_indent_points": "18.0",
+                "triage_tier": "medium",
+                "source_q_rule_id": "Q003",
+            },
+        ),
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=2,
+            message="Subsequent Abstract paragraph is not indented.",
+            details={
+                "issue_type": "abstract_subsequent_paragraph_not_indented",
+                "paragraph_index": "2",
+                "observed_x0": "108.4",
+                "expected_left_margin": "108.4",
+                "indent_delta_points": "0.0",
+                "required_indent_points": "18.0",
+                "triage_tier": "medium",
+                "source_q_rule_id": "Q003",
+            },
+        ),
+    ]
+
+
+def test_p044_triage_absent_when_no_findings() -> None:
+    assert build_p044_abstract_indentation_triage_summary([]) is None
+
+
+def test_p044_triage_absent_when_no_p044_findings() -> None:
+    assert build_p044_abstract_indentation_triage_summary(_p026_findings(5)) is None
+    summary = build_grouped_summary(_p026_findings(5))
+    assert "p044_abstract_indentation_triage" not in summary
+
+
+def test_p044_triage_in_grouped_summary() -> None:
+    summary = build_grouped_summary(_p044_mixed_findings())
+    assert "p044_abstract_indentation_triage" in summary
+    assert summary["p044_abstract_indentation_triage"]["raw_finding_count"] == 3
+
+
+def test_p044_triage_issue_type_counts() -> None:
+    triage = build_p044_abstract_indentation_triage_summary(_p044_mixed_findings())
+    assert triage is not None
+    assert triage["issue_type_counts"]["abstract_first_paragraph_indented"] == 1
+    assert triage["issue_type_counts"]["abstract_subsequent_paragraph_not_indented"] == 2
+
+
+def test_p044_triage_source_q_rule_counts() -> None:
+    triage = build_p044_abstract_indentation_triage_summary(_p044_mixed_findings())
+    assert triage is not None
+    assert triage["source_q_rule_counts"]["Q002"] == 1
+    assert triage["source_q_rule_counts"]["Q003"] == 2
+
+
+def test_p044_triage_paragraph_index_counts() -> None:
+    triage = build_p044_abstract_indentation_triage_summary(_p044_mixed_findings())
+    assert triage is not None
+    assert triage["paragraph_index_counts"]["0"] == 1
+    assert triage["paragraph_index_counts"]["1"] == 1
+    assert triage["paragraph_index_counts"]["2"] == 1
+
+
+def test_markdown_report_includes_p044_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "p044_report.md"
+    write_markdown_report(_p044_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "## P044 Abstract Indentation Triage" in text
+    assert "Source Q-rule counts" in text
+    assert (
+        "Raw per-page P044 findings are listed under **Findings by Rule → P044** below."
+        in text
+    )
+    triage_pos = text.index("P044 Abstract Indentation Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+
+
+def test_p044_raw_findings_preserved_in_json() -> None:
+    findings = _p044_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 3
+    assert all(f["rule_id"] == "P044" for f in payload["findings"])
+    raw_count = payload["grouped_summary"]["p044_abstract_indentation_triage"]
+    assert raw_count["raw_finding_count"] == 3
+
+
+def test_all_eight_triage_rollups_coexist() -> None:
+    findings = (
+        _p011_mixed_findings()
+        + _p012_mixed_findings()
+        + _p013_findings(8)
+        + _p026_findings(10)
+        + _p019_mixed_findings()
+        + _p036_mixed_findings()
+        + _p038_mixed_findings()
+        + _p044_mixed_findings()
+    )
+    summary = build_grouped_summary(findings)
+    assert "p011_margin_triage" in summary
+    assert "p012_annotation_triage" in summary
+    assert "p013_triage" in summary
+    assert "p026_font_triage" in summary
+    assert "p019_page_numbering_triage" in summary
+    assert "p036_toc_list_spacing_triage" in summary
+    assert "p038_frontmatter_heading_triage" in summary
+    assert "p044_abstract_indentation_triage" in summary

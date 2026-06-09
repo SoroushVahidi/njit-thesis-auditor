@@ -30,6 +30,7 @@ P012_ISSUE_TYPE = "pdf_annotation_detected"
 P019_RULE_ID = "P019"
 P036_RULE_ID = "P036"
 P038_RULE_ID = "P038"
+P044_RULE_ID = "P044"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -717,6 +718,65 @@ def build_p038_frontmatter_heading_triage_summary(
     }
 
 
+def build_p044_abstract_indentation_triage_summary(
+    findings: list[AuditFinding],
+) -> dict[str, Any] | None:
+    """Build a P044-specific rollup for Abstract paragraph indentation triage."""
+    p044_findings = [f for f in findings if f.rule_id == P044_RULE_ID]
+    if not p044_findings:
+        return None
+
+    pages = sorted({f.page for f in p044_findings if f.page is not None})
+    issue_type_counts: Counter[str] = Counter()
+    source_q_rule_counts: Counter[str] = Counter()
+    triage_tier_counts: Counter[str] = Counter()
+    paragraph_index_counts: Counter[str] = Counter()
+
+    for finding in p044_findings:
+        details = finding.details or {}
+        issue_type = details.get("issue_type", "")
+        if issue_type:
+            issue_type_counts[issue_type] += 1
+
+        q_rule = (
+            details.get("source_q_rule_id")
+            or details.get("source_q_rule_ids")
+            or "(unknown)"
+        )
+        source_q_rule_counts[q_rule] += 1
+
+        triage_tier = details.get("triage_tier", "").strip()
+        if triage_tier:
+            triage_tier_counts[triage_tier] += 1
+
+        para_idx_raw = details.get("paragraph_index", "")
+        try:
+            para_idx = str(int(para_idx_raw))
+        except (ValueError, TypeError):
+            para_idx = para_idx_raw or "(unknown)"
+        if para_idx:
+            paragraph_index_counts[para_idx] += 1
+
+    return {
+        "raw_finding_count": len(p044_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "issue_type_counts": dict(sorted(issue_type_counts.items())),
+        "source_q_rule_counts": dict(sorted(source_q_rule_counts.items())),
+        "triage_tier_counts": dict(sorted(triage_tier_counts.items())),
+        "paragraph_index_counts": dict(sorted(paragraph_index_counts.items())),
+        "triage_note": (
+            "P044 reports heuristic Abstract paragraph indentation warnings "
+            "for manual NJIT verification."
+        ),
+        "recommended_action": (
+            "Check whether the first Abstract paragraph is unindented and each "
+            "subsequent Abstract paragraph is indented according to NJIT guidance; "
+            "use raw P044 findings for per-page details."
+        ),
+    }
+
+
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     """Build a grouped summary structure for triage use in JSON/Markdown reports.
 
@@ -820,6 +880,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p038_triage = build_p038_frontmatter_heading_triage_summary(findings)
     if p038_triage is not None:
         result["p038_frontmatter_heading_triage"] = p038_triage
+    p044_triage = build_p044_abstract_indentation_triage_summary(findings)
+    if p044_triage is not None:
+        result["p044_abstract_indentation_triage"] = p044_triage
     return result
 
 
@@ -1511,6 +1574,72 @@ def _format_p038_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p044_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P044-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p044_abstract_indentation_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P044 Abstract Indentation Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P044 findings | {triage['raw_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    lines.append("")
+
+    issue_counts = triage.get("issue_type_counts", {})
+    if issue_counts:
+        lines.append("### Issue type counts")
+        lines.append("")
+        for issue_type, count in sorted(issue_counts.items()):
+            lines.append(f"- `{issue_type}`: {count}")
+        lines.append("")
+
+    source_q_counts = triage.get("source_q_rule_counts", {})
+    if source_q_counts:
+        lines.append("### Source Q-rule counts")
+        lines.append("")
+        for q_rule, count in sorted(source_q_counts.items()):
+            lines.append(f"- `{q_rule}`: {count}")
+        lines.append("")
+
+    para_counts = triage.get("paragraph_index_counts", {})
+    if para_counts:
+        lines.append("### Paragraph index counts")
+        lines.append("")
+        for para_idx, count in sorted(para_counts.items()):
+            lines.append(f"- paragraph {para_idx}: {count}")
+        lines.append("")
+
+    tier_counts = triage.get("triage_tier_counts", {})
+    if tier_counts:
+        lines.append("### Triage tier counts")
+        lines.append("")
+        for tier, count in sorted(tier_counts.items()):
+            lines.append(f"- `{tier}`: {count}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    recommended_action = triage.get("recommended_action", "")
+    if recommended_action:
+        lines.append(f"**Recommended action:** {recommended_action}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P044 findings are listed under **Findings by Rule → P044** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -1635,6 +1764,9 @@ def write_markdown_report(
 
         p038_section = _format_p038_triage_section(payload["grouped_summary"])
         lines.extend(p038_section)
+
+        p044_section = _format_p044_triage_section(payload["grouped_summary"])
+        lines.extend(p044_section)
 
     lines.append("## Findings by Rule")
     lines.append("")
