@@ -309,13 +309,17 @@ expands the comparison set from 2 to 3 files, which would:
 
 **Branch name:** `data/sebastian-ef-archive-recovery`
 
-### Recommendation 2 (Secondary): Evaluation gap-fill for P036–P063
+### Recommendation 2 (Secondary): Evaluation gap-fill for P036–P063 ✅ COMPLETE
 
 Run current-dataset evaluations for all rules that have never been evaluated on the full five-PDF
 set (unevaluated because only 4/5 PDFs were accessible at implementation time). No code changes.
 Documents actual performance of ~20 rules on real data.
 
-**Branch name:** `docs/evaluation-gap-fill-p036-p063`
+**Status:** Complete (2026-06-09, commit `85a1326`, PR #266). 27 rules evaluated; 8 with findings
+(P036: 55, P038: 16, P044: 7, P051: 3, P037: 3, P046: 2, P040: 1, P053: 1; total 88);
+all consistent with canonical 1,543. See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
+
+**Branch name:** `docs/p036-p063-current-dataset-gap-fill`
 
 ### Recommendation 3 (Engineering fallback): P073 — P019 reporting triage
 

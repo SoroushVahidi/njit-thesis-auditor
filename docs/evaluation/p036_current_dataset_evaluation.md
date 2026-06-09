@@ -1,4 +1,9 @@
-# P036 Current Dataset Evaluation (Not Run)
+# P036 Current Dataset Evaluation (Not Run — see gap-fill below)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Five-PDF current-dataset audit now complete.
+> P036 total: **55** findings on Yin H 4th (compressed) only (`toc_inter_entry_spacing_too_tight`: 42,
+> `lof_inter_entry_spacing_too_tight`: 9, `lot_inter_entry_spacing_too_tight`: 4). 0 on other four files.
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Date:** 2026-06-01
 - **Implementation commit:** `e4840aa` (PR #87 — P036 TOC/List inter-entry spacing)

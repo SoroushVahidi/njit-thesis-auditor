@@ -1,4 +1,8 @@
-# P051 Current Dataset Evaluation
+# P051 Current Dataset Evaluation (see gap-fill for five-PDF results)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Full five-PDF current-dataset audit now complete.
+> P051 total: **3** findings (`copyright_year_not_found`: 1 each on Cibaku, Yin H flat, Yin Haotian; 0 on Yin H 4th and Sebastian Fine).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Rule:** P051 — PDF copyright page year-format refinement (Q010 improvement)
 - **Date:** 2026-06-04

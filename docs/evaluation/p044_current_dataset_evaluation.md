@@ -1,4 +1,8 @@
-# P044 Current Dataset Evaluation
+# P044 Current Dataset Evaluation (see gap-fill for five-PDF results)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Full five-PDF current-dataset audit now complete.
+> P044 total: **7** findings on all five files (`abstract_subsequent_paragraph_not_indented`: 6, `abstract_first_paragraph_indented`: 1).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Date:** 2026-06-03
 - **Rule:** P044 — Abstract page paragraph indentation (Q002/Q003)

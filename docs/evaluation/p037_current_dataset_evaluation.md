@@ -1,4 +1,8 @@
-# P037 Current Dataset Evaluation (Not Run)
+# P037 Current Dataset Evaluation (Not Run — see gap-fill below)
+
+> **Gap-fill evaluation (2026-06-09, commit `85a1326`):** Five-PDF current-dataset audit now complete.
+> P037 total: **3** findings (`roman_section_wrong_value`: 2 on Yin H 4th, `roman_bio_sketch_not_iv`: 1 on Sebastian Fine).
+> See `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`.
 
 - **Date:** 2026-06-02
 - **Implementation commit:** `c3c7911` (PR #92 — P037 section-anchored Roman numerals)

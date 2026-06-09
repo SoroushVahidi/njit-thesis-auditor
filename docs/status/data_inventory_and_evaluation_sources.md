@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated after Sebastian Fine EF recovery attempt — BLOCKED; see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P072 implemented, web UI present on `main` (`e3ca516` PR #264; **1014** pytest)
+- Date: 2026-06-09 (updated: P036–P063 five-PDF evaluation gap-fill complete; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** P001–P072 implemented, web UI present on `main` (`85a1326` PR #265; **1014** pytest)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
