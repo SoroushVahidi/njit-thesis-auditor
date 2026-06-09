@@ -31,7 +31,8 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
 **ZIP** uploads through the same form. PDF uploads run the **current implemented PDF layout
-audit** (P011–P068 standalone checks plus embedded P069–P071 infrastructure refinements);
+audit** (P011–P068 and P074 standalone checks plus P069–P073 infrastructure/reporting
+refinements);
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
 `run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
@@ -84,7 +85,7 @@ njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
 Runs the current implemented PDF layout and formatting checks on digital PDFs (P011–P068
-standalone rules plus embedded infrastructure refinements P069–P071). Optional `--json-out`
+and P074 standalone rules plus P069–P073 infrastructure/reporting refinements). Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -95,12 +96,13 @@ rollups (detection unchanged):
 | `p011_margin_triage` | P011 | Margin side counts, overflow by side, page ranges |
 | `p012_annotation_triage` | P012 | Annotation type counts and page ranges (no comment text) |
 | `p013_triage` | P013 | Page-number candidate patterns and multi-candidate pages |
+| `p019_page_numbering_triage` | P019 / P073 | Page-numbering triage tiers, categories, and reviewer guidance |
 | `p026_font_triage` | P026 | Font/size issue counts and label page ranges |
 
-The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P026
+The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P019/P026
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P068 standalone; P069–P071 are infrastructure-only refinements embedded in existing modules — no standalone issue types):
+Current PDF checks (P011–P068 and P074 standalone; P069–P073 are infrastructure/reporting refinements with no standalone issue types for P069–P073):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -162,8 +164,9 @@ Current PDF checks (P011–P068 standalone; P069–P071 are infrastructure-only 
 | P066 | Front matter | Biographical Sketch degree ordering check: detects year-bearing education entries above any Publications boundary and warns with `biosketch_degree_order_suspicious` when degree years are not most-recent-first; gates: unique BIOGRAPHICAL SKETCH heading, ≥3 comparable lines, >2-year inversion threshold; privacy-safe counts/year metadata only |
 | P067 | Front matter | Biographical Sketch publication/presentation reverse-chronology check: detects a Publications/Presentations subsection on a uniquely detected Bio Sketch page, groups citation-like entries, extracts one representative year per entry, and warns with `biosketch_publication_order_suspicious` when comparable entries are not in descending order; skips ambiguous multi-year, DOI/URL-heavy, sparse, and nonstandard layouts; privacy-safe counts/year metadata only |
 | P068 | Front matter | Approval Page committee/signature-block structural check: on a uniquely detected APPROVAL PAGE, counts curated advisor/committee role-label phrases and date/signature/underscore-blank indicators; warns with `approval_page_advisor_role_label_missing` or `approval_page_signature_blocks_sparse`; skips sparse/noisy/image-only pages; no committee names or signature text in findings |
+| P074 | Front matter | Title Page graduation month validation: emits `title_page_graduation_month_invalid` when a detected title-page month/year line uses a month other than August, December, or May; silent when no month/year line is extractable; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P074 findings |
 
-**Infrastructure refinements (no standalone issue types):** P069 front-matter heading gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall (P064 companion).
+**Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall (P064 companion); P072 approval-page heading-gate recall; P073 P019 page-numbering triage rollup.
 
 All findings are heuristic warnings and require manual review.
 
@@ -178,7 +181,7 @@ All findings are heuristic warnings and require manual review.
 | P070 parser-recall eval | `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` |
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
-| Current validation | P001–P074 implemented; **1042 pytest** |
+| Current validation | Repository progress: P001–P075 (P001–P074 inventory rules + P075 test-only hygiene); **1043 pytest** |
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
 

@@ -1,9 +1,14 @@
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 MANIFEST_PATH = Path("data/processed/evaluation_data_manifest.json")
 GITIGNORE_PATH = Path(".gitignore")
+README_PATH = Path("README.md")
+CURRENT_STATE_DOC_PATH = Path("docs/status/current_project_state_and_next_steps.md")
+MANIFEST_DOC_PATH = Path("docs/status/evaluation_data_manifest.md")
+DATA_INVENTORY_DOC_PATH = Path("docs/status/data_inventory_and_evaluation_sources.md")
 
 REQUIRED_CATEGORIES = (
     "guideline_rule_sources",
@@ -26,6 +31,10 @@ NON_EXTRACTABLE_COMMENT_STATUSES = frozenset({"flattened", "compressed_flattened
 
 def _load_manifest() -> dict[str, Any]:
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _load_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
 def _entry_paths(entry: dict[str, Any]) -> list[str]:
@@ -217,3 +226,60 @@ def test_only_extractable_pdfs_are_marked_for_ef_overlap() -> None:
     ]
     assert len(overlap_entries) == 2
     assert all(entry.get("comment_status") == "extractable" for entry in overlap_entries)
+
+
+def test_manifest_current_state_metadata_is_consistent() -> None:
+    manifest = _load_manifest()
+    auditor_rule_state = manifest["auditor_rule_state"]
+
+    assert manifest["p_rules_implemented"] == "P001-P075"
+    assert auditor_rule_state["p_rules_implemented"] == "P001-P075"
+    assert manifest["pytest_count_at_last_doc_refresh"] == 1043
+    assert auditor_rule_state["pytest_count_at_last_doc_refresh"] == 1043
+
+    assert manifest["project_added_rule_inventory_count"] == 74
+    assert manifest["project_added_rule_inventory_range"] == "P001-P074"
+    assert auditor_rule_state["project_added_rule_inventory_count"] == 74
+    assert auditor_rule_state["project_added_rule_inventory_range"] == "P001-P074"
+
+    assert (
+        manifest["canonical_aggregate_doc"]
+        == "docs/evaluation/current_auditor_after_p070_evaluation.md"
+    )
+    assert manifest["canonical_aggregate_findings"] == 1543
+    assert (
+        auditor_rule_state["canonical_aggregate_doc"]
+        == "docs/evaluation/current_auditor_after_p070_evaluation.md"
+    )
+    assert auditor_rule_state["canonical_aggregate_findings"] == 1543
+    assert "test-only" in str(auditor_rule_state["p075_status_note"])
+
+    p_inventory = next(
+        entry
+        for entry in manifest["categories"]["processed_rule_sources"]
+        if entry["rule_prefix"] == "P"
+    )
+    assert p_inventory["rule_count"] == 74
+    assert p_inventory["rule_id_range"] == "P001-P074"
+
+
+def test_manifest_current_state_docs_are_aligned() -> None:
+    manifest = _load_manifest()
+    latest_main = str(manifest["latest_main_at_last_doc_refresh"])
+    auditor_rule_state = manifest["auditor_rule_state"]
+    assert latest_main == auditor_rule_state["latest_main_at_last_doc_refresh"]
+    assert re.fullmatch(r"[0-9a-f]{7}", latest_main)
+
+    readme = _load_text(README_PATH)
+    current_state_doc = _load_text(CURRENT_STATE_DOC_PATH)
+    manifest_doc = _load_text(MANIFEST_DOC_PATH)
+    data_inventory_doc = _load_text(DATA_INVENTORY_DOC_PATH)
+
+    for text in (readme, current_state_doc, manifest_doc, data_inventory_doc):
+        assert "1042 pytest" not in text
+        assert "f4c0c4d" not in text
+
+    assert "P001\u2013P075" in readme
+    assert latest_main in current_state_doc
+    assert latest_main in manifest_doc
+    assert latest_main in data_inventory_doc
