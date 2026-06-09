@@ -5,15 +5,29 @@
   "canonical_aggregate_findings": 1543,
   "project_added_rule_inventory_count": 74,
   "project_added_rule_inventory_range": "P001-P074",
+  "non_inventory_project_task_ids": [
+    "P075"
+  ],
+  "non_inventory_project_task_notes": {
+    "P075": "Test-only inventory/status hygiene from PR #274; documented non-inventory project task; not a project-added rule entry; no detection behavior and no aggregate impact."
+  },
+  "next_project_added_rule_id": "P076",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P075",
-    "pytest_count_at_last_doc_refresh": 1043,
-    "latest_main_at_last_doc_refresh": "d39202c",
+    "pytest_count_at_last_doc_refresh": 1045,
+    "latest_main_at_last_doc_refresh": "1307d3a",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
     "project_added_rule_inventory_count": 74,
     "project_added_rule_inventory_range": "P001-P074",
-    "p075_status_note": "P075 merged in PR #274 as test-only inventory/status hygiene: explicit P073/P074 assertions plus a sequential P-rule guard in tests/test_rule_inventory.py. It is not a project-added rule entry, changes no detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
+    "non_inventory_project_task_ids": [
+      "P075"
+    ],
+    "non_inventory_project_task_notes": {
+      "P075": "Test-only inventory/status hygiene from PR #274; documented non-inventory project task; not a project-added rule entry; no detection behavior and no aggregate impact."
+    },
+    "next_project_added_rule_id": "P076",
+    "p075_status_note": "P075 merged in PR #274 as test-only inventory/status hygiene: explicit P073/P074 assertions plus a sequential P-rule guard in tests/test_rule_inventory.py. It is not a project-added rule entry, is now documented as a non-inventory project task, changes no detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p035_local_subset_note": "Four available PDFs only; not canonical five-PDF aggregate. See docs/evaluation/p035_current_dataset_evaluation.md",
     "p036_current_dataset_note": "55 findings (Yin H 4th compressed only) \u2014 toc_inter_entry_spacing_too_tight: 42, lof: 9, lot: 4. Five-PDF current-dataset audit completed 2026-06-09 (commit 85a1326). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
     "p037_current_dataset_note": "3 findings \u2014 roman_section_wrong_value: 2 (Yin H 4th), roman_bio_sketch_not_iv: 1 (Sebastian Fine). Five-PDF current-dataset audit completed 2026-06-09 (commit 85a1326). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
@@ -65,7 +79,7 @@
     "sebastian_fine_ef_recovery_note": "Recovery attempt (2026-06-09, commit e3ca516): BLOCKED \u2014 EF-annotated version not found in any tracked or local path; original Google Drive RAR not present locally. Retry 2 (2026-06-09, commit 42e10fb): BLOCKED \u2014 data/evaluation/private/ absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations). See docs/evaluation/sebastian_fine_ef_archive_recovery.md",
     "p036_p063_gap_fill_note": "P036\u2013P063 five-PDF gap-fill evaluation complete (2026-06-09, commit 85a1326): 27 rules evaluated; 8 rules with findings: P036 55, P038 16, P044 7, P051 3, P037 3, P046 2, P040 1, P053 1; total P036\u2013P063 contribution 88; consistent with canonical 1,543. Generated outputs: data/evaluation/generated/p036_p063_gap_fill/ (gitignored). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
     "p073_p019_triage_note": "P073 v1+v2 complete (2026-06-09): v1 docs-only triage rollup \u2014 67 P019 findings across five PDFs; multiple_page_numbers 28, mixed_numbering_style 23, inconsistent_position 10, sequence_gap 6; sequence_gap highest-actionability (all 5 files); v2 code rollup \u2014 triage_tier/p019_triage_category/triage_reason metadata on all P019 findings; build_p019_page_numbering_triage_summary() wired in JSON/Markdown reports; 17 new tests; aggregate 1,543 unchanged. See docs/evaluation/p073_p019_page_numbering_triage_rollup.md and docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md",
-    "p074_current_dataset_note": "P074 implementation (2026-06-09): 0 findings on all five PDFs \u2014 all current-dataset PDFs use valid graduation months (or no month/year pattern is extractable from title page). Rule fires only when an invalid month is detected; canonical aggregate 1,543 unchanged. Q073 inventory drift was repaired by adding the missing P073 entry to project_added_rules.json, and P075 now guards against future inventory drift. 1043 pytest."
+    "p074_current_dataset_note": "P074 implementation (2026-06-09): 0 findings on all five PDFs \u2014 all current-dataset PDFs use valid graduation months (or no month/year pattern is extractable from title page). Rule fires only when an invalid month is detected; canonical aggregate 1,543 unchanged. Q073 inventory drift was repaired by adding the missing P073 entry to project_added_rules.json, and P075 now documents the non-inventory P-ID policy while guarding against future inventory drift. 1045 pytest."
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -177,7 +191,7 @@
         "rule_count": 74,
         "rule_id_range": "P001-P074",
         "tracked_status": "tracked",
-        "description": "Project-added rule inventory with 74 sequential entries (P001-P074). Repository-level progress is tracked separately and now includes P075 test-only hygiene."
+        "description": "Project-added rule inventory with 74 sequential entries (P001-P074). Repository-level progress is tracked separately and now includes P075 as a documented non-inventory project task."
       }
     ],
     "ef_commented_dissertations": [
@@ -397,6 +411,6 @@
     "generated_and_private_gitignored_paths": 2
   },
   "p_rules_implemented": "P001-P075",
-  "pytest_count_at_last_doc_refresh": 1043,
-  "latest_main_at_last_doc_refresh": "d39202c"
+  "pytest_count_at_last_doc_refresh": 1045,
+  "latest_main_at_last_doc_refresh": "1307d3a"
 }

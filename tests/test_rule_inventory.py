@@ -1,12 +1,21 @@
 import json
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from njit_auditor.rule_loader import load_rule_file
 
 
 def _load_json(path: str) -> list[dict[str, object]]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _load_manifest() -> dict[str, Any]:
+    return json.loads(
+        Path("data/processed/evaluation_data_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
 
 
 def test_inventory_and_project_rule_files_exist() -> None:
@@ -379,18 +388,41 @@ def test_project_added_rules_implemented() -> None:
 
 
 def test_project_added_rules_sequential_no_gaps() -> None:
-    """Guard against P-rule inventory drift: IDs must be P001..PNNN in order."""
+    """Allow only documented non-inventory P-ID gaps while rejecting drift."""
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
-    ids = [str(item["id"]) for item in project_rules]
-    expected = [f"P{i:03d}" for i in range(1, len(ids) + 1)]
-    counts = Counter(ids)
-    missing = sorted(set(expected) - set(ids))
-    unexpected = sorted(set(ids) - set(expected))
+    manifest = _load_manifest()
+
+    inventory_ids = [str(item["id"]) for item in project_rules]
+    documented_non_inventory_ids = [
+        str(rule_id) for rule_id in manifest["non_inventory_project_task_ids"]
+    ]
+
+    counts = Counter(inventory_ids)
     duplicates = sorted(rid for rid, count in counts.items() if count > 1)
-    assert ids == expected, (
-        "project_added_rules.json must list contiguous P-rule IDs in order. "
+
+    inventory_numbers = [int(rule_id[1:]) for rule_id in inventory_ids]
+    skipped_numbers = [int(rule_id[1:]) for rule_id in documented_non_inventory_ids]
+    max_numeric_id = max(inventory_numbers + skipped_numbers)
+
+    expected_inventory_ids = [
+        f"P{i:03d}"
+        for i in range(1, max_numeric_id + 1)
+        if f"P{i:03d}" not in documented_non_inventory_ids
+    ]
+
+    missing = sorted(set(expected_inventory_ids) - set(inventory_ids))
+    unexpected = sorted(set(inventory_ids) - set(expected_inventory_ids))
+    out_of_order = inventory_ids != sorted(
+        inventory_ids, key=lambda rule_id: int(rule_id[1:])
+    )
+
+    assert inventory_ids == expected_inventory_ids and not duplicates, (
+        "project_added_rules.json must list all inventory P-rule IDs in order, "
+        "excluding only documented non-inventory project task IDs. "
         f"missing={missing}, unexpected={unexpected}, duplicates={duplicates}, "
-        f"actual_tail={ids[-10:]}, expected_tail={expected[-10:]}"
+        f"documented_skipped_ids={documented_non_inventory_ids}, "
+        f"out_of_order={out_of_order}, actual_tail={inventory_ids[-10:]}, "
+        f"expected_tail={expected_inventory_ids[-10:]}"
     )
 
 
