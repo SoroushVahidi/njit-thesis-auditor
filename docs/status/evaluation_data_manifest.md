@@ -1,11 +1,11 @@
 # Evaluation Data Manifest
 
-- **Generated for commit:** `eb66d4a` (PR #267 — P073 scope doc; last substantive eval data collection)
-- **Latest main:** `bb647ad` (PR #277 — P076 scope/design doc)
+- **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; post-P076 status refresh)
+- **Latest main:** `722dac0` (PR #278 — P076 P036 spacing triage rollup)
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged
 - **P075 inventory consistency guard:** implemented (2026-06-09) — test-only hygiene; P075 remains a documented non-inventory project task; repository progress now includes P076 while `project_added_rules.json` spans P001–P074 plus P076; the next project-added rule inventory entry is P077; no detection behavior change and no aggregate impact
-- **P076 P036 spacing triage rollup:** complete (2026-06-09) — reporting-only P036 TOC/LoT/LoF inter-entry spacing triage summary now wired in JSON/Markdown outputs via `build_p036_toc_list_spacing_triage_summary()`; no standalone issue types; raw P036 findings and canonical aggregate unchanged
+- **P076 P036 spacing triage rollup:** complete (2026-06-09, PR #278) — reporting-only P036 TOC/LoT/LoF inter-entry spacing triage summary now wired in JSON/Markdown outputs via `build_p036_toc_list_spacing_triage_summary()`; no standalone issue types; raw P036 findings and canonical aggregate unchanged; **current-dataset evaluation:** see `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` (55 findings on Yin H 4th only; triage: 42 TOC + 9 LoF + 4 LoT; 48 slightly_tight + 7 very_tight; all high tier)
 - **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Sebastian Fine EF recovery:** BLOCKED (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
 - **Validation:** ruff, mypy, **1056 pytest** at the latest docs/status refresh
