@@ -8,8 +8,8 @@
 | **Rule name** | Approval Page Heading-Gate Recall Refinement |
 | **Date** | 2026-06-08 |
 | **Baseline commit** | `0762cd6` (PR #260 — repository polish after P071) |
-| **Status** | **Scoped only** — not implemented |
-| **Validation baseline** | 1000 pytest (`ruff check .`, `mypy src`, 87 source files) |
+| **Status** | **Implemented** — scoped PR #261; implemented PR #262 |
+| **Validation baseline** | 1014 pytest (`ruff check .`, `mypy src`, 87 source files) |
 | **Type** | **Shared infrastructure / localization recall refinement** (companion to P068) |
 | **Companion module** | `src/njit_auditor/rules/pdf_approval_page_committee_blocks.py` (P068) |
 | **Expected issue types in v1** | **None new** — P068 issue types only when structural checks reach the page |
@@ -403,6 +403,31 @@ If so, the five-PDF aggregate and EF-overlap metrics may remain unchanged, and
 issues are found on previously unreachable approval pages, the existing P068 issue types
 handle them correctly. No new issue types are needed unless Q015–Q020 are later determined
 to be partially automatable (currently manual-only).
+
+---
+
+## 15. Implementation Note
+
+P072 v1 implemented in `pdf_approval_page_committee_blocks.py`:
+
+1. `_all_usable_lines()` — returns all usable lines from a page without heading boundary.
+2. `_find_structural_approval_page_candidate()` — scans eligible front-matter/ambiguous pages
+   for the combination of ≥`_MIN_ROLE_LABELS` role-label phrases and ≥`_MIN_BODY_LINES` lines;
+   returns exactly one candidate or None.
+3. `check_pdf_approval_page_committee_blocks()` — tries structural fallback when gate returns 0
+   matches; uses `_all_usable_lines()` on the fallback page; adds `detected_via` to findings.
+4. `_base_details()` / `_make_finding()` — `detected_via` field added (`"heading_gate"` or
+   `"structural_fallback"`).
+
+**Synthetic validation:** `docs/evaluation/p072_approval_page_heading_gate_recall_synthetic_validation.md`
+(14 tests, all pass).
+
+**Current-dataset evaluation:** `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` —
+P068 reach unchanged on 4/4 evaluated files; structural fallback returned 0 candidates on
+comparison PDFs confirming image-only approval pages; aggregate remains 1,543.
+
+**EF-overlap:** No refresh needed — comparison-PDF `committee_approval_page` tool count
+unchanged at 0. `docs/evaluation/ef_overlap_after_p071_evaluation.md` remains canonical.
 
 ---
 
