@@ -36,7 +36,10 @@ from njit_auditor.rules.pdf_frontmatter_headings import check_pdf_frontmatter_he
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
 )
-from njit_auditor.rules.pdf_frontmatter_structure import check_pdf_frontmatter_structure
+from njit_auditor.rules.pdf_frontmatter_structure import (
+    check_pdf_frontmatter_structure,
+    check_pdf_title_page_graduation_month,
+)
 from njit_auditor.rules.pdf_heading_levels import (
     _is_all_caps_phrase,
     _looks_like_title_case_violation,
@@ -9009,3 +9012,143 @@ def test_p060_unparseable_entries_skipped(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_toc_entry_number_ordering(model) if f.rule_id == "P060"]
     # Only 3 parseable entries (1, 5, 3) with 1 inversion (5>3) → below gate
     assert not findings
+
+
+# ---------------------------------------------------------------------------
+# P074: Title Page graduation month validation
+# ---------------------------------------------------------------------------
+
+
+def _make_title_page_graduation_month_doc(month_year_text: str):  # type: ignore[return]
+    """Return a synthetic PdfDocument whose title page has a single 'Month YYYY' line."""
+    from njit_auditor.pdf_models import (
+        BBox,
+        PdfDocument,
+        PdfPage,
+        PdfTextBlock,
+        PdfTextLine,
+        PdfTextSpan,
+    )
+
+    bbox = BBox(x0=108.0, y0=700.0, x1=400.0, y1=716.0)
+    span = PdfTextSpan(
+        text=month_year_text,
+        bbox=bbox,
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+    )
+    line = PdfTextLine(spans=[span], bbox=bbox, text=month_year_text)
+    block = PdfTextBlock(lines=[line], bbox=bbox, text=month_year_text)
+    page = PdfPage(page_number=1, width=612.0, height=792.0, text_blocks=[block])
+    return PdfDocument(path="synthetic", pages=[page])
+
+
+def test_p074_august_is_valid() -> None:
+    doc = _make_title_page_graduation_month_doc("August 2024")
+    assert not check_pdf_title_page_graduation_month(doc)
+
+
+def test_p074_december_is_valid() -> None:
+    doc = _make_title_page_graduation_month_doc("December 2024")
+    assert not check_pdf_title_page_graduation_month(doc)
+
+
+def test_p074_may_is_valid() -> None:
+    doc = _make_title_page_graduation_month_doc("May 2024")
+    assert not check_pdf_title_page_graduation_month(doc)
+
+
+def test_p074_june_is_invalid() -> None:
+    doc = _make_title_page_graduation_month_doc("June 2024")
+    findings = check_pdf_title_page_graduation_month(doc)
+    assert len(findings) == 1
+    assert findings[0].rule_id == "P074"
+    assert findings[0].details.get("issue_type") == "title_page_graduation_month_invalid"
+    assert findings[0].details.get("detected_month") == "june"
+
+
+def test_p074_october_is_invalid() -> None:
+    doc = _make_title_page_graduation_month_doc("October 2024")
+    findings = check_pdf_title_page_graduation_month(doc)
+    assert len(findings) == 1
+    assert findings[0].rule_id == "P074"
+    assert findings[0].details.get("detected_month") == "october"
+
+
+def test_p074_no_month_pattern_emits_nothing() -> None:
+    from njit_auditor.pdf_models import (
+        BBox,
+        PdfDocument,
+        PdfPage,
+        PdfTextBlock,
+        PdfTextLine,
+        PdfTextSpan,
+    )
+
+    bbox = BBox(x0=108.0, y0=100.0, x1=400.0, y1=116.0)
+    span = PdfTextSpan(
+        text="A Study of Distributed Systems",
+        bbox=bbox,
+        font="Times-Roman",
+        size=14.0,
+        bold=False,
+        italic=False,
+    )
+    line = PdfTextLine(spans=[span], bbox=bbox, text="A Study of Distributed Systems")
+    block = PdfTextBlock(lines=[line], bbox=bbox, text="A Study of Distributed Systems")
+    page = PdfPage(page_number=1, width=612.0, height=792.0, text_blocks=[block])
+    doc = PdfDocument(path="synthetic", pages=[page])
+    assert not check_pdf_title_page_graduation_month(doc)
+
+
+def test_p074_case_insensitive_match() -> None:
+    doc = _make_title_page_graduation_month_doc("JUNE 2024")
+    findings = check_pdf_title_page_graduation_month(doc)
+    assert len(findings) == 1
+    assert findings[0].details.get("detected_month") == "june"
+
+
+def test_p074_valid_months_in_details() -> None:
+    doc = _make_title_page_graduation_month_doc("March 2024")
+    findings = check_pdf_title_page_graduation_month(doc)
+    assert len(findings) == 1
+    assert findings[0].details.get("valid_months") == "august, december, may"
+    assert findings[0].details.get("page_type") == "title_page"
+
+
+def test_p074_finding_message_contains_detected_month() -> None:
+    doc = _make_title_page_graduation_month_doc("February 2024")
+    findings = check_pdf_title_page_graduation_month(doc)
+    assert len(findings) == 1
+    assert "February" in findings[0].message
+
+
+def test_p074_empty_document_emits_nothing() -> None:
+    from njit_auditor.pdf_models import PdfDocument
+
+    doc = PdfDocument(path="synthetic", pages=[])
+    assert not check_pdf_title_page_graduation_month(doc)
+
+
+def test_p074_wiring_in_collect_pdf_layout_findings(tmp_path: Path) -> None:
+    from njit_auditor.audit_runner import collect_pdf_layout_findings
+
+    pdf_path = tmp_path / "p074_wire.pdf"
+    _make_frontmatter_pdf(
+        pdf_path,
+        title_page_text=[
+            "A Study of Systems",
+            "by",
+            "Test Author",
+            "A Dissertation Submitted to New Jersey Institute of Technology",
+            "for the Degree of Doctor of Philosophy",
+            "June 2024",
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = collect_pdf_layout_findings(model, pdf_path)
+    p074 = [f for f in findings if f.rule_id == "P074"]
+    assert len(p074) == 1
+    assert p074[0].details.get("issue_type") == "title_page_graduation_month_invalid"

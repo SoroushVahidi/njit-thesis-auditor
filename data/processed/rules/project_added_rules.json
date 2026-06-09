@@ -1508,5 +1508,59 @@
     "remediation": "No direct remediation \u2014 improved localization allows P068 structural checks to run when approval pages were previously skipped due to absent heading text. Manual review remains required for Q015-Q020 semantics, image-only pages, and guideline compliance.",
     "source_file": "project_added",
     "notes": "Infrastructure-only v1. No OCR, no fuzzy typo matching, no standalone findings. Q015-Q020 remain manual-only. Image-only approval pages remain undetectable. Structural fallback skips when 0 or >=2 role-label candidates are found (ambiguous)."
+  },
+  {
+    "id": "P073",
+    "title": "P019 Page-Numbering Triage Rollup",
+    "description": "Reporting and metadata enhancement that classifies P019 page-numbering findings by triage tier (high/medium/low) and cause category after deduplication. Injects triage_tier, p019_triage_category, and triage_reason into raw P019 finding details via _P019_TRIAGE_MAP. Adds build_p019_page_numbering_triage_summary() and _format_p019_triage_section() for grouped JSON/Markdown report output. Raw P019 detection and canonical aggregate are unchanged.",
+    "section": "Page Numbering",
+    "question": "Are P019 page-numbering findings organized by triage tier and actionability category for reviewer guidance?",
+    "rule_definition": "Post-deduplication triage metadata injection: each P019 finding is annotated with triage_tier (high/medium/low), p019_triage_category, and triage_reason via _P019_TRIAGE_MAP. Issue type mappings: sequence_gap -> high/high_signal_sequence_gap; missing_page_number -> high/high_signal_missing_page_number; mixed_numbering_style -> medium/mixed_numbering_manual_review; multiple_page_numbers -> medium/multiple_page_numbers_manual_review; inconsistent_position -> low/position_inconsistency_artifact_suspected. Reporting: build_p019_page_numbering_triage_summary aggregates by tier/category; _format_p019_triage_section renders a Markdown triage section.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_page_numbers",
+    "rule_type": "infrastructure_refinement",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_page_numbers.py",
+      "src/njit_auditor/report_outputs.py",
+      "docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md",
+      "docs/evaluation/p073_p019_page_numbering_triage_rollup.md",
+      "docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md"
+    ],
+    "issue_types": [],
+    "affected_rules": [
+      "P019"
+    ],
+    "remediation": "No direct remediation \u2014 P073 adds triage metadata to P019 findings for reviewer guidance. High-tier findings (sequence_gap, missing_page_number) warrant immediate attention; low-tier (inconsistent_position) are often artifact-driven on EF-annotated PDFs.",
+    "source_file": "project_added",
+    "notes": "Reporting-only. Raw P019 detection and canonical aggregate unchanged. Triage metadata injected post-deduplication via model_copy(). _P019_TRIAGE_MAP covers five issue types. inconsistent_position mapped to low/artifact-suspected based on P073 v1 evaluation evidence. mixed_numbering_style boundary-aware refinement deferred."
+  },
+  {
+    "id": "P074",
+    "title": "Title Page Graduation Month Validation",
+    "description": "PDF heuristic check for Q006: validates that the graduation month on the Title Page is one of the three valid NJIT graduation months (August, December, or May). Fires only when a 'Month YYYY' pattern is detected on the title page and the month is not in the valid set. Silent when no month/year pattern is extractable. PDF companion to the existing LaTeX-source check (run_latex_graduation_month_check).",
+    "section": "PDF front-matter structure",
+    "question": "Does the Title Page display a valid NJIT graduation month (August, December, or May)?",
+    "rule_definition": "Scan the title page (pages[0]) for a line matching '^(month_name) YYYY$' (case-insensitive, YYYY in range 1900-2099). If a match is found and the month is not in {august, december, may}, emit title_page_graduation_month_invalid at severity warning on page 1. If no match is found, emit nothing. A valid month (august/december/may) produces no finding.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_frontmatter_structure",
+    "source_q_rule_ids": [
+      "Q006"
+    ],
+    "source_files": [
+      "data/processed/rules/njit_rule_inventory.json",
+      "data/raw/guidelines/PhD Title Pages.pdf",
+      "src/njit_auditor/rules/pdf_frontmatter_structure.py"
+    ],
+    "issue_types": [
+      "title_page_graduation_month_invalid"
+    ],
+    "remediation": "Change the graduation month on the Title Page to August, December, or May.",
+    "source_file": "project_added",
+    "notes": "Heuristic. Only fires when a 'Month YYYY' line is detected and the month is not valid. Silent when the graduation date is absent or in a non-standard format. Case-insensitive matching. Valid months: August, December, May (per Q006 rule_definition). PDF companion to run_latex_graduation_month_check in latex_metadata.py."
   }
 ]

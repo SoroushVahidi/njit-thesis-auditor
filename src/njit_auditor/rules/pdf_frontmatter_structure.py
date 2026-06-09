@@ -325,7 +325,7 @@ def _check_frontmatter_order(pdf_document: PdfDocument) -> list[AuditFinding]:
 
 
 # ---------------------------------------------------------------------------
-# Public entry point
+# Public entry point (P025)
 # ---------------------------------------------------------------------------
 
 
@@ -337,3 +337,56 @@ def check_pdf_frontmatter_structure(pdf_document: PdfDocument) -> list[AuditFind
     findings.extend(_check_approval_page_content(pdf_document))
     findings.extend(_check_frontmatter_order(pdf_document))
     return findings
+
+
+# ---------------------------------------------------------------------------
+# P074: Title Page graduation month validation
+# ---------------------------------------------------------------------------
+
+_TITLE_PAGE_MONTH_YEAR_RE = re.compile(
+    r"^(january|february|march|april|may|june|july|august|september|"
+    r"october|november|december)\s+((?:19|20)\d{2})$",
+    re.IGNORECASE,
+)
+_VALID_GRADUATION_MONTHS: frozenset[str] = frozenset({"august", "december", "may"})
+
+
+def check_pdf_title_page_graduation_month(
+    pdf_document: PdfDocument,
+) -> list[AuditFinding]:
+    """Emit P074 when a detected title-page graduation month is not August, December, or May.
+
+    Silent when no Month-YYYY pattern is found on the title page.
+    """
+    if not pdf_document.pages:
+        return []
+    title_page = pdf_document.pages[0]
+    for block in title_page.text_blocks:
+        for line in block.lines:
+            cleaned = normalize_heading_text(line.text)
+            m = _TITLE_PAGE_MONTH_YEAR_RE.match(cleaned)
+            if m is None:
+                continue
+            month = m.group(1).lower()
+            if month in _VALID_GRADUATION_MONTHS:
+                return []
+            return [
+                AuditFinding(
+                    rule_id="P074",
+                    severity=Severity.WARNING,
+                    page=title_page.page_number,
+                    message=(
+                        f"Title Page graduation month '{month.capitalize()}' is not a valid "
+                        "NJIT graduation month. Expected August, December, or May."
+                    ),
+                    details={
+                        "page_number": str(title_page.page_number),
+                        "page_type": "title_page",
+                        "issue_type": "title_page_graduation_month_invalid",
+                        "detected_month": month,
+                        "valid_months": "august, december, may",
+                        "confidence": "high",
+                    },
+                )
+            ]
+    return []
