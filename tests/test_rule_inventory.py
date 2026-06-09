@@ -62,7 +62,6 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 74
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -357,9 +356,41 @@ def test_project_added_rules_implemented() -> None:
     )
     assert by_id["P072"]["rule_type"] == "infrastructure_refinement"
     assert by_id["P072"]["issue_types"] == []
+    assert "P073" in by_id
+    assert by_id["P073"]["implementation_status"] == "implemented"
+    assert by_id["P073"]["phase"] == "pdf_layout"
+    assert by_id["P073"]["rule_type"] == "infrastructure_refinement"
+    assert by_id["P073"]["implementation_module"] == "njit_auditor.rules.pdf_page_numbers"
+    assert by_id["P073"]["affected_rules"] == ["P019"]
+    assert by_id["P073"]["issue_types"] == []
+    assert "P074" in by_id
+    assert by_id["P074"]["implementation_status"] == "implemented"
+    assert by_id["P074"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P074"]["implementation_module"]
+        == "njit_auditor.rules.pdf_frontmatter_structure"
+    )
+    assert by_id["P074"]["issue_types"] == ["title_page_graduation_month_invalid"]
+    assert by_id["P074"]["source_q_rule_ids"] == ["Q006"]
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules
+    )
+
+
+def test_project_added_rules_sequential_no_gaps() -> None:
+    """Guard against P-rule inventory drift: IDs must be P001..PNNN in order."""
+    project_rules = _load_json("data/processed/rules/project_added_rules.json")
+    ids = [str(item["id"]) for item in project_rules]
+    expected = [f"P{i:03d}" for i in range(1, len(ids) + 1)]
+    counts = Counter(ids)
+    missing = sorted(set(expected) - set(ids))
+    unexpected = sorted(set(ids) - set(expected))
+    duplicates = sorted(rid for rid, count in counts.items() if count > 1)
+    assert ids == expected, (
+        "project_added_rules.json must list contiguous P-rule IDs in order. "
+        f"missing={missing}, unexpected={unexpected}, duplicates={duplicates}, "
+        f"actual_tail={ids[-10:]}, expected_tail={expected[-10:]}"
     )
 
 
