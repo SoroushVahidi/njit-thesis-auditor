@@ -381,6 +381,13 @@ def test_project_added_rules_implemented() -> None:
     )
     assert by_id["P074"]["issue_types"] == ["title_page_graduation_month_invalid"]
     assert by_id["P074"]["source_q_rule_ids"] == ["Q006"]
+    assert "P076" in by_id
+    assert by_id["P076"]["implementation_status"] == "implemented"
+    assert by_id["P076"]["phase"] == "pdf_layout"
+    assert by_id["P076"]["implementation_module"] == "njit_auditor.report_outputs"
+    assert by_id["P076"]["rule_type"] == "reporting_refinement"
+    assert by_id["P076"]["affected_rules"] == ["P036"]
+    assert by_id["P076"]["issue_types"] == []
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

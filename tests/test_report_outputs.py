@@ -16,6 +16,7 @@ from njit_auditor.report_outputs import (
     build_p013_triage_summary,
     build_p019_page_numbering_triage_summary,
     build_p026_font_triage_summary,
+    build_p036_toc_list_spacing_triage_summary,
     compact_page_list,
     write_json_report,
     write_markdown_report,
@@ -773,6 +774,82 @@ def _p019_mixed_findings() -> list[AuditFinding]:
     ]
 
 
+def _p036_mixed_findings() -> list[AuditFinding]:
+    return [
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=1,
+            message="TOC entry spacing too tight.",
+            details={
+                "issue_type": "toc_inter_entry_spacing_too_tight",
+                "section_type": "table_of_contents",
+                "gap_ratio": "0.10",
+                "triage_tier": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=2,
+            message="TOC entry spacing too tight.",
+            details={
+                "issue_type": "toc_inter_entry_spacing_too_tight",
+                "section_type": "table_of_contents",
+                "gap_ratio": "0.30",
+                "triage_tier": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=4,
+            message="LoT entry spacing too tight.",
+            details={
+                "issue_type": "lot_inter_entry_spacing_too_tight",
+                "section_type": "list_of_tables",
+                "gap_ratio": "0.60",
+                "triage_tier": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=5,
+            message="LoF entry spacing too tight.",
+            details={
+                "issue_type": "lof_inter_entry_spacing_too_tight",
+                "section_type": "list_of_figures",
+                "gap_ratio": "0.90",
+                "triage_tier": "low",
+            },
+        ),
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=6,
+            message="LoF entry spacing too tight.",
+            details={
+                "issue_type": "lof_inter_entry_spacing_too_tight",
+                "section_type": "list_of_figures",
+                "gap_ratio": "oops",
+                "triage_tier": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=7,
+            message="TOC entry spacing too tight.",
+            details={
+                "issue_type": "toc_inter_entry_spacing_too_tight",
+                "gap_ratio": "1.20",
+                "triage_tier": "low",
+            },
+        ),
+    ]
+
+
 # ---- P019 triage summary tests ----
 
 
@@ -870,13 +947,102 @@ def test_p019_triage_section_absent_when_no_p019(tmp_path: Path) -> None:
     assert "P019 Page-Numbering Triage Summary" not in text
 
 
-def test_all_five_triage_rollups_coexist() -> None:
+def test_p036_triage_absent_when_no_findings() -> None:
+    assert build_p036_toc_list_spacing_triage_summary([]) is None
+
+
+def test_p036_triage_absent_when_no_p036_findings() -> None:
+    assert build_p036_toc_list_spacing_triage_summary(_p026_findings(5)) is None
+    summary = build_grouped_summary(_p026_findings(5))
+    assert "p036_toc_list_spacing_triage" not in summary
+
+
+def test_p036_triage_in_grouped_summary() -> None:
+    summary = build_grouped_summary(_p036_mixed_findings())
+    assert "p036_toc_list_spacing_triage" in summary
+    assert summary["p036_toc_list_spacing_triage"]["raw_finding_count"] == 6
+
+
+def test_p036_triage_issue_type_counts() -> None:
+    triage = build_p036_toc_list_spacing_triage_summary(_p036_mixed_findings())
+    assert triage is not None
+    assert triage["issue_type_counts"]["toc_inter_entry_spacing_too_tight"] == 3
+    assert triage["issue_type_counts"]["lot_inter_entry_spacing_too_tight"] == 1
+    assert triage["issue_type_counts"]["lof_inter_entry_spacing_too_tight"] == 2
+
+
+def test_p036_triage_section_type_counts() -> None:
+    triage = build_p036_toc_list_spacing_triage_summary(_p036_mixed_findings())
+    assert triage is not None
+    assert triage["section_type_counts"]["table_of_contents"] == 2
+    assert triage["section_type_counts"]["list_of_tables"] == 1
+    assert triage["section_type_counts"]["list_of_figures"] == 2
+    assert triage["section_type_counts"]["toc"] == 1
+
+
+def test_p036_triage_section_page_ranges_compact() -> None:
+    triage = build_p036_toc_list_spacing_triage_summary(_p036_mixed_findings())
+    assert triage is not None
+    assert triage["section_page_ranges"]["table_of_contents"] == "1-2"
+    assert triage["section_page_ranges"]["list_of_tables"] == "4"
+    assert triage["section_page_ranges"]["list_of_figures"] == "5-6"
+    assert triage["section_page_ranges"]["toc"] == "7"
+
+
+def test_p036_triage_tier_counts() -> None:
+    triage = build_p036_toc_list_spacing_triage_summary(_p036_mixed_findings())
+    assert triage is not None
+    assert triage["triage_tier_counts"]["high"] == 2
+    assert triage["triage_tier_counts"]["medium"] == 2
+    assert triage["triage_tier_counts"]["low"] == 2
+
+
+def test_p036_triage_gap_ratio_buckets() -> None:
+    triage = build_p036_toc_list_spacing_triage_summary(_p036_mixed_findings())
+    assert triage is not None
+    assert triage["spacing_gap_bucket_counts"]["very_tight"] == 1
+    assert triage["spacing_gap_bucket_counts"]["tight"] == 1
+    assert triage["spacing_gap_bucket_counts"]["moderately_tight"] == 1
+    assert triage["spacing_gap_bucket_counts"]["slightly_tight"] == 1
+    assert triage["spacing_gap_bucket_counts"]["unexpected_non_tight"] == 1
+
+
+def test_p036_triage_ignores_invalid_gap_ratio() -> None:
+    triage = build_p036_toc_list_spacing_triage_summary(_p036_mixed_findings())
+    assert triage is not None
+    assert triage["min_gap_ratio"] == 0.1
+    assert triage["max_gap_ratio"] == 1.2
+    assert sum(triage["spacing_gap_bucket_counts"].values()) == 5
+
+
+def test_markdown_report_includes_p036_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "p036_report.md"
+    write_markdown_report(_p036_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P036 TOC/List Spacing Triage" in text
+    assert "Spacing gap bucket counts" in text
+    assert "Raw per-page P036 findings are listed under **Findings by Rule → P036** below." in text
+    triage_pos = text.index("P036 TOC/List Spacing Triage")
+    findings_pos = text.index("Findings by Rule")
+    assert triage_pos < findings_pos
+
+
+def test_p036_raw_findings_preserved_in_json() -> None:
+    findings = _p036_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 6
+    assert all(f["rule_id"] == "P036" for f in payload["findings"])
+    assert payload["grouped_summary"]["p036_toc_list_spacing_triage"]["raw_finding_count"] == 6
+
+
+def test_all_six_triage_rollups_coexist() -> None:
     findings = (
         _p011_mixed_findings()
         + _p012_mixed_findings()
         + _p013_findings(8)
         + _p026_findings(10)
         + _p019_mixed_findings()
+        + _p036_mixed_findings()
     )
     summary = build_grouped_summary(findings)
     assert "p011_margin_triage" in summary
@@ -884,3 +1050,4 @@ def test_all_five_triage_rollups_coexist() -> None:
     assert "p013_triage" in summary
     assert "p026_font_triage" in summary
     assert "p019_page_numbering_triage" in summary
+    assert "p036_toc_list_spacing_triage" in summary

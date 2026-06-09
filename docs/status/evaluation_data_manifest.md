@@ -1,13 +1,14 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `eb66d4a` (PR #267 — P073 scope doc; last substantive eval data collection)
-- **Latest main:** `1307d3a` (PR #275 — post-P075 status metadata refresh)
+- **Latest main:** `bb647ad` (PR #277 — P076 scope/design doc)
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged
-- **P075 inventory consistency guard:** implemented (2026-06-09) — test-only hygiene; P075 is now a documented non-inventory project task; repository progress remains P001–P075 while `project_added_rules.json` remains P001–P074; the next project-added rule inventory entry should be P076; no detection behavior change and no aggregate impact
+- **P075 inventory consistency guard:** implemented (2026-06-09) — test-only hygiene; P075 remains a documented non-inventory project task; repository progress now includes P076 while `project_added_rules.json` spans P001–P074 plus P076; the next project-added rule inventory entry is P077; no detection behavior change and no aggregate impact
+- **P076 P036 spacing triage rollup:** complete (2026-06-09) — reporting-only P036 TOC/LoT/LoF inter-entry spacing triage summary now wired in JSON/Markdown outputs via `build_p036_toc_list_spacing_triage_summary()`; no standalone issue types; raw P036 findings and canonical aggregate unchanged
 - **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Sebastian Fine EF recovery:** BLOCKED (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
-- **Validation:** ruff, mypy, **1045 pytest** at the latest docs/status refresh
+- **Validation:** ruff, mypy, **1056 pytest** at the latest docs/status refresh
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; `committee_approval_page` gap unchanged (5 EF, 0 tool); `references_citations` gap unchanged (9 EF, 0 tool)
 - **Schema version:** 1
@@ -61,9 +62,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 74 (P001–P074) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 75 (P001–P076, with P075 documented separately as non-inventory) | Yes |
 
-Repository-level progress is **P001–P075**. Project-added rule inventory remains **P001–P074** because **P075 is a documented non-inventory project task**, not a new rule inventory entry. The inventory guard allows only documented skipped P-IDs, currently `P075`, so the next project-added rule inventory entry should be `P076`. P069–P073 are infrastructure/reporting-only (no standalone findings); P074 adds `title_page_graduation_month_invalid` (0 findings on current dataset). Canonical five-PDF aggregate is **1,543** (unchanged through P075); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
+Repository-level progress is **P001–P076**. Project-added rule inventory now spans **P001–P074 plus P076** because **P075 is a documented non-inventory project task**, not a rule inventory entry. The inventory guard allows only documented skipped P-IDs, currently `P075`, so the next project-added rule inventory entry is `P077`. P069–P073 and P076 are infrastructure/reporting-only (no standalone findings); P074 adds `title_page_graduation_month_invalid` (0 findings on current dataset). Canonical five-PDF aggregate is **1,543** (unchanged through P076); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`). Post-P072 backlog and data strategy: `docs/status/post_p072_backlog_and_data_strategy.md`.
 
 ---

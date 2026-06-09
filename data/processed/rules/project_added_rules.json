@@ -1562,5 +1562,31 @@
     "remediation": "Change the graduation month on the Title Page to August, December, or May.",
     "source_file": "project_added",
     "notes": "Heuristic. Only fires when a 'Month YYYY' line is detected and the month is not valid. Silent when the graduation date is absent or in a non-standard format. Case-insensitive matching. Valid months: August, December, May (per Q006 rule_definition). PDF companion to run_latex_graduation_month_check in latex_metadata.py."
+  },
+  {
+    "id": "P076",
+    "title": "P036 TOC/List Spacing Triage Rollup",
+    "description": "Reporting-only refinement that adds a privacy-safe grouped triage summary for P036 TOC/LoT/LoF inter-entry spacing findings in JSON and Markdown reports. Aggregates raw P036 findings by issue type, section type, triage tier, page ranges, and gap-ratio severity buckets without changing P036 detection behavior or canonical aggregate counts.",
+    "section": "TOC/List",
+    "question": "Are P036 TOC/LoT/LoF inter-entry spacing findings organized for reviewer triage in JSON and Markdown reports?",
+    "rule_definition": "Reporting refinement only: collect existing P036 findings after detection, summarize by issue_type, section_type, triage_tier, compact page ranges, and parsed gap_ratio buckets, then expose the rollup via grouped_summary.p036_toc_list_spacing_triage and a Markdown 'P036 TOC/List Spacing Triage' section. No raw finding mutation, no new issue types, and no change to P036 detection thresholds.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.report_outputs",
+    "rule_type": "reporting_refinement",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/report_outputs.py",
+      "tests/test_report_outputs.py",
+      "docs/planning/p076_p036_toc_list_spacing_triage_rollup_scope_and_design.md"
+    ],
+    "issue_types": [],
+    "affected_rules": [
+      "P036"
+    ],
+    "remediation": "No direct remediation — P076 adds report-level triage for existing P036 findings so reviewers can prioritize repeated same-section spacing issues and artifact-prone compressed-PDF cases.",
+    "source_file": "project_added",
+    "notes": "Reporting-only. Raw P036 findings, detail keys, and detection behavior remain unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
   }
 ]
