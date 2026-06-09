@@ -183,7 +183,7 @@ The following items were stale at audit time and have been corrected in the poli
 - P070-era evaluation docs citing **988 pytest** at implementation time
 - `source_to_implementation_coverage_after_p029.md` baseline tables (post-P029 audit snapshot)
 
-No P072 scope doc exists yet (`docs/planning/p072_*` absent).
+**P072 scoped:** `docs/planning/p072_approval_page_heading_gate_recall_refinement_scope_and_design.md` (commit `0762cd6`; structural fallback when heading text absent; infrastructure-only; 14 synthetic tests planned).
 
 ---
 
