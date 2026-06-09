@@ -56,10 +56,10 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 68 (P001–P068) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 72 (P001–P072) | Yes |
 
-P001–P068 are implemented; P068 formal current-dataset evaluation complete (3 findings on 2/5 files; 3/5 skipped at APPROVAL PAGE detection gate) and the full post-P068 aggregate is 1,590 findings (+3 vs P067-era); see `docs/evaluation/p068_current_dataset_evaluation.md` and `docs/evaluation/current_auditor_after_p068_evaluation.md`. The P067-era snapshot (`afe4ef6`, 1,587 findings) remains a historical baseline. Full Q-rule / guideline source coverage is not complete
-(see `docs/status/source_to_implementation_coverage_after_p029.md`).
+P001–P072 are implemented; P069–P072 are infrastructure-only (no standalone findings). Canonical five-PDF aggregate is **1,543** (unchanged after P069–P072); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
+(see `docs/status/source_to_implementation_coverage_after_p029.md`). Post-P072 backlog and data strategy: `docs/status/post_p072_backlog_and_data_strategy.md`.
 
 ---
 

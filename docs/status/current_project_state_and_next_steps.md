@@ -1,7 +1,8 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-08
-- **Latest main:** `1476a51` (PR #262) — P072 implementation; see also `97f2b30` (PR #259) repository polish and `045e93b` (PR #261) P072 scope
+- **Date:** 2026-06-09 (updated: post-P072 backlog and data strategy — see `docs/status/post_p072_backlog_and_data_strategy.md`)
+- **Latest main:** `b889e5f` (PR #263) — P072 post-implementation evaluation and EF-overlap refresh docs; prior: `1476a51` (PR #262) P072 implementation; `97f2b30` (PR #259) repository polish; `045e93b` (PR #261) P072 scope
+- **Recommended next step:** Data acquisition — recover Sebastian Fine EF-annotated PDF from original archive to expand comparison set from 2 to 3 extractable files; see `docs/status/post_p072_backlog_and_data_strategy.md` §7 for ranked recommendations. Branch: `data/sebastian-ef-archive-recovery`
 - **Validation:** P001–P072 implemented; **1014 pytest**; canonical five-PDF aggregate **1,543** (unchanged post-P072)
 - **Full repository audit (P071 era):** `docs/status/full_repository_audit_after_p071.md`
 - **P072 post-implementation evaluation:** **complete** — full five-PDF current-dataset eval (commit `1476a51`): structural fallback found 0 candidates on all 3 non-detecting PDFs (Cibaku, Yin H 2nd flattened, Yin Haotian 2nd) — all eligible pages return noise-only text, confirming image-embedded approval pages; P068 reach 2/5 unchanged; aggregate 1,543 unchanged; **EF-overlap refresh after P072 complete:** `committee_approval_page` gap unchanged (5 EF, 0 tool); total tool findings on comparison PDFs 671 (unchanged); see `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` and `docs/evaluation/ef_overlap_after_p072_evaluation.md`

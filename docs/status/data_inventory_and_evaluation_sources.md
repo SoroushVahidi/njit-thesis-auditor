@@ -51,12 +51,12 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P071**) — P001–P071 all implemented; P069–P071 are infrastructure-only.
+  Project implementation rule set (**P001-P072**) — P001–P072 all implemented; P069–P072 are infrastructure-only.
 
-From the strict post-P029 audit plus post-audit updates through P062
+From the strict post-P029 audit plus post-audit updates through P072
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- P-rules: **67/67** implemented (historical audit snapshot listed 29/29 at P029).
+- P-rules: **72/72** implemented (historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data

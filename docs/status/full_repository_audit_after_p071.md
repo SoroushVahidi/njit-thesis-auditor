@@ -6,7 +6,7 @@
 - **Auditor scope:** P001–P071 implemented; **1000 pytest**; ruff clean; mypy 87 source files, no issues
 - **Canonical aggregate:** **1,543** findings (post-P070 / post-P071 unchanged) — `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p071_evaluation.md`
-- **Post-P072 note (2026-06-08):** P072 (PR #262, commit `1476a51`) implemented; 1014 pytest; aggregate unchanged at 1,543; EF-overlap refresh complete — see `docs/evaluation/ef_overlap_after_p072_evaluation.md`; `committee_approval_page` gap unchanged (5 EF, 0 tool)
+- **Post-P072 note (2026-06-09):** P072 (PR #262, commit `1476a51`) implemented; latest main `b889e5f` (PR #263, docs/eval refresh); 1014 pytest; aggregate unchanged at 1,543; EF-overlap refresh complete — see `docs/evaluation/ef_overlap_after_p072_evaluation.md`; `committee_approval_page` gap unchanged (5 EF, 0 tool); post-P072 backlog and data strategy: `docs/status/post_p072_backlog_and_data_strategy.md`
 - **Privacy:** Aggregate-only audit; no dissertation body text, EF comment text, names, or reference entries quoted.
 
 ---
