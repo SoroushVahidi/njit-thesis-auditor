@@ -1,5 +1,10 @@
 """Conservative Approval Page committee/signature-block structural check (P068).
 
+P072 (infrastructure companion): structural localization fallback when the APPROVAL PAGE
+heading is absent from the text layer. Activates only when the heading gate returns 0
+matches and exactly 1 front-matter/ambiguous page has sufficient role-label phrases.
+No new issue types in v1 — existing P068 types fire when checks reach the page.
+
 Partial heuristic PDF coverage for the Approval Page structural extension of Q013:
 committee role labels and signature/date blocks should be present on a detected
 APPROVAL PAGE. Q015–Q020 remain manual-only and are not checked.
@@ -14,7 +19,10 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage
-from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_matches_for_heading
+from njit_auditor.rules.pdf_frontmatter_heading_gate import (
+    _eligible_page_numbers,
+    find_gate_matches_for_heading,
+)
 from njit_auditor.rules.pdf_frontmatter_structure import _lines_below_heading
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 
@@ -55,6 +63,16 @@ def _usable_body_lines(page: PdfPage) -> list[str]:
         line
         for line in raw_lines
         if len(_normalized_line(line)) >= _MIN_LINE_CHARS
+    ]
+
+
+def _all_usable_lines(page: PdfPage) -> list[str]:
+    """Return all usable non-empty lines from a page (no heading boundary required)."""
+    return [
+        line.text.strip()
+        for block in page.text_blocks
+        for line in block.lines
+        if len(_normalized_line(line.text)) >= _MIN_LINE_CHARS
     ]
 
 
@@ -112,6 +130,31 @@ def _confidence(role_label_count: int, indicator_count: int) -> str:
     return "low"
 
 
+def _find_structural_approval_page_candidate(
+    pdf_document: PdfDocument,
+) -> PdfPage | None:
+    """Find an approval-page candidate via role-label pattern when heading is absent.
+
+    Returns the single candidate page when exactly one front-matter/ambiguous page has
+    sufficient role-label phrases and body lines. Returns None if 0 or >=2 candidates
+    (ambiguous), or if no page passes the structural gate.
+    """
+    eligible = _eligible_page_numbers(pdf_document, max_scan_pages=None)
+    candidates: list[PdfPage] = []
+    for page in pdf_document.pages:
+        if page.page_number not in eligible:
+            continue
+        if not page.text_blocks:
+            continue
+        lines = _all_usable_lines(page)
+        if len(lines) < _MIN_BODY_LINES or _mostly_single_token_noise(lines):
+            continue
+        role_count = sum(1 for line in lines if _is_role_label_line(line))
+        if role_count >= _MIN_ROLE_LABELS:
+            candidates.append(page)
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def _base_details(
     *,
     page_number: int,
@@ -123,6 +166,7 @@ def _base_details(
     signature_blank_count: int,
     signature_date_indicator_count: int,
     confidence: str,
+    detected_via: str = "heading_gate",
 ) -> dict[str, str]:
     return {
         "page_number": str(page_number),
@@ -136,6 +180,7 @@ def _base_details(
         "confidence": confidence,
         "triage_tier": "medium",
         "source_q_rule_ids": "Q013",
+        "detected_via": detected_via,
     }
 
 
@@ -151,6 +196,7 @@ def _make_finding(
     signature_blank_count: int,
     signature_date_indicator_count: int,
     confidence: str,
+    detected_via: str = "heading_gate",
 ) -> AuditFinding:
     return AuditFinding(
         rule_id=_RULE_ID,
@@ -167,25 +213,40 @@ def _make_finding(
             signature_blank_count=signature_blank_count,
             signature_date_indicator_count=signature_date_indicator_count,
             confidence=confidence,
+            detected_via=detected_via,
         ),
     )
 
 
 def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P068 warnings when approval-page committee blocks look structurally sparse."""
+    """Emit P068 warnings when approval-page committee blocks look structurally sparse.
+
+    P072: when the heading gate finds 0 matches, tries a structural role-label fallback
+    on front-matter/ambiguous pages before giving up. Skips if 0 or >=2 candidates.
+    """
     approval_matches = find_gate_matches_for_heading(pdf_document, _APPROVAL_HEADING)
-    if len(approval_matches) != 1:
+
+    if len(approval_matches) == 1:
+        detected_via = "heading_gate"
+        page_number = approval_matches[0].page_number
+        page = next(
+            (p for p in pdf_document.pages if p.page_number == page_number),
+            None,
+        )
+        if page is None or not page.text_blocks:
+            return []
+        body_lines = _usable_body_lines(page)
+    elif len(approval_matches) == 0:
+        candidate = _find_structural_approval_page_candidate(pdf_document)
+        if candidate is None:
+            return []
+        detected_via = "structural_fallback"
+        page_number = candidate.page_number
+        page = candidate
+        body_lines = _all_usable_lines(page)
+    else:
         return []
 
-    page_number = approval_matches[0].page_number
-    page = next(
-        (candidate for candidate in pdf_document.pages if candidate.page_number == page_number),
-        None,
-    )
-    if page is None or not page.text_blocks:
-        return []
-
-    body_lines = _usable_body_lines(page)
     if len(body_lines) < _MIN_BODY_LINES or _mostly_single_token_noise(body_lines):
         return []
 
@@ -221,6 +282,7 @@ def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[
                 signature_blank_count=signature_blank_count,
                 signature_date_indicator_count=signature_date_indicator_count,
                 confidence=confidence,
+                detected_via=detected_via,
             )
         )
 
@@ -240,6 +302,7 @@ def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[
                 signature_blank_count=signature_blank_count,
                 signature_date_indicator_count=signature_date_indicator_count,
                 confidence=confidence,
+                detected_via=detected_via,
             )
         )
 
