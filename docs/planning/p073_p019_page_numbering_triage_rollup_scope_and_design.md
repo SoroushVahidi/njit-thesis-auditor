@@ -1,9 +1,10 @@
 # P073 Scope and Design — P019 Page-Numbering Triage Rollup
 
 - **Date:** 2026-06-09
-- **Status:** Scoped — not yet implemented
+- **Status:** v1+v2 implemented — see forward note below
 - **Baseline commit:** `5b8a657` (PR #266 — P036–P063 gap-fill complete)
-- **Validation baseline:** P001–P072 implemented; **1014 pytest**; ruff clean; mypy 87 source files
+- **Validation baseline (v1):** P001–P072 implemented; **1014 pytest**; ruff clean; mypy 87 source files
+- **Forward note (v2):** P073 v2 code rollup implemented: triage metadata (`triage_tier`, `p019_triage_category`, `triage_reason`) added to all P019 findings; `build_p019_page_numbering_triage_summary()` added to `report_outputs.py` and wired into JSON/Markdown grouped reports; 17 new tests; **1031 pytest**; canonical five-PDF aggregate 1,543 unchanged; see `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P073 name:** P019 Page-Numbering Triage Rollup
 - **Type:** Evaluation/documentation triage — no audit behavior change
 
@@ -251,7 +252,7 @@ JSON and Markdown reports. This would require:
 - New grouped rollup in `build_grouped_summary()` output
 - 8–10 unit tests in `tests/test_report_outputs.py`
 
-**V2 is deferred.** P073 v1 covers the documentation/evaluation only.
+**V2 is implemented.** See `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md` and the forward note in the header above.
 
 ### Generated output path
 

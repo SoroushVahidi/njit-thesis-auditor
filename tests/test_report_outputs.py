@@ -14,6 +14,7 @@ from njit_auditor.report_outputs import (
     build_p011_margin_triage_summary,
     build_p012_annotation_triage_summary,
     build_p013_triage_summary,
+    build_p019_page_numbering_triage_summary,
     build_p026_font_triage_summary,
     compact_page_list,
     write_json_report,
@@ -706,3 +707,180 @@ def test_markdown_report_no_grouped_section_when_all_low_volume(tmp_path: Path) 
     write_markdown_report(_p026_findings(3), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "Repeated Findings Summary" not in text
+
+
+# ---- P019 triage helpers ----
+
+
+def _p019_finding(issue_type: str, page: int | None = 5) -> AuditFinding:
+    triage_details: dict[str, str] = {
+        "sequence_gap": {
+            "issue_type": "sequence_gap",
+            "triage_tier": "high",
+            "p019_triage_category": "high_signal_sequence_gap",
+            "triage_reason": "numeric page sequence gap; manual review recommended",
+        },
+        "missing_page_number": {
+            "issue_type": "missing_page_number",
+            "triage_tier": "high",
+            "p019_triage_category": "high_signal_missing_page_number",
+            "triage_reason": "expected page number missing; manual review recommended",
+        },
+        "mixed_numbering_style": {
+            "issue_type": "mixed_numbering_style",
+            "triage_tier": "medium",
+            "p019_triage_category": "mixed_numbering_manual_review",
+            "triage_reason": (
+                "mixed Roman/Arabic style; boundary detection not available; "
+                "manual review recommended"
+            ),
+        },
+        "multiple_page_numbers": {
+            "issue_type": "multiple_page_numbers",
+            "triage_tier": "medium",
+            "p019_triage_category": "multiple_page_numbers_manual_review",
+            "triage_reason": (
+                "multiple page-number candidates detected; "
+                "may be real or artifact-driven"
+            ),
+        },
+        "inconsistent_position": {
+            "issue_type": "inconsistent_position",
+            "triage_tier": "low",
+            "p019_triage_category": "position_inconsistency_artifact_suspected",
+            "triage_reason": (
+                "page-number position inconsistency is often artifact-driven; "
+                "manual spot check recommended"
+            ),
+        },
+    }[issue_type]
+    return AuditFinding(
+        rule_id="P019",
+        severity=Severity.WARNING,
+        page=page,
+        message=f"P019 test finding: {issue_type}",
+        details=triage_details,
+    )
+
+
+def _p019_mixed_findings() -> list[AuditFinding]:
+    return [
+        _p019_finding("sequence_gap", page=10),
+        _p019_finding("missing_page_number", page=20),
+        _p019_finding("mixed_numbering_style", page=30),
+        _p019_finding("multiple_page_numbers", page=40),
+        _p019_finding("inconsistent_position", page=50),
+    ]
+
+
+# ---- P019 triage summary tests ----
+
+
+def test_p019_triage_absent_when_no_findings() -> None:
+    result = build_p019_page_numbering_triage_summary([])
+    assert result is None
+
+
+def test_p019_triage_absent_when_no_p019_findings() -> None:
+    result = build_p019_page_numbering_triage_summary(_p026_findings(3))
+    assert result is None
+
+
+def test_p019_sequence_gap_is_high_priority() -> None:
+    findings = [_p019_finding("sequence_gap")]
+    result = build_p019_page_numbering_triage_summary(findings)
+    assert result is not None
+    assert result["high_priority_count"] == 1
+    assert result["by_triage_tier"].get("high") == 1
+    assert result["by_category"].get("high_signal_sequence_gap") == 1
+
+
+def test_p019_missing_page_number_is_high_priority() -> None:
+    findings = [_p019_finding("missing_page_number")]
+    result = build_p019_page_numbering_triage_summary(findings)
+    assert result is not None
+    assert result["high_priority_count"] == 1
+    assert result["by_category"].get("high_signal_missing_page_number") == 1
+
+
+def test_p019_multiple_page_numbers_is_medium_priority() -> None:
+    findings = [_p019_finding("multiple_page_numbers")]
+    result = build_p019_page_numbering_triage_summary(findings)
+    assert result is not None
+    assert result["medium_priority_count"] == 1
+    assert result["by_category"].get("multiple_page_numbers_manual_review") == 1
+
+
+def test_p019_inconsistent_position_is_low_priority() -> None:
+    findings = [_p019_finding("inconsistent_position")]
+    result = build_p019_page_numbering_triage_summary(findings)
+    assert result is not None
+    assert result["low_priority_count"] == 1
+    assert result["by_category"].get("position_inconsistency_artifact_suspected") == 1
+
+
+def test_p019_triage_groups_counts_correctly() -> None:
+    findings = _p019_mixed_findings()
+    result = build_p019_page_numbering_triage_summary(findings)
+    assert result is not None
+    assert result["total_findings"] == 5
+    assert result["high_priority_count"] == 2
+    assert result["medium_priority_count"] == 2
+    assert result["low_priority_count"] == 1
+    assert result["by_issue_type"]["sequence_gap"] == 1
+    assert result["by_issue_type"]["inconsistent_position"] == 1
+
+
+def test_p019_triage_in_grouped_summary() -> None:
+    findings = _p019_mixed_findings()
+    summary = build_grouped_summary(findings)
+    assert "p019_page_numbering_triage" in summary
+    triage = summary["p019_page_numbering_triage"]
+    assert triage["total_findings"] == 5
+
+
+def test_p019_triage_absent_in_grouped_summary_when_no_p019() -> None:
+    summary = build_grouped_summary(_p026_findings(5))
+    assert "p019_page_numbering_triage" not in summary
+
+
+def test_p019_raw_findings_preserved_in_json() -> None:
+    findings = _p019_mixed_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    assert len(payload["findings"]) == 5
+    assert all(f["rule_id"] == "P019" for f in payload["findings"])
+    assert "p019_page_numbering_triage" in payload["grouped_summary"]
+
+
+def test_markdown_report_includes_p019_triage_section(tmp_path: Path) -> None:
+    output_path = tmp_path / "p019_report.md"
+    write_markdown_report(_p019_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P019 Page-Numbering Triage Summary" in text
+    assert "High-priority" in text
+    assert "Medium-priority" in text
+    assert "Low-priority" in text
+    assert "Findings by Rule" in text
+
+
+def test_p019_triage_section_absent_when_no_p019(tmp_path: Path) -> None:
+    output_path = tmp_path / "no_p019_report.md"
+    write_markdown_report(_p026_findings(5), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "P019 Page-Numbering Triage Summary" not in text
+
+
+def test_all_five_triage_rollups_coexist() -> None:
+    findings = (
+        _p011_mixed_findings()
+        + _p012_mixed_findings()
+        + _p013_findings(8)
+        + _p026_findings(10)
+        + _p019_mixed_findings()
+    )
+    summary = build_grouped_summary(findings)
+    assert "p011_margin_triage" in summary
+    assert "p012_annotation_triage" in summary
+    assert "p013_triage" in summary
+    assert "p026_font_triage" in summary
+    assert "p019_page_numbering_triage" in summary

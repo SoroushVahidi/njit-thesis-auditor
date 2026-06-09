@@ -24,6 +24,36 @@ _POSITION_SCORE = {
 }
 _STYLE_SCORE = {"arabic": 2, "roman_lower": 2, "roman_upper": 2, "other": 0}
 
+# (triage_tier, p019_triage_category, triage_reason)
+_P019_TRIAGE_MAP: dict[str, tuple[str, str, str]] = {
+    "sequence_gap": (
+        "high",
+        "high_signal_sequence_gap",
+        "numeric page sequence gap; manual review recommended",
+    ),
+    "missing_page_number": (
+        "high",
+        "high_signal_missing_page_number",
+        "expected page number missing; manual review recommended",
+    ),
+    "mixed_numbering_style": (
+        "medium",
+        "mixed_numbering_manual_review",
+        "mixed Roman/Arabic style; boundary detection not available; manual review recommended",
+    ),
+    "multiple_page_numbers": (
+        "medium",
+        "multiple_page_numbers_manual_review",
+        "multiple page-number candidates detected; may be real or artifact-driven",
+    ),
+    "inconsistent_position": (
+        "low",
+        "position_inconsistency_artifact_suspected",
+        "page-number position inconsistency is often artifact-driven; "
+        "manual spot check recommended",
+    ),
+}
+
 
 @dataclass(frozen=True)
 class PageNumberCandidate:
@@ -405,4 +435,18 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     for finding in findings:
         key = (finding.page, finding.details.get("issue_type", ""))
         deduped[key] = finding
-    return list(deduped.values())
+
+    result: list[AuditFinding] = []
+    for finding in deduped.values():
+        issue_type = finding.details.get("issue_type", "")
+        triage = _P019_TRIAGE_MAP.get(issue_type)
+        if triage:
+            tier, category, reason = triage
+            new_details = dict(finding.details)
+            new_details["triage_tier"] = tier
+            new_details["p019_triage_category"] = category
+            new_details["triage_reason"] = reason
+            result.append(finding.model_copy(update={"details": new_details}))
+        else:
+            result.append(finding)
+    return result

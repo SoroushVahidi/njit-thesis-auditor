@@ -1118,6 +1118,69 @@ def test_json_and_markdown_report_include_p019(tmp_path: Path) -> None:
     assert "### P019" in md_out.read_text(encoding="utf-8")
 
 
+def test_p019_sequence_gap_finding_has_triage_metadata(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_gap_triage.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", "2", "4", "5"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    gap_findings = [f for f in findings if f.details.get("issue_type") == "sequence_gap"]
+    assert gap_findings, "Expected at least one sequence_gap finding"
+    for f in gap_findings:
+        assert f.details.get("triage_tier") == "high"
+        assert f.details.get("p019_triage_category") == "high_signal_sequence_gap"
+        assert "triage_reason" in f.details
+
+
+def test_p019_missing_page_number_finding_has_triage_metadata(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_missing_triage.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", None, "3", "4"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    missing_findings = [
+        f for f in findings if f.details.get("issue_type") == "missing_page_number"
+    ]
+    assert missing_findings, "Expected at least one missing_page_number finding"
+    for f in missing_findings:
+        assert f.details.get("triage_tier") == "high"
+        assert f.details.get("p019_triage_category") == "high_signal_missing_page_number"
+        assert "triage_reason" in f.details
+
+
+def test_p019_inconsistent_position_finding_has_triage_metadata(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_pos_triage.pdf"
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((300, 770), "1", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((300, 770), "2", fontsize=12)
+    p2.insert_text((560, 30), "2", fontsize=12)
+    p2.insert_text((300, 30), "2", fontsize=12)
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((300, 770), "3", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    pos_findings = [
+        f for f in findings if f.details.get("issue_type") == "inconsistent_position"
+    ]
+    assert pos_findings, "Expected at least one inconsistent_position finding"
+    for f in pos_findings:
+        assert f.details.get("triage_tier") == "low"
+        assert f.details.get("p019_triage_category") == "position_inconsistency_artifact_suspected"
+        assert "triage_reason" in f.details
+
+
+def test_p019_raw_finding_count_unchanged_by_triage(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_count_check.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["1", "2", "4", "5"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    p019_count = sum(1 for f in findings if f.rule_id == "P019")
+    assert p019_count >= 1
+    assert all(f.rule_id == "P019" for f in findings)
+
+
 def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:
     pdf_path = tmp_path / "broken.pdf"
     pdf_path.write_text("not a pdf")

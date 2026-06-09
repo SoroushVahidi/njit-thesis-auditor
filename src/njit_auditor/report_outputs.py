@@ -27,6 +27,7 @@ P011_RULE_ID = "P011"
 P011_ISSUE_TYPE = "margin_boundary_violation"
 P012_RULE_ID = "P012"
 P012_ISSUE_TYPE = "pdf_annotation_detected"
+P019_RULE_ID = "P019"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -505,6 +506,54 @@ def build_p011_margin_triage_summary(findings: list[AuditFinding]) -> dict[str, 
     }
 
 
+def build_p019_page_numbering_triage_summary(
+    findings: list[AuditFinding],
+) -> dict[str, Any] | None:
+    """Build a P019-specific rollup for page-numbering sequence/style triage.
+
+    Raw findings are not modified. Groups by issue_type, triage_tier, and
+    p019_triage_category. Never includes candidate text or page content.
+    """
+    p019_findings = [f for f in findings if f.rule_id == P019_RULE_ID]
+    if not p019_findings:
+        return None
+
+    issue_type_counts: Counter[str] = Counter()
+    triage_tier_counts: Counter[str] = Counter()
+    category_counts: Counter[str] = Counter()
+    affected_pages: list[int] = []
+
+    for finding in p019_findings:
+        details = finding.details or {}
+        issue_type = details.get("issue_type", "")
+        if issue_type:
+            issue_type_counts[issue_type] += 1
+        tier = details.get("triage_tier", "")
+        if tier:
+            triage_tier_counts[tier] += 1
+        category = details.get("p019_triage_category", "")
+        if category:
+            category_counts[category] += 1
+        if finding.page is not None:
+            affected_pages.append(finding.page)
+
+    return {
+        "total_findings": len(p019_findings),
+        "by_issue_type": dict(sorted(issue_type_counts.items())),
+        "by_triage_tier": dict(sorted(triage_tier_counts.items())),
+        "by_category": dict(sorted(category_counts.items())),
+        "high_priority_count": triage_tier_counts.get("high", 0),
+        "medium_priority_count": triage_tier_counts.get("medium", 0),
+        "low_priority_count": triage_tier_counts.get("low", 0),
+        "affected_pages_compact": compact_page_list(sorted(set(affected_pages))),
+        "review_guidance": (
+            "High-priority: review first — especially sequence gaps and missing page numbers. "
+            "Medium-priority: manual review; may include boundary or multiple-candidate cases. "
+            "Low-priority: likely artifact-heavy; spot check only."
+        ),
+    }
+
+
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     """Build a grouped summary structure for triage use in JSON/Markdown reports.
 
@@ -599,6 +648,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p012_triage = build_p012_annotation_triage_summary(findings)
     if p012_triage is not None:
         result["p012_annotation_triage"] = p012_triage
+    p019_triage = build_p019_page_numbering_triage_summary(findings)
+    if p019_triage is not None:
+        result["p019_page_numbering_triage"] = p019_triage
     return result
 
 
@@ -1075,6 +1127,66 @@ def _format_p011_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p019_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P019-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p019_page_numbering_triage")
+    if not triage:
+        return []
+
+    lines: list[str] = []
+    lines.append("## P019 Page-Numbering Triage Summary")
+    lines.append("")
+    lines.append(
+        "P019 reports heuristic page-numbering sequence and style issues for manual NJIT "
+        "verification. Raw findings are preserved; this section summarizes by triage priority."
+    )
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Total P019 findings | {triage['total_findings']} |")
+    lines.append(f"| High-priority | {triage['high_priority_count']} |")
+    lines.append(f"| Medium-priority | {triage['medium_priority_count']} |")
+    lines.append(f"| Low-priority | {triage['low_priority_count']} |")
+    lines.append("")
+
+    issue_counts = triage.get("by_issue_type", {})
+    if issue_counts:
+        lines.append("### Issue type counts")
+        lines.append("")
+        for issue_type, count in sorted(issue_counts.items()):
+            lines.append(f"- `{issue_type}`: {count}")
+        lines.append("")
+
+    tier_counts = triage.get("by_triage_tier", {})
+    if tier_counts:
+        lines.append("### Triage tier counts")
+        lines.append("")
+        for tier, count in sorted(tier_counts.items()):
+            lines.append(f"- `{tier}`: {count}")
+        lines.append("")
+
+    guidance = triage.get("review_guidance", "")
+    if guidance:
+        lines.append("### Reviewer guidance")
+        lines.append("")
+        for part in guidance.split(". "):
+            part = part.strip()
+            if part:
+                lines.append(f"- {part}.")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"Affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P019 findings are listed under **Findings by Rule → P019** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -1190,6 +1302,9 @@ def write_markdown_report(
 
         p012_section = _format_p012_triage_section(payload["grouped_summary"])
         lines.extend(p012_section)
+
+        p019_section = _format_p019_triage_section(payload["grouped_summary"])
+        lines.extend(p019_section)
 
     lines.append("## Findings by Rule")
     lines.append("")
