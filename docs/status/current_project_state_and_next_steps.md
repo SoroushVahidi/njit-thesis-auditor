@@ -1,10 +1,11 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-09 (updated: P036–P063 evaluation gap-fill complete — see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`)
-- **Latest main:** `85a1326` (PR #265 — Sebastian Fine EF archive recovery documented); prior: `e3ca516` (PR #264) post-P072 backlog and data strategy
-- **Evaluation gap-fill status:** P036–P063 five-PDF current-dataset evaluation **complete** — 27 rules evaluated; 8 rules with findings (P036: 55, P038: 16, P044: 7, P051: 3, P037: 3, P046: 2, P040: 1, P053: 1; total 88); all results consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
+- **Date:** 2026-06-09 (updated: P073 P019 triage scope doc created — see `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`)
+- **Latest main:** `5b8a657` (PR #266 — P036–P063 gap-fill); prior: `85a1326` (PR #265) Sebastian Fine EF recovery; `e3ca516` (PR #264) post-P072 backlog and data strategy
+- **P073 scope status:** P019 page-numbering triage rollup **scoped** (v1: docs/evaluation only; v2: code rollup deferred); see `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`; ready for implementation; next branch: `docs/p073-p019-page-numbering-triage-rollup`
+- **Evaluation gap-fill status:** P036–P063 five-PDF current-dataset evaluation **complete** (PR #266); 27 rules; 88 total findings; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Data acquisition status:** Sebastian Fine EF archive recovery **BLOCKED** — original Google Drive RAR not locally present; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
-- **Recommended next step:** Manual retrieval of original Google Drive RAR to unblock Sebastian Fine EF recovery (Recommendation 1), OR P073 — P019 reporting triage (Recommendation 3, engineering fallback)
+- **Recommended next step:** Implement P073 v1 triage doc (`docs/p073-p019-page-numbering-triage-rollup`), or manual retrieval of original Google Drive RAR to unblock Sebastian Fine EF recovery
 - **Validation:** P001–P072 implemented; **1014 pytest**; canonical five-PDF aggregate **1,543** (unchanged post-P072)
 - **Full repository audit (P071 era):** `docs/status/full_repository_audit_after_p071.md`
 - **P072 post-implementation evaluation:** **complete** — full five-PDF current-dataset eval (commit `1476a51`): structural fallback found 0 candidates on all 3 non-detecting PDFs (Cibaku, Yin H 2nd flattened, Yin Haotian 2nd) — all eligible pages return noise-only text, confirming image-embedded approval pages; P068 reach 2/5 unchanged; aggregate 1,543 unchanged; **EF-overlap refresh after P072 complete:** `committee_approval_page` gap unchanged (5 EF, 0 tool); total tool findings on comparison PDFs 671 (unchanged); see `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` and `docs/evaluation/ef_overlap_after_p072_evaluation.md`
