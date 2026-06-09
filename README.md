@@ -167,16 +167,17 @@ Current PDF checks (P011–P068 standalone; P069–P071 are infrastructure-only 
 
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (P071 era)
+### Current canonical artifacts (P072 era)
 
 | Artifact | Path |
 |---|---|
-| Full repository audit | `docs/status/full_repository_audit_after_p071.md` |
-| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P071) |
-| Latest EF overlap | `docs/evaluation/ef_overlap_after_p071_evaluation.md` |
+| Full repository audit | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
+| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P072) |
+| Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
 | P069 gate-recall eval | `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` |
 | P070 parser-recall eval | `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` |
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
+| P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | Current validation | P001–P071 implemented; **1000 pytest** |
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
@@ -271,7 +272,7 @@ More docs:
 - `docs/planning/p071_references_section_localization_recall_refinement_scope_and_design.md` — P071 scope and design: references section localization recall refinement (implemented; infrastructure companion to P064)
 - `docs/planning/p072_approval_page_heading_gate_recall_refinement_scope_and_design.md` — P072 scope and design: approval-page heading-gate recall refinement (implemented; infrastructure companion to P068; structural fallback when heading text absent)
 - `docs/evaluation/p072_approval_page_heading_gate_recall_synthetic_validation.md` — P072 synthetic validation (infrastructure-only; 14 tests)
-- `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` — P072 four-PDF detection-mode eval (complete; structural fallback 0 candidates on comparison PDFs; aggregate unchanged 1,543)
+- `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` — P072 full five-PDF detection-mode eval (complete; structural fallback 0 candidates on all 3 non-detecting files; image-embedded approval pages confirmed; aggregate unchanged 1,543)
 - `docs/planning/p070_toc_lot_lof_entry_parser_recall_refinement_scope_and_design.md` — P070 scope and design: TOC/LoT/LoF entry parser recall refinement (implemented; infrastructure)
 - `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_synthetic_validation.md` — P070 synthetic validation (infrastructure-only; 12 tests)
 - `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` — P070 five-PDF parser-reach eval (complete; post-P070 aggregate 1,543 findings)
@@ -293,6 +294,7 @@ More docs:
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_synthetic_validation.md` — P069 synthetic validation (infrastructure-only; 13 tests; no standalone findings)
 - `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` — P069 five-PDF gate-reach evaluation (ACKNOWLEDGEMENTS +4; P065–P068 totals unchanged)
 - `docs/evaluation/ef_overlap_after_p068_evaluation.md` — EF comment-vs-tool overlap refresh after P068 on 2 extractable-comment PDFs (143 annotations; P064–P068 unchanged overlap on comparison set)
+- `docs/evaluation/ef_overlap_after_p072_evaluation.md` — EF comment-vs-tool overlap refresh after P072; `committee_approval_page` gap unchanged (5 EF, 0 tool); structural fallback found 0 candidates; total 671 tool findings unchanged
 - `docs/evaluation/ef_overlap_after_p071_evaluation.md` — EF comment-vs-tool overlap refresh after P071; P064 reaches 2/2 comparison PDFs; `references_citations` gap unchanged (9 EF, 0 tool)
 - `docs/evaluation/real_thesis_pairing_and_ef_overlap_readiness.md` — real thesis data inventory, raw/commented pairing, EF comment extractability, overlap-readiness, and recurring evaluation workflow (P068-era refresh)
 - `docs/evaluation/` — per-rule and historical evaluation docs (P011–P029 snapshot, P030–P036 synthetic/current-dataset)
