@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_for_commit": "TBD_p072_impl",
+  "generated_for_commit": "bbb65cc",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P072",
     "pytest_count_at_last_doc_refresh": 1014,
