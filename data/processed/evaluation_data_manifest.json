@@ -55,7 +55,7 @@
     "ef_overlap_after_p072_note": "EF overlap refresh (2026-06-08, commit 1476a51): 2 extractable-comment PDFs; 143 EF annotations; 671 tool findings unchanged; committee_approval_page gap unchanged (5 EF, 0 tool); structural fallback found 0 candidates on both comparison PDFs. See docs/evaluation/ef_overlap_after_p072_evaluation.md",
     "sebastian_fine_ef_recovery_note": "Recovery attempt (2026-06-09, commit e3ca516): BLOCKED — EF-annotated version not found in any tracked or local path; original Google Drive RAR not present locally. Retry 2 (2026-06-09, commit 42e10fb): BLOCKED — data/evaluation/private/ absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations). See docs/evaluation/sebastian_fine_ef_archive_recovery.md",
     "p036_p063_gap_fill_note": "P036–P063 five-PDF gap-fill evaluation complete (2026-06-09, commit 85a1326): 27 rules evaluated; 8 rules with findings: P036 55, P038 16, P044 7, P051 3, P037 3, P046 2, P040 1, P053 1; total P036–P063 contribution 88; consistent with canonical 1,543. Generated outputs: data/evaluation/generated/p036_p063_gap_fill/ (gitignored). See docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md",
-    "p073_p019_triage_note": "P073 v1 docs-only triage rollup complete (2026-06-09, baseline commit eb66d4a): 67 P019 findings across five PDFs; multiple_page_numbers 28, mixed_numbering_style 23, inconsistent_position 10, sequence_gap 6; sequence_gap highest-actionability (all 5 files); multiple_page_numbers + inconsistent_position on EF PDFs likely artifact-driven; generated outputs gitignored at data/evaluation/generated/p073_p019_triage/. See docs/evaluation/p073_p019_page_numbering_triage_rollup.md"
+    "p073_p019_triage_note": "P073 v1+v2 complete (2026-06-09): v1 docs-only triage rollup — 67 P019 findings across five PDFs; multiple_page_numbers 28, mixed_numbering_style 23, inconsistent_position 10, sequence_gap 6; sequence_gap highest-actionability (all 5 files); v2 code rollup — triage_tier/p019_triage_category/triage_reason metadata on all P019 findings; build_p019_page_numbering_triage_summary() wired in JSON/Markdown reports; 17 new tests; aggregate 1,543 unchanged. See docs/evaluation/p073_p019_page_numbering_triage_rollup.md and docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md"
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -387,6 +387,6 @@
     "generated_and_private_gitignored_paths": 2
   },
   "p_rules_implemented": "P001-P072",
-  "pytest_count_at_last_doc_refresh": 1014,
+  "pytest_count_at_last_doc_refresh": 1031,
   "latest_main_at_last_doc_refresh": "eb66d4a"
 }

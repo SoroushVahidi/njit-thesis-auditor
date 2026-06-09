@@ -178,7 +178,7 @@ All findings are heuristic warnings and require manual review.
 | P070 parser-recall eval | `docs/evaluation/p070_toc_lot_lof_entry_parser_recall_current_dataset_evaluation.md` |
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
-| Current validation | P001–P072 implemented; **1014 pytest** |
+| Current validation | P001–P072 implemented; P073 v1+v2 complete; **1031 pytest** |
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
 
@@ -272,8 +272,9 @@ More docs:
 - `docs/planning/p069_frontmatter_heading_gate_recall_refinement_scope_and_design.md` — P069 scope and design: front-matter heading gate recall refinement (implemented; infrastructure)
 - `docs/planning/p071_references_section_localization_recall_refinement_scope_and_design.md` — P071 scope and design: references section localization recall refinement (implemented; infrastructure companion to P064)
 - `docs/planning/p072_approval_page_heading_gate_recall_refinement_scope_and_design.md` — P072 scope and design: approval-page heading-gate recall refinement (implemented; infrastructure companion to P068; structural fallback when heading text absent)
-- `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md` — P073 scope and design: P019 page-numbering triage rollup (v1 implemented; v2 code rollup deferred)
-- `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` — **P073 P019 triage rollup** (2026-06-09): 67 P019 findings classified; `sequence_gap` (6, all files) highest-signal; `multiple_page_numbers` + `inconsistent_position` on EF PDFs likely artifact-driven; v2 `build_p019_page_numbering_triage_summary()` recommended but deferred
+- `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md` — P073 scope and design: P019 page-numbering triage rollup (v1+v2 implemented)
+- `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` — **P073 P019 triage rollup** (2026-06-09): 67 P019 findings classified; `sequence_gap` (6, all files) highest-signal; `multiple_page_numbers` + `inconsistent_position` on EF PDFs likely artifact-driven
+- `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md` — P073 v2 code rollup validation: triage metadata added to P019 findings; `build_p019_page_numbering_triage_summary()` wired in JSON/Markdown reports; 17 new tests; canonical aggregate 1,543 unchanged
 - `docs/evaluation/p072_approval_page_heading_gate_recall_synthetic_validation.md` — P072 synthetic validation (infrastructure-only; 14 tests)
 - `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` — P072 full five-PDF detection-mode eval (complete; structural fallback 0 candidates on all 3 non-detecting files; image-embedded approval pages confirmed; aggregate unchanged 1,543)
 - `docs/planning/p070_toc_lot_lof_entry_parser_recall_refinement_scope_and_design.md` — P070 scope and design: TOC/LoT/LoF entry parser recall refinement (implemented; infrastructure)
