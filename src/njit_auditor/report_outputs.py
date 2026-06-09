@@ -28,6 +28,7 @@ P011_ISSUE_TYPE = "margin_boundary_violation"
 P012_RULE_ID = "P012"
 P012_ISSUE_TYPE = "pdf_annotation_detected"
 P019_RULE_ID = "P019"
+P036_RULE_ID = "P036"
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -554,6 +555,107 @@ def build_p019_page_numbering_triage_summary(
     }
 
 
+def _normalize_p036_section_type(details: dict[str, str]) -> str:
+    section_type = details.get("section_type", "").strip()
+    if section_type:
+        return section_type
+
+    issue_type = details.get("issue_type", "").strip().lower()
+    if issue_type.startswith("toc_"):
+        return "toc"
+    if issue_type.startswith("lot_"):
+        return "lot"
+    if issue_type.startswith("lof_"):
+        return "lof"
+    return "unknown"
+
+
+def _parse_p036_gap_ratio(details: dict[str, str]) -> float | None:
+    raw = details.get("gap_ratio", "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def _bucket_p036_gap_ratio(gap_ratio: float) -> str:
+    if gap_ratio < 0.25:
+        return "very_tight"
+    if gap_ratio < 0.50:
+        return "tight"
+    if gap_ratio < 0.75:
+        return "moderately_tight"
+    if gap_ratio < 1.0:
+        return "slightly_tight"
+    return "unexpected_non_tight"
+
+
+def build_p036_toc_list_spacing_triage_summary(
+    findings: list[AuditFinding],
+) -> dict[str, Any] | None:
+    """Build a P036-specific rollup for TOC/LoT/LoF inter-entry spacing triage."""
+    p036_findings = [f for f in findings if f.rule_id == P036_RULE_ID]
+    if not p036_findings:
+        return None
+
+    pages = sorted({f.page for f in p036_findings if f.page is not None})
+    issue_type_counts: Counter[str] = Counter()
+    section_type_counts: Counter[str] = Counter()
+    triage_tier_counts: Counter[str] = Counter()
+    spacing_gap_bucket_counts: Counter[str] = Counter()
+    section_pages: dict[str, list[int]] = defaultdict(list)
+    gap_ratios: list[float] = []
+
+    for finding in p036_findings:
+        details = finding.details or {}
+        issue_type = details.get("issue_type", "")
+        if issue_type:
+            issue_type_counts[issue_type] += 1
+
+        section_type = _normalize_p036_section_type(details)
+        section_type_counts[section_type] += 1
+        if finding.page is not None:
+            section_pages[section_type].append(finding.page)
+
+        triage_tier = details.get("triage_tier", "").strip()
+        if triage_tier:
+            triage_tier_counts[triage_tier] += 1
+
+        gap_ratio = _parse_p036_gap_ratio(details)
+        if gap_ratio is not None:
+            gap_ratios.append(gap_ratio)
+            spacing_gap_bucket_counts[_bucket_p036_gap_ratio(gap_ratio)] += 1
+
+    section_page_ranges = {
+        section_type: compact_page_list(sorted(set(page_list)))
+        for section_type, page_list in sorted(section_pages.items())
+    }
+
+    return {
+        "raw_finding_count": len(p036_findings),
+        "affected_page_count": len(pages),
+        "affected_pages_compact": compact_page_list(pages),
+        "issue_type_counts": dict(sorted(issue_type_counts.items())),
+        "section_type_counts": dict(sorted(section_type_counts.items())),
+        "section_page_ranges": section_page_ranges,
+        "triage_tier_counts": dict(sorted(triage_tier_counts.items())),
+        "spacing_gap_bucket_counts": dict(sorted(spacing_gap_bucket_counts.items())),
+        "min_gap_ratio": min(gap_ratios) if gap_ratios else None,
+        "max_gap_ratio": max(gap_ratios) if gap_ratios else None,
+        "triage_note": (
+            "P036 reports heuristic TOC/LoT/LoF inter-entry spacing warnings for "
+            "manual NJIT verification."
+        ),
+        "recommended_action": (
+            "Review affected TOC/List pages first; repeated same-section findings may "
+            "indicate a systematic list-spacing issue; spot-check compressed PDFs for "
+            "coordinate artifacts."
+        ),
+    }
+
+
 def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     """Build a grouped summary structure for triage use in JSON/Markdown reports.
 
@@ -651,6 +753,9 @@ def build_grouped_summary(findings: list[AuditFinding]) -> dict[str, Any]:
     p019_triage = build_p019_page_numbering_triage_summary(findings)
     if p019_triage is not None:
         result["p019_page_numbering_triage"] = p019_triage
+    p036_triage = build_p036_toc_list_spacing_triage_summary(findings)
+    if p036_triage is not None:
+        result["p036_toc_list_spacing_triage"] = p036_triage
     return result
 
 
@@ -1187,6 +1292,87 @@ def _format_p019_triage_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_p036_triage_section(grouped: dict[str, Any]) -> list[str]:
+    """Render P036-specific triage rollup for Markdown reports."""
+    triage = grouped.get("p036_toc_list_spacing_triage")
+    if not triage:
+        return []
+
+    def _fmt_ratio(value: Any) -> str:
+        if isinstance(value, (int, float)):
+            return f"{float(value):.2f}"
+        return "—"
+
+    lines: list[str] = []
+    lines.append("## P036 TOC/List Spacing Triage")
+    lines.append("")
+    lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Raw P036 findings | {triage['raw_finding_count']} |")
+    lines.append(f"| Affected pages | {triage['affected_page_count']} |")
+    lines.append(f"| Min gap ratio | {_fmt_ratio(triage.get('min_gap_ratio'))} |")
+    lines.append(f"| Max gap ratio | {_fmt_ratio(triage.get('max_gap_ratio'))} |")
+    lines.append("")
+
+    issue_counts = triage.get("issue_type_counts", {})
+    if issue_counts:
+        lines.append("### Issue type counts")
+        lines.append("")
+        for issue_type, count in sorted(issue_counts.items()):
+            lines.append(f"- `{issue_type}`: {count}")
+        lines.append("")
+
+    section_counts = triage.get("section_type_counts", {})
+    if section_counts:
+        lines.append("### Section type counts")
+        lines.append("")
+        for section_type, count in sorted(section_counts.items()):
+            lines.append(f"- `{section_type}`: {count}")
+        lines.append("")
+
+    tier_counts = triage.get("triage_tier_counts", {})
+    if tier_counts:
+        lines.append("### Triage tier counts")
+        lines.append("")
+        for tier, count in sorted(tier_counts.items()):
+            lines.append(f"- `{tier}`: {count}")
+        lines.append("")
+
+    bucket_counts = triage.get("spacing_gap_bucket_counts", {})
+    if bucket_counts:
+        lines.append("### Spacing gap bucket counts")
+        lines.append("")
+        for bucket, count in sorted(bucket_counts.items()):
+            lines.append(f"- `{bucket}`: {count}")
+        lines.append("")
+
+    page_ranges = triage.get("section_page_ranges", {})
+    if page_ranges:
+        lines.append("### Section page ranges")
+        lines.append("")
+        for section_type, page_range in sorted(page_ranges.items()):
+            lines.append(f"- `{section_type}`: pages {page_range}")
+        lines.append("")
+
+    affected_compact = triage.get("affected_pages_compact", "")
+    if affected_compact:
+        lines.append(f"All affected pages (compact): {affected_compact}")
+        lines.append("")
+
+    recommended_action = triage.get("recommended_action", "")
+    if recommended_action:
+        lines.append(f"**Recommended action:** {recommended_action}")
+        lines.append("")
+
+    lines.append(
+        "Raw per-page P036 findings are listed under **Findings by Rule → P036** below."
+    )
+    lines.append("")
+    return lines
+
+
 def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for finding in findings:
@@ -1294,17 +1480,20 @@ def write_markdown_report(
         p011_section = _format_p011_triage_section(payload["grouped_summary"])
         lines.extend(p011_section)
 
+        p012_section = _format_p012_triage_section(payload["grouped_summary"])
+        lines.extend(p012_section)
+
         p013_section = _format_p013_triage_section(payload["grouped_summary"])
         lines.extend(p013_section)
+
+        p019_section = _format_p019_triage_section(payload["grouped_summary"])
+        lines.extend(p019_section)
 
         p026_section = _format_p026_triage_section(payload["grouped_summary"])
         lines.extend(p026_section)
 
-        p012_section = _format_p012_triage_section(payload["grouped_summary"])
-        lines.extend(p012_section)
-
-        p019_section = _format_p019_triage_section(payload["grouped_summary"])
-        lines.extend(p019_section)
+        p036_section = _format_p036_triage_section(payload["grouped_summary"])
+        lines.extend(p036_section)
 
     lines.append("## Findings by Rule")
     lines.append("")
