@@ -75,9 +75,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 81 (P001–P082, with P075 documented separately as non-inventory) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 82 (P001–P083, with P075 documented separately as non-inventory) | Yes |
 
-Repository-level progress is **P001–P082**. Project-added rule inventory now spans **P001–P074 plus P076–P082** because **P075 is a documented non-inventory project task**, not a rule inventory entry. The inventory guard allows only documented skipped P-IDs, currently `P075`, so the next project-added rule inventory entry is `P083`. P069–P073, P076, P077, P079, P080, and P081 are infrastructure/reporting-only (no standalone findings); P074 and P078 are detection rules (both 0 findings on current dataset); P082 is an experimental opt-in advisory (disabled by default; 0 findings on current dataset in default mode). Canonical five-PDF aggregate is **1,543** (unchanged through P082 in default mode); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
+Repository-level progress is **P001–P083**. Project-added rule inventory now spans **P001–P074 plus P076–P083** because **P075 is a documented non-inventory project task**, not a rule inventory entry. The inventory guard allows only documented skipped P-IDs, currently `P075`, so the next project-added rule inventory entry is `P084`. P069–P073, P076, P077, P079, P080, P081, and P083 are infrastructure/reporting/evaluation-only (no standalone findings); P074 and P078 are detection rules (both 0 findings on current dataset); P082 is an experimental opt-in advisory (disabled by default; 0 findings on current dataset in default mode); P083 is a pure evaluation_task (no detector, no aggregate impact). Canonical five-PDF aggregate is **1,543** (unchanged through P083); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`). Post-P072 backlog and data strategy: `docs/status/post_p072_backlog_and_data_strategy.md`.
 
 ---
