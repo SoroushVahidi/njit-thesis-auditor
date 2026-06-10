@@ -24,7 +24,7 @@
 | Report outputs | `src/njit_auditor/report_outputs.py` | JSON/Markdown report generation; 8 triage rollups |
 | CLI entrypoint | `src/njit_auditor/cli.py` | `njit-audit tex` / `njit-audit pdf` commands |
 | Web UI | `src/njit_auditor/web_app.py` | FastAPI upload form (PDF / TeX / ZIP); browser report view and download |
-| Rule inventories | `data/processed/rules/` | `njit_rule_inventory.json` (79 Q-rules) + `project_added_rules.json` (80 P-rules) |
+| Rule inventories | `data/processed/rules/` | `njit_rule_inventory.json` (79 Q-rules) + `project_added_rules.json` (81 P-rules) |
 
 ### Design principles
 
@@ -165,7 +165,8 @@ EF comparison set: **2 extractable files** (143 total EF annotations). Sebastian
 | #287 | Post-P080 DOCX+PDF overlap evaluation | Confirmed persistent P013/P026 over-warning and surfaced landscape page-number orientation as a deferred gap |
 | #288 | P081 reporting calibration | Reporting-only P013/P026 calibration completed; detector logic and raw finding counts unchanged |
 | #289 | Post-audit docs/manifest cleanup | Refreshed current-state metadata to the post-P081 baseline without changing behavior |
-| #290 | Final whole-repository polish | Final docs/manifest consistency polish; implementation remains paused and P082 stays reserved |
+| #290 | Final whole-repository polish | Final docs/manifest consistency polish before P082 |
+| #292 | P082 landscape orientation advisory | Experimental opt-in landscape page-number orientation advisory; disabled by default; canonical aggregate unchanged in default mode |
 
 ### EF overlap gaps (final state)
 
@@ -239,7 +240,7 @@ All PDF checks require a machine-readable text layer. Image-only pages (scanned,
 
 ## 7. Suggested Future Phases
 
-**Default recommendation:** pause implementation unless P082 is explicitly scoped. The clearest deferred candidate is landscape page-number orientation, but it remains unassigned because current evidence is narrow and the layout model does not yet preserve text-rotation metadata.
+**Default recommendation:** P082 landscape page-number orientation is implemented but experimental and disabled by default. Next inventory entry is **P083** when explicitly scoped. University landscape orientation guidance remains inconsistent; P082 is observational/manual-review only.
 
 These options are ordered by feasibility under current project constraints.
 
@@ -284,7 +285,7 @@ njit-audit tex path/to/thesis.tex --json-out report.json --md-out report.md
 ./scripts/run_web_gui.sh  # starts on 0.0.0.0:8000
 
 # Tests
-python -m pytest          # expects 1106 passed
+python -m pytest          # expects 1124 passed
 ruff check .
 mypy src
 ```
@@ -300,7 +301,7 @@ mypy src
 | `docs/status/data_inventory_and_evaluation_sources.md` | Data category table and privacy posture |
 | `docs/status/post_p072_backlog_and_data_strategy.md` | Post-P072 backlog rationale and dataset strategy |
 | `data/processed/rules/njit_rule_inventory.json` | Canonical 79 Q-rules with implementation status |
-| `data/processed/rules/project_added_rules.json` | 80 P-rules (P001–P081, P075 non-inventory) |
+| `data/processed/rules/project_added_rules.json` | 81 P-rules (P001–P082, P075 non-inventory) |
 | `data/processed/evaluation_data_manifest.json` | Machine-readable manifest (rule state, pytest count, aggregate, latest main) |
 | `docs/evaluation/current_auditor_after_p070_evaluation.md` | Canonical five-PDF aggregate (1,543 findings) |
 | `docs/evaluation/ef_overlap_after_p072_evaluation.md` | Latest EF annotation overlap (2 extractable PDFs) |
