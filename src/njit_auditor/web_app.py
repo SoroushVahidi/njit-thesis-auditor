@@ -339,7 +339,7 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
     audit_scope_label = (
         "TeX source audit (P001–P010)"
         if is_source_audit
-        else "PDF layout audit (P011–P061)"
+        else "PDF layout audit (P011–P082)"
     )
 
     return {

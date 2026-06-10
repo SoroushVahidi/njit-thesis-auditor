@@ -34,7 +34,7 @@
       <button type="submit">Start audit</button>
     </form>
     <ul class="bullet-list" style="margin-top:0.75rem">
-      <li><strong>PDF</strong> — layout audit rules P011–P061</li>
+      <li><strong>PDF</strong> — layout audit rules P011–P082 (P082 experimental/opt-in; disabled by default)</li>
       <li><strong>TeX (.tex)</strong> — source audit rules P001–P010 (no compilation)</li>
       <li><strong>ZIP (.zip)</strong> — safe extract, detect main .tex, then P001–P010 source audit</li>
     </ul>
@@ -86,7 +86,7 @@
         <tr>
           <td><strong>PDF</strong></td>
           <td class="support-yes">Supported</td>
-          <td>P011–P061 layout audit; JSON and Markdown export</td>
+          <td>P011–P082 layout audit (P082 experimental/opt-in; disabled by default); JSON and Markdown export</td>
         </tr>
         <tr>
           <td><strong>TeX source</strong></td>
@@ -116,7 +116,7 @@
 <div class="section">
   <h2>What it checks</h2>
   <p style="font-size:0.9rem;color:var(--color-muted);margin:0;">
-    <strong>PDF uploads</strong> run P011–P061 heuristic layout checks.
+    <strong>PDF uploads</strong> run P011–P082 heuristic layout checks (P082 experimental/opt-in; disabled by default in the web UI).
     <strong>TeX and ZIP uploads</strong> run P001–P010 source checks without compiling the project.
     ZIP support audits LaTeX source files — it does not generate or audit a compiled PDF.
     All findings are advisory signals — please verify against NJIT guidelines manually.

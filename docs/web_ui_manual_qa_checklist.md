@@ -159,7 +159,7 @@ downloaded files.
 | Upload page loads | Open `http://localhost:8000` | HTTP 200; "NJIT Thesis Auditor" heading visible; three input panels (file, URL, built-in sample) |
 | File input accepts PDF/TeX/ZIP | Inspect the file input element | `accept=".pdf,.tex,.zip"` attribute present |
 | Privacy note visible | Read the info banner on the upload page | "Privacy-safe processing" banner present; mentions no repository commit |
-| Supported format descriptions | Read the bullet list under the file upload card | PDF → "P011–P061"; TeX → "P001–P010"; ZIP → "safe extract … P001–P010"; "no compilation" stated |
+| Supported format descriptions | Read the bullet list under the file upload card | PDF → "P011–P082"; TeX → "P001–P010"; ZIP → "safe extract … P001–P010"; "no compilation" stated |
 | Upload page copy | Read the URL form card | States PDF only; mentions private/internal URLs are blocked |
 | Built-in sample card | Read the sample card | If no samples configured: "No built-in samples are available on this server"; if samples present: dropdown visible |
 
