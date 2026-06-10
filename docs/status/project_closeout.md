@@ -1,7 +1,7 @@
 # Project Closeout and Summary
 
-- **Date:** 2026-06-09 (post-audit cleanup after PR #289)
-- **Latest main:** `2745497` (PR #289 — post-audit docs/manifest cleanup after P081)
+- **Date:** 2026-06-09 (final whole-repository polish after PR #290)
+- **Latest main:** `0f74980` (PR #290 — final whole-repository polish after P081)
 - **Scope at closeout:** P001–P081 implemented; 80 rule inventory entries; **1106 pytest passed**; ruff clean; mypy clean
 - **Canonical five-PDF aggregate:** **1,543** findings — `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **Status:** Project has reached natural completion for the current deterministic, local-first tooling tier. P081 is reporting-only; detector logic and raw finding counts are unchanged. All remaining unimplemented Q-rules require manual review, semantic/NLP capability, or OCR — none are viable within the current heuristic bar. Implementation should remain paused unless P082 is explicitly scoped.
@@ -155,7 +155,7 @@ EF comparison set: **2 extractable files** (143 total EF annotations). Sebastian
 | `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` | P036/P076 triage | 55 P036 findings | All on Yin H 4th; all high tier |
 | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` | P036–P063, five PDFs | 88 findings from 8 rules | Covers P044 (7), P038 (16), and others |
 
-### Final PR chain (PR #285–#288)
+### Final PR chain (PR #285–#290)
 
 | PR | Milestone | Outcome |
 |---|---|---|
@@ -163,6 +163,8 @@ EF comparison set: **2 extractable files** (143 total EF annotations). Sebastian
 | #286 | P080 DOCX extraction | `njit-audit docx-comments extract` added; 2 DOCX drafts now extractable for metadata-only review |
 | #287 | Post-P080 DOCX+PDF overlap evaluation | Confirmed persistent P013/P026 over-warning and surfaced landscape page-number orientation as a deferred gap |
 | #288 | P081 reporting calibration | Reporting-only P013/P026 calibration completed; detector logic and raw finding counts unchanged |
+| #289 | Post-audit docs/manifest cleanup | Refreshed current-state metadata to the post-P081 baseline without changing behavior |
+| #290 | Final whole-repository polish | Final docs/manifest consistency polish; implementation remains paused and P082 stays reserved |
 
 ### EF overlap gaps (final state)
 

@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
-- **Latest main:** `2745497` (PR #289 — post-audit docs/manifest cleanup after P081); prior: `bd9f7f1` (PR #288 — P081 reporting-only P013/P026 calibration rollup)
+- **Latest main:** `0f74980` (PR #290 — final whole-repository polish after P081); prior: `2745497` (PR #289 — post-audit docs/manifest cleanup after P081)
 - **Project closeout and summary:** `docs/status/project_closeout.md`
 - **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`

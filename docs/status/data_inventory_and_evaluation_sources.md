@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated: post-audit cleanup after P081 / PR #289)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`2745497` post-audit cleanup baseline; **1106 passed**); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
+- Date: 2026-06-09 (updated: final whole-repository polish after P081 / PR #290)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`0f74980` post-polish baseline; **1106 passed**); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076–P081** implementation rules; repository-level progress is **P001-P081** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P082**. The final PR chain is: PR #285 expanded Ester dataset import, PR #286 P080 DOCX extraction, PR #287 post-P080 DOCX+PDF overlap evaluation, PR #288 P081 reporting-only P013/P026 calibration.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076-P081** implementation rules; repository-level progress is **P001-P081** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P082**. The final PR chain is: PR #285 expanded Ester dataset import, PR #286 P080 DOCX extraction, PR #287 post-P080 DOCX+PDF overlap evaluation, PR #288 P081 reporting-only P013/P026 calibration, PR #289 post-audit docs/manifest cleanup, PR #290 final whole-repository polish.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
