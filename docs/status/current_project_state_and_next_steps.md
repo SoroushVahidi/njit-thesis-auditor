@@ -1,7 +1,7 @@
 # Current Project State and Next Steps
 
-- **Date:** 2026-06-09 (updated: final whole-repository polish after P081 / PR #290)
-- **Latest main:** `0f74980` (PR #290 — final whole-repository polish after P081); prior: `2745497` (PR #289 — post-audit docs/manifest cleanup after P081)
+- **Date:** 2026-06-10 (updated: P082 experimental landscape page-number orientation advisory / PR #292)
+- **Latest main:** `0dc1926` (PR #292 — Add experimental P082 landscape page-number orientation advisory); prior: `0f74980` (PR #290 — final whole-repository polish after P081)
 - **P073 status:** P019 page-numbering triage rollup **fully implemented** (v1 docs-only triage rollup + v2 code rollup complete); triage metadata on P019 findings; `build_p019_page_numbering_triage_summary()` in JSON/Markdown reports; 17 new tests; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md`, `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`, and `docs/planning/p073_p019_page_numbering_triage_rollup_scope_and_design.md`
 - **Evaluation gap-fill status:** P036–P063 five-PDF current-dataset evaluation **complete** (PR #266); 27 rules; 88 total findings; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Data acquisition status:** Sebastian Fine EF archive recovery **BLOCKED** (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
