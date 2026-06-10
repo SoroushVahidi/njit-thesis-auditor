@@ -10,6 +10,7 @@ from typing import Any
 
 from pymupdf import FileDataError
 
+from njit_auditor.audit_options import DEFAULT_AUDIT_OPTIONS, AuditOptions
 from njit_auditor.latex_linters import run_optional_latex_linters
 from njit_auditor.latex_loader import load_tex_project
 from njit_auditor.models import AuditFinding
@@ -71,6 +72,9 @@ from njit_auditor.rules.pdf_frontmatter_structure import (
 from njit_auditor.rules.pdf_heading_levels import check_pdf_heading_level_styles
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
+from njit_auditor.rules.pdf_landscape_page_number_orientation import (
+    check_pdf_landscape_page_number_orientation,
+)
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
     check_pdf_lot_lof_column_header_style_alignment,
@@ -212,7 +216,10 @@ def collect_tex_findings(
 
 
 def collect_pdf_layout_findings(
-    pdf_doc: PdfDocument, pdf_path: str | Path
+    pdf_doc: PdfDocument,
+    pdf_path: str | Path,
+    *,
+    options: AuditOptions | None = None,
 ) -> list[AuditFinding]:
     """Run the current implemented PDF layout audit on a loaded document.
 
@@ -220,9 +227,16 @@ def collect_pdf_layout_findings(
     embedded infrastructure refinements (P069–P071) wired through existing checks.
     """
     path_str = str(pdf_path)
+    audit_options = options or DEFAULT_AUDIT_OPTIONS
     findings: list[AuditFinding] = []
     findings.extend(run_pdf_page_number_candidates_rule(pdf_doc))
     findings.extend(check_pdf_page_number_sequence(pdf_doc))
+    findings.extend(
+        check_pdf_landscape_page_number_orientation(
+            pdf_doc,
+            enabled=audit_options.is_experimental_enabled("P082"),
+        )
+    )
     findings.extend(check_pdf_page_numbering_regime(pdf_doc))
     findings.extend(check_pdf_roman_sequence(pdf_doc))
     findings.extend(check_pdf_roman_section_anchors(pdf_doc))
@@ -284,7 +298,11 @@ def collect_pdf_layout_findings(
     return findings
 
 
-def run_pdf_audit_full(pdf_path: str | Path) -> list[AuditFinding]:
+def run_pdf_audit_full(
+    pdf_path: str | Path,
+    *,
+    options: AuditOptions | None = None,
+) -> list[AuditFinding]:
     """Run all registered PDF layout audit checks and return findings.
 
     Raises AuditError if the file cannot be opened or is not a valid PDF.
@@ -294,7 +312,7 @@ def run_pdf_audit_full(pdf_path: str | Path) -> list[AuditFinding]:
     except (FileDataError, ValueError, RuntimeError) as exc:
         raise AuditError(f"Cannot read PDF: {exc}") from exc
 
-    return collect_pdf_layout_findings(pdf_doc, pdf_path)
+    return collect_pdf_layout_findings(pdf_doc, pdf_path, options=options)
 
 
 def run_pdf_audit(pdf_path: Path) -> list[AuditFinding]:
