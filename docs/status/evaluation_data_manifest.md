@@ -1,7 +1,7 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
-- **Latest main:** `7bee7d2` (branch eval/expanded-ester-dataset — P080 DOCX comment extraction); prior: `53f06e5` (PR #282 — P079)
+- **Latest main:** `beb24c8` (PR #286 — P080 DOCX comment extraction); prior: `7bee7d2` (branch eval/expanded-ester-dataset)
 - **Project closeout and summary:** `docs/status/project_closeout.md`
 - **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
@@ -13,7 +13,8 @@
 - **P076 P036 spacing triage rollup:** complete (2026-06-09, PR #278) — reporting-only P036 TOC/LoT/LoF inter-entry spacing triage summary now wired in JSON/Markdown outputs via `build_p036_toc_list_spacing_triage_summary()`; no standalone issue types; raw P036 findings and canonical aggregate unchanged; **current-dataset evaluation:** see `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` (55 findings on Yin H 4th only; triage: 42 TOC + 9 LoF + 4 LoT; 48 slightly_tight + 7 very_tight; all high tier)
 - **P036–P063 evaluation gap-fill:** complete (2026-06-09) — 27 rules evaluated on five PDFs; 8 rules with findings; all consistent with canonical 1,543; see `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md`
 - **Sebastian Fine EF recovery:** BLOCKED (Retry 2: 2026-06-09, baseline `42e10fb`) — `data/evaluation/private/` absent; no new archives found in workspace or home directory; comparison set remains 2 extractable files (143 EF annotations); see `docs/evaluation/sebastian_fine_ef_archive_recovery.md`
-- **P080 DOCX comment extraction:** implemented (2026-06-09) — infrastructure reporting capability; adds `njit-audit docx-comments extract`; extracts word/comments.xml metadata and w:ins/w:del tracked-change counts; 13 synthetic tests; unlocks 2 Ester DOCX files; no aggregate impact; canonical aggregate unchanged at 1,543
+- **P080 DOCX comment extraction:** implemented (2026-06-09, PR #286) — infrastructure reporting capability; adds `njit-audit docx-comments extract`; extracts word/comments.xml metadata and w:ins/w:del tracked-change counts; 13 synthetic tests; unlocks 2 Ester DOCX files; no aggregate impact; canonical aggregate unchanged at 1,543
+- **Post-P080 DOCX+PDF EF-overlap evaluation:** complete (2026-06-09, branch `eval/post-p080-docx-pdf-overlap`) — P080 applied to both Ester DOCX files; 52 comments extracted (22 Sebastian Fine 3rd + 30 Aguado Alvaro 3rd); 0 tracked changes; combined picture: 614 EF feedback items across 14 files; P013/P026 over-warning confirmed across Yin Haotian 4-version chain; new gap: landscape page number orientation; recommended P081: P013/P026 triage calibration; see `docs/evaluation/post_p080_docx_pdf_overlap_evaluation.md`
 - **Validation:** ruff, mypy, **1104 pytest** at the latest docs/status refresh
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; `committee_approval_page` gap unchanged (5 EF, 0 tool); `references_citations` gap unchanged (9 EF, 0 tool)
