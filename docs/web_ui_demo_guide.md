@@ -1,7 +1,7 @@
 # Web UI Demo Guide
 
 - **Date:** 2026-06-07
-- **Scope:** P001–P061 implemented; Web UI accepts PDF (P011–P061), TeX (P001–P010), and ZIP (P001–P010)
+- **Scope:** P001–P082 implemented; Web UI accepts PDF (P011–P082 default; P082 experimental/opt-in disabled by default), TeX (P001–P010), and ZIP (P001–P010)
 - **Related:** `docs/web_gui_mvp.md` (full setup and operations), `docs/web_ui_manual_qa_checklist.md` (manual browser QA checklist), `docs/planning/synthetic_web_demo_fixtures.md` (fixture details)
 
 ---
@@ -263,7 +263,7 @@ After a successful upload and completed audit, the results page should show:
 |---|---|
 | `clean_minimal.pdf` produces 3 structural advisories | P013 (page-number candidate detection) and P027 (heading style) emit advisories on the synthetic minimal PDF; this is expected — "clean" means few findings, not zero |
 | No PDF annotation overlays | Findings are listed in a table only; no visual page-overlay or bounding-box view exists yet (roadmap Phase 4+) |
-| ZIP source audit does not compile LaTeX | TeX/ZIP uploads run P001–P010 source checks only; a compiled PDF is not produced or audited; PDF rules (P011–P061) do not fire for ZIP uploads |
+| ZIP source audit does not compile LaTeX | TeX/ZIP uploads run P001–P010 source checks only; a compiled PDF is not produced or audited; PDF rules (P011–P082) do not fire for ZIP uploads |
 | No authentication or rate limiting by default | The web app binds to `0.0.0.0` by default; for any shared or public deployment, add a reverse proxy, TLS, authentication, and rate limiting (see `docs/web_gui_mvp.md`) |
 | In-memory job state is lost on server restart | Navigating to an old job URL after a server restart returns 404; on-disk files remain until TTL cleanup |
 | Web exports are privacy-reduced, not fully anonymized | `sanitize_report_for_web_export()` removes known private-content keys and replaces raw source messages; it does not guarantee perfect anonymization for all possible future field values |

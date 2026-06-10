@@ -138,7 +138,7 @@ port 8000 firewall-restricted to localhost.
 1. User opens `/` and selects a **PDF**, **.tex**, or **.zip** file.
 2. User clicks **Start audit**.
 3. Server validates the file (extension, magic bytes, size limit) and starts a background job.
-4. **PDF** uploads run layout rules **P011–P061**. **TeX** and **ZIP** uploads run source rules
+4. **PDF** uploads run layout rules **P011–P082** (P082 experimental/opt-in; disabled by default). **TeX** and **ZIP** uploads run source rules
    **P001–P010** (ZIP is safely extracted, main `.tex` is detected — **no LaTeX compilation**).
 5. User is redirected to `/audits/{job_id}`, which polls every 2 seconds.
 6. When complete, the page shows findings, JSON/Markdown download links, and a Markdown preview.
