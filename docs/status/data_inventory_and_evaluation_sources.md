@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated: post-P080 DOCX comment extraction)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P080, web UI present on `main` (`7bee7d2` branch eval/expanded-ester-dataset; **1104** pytest); project-added rule inventory spans P001–P074 plus P076–P080 (79 entries, with P075 documented separately as non-inventory)
+- Date: 2026-06-09 (updated: P081 P013/P026 calibration rollup)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`333b99f` post-P080 overlap baseline; **1106** pytest); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076–P080** implementation rules; repository-level progress is **P001-P080** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P081**. P080 adds DOCX comment extraction infrastructure (`njit-audit docx-comments extract`).
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076–P081** implementation rules; repository-level progress is **P001-P081** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P082**. P080 adds DOCX comment extraction infrastructure (`njit-audit docx-comments extract`); P081 adds reporting-only P013/P026 calibration buckets in JSON/Markdown reports.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -51,14 +51,14 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P074 plus P076–P080**) — 79 implemented entries spanning `P001-P080`; P069–P073, P076, P077, P079, and P080 are infrastructure/reporting-only; P074 and P078 are detection rules (both 0 findings on current dataset); P075 is a documented non-inventory project task, so the next inventory entry is `P081`.
+  Project implementation rule set (**P001-P074 plus P076–P081**) — 80 implemented entries spanning `P001-P081`; P069–P073, P076, P077, P079, P080, and P081 are infrastructure/reporting-only; P074 and P078 are detection rules (both 0 findings on current dataset); P075 is a documented non-inventory project task, so the next inventory entry is `P082`.
 
-From the strict post-P029 audit plus post-audit updates through P080
+From the strict post-P029 audit plus post-audit updates through P081
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- Repository progress: **P001–P080** implemented, where **P075 is test-only inventory/status hygiene** and a documented non-inventory project task.
+- Repository progress: **P001–P081** implemented, where **P075 is test-only inventory/status hygiene** and a documented non-inventory project task.
 - Inventory guard policy: only documented skipped P-IDs are allowed, currently `P075`; accidental gaps, duplicates, and out-of-order inventory IDs still fail tests.
-- Project-added rule inventory: **79/79** implemented (`P001–P074 plus P076–P080`; historical audit snapshot listed 29/29 at P029).
+- Project-added rule inventory: **80/80** implemented (`P001–P074 plus P076–P081`; historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
 
 ## 5. Commented dissertation data

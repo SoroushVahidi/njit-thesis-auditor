@@ -1688,5 +1688,31 @@
     "remediation": "No direct remediation \u2014 P080 is an extraction capability, not a detection rule. Use generated outputs under data/evaluation/generated/ (gitignored) to review EF comment metadata on DOCX drafts.",
     "source_file": "project_added",
     "notes": "Adds docx-comments CLI group with extract subcommand. No changes to PDF/TeX detection behavior. Canonical five-PDF aggregate remains 1,543. python-docx added as a project dependency. Unlocks EF comment extraction from 2 previously-inaccessible DOCX files in the Ester dataset."
+  },
+  {
+    "id": "P081",
+    "title": "P013/P026 Over-Warning Calibration Rollup",
+    "description": "Reporting-only refinement that extends the existing P013 and P026 grouped triage summaries with calibration buckets, dominant-pattern labels, and compact page-range summaries so routine high-volume patterns are easier to down-rank during human review. Raw findings, detector thresholds, issue types, and severities remain unchanged.",
+    "section": "Reporting / Triage",
+    "question": "Are routine high-volume P013 and P026 patterns clearly separated from higher-signal outliers in JSON and Markdown reports?",
+    "rule_definition": "Reporting refinement only: reuse existing P013 and P026 finding details after detection, derive privacy-safe dominant-pattern labels and calibration buckets from observed_summary, confidence, candidate_count_on_page, issue_type, and affected page numbers, then expose the rollups within grouped_summary.p013_triage and grouped_summary.p026_font_triage plus their Markdown sections. No detector logic changes, no threshold changes, no raw finding suppression, and no new issue types.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.report_outputs",
+    "rule_type": "reporting_refinement",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/report_outputs.py",
+      "tests/test_report_outputs.py"
+    ],
+    "issue_types": [],
+    "affected_rules": [
+      "P013",
+      "P026"
+    ],
+    "remediation": "No direct remediation \u2014 P081 adds report-level calibration summaries so reviewers can quickly distinguish routine dominant-pattern P013/P026 warnings from outlier pages while preserving the full raw findings list.",
+    "source_file": "project_added",
+    "notes": "Reporting-only. P013 and P026 detector logic, thresholds, issue types, severities, and raw counts remain unchanged. Canonical five-PDF aggregate remains 1,543. Landscape page-number orientation is explicitly deferred."
   }
 ]
