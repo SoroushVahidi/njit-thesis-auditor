@@ -31,7 +31,7 @@ python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 
 Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
 **ZIP** uploads through the same form. PDF uploads run the **current implemented PDF layout
-audit** (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, P077, and P079 infrastructure/reporting
+audit** (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, P077, P079, and P081 infrastructure/reporting
 refinements);
 TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
 `.tex` is detected — no LaTeX compilation). All supported uploads use
@@ -85,7 +85,7 @@ njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
 ```
 
 Runs the current implemented PDF layout and formatting checks on digital PDFs (P011–P068
-and P074 and P078 standalone rules plus P069–P073, P076, P077, and P079 infrastructure/reporting refinements). Optional `--json-out`
+and P074 and P078 standalone rules plus P069–P073, P076, P077, P079, and P081 infrastructure/reporting refinements). Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -95,9 +95,9 @@ rollups (detection unchanged):
 |---|---|---|
 | `p011_margin_triage` | P011 | Margin side counts, overflow by side, page ranges |
 | `p012_annotation_triage` | P012 | Annotation type counts and page ranges (no comment text) |
-| `p013_triage` | P013 | Page-number candidate patterns and multi-candidate pages |
+| `p013_triage` | P013 / P081 | Page-number candidate patterns, dominant routine-vs-outlier labels, confidence buckets, and multi-candidate page ranges |
 | `p019_page_numbering_triage` | P019 / P073 | Page-numbering triage tiers, categories, and reviewer guidance |
-| `p026_font_triage` | P026 | Font/size issue counts and label page ranges |
+| `p026_font_triage` | P026 / P081 | Font/size issue counts, dominant document-wide patterns, calibration buckets, and compact label page ranges |
 | `p036_toc_list_spacing_triage` | P036 / P076 | TOC/LoT/LoF spacing issue counts, section ranges, and gap-ratio buckets |
 | `p038_frontmatter_heading_triage` | P038 / P077 | Front-matter heading presence/phrase-variant issue counts and page ranges |
 | `p044_abstract_indentation_triage` | P044 / P079 | Abstract paragraph indentation issue type, source Q-rule, paragraph index, and page range counts |
@@ -105,7 +105,7 @@ rollups (detection unchanged):
 The Markdown report includes a "Repeated Findings Summary" table and P011/P012/P013/P019/P026/P036/P038/P044
 triage sections (when present) before the full raw findings.
 
-Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P077, and P079 are infrastructure/reporting refinements with no standalone issue types):
+Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P077, P079, and P081 are infrastructure/reporting refinements with no standalone issue types):
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -190,11 +190,11 @@ All findings are heuristic warnings and require manual review.
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
 | P080 DOCX extraction | `docs/evaluation/expanded_ester_dataset_evaluation.md` |
-| Current validation | Repository progress: P001–P080 (79 inventory rules spanning P001–P080, with P075 documented as a non-inventory project task); **1104 pytest** |
+| Current validation | Repository progress: P001–P081 (80 inventory rules spanning P001–P081, with P075 documented as a non-inventory project task); **1106 pytest** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
-project-added rule inventory entry should be `P081` while accidental gaps, duplicates, and
+project-added rule inventory entry should be `P082` while accidental gaps, duplicates, and
 out-of-order IDs still fail tests.
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.

@@ -191,6 +191,22 @@ def compact_page_list(pages: list[int], max_ranges: int = _MAX_COMPACT_RANGES) -
     return result
 
 
+def _share_pct(count: int, total: int) -> float:
+    """Return a compact percentage for report summaries."""
+    if total <= 0:
+        return 0.0
+    return round((count / total) * 100.0, 1)
+
+
+def _bucket_summary(pages: list[int]) -> dict[str, Any]:
+    """Build a compact count/range summary for a page bucket."""
+    deduped = sorted(set(pages))
+    return {
+        "count": len(deduped),
+        "pages_compact": compact_page_list(deduped),
+    }
+
+
 def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | None:
     """Build a P013-specific rollup for high-volume page-number candidate triage.
 
@@ -211,6 +227,7 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
     issue_type_counts: Counter[str] = Counter()
     multi_candidate_pages: list[int] = []
     by_observed: dict[str, list[int]] = defaultdict(list)
+    page_rows: list[tuple[int, int, str, str]] = []
 
     for finding in page_findings:
         details = finding.details or {}
@@ -233,6 +250,8 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
         observed = details.get("observed_summary", "")
         if observed and finding.page is not None:
             by_observed[observed].append(finding.page)
+        if finding.page is not None:
+            page_rows.append((finding.page, candidate_count, confidence, observed))
 
     for finding in doc_findings:
         details = finding.details or {}
@@ -243,6 +262,43 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
         for observed, page_list in sorted(
             by_observed.items(), key=lambda item: (-len(item[1]), item[0])
         )[:8]
+    }
+
+    dominant_pattern = ""
+    dominant_pattern_pages: list[int] = []
+    if by_observed:
+        dominant_pattern, dominant_pattern_pages = max(
+            (
+                (observed, sorted(set(page_list)))
+                for observed, page_list in by_observed.items()
+            ),
+            key=lambda item: (len(item[1]), item[0]),
+        )
+
+    routine_pages: list[int] = []
+    other_pages: list[int] = []
+    for page, candidate_count, confidence, observed in page_rows:
+        if candidate_count > 1:
+            continue
+        if observed and observed == dominant_pattern and confidence == "medium":
+            routine_pages.append(page)
+        else:
+            other_pages.append(page)
+
+    affected_page_count = len(pages)
+    dominant_pattern_share = _share_pct(len(dominant_pattern_pages), affected_page_count)
+    routine_share = _share_pct(len(set(routine_pages)), affected_page_count)
+    if routine_share >= 80.0:
+        document_pattern_label = "document_wide_routine_pattern"
+    elif dominant_pattern_share >= 60.0:
+        document_pattern_label = "mostly_routine_pattern_with_outliers"
+    else:
+        document_pattern_label = "mixed_candidate_patterns"
+
+    calibration_buckets = {
+        "routine_single_candidate_dominant_pattern": _bucket_summary(routine_pages),
+        "multi_candidate_pages": _bucket_summary(multi_candidate_pages),
+        "other_pattern_or_low_confidence": _bucket_summary(other_pages),
     }
 
     return {
@@ -258,6 +314,17 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
         "pages_with_multiple_candidates": len(multi_candidate_pages),
         "multiple_candidate_pages_compact": compact_page_list(multi_candidate_pages),
         "pattern_page_ranges": pattern_page_ranges,
+        "document_pattern_label": document_pattern_label,
+        "dominant_pattern": dominant_pattern,
+        "dominant_pattern_page_count": len(dominant_pattern_pages),
+        "dominant_pattern_pages_compact": compact_page_list(dominant_pattern_pages),
+        "dominant_pattern_share_pct": dominant_pattern_share,
+        "calibration_buckets": calibration_buckets,
+        "calibration_note": (
+            "Calibration buckets organize routine dominant-pattern pages separately from "
+            "multi-candidate and non-dominant pages for manual triage only. Raw P013 "
+            "warnings are not suppressed or re-scored."
+        ),
         "triage_tier": "informational",
         "triage_note": (
             "P013 reports heuristic page-number candidates for manual NJIT verification. "
@@ -291,6 +358,7 @@ def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, An
     size_label_counts: Counter[str] = Counter()
     by_pattern: dict[str, list[int]] = defaultdict(list)
     pages_by_issue: dict[str, set[int]] = defaultdict(set)
+    page_rows: dict[int, list[tuple[str, str, str]]] = defaultdict(list)
 
     for finding in p026_findings:
         details = finding.details or {}
@@ -308,6 +376,7 @@ def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, An
             pages_by_issue[issue_type].add(finding.page)
             pattern_key = _p026_pattern_key(issue_type, observed)
             by_pattern[pattern_key].append(finding.page)
+            page_rows[finding.page].append((issue_type, observed, confidence))
 
     family_pages = pages_by_issue.get(P026_FAMILY_ISSUE_TYPE, set())
     size_pages = pages_by_issue.get(P026_SIZE_ISSUE_TYPE, set())
@@ -318,6 +387,59 @@ def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, An
         for pattern, page_list in sorted(
             by_pattern.items(), key=lambda item: (-len(item[1]), item[0])
         )[:8]
+    }
+
+    dominant_pattern = ""
+    dominant_pattern_pages: list[int] = []
+    if by_pattern:
+        dominant_pattern, dominant_pattern_pages = max(
+            (
+                (pattern, sorted(set(page_list)))
+                for pattern, page_list in by_pattern.items()
+            ),
+            key=lambda item: (len(item[1]), item[0]),
+        )
+
+    routine_pages: list[int] = []
+    size_only_pages: list[int] = []
+    non_dominant_pages: list[int] = []
+    for page, entries in sorted(page_rows.items()):
+        issue_types = {issue_type for issue_type, _, _ in entries if issue_type}
+        has_size_issue = P026_SIZE_ISSUE_TYPE in issue_types
+        page_patterns = {
+            _p026_pattern_key(issue_type, observed)
+            for issue_type, observed, _ in entries
+        }
+        confidences = {confidence for _, _, confidence in entries if confidence}
+        if len(issue_types) > 1:
+            continue
+        if has_size_issue:
+            size_only_pages.append(page)
+            continue
+        if (
+            dominant_pattern
+            and page_patterns == {dominant_pattern}
+            and confidences <= {"medium"}
+        ):
+            routine_pages.append(page)
+        else:
+            non_dominant_pages.append(page)
+
+    affected_page_count = len(pages)
+    dominant_pattern_share = _share_pct(len(dominant_pattern_pages), affected_page_count)
+    routine_share = _share_pct(len(set(routine_pages)), affected_page_count)
+    if routine_share >= 75.0 and not both_pages and not size_only_pages:
+        document_pattern_label = "document_wide_single_font_pattern"
+    elif dominant_pattern_share >= 50.0:
+        document_pattern_label = "dominant_font_pattern_with_outliers"
+    else:
+        document_pattern_label = "mixed_font_patterns"
+
+    calibration_buckets = {
+        "routine_single_issue_dominant_pattern": _bucket_summary(routine_pages),
+        "pages_with_both_issue_types": _bucket_summary(both_pages),
+        "size_issue_only_pages": _bucket_summary(size_only_pages),
+        "non_dominant_family_only_pages": _bucket_summary(non_dominant_pages),
     }
 
     return {
@@ -335,6 +457,17 @@ def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, An
         "pages_with_both_issue_types": len(both_pages),
         "both_issue_types_pages_compact": compact_page_list(both_pages),
         "pattern_page_ranges": pattern_page_ranges,
+        "document_pattern_label": document_pattern_label,
+        "dominant_pattern": dominant_pattern,
+        "dominant_pattern_page_count": len(dominant_pattern_pages),
+        "dominant_pattern_pages_compact": compact_page_list(dominant_pattern_pages),
+        "dominant_pattern_share_pct": dominant_pattern_share,
+        "calibration_buckets": calibration_buckets,
+        "calibration_note": (
+            "Calibration buckets separate routine dominant-pattern pages from size-driven, "
+            "mixed-issue, and non-dominant pages for manual triage only. Raw P026 warnings "
+            "are not suppressed or re-scored."
+        ),
         "triage_tier": "informational",
         "triage_note": (
             "P026 reports heuristic body-font size/family compliance warnings for manual "
@@ -1136,6 +1269,42 @@ def _format_p013_triage_section(grouped: dict[str, Any]) -> list[str]:
             lines.append(f"- `{observed}`: pages {page_range}")
         lines.append("")
 
+    dominant_pattern = triage.get("dominant_pattern", "")
+    if dominant_pattern:
+        lines.append("### Calibration summary")
+        lines.append("")
+        lines.append(
+            f"Document pattern label: `{triage.get('document_pattern_label', '')}`"
+        )
+        lines.append(
+            f"Dominant pattern `{dominant_pattern}` covers "
+            f"{triage.get('dominant_pattern_page_count', 0)} page(s) "
+            f"({triage.get('dominant_pattern_share_pct', 0.0)}%)."
+        )
+        lines.append("")
+
+    calibration_buckets = triage.get("calibration_buckets", {})
+    if calibration_buckets:
+        lines.append("### Calibration buckets")
+        lines.append("")
+        lines.append(
+            triage.get(
+                "calibration_note",
+                "Calibration buckets are triage-only summaries; raw findings remain below.",
+            )
+        )
+        lines.append("")
+        for bucket_name, bucket in calibration_buckets.items():
+            lines.append(
+                f"- `{bucket_name}`: {bucket.get('count', 0)} page(s)"
+                + (
+                    f" — pages {bucket.get('pages_compact', '')}"
+                    if bucket.get("pages_compact")
+                    else ""
+                )
+            )
+        lines.append("")
+
     multi_compact = triage.get("multiple_candidate_pages_compact", "")
     if multi_compact:
         lines.append(f"Pages with multiple candidates: {multi_compact}")
@@ -1204,6 +1373,42 @@ def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
         lines.append("")
         for pattern, page_range in pattern_ranges.items():
             lines.append(f"- `{pattern}`: pages {page_range}")
+        lines.append("")
+
+    dominant_pattern = triage.get("dominant_pattern", "")
+    if dominant_pattern:
+        lines.append("### Calibration summary")
+        lines.append("")
+        lines.append(
+            f"Document pattern label: `{triage.get('document_pattern_label', '')}`"
+        )
+        lines.append(
+            f"Dominant pattern `{dominant_pattern}` covers "
+            f"{triage.get('dominant_pattern_page_count', 0)} page(s) "
+            f"({triage.get('dominant_pattern_share_pct', 0.0)}%)."
+        )
+        lines.append("")
+
+    calibration_buckets = triage.get("calibration_buckets", {})
+    if calibration_buckets:
+        lines.append("### Calibration buckets")
+        lines.append("")
+        lines.append(
+            triage.get(
+                "calibration_note",
+                "Calibration buckets are triage-only summaries; raw findings remain below.",
+            )
+        )
+        lines.append("")
+        for bucket_name, bucket in calibration_buckets.items():
+            lines.append(
+                f"- `{bucket_name}`: {bucket.get('count', 0)} page(s)"
+                + (
+                    f" — pages {bucket.get('pages_compact', '')}"
+                    if bucket.get("pages_compact")
+                    else ""
+                )
+            )
         lines.append("")
 
     affected_compact = triage.get("affected_pages_compact", "")

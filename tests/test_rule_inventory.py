@@ -71,6 +71,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
+    assert len(project_rules) == 80
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -388,6 +389,43 @@ def test_project_added_rules_implemented() -> None:
     assert by_id["P076"]["rule_type"] == "reporting_refinement"
     assert by_id["P076"]["affected_rules"] == ["P036"]
     assert by_id["P076"]["issue_types"] == []
+    assert "P077" in by_id
+    assert by_id["P077"]["implementation_status"] == "implemented"
+    assert by_id["P077"]["phase"] == "pdf_layout"
+    assert by_id["P077"]["implementation_module"] == "njit_auditor.report_outputs"
+    assert by_id["P077"]["rule_type"] == "reporting_refinement"
+    assert by_id["P077"]["affected_rules"] == ["P038"]
+    assert by_id["P077"]["issue_types"] == []
+    assert "P078" in by_id
+    assert by_id["P078"]["implementation_status"] == "implemented"
+    assert by_id["P078"]["phase"] == "pdf_layout"
+    assert by_id["P078"]["implementation_module"] == "njit_auditor.rules.pdf_abstract"
+    assert by_id["P078"]["rule_type"] == "detection"
+    assert by_id["P078"]["source_q_rule_ids"] == ["Q004", "Q005"]
+    assert by_id["P078"]["issue_types"] == [
+        "abstract_pdf_forbidden_term",
+        "abstract_pdf_first_person_pronoun",
+    ]
+    assert "P079" in by_id
+    assert by_id["P079"]["implementation_status"] == "implemented"
+    assert by_id["P079"]["phase"] == "pdf_layout"
+    assert by_id["P079"]["implementation_module"] == "njit_auditor.report_outputs"
+    assert by_id["P079"]["rule_type"] == "reporting_refinement"
+    assert by_id["P079"]["affected_rules"] == ["P044"]
+    assert by_id["P079"]["issue_types"] == []
+    assert "P080" in by_id
+    assert by_id["P080"]["implementation_status"] == "implemented"
+    assert by_id["P080"]["phase"] == "docx_comments"
+    assert by_id["P080"]["implementation_module"] == "njit_auditor.docx_comments"
+    assert by_id["P080"]["rule_type"] == "infrastructure"
+    assert by_id["P080"]["issue_types"] == []
+    assert "P081" in by_id
+    assert by_id["P081"]["implementation_status"] == "implemented"
+    assert by_id["P081"]["phase"] == "pdf_layout"
+    assert by_id["P081"]["implementation_module"] == "njit_auditor.report_outputs"
+    assert by_id["P081"]["rule_type"] == "reporting_refinement"
+    assert by_id["P081"]["affected_rules"] == ["P013", "P026"]
+    assert by_id["P081"]["issue_types"] == []
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

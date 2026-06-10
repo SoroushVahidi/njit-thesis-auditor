@@ -328,6 +328,22 @@ def test_p013_triage_consecutive_pages_compact_range() -> None:
     assert "1-8" in triage["affected_pages_compact"]
 
 
+def test_p013_calibration_buckets_and_pattern_label() -> None:
+    triage = build_p013_triage_summary(_p013_findings(8))
+    assert triage is not None
+    assert triage["document_pattern_label"] == "mostly_routine_pattern_with_outliers"
+    assert triage["dominant_pattern"] == "bottom_center/arabic"
+    assert triage["dominant_pattern_page_count"] == 5
+    assert triage["dominant_pattern_share_pct"] == 62.5
+    buckets = triage["calibration_buckets"]
+    assert buckets["routine_single_candidate_dominant_pattern"]["count"] == 4
+    assert buckets["routine_single_candidate_dominant_pattern"]["pages_compact"] == "1-2, 4-5"
+    assert buckets["multi_candidate_pages"]["count"] == 1
+    assert buckets["multi_candidate_pages"]["pages_compact"] == "3"
+    assert buckets["other_pattern_or_low_confidence"]["count"] == 3
+    assert buckets["other_pattern_or_low_confidence"]["pages_compact"] == "6-8"
+
+
 def test_p013_triage_in_grouped_summary() -> None:
     findings = _p013_findings(8)
     summary = build_grouped_summary(findings)
@@ -348,6 +364,9 @@ def test_markdown_report_includes_p013_triage_section(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "P013 Page-Number Candidate Triage" in text
     assert "bottom_center/arabic" in text
+    assert "Calibration buckets" in text
+    assert "Document pattern label" in text
+    assert "not suppressed or re-scored" in text
     assert "Issue type counts" in text
     triage_pos = text.index("P013 Page-Number Candidate Triage")
     findings_pos = text.index("Findings by Rule")
@@ -388,6 +407,24 @@ def test_p026_triage_consecutive_pages_compact_range() -> None:
     assert "1-10" in triage["affected_pages_compact"]
 
 
+def test_p026_calibration_buckets_and_pattern_label() -> None:
+    triage = build_p026_font_triage_summary(_p026_mixed_findings())
+    assert triage is not None
+    assert triage["document_pattern_label"] == "dominant_font_pattern_with_outliers"
+    assert triage["dominant_pattern"] == f"{P026_FAMILY_ISSUE_TYPE}/CMR12"
+    assert triage["dominant_pattern_page_count"] == 5
+    assert triage["dominant_pattern_share_pct"] == 50.0
+    buckets = triage["calibration_buckets"]
+    assert buckets["routine_single_issue_dominant_pattern"]["count"] == 5
+    assert buckets["routine_single_issue_dominant_pattern"]["pages_compact"] == "1-5"
+    assert buckets["pages_with_both_issue_types"]["count"] == 0
+    assert buckets["pages_with_both_issue_types"]["pages_compact"] == ""
+    assert buckets["size_issue_only_pages"]["count"] == 2
+    assert buckets["size_issue_only_pages"]["pages_compact"] == "9-10"
+    assert buckets["non_dominant_family_only_pages"]["count"] == 3
+    assert buckets["non_dominant_family_only_pages"]["pages_compact"] == "6-8"
+
+
 def test_p026_triage_in_grouped_summary() -> None:
     summary = build_grouped_summary(_p026_mixed_findings())
     assert summary["p026_font_triage"]["affected_page_count"] == 10
@@ -406,6 +443,9 @@ def test_markdown_report_includes_p026_triage_section(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "P026 Body Font Compliance Triage" in text
     assert "CMR12" in text
+    assert "Calibration buckets" in text
+    assert "Document pattern label" in text
+    assert "not suppressed or re-scored" in text
     assert "Issue type counts" in text
     triage_pos = text.index("P026 Body Font Compliance Triage")
     findings_pos = text.index("Findings by Rule")
