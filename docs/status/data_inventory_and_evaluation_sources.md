@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated: P081 P013/P026 calibration rollup)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`333b99f` post-P080 overlap baseline; **1106** pytest); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
+- Date: 2026-06-09 (updated: final status refresh after P081 / PR #288)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`bd9f7f1` post-P081 status baseline; **1106 passed**); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -9,7 +9,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076–P081** implementation rules; repository-level progress is **P001-P081** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P082**. P080 adds DOCX comment extraction infrastructure (`njit-audit docx-comments extract`); P081 adds reporting-only P013/P026 calibration buckets in JSON/Markdown reports.
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076–P081** implementation rules; repository-level progress is **P001-P081** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry should be **P082**. The final PR chain is: PR #285 expanded Ester dataset import, PR #286 P080 DOCX extraction, PR #287 post-P080 DOCX+PDF overlap evaluation, PR #288 P081 reporting-only P013/P026 calibration.
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -60,6 +60,7 @@ From the strict post-P029 audit plus post-audit updates through P081
 - Inventory guard policy: only documented skipped P-IDs are allowed, currently `P075`; accidental gaps, duplicates, and out-of-order inventory IDs still fail tests.
 - Project-added rule inventory: **80/80** implemented (`P001–P074 plus P076–P081`; historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
+- Recommendation: pause implementation unless P082 is explicitly scoped; landscape page-number orientation remains the clearest deferred P082 candidate.
 
 ## 5. Commented dissertation data
 
