@@ -1660,9 +1660,33 @@
       "tests/test_report_outputs.py"
     ],
     "issue_types": [],
-    "affected_rules": ["P044"],
-    "remediation": "No direct remediation — P079 adds report-level triage for existing P044 findings so reviewers can identify first-paragraph indentation issues and unindented subsequent paragraphs in the Abstract.",
+    "affected_rules": [
+      "P044"
+    ],
+    "remediation": "No direct remediation \u2014 P079 adds report-level triage for existing P044 findings so reviewers can identify first-paragraph indentation issues and unindented subsequent paragraphs in the Abstract.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P044 findings, details, and detection behavior unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
+  },
+  {
+    "id": "P080",
+    "title": "DOCX Comment and Tracked-Change Extraction",
+    "description": "Infrastructure reporting capability that extracts comment metadata and tracked-change counts from DOCX dissertation drafts. Adds njit-audit docx-comments extract CLI subcommand mirroring pdf-comments extract. Produces privacy-safe JSON/Markdown output with aggregate metadata only; no dissertation body text reproduced.",
+    "section": "Infrastructure",
+    "question": "Can the auditor extract EF comment and tracked-change metadata from DOCX dissertation drafts?",
+    "rule_definition": "Open the DOCX as a ZIP archive. Parse word/comments.xml to extract per-comment metadata (id, author, date, truncated preview, has_content flag, char_count). Parse word/document.xml to count w:ins (insertions) and w:del (deletions) tracked-change elements. Write aggregate JSON and Markdown reports. Truncate comment previews to 120 characters. Return empty results gracefully for missing parts or unreadable files. Do not reproduce dissertation body text.",
+    "severity": "info",
+    "phase": "docx_comments",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.docx_comments",
+    "rule_type": "infrastructure",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/docx_comments.py",
+      "src/njit_auditor/cli.py"
+    ],
+    "issue_types": [],
+    "remediation": "No direct remediation \u2014 P080 is an extraction capability, not a detection rule. Use generated outputs under data/evaluation/generated/ (gitignored) to review EF comment metadata on DOCX drafts.",
+    "source_file": "project_added",
+    "notes": "Adds docx-comments CLI group with extract subcommand. No changes to PDF/TeX detection behavior. Canonical five-PDF aggregate remains 1,543. python-docx added as a project dependency. Unlocks EF comment extraction from 2 previously-inaccessible DOCX files in the Ester dataset."
   }
 ]

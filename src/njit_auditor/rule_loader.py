@@ -18,7 +18,9 @@ REQUIRED_RULE_FIELDS = {
     "source_file",
     "implementation_status",
 }
-ALLOWED_PHASES = {"tex_source", "latex_compile", "pdf_layout", "mixed", "manual_review"}
+ALLOWED_PHASES = {
+    "tex_source", "latex_compile", "pdf_layout", "mixed", "manual_review", "docx_comments"
+}
 ALLOWED_CHECKABILITY = {"deterministic", "heuristic", "visual", "manual"}
 ALLOWED_PRIORITY = {"high", "medium", "low"}
 
@@ -35,7 +37,10 @@ class RuleDefinition(BaseModel):
     source_file: str
     implementation_status: str
     phase: (
-        Literal["tex_source", "latex_compile", "pdf_layout", "mixed", "manual_review"] | None
+        Literal[
+            "tex_source", "latex_compile", "pdf_layout", "mixed", "manual_review", "docx_comments"
+        ]
+        | None
     ) = None
     checkability: Literal["deterministic", "heuristic", "visual", "manual"] | None = None
     input_required: list[str] | None = None

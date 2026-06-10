@@ -189,11 +189,12 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Current validation | Repository progress: P001–P079 (78 inventory rules spanning P001–P079, with P075 documented as a non-inventory project task); **1091 pytest** |
+| P080 DOCX extraction | `docs/evaluation/expanded_ester_dataset_evaluation.md` |
+| Current validation | Repository progress: P001–P080 (79 inventory rules spanning P001–P080, with P075 documented as a non-inventory project task); **1104 pytest** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
-project-added rule inventory entry should be `P080` while accidental gaps, duplicates, and
+project-added rule inventory entry should be `P081` while accidental gaps, duplicates, and
 out-of-order IDs still fail tests.
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
