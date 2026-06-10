@@ -1,7 +1,7 @@
 # Project Closeout and Summary
 
-- **Date:** 2026-06-09 (final status refresh after PR #288)
-- **Latest main:** `bd9f7f1` (PR #288 — P081 reporting-only P013/P026 calibration rollup)
+- **Date:** 2026-06-09 (post-audit cleanup after PR #289)
+- **Latest main:** `2745497` (PR #289 — post-audit docs/manifest cleanup after P081)
 - **Scope at closeout:** P001–P081 implemented; 80 rule inventory entries; **1106 pytest passed**; ruff clean; mypy clean
 - **Canonical five-PDF aggregate:** **1,543** findings — `docs/evaluation/current_auditor_after_p070_evaluation.md`
 - **Status:** Project has reached natural completion for the current deterministic, local-first tooling tier. P081 is reporting-only; detector logic and raw finding counts are unchanged. All remaining unimplemented Q-rules require manual review, semantic/NLP capability, or OCR — none are viable within the current heuristic bar. Implementation should remain paused unless P082 is explicitly scoped.
