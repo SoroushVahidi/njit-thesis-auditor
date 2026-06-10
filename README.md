@@ -178,6 +178,7 @@ All findings are heuristic warnings and require manual review.
 
 | Artifact | Path |
 |---|---|
+| Project closeout and summary | `docs/status/project_closeout.md` |
 | Full repository audit (P079 era) | `docs/status/full_repository_audit_after_p079.md` |
 | Full repository audit (P071 era) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
 | Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P079) |
@@ -247,6 +248,7 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 ```
 
 More docs:
+- `docs/status/project_closeout.md` — project closeout and summary (final rule state, limitations, future phases, handoff notes)
 - `docs/status/current_project_state_and_next_steps.md` — current implementation state and next steps
 - `docs/status/full_repository_audit_after_p079.md` — comprehensive post-P079 repository audit (P001–P079, triage infrastructure, Q-rule landscape, forward-looking notes)
 - `docs/status/full_repository_audit_after_p071.md` — comprehensive post-P071 repository audit (P001–P071, EF overlap, gaps, next priorities)

@@ -2,6 +2,7 @@
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
 - **Latest main:** `53f06e5` (PR #282 — P079 P044 Abstract indentation triage rollup)
+- **Project closeout and summary:** `docs/status/project_closeout.md`
 - **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged
