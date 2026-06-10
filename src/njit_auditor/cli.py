@@ -9,6 +9,12 @@ from pymupdf import FileDataError
 from rich.console import Console
 
 from njit_auditor.audit_runner import collect_pdf_layout_findings, collect_tex_findings
+from njit_auditor.docx_comments import (
+    count_docx_tracked_changes,
+    extract_docx_comments,
+    write_docx_comments_json,
+    write_docx_comments_markdown,
+)
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_comments import (
     extract_pdf_annotations,
@@ -26,6 +32,7 @@ from njit_auditor.rules.title_page import run_title_page_month_check
 
 app = typer.Typer(help="Local-first NJIT thesis/dissertation formatting auditor")
 pdf_comments_app = typer.Typer(help="PDF annotation extraction and clean-copy workflow.")
+docx_comments_app = typer.Typer(help="DOCX comment and tracked-change extraction.")
 console = Console()
 
 
@@ -221,6 +228,41 @@ def pdf_comments_clean(
 
 
 app.add_typer(pdf_comments_app, name="pdf-comments")
+
+
+@docx_comments_app.command("extract")
+def docx_comments_extract(
+    input_docx: str,
+    json_out: str = typer.Option(..., "--json-out", help="Path to JSON output."),
+    md_out: str = typer.Option(..., "--md-out", help="Path to Markdown output."),
+) -> None:
+    """Extract comment and tracked-change metadata from a DOCX into JSON/Markdown."""
+    input_path = Path(input_docx)
+    if not input_path.exists():
+        console.print(f"[red]File not found:[/red] {input_path}")
+        raise typer.Exit(code=1)
+    if input_path.suffix.lower() != ".docx":
+        console.print("[red]Input must be a .docx file.[/red]")
+        raise typer.Exit(code=1)
+
+    comments = extract_docx_comments(input_path)
+    tracked = count_docx_tracked_changes(input_path)
+
+    json_path = Path(json_out)
+    md_path = Path(md_out)
+    write_docx_comments_json(comments, tracked, json_path)
+    write_docx_comments_markdown(comments, tracked, md_path)
+
+    console.print(f"[green]Comments extracted:[/green] {len(comments)}")
+    console.print(
+        f"[green]Tracked changes:[/green] "
+        f"{tracked['insertions']} insertions, {tracked['deletions']} deletions"
+    )
+    console.print(f"[green]JSON:[/green] {json_path}")
+    console.print(f"[green]Markdown:[/green] {md_path}")
+
+
+app.add_typer(docx_comments_app, name="docx-comments")
 
 
 if __name__ == "__main__":
