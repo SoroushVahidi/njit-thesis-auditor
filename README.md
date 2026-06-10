@@ -82,10 +82,11 @@ scenario mapping.
 ```bash
 njit-audit pdf path/to/thesis.pdf
 njit-audit pdf path/to/thesis.pdf --json-out report.json --md-out report.md
+njit-audit pdf path/to/thesis.pdf --enable-experimental P082
 ```
 
 Runs the current implemented PDF layout and formatting checks on digital PDFs (P011–P068
-and P074 and P078 standalone rules plus P069–P073, P076, P077, P079, and P081 infrastructure/reporting refinements). Optional `--json-out`
+and P074 and P078 standalone rules plus P069–P073, P076, P077, P079, and P081 infrastructure/reporting refinements). P082 is experimental and disabled by default; pass `--enable-experimental P082` to opt in. Optional `--json-out`
 and `--md-out` flags write structured reports. The JSON report includes a
 `grouped_summary` field that aggregates high-volume repeated findings by rule and
 issue type for triage. High-volume rules also get optional **reporting-only** triage
@@ -169,19 +170,23 @@ Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P
 | P068 | Front matter | Approval Page committee/signature-block structural check: on a uniquely detected APPROVAL PAGE, counts curated advisor/committee role-label phrases and date/signature/underscore-blank indicators; warns with `approval_page_advisor_role_label_missing` or `approval_page_signature_blocks_sparse`; skips sparse/noisy/image-only pages; no committee names or signature text in findings |
 | P074 | Front matter | Title Page graduation month validation: emits `title_page_graduation_month_invalid` when a detected title-page month/year line uses a month other than August, December, or May; silent when no month/year line is extractable; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P074 findings |
 | P078 | Abstract | PDF Abstract forbidden-term and pronoun check: emits `abstract_pdf_forbidden_term` (Q004) when forbidden terms (paper, papers, article, articles) appear in the Abstract page body text; emits `abstract_pdf_first_person_pronoun` (Q005) when first-person pronouns (i, me, my, mine, we, us, our, ours) appear; scoped to Abstract page only via existing heading and body-text helpers; at most one finding per unique token (deduplicated); privacy-safe token-only findings; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P078 findings |
+| P082 | Page numbering | **Experimental opt-in** landscape page-number orientation advisory: disabled by default; enable with `--enable-experimental P082`; inspects visually landscape pages with one accepted medium-confidence P013 candidate; emits `landscape_page_number_orientation_advisory` and `landscape_page_number_position_advisory` (warning/manual-review only); observational over existing page-number candidates; does not change P013/P019/P028/P029/P037 or default canonical aggregate (1,543) |
 
 **Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall (P064 companion); P072 approval-page heading-gate recall; P073 P019 page-numbering triage rollup; P076 P036 TOC/LoT/LoF spacing triage rollup; P077 P038 front-matter heading triage rollup; P079 P044 Abstract paragraph indentation triage rollup; P081 P013/P026 reporting calibration refinement.
 
+**Experimental advisories (opt-in, disabled by default):** P082 landscape page-number orientation advisory — see `docs/planning/p082_landscape_page_number_orientation_scope_and_design.md`.
+
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (post-P081, refreshed through PR #290)
+### Current canonical artifacts (post-P082)
 
 | Artifact | Path |
 |---|---|
 | Project closeout and summary | `docs/status/project_closeout.md` |
 | Full repository audit (P079 era, historical) | `docs/status/full_repository_audit_after_p079.md` |
 | Full repository audit (P071 era, historical) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
-| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged through P081) |
+| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged through P082 in default mode) |
+| P082 synthetic validation | `docs/evaluation/p082_landscape_page_number_orientation_synthetic_validation.md` |
 | Expanded Ester dataset import | `docs/evaluation/expanded_ester_dataset_evaluation.md` |
 | Post-P080 DOCX+PDF overlap | `docs/evaluation/post_p080_docx_pdf_overlap_evaluation.md` |
 | Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
@@ -191,15 +196,15 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Current validation | Repository progress: P001–P081 (80 inventory rules spanning P001–P081, with P075 documented as a non-inventory project task); **1106 pytest passed** |
+| Current validation | Repository progress: P001–P082 (81 inventory rules spanning P001–P082, with P075 documented as a non-inventory project task); **1124 pytest passed** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
-project-added rule inventory entry should be `P082` while accidental gaps, duplicates, and
+project-added rule inventory entry is `P083` while accidental gaps, duplicates, and
 out-of-order IDs still fail tests.
 
+P082 is implemented but experimental and disabled by default; it does not affect the canonical five-PDF aggregate unless explicitly enabled.
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
-Implementation is paused after P081 unless P082 is explicitly scoped. Landscape page-number orientation remains a possible P082 candidate.
 
 ### LaTeX source audit (P001–P010)
 

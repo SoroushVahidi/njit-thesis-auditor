@@ -13,22 +13,31 @@ from njit_auditor.pdf_models import (
     PdfTextSpan,
 )
 
+LANDSCAPE_ASPECT_THRESHOLD = 1.02
+
+
+def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
+    if not isinstance(raw_dir, (list, tuple)) or len(raw_dir) < 2:
+        return None
+    return (float(raw_dir[0]), float(raw_dir[1]))
+
+
+def _is_visually_landscape(width: float, height: float) -> bool:
+    return width > height * LANDSCAPE_ASPECT_THRESHOLD
+
 
 def _style_flags_from_font_name(font_name: str | None) -> tuple[bool, bool]:
     """Infer bold/italic from PDF font name including Computer Modern variants."""
     if not font_name:
         return False, False
     lowered = font_name.lower()
-    # Strip embedded subset prefix (e.g. "ABCDEF+CMBX12" → "cmbx12").
     base = lowered.split("+")[-1]
-    # Bold: standard keyword hints + Computer Modern Bold Extended (CMBX family).
     bold = (
         "bold" in lowered
         or "black" in lowered
         or "heavy" in lowered
         or base.startswith("cmbx")
     )
-    # Italic: standard keyword hints + Computer Modern Text Italic (CMTI) and Slant (CMSL).
     italic = (
         "italic" in lowered
         or "oblique" in lowered
@@ -44,18 +53,20 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
     pages: list[PdfPage] = []
     with fitz.open(pdf_path) as doc:
         for page_index, page in enumerate(doc, start=1):
+            page_width = float(page.rect.width)
+            page_height = float(page.rect.height)
             page_model = PdfPage(
                 page_number=page_index,
-                width=float(page.rect.width),
-                height=float(page.rect.height),
+                width=page_width,
+                height=page_height,
+                page_rotation=int(page.rotation),
+                is_visually_landscape=_is_visually_landscape(page_width, page_height),
                 text_blocks=[],
             )
 
             page_dict = page.get_text("dict")
             for block in page_dict.get("blocks", []):
-                # PyMuPDF block type 0 is text; other types include images etc.
                 if block.get("type") != 0:
-                    # TODO: support image/vector blocks for richer layout checks.
                     continue
                 if "bbox" not in block:
                     continue
@@ -94,6 +105,7 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         continue
                     line_text = "".join(span_text_chunks).strip()
                     block_text_chunks.append(line_text)
+                    wmode_raw = line.get("wmode")
                     block_lines.append(
                         PdfTextLine(
                             spans=spans,
@@ -104,6 +116,8 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                                 y1=float(line["bbox"][3]),
                             ),
                             text=line_text,
+                            line_dir=_parse_line_dir(line.get("dir")),
+                            wmode=int(wmode_raw) if wmode_raw is not None else None,
                         )
                     )
 

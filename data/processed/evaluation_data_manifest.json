@@ -3,30 +3,30 @@
   "generated_for_commit": "722dac0",
   "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
   "canonical_aggregate_findings": 1543,
-  "project_added_rule_inventory_count": 80,
-  "project_added_rule_inventory_range": "P001-P081",
+  "project_added_rule_inventory_count": 81,
+  "project_added_rule_inventory_range": "P001-P082",
   "non_inventory_project_task_ids": [
     "P075"
   ],
   "non_inventory_project_task_notes": {
     "P075": "Test-only inventory/status hygiene from PR #274; documented non-inventory project task; not a project-added rule entry; no detection behavior and no aggregate impact."
   },
-  "next_project_added_rule_id": "P082",
+  "next_project_added_rule_id": "P083",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P081",
-    "pytest_count_at_last_doc_refresh": 1106,
+    "p_rules_implemented": "P001-P082",
+    "pytest_count_at_last_doc_refresh": 1124,
     "latest_main_at_last_doc_refresh": "0f74980",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
-    "project_added_rule_inventory_count": 80,
-    "project_added_rule_inventory_range": "P001-P081",
+    "project_added_rule_inventory_count": 81,
+    "project_added_rule_inventory_range": "P001-P082",
     "non_inventory_project_task_ids": [
       "P075"
     ],
     "non_inventory_project_task_notes": {
       "P075": "Test-only inventory/status hygiene from PR #274; documented non-inventory project task; not a project-added rule entry; no detection behavior and no aggregate impact."
     },
-    "next_project_added_rule_id": "P082",
+    "next_project_added_rule_id": "P083",
     "p075_status_note": "P075 merged in PR #274 as test-only inventory/status hygiene: explicit P073/P074 assertions plus a sequential P-rule guard in tests/test_rule_inventory.py. It is not a project-added rule entry, is now documented as a non-inventory project task, changes no detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p076_status_note": "P076 fully implemented and merged (PR #278, 2026-06-09) as a reporting-only P036 triage rollup: grouped_summary.p036_toc_list_spacing_triage plus a Markdown 'P036 TOC/List Spacing Triage' section in src/njit_auditor/report_outputs.py. It adds no standalone issue types, does not change P036 detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p076_current_dataset_note": "P036 triage rollup: 55 findings on Yin H 4th compressed only (0 on four other files). Triage: toc_inter_entry_spacing_too_tight 42, lof 9, lot 4; section_type: table_of_contents 42, list_of_figures 9, list_of_tables 4; spacing_gap_bucket: slightly_tight 48, very_tight 7; triage_tier: high 55; affected_pages_compact 11-14, 17; gap_ratio min 0.06, max 0.85. Five-PDF evaluation completed 2026-06-09 (commit 722dac0). See docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md",
@@ -88,7 +88,9 @@
     "p074_current_dataset_note": "P074 implementation (2026-06-09): 0 findings on all five PDFs \u2014 all current-dataset PDFs use valid graduation months (or no month/year pattern is extractable from title page). Rule fires only when an invalid month is detected; canonical aggregate 1,543 unchanged. Q073 inventory drift was repaired by adding the missing P073 entry to project_added_rules.json; P075 documents the non-inventory P-ID policy; and P076 adds a reporting-only P036 triage rollup with no detection change. 1056 pytest.",
     "p080_status_note": "P080 fully implemented and merged on branch eval/expanded-ester-dataset as an infrastructure reporting capability: adds njit-audit docx-comments extract CLI subcommand that extracts comment metadata and tracked-change counts from DOCX dissertation drafts (word/comments.xml + word/document.xml) via stdlib zipfile and xml.etree. Produces privacy-safe JSON/Markdown output; no dissertation body text reproduced. python-docx added as project dependency. 13 synthetic tests added. No changes to PDF/TeX detection behavior. Canonical five-PDF aggregate remains 1,543.",
     "p080_current_dataset_note": "P080 DOCX extraction unlocks 2 previously-inaccessible EF-annotated DOCX files: '250409 Sebastian.Fine 3rd Review Draft with EF comments.docx' and '250828 Aguado Alvaro 3rd Review Dissertation Draft with EF comments.docx'. No changes to the canonical five-PDF PDF-auditor aggregate (1,543).",
-    "p081_status_note": "P081 implemented on branch rules/p081-p013-p026-calibration-rollup as a reporting-only P013/P026 over-warning calibration rollup in src/njit_auditor/report_outputs.py. It adds dominant-pattern labels, calibration buckets, and compact page-range summaries to grouped_summary.p013_triage and grouped_summary.p026_font_triage plus their Markdown sections. No P013 or P026 detector logic changes, no threshold changes, no raw finding suppression, no new issue types, and canonical five-PDF aggregate remains 1,543."
+    "p081_status_note": "P081 implemented on branch rules/p081-p013-p026-calibration-rollup as a reporting-only P013/P026 over-warning calibration rollup in src/njit_auditor/report_outputs.py. It adds dominant-pattern labels, calibration buckets, and compact page-range summaries to grouped_summary.p013_triage and grouped_summary.p026_font_triage plus their Markdown sections. No P013 or P026 detector logic changes, no threshold changes, no raw finding suppression, no new issue types, and canonical five-PDF aggregate remains 1,543.",
+    "p082_status_note": "P082 implemented (2026-06-09) as an experimental opt-in landscape page-number orientation advisory. Disabled by default via AuditOptions/--enable-experimental P082. Uses PyMuPDF line_dir, wmode, and page_rotation metadata plus existing P013 page-number candidates. Issues: landscape_page_number_orientation_advisory and landscape_page_number_position_advisory. Warning/manual-review only; does not alter P013/P019/P028/P029/P037. 18 synthetic/helper tests in tests/test_p082_landscape_page_number_orientation.py.",
+    "p082_current_dataset_note": "Default-mode five-PDF audit: 0 P082 findings and canonical aggregate remains 1,543 unchanged. P082 emits findings only when explicitly enabled."
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -197,10 +199,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 80,
-        "rule_id_range": "P001-P081",
+        "rule_count": 81,
+        "rule_id_range": "P001-P082",
         "tracked_status": "tracked",
-        "description": "Project-added rule inventory with 80 implemented entries spanning P001-P081, with P075 documented separately as a non-inventory project task."
+        "description": "Project-added rule inventory with 81 implemented entries spanning P001-P082, with P075 documented separately as a non-inventory project task."
       }
     ],
     "ef_commented_dissertations": [
@@ -419,7 +421,7 @@
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
   },
-  "p_rules_implemented": "P001-P081",
-  "pytest_count_at_last_doc_refresh": 1106,
+  "p_rules_implemented": "P001-P082",
+  "pytest_count_at_last_doc_refresh": 1124,
   "latest_main_at_last_doc_refresh": "0f74980"
 }

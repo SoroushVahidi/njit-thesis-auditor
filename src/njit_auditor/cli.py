@@ -8,6 +8,7 @@ import typer
 from pymupdf import FileDataError
 from rich.console import Console
 
+from njit_auditor.audit_options import AuditOptions
 from njit_auditor.audit_runner import collect_pdf_layout_findings, collect_tex_findings
 from njit_auditor.docx_comments import (
     count_docx_tracked_changes,
@@ -118,6 +119,11 @@ def pdf(
     pdf_path: str,
     json_out: str | None = typer.Option(None, "--json-out", help="Path to JSON report output."),
     md_out: str | None = typer.Option(None, "--md-out", help="Path to Markdown report output."),
+    enable_experimental: list[str] = typer.Option(
+        [],
+        "--enable-experimental",
+        help="Enable experimental opt-in rules (e.g. P082). Repeatable.",
+    ),
 ) -> None:
     """Run Phase 2 foundation PDF layout audit."""
 
@@ -136,7 +142,8 @@ def pdf(
         console.print(f"[yellow]Reason:[/yellow] {exc}")
         raise typer.Exit(code=1) from exc
 
-    findings = collect_pdf_layout_findings(pdf_doc, input_path)
+    audit_options = AuditOptions(experimental_rules=frozenset(enable_experimental))
+    findings = collect_pdf_layout_findings(pdf_doc, input_path, options=audit_options)
 
     page_sizes = [(page.page_number, page.width, page.height) for page in pdf_doc.pages]
     render_pdf_layout_report(

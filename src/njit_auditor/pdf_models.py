@@ -39,6 +39,8 @@ class PdfTextLine(BaseModel):
     spans: list[PdfTextSpan] = Field(default_factory=list)
     bbox: BBox
     text: str
+    line_dir: tuple[float, float] | None = None
+    wmode: int | None = None
 
 
 class PdfTextBlock(BaseModel):
@@ -55,6 +57,8 @@ class PdfPage(BaseModel):
     page_number: int
     width: float
     height: float
+    page_rotation: int = 0
+    is_visually_landscape: bool = False
     text_blocks: list[PdfTextBlock] = Field(default_factory=list)
 
 

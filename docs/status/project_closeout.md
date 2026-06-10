@@ -2,9 +2,9 @@
 
 - **Date:** 2026-06-09 (final whole-repository polish after PR #290)
 - **Latest main:** `0f74980` (PR #290 — final whole-repository polish after P081)
-- **Scope at closeout:** P001–P081 implemented; 80 rule inventory entries; **1106 pytest passed**; ruff clean; mypy clean
-- **Canonical five-PDF aggregate:** **1,543** findings — `docs/evaluation/current_auditor_after_p070_evaluation.md`
-- **Status:** Project has reached natural completion for the current deterministic, local-first tooling tier. P081 is reporting-only; detector logic and raw finding counts are unchanged. All remaining unimplemented Q-rules require manual review, semantic/NLP capability, or OCR — none are viable within the current heuristic bar. Implementation should remain paused unless P082 is explicitly scoped.
+- **Scope at closeout:** P001–P082 implemented; 81 rule inventory entries; **1124 pytest passed**; ruff clean; mypy clean
+- **Canonical five-PDF aggregate:** **1,543** findings — `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged in default mode through P082)
+- **Status:** Project has reached natural completion for the current deterministic, local-first tooling tier. P082 is experimental/opt-in and disabled by default. P081 is reporting-only; detector logic and raw finding counts are unchanged except when P082 is explicitly enabled. All remaining unimplemented Q-rules require manual review, semantic/NLP capability, or OCR — none are viable within the current heuristic bar.
 - **Privacy:** Aggregate-only document; no dissertation body text, EF comment text, author names, reference entries, or approval-page text quoted.
 
 ---
@@ -41,12 +41,12 @@
 
 | Metric | Value |
 |---|---|
-| P-rules in `project_added_rules.json` | **80** (all `implementation_status: implemented`) |
-| Repository progress | **P001–P081** |
+| P-rules in `project_added_rules.json` | **81** (all `implementation_status: implemented`) |
+| Repository progress | **P001–P082** |
 | Documented non-inventory task ID | **P075** (test-only inventory/status hygiene; not a rule entry) |
-| Next project-added rule ID | **P082** (reserved; unassigned) |
+| Next project-added rule ID | **P083** (reserved; unassigned) |
 | Q-rule inventory size | **79** (Q001–Q079) |
-| pytest baseline | **1106** |
+| pytest baseline | **1124** |
 
 ### Rule type breakdown
 
@@ -54,10 +54,11 @@
 |---|---:|---|---|
 | TeX detection | 11 | P001–P010, P021 | Source-level formatting checks; LaTeX structure, abstract language/length, font declarations |
 | PDF detection | 59 | P011–P068, P074, P078 | Layout, margin, font, spacing, page-number, heading, and structural checks on PDF text layer |
+| PDF experimental advisory | 1 | P082 | Opt-in landscape page-number orientation advisory; disabled by default |
 | PDF infrastructure refinements | 4 | P069, P070, P071, P072 | Gate-recall and parser-recall companions; no standalone issue types |
 | PDF reporting refinements | 5 | P073, P076, P077, P079, P081 | Triage rollups and calibration refinements; no standalone issue types; no detection change |
 | DOCX reporting capability | 1 | P080 | Metadata-only comment/tracked-change extraction; no PDF detector change |
-| **Total inventory entries** | **80** | P001–P081 (P075 non-inventory) | |
+| **Total inventory entries** | **81** | P001–P082 (P075 non-inventory) | |
 
 ### Phase 1 (TeX) rules — P001–P010
 

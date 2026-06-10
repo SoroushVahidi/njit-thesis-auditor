@@ -71,7 +71,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 80
+    assert len(project_rules) == 81
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -426,6 +426,18 @@ def test_project_added_rules_implemented() -> None:
     assert by_id["P081"]["rule_type"] == "reporting_refinement"
     assert by_id["P081"]["affected_rules"] == ["P013", "P026"]
     assert by_id["P081"]["issue_types"] == []
+    assert "P082" in by_id
+    assert by_id["P082"]["implementation_status"] == "implemented"
+    assert by_id["P082"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P082"]["implementation_module"]
+        == "njit_auditor.rules.pdf_landscape_page_number_orientation"
+    )
+    assert by_id["P082"]["rule_type"] == "experimental_advisory"
+    assert by_id["P082"]["issue_types"] == [
+        "landscape_page_number_orientation_advisory",
+        "landscape_page_number_position_advisory",
+    ]
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

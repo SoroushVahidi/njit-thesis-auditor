@@ -1713,6 +1713,35 @@
     ],
     "remediation": "No direct remediation \u2014 P081 adds report-level calibration summaries so reviewers can quickly distinguish routine dominant-pattern P013/P026 warnings from outlier pages while preserving the full raw findings list.",
     "source_file": "project_added",
-    "notes": "Reporting-only. P013 and P026 detector logic, thresholds, issue types, severities, and raw counts remain unchanged. Canonical five-PDF aggregate remains 1,543. Landscape page-number orientation is explicitly deferred."
+    "notes": "Reporting-only. P013 and P026 detector logic, thresholds, issue types, severities, and raw counts remain unchanged. Canonical five-PDF aggregate remains 1,543. Landscape page-number orientation is covered experimentally by P082 (opt-in, disabled by default)."
+  },
+  {
+    "id": "P082",
+    "title": "Landscape Page-Number Orientation Advisory",
+    "description": "Experimental opt-in PDF advisory that inspects only visually landscape pages with exactly one accepted medium-confidence page-number candidate from existing P013 detection. Uses PyMuPDF line direction, writing mode, and page rotation metadata to emit manual-review warnings for clear orientation or margin-position outliers. Disabled by default; does not alter P013/P019/P028/P029/P037 behavior or canonical aggregate unless explicitly enabled.",
+    "section": "PDF page numbering",
+    "question": "When P082 is explicitly enabled, do visually landscape pages with accepted page-number candidates show clear orientation or margin-position patterns worth manual review?",
+    "rule_definition": "Experimental opt-in advisory only. Run when --enable-experimental P082 (or AuditOptions.experimental_rules) is set; otherwise emit nothing. On visually landscape pages, reuse existing detect_page_number_candidates() and accept only one medium-confidence candidate per page. Match candidate to text line, read line_dir/wmode/page_rotation, quantize cardinal direction, compute visual_angle, and emit WARNING advisories for vertical text (orientation) or clear top-margin/side-edge placement outliers (position). Skip portrait pages, image-only pages, missing line_dir, unsupported wmode, non-cardinal directions, multiple candidates, unmatched lines, and ambiguous buckets. Privacy-safe geometry metadata only.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_landscape_page_number_orientation",
+    "rule_type": "experimental_advisory",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_landscape_page_number_orientation.py",
+      "src/njit_auditor/pdf_layout.py",
+      "src/njit_auditor/pdf_models.py",
+      "src/njit_auditor/audit_options.py",
+      "src/njit_auditor/audit_runner.py",
+      "src/njit_auditor/cli.py"
+    ],
+    "issue_types": [
+      "landscape_page_number_orientation_advisory",
+      "landscape_page_number_position_advisory"
+    ],
+    "remediation": "Manual review only. University landscape page-number guidance is inconsistent and NJIT-specific hard orientation language was not verified. Verify page-number orientation and footer placement against your program's formatting guidance.",
+    "source_file": "project_added",
+    "notes": "Experimental/opt-in; disabled by default; warning/manual-review only; observational over existing page-number candidates; does not affect canonical five-PDF aggregate in default mode; skips ambiguous/OCR/non-cardinal cases; NJIT-specific landscape orientation rule not verified."
   }
 ]
