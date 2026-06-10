@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
 - Date: 2026-06-09 (updated: P082 experimental landscape page-number orientation advisory)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P082, web UI present on `main` (`0f74980` pre-P082 baseline); project-added rule inventory spans P001–P074 plus P076–P082 (81 entries, with P075 documented separately as non-inventory); **1124 pytest passed**
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P082, web UI present on `main` (`0dc1926` PR #292); project-added rule inventory spans P001–P074 plus P076–P082 (81 entries, with P075 documented separately as non-inventory); **1124 pytest passed**
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
