@@ -71,7 +71,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 81
+    assert len(project_rules) == 82
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -438,6 +438,12 @@ def test_project_added_rules_implemented() -> None:
         "landscape_page_number_orientation_advisory",
         "landscape_page_number_position_advisory",
     ]
+    assert "P083" in by_id
+    assert by_id["P083"]["implementation_status"] == "implemented"
+    assert by_id["P083"]["phase"] == "evaluation_task"
+    assert by_id["P083"]["rule_type"] == "evaluation_task"
+    assert by_id["P083"]["implementation_module"] is None
+    assert by_id["P083"]["issue_types"] == []
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

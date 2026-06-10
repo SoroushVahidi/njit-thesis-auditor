@@ -1743,5 +1743,29 @@
     "remediation": "Manual review only. University landscape page-number guidance is inconsistent and NJIT-specific hard orientation language was not verified. Verify page-number orientation and footer placement against your program's formatting guidance.",
     "source_file": "project_added",
     "notes": "Experimental/opt-in; disabled by default; warning/manual-review only; observational over existing page-number candidates; does not affect canonical five-PDF aggregate in default mode; skips ambiguous/OCR/non-cardinal cases; NJIT-specific landscape orientation rule not verified."
+  },
+  {
+    "id": "P083",
+    "title": "EF-Comment Coverage Taxonomy and In-Scope Gap Register",
+    "description": "Pure evaluation task that classifies 52 EF reviewer comments (extracted from 2 DOCX dissertation drafts via P080) against the auditor's structural rule taxonomy (SIM/SIP/SMI/SBL/SEM/PRF/AMB) and records the in-scope gap register. No new detectors, no detection behavior changes, no canonical aggregate impact. Output: data/processed/ef_comment_coverage.json.",
+    "section": "Evaluation",
+    "question": "How well does the current auditor (P001–P082) cover the EF reviewer comments extracted from the 2 available DOCX dissertation drafts?",
+    "rule_definition": "Evaluation task only. Load data/processed/ef_comment_coverage.json. Verify schema, compute taxonomy class distribution, report in-scope coverage rate (SIM+SIP)/(SIM+SIP+SMI+SBL), and identify SMI rows where the structural gap might qualify for a future detector under the five-gate evidence policy.",
+    "severity": "info",
+    "phase": "evaluation_task",
+    "implementation_status": "implemented",
+    "implementation_module": null,
+    "rule_type": "evaluation_task",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "data/processed/ef_comment_coverage.json",
+      "docs/evaluation/ef_comment_coverage_analysis.md",
+      "docs/planning/ef_comment_candidate_rules.md",
+      "docs/planning/p083_ef_comment_coverage_taxonomy_scope_and_design.md"
+    ],
+    "issue_types": [],
+    "remediation": "No direct remediation — P083 is an evaluation-only task. Use the gap register to decide whether future SMI gaps meet the five-gate evidence bar for new detectors.",
+    "source_file": "project_added",
+    "notes": "Evaluation task only; no source code changes; no detector logic changes; no canonical aggregate impact. Coverage table based on 52 DOCX-extracted EF comments (category-level estimates from post_p080_docx_pdf_overlap_evaluation.md). Bold/heading style gap (10 SMI) is the main in-scope miss; blocked by insufficient document count (only 2 DOCX files) to pass five-gate evidence bar."
   }
 ]

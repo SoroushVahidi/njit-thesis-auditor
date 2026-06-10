@@ -176,17 +176,20 @@ Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P
 
 **Experimental advisories (opt-in, disabled by default):** P082 landscape page-number orientation advisory — see `docs/planning/p082_landscape_page_number_orientation_scope_and_design.md`.
 
+**Evaluation tasks:** P083 EF-comment coverage taxonomy and in-scope gap register — see `docs/planning/p083_ef_comment_coverage_taxonomy_scope_and_design.md` and `data/processed/ef_comment_coverage.json`.
+
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (post-P082)
+### Current canonical artifacts (post-P083)
 
 | Artifact | Path |
 |---|---|
 | Project closeout and summary | `docs/status/project_closeout.md` |
 | Full repository audit (P079 era, historical) | `docs/status/full_repository_audit_after_p079.md` |
 | Full repository audit (P071 era, historical) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
-| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged through P082 in default mode) |
+| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged through P083) |
 | P082 synthetic validation | `docs/evaluation/p082_landscape_page_number_orientation_synthetic_validation.md` |
+| P083 EF-comment coverage | `data/processed/ef_comment_coverage.json`; analysis: `docs/evaluation/ef_comment_coverage_analysis.md` |
 | Expanded Ester dataset import | `docs/evaluation/expanded_ester_dataset_evaluation.md` |
 | Post-P080 DOCX+PDF overlap | `docs/evaluation/post_p080_docx_pdf_overlap_evaluation.md` |
 | Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
@@ -196,14 +199,15 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Current validation | Repository progress: P001–P082 (81 inventory rules spanning P001–P082, with P075 documented as a non-inventory project task); **1124 pytest passed** |
+| Current validation | Repository progress: P001–P083 (82 inventory rules spanning P001–P083, with P075 documented as a non-inventory project task); **1127 pytest passed** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
-project-added rule inventory entry is `P083` while accidental gaps, duplicates, and
+project-added rule inventory entry is `P084` while accidental gaps, duplicates, and
 out-of-order IDs still fail tests.
 
 P082 is implemented but experimental and disabled by default; it does not affect the canonical five-PDF aggregate unless explicitly enabled.
+P083 is a pure evaluation task; no source code changes, no detector changes, canonical five-PDF aggregate unchanged at 1,543.
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
 
 ### LaTeX source audit (P001–P010)
