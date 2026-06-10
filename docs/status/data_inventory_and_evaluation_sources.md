@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
 - Date: 2026-06-09 (updated: post-P079 P044 Abstract indentation triage rollup)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P079, web UI present on `main` (`d666452` PR #281; **1091** pytest); project-added rule inventory spans P001–P074 plus P076–P079 (78 entries, with P075 documented separately as non-inventory)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P079, web UI present on `main` (`53f06e5` PR #282; **1091** pytest); project-added rule inventory spans P001–P074 plus P076–P079 (78 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
