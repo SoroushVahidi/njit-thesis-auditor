@@ -170,18 +170,20 @@ Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P
 | P074 | Front matter | Title Page graduation month validation: emits `title_page_graduation_month_invalid` when a detected title-page month/year line uses a month other than August, December, or May; silent when no month/year line is extractable; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P074 findings |
 | P078 | Abstract | PDF Abstract forbidden-term and pronoun check: emits `abstract_pdf_forbidden_term` (Q004) when forbidden terms (paper, papers, article, articles) appear in the Abstract page body text; emits `abstract_pdf_first_person_pronoun` (Q005) when first-person pronouns (i, me, my, mine, we, us, our, ours) appear; scoped to Abstract page only via existing heading and body-text helpers; at most one finding per unique token (deduplicated); privacy-safe token-only findings; canonical five-PDF aggregate unchanged at 1,543 because the current dataset has 0 P078 findings |
 
-**Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall (P064 companion); P072 approval-page heading-gate recall; P073 P019 page-numbering triage rollup; P076 P036 TOC/LoT/LoF spacing triage rollup; P077 P038 front-matter heading triage rollup; P079 P044 Abstract paragraph indentation triage rollup.
+**Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall (P064 companion); P072 approval-page heading-gate recall; P073 P019 page-numbering triage rollup; P076 P036 TOC/LoT/LoF spacing triage rollup; P077 P038 front-matter heading triage rollup; P079 P044 Abstract paragraph indentation triage rollup; P081 P013/P026 reporting calibration refinement.
 
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (post-P079)
+### Current canonical artifacts (post-P081)
 
 | Artifact | Path |
 |---|---|
 | Project closeout and summary | `docs/status/project_closeout.md` |
-| Full repository audit (P079 era) | `docs/status/full_repository_audit_after_p079.md` |
-| Full repository audit (P071 era) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
-| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P079) |
+| Full repository audit (P079 era, historical) | `docs/status/full_repository_audit_after_p079.md` |
+| Full repository audit (P071 era, historical) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
+| Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged through P081) |
+| Expanded Ester dataset import | `docs/evaluation/expanded_ester_dataset_evaluation.md` |
+| Post-P080 DOCX+PDF overlap | `docs/evaluation/post_p080_docx_pdf_overlap_evaluation.md` |
 | Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
 | P036/P076 triage eval | `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` |
 | P069 gate-recall eval | `docs/evaluation/p069_frontmatter_heading_gate_recall_current_dataset_evaluation.md` |
@@ -189,8 +191,7 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| P080 DOCX extraction | `docs/evaluation/expanded_ester_dataset_evaluation.md` |
-| Current validation | Repository progress: P001–P081 (80 inventory rules spanning P001–P081, with P075 documented as a non-inventory project task); **1106 pytest** |
+| Current validation | Repository progress: P001–P081 (80 inventory rules spanning P001–P081, with P075 documented as a non-inventory project task); **1106 pytest passed** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
@@ -198,6 +199,7 @@ project-added rule inventory entry should be `P082` while accidental gaps, dupli
 out-of-order IDs still fail tests.
 
 No separate `current_auditor_after_p071_evaluation.md` — P071 did not change the five-PDF aggregate total.
+Implementation is paused after P081 unless P082 is explicitly scoped. Landscape page-number orientation remains a possible P082 candidate.
 
 ### LaTeX source audit (P001–P010)
 
@@ -251,7 +253,7 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 More docs:
 - `docs/status/project_closeout.md` — project closeout and summary (final rule state, limitations, future phases, handoff notes)
 - `docs/status/current_project_state_and_next_steps.md` — current implementation state and next steps
-- `docs/status/full_repository_audit_after_p079.md` — comprehensive post-P079 repository audit (P001–P079, triage infrastructure, Q-rule landscape, forward-looking notes)
+- `docs/status/full_repository_audit_after_p079.md` — historical post-P079 repository audit (P001–P079, triage infrastructure, Q-rule landscape, forward-looking notes)
 - `docs/status/full_repository_audit_after_p071.md` — comprehensive post-P071 repository audit (P001–P071, EF overlap, gaps, next priorities)
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit

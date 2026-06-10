@@ -1,10 +1,10 @@
 # Project Closeout and Summary
 
-- **Date:** 2026-06-09
-- **Latest main:** `1e1f4b3` (PR #283 — post-P079 full repository audit and metadata refresh)
-- **Scope at closeout:** P001–P079 implemented; 78 rule inventory entries; **1091 pytest**; ruff clean; mypy clean
+- **Date:** 2026-06-09 (final status refresh after PR #288)
+- **Latest main:** `bd9f7f1` (PR #288 — P081 reporting-only P013/P026 calibration rollup)
+- **Scope at closeout:** P001–P081 implemented; 80 rule inventory entries; **1106 pytest passed**; ruff clean; mypy clean
 - **Canonical five-PDF aggregate:** **1,543** findings — `docs/evaluation/current_auditor_after_p070_evaluation.md`
-- **Status:** Project has reached natural completion for the current deterministic, local-first tooling tier. All remaining unimplemented Q-rules require manual review, semantic/NLP capability, or OCR — none are viable within the current heuristic bar. Further rule work would require a capability upgrade (see §6).
+- **Status:** Project has reached natural completion for the current deterministic, local-first tooling tier. P081 is reporting-only; detector logic and raw finding counts are unchanged. All remaining unimplemented Q-rules require manual review, semantic/NLP capability, or OCR — none are viable within the current heuristic bar. Implementation should remain paused unless P082 is explicitly scoped.
 - **Privacy:** Aggregate-only document; no dissertation body text, EF comment text, author names, reference entries, or approval-page text quoted.
 
 ---
@@ -17,13 +17,14 @@
 
 | Component | Location | Purpose |
 |---|---|---|
-| TeX source audit | `src/njit_auditor/rules/` (`tex_*.py`) | Phase 1: P001–P010 checks on `.tex` source files |
-| PDF layout audit | `src/njit_auditor/rules/` (`pdf_*.py`) | Phase 2: P011–P079 checks on compiled PDF text layers |
+| TeX source audit | `src/njit_auditor/rules/` (`tex_*.py`) | Phase 1: P001–P010 plus P021 checks on `.tex` source files |
+| PDF layout audit | `src/njit_auditor/rules/` (`pdf_*.py`) | Phase 2: P011–P079, P074, and P078 PDF checks on compiled PDF text layers |
+| DOCX comments | `src/njit_auditor/docx_comments.py` | P080 metadata-only comment/tracked-change extraction for DOCX drafts |
 | Finding model | `src/njit_auditor/models.py` | `AuditFinding(rule_id, severity, page, message, details)` |
 | Report outputs | `src/njit_auditor/report_outputs.py` | JSON/Markdown report generation; 8 triage rollups |
 | CLI entrypoint | `src/njit_auditor/cli.py` | `njit-audit tex` / `njit-audit pdf` commands |
 | Web UI | `src/njit_auditor/web_app.py` | FastAPI upload form (PDF / TeX / ZIP); browser report view and download |
-| Rule inventories | `data/processed/rules/` | `njit_rule_inventory.json` (79 Q-rules) + `project_added_rules.json` (78 P-rules) |
+| Rule inventories | `data/processed/rules/` | `njit_rule_inventory.json` (79 Q-rules) + `project_added_rules.json` (80 P-rules) |
 
 ### Design principles
 
@@ -40,22 +41,23 @@
 
 | Metric | Value |
 |---|---|
-| P-rules in `project_added_rules.json` | **78** (all `implementation_status: implemented`) |
-| Repository progress | **P001–P079** |
+| P-rules in `project_added_rules.json` | **80** (all `implementation_status: implemented`) |
+| Repository progress | **P001–P081** |
 | Documented non-inventory task ID | **P075** (test-only inventory/status hygiene; not a rule entry) |
-| Next project-added rule ID | **P080** (reserved; not yet assigned) |
+| Next project-added rule ID | **P082** (reserved; unassigned) |
 | Q-rule inventory size | **79** (Q001–Q079) |
-| pytest baseline | **1091** |
+| pytest baseline | **1106** |
 
 ### Rule type breakdown
 
 | Type | Count | Rules | Notes |
 |---|---:|---|---|
-| TeX detection | 10 | P001–P010 | Source-level formatting checks; LaTeX structure, abstract word count, font declarations |
-| PDF detection | 64 | P011–P068, P074, P078 | Layout, margin, font, spacing, page-number, heading, and structural checks on PDF text layer |
+| TeX detection | 11 | P001–P010, P021 | Source-level formatting checks; LaTeX structure, abstract language/length, font declarations |
+| PDF detection | 59 | P011–P068, P074, P078 | Layout, margin, font, spacing, page-number, heading, and structural checks on PDF text layer |
 | PDF infrastructure refinements | 4 | P069, P070, P071, P072 | Gate-recall and parser-recall companions; no standalone issue types |
-| PDF reporting refinements | 4 | P073, P076, P077, P079 | Triage rollups; no standalone issue types; no detection change |
-| **Total inventory entries** | **78** | P001–P079 (P075 non-inventory) | |
+| PDF reporting refinements | 5 | P073, P076, P077, P079, P081 | Triage rollups and calibration refinements; no standalone issue types; no detection change |
+| DOCX reporting capability | 1 | P080 | Metadata-only comment/tracked-change extraction; no PDF detector change |
+| **Total inventory entries** | **80** | P001–P081 (P075 non-inventory) | |
 
 ### Phase 1 (TeX) rules — P001–P010
 
@@ -77,7 +79,6 @@ PDF layout checks fire on `.pdf` uploads via `njit-audit pdf` and the web UI. De
 | TOC/LoT/LoF entries | P018, P024, P030, P031, P032, P040, P042, P046 |
 | Page-number style/sequence | P019, P022, P028, P029, P037, P051 |
 | Capitalization | P020 |
-| Abstract length | P021 |
 | Font compliance | P026, P033, P034, P053 |
 | Front-matter structure | P025, P038 |
 | Bio Sketch / Dedication / Special sections | P039, P041, P047, P055, P060, P065, P066, P067 |
@@ -97,7 +98,7 @@ No new issue types. Improve recall of existing detection rules by extending stru
 | P071 | References section localization recall (multi-file improvement) |
 | P072 | Approval-page heading-gate recall / structural fallback |
 
-### Reporting refinements — P073, P076, P077, P079
+### Reporting refinements — P073, P076, P077, P079, P081
 
 No new issue types and no detection change. Add triage aggregation rollups to JSON and Markdown reports.
 
@@ -107,6 +108,7 @@ No new issue types and no detection change. Add triage aggregation rollups to JS
 | P076 | `p036_toc_list_spacing_triage` | P036 TOC/List Spacing Triage | P036 findings by issue type, section type, gap-ratio buckets |
 | P077 | `p038_frontmatter_heading_triage` | P038 Front-Matter Heading Triage | P038 findings by issue type, expected heading, confidence |
 | P079 | `p044_abstract_indentation_triage` | P044 Abstract Indentation Triage | P044 findings by issue type, source Q-rule (Q002/Q003), paragraph index |
+| P081 | `p013_triage` / `p026_font_triage` | Existing P013/P026 triage sections | Dominant-pattern labels, calibration buckets, compact routine-vs-outlier page ranges |
 
 ---
 
@@ -116,8 +118,8 @@ Eight triage rollups are wired into `src/njit_auditor/report_outputs.py` via `bu
 
 | Rollup key | P-rule pairing | Canonical findings covered | Coverage |
 |---|---|---:|---|
-| `p013_triage` | P013 built-in | 461 | Page-number candidate patterns |
-| `p026_font_triage` | P026 built-in | 415 | Font/size issue counts |
+| `p013_triage` | P013 built-in, calibrated by P081 | 461 | Page-number candidate patterns plus routine-vs-outlier calibration buckets |
+| `p026_font_triage` | P026 built-in, calibrated by P081 | 415 | Font/size issue counts plus dominant-pattern calibration buckets |
 | `p011_margin_triage` | P011 built-in | 169 | Margin side counts and overflow |
 | `p012_annotation_triage` | P012 built-in | 143 | Annotation type counts |
 | `p019_page_numbering_triage` | P019 via P073 | 67 | Triage tiers, categories |
@@ -148,10 +150,19 @@ EF comparison set: **2 extractable files** (143 total EF annotations). Sebastian
 
 | Document | Scope | Total findings | Notes |
 |---|---|---:|---|
-| `docs/evaluation/current_auditor_after_p070_evaluation.md` | P011–P070, five PDFs | **1,543** | **Current canonical aggregate** — unchanged through P079 |
+| `docs/evaluation/current_auditor_after_p070_evaluation.md` | P011–P070, five PDFs | **1,543** | **Current canonical aggregate** — unchanged through P081 |
 | `docs/evaluation/ef_overlap_after_p072_evaluation.md` | Two comparison PDFs | 671 tool / 143 EF | **Latest EF overlap** — unchanged post-P072 |
 | `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` | P036/P076 triage | 55 P036 findings | All on Yin H 4th; all high tier |
 | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` | P036–P063, five PDFs | 88 findings from 8 rules | Covers P044 (7), P038 (16), and others |
+
+### Final PR chain (PR #285–#288)
+
+| PR | Milestone | Outcome |
+|---|---|---|
+| #285 | Expanded Ester dataset import | Local evaluation inventory expanded; no detector behavior change |
+| #286 | P080 DOCX extraction | `njit-audit docx-comments extract` added; 2 DOCX drafts now extractable for metadata-only review |
+| #287 | Post-P080 DOCX+PDF overlap evaluation | Confirmed persistent P013/P026 over-warning and surfaced landscape page-number orientation as a deferred gap |
+| #288 | P081 reporting calibration | Reporting-only P013/P026 calibration completed; detector logic and raw finding counts unchanged |
 
 ### EF overlap gaps (final state)
 
@@ -225,6 +236,8 @@ All PDF checks require a machine-readable text layer. Image-only pages (scanned,
 
 ## 7. Suggested Future Phases
 
+**Default recommendation:** pause implementation unless P082 is explicitly scoped. The clearest deferred candidate is landscape page-number orientation, but it remains unassigned because current evidence is narrow and the layout model does not yet preserve text-rotation metadata.
+
 These options are ordered by feasibility under current project constraints.
 
 ### Phase A: Sebastian Fine EF recovery
@@ -268,7 +281,7 @@ njit-audit tex path/to/thesis.tex --json-out report.json --md-out report.md
 ./scripts/run_web_gui.sh  # starts on 0.0.0.0:8000
 
 # Tests
-python -m pytest          # expects 1091 passed
+python -m pytest          # expects 1106 passed
 ruff check .
 mypy src
 ```
@@ -278,13 +291,13 @@ mypy src
 | Document | Purpose |
 |---|---|
 | `README.md` | Project overview, install, usage, rule table |
-| `docs/status/full_repository_audit_after_p079.md` | Comprehensive P079-era snapshot (rules, eval, Q-rule gaps, forward options) |
+| `docs/status/full_repository_audit_after_p079.md` | Historical P079-era snapshot (rules, eval, Q-rule gaps, forward options) |
 | `docs/status/current_project_state_and_next_steps.md` | Rolling status (latest main, per-rule status, validation) |
 | `docs/status/evaluation_data_manifest.md` | Evaluation data index and latest state |
 | `docs/status/data_inventory_and_evaluation_sources.md` | Data category table and privacy posture |
 | `docs/status/post_p072_backlog_and_data_strategy.md` | Post-P072 backlog rationale and dataset strategy |
 | `data/processed/rules/njit_rule_inventory.json` | Canonical 79 Q-rules with implementation status |
-| `data/processed/rules/project_added_rules.json` | 78 P-rules (P001–P079, P075 non-inventory) |
+| `data/processed/rules/project_added_rules.json` | 80 P-rules (P001–P081, P075 non-inventory) |
 | `data/processed/evaluation_data_manifest.json` | Machine-readable manifest (rule state, pytest count, aggregate, latest main) |
 | `docs/evaluation/current_auditor_after_p070_evaluation.md` | Canonical five-PDF aggregate (1,543 findings) |
 | `docs/evaluation/ef_overlap_after_p072_evaluation.md` | Latest EF annotation overlap (2 extractable PDFs) |
