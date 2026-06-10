@@ -1,7 +1,7 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-09 (updated: final status refresh after P081 / PR #288)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`bd9f7f1` post-P081 status baseline; **1106 passed**); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
+- Date: 2026-06-09 (updated: post-audit cleanup after P081 / PR #289)
+- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P081, web UI present on `main` (`2745497` post-audit cleanup baseline; **1106 passed**); project-added rule inventory spans P001–P074 plus P076–P081 (80 entries, with P075 documented separately as non-inventory)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -16,6 +16,13 @@ This repository contains six major data classes:
 6. **Private/local-only data paths** (for example `data/evaluation/private/`) reserved for sensitive or local analysis outputs.
 
 Real dissertation files include student names and dissertation body text. They must be handled as **privacy-sensitive** materials; reporting should stay aggregate (counts, page numbers, rule IDs, categories) and should not reproduce dissertation prose.
+
+Binary asset storage note:
+- `.gitattributes` now routes `*.pdf`, `*.docx`, `*.xlsx`, `*.pptx`, `*.zip`, and `*.rar` to Git LFS for future additions.
+- The 10 binary files imported in PR #285 are stored as Git LFS objects.
+- Some older already-committed binary assets remain regular Git blobs because the project intentionally did not rewrite history.
+- This is a repository hygiene limitation, not a runtime or validation failure.
+- Do not run `git lfs migrate import` unless a separate explicit history-rewrite decision is made.
 
 ## 2. Data category table
 
