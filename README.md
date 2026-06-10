@@ -178,7 +178,8 @@ All findings are heuristic warnings and require manual review.
 
 | Artifact | Path |
 |---|---|
-| Full repository audit | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
+| Full repository audit (P079 era) | `docs/status/full_repository_audit_after_p079.md` |
+| Full repository audit (P071 era) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
 | Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged post-P079) |
 | Latest EF overlap | `docs/evaluation/ef_overlap_after_p072_evaluation.md` |
 | P036/P076 triage eval | `docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md` |
@@ -247,6 +248,7 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 
 More docs:
 - `docs/status/current_project_state_and_next_steps.md` — current implementation state and next steps
+- `docs/status/full_repository_audit_after_p079.md` — comprehensive post-P079 repository audit (P001–P079, triage infrastructure, Q-rule landscape, forward-looking notes)
 - `docs/status/full_repository_audit_after_p071.md` — comprehensive post-P071 repository audit (P001–P071, EF overlap, gaps, next priorities)
 - `docs/status/phase2_pdf_milestone_summary.md` — PDF audit milestone summary
 - `docs/status/rule_coverage_audit.md` — Q-rule and P-rule coverage audit

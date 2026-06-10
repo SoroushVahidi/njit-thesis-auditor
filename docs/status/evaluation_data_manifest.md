@@ -1,7 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
-- **Latest main:** `d666452` (PR #281 — P078 PDF abstract forbidden-term and pronoun check)
+- **Latest main:** `53f06e5` (PR #282 — P079 P044 Abstract indentation triage rollup)
+- **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged
 - **P075 inventory consistency guard:** implemented (2026-06-09) — test-only hygiene; P075 remains a documented non-inventory project task; repository progress now includes P076 while `project_added_rules.json` spans P001–P074 plus P076; the next project-added rule inventory entry is P077; no detection behavior change and no aggregate impact
