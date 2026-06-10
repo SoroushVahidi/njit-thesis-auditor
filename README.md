@@ -174,7 +174,7 @@ Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P
 
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (post-P081)
+### Current canonical artifacts (post-P081, refreshed through PR #290)
 
 | Artifact | Path |
 |---|---|

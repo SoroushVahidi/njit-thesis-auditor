@@ -1,6 +1,6 @@
 # Expanded Ester Dataset Evaluation
 
-Evaluated against the full Ester shared-drive dataset after PR #285 merge.
+Historical evaluation against the full Ester shared-drive dataset after PR #285 merge.
 All findings are aggregate counts and category labels only.
 No dissertation body text, EF comment text, author names, or EF comment
 prose is reproduced in this document.
