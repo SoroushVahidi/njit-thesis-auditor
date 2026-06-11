@@ -2,7 +2,7 @@
 
 - **Date:** 2026-06-07
 - **Baseline commit:** `4f3a70e` (post PR #216)
-- **Scope:** Manual browser verification of the FastAPI web UI (PDF, TeX, ZIP uploads; JSON/Markdown downloads; triage panels; privacy controls)
+- **Scope:** Manual browser verification of the FastAPI web UI (PDF, TeX, ZIP uploads; drag-and-drop upload zone; JSON/Markdown downloads; triage panels; privacy controls)
 - **Related:** `docs/web_gui_mvp.md` (setup and operations), `docs/planning/synthetic_web_demo_fixtures.md` (fixture details), `docs/planning/gui_scope_and_design.md` (design reference)
 - **Demo guide:** See [`docs/web_ui_demo_guide.md`](web_ui_demo_guide.md) for the quick-start end-to-end demo using the committed synthetic fixtures (install, run, step-by-step upload flow, privacy statement, caveats).
 
@@ -158,6 +158,8 @@ downloaded files.
 |---|---|---|
 | Upload page loads | Open `http://localhost:8000` | HTTP 200; "NJIT Thesis Auditor" heading visible; three input panels (file, URL, built-in sample) |
 | File input accepts PDF/TeX/ZIP | Inspect the file input element | `accept=".pdf,.tex,.zip"` attribute present |
+| Drag-and-drop zone visible | Inspect the file upload card | A drop zone invites the user to drag a PDF/TeX/ZIP file or click to browse |
+| Drop zone accessibility | Tab to the upload zone | Visible focus ring; upload zone announces button-like interaction; Enter/Space opens file picker |
 | Privacy note visible | Read the info banner on the upload page | "Privacy-safe processing" banner present; mentions no repository commit |
 | Supported format descriptions | Read the bullet list under the file upload card | PDF → "P011–P082"; TeX → "P001–P010"; ZIP → "safe extract … P001–P010"; "no compilation" stated |
 | Upload page copy | Read the URL form card | States PDF only; mentions private/internal URLs are blocked |
@@ -167,6 +169,7 @@ downloaded files.
 
 | Check | Steps | Expected result |
 |---|---|---|
+| Drag PDF onto zone | Drag `tests/fixtures/web_demo/clean_minimal.pdf` onto the drop zone | Zone changes to drag-over state before drop; selected-file state after drop; filename shown clearly; upload does not start until "Start audit" is clicked |
 | Upload accepted | Select a valid minimal synthetic PDF; click "Start audit" | Redirect to `/audits/{job_id}`; spinning status banner "Processing audit…" |
 | Polling auto-refresh | Wait on job page | Page auto-refreshes every ~2 seconds while pending/running; no manual reload needed |
 | Completion banner | Wait for completion | Status banner changes to green "Audit complete" style; shows file name and job ID prefix |
@@ -182,6 +185,7 @@ downloaded files.
 
 | Check | Steps | Expected result |
 |---|---|---|
+| Drag TeX onto zone | Drag `tests/fixtures/web_demo/clean_minimal.tex` onto the drop zone | Selected-file state shown; filename updates to `.tex`; no automatic submit |
 | TeX upload accepted | Select a valid synthetic `.tex` file; click "Start audit" | Redirect to job page; status shows "TeX source audit" scope label |
 | Source rules fire | Inspect findings after completion | Rule IDs are P001–P010 (or Q004–Q006); no P011+ PDF rules appear |
 | JSON download | Download JSON | Valid JSON; `findings` present; `metadata.file` shows basename `.tex` only |
@@ -194,6 +198,7 @@ downloaded files.
 
 | Check | Steps | Expected result |
 |---|---|---|
+| Drag ZIP onto zone | Drag `tests/fixtures/web_demo/demo_project.zip` onto the drop zone | Selected-file state shown; filename updates to `.zip`; no automatic submit |
 | ZIP upload accepted | Select a valid synthetic `.zip` containing `main.tex`; click "Start audit" | Redirect to job page; "ZIP" or "source audit" visible in scope label |
 | Source rules fire | Inspect findings | Same as TeX: P001–P010 rules only |
 | Extraction transparent | No intermediate extraction artifacts shown | Page shows results as if a single `.tex` was uploaded |
@@ -203,8 +208,24 @@ downloaded files.
 
 | Check | Steps | Expected result |
 |---|---|---|
+| Unsupported drop rejected client-side | Drag a `.docx` file onto the drop zone | Drop zone enters invalid-file state; clear message says only `.pdf`, `.tex`, `.zip` are accepted; no upload starts |
 | Rejection with clear error | Select a `.docx` file; click "Start audit" | HTTP 400 response or redirect back to upload page with error message; no job created |
 | Error message is safe | Read the error | No stack trace; no internal server path; user-friendly message about unsupported format |
+
+### 6.5a Multiple dropped files
+
+| Check | Steps | Expected result |
+|---|---|---|
+| Multi-file drop rejected client-side | Drag two supported files onto the drop zone at once | Drop zone enters invalid-file state; clear message says to drop one file at a time; existing selection remains unchanged or empty; no automatic submit |
+
+### 6.5b Click and keyboard activation
+
+| Check | Steps | Expected result |
+|---|---|---|
+| Click drop zone opens picker | Click inside the drop zone instead of the native file input | Standard OS file picker opens; selecting a supported file updates the selected filename |
+| Keyboard activation | Tab to the drop zone and press `Enter`, then repeat with `Space` | Standard OS file picker opens both times; focus styling remains visible |
+| Replace selected file | Select one file, then drop or browse to a different supported file | Selected filename updates to the new file; form still submits through the same "Start audit" button |
+| Mobile/browser fallback | On a touch device or narrow viewport, use the normal picker flow | File-picker behavior remains unchanged; no drag-and-drop requirement for successful upload |
 
 ### 6.6 Corrupt or empty PDF
 
