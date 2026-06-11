@@ -9,6 +9,8 @@ README_PATH = Path("README.md")
 CURRENT_STATE_DOC_PATH = Path("docs/status/current_project_state_and_next_steps.md")
 MANIFEST_DOC_PATH = Path("docs/status/evaluation_data_manifest.md")
 DATA_INVENTORY_DOC_PATH = Path("docs/status/data_inventory_and_evaluation_sources.md")
+PROJECT_CLOSEOUT_DOC_PATH = Path("docs/status/project_closeout.md")
+PROJECT_RULES_PATH = Path("data/processed/rules/project_added_rules.json")
 
 REQUIRED_CATEGORIES = (
     "guideline_rule_sources",
@@ -35,6 +37,26 @@ def _load_manifest() -> dict[str, Any]:
 
 def _load_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _load_project_rules() -> list[dict[str, Any]]:
+    return json.loads(PROJECT_RULES_PATH.read_text(encoding="utf-8"))
+
+
+def _compute_project_rule_state(manifest: dict[str, Any]) -> dict[str, str | int]:
+    inventory_ids = [str(item["id"]) for item in _load_project_rules()]
+    documented_non_inventory_ids = [
+        str(rule_id) for rule_id in manifest["non_inventory_project_task_ids"]
+    ]
+    inventory_numbers = [int(rule_id[1:]) for rule_id in inventory_ids]
+    skipped_numbers = [int(rule_id[1:]) for rule_id in documented_non_inventory_ids]
+    max_numeric_id = max(inventory_numbers + skipped_numbers)
+    return {
+        "implemented_range": f"P001-P{max_numeric_id:03d}",
+        "inventory_count": len(inventory_ids),
+        "inventory_range": f"P001-P{max_numeric_id:03d}",
+        "next_inventory_id": f"P{max_numeric_id + 1:03d}",
+    }
 
 
 def _entry_paths(entry: dict[str, Any]) -> list[str]:
@@ -231,20 +253,40 @@ def test_only_extractable_pdfs_are_marked_for_ef_overlap() -> None:
 def test_manifest_current_state_metadata_is_consistent() -> None:
     manifest = _load_manifest()
     auditor_rule_state = manifest["auditor_rule_state"]
+    computed_state = _compute_project_rule_state(manifest)
 
-    assert manifest["p_rules_implemented"] == "P001-P083"
-    assert auditor_rule_state["p_rules_implemented"] == "P001-P083"
-    assert manifest["pytest_count_at_last_doc_refresh"] == 1127
-    assert auditor_rule_state["pytest_count_at_last_doc_refresh"] == 1127
+    assert manifest["p_rules_implemented"] == computed_state["implemented_range"]
+    assert auditor_rule_state["p_rules_implemented"] == computed_state["implemented_range"]
+    assert isinstance(manifest["pytest_count_at_last_doc_refresh"], int)
+    assert manifest["pytest_count_at_last_doc_refresh"] > 0
+    assert (
+        manifest["pytest_count_at_last_doc_refresh"]
+        == auditor_rule_state["pytest_count_at_last_doc_refresh"]
+    )
 
-    assert manifest["project_added_rule_inventory_count"] == 82
-    assert manifest["project_added_rule_inventory_range"] == "P001-P083"
-    assert auditor_rule_state["project_added_rule_inventory_count"] == 82
-    assert auditor_rule_state["project_added_rule_inventory_range"] == "P001-P083"
+    assert (
+        manifest["project_added_rule_inventory_count"]
+        == computed_state["inventory_count"]
+    )
+    assert (
+        manifest["project_added_rule_inventory_range"]
+        == computed_state["inventory_range"]
+    )
+    assert (
+        auditor_rule_state["project_added_rule_inventory_count"]
+        == computed_state["inventory_count"]
+    )
+    assert (
+        auditor_rule_state["project_added_rule_inventory_range"]
+        == computed_state["inventory_range"]
+    )
     assert manifest["non_inventory_project_task_ids"] == ["P075"]
     assert auditor_rule_state["non_inventory_project_task_ids"] == ["P075"]
-    assert manifest["next_project_added_rule_id"] == "P084"
-    assert auditor_rule_state["next_project_added_rule_id"] == "P084"
+    assert manifest["next_project_added_rule_id"] == computed_state["next_inventory_id"]
+    assert (
+        auditor_rule_state["next_project_added_rule_id"]
+        == computed_state["next_inventory_id"]
+    )
 
     assert (
         manifest["canonical_aggregate_doc"]
@@ -307,13 +349,17 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
         for entry in manifest["categories"]["processed_rule_sources"]
         if entry["rule_prefix"] == "P"
     )
-    assert p_inventory["rule_count"] == 82
-    assert p_inventory["rule_id_range"] == "P001-P083"
+    assert p_inventory["rule_count"] == computed_state["inventory_count"]
+    assert p_inventory["rule_id_range"] == computed_state["inventory_range"]
 
 
 def test_manifest_current_state_docs_are_aligned() -> None:
     manifest = _load_manifest()
     latest_main = str(manifest["latest_main_at_last_doc_refresh"])
+    pytest_count = int(manifest["pytest_count_at_last_doc_refresh"])
+    computed_state = _compute_project_rule_state(manifest)
+    implemented_range = str(computed_state["implemented_range"]).replace("-", "–")
+    next_inventory_id = str(computed_state["next_inventory_id"])
     auditor_rule_state = manifest["auditor_rule_state"]
     assert latest_main == auditor_rule_state["latest_main_at_last_doc_refresh"]
     assert re.fullmatch(r"[0-9a-f]{7}", latest_main)
@@ -322,6 +368,7 @@ def test_manifest_current_state_docs_are_aligned() -> None:
     current_state_doc = _load_text(CURRENT_STATE_DOC_PATH)
     manifest_doc = _load_text(MANIFEST_DOC_PATH)
     data_inventory_doc = _load_text(DATA_INVENTORY_DOC_PATH)
+    project_closeout_doc = _load_text(PROJECT_CLOSEOUT_DOC_PATH)
 
     for text in (readme, current_state_doc, manifest_doc, data_inventory_doc):
         assert "1042 pytest" not in text
@@ -335,8 +382,24 @@ def test_manifest_current_state_docs_are_aligned() -> None:
         assert "P081" in text
         assert "P082" in text
 
-    assert "P001\u2013P083" in readme
+    assert implemented_range in readme
+    assert implemented_range in current_state_doc
+    assert implemented_range in manifest_doc
+    assert implemented_range in data_inventory_doc
+    assert next_inventory_id in readme
+    assert next_inventory_id in current_state_doc
+    assert next_inventory_id in manifest_doc
+    assert next_inventory_id in data_inventory_doc
     assert latest_main in current_state_doc
     assert latest_main in manifest_doc
     assert latest_main in data_inventory_doc
-    assert "1127 pytest" in readme
+    assert f"{pytest_count} pytest" in readme
+    assert f"{pytest_count} pytest" in current_state_doc
+    assert f"{pytest_count} passed" in manifest_doc
+    assert f"{pytest_count} pytest" in data_inventory_doc
+    assert "Historical P082 closeout snapshot" in readme
+    assert "Historical P082 closeout snapshot" in current_state_doc
+    assert "Historical P082 closeout snapshot" in manifest_doc
+    assert "Historical P082 Project Closeout Snapshot" in project_closeout_doc
+    assert "Historical Milestone Archive" in current_state_doc
+    assert "P001\u2013P082 implemented" not in current_state_doc

@@ -180,11 +180,14 @@ Current PDF checks (P011–P068, P074, and P078 standalone; P069–P073, P076, P
 
 All findings are heuristic warnings and require manual review.
 
-### Current canonical artifacts (post-P083)
+### Current Live Status and Canonical Artifacts (post-P083)
 
 | Artifact | Path |
 |---|---|
-| Project closeout and summary | `docs/status/project_closeout.md` |
+| Current live status summary | `docs/status/current_project_state_and_next_steps.md` |
+| Current live manifest index | `docs/status/evaluation_data_manifest.md` |
+| Current live data inventory index | `docs/status/data_inventory_and_evaluation_sources.md` |
+| Historical P082 closeout snapshot | `docs/status/project_closeout.md` |
 | Full repository audit (P079 era, historical) | `docs/status/full_repository_audit_after_p079.md` |
 | Full repository audit (P071 era, historical) | `docs/status/full_repository_audit_after_p071.md` (P072 note added) |
 | Canonical five-PDF aggregate (**1,543** findings) | `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged through P083) |
@@ -199,7 +202,7 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Current validation | Repository progress: P001–P083 (82 inventory rules spanning P001–P083, with P075 documented as a non-inventory project task); **1127 pytest passed** |
+| Current validation | Repository progress: P001–P083 (82 inventory rules spanning P001–P083, with P075 documented as a non-inventory project task); **1138 pytest passed** |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
@@ -260,7 +263,7 @@ njit-audit tex examples/latex/bad_minimal_thesis/main.tex
 ```
 
 More docs:
-- `docs/status/project_closeout.md` — project closeout and summary (final rule state, limitations, future phases, handoff notes)
+- `docs/status/project_closeout.md` — historical P082 closeout snapshot (superseded by the current live status docs above)
 - `docs/status/current_project_state_and_next_steps.md` — current implementation state and next steps
 - `docs/status/full_repository_audit_after_p079.md` — historical post-P079 repository audit (P001–P079, triage infrastructure, Q-rule landscape, forward-looking notes)
 - `docs/status/full_repository_audit_after_p071.md` — comprehensive post-P071 repository audit (P001–P071, EF overlap, gaps, next priorities)

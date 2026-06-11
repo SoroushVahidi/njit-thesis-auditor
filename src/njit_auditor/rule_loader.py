@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel
 
@@ -18,12 +18,21 @@ REQUIRED_RULE_FIELDS = {
     "source_file",
     "implementation_status",
 }
-ALLOWED_PHASES = {
-    "tex_source", "latex_compile", "pdf_layout", "mixed", "manual_review", "docx_comments",
+RulePhase = Literal[
+    "tex_source",
+    "latex_compile",
+    "pdf_layout",
+    "mixed",
+    "manual_review",
+    "docx_comments",
     "evaluation_task",
-}
-ALLOWED_CHECKABILITY = {"deterministic", "heuristic", "visual", "manual"}
-ALLOWED_PRIORITY = {"high", "medium", "low"}
+]
+RuleCheckability = Literal["deterministic", "heuristic", "visual", "manual"]
+RulePriority = Literal["high", "medium", "low"]
+
+ALLOWED_PHASES = frozenset(get_args(RulePhase))
+ALLOWED_CHECKABILITY = frozenset(get_args(RuleCheckability))
+ALLOWED_PRIORITY = frozenset(get_args(RulePriority))
 
 
 class RuleDefinition(BaseModel):
@@ -37,17 +46,11 @@ class RuleDefinition(BaseModel):
     severity: str
     source_file: str
     implementation_status: str
-    phase: (
-        Literal[
-            "tex_source", "latex_compile", "pdf_layout", "mixed", "manual_review",
-            "docx_comments", "evaluation_task",
-        ]
-        | None
-    ) = None
-    checkability: Literal["deterministic", "heuristic", "visual", "manual"] | None = None
+    phase: RulePhase | None = None
+    checkability: RuleCheckability | None = None
     input_required: list[str] | None = None
     implementation_module: str | None = None
-    priority: Literal["high", "medium", "low"] | None = None
+    priority: RulePriority | None = None
     notes: str | None = None
 
 
