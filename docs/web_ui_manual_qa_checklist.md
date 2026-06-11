@@ -16,7 +16,7 @@ NJIT Thesis Auditor web UI in a real browser. It covers:
 - Upload flows for all three supported input types (PDF, TeX, ZIP)
 - Rejection of unsupported, corrupt, and unsafe inputs
 - JSON and Markdown download correctness
-- Report rendering: status banner, summary cards, triage panels, findings table, filters
+- Report rendering: status banner, summary cards, triage panels, grouped problems, raw findings table, filters
 - Job TTL and expiration behavior
 - Privacy controls: what must not appear in web exports or the UI
 
@@ -174,9 +174,12 @@ downloaded files.
 | Polling auto-refresh | Wait on job page | Page auto-refreshes every ~2 seconds while pending/running; no manual reload needed |
 | Completion banner | Wait for completion | Status banner changes to green "Audit complete" style; shows file name and job ID prefix |
 | Summary cards | Inspect results after completion | Cards show: total findings, WARNING count, FAIL count, category breakdown |
-| Findings table | Inspect the findings table | Columns: Rule, Category, Page, Severity, Issue Type, Comment; at least header row visible |
+| Grouped problems default view | Inspect the findings section before changing any toggle | "Grouped problems" mode is active by default; repeated problems appear once with an occurrence count and compact page ranges |
+| Expand grouped problem | Open "Show individual occurrences" on any repeated problem | Every original per-page occurrence remains available with its page/location and metadata |
+| Raw findings toggle | Click "All individual findings" | The raw findings table appears without reloading; switching back to "Grouped problems" restores the compact default view |
+| Findings table | Inspect the raw findings table after switching modes | Columns: Rule, Category, Page, Severity, Issue Type, Comment; at least header row visible |
 | Triage panels | If any P011/P013/P026 findings present | Triage panels appear above the raw findings table with structured rollup counts |
-| JSON download | Click "Download JSON" | Download completes; file is valid JSON; `metadata`, `findings`, `grouped_summary` keys present |
+| JSON download | Click "Download JSON" | Download completes; file is valid JSON; `metadata`, `findings`, `grouped_summary`, and `grouped_findings` keys present |
 | Markdown download | Click "Download Markdown" | Download completes; file contains "##" headings, rule IDs, finding counts |
 | No server path in JSON | Open downloaded JSON; search for absolute path strings | `metadata.file` or equivalent fields show basename only (e.g., `upload.pdf`), not a full server path |
 | No stack trace on completion | Inspect results page | No Python tracebacks visible |
@@ -248,9 +251,10 @@ downloaded files.
 | Check | Steps | Expected result |
 |---|---|---|
 | Download link present | On a completed job page | "Download JSON" button/link visible |
-| File is valid JSON | Download and parse | JSON parses without error; top-level keys: `metadata`, `findings`, `grouped_summary` |
+| File is valid JSON | Download and parse | JSON parses without error; top-level keys: `metadata`, `findings`, `grouped_summary`, `grouped_findings` |
 | Metadata keys | Inspect `metadata` | `total_findings`, `counts_by_severity`, `counts_by_rule_id`, `counts_by_category`, `generated_at`, `note` present |
 | Findings array | Inspect `findings` | Each finding has `rule_id`, `severity`, `message`, `page` (or `location` for source), `details` |
+| Grouped findings array | Inspect `grouped_findings` | Repeated browser-facing problems are grouped additively; raw `findings` length is unchanged |
 | No absolute paths | Search JSON for the server's absolute path | Must not appear; only basename (e.g., `upload.pdf`) |
 | Source audit: no private keys | For TeX/ZIP uploads: inspect each finding's `details` object | Keys `label`, `ref`, `caption`, `title`, `author`, `body`, `text` must not appear |
 
@@ -286,12 +290,15 @@ downloaded files.
 
 | Check | Steps | Expected result |
 |---|---|---|
-| Page numbers in findings | Inspect findings table | "Page" column shows integer page numbers (or "—" for source audits) |
+| Page ranges in grouped view | Inspect grouped problems on a repeated-PDF fixture | Repeated warnings render compact ranges such as `3–7, 10, 14–16`; ranges are sorted and deduplicated |
+| Page numbers in findings | Inspect raw findings table | "Page" column shows integer page numbers (or "—" for source audits) |
 | Triage-first panels | For PDF uploads with high-volume rules | P011/P013/P026 panels appear above the raw findings table; show counts and page ranges; no page content reproduced |
-| Client-side filters | Use the "Rule", "Severity", "Category", "Page" filter dropdowns | Findings table updates without page reload; filter count label updates |
+| Filters in grouped mode | Use the "Rule", "Severity", "Category", "Page" filter dropdowns while "Grouped problems" is active | Grouped cards update without page reload; filter count label updates in grouped-problem terms |
+| Filters in raw mode | Switch to "All individual findings" and reuse the same filters | Raw findings table updates without page reload; filter count label updates in individual-finding terms |
 | Filter reset | Click "Reset" or equivalent | All filters cleared; full findings table visible |
-| Grouped summary | If any rule has 5+ findings | "Grouped Summary" section lists high-volume rules with counts |
+| Grouped summary | If any rule has 5+ findings | The specialized high-volume summary remains above the grouped-problems section; this is distinct from the generic grouped-problem view |
 | Polished comments | Inspect "Comment" column | Heuristic language ("Review needed:"); no dissertation body text |
+| Source location grouping | For TeX/ZIP uploads with repeated findings | Grouped problems show basename-only compact locations such as `thesis.tex:12, thesis.tex:18–21`; no absolute paths |
 
 ### 6.13 Privacy checks (what must NOT appear anywhere in web outputs)
 
@@ -327,7 +334,8 @@ These checks do not require synthetic files — they verify page copy and layout
 | Status banner: failed | Upload a corrupt file | "Audit could not complete" banner; error message; "Try another file" link |
 | Status banner: complete | Upload a valid file and wait | Success banner; job ID prefix and file name visible |
 | Summary cards | After completion | Cards visible for total, WARNING, FAIL counts |
-| Findings table headers | Inspect completed job page | Rule, Category, Page, Severity, Issue Type, Comment column headers |
+| Results mode controls | Inspect completed job page | "Grouped problems" and "All individual findings" controls are visible; grouped mode is active by default |
+| Findings table headers | Inspect completed job page in raw mode | Rule, Category, Page/Location, Severity, Issue Type, Comment column headers |
 | Filter controls | Inspect completed job page with findings | Rule/Severity/Category/Page dropdowns visible; count label updates on filter |
 | Download buttons | Inspect completed job page | "Download JSON" and "Download Markdown" links/buttons present |
 | Privacy note on results | Read the results page footer or note | Note about heuristic signals; disclaimer that manual review is required |

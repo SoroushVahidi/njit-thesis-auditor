@@ -25,14 +25,29 @@
 {% if state == "complete" and findings %}
 <script>
   (function() {
-    function applyFilters() {
-      var rule = document.getElementById("filter-rule").value;
-      var severity = document.getElementById("filter-severity").value;
-      var category = document.getElementById("filter-category").value;
-      var page = document.getElementById("filter-page");
-      var location = document.getElementById("filter-location");
-      var pageVal = page ? page.value : "";
-      var locationVal = location ? location.value : "";
+    var currentMode = "grouped";
+
+    function matchesTokenList(value, selected) {
+      return !selected || value.indexOf("|" + selected + "|") !== -1;
+    }
+
+    function applyFiltersToGrouped(rule, severity, category, pageVal, locationVal) {
+      var cards = document.querySelectorAll(".grouped-problem");
+      var visible = 0;
+      cards.forEach(function(card) {
+        var show = true;
+        if (rule && card.dataset.rule !== rule) show = false;
+        if (severity && card.dataset.severity !== severity) show = false;
+        if (category && card.dataset.category !== category) show = false;
+        if (pageVal && !matchesTokenList(card.dataset.pages || "", pageVal)) show = false;
+        if (locationVal && !matchesTokenList(card.dataset.locations || "", locationVal)) show = false;
+        card.classList.toggle("grouped-problem-card--hidden", !show);
+        if (show) visible += 1;
+      });
+      return { visible: visible, total: cards.length };
+    }
+
+    function applyFiltersToRaw(rule, severity, category, pageVal, locationVal) {
       var rows = document.querySelectorAll(".finding-row");
       var visible = 0;
       rows.forEach(function(row) {
@@ -45,11 +60,51 @@
         row.classList.toggle("finding-row--hidden", !show);
         if (show) visible += 1;
       });
+      return { visible: visible, total: rows.length };
+    }
+
+    function updateCounter(groupedState, rawState) {
       var counter = document.getElementById("filter-count");
-      if (counter) {
-        counter.textContent = "Showing " + visible + " of " + rows.length + " findings";
+      if (!counter) {
+        return;
+      }
+      if (currentMode === "individual") {
+        counter.textContent = "Showing " + rawState.visible + " of " + rawState.total + " individual findings";
+      } else {
+        counter.textContent = "Showing " + groupedState.visible + " of " + groupedState.total + " grouped problems";
       }
     }
+
+    function applyFilters() {
+      var rule = document.getElementById("filter-rule").value;
+      var severity = document.getElementById("filter-severity").value;
+      var category = document.getElementById("filter-category").value;
+      var page = document.getElementById("filter-page");
+      var location = document.getElementById("filter-location");
+      var pageVal = page ? page.value : "";
+      var locationVal = location ? location.value : "";
+      var groupedState = applyFiltersToGrouped(rule, severity, category, pageVal, locationVal);
+      var rawState = applyFiltersToRaw(rule, severity, category, pageVal, locationVal);
+      updateCounter(groupedState, rawState);
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      var groupedPanel = document.getElementById("grouped-problems-panel");
+      var rawPanel = document.getElementById("individual-findings-panel");
+      if (groupedPanel) {
+        groupedPanel.classList.toggle("results-panel--hidden", mode !== "grouped");
+      }
+      if (rawPanel) {
+        rawPanel.classList.toggle("results-panel--hidden", mode !== "individual");
+      }
+      document.querySelectorAll("[data-results-mode]").forEach(function(button) {
+        var isActive = button.dataset.resultsMode === mode;
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+      applyFilters();
+    }
+
     ["filter-rule", "filter-severity", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener("change", applyFilters);
@@ -64,7 +119,12 @@
         applyFilters();
       });
     }
-    applyFilters();
+    document.querySelectorAll("[data-results-mode]").forEach(function(button) {
+      button.addEventListener("click", function() {
+        setMode(button.dataset.resultsMode || "grouped");
+      });
+    });
+    setMode("grouped");
   })();
 </script>
 {% endif %}
@@ -242,8 +302,17 @@
 
 <section class="section" aria-label="Findings">
   <div class="section-header">
-    <h2>Findings</h2>
-    <span id="filter-count" class="filter-count"></span>
+    <div>
+      <h2>Findings</h2>
+      <span class="section-note">Summary cards and severity/category totals remain based on raw findings.</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
+      <span id="filter-count" class="filter-count"></span>
+      <div class="results-toggle" role="group" aria-label="Results display mode">
+        <button type="button" class="btn btn-secondary" data-results-mode="grouped" aria-pressed="true">Grouped problems</button>
+        <button type="button" class="btn btn-secondary" data-results-mode="individual" aria-pressed="false">All individual findings</button>
+      </div>
+    </div>
   </div>
 
   {% if findings %}
@@ -301,50 +370,124 @@
     </div>
   </div>
 
-  <div class="card" style="padding:0.5rem 0.75rem">
-    <table>
-      <thead>
-        <tr>
-          <th>Rule</th>
-          <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
-          <th>Severity</th>
-          <th>Category</th>
-          <th>Issue / meta</th>
-          <th>Polished comment</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for f in findings %}
-        <tr class="finding-row"
-            data-rule="{{ f.rule_id }}"
-            data-severity="{{ f.severity }}"
-            data-category="{{ f.category }}"
-            data-page="{{ f.page if f.page is not none else '' }}"
-            data-location="{{ f.location_label if f.location_label else '' }}">
-          <td><strong>{{ f.rule_id }}</strong></td>
-          <td>
-            {% if is_source_audit %}
-              {{ f.location_label if f.location_label else "—" }}
-            {% else %}
-              {{ f.page if f.page is not none else "—" }}
-            {% endif %}
-          </td>
-          <td>
-            {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
-            {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-            {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
-          </td>
-          <td>{{ f.category }}</td>
-          <td class="meta-cell">
-            {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
-            {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
-            {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
-          </td>
-          <td class="comment-cell">{{ f.polished_comment }}</td>
-        </tr>
+  <div id="grouped-problems-panel">
+    <div class="grouped-problem-list">
+      {% for problem in report_view.grouped_problems %}
+      <div class="card grouped-problem-card {% if not problem.is_grouped %}grouped-problem-card--single{% endif %} grouped-problem"
+           data-rule="{{ problem.rule_id }}"
+           data-severity="{{ problem.severity }}"
+           data-category="{{ problem.category }}"
+           data-pages="{% if problem.page_tokens %}|{{ problem.page_tokens|join('|') }}|{% endif %}"
+           data-locations="{% if problem.location_tokens %}|{{ problem.location_tokens|join('|') }}|{% endif %}">
+        <div class="grouped-problem__header">
+          <div>
+            <p class="grouped-problem__title">{{ problem.rule_id }}{% if problem.issue_type %} · {{ problem.issue_type }}{% endif %}</p>
+            <div class="grouped-problem__summary">
+              {% if problem.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
+              {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
+              {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+              <span class="badge badge-info">{{ problem.category }}</span>
+              {% if problem.is_grouped %}
+              <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
+              {% endif %}
+              {% if problem.triage_tier %}
+              <span class="badge badge-muted">tier: {{ problem.triage_tier }}</span>
+              {% endif %}
+              {% if problem.confidence %}
+              <span class="badge badge-muted">conf: {{ problem.confidence }}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% if problem.affected_compact %}
+          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}</div>
+          {% endif %}
+        </div>
+        <div class="grouped-problem__meta">
+          <div class="grouped-problem__meta-line">{{ problem.polished_comment }}</div>
+          {% if problem.suggested_fix %}
+          <div class="grouped-problem__meta-line"><strong>Suggested fix:</strong> {{ problem.suggested_fix }}</div>
+          {% endif %}
+        </div>
+        {% if problem.is_grouped %}
+        <details class="grouped-problem__details collapsible">
+          <summary>Show individual occurrences</summary>
+          <table class="occurrence-table">
+            <thead>
+              <tr>
+                <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
+                <th>Issue / meta</th>
+                <th>Comment</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for f in problem.individual_findings %}
+              <tr>
+                <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% else %}{{ f.page if f.page is not none else "—" }}{% endif %}</td>
+                <td class="meta-cell">
+                  {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
+                  {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
+                  {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
+                  {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
+                </td>
+                <td class="comment-cell">{{ f.polished_comment }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </details>
+        {% endif %}
+      </div>
       {% endfor %}
-      </tbody>
-    </table>
+    </div>
+  </div>
+
+  <div id="individual-findings-panel" class="results-panel--hidden">
+    <div class="card" style="padding:0.5rem 0.75rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
+            <th>Severity</th>
+            <th>Category</th>
+            <th>Issue / meta</th>
+            <th>Polished comment</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for f in findings %}
+          <tr class="finding-row"
+              data-rule="{{ f.rule_id }}"
+              data-severity="{{ f.severity }}"
+              data-category="{{ f.category }}"
+              data-page="{{ f.page if f.page is not none else '' }}"
+              data-location="{{ f.location_label if f.location_label else '' }}">
+            <td><strong>{{ f.rule_id }}</strong></td>
+            <td>
+              {% if is_source_audit %}
+                {{ f.location_label if f.location_label else "—" }}
+              {% else %}
+                {{ f.page if f.page is not none else "—" }}
+              {% endif %}
+            </td>
+            <td>
+              {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
+              {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
+              {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+            </td>
+            <td>{{ f.category }}</td>
+            <td class="meta-cell">
+              {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
+              {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
+              {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
+              {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
+            </td>
+            <td class="comment-cell">{{ f.polished_comment }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
   {% else %}
   <div class="card"><p>No findings — all checks passed.</p></div>

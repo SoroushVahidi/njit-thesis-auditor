@@ -88,6 +88,25 @@ def _sample_report() -> dict[str, Any]:
     return audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
 
 
+def _sample_source_report() -> dict[str, Any]:
+    findings = [
+        AuditFinding(
+            rule_id="P001",
+            severity=Severity.WARNING,
+            message="Avoid shell escape commands in TeX source.",
+            details={
+                "file": "/tmp/private/thesis.tex",
+                "line": str(line),
+                "issue_type": "risky_command",
+                "command": "\\write18",
+                "suggested_fix": "Remove the shell-escape command from the source.",
+            },
+        )
+        for line in (12, 18, 19, 20, 21)
+    ]
+    return audit_findings_to_json_dict(findings, {"audit_type": "tex"})
+
+
 def test_build_report_view_counts() -> None:
     report = _sample_report()
     view = build_report_view(report)
@@ -115,6 +134,51 @@ def test_finding_views_include_polished_comments() -> None:
     view = build_report_view(_sample_report())
     assert all(fv.polished_comment for fv in view.findings)
     assert all(fv.polished_comment.startswith(REVIEW_PREFIX) for fv in view.findings)
+
+
+def test_grouped_problem_views_default_to_grouped_problems_for_repeats() -> None:
+    view = build_report_view(_sample_report())
+
+    assert len(view.grouped_problems) == 4
+    p011 = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
+    assert p011.is_grouped is True
+    assert p011.occurrence_count == 2
+    assert p011.affected_label == "Pages"
+    assert p011.affected_compact == "1–2"
+    assert p011.page_tokens == ["1", "2"]
+    assert len(p011.individual_findings) == 2
+    assert all(f.rule_id == "P011" for f in p011.individual_findings)
+
+
+def test_grouped_problem_views_keep_single_findings_simple() -> None:
+    view = build_report_view(_sample_report())
+
+    p030 = next(problem for problem in view.grouped_problems if problem.rule_id == "P030")
+    assert p030.is_grouped is False
+    assert p030.occurrence_count == 1
+    assert p030.affected_compact == "12"
+    assert len(p030.individual_findings) == 1
+
+
+def test_grouped_problem_views_group_source_locations_compactly() -> None:
+    view = build_report_view(_sample_source_report())
+
+    assert len(view.grouped_problems) == 1
+    problem = view.grouped_problems[0]
+    assert problem.is_grouped is True
+    assert problem.affected_label == "Locations"
+    assert problem.affected_compact == "thesis.tex:12, thesis.tex:18–21"
+    assert problem.location_tokens == [
+        "thesis.tex:12",
+        "thesis.tex:18",
+        "thesis.tex:19",
+        "thesis.tex:20",
+        "thesis.tex:21",
+    ]
+    assert all(
+        finding.location_label.startswith("thesis.tex:")
+        for finding in problem.individual_findings
+    )
 
 
 @pytest.mark.parametrize(
@@ -250,5 +314,6 @@ def test_json_download_unchanged_by_report_view(tmp_path: Path) -> None:
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     loaded = json.loads(out.read_text(encoding="utf-8"))
     assert "grouped_summary" in loaded
+    assert "grouped_findings" in loaded
     assert "findings" in loaded
     assert loaded["findings"][0]["rule_id"] == "P011"

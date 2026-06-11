@@ -372,14 +372,8 @@ def _inject_complete_job(
     finding_count: int = 1,
 ) -> str:
     """Create a complete job in the job store and on disk."""
-    import secrets
-    from datetime import datetime, timezone
-
     from njit_auditor.models import AuditFinding, Severity
-    from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
-    from njit_auditor.report_view import build_report_view, report_view_to_dict
 
-    job_id = secrets.token_urlsafe(16)
     findings = [
         AuditFinding(
             rule_id="P011",
@@ -390,14 +384,40 @@ def _inject_complete_job(
                 "issue_type": "margin_boundary_violation",
                 "side": "left_margin",
                 "confidence": "medium",
+                "suggested_fix": "Adjust the left margin in the PDF export settings.",
             },
         )
         for i in range(finding_count)
     ]
-    metadata = {"input_file_name": "thesis.pdf", "audit_type": "pdf", "job_id": job_id}
+    return _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+
+def _inject_complete_job_with_findings(
+    wa: Any,
+    tmp_path: Path,
+    *,
+    findings: list[Any],
+    file_name: str,
+    audit_type: str,
+) -> str:
+    """Create a complete job from an explicit findings list."""
+    import secrets
+    from datetime import datetime, timezone
+
+    from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_view import build_report_view, report_view_to_dict
+
+    job_id = secrets.token_urlsafe(16)
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
     jdir.mkdir(parents=True, exist_ok=True)
     (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+    metadata = {"input_file_name": file_name, "audit_type": audit_type, "job_id": job_id}
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
@@ -407,10 +427,11 @@ def _inject_complete_job(
         job_id=job_id,
         state="complete",
         created_at=datetime.now(timezone.utc).isoformat(),
-        file_name="thesis.pdf",
+        file_name=file_name,
+        audit_type=audit_type,
         finding_count=view.total_findings,
-        warn_count=1,
-        fail_count=0,
+        warn_count=sum(1 for fv in view.findings if fv.severity == "WARNING"),
+        fail_count=sum(1 for fv in view.findings if fv.severity == "FAIL"),
         findings=[
             {
                 "rule_id": fv.rule_id,
@@ -419,8 +440,12 @@ def _inject_complete_job(
                 "issue_type": fv.issue_type,
                 "category": fv.category,
                 "polished_comment": fv.polished_comment,
+                "suggested_fix": fv.suggested_fix,
                 "triage_tier": fv.triage_tier,
                 "confidence": fv.confidence,
+                "source_file": fv.source_file,
+                "source_line": fv.source_line,
+                "location_label": fv.location_label,
             }
             for fv in view.findings
         ],
@@ -488,6 +513,88 @@ def test_results_page_shows_summary_cards(client: tuple[TestClient, Any], tmp_pa
     assert b"Highest severity" in resp.content
     assert b"Pages affected" in resp.content
     assert b"Rules flagged" in resp.content
+
+
+def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=page,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "medium",
+                "suggested_fix": "Adjust the left margin in the PDF export settings.",
+            },
+        )
+        for page in (3, 4, 5, 6, 7, 10, 14, 15, 16)
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    assert b"Grouped problems" in resp.content
+    assert b"All individual findings" in resp.content
+    assert b"Show individual occurrences" in resp.content
+    assert b"9 occurrences" in resp.content
+    assert "3–7, 10, 14–16".encode() in resp.content
+    assert (
+        b"Summary cards and severity/category totals remain based on raw findings."
+        in resp.content
+    )
+    assert b'id="grouped-problems-panel"' in resp.content
+    assert b'id="individual-findings-panel"' in resp.content
+
+
+def test_results_page_groups_source_locations_compactly(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P001",
+            severity=Severity.WARNING,
+            message="Avoid shell escape commands in TeX source.",
+            details={
+                "file": "/tmp/private/thesis.tex",
+                "line": str(line),
+                "issue_type": "risky_command",
+                "command": "\\write18",
+                "suggested_fix": "Remove the shell-escape command from the source.",
+            },
+        )
+        for line in (12, 18, 19, 20, 21)
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.tex",
+        audit_type="tex",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    assert "thesis.tex:12, thesis.tex:18–21".encode() in resp.content
+    assert b"/tmp/private/" not in resp.content
+    assert b"Show individual occurrences" in resp.content
 
 
 def test_results_page_shows_triage_panels(client: tuple[TestClient, Any], tmp_path: Path) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import statistics
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -31,6 +32,33 @@ P019_RULE_ID = "P019"
 P036_RULE_ID = "P036"
 P038_RULE_ID = "P038"
 P044_RULE_ID = "P044"
+_REPEATED_PROBLEM_CONTEXT_KEYS: tuple[str, ...] = (
+    "side",
+    "annotation_type",
+    "position_type",
+    "number_style",
+    "section_type",
+    "p019_triage_category",
+    "source_q_rule_id",
+    "source_q_rule",
+    "expected_heading",
+    "expected_phrase",
+    "expected_value",
+    "actual_value",
+    "expected_label",
+    "actual_label",
+    "command",
+    "environment",
+    "issue_subtype",
+    "candidate_count_on_page",
+    "paragraph_index",
+    "source_file",
+)
+_RULE_SPECIFIC_GROUPING_KEYS: dict[str, tuple[str, ...]] = {
+    "P013": ("observed_summary",),
+    "P026": ("observed_summary",),
+}
+_ROMAN_LABEL_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
 
 
 def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
@@ -189,6 +217,320 @@ def compact_page_list(pages: list[int], max_ranges: int = _MAX_COMPACT_RANGES) -
     if len(ranges) > max_ranges:
         result += f", ... ({len(sorted_pages)} pages total)"
     return result
+
+
+def _compact_numeric_ranges(numbers: list[int]) -> list[str]:
+    """Return sorted, deduplicated numeric values as compact en-dash ranges."""
+    if not numbers:
+        return []
+    ordered = sorted(set(numbers))
+    ranges: list[str] = []
+    start = end = ordered[0]
+    for number in ordered[1:]:
+        if number == end + 1:
+            end = number
+            continue
+        ranges.append(str(start) if start == end else f"{start}–{end}")
+        start = end = number
+    ranges.append(str(start) if start == end else f"{start}–{end}")
+    return ranges
+
+
+def _compact_numeric_range_text(numbers: list[int]) -> str:
+    return ", ".join(_compact_numeric_ranges(numbers))
+
+
+def _roman_to_int(label: str) -> int | None:
+    if not label or not _ROMAN_LABEL_RE.fullmatch(label):
+        return None
+    values = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+    total = 0
+    previous = 0
+    for char in reversed(label.upper()):
+        value = values[char]
+        if value < previous:
+            total -= value
+        else:
+            total += value
+            previous = value
+    return total if total > 0 else None
+
+
+def _int_to_roman(value: int, *, uppercase: bool = False) -> str:
+    numerals = (
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    )
+    remaining = value
+    parts: list[str] = []
+    for amount, symbol in numerals:
+        while remaining >= amount:
+            parts.append(symbol)
+            remaining -= amount
+    roman = "".join(parts)
+    return roman if uppercase else roman.lower()
+
+
+def _compact_roman_ranges(labels: list[str]) -> list[str]:
+    if not labels:
+        return []
+    normalized: list[tuple[int, str]] = []
+    for label in labels:
+        value = _roman_to_int(label)
+        if value is None:
+            return []
+        normalized.append((value, label))
+    uppercase = all(label.isupper() for _, label in normalized)
+    ordered_values = sorted({value for value, _ in normalized})
+    ranges: list[str] = []
+    start = end = ordered_values[0]
+    for value in ordered_values[1:]:
+        if value == end + 1:
+            end = value
+            continue
+        start_label = _int_to_roman(start, uppercase=uppercase)
+        end_label = _int_to_roman(end, uppercase=uppercase)
+        ranges.append(start_label if start == end else f"{start_label}–{end_label}")
+        start = end = value
+    start_label = _int_to_roman(start, uppercase=uppercase)
+    end_label = _int_to_roman(end, uppercase=uppercase)
+    ranges.append(start_label if start == end else f"{start_label}–{end_label}")
+    return ranges
+
+
+def _compact_location_ranges(
+    locations: list[tuple[str, str]],
+) -> tuple[list[str], str]:
+    if not locations:
+        return [], ""
+    by_file: dict[str, dict[str, list[str]]] = defaultdict(lambda: {"lines": []})
+    standalone_files: list[str] = []
+    for file_name, line in locations:
+        clean_file = file_name.strip()
+        clean_line = line.strip()
+        if not clean_file:
+            continue
+        if not clean_line:
+            standalone_files.append(clean_file)
+            continue
+        by_file[clean_file]["lines"].append(clean_line)
+
+    tokens: list[str] = []
+    for file_name in sorted(set(standalone_files)):
+        tokens.append(file_name)
+
+    for file_name in sorted(by_file):
+        numeric_lines: list[int] = []
+        non_numeric_lines: list[str] = []
+        for line in by_file[file_name]["lines"]:
+            if line.isdigit():
+                numeric_lines.append(int(line))
+            else:
+                non_numeric_lines.append(line)
+        for compact in _compact_numeric_ranges(numeric_lines):
+            tokens.append(f"{file_name}:{compact}")
+        for line in sorted(set(non_numeric_lines)):
+            tokens.append(f"{file_name}:{line}")
+
+    return tokens, ", ".join(tokens)
+
+
+def _page_label_from_details(details: dict[str, str]) -> str:
+    for key in ("page_label", "page_number_label"):
+        value = details.get(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _normalize_grouping_text(
+    text: str,
+    *,
+    audit_type: str,
+    page: int | None,
+    details: dict[str, str],
+) -> str:
+    """Normalize display text for grouping without relying on page-specific values."""
+    normalized = " ".join(text.split())
+    if not normalized:
+        return ""
+
+    if audit_type == "tex":
+        location = format_source_location(details)
+        if location and location != "source":
+            normalized = normalized.replace(location, "<location>")
+    elif page is not None:
+        normalized = normalized.replace(f"page {page}", "page <page>")
+        normalized = normalized.replace(f"p.{page}", "p.<page>")
+
+    page_label = _page_label_from_details(details)
+    if page_label:
+        normalized = normalized.replace(page_label, "<page_label>")
+
+    start = details.get("run_start_page", "").strip()
+    end = details.get("run_end_page", "").strip()
+    if start and end:
+        range_label = start if start == end else f"{start}–{end}"
+        normalized = normalized.replace(range_label, "<page_range>")
+
+    return normalized
+
+
+def _grouping_context_signature(
+    rule_id: str,
+    details: dict[str, str],
+) -> tuple[tuple[str, str], ...]:
+    keys = set(_REPEATED_PROBLEM_CONTEXT_KEYS)
+    keys.update(_RULE_SPECIFIC_GROUPING_KEYS.get(rule_id, ()))
+    signature: list[tuple[str, str]] = []
+    for key in sorted(keys):
+        value = details.get(key, "").strip()
+        if value:
+            signature.append((key, value))
+    return tuple(signature)
+
+
+def build_grouped_findings(
+    findings: list[AuditFinding],
+    audit_type: str,
+) -> list[dict[str, Any]]:
+    """Build a deterministic grouped-problem structure for repeated findings.
+
+    The raw ``findings`` list is preserved unchanged elsewhere. This structure is
+    additive and intended for compact web/Markdown display.
+    """
+    from njit_auditor.polished_comments import build_polished_comment
+
+    grouped: dict[
+        tuple[Any, ...],
+        dict[str, Any],
+    ] = {}
+
+    for index, finding in enumerate(findings):
+        details = {str(k): str(v) for k, v in (finding.details or {}).items()}
+        rule_id = finding.rule_id
+        issue_type = details.get("issue_type", "")
+        severity = finding.severity.value
+        page = finding.page
+        category = map_finding_rule_to_category(rule_id, details)
+        polished_comment = build_polished_comment(
+            rule_id=rule_id,
+            issue_type=issue_type,
+            severity=severity,
+            page=page,
+            details=details,
+            category=category,
+        )
+        suggested_fix = details.get("suggested_fix", "").strip()
+        confidence = details.get("confidence", "").strip()
+        triage_tier = details.get("triage_tier", "").strip()
+        normalized_problem = _normalize_grouping_text(
+            polished_comment,
+            audit_type=audit_type,
+            page=page,
+            details=details,
+        )
+        normalized_fix = _normalize_grouping_text(
+            suggested_fix,
+            audit_type=audit_type,
+            page=page,
+            details=details,
+        )
+        key = (
+            rule_id,
+            issue_type,
+            severity,
+            category,
+            normalized_problem,
+            normalized_fix,
+            confidence,
+            triage_tier,
+            _grouping_context_signature(rule_id, details),
+        )
+        file_name = _source_location_basename(details)
+        source_line = details.get("line", "").strip()
+        page_label = _page_label_from_details(details)
+
+        if key not in grouped:
+            grouped[key] = {
+                "rule_id": rule_id,
+                "issue_type": issue_type,
+                "severity": severity,
+                "category": category,
+                "problem": polished_comment,
+                "suggested_fix": suggested_fix,
+                "confidence": confidence,
+                "triage_tier": triage_tier,
+                "occurrence_count": 0,
+                "pages": [],
+                "page_ranges": [],
+                "page_labels": [],
+                "page_labels_compact": "",
+                "locations": [],
+                "locations_compact": "",
+                "individual_indexes": [],
+            }
+
+        entry = grouped[key]
+        entry["occurrence_count"] += 1
+        entry["individual_indexes"].append(index)
+        if page is not None:
+            entry["pages"].append(int(page))
+        if page_label:
+            entry["page_labels"].append(page_label)
+        if file_name or source_line:
+            entry["locations"].append(format_source_location(details))
+            entry.setdefault("_raw_locations", []).append((file_name, source_line))
+
+    ordered_groups = sorted(
+        grouped.values(),
+        key=lambda entry: (entry["individual_indexes"][0], entry["rule_id"], entry["issue_type"]),
+    )
+    for entry in ordered_groups:
+        page_values = sorted(set(int(page) for page in entry["pages"]))
+        page_ranges = _compact_numeric_ranges(page_values)
+        page_labels = sorted(set(str(label) for label in entry["page_labels"]))
+        roman_ranges = _compact_roman_ranges(page_labels)
+        raw_locations = entry.pop("_raw_locations", [])
+        location_ranges, locations_compact = _compact_location_ranges(raw_locations)
+        location_tokens = sorted(set(str(location) for location in entry["locations"]))
+
+        entry["pages"] = page_values
+        entry["page_ranges"] = page_ranges
+        entry["pages_compact"] = ", ".join(page_ranges)
+        entry["page_labels"] = page_labels
+        entry["page_label_ranges"] = roman_ranges
+        entry["page_labels_compact"] = (
+            ", ".join(roman_ranges) if roman_ranges else ", ".join(page_labels)
+        )
+        entry["locations"] = location_tokens
+        entry["location_ranges"] = location_ranges
+        entry["locations_compact"] = locations_compact
+        if entry["page_labels_compact"]:
+            entry["affected_label"] = "Pages"
+            entry["affected_compact"] = entry["page_labels_compact"]
+        elif entry["pages_compact"]:
+            entry["affected_label"] = "Pages"
+            entry["affected_compact"] = entry["pages_compact"]
+        elif entry["locations_compact"]:
+            entry["affected_label"] = "Locations"
+            entry["affected_compact"] = entry["locations_compact"]
+        else:
+            entry["affected_label"] = "Occurrences"
+            entry["affected_compact"] = ""
+
+    return ordered_groups
 
 
 def _share_pct(count: int, total: int) -> float:
@@ -1061,6 +1403,7 @@ def audit_findings_to_json_dict(
     return {
         "metadata": meta_block,
         "grouped_summary": build_grouped_summary(prepared),
+        "grouped_findings": build_grouped_findings(prepared, audit_type),
         "findings": serialized_findings,
     }
 
@@ -1218,6 +1561,65 @@ def _format_grouped_summary_section(grouped: dict[str, Any]) -> list[str]:
             issue_str += f" ({obs[:40]})" if len(obs) > 40 else f" ({obs})"
         lines.append(f"| `{rule_id}` | {count} | {category} | {page_str} | {issue_str} |")
     lines.append("")
+    return lines
+
+
+def _format_grouped_findings_section(
+    grouped_findings: list[dict[str, Any]],
+) -> list[str]:
+    """Render grouped repeated-problem display for Markdown reports."""
+    repeated_groups = [
+        entry
+        for entry in grouped_findings
+        if int(entry.get("occurrence_count", 0) or 0) > 1
+    ]
+    if not repeated_groups:
+        return []
+
+    lines: list[str] = []
+    lines.append("## Grouped Problems")
+    lines.append("")
+    lines.append(
+        "Repeated findings with the same rule, issue type, severity, user-facing problem, "
+        "suggested fix, and meaningful triage/context metadata are grouped here for review. "
+        "The raw findings remain unchanged in the per-rule findings section below."
+    )
+    lines.append("")
+
+    for entry in repeated_groups:
+        rule_id = str(entry.get("rule_id", ""))
+        severity = str(entry.get("severity", ""))
+        category = str(entry.get("category", ""))
+        issue_type = str(entry.get("issue_type", ""))
+        occurrence_count = int(entry.get("occurrence_count", 0) or 0)
+        affected_label = str(entry.get("affected_label", "Occurrences"))
+        affected_compact = str(entry.get("affected_compact", "")).strip()
+        problem = str(entry.get("problem", "")).strip()
+        suggested_fix = str(entry.get("suggested_fix", "")).strip()
+        confidence = str(entry.get("confidence", "")).strip()
+        triage_tier = str(entry.get("triage_tier", "")).strip()
+
+        heading = f"### {rule_id} — {occurrence_count} occurrence"
+        if occurrence_count != 1:
+            heading += "s"
+        lines.append(heading)
+        lines.append("")
+        lines.append(f"- Severity: `{severity}`")
+        lines.append(f"- Category: `{category}`")
+        if issue_type:
+            lines.append(f"- Issue type: `{issue_type}`")
+        if confidence:
+            lines.append(f"- Confidence: `{confidence}`")
+        if triage_tier:
+            lines.append(f"- Triage tier: `{triage_tier}`")
+        if affected_compact:
+            lines.append(f"- {affected_label}: {affected_compact}")
+        if problem:
+            lines.append(f"- Problem: {problem}")
+        if suggested_fix:
+            lines.append(f"- Suggested fix: {suggested_fix}")
+        lines.append("")
+
     return lines
 
 
@@ -1942,6 +2344,11 @@ def write_markdown_report(
     lines.append("")
     for category, count in meta["counts_by_category"].items():
         lines.append(f"- `{category}`: {count}")
+
+    grouped_findings_section = _format_grouped_findings_section(
+        payload.get("grouped_findings", [])
+    )
+    lines.extend(grouped_findings_section)
 
     # Grouped summary and PDF-only triage sections.
     lines.append("")
