@@ -425,6 +425,43 @@ def test_build_grouped_findings_preserves_raw_count_via_occurrence_counts() -> N
     assert all(entry["individual_indexes"] for entry in grouped)
 
 
+def test_build_grouped_findings_assigns_every_raw_finding_once_with_missing_optional_metadata(
+) -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Possible text crossing left_margin.",
+            details={},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Possible text crossing left_margin.",
+            details={"side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=12,
+            message="Missing continued heading.",
+            details={},
+        ),
+    ]
+
+    grouped = build_grouped_findings(findings, "pdf")
+    all_indexes = sorted(
+        index
+        for entry in grouped
+        for index in entry["individual_indexes"]
+    )
+
+    assert sum(entry["occurrence_count"] for entry in grouped) == len(findings)
+    assert all_indexes == list(range(len(findings)))
+
+
 # ---- build_grouped_summary tests ----
 
 
