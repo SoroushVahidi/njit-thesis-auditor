@@ -5,6 +5,10 @@ dissertation **PDF**, **TeX source (.tex)**, or **LaTeX project ZIP**, paste a p
 or audit a built-in sample PDF, and receive a formatted audit report in the browser — no CLI
 or Python knowledge required.
 
+The upload card supports both the traditional file-picker flow and a progressive-enhancement
+drag-and-drop zone. Dropped files populate the same native HTML file input used by the
+existing `/audits` form, so the server-side validation and upload path remain unchanged.
+
 ---
 
 ## Running locally
@@ -135,14 +139,17 @@ port 8000 firewall-restricted to localhost.
 
 ### File upload (PDF, TeX, or ZIP)
 
-1. User opens `/` and selects a **PDF**, **.tex**, or **.zip** file.
-2. User clicks **Start audit**.
-3. Server validates the file (extension, magic bytes, size limit) and starts a background job.
-4. **PDF** uploads run layout rules **P011–P082** (P082 experimental/opt-in; disabled by default). **TeX** and **ZIP** uploads run source rules
+1. User opens `/` and either drags a **PDF**, **.tex**, or **.zip** file onto the drop zone,
+   or clicks the same upload area to open the normal file picker.
+2. The selected filename is shown on the page. Invalid or multi-file drops are rejected
+   client-side with a clear message, but no upload is submitted automatically.
+3. User clicks **Start audit**.
+4. Server validates the file (extension, magic bytes, size limit) and starts a background job.
+5. **PDF** uploads run layout rules **P011–P082** (P082 experimental/opt-in; disabled by default). **TeX** and **ZIP** uploads run source rules
    **P001–P010** (ZIP is safely extracted, main `.tex` is detected — **no LaTeX compilation**).
-5. User is redirected to `/audits/{job_id}`, which polls every 2 seconds.
-6. When complete, the page shows findings, JSON/Markdown download links, and a Markdown preview.
-7. If the audit fails, a clean error message is shown — no stack traces.
+6. User is redirected to `/audits/{job_id}`, which polls every 2 seconds.
+7. When complete, the page shows findings, JSON/Markdown download links, and a Markdown preview.
+8. If the audit fails, a clean error message is shown — no stack traces.
 
 ### Public PDF URL
 
@@ -182,6 +189,8 @@ public site unless you are authorized to process those files.
 
 - Uploaded PDFs/TeX/ZIP files, URL-downloaded PDFs, and built-in sample copies are saved only
   under the runtime directory (gitignored).
+- The browser does not read or preview file contents before submit. Drag-and-drop only assigns
+  the selected file to the existing HTML file input.
 - Generated JSON/Markdown reports are saved only under the runtime directory.
 - Web-generated JSON/Markdown exports use **basename-only** paths (no absolute server paths in
   metadata or source `details.file`). The HTML findings table shows polished comments only.
@@ -204,6 +213,20 @@ public site unless you are authorized to process those files.
 - **Public hosting:** the default bind is `0.0.0.0`. Do not expose the web app to the public
   internet without a reverse proxy, TLS, authentication, and rate limiting.
 - Do not expose built-in samples on a public site unless you are authorized to process those files.
+
+---
+
+## Accessibility and progressive enhancement
+
+- The upload area remains a native file-upload form with a real `<input type="file">`.
+- Clicking the drop zone opens the same browser file picker as the visible file input.
+- Keyboard users can focus the drop zone and press `Enter` or `Space` to open the file picker.
+- Status text is announced through a live region when a file is selected, replaced, or rejected.
+- If JavaScript is disabled, the visible file input and submit button continue to work normally.
+
+**Testing note:** the current automated test stack verifies the rendered drop-zone markup,
+accessibility attributes, and inline drag/drop JavaScript hooks. Full browser drag-and-drop
+interaction still requires manual QA in a real browser.
 
 ---
 

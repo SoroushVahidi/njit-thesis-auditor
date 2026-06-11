@@ -60,6 +60,38 @@ def test_index_contains_file_input(client: tuple[TestClient, Any]) -> None:
     assert b".zip" in resp.content
 
 
+def test_index_contains_drag_drop_upload_zone_markup(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b'id="upload-drop-zone"' in resp.content
+    assert b'Drop a PDF, TeX, or ZIP file here' in resp.content
+    assert b'role="button"' in resp.content
+    assert b'tabindex="0"' in resp.content
+    assert b'aria-controls="file"' in resp.content
+    assert b'id="file-selection-status"' in resp.content
+    assert b'aria-live="polite"' in resp.content
+    assert b'Drag-and-drop is available when JavaScript is enabled' in resp.content
+
+
+def test_index_contains_drag_drop_progressive_enhancement_script(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"DataTransfer" in resp.content
+    assert b"dragenter" in resp.content
+    assert b"dragover" in resp.content
+    assert b"dragleave" in resp.content
+    assert b"drop" in resp.content
+    assert b"Drop one file at a time" in resp.content
+    assert b"Unsupported file:" in resp.content
+    assert b"Submit when ready or choose another file" in resp.content
+
+
 def test_index_advertises_pdf_tex_zip_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")

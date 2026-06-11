@@ -12,7 +12,7 @@ This guide is for developers, contributors, and reviewers who want to run a quic
 demo of the NJIT Thesis Auditor web UI using the committed synthetic fixtures. It covers:
 
 - How to install and start the web UI locally.
-- Which synthetic fixture files to use and in what order.
+- Which synthetic fixture files to use and in what order, including drag-and-drop checks.
 - What to look for on each results page.
 - How to verify JSON and Markdown downloads.
 - Privacy protections that apply to web-generated exports.
@@ -141,15 +141,18 @@ Complete these steps in order for a full end-to-end demo.
 2. Open `http://localhost:8000` in a browser.
 3. Verify the upload page loads: "NJIT Thesis Auditor" heading visible; three input panels
    (file upload, public URL, built-in sample); privacy info banner present.
+4. Verify the file-upload card shows a drag-and-drop zone and that clicking it still opens
+   the standard file picker.
 
 ### Step 2 — Upload `clean_minimal.pdf`
 
-1. On the upload page, click "Select PDF, TeX, or ZIP" and choose
-   `tests/fixtures/web_demo/clean_minimal.pdf`.
-2. Click "Start audit".
-3. The page redirects to a job page (`/audits/{job_id}`) with a spinner.
-4. After ~1–2 seconds the page auto-refreshes to show the completed result.
-5. **What to look for:**
+1. On the upload page, drag `tests/fixtures/web_demo/clean_minimal.pdf` onto the drop zone,
+   or click the upload area / file input and choose the same file.
+2. Confirm the selected filename appears on the page before submission.
+3. Click "Start audit".
+4. The page redirects to a job page (`/audits/{job_id}`) with a spinner.
+5. After ~1–2 seconds the page auto-refreshes to show the completed result.
+6. **What to look for:**
    - Status banner: "Audit complete" (green/success style).
    - Summary cards showing finding counts by severity.
    - Findings table present (columns: Rule, Category, Page, Severity, Issue Type, Comment).
@@ -163,7 +166,8 @@ Complete these steps in order for a full end-to-end demo.
 ### Step 3 — Upload `issues_pdf.pdf` and verify P011 finding
 
 1. Return to `http://localhost:8000`.
-2. Upload `tests/fixtures/web_demo/issues_pdf.pdf`.
+2. Upload `tests/fixtures/web_demo/issues_pdf.pdf` by drag-and-drop to confirm the selected-file
+   state can be replaced cleanly.
 3. **What to look for:**
    - P011 (Margins) warning appears in the findings table.
    - P013 (Page numbers) finding appears.
@@ -175,7 +179,7 @@ Complete these steps in order for a full end-to-end demo.
 ### Step 4 — Upload `clean_minimal.tex` and check source report
 
 1. Return to `http://localhost:8000`.
-2. Upload `tests/fixtures/web_demo/clean_minimal.tex`.
+2. Drag `tests/fixtures/web_demo/clean_minimal.tex` onto the drop zone.
 3. **What to look for:**
    - Status banner shows "TeX source audit" scope label (or similar indicator).
    - Rule IDs in findings are P001–P010 (or Q004–Q006 only); no P011+ PDF rules appear.
@@ -185,7 +189,8 @@ Complete these steps in order for a full end-to-end demo.
 ### Step 5 — Upload `issues_tex.tex` and verify source findings
 
 1. Return to `http://localhost:8000`.
-2. Upload `tests/fixtures/web_demo/issues_tex.tex`.
+2. Upload `tests/fixtures/web_demo/issues_tex.tex`. Use the file picker this time to confirm
+   the existing browse flow still works unchanged.
 3. **What to look for on the results page:**
    - Findings for one or more of: P001 (risky commands), P002 (duplicate label), P004
      (unresolved ref), P005 (missing caption), P007 (caption punctuation).
@@ -202,12 +207,27 @@ Complete these steps in order for a full end-to-end demo.
 ### Step 6 — Upload `demo_project.zip` and verify ZIP extraction and source report
 
 1. Return to `http://localhost:8000`.
-2. Upload `tests/fixtures/web_demo/demo_project.zip`.
+2. Drag `tests/fixtures/web_demo/demo_project.zip` onto the drop zone.
 3. **What to look for:**
    - The job completes and shows a source audit result (P001–P010 rules; no P011+ PDF rules).
    - No intermediate extraction artifacts shown; results look like a `.tex` upload.
    - Location column shows `main.tex:lineno` (basename only).
 4. Confirm no error about compilation failure — ZIP source audits do not compile LaTeX.
+
+### Step 6a — Invalid and multiple-file drag checks
+
+1. Drag an unsupported file such as `notes.docx` onto the drop zone.
+2. Confirm the upload page stays put, the drop zone enters an invalid state, and the message
+   clearly says only `.pdf`, `.tex`, and `.zip` are accepted.
+3. Drag two supported files onto the drop zone at once.
+4. Confirm the drop is rejected with a one-file-only message and no upload starts automatically.
+
+### Step 6b — Keyboard activation
+
+1. Return to the upload page and press `Tab` until the drop zone is focused.
+2. Press `Enter`; confirm the standard file picker opens.
+3. Repeat with `Space`.
+4. On touch/mobile, verify the normal file-picker flow still behaves the same way as before.
 
 ### Step 7 — Check JSON and Markdown downloads
 
@@ -254,6 +274,7 @@ After a successful upload and completed audit, the results page should show:
 | Download links | "Download JSON" and "Download Markdown" buttons |
 | Privacy note | Disclaimer that findings are heuristic signals requiring manual review |
 | Back link | "Try another file" or upload page link |
+| Upload zone states | Normal, drag-over, selected-file, and invalid-file states with text feedback, not color alone |
 
 ---
 

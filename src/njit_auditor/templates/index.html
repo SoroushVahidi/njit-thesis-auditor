@@ -1,5 +1,121 @@
 {% extends "base.html" %}
 {% block title %}NJIT Thesis Auditor — Upload{% endblock %}
+{% block head_extra %}
+<style>
+  .upload-zone {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 0.65rem;
+    border: 2px dashed #b8d4f0;
+    border-radius: var(--radius);
+    background: #f8fbff;
+    color: var(--color-text);
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      box-shadow 0.15s ease,
+      transform 0.15s ease;
+  }
+  .upload-zone:hover {
+    border-color: var(--color-primary);
+    background: #f2f8ff;
+  }
+  .upload-zone:focus,
+  .upload-zone:focus-visible {
+    outline: 3px solid rgba(0, 89, 168, 0.22);
+    outline-offset: 3px;
+    border-color: var(--color-primary);
+  }
+  .upload-zone[data-state="dragover"] {
+    border-color: var(--color-primary);
+    border-style: solid;
+    background: #eaf4ff;
+    box-shadow: 0 0 0 3px rgba(0, 89, 168, 0.12);
+    transform: translateY(-1px);
+  }
+  .upload-zone[data-state="selected"] {
+    border-color: #2e8b57;
+    border-style: solid;
+    background: #f2fbf5;
+  }
+  .upload-zone[data-state="invalid"] {
+    border-color: #c0392b;
+    border-style: solid;
+    background: #fff5f5;
+  }
+  .upload-zone__icon {
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #e3eef9;
+    color: var(--color-primary);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .upload-zone[data-state="selected"] .upload-zone__icon {
+    background: #dff3e6;
+    color: #1c6b43;
+  }
+  .upload-zone[data-state="invalid"] .upload-zone__icon {
+    background: #fde7e7;
+    color: #a93226;
+  }
+  .upload-zone__copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .upload-zone__eyebrow {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .upload-zone__title {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  .upload-zone__subtitle {
+    font-size: 0.86rem;
+    color: var(--color-muted);
+  }
+  .upload-zone__status {
+    margin: 0 0 0.65rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+  .upload-zone__status[data-state="selected"] {
+    color: #1c6b43;
+  }
+  .upload-zone__status[data-state="invalid"] {
+    color: #a93226;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <h1>NJIT Thesis Auditor</h1>
@@ -27,10 +143,42 @@
     <h2 style="margin-top:0;">Upload a file</h2>
     <form action="/audits" method="post" enctype="multipart/form-data">
       <label for="file">Select PDF, TeX, or ZIP</label>
-      <input type="file" id="file" name="file" accept=".pdf,.tex,.zip" required>
-      <p class="file-hint">
+      <label
+        for="file"
+        id="upload-drop-zone"
+        class="upload-zone"
+        data-state="idle"
+        tabindex="0"
+        role="button"
+        aria-controls="file"
+        aria-describedby="file-drop-help file-hint file-selection-status"
+      >
+        <span class="upload-zone__icon" aria-hidden="true">+</span>
+        <span class="upload-zone__copy">
+          <span class="upload-zone__eyebrow">Drag and drop</span>
+          <span id="file-drop-help" class="upload-zone__title">Drop a PDF, TeX, or ZIP file here</span>
+          <span id="file-drop-subtitle" class="upload-zone__subtitle">Or click to browse from your device. Submit when ready.</span>
+        </span>
+      </label>
+      <input
+        type="file"
+        id="file"
+        name="file"
+        accept=".pdf,.tex,.zip"
+        required
+        aria-describedby="file-drop-help file-hint file-selection-status"
+      >
+      <p id="file-selection-status" class="upload-zone__status" data-state="idle" role="status" aria-live="polite">
+        No file selected.
+      </p>
+      <p id="file-hint" class="file-hint">
         PDF, .tex, or .zip &middot; maximum {{ max_upload_mb }} MB &middot; processed locally
       </p>
+      <noscript>
+        <p class="file-hint">
+          Drag-and-drop is available when JavaScript is enabled. The standard file picker works without JavaScript.
+        </p>
+      </noscript>
       <button type="submit">Start audit</button>
     </form>
     <ul class="bullet-list" style="margin-top:0.75rem">
@@ -122,4 +270,162 @@
     All findings are advisory signals — please verify against NJIT guidelines manually.
   </p>
 </div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var input = document.getElementById("file");
+    var zone = document.getElementById("upload-drop-zone");
+    var status = document.getElementById("file-selection-status");
+    var title = document.getElementById("file-drop-help");
+    var subtitle = document.getElementById("file-drop-subtitle");
+    if (!(input instanceof HTMLInputElement) || !zone || !status || !title || !subtitle) {
+      return;
+    }
+
+    var defaultTitle = "Drop a PDF, TeX, or ZIP file here";
+    var defaultSubtitle = "Or click to browse from your device. Submit when ready.";
+    var dragTitle = "Release to attach this file";
+    var dragSubtitle = "Only one file is accepted per audit. Supported formats: .pdf, .tex, .zip.";
+    var allowedExtensions = [".pdf", ".tex", ".zip"];
+    var dragDepth = 0;
+
+    function extensionAllowed(fileName) {
+      var lower = fileName.toLowerCase();
+      return allowedExtensions.some(function (ext) {
+        return lower.endsWith(ext);
+      });
+    }
+
+    function updateState(state, message, zoneTitle, zoneSubtitle) {
+      zone.setAttribute("data-state", state);
+      status.setAttribute("data-state", state);
+      status.textContent = message;
+      title.textContent = zoneTitle;
+      subtitle.textContent = zoneSubtitle;
+      input.setAttribute("aria-invalid", state === "invalid" ? "true" : "false");
+    }
+
+    function renderIdle() {
+      updateState("idle", "No file selected.", defaultTitle, defaultSubtitle);
+    }
+
+    function renderSelected(file) {
+      updateState(
+        "selected",
+        "Selected file: " + file.name + ". Submit when ready or choose another file.",
+        file.name,
+        "Ready to upload. Drop or browse to replace this file before submitting."
+      );
+    }
+
+    function renderInvalid(message) {
+      updateState(
+        "invalid",
+        message,
+        "File not accepted",
+        "Use one .pdf, .tex, or .zip file. The server will validate the upload again after submit."
+      );
+    }
+
+    function renderCurrentSelection() {
+      if (input.files && input.files.length === 1 && extensionAllowed(input.files[0].name)) {
+        renderSelected(input.files[0]);
+      } else {
+        renderIdle();
+      }
+    }
+
+    function attachDroppedFile(file) {
+      try {
+        if (typeof DataTransfer !== "undefined") {
+          var transfer = new DataTransfer();
+          transfer.items.add(file);
+          input.files = transfer.files;
+          return input.files.length === 1;
+        }
+        return false;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function handleInvalidSelection(fileName) {
+      input.value = "";
+      renderInvalid(
+        "Unsupported file: " + fileName + ". Choose a .pdf, .tex, or .zip file."
+      );
+    }
+
+    input.addEventListener("change", function () {
+      if (!input.files || input.files.length === 0) {
+        renderIdle();
+        return;
+      }
+      var selectedFile = input.files[0];
+      if (!extensionAllowed(selectedFile.name)) {
+        handleInvalidSelection(selectedFile.name);
+        return;
+      }
+      renderSelected(selectedFile);
+    });
+
+    zone.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        input.click();
+      }
+    });
+
+    zone.addEventListener("dragenter", function (event) {
+      event.preventDefault();
+      dragDepth += 1;
+      updateState("dragover", "Drop one supported file to attach it.", dragTitle, dragSubtitle);
+    });
+
+    zone.addEventListener("dragover", function (event) {
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+      updateState("dragover", "Drop one supported file to attach it.", dragTitle, dragSubtitle);
+    });
+
+    zone.addEventListener("dragleave", function (event) {
+      event.preventDefault();
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) {
+        renderCurrentSelection();
+      }
+    });
+
+    zone.addEventListener("drop", function (event) {
+      event.preventDefault();
+      dragDepth = 0;
+      var files = event.dataTransfer ? event.dataTransfer.files : null;
+      if (!files || files.length === 0) {
+        renderInvalid("No file was detected in the drop.");
+        return;
+      }
+      if (files.length > 1) {
+        renderInvalid("Drop one file at a time. Multiple files were not attached.");
+        return;
+      }
+      var droppedFile = files[0];
+      if (!extensionAllowed(droppedFile.name)) {
+        renderInvalid(
+          "Unsupported file: " + droppedFile.name + ". Choose a .pdf, .tex, or .zip file."
+        );
+        return;
+      }
+      if (!attachDroppedFile(droppedFile)) {
+        renderInvalid(
+          "This browser could not attach the dropped file. Click the upload area to browse instead."
+        );
+        return;
+      }
+      renderSelected(droppedFile);
+    });
+
+    renderCurrentSelection();
+  });
+</script>
 {% endblock %}
