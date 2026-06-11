@@ -10,6 +10,7 @@ from njit_auditor.report_outputs import (
     P026_FAMILY_ISSUE_TYPE,
     P026_SIZE_ISSUE_TYPE,
     audit_findings_to_json_dict,
+    build_grouped_findings,
     build_grouped_summary,
     build_p011_margin_triage_summary,
     build_p012_annotation_triage_summary,
@@ -217,6 +218,53 @@ def _p013_findings(count: int = 8) -> list[AuditFinding]:
     return findings
 
 
+def _repeated_margin_findings(
+    pages: list[int],
+    *,
+    severity: Severity = Severity.WARNING,
+    side: str = "left_margin",
+    suggested_fix: str = "Adjust the affected margin in the PDF export.",
+    confidence: str = "medium",
+) -> list[AuditFinding]:
+    return [
+        AuditFinding(
+            rule_id="P011",
+            severity=severity,
+            page=page,
+            message=f"Possible text crossing {side}.",
+            details={
+                "issue_type": P011_ISSUE_TYPE,
+                "side": side,
+                "confidence": confidence,
+                "suggested_fix": suggested_fix,
+            },
+        )
+        for page in pages
+    ]
+
+
+def _repeated_tex_findings(
+    lines: list[int],
+    *,
+    file_name: str = "/tmp/private/thesis.tex",
+) -> list[AuditFinding]:
+    return [
+        AuditFinding(
+            rule_id="P001",
+            severity=Severity.WARNING,
+            message="Avoid shell escape commands in TeX source.",
+            details={
+                "file": file_name,
+                "line": str(line),
+                "issue_type": "risky_command",
+                "command": "\\write18",
+                "suggested_fix": "Remove the shell-escape command from the source.",
+            },
+        )
+        for line in lines
+    ]
+
+
 # ---- compact_page_list unit tests ----
 
 
@@ -245,6 +293,173 @@ def test_compact_page_list_truncates_long() -> None:
     result = compact_page_list(pages, max_ranges=3)
     assert "..." in result
     assert "50 pages total" in result
+
+
+# ---- build_grouped_findings tests ----
+
+
+def test_build_grouped_findings_groups_identical_pdf_findings_across_pages() -> None:
+    findings = _repeated_margin_findings([7, 3, 4, 5, 5])
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert len(grouped) == 1
+    entry = grouped[0]
+    assert entry["rule_id"] == "P011"
+    assert entry["occurrence_count"] == 5
+    assert entry["pages"] == [3, 4, 5, 7]
+    assert entry["page_ranges"] == ["3–5", "7"]
+    assert entry["affected_label"] == "Pages"
+    assert entry["affected_compact"] == "3–5, 7"
+    assert entry["individual_indexes"] == [0, 1, 2, 3, 4]
+
+
+def test_build_grouped_findings_uses_roman_page_labels_when_available() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=page,
+            message="Page has one page-number-like candidate.",
+            details={
+                "issue_type": P013_PAGE_ISSUE_TYPE,
+                "position_type": "bottom_center",
+                "number_style": "roman_lower",
+                "page_label": label,
+                "confidence": "medium",
+            },
+        )
+        for page, label in ((1, "vii"), (2, "viii"), (3, "ix"))
+    ]
+
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert len(grouped) == 1
+    assert grouped[0]["page_label_ranges"] == ["vii–ix"]
+    assert grouped[0]["affected_compact"] == "vii–ix"
+
+
+def test_build_grouped_findings_keeps_meaningful_pdf_differences_separate() -> None:
+    findings = (
+        _repeated_margin_findings([3, 4], side="left_margin")
+        + _repeated_margin_findings([5], side="right_margin")
+        + _repeated_margin_findings([6], severity=Severity.FAIL)
+        + _repeated_margin_findings(
+            [7],
+            suggested_fix="Regenerate the PDF with the correct left margin setting.",
+        )
+    )
+
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert len(grouped) == 4
+    counts = sorted(entry["occurrence_count"] for entry in grouped)
+    assert counts == [1, 1, 1, 2]
+    assert {entry["severity"] for entry in grouped} == {"WARNING", "FAIL"}
+
+
+def test_build_grouped_findings_keeps_distinct_issue_types_separate() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=3,
+            message="Page has multiple page-number-like candidates.",
+            details={
+                "issue_type": "page_number_multiple_candidates",
+                "position_type": "bottom_center",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=4,
+            message="Page is missing a page-number candidate.",
+            details={
+                "issue_type": "page_number_missing_candidate",
+                "position_type": "bottom_center",
+                "confidence": "medium",
+            },
+        ),
+    ]
+
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert len(grouped) == 2
+    assert {entry["issue_type"] for entry in grouped} == {
+        "page_number_missing_candidate",
+        "page_number_multiple_candidates",
+    }
+
+
+def test_build_grouped_findings_groups_tex_locations_by_file_and_line_ranges() -> None:
+    findings = _repeated_tex_findings([12, 18, 19, 20, 21])
+
+    grouped = build_grouped_findings(findings, "tex")
+
+    assert len(grouped) == 1
+    entry = grouped[0]
+    assert entry["occurrence_count"] == 5
+    assert entry["locations"] == [
+        "thesis.tex:12",
+        "thesis.tex:18",
+        "thesis.tex:19",
+        "thesis.tex:20",
+        "thesis.tex:21",
+    ]
+    assert entry["location_ranges"] == ["thesis.tex:12", "thesis.tex:18–21"]
+    assert entry["locations_compact"] == "thesis.tex:12, thesis.tex:18–21"
+    assert entry["affected_label"] == "Locations"
+    assert entry["affected_compact"] == "thesis.tex:12, thesis.tex:18–21"
+    assert "/tmp/private/" not in entry["locations_compact"]
+
+
+def test_build_grouped_findings_preserves_raw_count_via_occurrence_counts() -> None:
+    findings = _repeated_margin_findings([3, 4, 5]) + _repeated_margin_findings(
+        [10], side="right_margin"
+    )
+
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert sum(entry["occurrence_count"] for entry in grouped) == len(findings)
+    assert all(entry["individual_indexes"] for entry in grouped)
+
+
+def test_build_grouped_findings_assigns_every_raw_finding_once_with_missing_optional_metadata(
+) -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Possible text crossing left_margin.",
+            details={},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Possible text crossing left_margin.",
+            details={"side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=12,
+            message="Missing continued heading.",
+            details={},
+        ),
+    ]
+
+    grouped = build_grouped_findings(findings, "pdf")
+    all_indexes = sorted(
+        index
+        for entry in grouped
+        for index in entry["individual_indexes"]
+    )
+
+    assert sum(entry["occurrence_count"] for entry in grouped) == len(findings)
+    assert all_indexes == list(range(len(findings)))
 
 
 # ---- build_grouped_summary tests ----
@@ -658,6 +873,14 @@ def test_json_dict_includes_grouped_summary() -> None:
     assert "high_volume_rules" in payload["grouped_summary"]
 
 
+def test_json_dict_includes_grouped_findings() -> None:
+    payload = audit_findings_to_json_dict(_repeated_margin_findings([3, 4, 5]), _metadata())
+    assert "grouped_findings" in payload
+    assert len(payload["grouped_findings"]) == 1
+    assert payload["grouped_findings"][0]["occurrence_count"] == 3
+    assert payload["grouped_findings"][0]["page_ranges"] == ["3–5"]
+
+
 def test_json_dict_raw_findings_preserved_with_grouped_summary() -> None:
     findings = _p026_findings(10)
     payload = audit_findings_to_json_dict(findings, _metadata())
@@ -666,6 +889,7 @@ def test_json_dict_raw_findings_preserved_with_grouped_summary() -> None:
     assert all(f["rule_id"] == "P026" for f in payload["findings"])
     # AND grouped summary also present.
     assert payload["grouped_summary"]["high_volume_rules"][0]["count"] == 10
+    assert sum(entry["occurrence_count"] for entry in payload["grouped_findings"]) == 10
 
 
 def test_long_preview_is_truncated() -> None:
@@ -740,16 +964,19 @@ def test_markdown_report_grouped_summary_before_findings_by_rule(tmp_path: Path)
     write_markdown_report(_p026_findings(10), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     summary_pos = text.index("Repeated Findings Summary")
+    grouped_pos = text.index("Grouped Problems")
     findings_pos = text.index("Findings by Rule")
     assert summary_pos < findings_pos
+    assert grouped_pos < findings_pos
 
 
-def test_markdown_report_no_grouped_section_when_all_low_volume(tmp_path: Path) -> None:
-    # Only 3 findings per rule — below HIGH_VOLUME_THRESHOLD (5)
+def test_markdown_report_low_volume_repeats_skip_high_volume_summary_only(tmp_path: Path) -> None:
+    # Only 3 findings — below HIGH_VOLUME_THRESHOLD (5), but still a repeated problem.
     output_path = tmp_path / "report_low.md"
     write_markdown_report(_p026_findings(3), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "Repeated Findings Summary" not in text
+    assert "Grouped Problems" in text
 
 
 # ---- P019 triage helpers ----

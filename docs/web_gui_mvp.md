@@ -173,6 +173,23 @@ port 8000 firewall-restricted to localhost.
 on servers where the repository is checked out. Do not expose the built-in sample feature on a
 public site unless you are authorized to process those files.
 
+### Results-page problem grouping
+
+- The browser results page defaults to **Grouped problems** rather than a fully expanded raw
+  findings table.
+- Grouping is presentation-only. Raw detector findings, raw counts, and JSON `findings`
+  entries remain unchanged.
+- A grouped problem is formed only when findings share the same rule ID, issue type, severity,
+  category, polished user-facing problem, suggested fix, and meaningful triage/context metadata.
+- Pure location data is compacted for display rather than treated as the identity:
+  numeric pages render as ranges such as `3–7, 10, 14–16`; Roman labels render as ranges only
+  when the raw findings already provide reliable Roman-page labels; TeX findings render compact
+  basename-only location ranges such as `thesis.tex:12, thesis.tex:18–21`.
+- Specialized `grouped_summary` triage rollups such as P011/P013/P026 remain separate from
+  this generic grouped-problem view and continue to appear above it.
+- Users can switch to **All individual findings** or expand **Show individual occurrences**
+  inside a grouped problem to inspect the original per-page or per-location findings.
+
 ### URL safety restrictions
 
 - Only `http://` and `https://` schemes are accepted.
@@ -223,13 +240,14 @@ public site unless you are authorized to process those files.
 - Keyboard users can focus the drop zone and press `Enter` or `Space` to open the file picker.
 - Status text is announced through a live region when a file is selected, replaced, or rejected.
 - If JavaScript is disabled, the visible file input and submit button continue to work normally.
+- On the results page, JavaScript only toggles between grouped and raw views and applies
+  client-side filters; the underlying report data and downloads are unchanged.
 
 **Testing note:** the current automated test stack verifies the rendered drop-zone markup,
-accessibility attributes, and inline drag/drop JavaScript hooks. Full browser drag-and-drop
-interaction still requires manual QA in a real browser.
+accessibility attributes, inline drag/drop JavaScript hooks, and grouped-results markup. Full
+browser drag-and-drop and grouped-results interaction still require manual QA in a real browser.
 
 ---
-
 ## Runtime storage and job TTL
 
 Each job creates a directory under `NJIT_AUDITOR_WEB_RUNTIME_DIR`:

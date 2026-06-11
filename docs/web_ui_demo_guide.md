@@ -155,7 +155,9 @@ Complete these steps in order for a full end-to-end demo.
 6. **What to look for:**
    - Status banner: "Audit complete" (green/success style).
    - Summary cards showing finding counts by severity.
-   - Findings table present (columns: Rule, Category, Page, Severity, Issue Type, Comment).
+   - "Grouped problems" is the default results mode.
+   - Repeated problems, if any, appear once with an occurrence count and compact page/location ranges.
+   - "All individual findings" still exposes the full raw findings table (Rule, Category, Page/Location, Severity, Issue Type, Comment).
    - No triage panels needed for a near-clean result.
    - "Download JSON" and "Download Markdown" links visible.
 
@@ -169,9 +171,10 @@ Complete these steps in order for a full end-to-end demo.
 2. Upload `tests/fixtures/web_demo/issues_pdf.pdf` by drag-and-drop to confirm the selected-file
    state can be replaced cleanly.
 3. **What to look for:**
-   - P011 (Margins) warning appears in the findings table.
+   - P011 (Margins) warning appears in grouped form if repeated.
    - P013 (Page numbers) finding appears.
-   - Triage panel may appear above the findings table for high-volume rules.
+   - Compact ranges such as `3–7, 10, 14–16` appear when repeated page-level findings exist.
+   - Triage panel may appear above the grouped problems for high-volume rules.
    - Summary cards show WARNING count > 0.
    - All finding comments are structural heuristic descriptions; no dissertation body text
      should appear.
@@ -194,6 +197,7 @@ Complete these steps in order for a full end-to-end demo.
 3. **What to look for on the results page:**
    - Findings for one or more of: P001 (risky commands), P002 (duplicate label), P004
      (unresolved ref), P005 (missing caption), P007 (caption punctuation).
+   - If the same issue repeats, grouped problems show compact basename-only location ranges.
    - Finding comments are structural descriptions; no raw `\label{...}` or `\ref{...}`
      content should be visible in the browser UI.
 4. **What to verify in the downloaded JSON:**
@@ -234,10 +238,12 @@ Complete these steps in order for a full end-to-end demo.
 For at least one fixture result (e.g., `issues_tex.tex`):
 
 1. Click "Download JSON" and open the file.
-   - Top-level keys present: `metadata`, `findings`, `grouped_summary`.
+   - Top-level keys present: `metadata`, `findings`, `grouped_summary`, `grouped_findings`.
    - `metadata` contains: `total_findings`, `counts_by_severity`, `counts_by_rule_id`,
      `counts_by_category`, `generated_at`, `note`.
    - Each finding has: `rule_id`, `severity`, `message`, `page` (or `location` for source).
+   - `grouped_findings` is additive: it summarizes repeated browser-facing problems without
+     removing any entry from the raw `findings` list.
 2. Click "Download Markdown" and open the file.
    - Readable `##` headings, rule IDs, finding counts.
    - Summary table with severity counts at the top.
@@ -266,8 +272,9 @@ After a successful upload and completed audit, the results page should show:
 |---|---|
 | Status banner | "Audit complete" (green) or "Audit could not complete" (red/failed) with file name and job ID prefix |
 | Summary cards | Total findings, WARNING count, FAIL count, category breakdown |
-| Triage panels | Structured rollup for high-volume rules (P011/P013/P026) when counts are sufficient; appear above the raw findings table |
-| Findings table | Columns: Rule, Category, Page, Severity, Issue Type, Comment; filterable client-side |
+| Triage panels | Structured rollup for high-volume rules (P011/P013/P026) when counts are sufficient; appear above the grouped problems and raw findings |
+| Grouped problems | Default results mode; repeated problems collapsed into one card with occurrence count and compact page/location ranges; expandable to show original occurrences |
+| Findings table | Raw-view table available via "All individual findings"; columns: Rule, Category, Page/Location, Severity, Issue Type, Comment; filterable client-side |
 | Client-side filters | Rule, Severity, Category, Page dropdowns; filter count label; Reset button |
 | Polished comments | "Review needed: …" style structural descriptions; no dissertation body text |
 | Source filename:line labels | For TeX/ZIP audits: `filename:lineno` in the location column; basename only |
