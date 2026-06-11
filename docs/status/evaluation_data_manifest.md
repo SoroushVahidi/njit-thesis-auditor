@@ -1,8 +1,8 @@
 # Evaluation Data Manifest
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
-- **Latest main:** `fc978f5` (PR #294 — Polish GUI docs and scope labels after P082); prior: `0dc1926` (PR #292 — Add experimental P082 landscape page-number orientation advisory)
-- **Project closeout and summary:** `docs/status/project_closeout.md`
+- **Baseline main for this status snapshot:** `67c31b9` (PR #296 — Fix post-P083 live status doc references); prior baseline: `0ef8967` (PR #295 — Add P083 EF-comment coverage taxonomy and in-scope gap register)
+- **Historical P082 closeout snapshot:** `docs/status/project_closeout.md`
 - **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged
@@ -21,7 +21,7 @@
 - **P081 P013/P026 calibration rollup:** implemented (2026-06-09, **PR #288**) — reporting-only refinement that extends `grouped_summary.p013_triage` and `grouped_summary.p026_font_triage` with dominant-pattern labels, calibration buckets, and compact routine-vs-outlier page ranges; detector logic unchanged; raw finding counts unchanged; no threshold changes, no raw finding suppression, and no new issue types; canonical aggregate unchanged at 1,543
 - **P082 landscape page-number orientation advisory:** implemented (2026-06-09, **PR #292**) — experimental opt-in; disabled by default; warning/manual-review only; 0 findings on five-PDF dataset in default mode; canonical aggregate unchanged at 1,543; see `docs/planning/p082_landscape_page_number_orientation_scope_and_design.md` and `docs/evaluation/p082_landscape_page_number_orientation_synthetic_validation.md`
 - **P083 EF-comment coverage taxonomy and in-scope gap register:** implemented (2026-06-10) — pure evaluation_task; classifies 52 EF reviewer comments from 2 DOCX dissertation drafts against SIM/SIP/SMI/SBL/SEM/PRF/AMB taxonomy; output: `data/processed/ef_comment_coverage.json` (52 rows; 3 SIM, 34 SIP, 10 SMI, 3 SBL, 2 SEM; covered_or_partial_rate 0.74); 3 new schema tests; no source code changes; no detector changes; canonical aggregate unchanged at 1,543; see `docs/planning/p083_ef_comment_coverage_taxonomy_scope_and_design.md` and `docs/evaluation/ef_comment_coverage_analysis.md`
-- **Validation:** ruff, mypy, **1127 passed** at the latest docs/status refresh
+- **Status snapshot validation:** `ruff check .`, `mypy src`, and **1138 pytest passed** when this status snapshot was generated
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; `committee_approval_page` gap unchanged (5 EF, 0 tool); `references_citations` gap unchanged (9 EF, 0 tool)
 - **Schema version:** 1

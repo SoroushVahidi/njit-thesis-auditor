@@ -1,6 +1,7 @@
-# Project Closeout and Summary
+# Historical P082 Project Closeout Snapshot
 
 - **Date:** 2026-06-09 (final whole-repository polish after PR #290)
+- **Historical status:** point-in-time P082 closeout snapshot; superseded for live/current values by `docs/status/current_project_state_and_next_steps.md` and `docs/status/evaluation_data_manifest.md`
 - **Latest main:** `0f74980` (PR #290 — final whole-repository polish after P081)
 - **Scope at closeout:** P001–P082 implemented; 81 rule inventory entries; **1124 pytest passed**; ruff clean; mypy clean
 - **Canonical five-PDF aggregate:** **1,543** findings — `docs/evaluation/current_auditor_after_p070_evaluation.md` (unchanged in default mode through P082)

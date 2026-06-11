@@ -1,7 +1,9 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
-- Date: 2026-06-10 (updated: P083 EF-comment coverage taxonomy and in-scope gap register)
-- Historical baseline note: PR #47 (`8afdcad165ab`); **current auditor:** repository progress P001–P083, web UI present on `main` (`fc978f5` PR #294); project-added rule inventory spans P001–P074 plus P076–P083 (82 entries, with P075 documented separately as non-inventory); **1127 pytest passed**
+- Date: 2026-06-11 (release-engineering/status consistency refresh)
+- Historical baseline note: PR #47 (`8afdcad165ab`)
+- Baseline main for this status snapshot: `67c31b9` (PR #296 — Fix post-P083 live status doc references)
+- Status snapshot validation: repository progress P001–P083; web UI present on the baseline snapshot commit above; project-added rule inventory spans P001–P074 plus P076–P083 (82 entries, with P075 documented separately as non-inventory); **1138 pytest passed** when this snapshot was generated
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
