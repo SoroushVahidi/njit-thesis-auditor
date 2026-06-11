@@ -630,6 +630,19 @@ def test_results_page_has_client_side_filters(
     assert b"filter-page" in resp.content
 
 
+def test_results_page_filter_script_defers_until_dom_ready(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Findings filter/toggle script must wait for DOMContentLoaded (head vs body)."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"DOMContentLoaded" in resp.content
+    assert b'setMode("grouped")' in resp.content
+    assert b"getElementById(\"filter-rule\")" in resp.content
+
+
 def test_results_page_shows_privacy_note(client: tuple[TestClient, Any], tmp_path: Path) -> None:
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)

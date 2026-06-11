@@ -24,7 +24,7 @@
 {% endif %}
 {% if state == "complete" and findings %}
 <script>
-  (function() {
+  document.addEventListener("DOMContentLoaded", function() {
     var currentMode = "grouped";
 
     function matchesTokenList(value, selected) {
@@ -76,11 +76,17 @@
     }
 
     function applyFilters() {
-      var rule = document.getElementById("filter-rule").value;
-      var severity = document.getElementById("filter-severity").value;
-      var category = document.getElementById("filter-category").value;
+      var ruleEl = document.getElementById("filter-rule");
+      var severityEl = document.getElementById("filter-severity");
+      var categoryEl = document.getElementById("filter-category");
       var page = document.getElementById("filter-page");
       var location = document.getElementById("filter-location");
+      if (!ruleEl || !severityEl || !categoryEl) {
+        return;
+      }
+      var rule = ruleEl.value;
+      var severity = severityEl.value;
+      var category = categoryEl.value;
       var pageVal = page ? page.value : "";
       var locationVal = location ? location.value : "";
       var groupedState = applyFiltersToGrouped(rule, severity, category, pageVal, locationVal);
@@ -125,7 +131,7 @@
       });
     });
     setMode("grouped");
-  })();
+  });
 </script>
 {% endif %}
 {% endblock %}
