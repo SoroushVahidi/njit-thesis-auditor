@@ -202,7 +202,7 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Current validation | Repository progress: P001–P083 (82 inventory rules spanning P001–P083, with P075 documented as a non-inventory project task); **1138 pytest passed** |
+| Status snapshot validation | Repository progress: P001–P083 (82 inventory rules spanning P001–P083, with P075 documented as a non-inventory project task); **1138 pytest passed** for the live status snapshot |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next

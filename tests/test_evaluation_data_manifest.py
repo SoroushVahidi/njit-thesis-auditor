@@ -257,11 +257,23 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
 
     assert manifest["p_rules_implemented"] == computed_state["implemented_range"]
     assert auditor_rule_state["p_rules_implemented"] == computed_state["implemented_range"]
-    assert isinstance(manifest["pytest_count_at_last_doc_refresh"], int)
-    assert manifest["pytest_count_at_last_doc_refresh"] > 0
+    assert "pytest_count_at_last_doc_refresh" not in manifest
+    assert "latest_main_at_last_doc_refresh" not in manifest
+    assert "pytest_count_at_last_doc_refresh" not in auditor_rule_state
+    assert "latest_main_at_last_doc_refresh" not in auditor_rule_state
+    assert isinstance(manifest["pytest_count_used_for_status_snapshot"], int)
+    assert manifest["pytest_count_used_for_status_snapshot"] > 0
     assert (
-        manifest["pytest_count_at_last_doc_refresh"]
-        == auditor_rule_state["pytest_count_at_last_doc_refresh"]
+        manifest["pytest_count_used_for_status_snapshot"]
+        == auditor_rule_state["pytest_count_used_for_status_snapshot"]
+    )
+    assert isinstance(manifest["main_commit_used_for_status_snapshot"], str)
+    assert re.fullmatch(
+        r"[0-9a-f]{7}", manifest["main_commit_used_for_status_snapshot"]
+    )
+    assert (
+        manifest["main_commit_used_for_status_snapshot"]
+        == auditor_rule_state["main_commit_used_for_status_snapshot"]
     )
 
     assert (
@@ -355,14 +367,14 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
 
 def test_manifest_current_state_docs_are_aligned() -> None:
     manifest = _load_manifest()
-    latest_main = str(manifest["latest_main_at_last_doc_refresh"])
-    pytest_count = int(manifest["pytest_count_at_last_doc_refresh"])
+    baseline_main = str(manifest["main_commit_used_for_status_snapshot"])
+    pytest_count = int(manifest["pytest_count_used_for_status_snapshot"])
     computed_state = _compute_project_rule_state(manifest)
     implemented_range = str(computed_state["implemented_range"]).replace("-", "–")
     next_inventory_id = str(computed_state["next_inventory_id"])
     auditor_rule_state = manifest["auditor_rule_state"]
-    assert latest_main == auditor_rule_state["latest_main_at_last_doc_refresh"]
-    assert re.fullmatch(r"[0-9a-f]{7}", latest_main)
+    assert baseline_main == auditor_rule_state["main_commit_used_for_status_snapshot"]
+    assert re.fullmatch(r"[0-9a-f]{7}", baseline_main)
 
     readme = _load_text(README_PATH)
     current_state_doc = _load_text(CURRENT_STATE_DOC_PATH)
@@ -382,6 +394,11 @@ def test_manifest_current_state_docs_are_aligned() -> None:
         assert "P081" in text
         assert "P082" in text
 
+    for text in (current_state_doc, manifest_doc, data_inventory_doc):
+        assert "Latest main" not in text
+        assert "latest_main_at_last_doc_refresh" not in text
+        assert "Baseline main for this status snapshot" in text
+
     assert implemented_range in readme
     assert implemented_range in current_state_doc
     assert implemented_range in manifest_doc
@@ -390,13 +407,18 @@ def test_manifest_current_state_docs_are_aligned() -> None:
     assert next_inventory_id in current_state_doc
     assert next_inventory_id in manifest_doc
     assert next_inventory_id in data_inventory_doc
-    assert latest_main in current_state_doc
-    assert latest_main in manifest_doc
-    assert latest_main in data_inventory_doc
+    assert baseline_main in current_state_doc
+    assert baseline_main in manifest_doc
+    assert baseline_main in data_inventory_doc
     assert f"{pytest_count} pytest" in readme
     assert f"{pytest_count} pytest" in current_state_doc
-    assert f"{pytest_count} passed" in manifest_doc
+    assert f"{pytest_count} pytest" in manifest_doc
     assert f"{pytest_count} pytest" in data_inventory_doc
+    assert "Current validation" not in readme
+    assert "Status snapshot validation" in readme
+    assert "Status snapshot validation" in current_state_doc
+    assert "Status snapshot validation" in manifest_doc
+    assert "Status snapshot validation" in data_inventory_doc
     assert "Historical P082 closeout snapshot" in readme
     assert "Historical P082 closeout snapshot" in current_state_doc
     assert "Historical P082 closeout snapshot" in manifest_doc
