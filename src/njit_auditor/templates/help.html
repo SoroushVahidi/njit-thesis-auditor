@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Help &amp; Terminology — NJIT Thesis Auditor{% endblock %}
+
+{% block head_extra %}
+<style>
+  .help-section { margin-bottom: 2.25rem; }
+  .help-section h2 { border-bottom: 2px solid var(--color-border); padding-bottom: 0.35rem; margin-bottom: 1rem; }
+  .outcome-card {
+    border-left: 4px solid var(--color-border);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.9rem;
+    box-shadow: var(--shadow);
+  }
+  .outcome-card--fail { border-left-color: #c0392b; }
+  .outcome-card--warn { border-left-color: #856404; }
+  .outcome-card--pass { border-left-color: #155724; }
+  .outcome-card--info { border-left-color: var(--color-primary); }
+  .outcome-card h3 { margin: 0 0 0.4rem; display: flex; align-items: center; gap: 0.6rem; }
+  .outcome-card p { margin: 0 0 0.35rem; font-size: 0.93rem; }
+  .outcome-card p:last-child { margin-bottom: 0; }
+  .disclaimer-box {
+    background: #fff8e6;
+    border: 1px solid #f0c040;
+    border-left: 4px solid #e6a817;
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+  }
+  .disclaimer-box p { margin: 0 0 0.35rem; font-size: 0.93rem; }
+  .disclaimer-box p:last-child { margin-bottom: 0; }
+  .glossary-table td, .glossary-table th { vertical-align: top; padding: 0.55rem 0.8rem; }
+  .glossary-table td:first-child { font-weight: 700; white-space: nowrap; }
+  .toc-list { list-style: none; padding: 0; margin: 0 0 1.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; }
+  .toc-list a { color: var(--color-primary); font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Help &amp; Terminology</h1>
+<p class="subtitle">Plain-language explanations of what the NJIT Thesis Auditor reports and what its results mean.</p>
+
+<div class="disclaimer-box" role="note" aria-label="Important disclaimer">
+  <strong>Important disclaimer.</strong>
+  <p>This tool is an automated research prototype that applies heuristic checks to PDF and LaTeX dissertation files. It is <strong>not an official NJIT approval system</strong>. A result of <em>PASS</em>, <em>no findings</em>, or any combination of results does <strong>not</strong> mean your dissertation has been approved by the Graduate Studies office. All findings are advisory signals — please verify every flagged item against the official NJIT formatting guidelines and consult your Graduate Studies coordinator.</p>
+  <p>Because many checks are heuristic (based on pattern-matching rather than exact rules), the tool may miss some issues and may sometimes flag content that is actually correct. <strong>Human review is always required.</strong></p>
+</div>
+
+<ul class="toc-list" aria-label="On this page">
+  <li><a href="#audit-outcomes">Audit outcomes</a></li>
+  <li><a href="#pass-limitation">What PASS does not mean</a></li>
+  <li><a href="#not-checked">Not checked / not reliably checkable</a></li>
+  <li><a href="#glossary">Glossary of terms</a></li>
+  <li><a href="#audit-types">PDF vs TeX audit</a></li>
+  <li><a href="#why-manual">Why manual review is still required</a></li>
+</ul>
+
+<!-- Audit Outcomes -->
+<section class="help-section" id="audit-outcomes">
+  <h2>Audit outcomes</h2>
+
+  <div class="outcome-card outcome-card--fail">
+    <h3>
+      <span class="badge badge-fail">FAIL</span>
+      Error — likely correction required
+    </h3>
+    <p>The tool found a likely formatting or structural problem that normally requires correction. For example, a duplicate <code>\label</code> in your TeX source, or a page number appearing where it should not be.</p>
+    <p>Because some checks are heuristic, please review the cited page or source location before making changes. A FAIL finding is a strong signal but not a guarantee of an actual error.</p>
+  </div>
+
+  <div class="outcome-card outcome-card--warn">
+    <h3>
+      <span class="badge badge-warn">WARNING</span>
+      Warning — review recommended
+    </h3>
+    <p>The tool found something unusual or potentially inconsistent that should be reviewed. A warning is not always a confirmed violation — it may reflect a formatting pattern that is less common or may require manual judgment to assess.</p>
+    <p>Warnings often arise from heuristic checks on visual layout where the tool cannot be certain. Review each warning against NJIT guidelines to decide whether it requires a change.</p>
+  </div>
+
+  <div class="outcome-card outcome-card--pass">
+    <h3>
+      <span class="badge badge-pass">PASS</span>
+      Check passed
+    </h3>
+    <p>A particular automated check completed without detecting the problem it was designed to find. This means the specific pattern or condition the check looks for was not observed.</p>
+    <p><strong>PASS does not mean your complete dissertation has been approved.</strong> See <a href="#pass-limitation">What PASS does not mean</a> below.</p>
+  </div>
+
+  <div class="outcome-card outcome-card--info">
+    <h3>
+      <span class="badge badge-info">No findings</span>
+    </h3>
+    <p>None of the checks that ran produced a FAIL, WARNING, or PASS finding. This could mean no issues were detected, or that the relevant checks did not apply to your file (for example, if a required section could not be located).</p>
+    <p>Zero findings is encouraging but does not prove complete compliance, because some requirements may not be machine-checkable and some sections may not have been reached reliably.</p>
+  </div>
+</section>
+
+<!-- PASS Limitation -->
+<section class="help-section" id="pass-limitation">
+  <h2>What PASS does not mean</h2>
+  <p>A <strong>PASS</strong> result — or a report with zero findings — means only that the specific automated checks that ran did not detect the patterns they were designed to detect. It does <strong>not</strong> mean:</p>
+  <ul>
+    <li>Your entire dissertation meets NJIT formatting requirements.</li>
+    <li>Graduate Studies has reviewed or approved your submission.</li>
+    <li>Every NJIT rule has been verified — many requirements are not machine-checkable at all.</li>
+    <li>The checks ran successfully on every section of your document.</li>
+  </ul>
+  <p>Always submit your dissertation through the official NJIT Graduate Studies process and respond to any feedback from your coordinator.</p>
+</section>
+
+<!-- Not Checked -->
+<section class="help-section" id="not-checked">
+  <h2>Not checked / not reliably checkable</h2>
+  <p>Some requirements cannot be checked automatically, or a check may not run because:</p>
+  <ul>
+    <li><strong>Required input unavailable.</strong> A rule that needs a compiled PDF will not run on a TeX source upload, and vice versa.</li>
+    <li><strong>Missing or unreliable text layer.</strong> If the PDF was scanned or generated from an image, the text layer may be absent and text-based checks may not work correctly.</li>
+    <li><strong>Section not detected.</strong> If the tool cannot locate a specific section (such as the Abstract or Table of Contents), checks that rely on that section will produce no findings — not a PASS.</li>
+    <li><strong>Rule requires manual judgment.</strong> Some requirements (such as whether content is appropriate or consistent with your research) cannot be assessed automatically.</li>
+    <li><strong>Experimental or disabled rule.</strong> Some rules are disabled by default because they are not yet stable. They appear in the <a href="/rules">Rule Reference</a> but are marked experimental.</li>
+  </ul>
+</section>
+
+<!-- Glossary -->
+<section class="help-section" id="glossary">
+  <h2>Glossary of terms</h2>
+  <table class="glossary-table" style="width:100%;font-size:0.9rem;">
+    <thead>
+      <tr>
+        <th style="min-width:160px;">Term</th>
+        <th>Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Rule ID (P013)</td>
+        <td>An internal identifier for a specific check. Each rule has a stable ID like <strong>P013</strong> that links to its full description in the <a href="/rules">Rule Reference</a>. Rule IDs appear as clickable links in your audit results.</td>
+      </tr>
+      <tr>
+        <td>Category</td>
+        <td>A grouping label for related checks, such as "PDF page numbering" or "Cross-references". Categories help you find all findings related to the same topic.</td>
+      </tr>
+      <tr>
+        <td>Repeated-problem summary<br><em>(Grouped problems)</em></td>
+        <td>When the same formatting issue appears on many pages, the tool combines them into a single card and lists all affected pages. This avoids an overwhelming list of nearly identical findings. The card shows occurrence count and a compact page range (e.g., 3–7, 10, 14–16). Expand the card to see individual occurrences.</td>
+      </tr>
+      <tr>
+        <td>Individual finding<br><em>(Raw finding)</em></td>
+        <td>A single finding before grouping. The "All individual findings" view shows every finding separately, including those combined in the grouped view. Summary card totals always reflect the raw finding count.</td>
+      </tr>
+      <tr>
+        <td>Occurrence count</td>
+        <td>How many times the same issue was detected across your document.</td>
+      </tr>
+      <tr>
+        <td>Affected page</td>
+        <td>The PDF page number where the issue was found. Page 1 is the first page of your document as the PDF numbers it.</td>
+      </tr>
+      <tr>
+        <td>Source location</td>
+        <td>For TeX source audits, the file name and line number in your <code>.tex</code> source where the issue was detected (for example, <code>main.tex:42</code>).</td>
+      </tr>
+      <tr>
+        <td>High-volume triage</td>
+        <td>Some rules (such as margin and font checks) can produce hundreds of findings in a typical dissertation. These findings are presented in a compact summary panel at the top of the results so you can quickly understand the overall pattern before looking at individual findings. The raw findings are still available below.</td>
+      </tr>
+      <tr>
+        <td>Confidence</td>
+        <td>An internal score (low / medium / high) indicating how certain the tool is about a particular finding. Lower-confidence findings are more likely to be false positives and should be reviewed carefully.</td>
+      </tr>
+      <tr>
+        <td>Triage tier</td>
+        <td>A classification within a high-volume group that helps prioritize which occurrences to review first (for example, a dominant pattern shared by most pages versus an outlier page).</td>
+      </tr>
+      <tr>
+        <td>Heuristic check</td>
+        <td>A check that uses pattern-matching or statistical inference rather than an exact rule. Heuristic checks are useful but may occasionally produce false positives or miss actual issues.</td>
+      </tr>
+      <tr>
+        <td>Experimental check</td>
+        <td>A rule that is still being validated and is disabled by default. It can be enabled manually with special options. Results from experimental checks are advisory only.</td>
+      </tr>
+      <tr>
+        <td>Highest severity</td>
+        <td>The most serious severity level present in the audit results. If any FAIL findings exist, the highest severity is FAIL; if only warnings, it is WARNING; if only passes, it is PASS. This gives a quick top-level signal about your document.</td>
+      </tr>
+      <tr>
+        <td>Rules flagged</td>
+        <td>The number of distinct check rules that produced at least one finding. A higher number means more different types of issues were detected.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Audit Types -->
+<section class="help-section" id="audit-types">
+  <h2>PDF audit vs TeX source audit</h2>
+  <div style="display:grid;gap:1rem;margin-top:0.5rem;">
+    <div class="card card-compact">
+      <h3 style="margin-top:0;">PDF layout audit (P011–P082)</h3>
+      <p style="font-size:0.9rem;margin:0;">Runs when you upload a compiled <strong>.pdf</strong> file. Checks visual layout properties: margins, page numbers, spacing, font usage, table of contents formatting, and similar layout requirements. These checks analyze the rendered output of your document.</p>
+    </div>
+    <div class="card card-compact">
+      <h3 style="margin-top:0;">TeX source audit (P001–P010)</h3>
+      <p style="font-size:0.9rem;margin:0;">Runs when you upload a <strong>.tex</strong> or <strong>.zip</strong> file containing LaTeX source. Checks source-level issues: duplicate labels, invalid cross-references, risky formatting commands, and document structure. The source is not compiled — the tool reads the source files directly.</p>
+    </div>
+  </div>
+  <p style="font-size:0.88rem;color:var(--color-muted);margin-top:0.75rem;">
+    A PDF audit and a TeX source audit are complementary — they check different aspects of your dissertation and neither alone is sufficient.
+  </p>
+</section>
+
+<!-- Why Manual Review -->
+<section class="help-section" id="why-manual">
+  <h2>Why Graduate Studies review is still required</h2>
+  <p>The NJIT Thesis Auditor automates only a subset of formatting checks. Many important requirements fall outside its scope:</p>
+  <ul>
+    <li><strong>Content requirements</strong> — whether your abstract, introduction, conclusions, and references meet academic and departmental standards.</li>
+    <li><strong>Typographic consistency</strong> — fine-grained font, spacing, and alignment details that require visual inspection.</li>
+    <li><strong>Committee and signature page accuracy</strong> — names, titles, and dates that require human verification.</li>
+    <li><strong>Citation style compliance</strong> — whether citations follow the required style (APA, Chicago, etc.).</li>
+    <li><strong>Figure and table quality</strong> — image resolution, label accuracy, and placement that require visual judgment.</li>
+    <li><strong>Accessibility requirements</strong> — whether the PDF meets accessibility standards.</li>
+    <li><strong>Departmental variations</strong> — formatting requirements that differ by department or program.</li>
+  </ul>
+  <p>After running this tool, review its findings as a checklist of items to inspect, then consult the official <em>NJIT Thesis and Dissertation Guidelines</em> and your Graduate Studies coordinator before final submission.</p>
+  <p><strong>The tool does not communicate with NJIT systems and cannot submit or approve your dissertation.</strong></p>
+</section>
+
+<p style="margin-top:1.5rem;">
+  <a href="/rules" class="btn btn-secondary">Browse the Rule Reference &rarr;</a>
+  <a href="/" class="btn btn-secondary" style="margin-left:0.5rem;">&larr; Back to upload</a>
+</p>
+{% endblock %}

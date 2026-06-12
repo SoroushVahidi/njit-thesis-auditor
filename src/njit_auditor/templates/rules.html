@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% block title %}Rule Reference — NJIT Thesis Auditor{% endblock %}
+
+{% block head_extra %}
+<style>
+  html, body { overflow-x: hidden; }
+  .rules-intro { margin-bottom: 1.5rem; font-size: 0.92rem; color: var(--color-muted); }
+  .filter-bar--rules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: flex-end;
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 1.25rem;
+  }
+  .filter-bar--rules label { margin: 0; font-size: 0.8rem; font-weight: 600; display: block; }
+  .filter-bar--rules input[type="search"],
+  .filter-bar--rules select {
+    display: block;
+    width: auto;
+    min-width: 120px;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: #fff;
+  }
+  .filter-bar--rules input[type="search"] { min-width: 160px; }
+  @media (max-width: 500px) {
+    .filter-bar--rules { flex-direction: column; align-items: stretch; }
+    .filter-bar--rules input[type="search"],
+    .filter-bar--rules select { min-width: 0; width: 100%; }
+    .filter-bar--rules > div { width: 100%; }
+    .filter-bar--rules > div[style*="margin-left:auto"] { margin-left: 0; }
+  }
+  .rule-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-primary);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.85rem;
+    box-shadow: var(--shadow);
+  }
+  .rule-card--hidden { display: none; }
+  .rule-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .rule-card__id {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+  .rule-card__title {
+    font-size: 0.96rem;
+    font-weight: 600;
+    margin: 0 0 0.35rem;
+    line-height: 1.4;
+  }
+  .rule-card__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.6rem;
+  }
+  .rule-card__def {
+    font-size: 0.88rem;
+    margin: 0 0 0.35rem;
+    color: var(--color-text);
+  }
+  .rule-card__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.15rem;
+  }
+  .rule-card__remediation {
+    font-size: 0.88rem;
+    margin: 0.5rem 0 0;
+    color: var(--color-text);
+    background: #f5f8ff;
+    border: 1px solid #d4e4f8;
+    border-radius: 5px;
+    padding: 0.6rem 0.8rem;
+  }
+  .rule-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--color-muted);
+  }
+  .rule-card__meta-item { display: flex; gap: 0.25rem; }
+  .badge-experimental { background: #fef3cd; color: #664d03; }
+  .badge-deterministic { background: #d4f0e8; color: #0d5c3a; }
+  .badge-heuristic { background: #e3f0ff; color: #0c3a6b; }
+  .badge-manual { background: #f3e3ff; color: #4b0c6b; }
+  .section-header-rules {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.75rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--color-border);
+  }
+  .section-header-rules h2 { margin: 0; font-size: 1.15rem; }
+  .no-results {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-muted);
+    font-size: 0.93rem;
+  }
+  .policy-note {
+    font-size: 0.82rem;
+    color: var(--color-muted);
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Rule Reference</h1>
+<p class="rules-intro">
+  Each rule listed here corresponds to a specific automated check. Click a rule ID in your audit results to jump directly to its entry.
+  Use the filters below to find rules by topic, input type, or severity.
+  <a href="/help">What do Error, Warning, and Pass mean?</a>
+</p>
+
+<div class="policy-note">
+  <strong>Inclusion policy.</strong>
+  This catalog shows <strong>{{ total_student }} active detector rules</strong> (P001–P082, minus infrastructure and reporting-only entries).
+  Rules that exist only to refine reports, scaffold infrastructure, or record evaluation tasks are listed separately at the bottom.
+  Those entries do not produce student-facing findings and are grouped under "Technical and experimental entries."
+</div>
+
+<div class="filter-bar--rules" role="search" aria-label="Filter rules">
+  <div>
+    <label for="rule-search">Search</label>
+    <input type="search" id="rule-search" placeholder="Rule ID or keyword…" aria-label="Search by rule ID or keyword">
+  </div>
+  <div>
+    <label for="rule-filter-category">Category</label>
+    <select id="rule-filter-category" aria-label="Filter by category">
+      <option value="">All categories</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}">{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="rule-filter-input">Applies to</label>
+    <select id="rule-filter-input" aria-label="Filter by input type">
+      <option value="">All input types</option>
+      {% for inp in input_types %}
+      <option value="{{ inp }}">{{ inp }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="rule-filter-severity">Severity</label>
+    <select id="rule-filter-severity" aria-label="Filter by severity">
+      <option value="">All severities</option>
+      {% for sev in severities %}
+      <option value="{{ sev }}">{{ sev }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="rule-filter-checkability">Check type</label>
+    <select id="rule-filter-checkability" aria-label="Filter by check type">
+      <option value="">All types</option>
+      <option value="Deterministic">Deterministic</option>
+      <option value="Heuristic">Heuristic</option>
+    </select>
+  </div>
+  <div style="margin-left:auto;">
+    <label style="visibility:hidden;display:block;">Reset</label>
+    <button type="button" id="rule-filter-reset" class="btn btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.85rem;">Reset</button>
+  </div>
+</div>
+
+<div id="rule-count" class="filter-count" aria-live="polite" style="margin-bottom:0.75rem;"></div>
+
+<div class="section-header-rules">
+  <h2>Student-facing detector rules</h2>
+  <span class="section-note">{{ total_student }} rules</span>
+</div>
+
+<div id="rule-catalog" aria-label="Detector rule catalog">
+{% for rule in student_rules %}
+<div class="rule-card"
+     id="{{ rule.id }}"
+     data-rule-id="{{ rule.id }}"
+     data-category="{{ rule.section }}"
+     data-input="{{ rule.input_label }}"
+     data-severity="{{ rule.severity_label }}"
+     data-checkability="{{ rule.checkability_label }}"
+     data-searchtext="{{ rule.id }} {{ rule.title }} {{ rule.section }} {{ rule.what_it_checks }} {{ rule.how_to_correct }}">
+  <div class="rule-card__header">
+    <div>
+      <p class="rule-card__title">
+        <span class="rule-card__id">{{ rule.id }}</span>
+        {% if rule.title %}— {{ rule.title }}{% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="rule-card__badges">
+    {% if rule.severity_code == "fail" %}
+    <span class="badge badge-fail">Error (FAIL)</span>
+    {% elif rule.severity_code == "warning" %}
+    <span class="badge badge-warn">Warning</span>
+    {% elif rule.severity_code == "info" %}
+    <span class="badge badge-info">Info</span>
+    {% endif %}
+    {% if rule.checkability_label == "Deterministic" %}
+    <span class="badge badge-deterministic">Deterministic</span>
+    {% elif rule.checkability_label in ("Heuristic", "Visual / heuristic") %}
+    <span class="badge badge-heuristic">Heuristic</span>
+    {% elif rule.checkability_label == "Manual review" %}
+    <span class="badge badge-manual">Manual review</span>
+    {% else %}
+    <span class="badge badge-muted">{{ rule.checkability_label }}</span>
+    {% endif %}
+    {% if rule.is_experimental %}
+    <span class="badge badge-experimental">Experimental — opt-in only</span>
+    {% endif %}
+  </div>
+  <div class="rule-card__meta">
+    <span class="rule-card__meta-item"><strong>Category:</strong>&nbsp;{{ rule.section }}</span>
+    <span class="rule-card__meta-item">&middot;</span>
+    <span class="rule-card__meta-item"><strong>Applies to:</strong>&nbsp;{{ rule.input_label }}</span>
+  </div>
+  {% if rule.what_it_checks %}
+  <div style="margin-top:0.7rem;">
+    <div class="rule-card__label">What it checks</div>
+    <p class="rule-card__def">{{ rule.what_it_checks }}</p>
+  </div>
+  {% endif %}
+  {% if rule.how_to_correct %}
+  <div class="rule-card__remediation">
+    <strong>How to correct it:</strong> {{ rule.how_to_correct }}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+
+<div id="no-results-msg" class="no-results rule-card--hidden" role="status">
+  No rules match the current filters. <button type="button" id="no-results-reset" class="btn btn-secondary" style="padding:0.3rem 0.8rem;font-size:0.83rem;margin-left:0.4rem;">Reset filters</button>
+</div>
+
+<!-- Technical section -->
+<section aria-label="Technical and experimental entries">
+  <div class="section-header-rules" style="margin-top:2.5rem;">
+    <h2>Technical and experimental entries</h2>
+    <span class="section-note">{{ total_technical }} entries</span>
+  </div>
+  <div class="alert-info" style="margin-bottom:1rem;">
+    The entries below are <strong>not ordinary student-facing checks</strong>. They represent reporting refinements, infrastructure capabilities, experimental advisories, and evaluation tasks. They either produce no standalone audit findings or require explicit opt-in.
+  </div>
+  <div class="card card-compact" style="margin-bottom:1rem;">
+    <button type="button" id="tech-toggle" class="btn btn-secondary"
+            style="padding:0.4rem 0.9rem;font-size:0.85rem;"
+            aria-expanded="false" aria-controls="tech-table-body">
+      Show technical entries ({{ total_technical }})
+    </button>
+    <div id="tech-table-body" hidden style="overflow-x:auto;margin-top:0.85rem;">
+      <table style="font-size:0.86rem;word-break:break-word;">
+        <thead>
+          <tr>
+            <th style="width:3.5rem;">ID</th>
+            <th>Title</th>
+            <th>Classification</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for rule in technical_rules %}
+          <tr id="{{ rule.id }}">
+            <td><strong>{{ rule.id }}</strong></td>
+            <td>{{ rule.title }}</td>
+            <td style="color:var(--color-muted);font-size:0.82rem;">{{ rule.technical_reason }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<p style="margin-top:1.5rem;">
+  <a href="/help" class="btn btn-secondary">Help &amp; terminology &rarr;</a>
+  <a href="/" class="btn btn-secondary" style="margin-left:0.5rem;">&larr; Back to upload</a>
+</p>
+
+<script>
+(function () {
+  var searchInput = document.getElementById("rule-search");
+  var catFilter = document.getElementById("rule-filter-category");
+  var inputFilter = document.getElementById("rule-filter-input");
+  var sevFilter = document.getElementById("rule-filter-severity");
+  var checkFilter = document.getElementById("rule-filter-checkability");
+  var resetBtn = document.getElementById("rule-filter-reset");
+  var noResultsMsg = document.getElementById("no-results-msg");
+  var noResultsReset = document.getElementById("no-results-reset");
+  var countEl = document.getElementById("rule-count");
+  var cards = document.querySelectorAll("#rule-catalog .rule-card");
+
+  function applyFilters() {
+    var searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    var cat = catFilter ? catFilter.value : "";
+    var inp = inputFilter ? inputFilter.value : "";
+    var sev = sevFilter ? sevFilter.value : "";
+    var chk = checkFilter ? checkFilter.value : "";
+
+    var visible = 0;
+    cards.forEach(function (card) {
+      var show = true;
+      if (cat && card.dataset.category !== cat) show = false;
+      if (inp && card.dataset.input !== inp) show = false;
+      if (sev && card.dataset.severity !== sev) show = false;
+      if (chk && card.dataset.checkability !== chk) show = false;
+      if (searchVal) {
+        var text = (card.dataset.searchtext || "").toLowerCase();
+        var ruleId = (card.dataset.ruleId || "").toLowerCase();
+        if (text.indexOf(searchVal) === -1 && ruleId.indexOf(searchVal) === -1) {
+          show = false;
+        }
+      }
+      card.classList.toggle("rule-card--hidden", !show);
+      if (show) visible += 1;
+    });
+
+    if (countEl) {
+      countEl.textContent = "Showing " + visible + " of " + cards.length + " rules";
+    }
+    if (noResultsMsg) {
+      noResultsMsg.classList.toggle("rule-card--hidden", visible > 0);
+    }
+  }
+
+  function resetFilters() {
+    if (searchInput) searchInput.value = "";
+    if (catFilter) catFilter.value = "";
+    if (inputFilter) inputFilter.value = "";
+    if (sevFilter) sevFilter.value = "";
+    if (checkFilter) checkFilter.value = "";
+    applyFilters();
+  }
+
+  if (searchInput) searchInput.addEventListener("input", applyFilters);
+  if (catFilter) catFilter.addEventListener("change", applyFilters);
+  if (inputFilter) inputFilter.addEventListener("change", applyFilters);
+  if (sevFilter) sevFilter.addEventListener("change", applyFilters);
+  if (checkFilter) checkFilter.addEventListener("change", applyFilters);
+  if (resetBtn) resetBtn.addEventListener("click", resetFilters);
+  if (noResultsReset) noResultsReset.addEventListener("click", resetFilters);
+
+  applyFilters();
+
+  // Technical section toggle
+  var techToggle = document.getElementById("tech-toggle");
+  var techBody = document.getElementById("tech-table-body");
+  if (techToggle && techBody) {
+    techToggle.addEventListener("click", function () {
+      var isHidden = techBody.hasAttribute("hidden");
+      if (isHidden) {
+        techBody.removeAttribute("hidden");
+        techToggle.setAttribute("aria-expanded", "true");
+        techToggle.textContent = techToggle.textContent.replace("Show", "Hide");
+      } else {
+        techBody.setAttribute("hidden", "");
+        techToggle.setAttribute("aria-expanded", "false");
+        techToggle.textContent = techToggle.textContent.replace("Hide", "Show");
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

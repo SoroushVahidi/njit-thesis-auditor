@@ -73,7 +73,10 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/
 
 | Context | URL |
 |---|---|
-| Browser on same machine | `http://localhost:8000` |
+| Upload page | `http://localhost:8000` |
+| Help & terminology | `http://localhost:8000/help` |
+| Rule reference | `http://localhost:8000/rules` |
+| Audit results | `http://localhost:8000/audits/<job-id>` |
 | Browser on same machine | `http://127.0.0.1:8000` |
 | Browser on LAN (if server IP is `10.x.x.x`) | `http://<server-lan-ip>:8000` |
 | Public internet (requires reverse proxy + TLS) | `https://<domain>/` |
@@ -324,6 +327,54 @@ python -m pytest tests/test_web_app.py -v
 
 Tests use `fastapi.testclient.TestClient` with monkeypatching of the audit runner;
 no real PDF audit is needed for the web route tests.
+
+---
+
+## Help and Rule Reference
+
+The web UI includes two plain-language reference pages accessible from every page's navigation bar:
+
+### `/help` — Audit terminology
+
+Explains severity levels, grouped/raw findings, and audit limitations in plain language:
+
+- **Error (FAIL):** A likely formatting or structural problem. Because some checks are heuristic, review the cited location before making changes.
+- **Warning:** Something unusual or potentially inconsistent that should be reviewed. Not always a confirmed violation.
+- **Check passed (PASS):** The specific automated check completed without detecting the target pattern. **PASS does not mean your complete dissertation has been approved.**
+- **No findings:** None of the checks that ran produced a finding. Does not prove complete compliance.
+- **Not checked / not reliably checkable:** Explains conditions under which checks may not run (missing text layer, section not detected, experimental rule, wrong input type).
+
+The page also defines: Rule ID, category, grouped problem, individual finding, occurrence count, affected page, source location, high-volume triage, confidence, triage tier, heuristic check, experimental check, PDF vs TeX audit, and why Graduate Studies review is still required.
+
+Contains a prominent disclaimer that the tool is a research prototype and not an official NJIT approval system.
+
+### `/rules` — Searchable Rule Reference
+
+A searchable, filterable catalog of all 71 active detector rules (P001–P082, minus reporting-only, infrastructure, and evaluation-only entries). Each entry shows:
+
+- Rule ID (with stable anchor, e.g. `#P013`)
+- Human-readable question/title
+- Category/section
+- What it checks (from canonical structured rule data)
+- How to correct it
+- Typical severity
+- Applicable input type (PDF or TeX/ZIP)
+- Deterministic, heuristic, or experimental status
+- Whether the rule is active by default
+
+Client-side filters: search by rule ID or keyword, filter by category, input type, severity, check type. Works without JavaScript (full list visible). A separate collapsed section lists technical/reporting-only/evaluation entries with explanations.
+
+**Inclusion/exclusion policy:** Student-facing catalog includes detector rules that can produce meaningful findings. Excluded from the main catalog: infrastructure-only entries (P069–P072), reporting-only refinements (P073, P076, P077, P079, P081), DOCX infrastructure (P080), and evaluation tasks (P083). These appear in a clearly labeled "Technical and experimental entries" section.
+
+### Clickable rule IDs
+
+Recognized rule IDs (pattern `P###`) throughout the results page link to their rule-reference entry:
+- Grouped problem card titles → `/rules#P013`
+- Individual finding rows (Rule column) → `/rules#P013`
+- Summary-by-rule table → `/rules#P013`
+- High-volume triage panels → `/rules#P013`
+
+Unknown rule IDs appear as plain text (no broken link).
 
 ---
 

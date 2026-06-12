@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import shutil
 import threading
@@ -271,6 +272,154 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 _templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+# ---------------------------------------------------------------------------
+# Rule catalog helpers (canonical structured data)
+# ---------------------------------------------------------------------------
+
+_RULES_JSON_PATH = (
+    Path(__file__).parent.parent.parent
+    / "data" / "processed" / "rules" / "project_added_rules.json"
+)
+
+_P_RULE_RE = re.compile(r"^P\d+$")
+
+
+def _is_p_rule_id(rule_id: str) -> bool:
+    """Return True when rule_id follows the P### pattern."""
+    return bool(rule_id) and bool(_P_RULE_RE.match(rule_id))
+
+
+# Register as a Jinja2 global so templates can call it directly.
+_templates.env.globals["is_p_rule_id"] = _is_p_rule_id
+
+
+def _input_label(rule: dict[str, Any]) -> str:
+    inp = rule.get("input_required") or []
+    if isinstance(inp, list):
+        if "tex_source" in inp and ("compiled_pdf" in inp or "pdf" in inp):
+            return "TeX or PDF"
+        if "tex_source" in inp:
+            return "TeX / ZIP source"
+        if "compiled_pdf" in inp or "pdf" in inp:
+            return "PDF (compiled)"
+    phase = rule.get("phase", "") or ""
+    if phase == "tex_source":
+        return "TeX / ZIP source"
+    return "PDF (compiled)"
+
+
+def _severity_label(severity: str) -> str:
+    mapping = {"fail": "Error (FAIL)", "warning": "Warning", "info": "Info"}
+    return mapping.get((severity or "").lower(), severity.upper() if severity else "—")
+
+
+def _checkability_label(checkability: str | None) -> str:
+    mapping = {
+        "deterministic": "Deterministic",
+        "heuristic": "Heuristic",
+        "visual": "Visual / heuristic",
+        "manual": "Manual review",
+    }
+    return mapping.get(checkability or "", "Heuristic")
+
+
+def _classify_rule(rule: dict[str, Any]) -> str:
+    """Return 'student', 'technical', or 'excluded'."""
+    phase = rule.get("phase", "") or ""
+    notes = (rule.get("notes", "") or "").lower()
+    rule_type = (rule.get("rule_type", "") or "").lower()
+
+    if phase == "evaluation_task" or rule_type == "evaluation_task":
+        return "technical"
+    if rule_type in ("infrastructure", "reporting_refinement"):
+        return "technical"
+    if "infrastructure-only" in notes:
+        return "technical"
+    if "reporting-only" in notes:
+        return "technical"
+    if phase == "docx_comments":
+        return "technical"
+    return "student"
+
+
+def _build_rule_catalog() -> dict[str, Any]:
+    """Load P-rules from canonical source and classify for the rules page."""
+    try:
+        raw = json.loads(_RULES_JSON_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        raw = []
+
+    student_rules: list[dict[str, Any]] = []
+    technical_rules: list[dict[str, Any]] = []
+
+    for rule in raw:
+        rule_id = rule.get("id", "")
+        if not _is_p_rule_id(rule_id):
+            continue
+
+        notes = (rule.get("notes", "") or "")
+        is_experimental = any(
+            kw in notes.lower()
+            for kw in ("experimental", "opt-in", "disabled by default")
+        ) or "experimental" in (rule.get("rule_type", "") or "").lower()
+        is_active_default = not is_experimental
+
+        enriched: dict[str, Any] = {
+            "id": rule_id,
+            "title": rule.get("question", rule.get("title", rule_id)),
+            "section": rule.get("section", ""),
+            "input_label": _input_label(rule),
+            "severity_code": (rule.get("severity", "") or "").lower(),
+            "severity_label": _severity_label(rule.get("severity", "")),
+            "checkability": rule.get("checkability") or "",
+            "checkability_label": _checkability_label(rule.get("checkability")),
+            "what_it_checks": rule.get("rule_definition", ""),
+            "how_to_correct": rule.get("remediation", ""),
+            "is_experimental": is_experimental,
+            "is_active_default": is_active_default,
+            "implementation_status": rule.get("implementation_status", ""),
+        }
+
+        classification = _classify_rule(rule)
+        if classification == "student":
+            student_rules.append(enriched)
+        else:
+            enriched["technical_reason"] = _technical_reason(rule)
+            technical_rules.append(enriched)
+
+    categories = sorted({r["section"] for r in student_rules if r["section"]})
+    input_types = sorted({r["input_label"] for r in student_rules})
+    severities = sorted({r["severity_label"] for r in student_rules if r["severity_label"] != "—"})
+
+    return {
+        "student_rules": student_rules,
+        "technical_rules": technical_rules,
+        "categories": categories,
+        "input_types": input_types,
+        "severities": severities,
+        "total_student": len(student_rules),
+        "total_technical": len(technical_rules),
+    }
+
+
+def _technical_reason(rule: dict[str, Any]) -> str:
+    rule_type = (rule.get("rule_type", "") or "").lower()
+    phase = (rule.get("phase", "") or "").lower()
+    notes = (rule.get("notes", "") or "").lower()
+    if rule_type == "evaluation_task" or phase == "evaluation_task":
+        return "Evaluation task — no detector, no student findings"
+    if rule_type == "infrastructure":
+        return "Infrastructure capability — no standalone findings"
+    if rule_type == "reporting_refinement":
+        return "Reporting refinement — extends existing summaries, no new findings"
+    if "infrastructure-only" in notes:
+        return "Infrastructure scaffold — no standalone findings in this phase"
+    if "reporting-only" in notes:
+        return "Reporting-only refinement — no new raw findings"
+    if phase == "docx_comments":
+        return "DOCX comment extraction infrastructure"
+    return "Technical entry"
 
 
 def _render(
@@ -717,3 +866,14 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
         media_type="text/markdown",
         filename=f"audit_{job_id[:8]}.md",
     )
+
+
+@app.get("/help", response_class=HTMLResponse)
+async def help_page(request: Request) -> HTMLResponse:
+    return _render(request, "help.html", {})
+
+
+@app.get("/rules", response_class=HTMLResponse)
+async def rules_page(request: Request) -> HTMLResponse:
+    catalog = _build_rule_catalog()
+    return _render(request, "rules.html", catalog)
