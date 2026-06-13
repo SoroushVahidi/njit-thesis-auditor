@@ -2300,3 +2300,15 @@ def test_fill_example_url_button_has_type_button(client: tuple[TestClient, Any])
     btn_match = _re.search(r'<button[^>]*id="fill-example-url"[^>]*>', body)
     assert btn_match is not None, "fill-example-url button not found"
     assert 'type="button"' in btn_match.group(0)
+
+
+def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:
+    """Footer must show author attribution and correct contact email on all main pages."""
+    c, _ = client
+    for path in ["/", "/help", "/rules"]:
+        resp = c.get(path)
+        assert resp.status_code == 200, f"{path} did not return 200"
+        body = resp.content.decode()
+        assert "Soroush Vahidi" in body, f"{path} missing author name"
+        assert "mailto:sv96@njit.edu" in body, f"{path} missing mailto link"
+        assert "soroush.vahidi@njit.edu" not in body, f"{path} contains wrong email address"
