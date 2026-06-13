@@ -107,10 +107,7 @@ def fetch_pdf_url(url: str, dest_path: Path, max_bytes: int) -> None:
     """
     validated_url = _validate_url(url)
     opener = urllib.request.build_opener(_SafeRedirectHandler())
-    req = urllib.request.Request(
-        validated_url,
-        headers={"User-Agent": "NJIT-Thesis-Auditor/1.0"},
-    )
+    req = urllib.request.Request(validated_url)
     try:
         with opener.open(req, timeout=FETCH_TIMEOUT_SEC) as resp:
             ct_raw = resp.headers.get("Content-Type", "")

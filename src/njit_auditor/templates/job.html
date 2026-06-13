@@ -208,6 +208,18 @@
   </div>
 </div>
 
+{% if text_layer_quality == "image_only" %}
+<div class="alert-warn" role="alert" style="margin-bottom:1rem;">
+  <strong>Limited text layer detected.</strong>
+  This PDF appears to have little or no extractable text. Many checks require selectable text, so the audit may miss formatting problems. If possible, upload the original exported PDF from Word/LaTeX instead of a scanned copy.
+</div>
+{% elif text_layer_quality == "low_text" %}
+<div class="alert-info" role="alert" style="margin-bottom:1rem;">
+  <strong>Very limited extractable text.</strong>
+  This PDF has very limited extractable text. Some checks may be incomplete or less reliable.
+</div>
+{% endif %}
+
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>

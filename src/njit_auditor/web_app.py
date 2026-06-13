@@ -19,7 +19,11 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from njit_auditor.audit_runner import AuditError, run_audit_for_uploaded_file
+from njit_auditor.audit_runner import (
+    AuditError,
+    classify_pdf_text_layer,
+    run_audit_for_uploaded_file,
+)
 from njit_auditor.models import AuditFinding
 from njit_auditor.report_outputs import (
     build_audit_report,
@@ -88,6 +92,7 @@ class JobState:
     warn_count: int = 0
     fail_count: int = 0
     error_message: str = ""
+    text_layer_quality: str = ""  # "text_layer_ok" | "low_text" | "image_only" | ""
     findings: list[dict[str, Any]] = field(default_factory=list)
     grouped_summary: list[dict[str, Any]] = field(default_factory=list)
     report_view: dict[str, Any] = field(default_factory=dict)
@@ -556,6 +561,7 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
         "filter_locations": filter_locations,
+        "text_layer_quality": job.text_layer_quality,
     }
 
 
@@ -591,6 +597,8 @@ def _run_audit_task(job_id: str) -> None:
             work_dir=jdir,
         )
         findings = result.findings
+        if result.audit_type == "pdf":
+            job.text_layer_quality = classify_pdf_text_layer(upload_path)
     except UploadValidationError as exc:
         job.state = "failed"
         job.error_message = str(exc)
