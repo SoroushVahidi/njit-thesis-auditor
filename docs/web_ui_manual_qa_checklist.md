@@ -325,21 +325,30 @@ These checks do not require synthetic files — they verify page copy and layout
 | Item | Check | Pass criteria |
 |---|---|---|
 | Upload page heading | Open `http://localhost:8000` | "NJIT Thesis Auditor" visible in `<h1>` |
+| Navigation bar | Every page | "Help" and "Rule Reference" links visible in nav bar at top |
 | Privacy info banner | Read the banner on the upload page | Mentions local/temporary processing; no repository commit |
 | File input label | Read the label for the file input | "Select PDF, TeX, or ZIP" or equivalent |
 | Format hint text | Read the small text under the file input | Lists accepted formats; mentions max upload size |
 | Start audit button | Read the submit button | "Start audit" label |
 | URL form | Second panel on the upload page | "Audit a public PDF URL" heading; URL input field; "Audit PDF URL" button |
 | Status banner states | Observe job page while pending | Spinner and "Processing audit…" text |
-| Status banner: failed | Upload a corrupt file | "Audit could not complete" banner; error message; "Try another file" link |
+| Status banner: failed | Upload a corrupt file | "Audit could not complete" banner; error message; "Try another file" and "Help" links |
 | Status banner: complete | Upload a valid file and wait | Success banner; job ID prefix and file name visible |
-| Summary cards | After completion | Cards visible for total, WARNING, FAIL counts |
-| Results mode controls | Inspect completed job page | "Grouped problems" and "All individual findings" controls are visible; grouped mode is active by default |
+| Summary cards | After completion | Cards visible for total, WARNING, FAIL counts; link to `/help#audit-outcomes` |
+| Contextual help link | Summary section | "What do Error, Warning, and Pass mean?" link pointing to `/help#audit-outcomes` |
+| Results mode controls | Inspect completed job page | "Grouped problems" and "All individual findings" controls; grouped is default; tooltips explain each mode |
+| Clickable rule IDs | Grouped problems and raw findings | P-rule IDs (e.g. P013) appear as links to `/rules#P013`; unknown IDs appear as plain text |
 | Findings table headers | Inspect completed job page in raw mode | Rule, Category, Page/Location, Severity, Issue Type, Comment column headers |
 | Filter controls | Inspect completed job page with findings | Rule/Severity/Category/Page dropdowns visible; count label updates on filter |
 | Download buttons | Inspect completed job page | "Download JSON" and "Download Markdown" links/buttons present |
 | Privacy note on results | Read the results page footer or note | Note about heuristic signals; disclaimer that manual review is required |
 | Back link | Inspect completed or failed job page | Link to upload page ("Try another file" or similar) |
+| Help page (/help) | Navigate to `/help` | FAIL, WARNING, PASS, and "No findings" all defined; PASS disclaimer present; "not an official" disclaimer present |
+| Rules page (/rules) | Navigate to `/rules` | Rule cards for P001–P082 (minus technical entries); search and filter controls work; stable anchors (e.g. `#P013`) exist; technical entries in separate section |
+| Rules search | On `/rules`, type "P013" in search | P013 rule card visible (others hidden) |
+| Rules category filter | On `/rules`, select a category | Only rules in that category shown |
+| Rules P013 anchor | Navigate to `/rules#P013` | Page scrolls to P013 rule card |
+| Back navigation | Click Help from results page, then browser back | Returns to results page with state preserved |
 
 ---
 

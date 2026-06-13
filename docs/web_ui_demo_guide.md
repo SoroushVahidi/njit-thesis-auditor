@@ -271,17 +271,17 @@ After a successful upload and completed audit, the results page should show:
 | UI element | Description |
 |---|---|
 | Status banner | "Audit complete" (green) or "Audit could not complete" (red/failed) with file name and job ID prefix |
-| Summary cards | Total findings, WARNING count, FAIL count, category breakdown |
-| Triage panels | Structured rollup for high-volume rules (P011/P013/P026) when counts are sufficient; appear above the grouped problems and raw findings |
-| Grouped problems | Default results mode; repeated problems collapsed into one card with occurrence count and compact page/location ranges; expandable to show original occurrences |
-| Findings table | Raw-view table available via "All individual findings"; columns: Rule, Category, Page/Location, Severity, Issue Type, Comment; filterable client-side |
+| Summary cards | Total findings, WARNING count, FAIL count, category breakdown; includes link to `/help#audit-outcomes` |
+| Triage panels | Structured rollup for high-volume rules (P011/P013/P026) when counts are sufficient; rule IDs link to `/rules#P011` etc. |
+| Grouped problems | Default results mode; repeated problems collapsed into one card; rule IDs link to rule reference |
+| Findings table | Raw-view table available via "All individual findings"; rule IDs link to rule reference |
 | Client-side filters | Rule, Severity, Category, Page dropdowns; filter count label; Reset button |
 | Polished comments | "Review needed: …" style structural descriptions; no dissertation body text |
 | Source filename:line labels | For TeX/ZIP audits: `filename:lineno` in the location column; basename only |
 | Download links | "Download JSON" and "Download Markdown" buttons |
 | Privacy note | Disclaimer that findings are heuristic signals requiring manual review |
-| Back link | "Try another file" or upload page link |
-| Upload zone states | Normal, drag-over, selected-file, and invalid-file states with text feedback, not color alone |
+| Navigation bar | Links to Help (`/help`) and Rule Reference (`/rules`) on every page |
+| Clickable rule IDs | P-rule IDs (P001, P013, etc.) are linked to `/rules#P013`; unknown IDs appear as plain text |
 
 ---
 

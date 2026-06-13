@@ -2,6 +2,10 @@
 {% block title %}Audit {{ job_id[:8] }} — NJIT Thesis Auditor{% endblock %}
 
 {% block head_extra %}
+<style>
+  .rule-link { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+  .rule-link:hover { color: var(--color-primary-dark); }
+</style>
 {% if state in ("pending", "running") %}
 <script>
   (function() {
@@ -162,7 +166,10 @@
   {{ error_message }}
 </div>
 <p class="file-hint">Check that the file is a valid PDF, TeX source, or ZIP archive. ZIP uploads must contain a detectable main .tex file.</p>
-<p><a href="/" class="btn btn-secondary">&larr; Try another file</a></p>
+<p>
+  <a href="/" class="btn btn-secondary">&larr; Try another file</a>
+  <a href="/help" class="btn btn-secondary" style="margin-left:0.5rem;">Help</a>
+</p>
 
 {% elif state == "complete" %}
 
@@ -191,7 +198,7 @@
 <section class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Heuristic counts — verify manually</span>
+    <span class="section-note">Heuristic counts — verify manually &middot; <a href="/help#audit-outcomes">What do Error, Warning, and Pass mean?</a></span>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
@@ -260,7 +267,11 @@
   <div class="card triage-panel">
     <div class="triage-panel__header">
       <span class="triage-panel__title">{{ panel.title }}</span>
-      <span class="badge badge-info">{{ panel.rule_id }}</span>
+      <span class="badge badge-info">
+        {% if is_p_rule_id(panel.rule_id) %}
+        <a href="/rules#{{ panel.rule_id }}" class="rule-link" style="color:inherit;" aria-label="{{ panel.rule_id }}: see rule reference">{{ panel.rule_id }}</a>
+        {% else %}{{ panel.rule_id }}{% endif %}
+      </span>
       <span class="badge badge-warn">{{ panel.raw_finding_count }} findings</span>
       {% if panel.triage_tier %}
       <span class="badge badge-muted">tier: {{ panel.triage_tier }}</span>
@@ -295,7 +306,11 @@
       <tbody>
       {% for row in grouped_summary %}
         <tr>
-          <td><strong>{{ row.rule_id }}</strong></td>
+          <td><strong>
+            {% if is_p_rule_id(row.rule_id) %}
+            <a href="/rules#{{ row.rule_id }}" class="rule-link" aria-label="{{ row.rule_id }}: see rule reference">{{ row.rule_id }}</a>
+            {% else %}{{ row.rule_id }}{% endif %}
+          </strong></td>
           <td>{{ row.count }}</td>
           <td>{{ row.category }}</td>
         </tr>
@@ -315,8 +330,8 @@
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
       <div class="results-toggle" role="group" aria-label="Results display mode">
-        <button type="button" class="btn btn-secondary" data-results-mode="grouped" aria-pressed="true">Grouped problems</button>
-        <button type="button" class="btn btn-secondary" data-results-mode="individual" aria-pressed="false">All individual findings</button>
+        <button type="button" class="btn btn-secondary" data-results-mode="grouped" aria-pressed="true" title="Combines substantially identical findings; lists all affected pages">Grouped problems</button>
+        <button type="button" class="btn btn-secondary" data-results-mode="individual" aria-pressed="false" title="Every raw finding listed separately">All individual findings</button>
       </div>
     </div>
   </div>
@@ -387,7 +402,12 @@
            data-locations="{% if problem.location_tokens %}|{{ problem.location_tokens|join('|') }}|{% endif %}">
         <div class="grouped-problem__header">
           <div>
-            <p class="grouped-problem__title">{{ problem.rule_id }}{% if problem.issue_type %} · {{ problem.issue_type }}{% endif %}</p>
+            <p class="grouped-problem__title">
+            {% if is_p_rule_id(problem.rule_id) %}
+            <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
+            {% else %}{{ problem.rule_id }}{% endif %}
+            {% if problem.issue_type %} · {{ problem.issue_type }}{% endif %}
+          </p>
             <div class="grouped-problem__summary">
               {% if problem.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
               {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
@@ -468,7 +488,11 @@
               data-category="{{ f.category }}"
               data-page="{{ f.page if f.page is not none else '' }}"
               data-location="{{ f.location_label if f.location_label else '' }}">
-            <td><strong>{{ f.rule_id }}</strong></td>
+            <td><strong>
+              {% if is_p_rule_id(f.rule_id) %}
+              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
+              {% else %}{{ f.rule_id }}{% endif %}
+            </strong></td>
             <td>
               {% if is_source_audit %}
                 {{ f.location_label if f.location_label else "—" }}
