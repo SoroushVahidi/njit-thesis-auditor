@@ -826,6 +826,95 @@ def test_url_fetch_public_ip_not_private() -> None:
 
 
 # ---------------------------------------------------------------------------
+# fetch_pdf_url — User-Agent / request construction
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_pdf_url_sends_no_custom_user_agent() -> None:
+    """fetch_pdf_url must not set a custom User-Agent header on the Request.
+
+    Institutional repositories (e.g., NJIT Digital Commons / bepress) run AWS WAF
+    bot-management rules that block arbitrary custom UAs with HTTP 403.  Leaving
+    User-Agent unset lets urllib use its own default ('Python-urllib/3.x'), which
+    those WAFs recognise and pass through.
+    """
+    import io
+    import urllib.request
+    from unittest.mock import MagicMock, patch
+
+    from njit_auditor.web_url_fetch import fetch_pdf_url
+
+    captured_req: list[urllib.request.Request] = []
+
+    class _CapturingHandler(urllib.request.BaseHandler):
+        def http_open(self, req: urllib.request.Request) -> Any:
+            captured_req.append(req)
+            resp = urllib.response.addinfourl(  # type: ignore[attr-defined]
+                io.BytesIO(b"%PDF-1.7 synthetic"),
+                {"Content-Type": "application/pdf"},
+                req.get_full_url(),
+                200,
+            )
+            resp.msg = "OK"
+            return resp
+
+        https_open = http_open
+
+    import socket
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+        dest = Path(f.name)
+
+    def _safe_getaddrinfo(host: str, port: Any, *a: Any, **kw: Any) -> Any:
+        return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0))]
+
+    with patch("socket.getaddrinfo", side_effect=_safe_getaddrinfo):
+        with patch("urllib.request.build_opener") as mock_build:
+            opener = MagicMock()
+            mock_build.return_value = opener
+
+            fake_resp = MagicMock()
+            fake_resp.__enter__ = lambda s: s
+            fake_resp.__exit__ = MagicMock(return_value=False)
+            fake_resp.headers.get.return_value = "application/pdf"
+            fake_resp.read.side_effect = [b"%PDF-1.7 ", b""]
+            opener.open.return_value = fake_resp
+
+            fetch_pdf_url("https://example.com/thesis.pdf", dest, 10_000_000)
+
+            # Inspect the Request that was built and passed to opener.open()
+            call_args = opener.open.call_args
+            req_arg = call_args[0][0]  # positional arg 0
+
+    assert isinstance(req_arg, urllib.request.Request)
+    # Must NOT have a custom User-Agent set — let urllib supply its own default
+    ua = req_arg.get_header("User-agent")
+    assert ua is None, (
+        f"fetch_pdf_url must not set a custom User-Agent; got {ua!r}. "
+        "Custom UAs are blocked by AWS WAF on institutional repositories."
+    )
+    dest.unlink(missing_ok=True)
+
+
+def test_fetch_pdf_url_custom_user_agent_regression() -> None:
+    """Regression: 'NJIT-Thesis-Auditor/1.0' must not appear in any outgoing request.
+
+    This string was previously hardcoded and caused HTTP 403 from NJIT Digital Commons
+    (bepress / AWS WAF). Any reintroduction of that exact string must fail this test.
+    """
+    import inspect
+
+    from njit_auditor import web_url_fetch
+
+    source = inspect.getsource(web_url_fetch)
+    assert "NJIT-Thesis-Auditor/1.0" not in source, (
+        "The custom User-Agent 'NJIT-Thesis-Auditor/1.0' was reintroduced into "
+        "web_url_fetch. This UA is blocked by AWS WAF on NJIT Digital Commons."
+    )
+
+
+# ---------------------------------------------------------------------------
 # /audits/url route tests
 # ---------------------------------------------------------------------------
 
