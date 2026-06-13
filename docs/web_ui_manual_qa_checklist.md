@@ -331,6 +331,7 @@ These checks do not require synthetic files — they verify page copy and layout
 | Format hint text | Read the small text under the file input | Lists accepted formats; mentions max upload size |
 | Start audit button | Read the submit button | "Start audit" label |
 | URL form | Second panel on the upload page | "Audit a public PDF URL" heading; URL input field; "Audit PDF URL" button |
+| Example URL box | Below the URL form in the same card | Blue left-bordered box with "Try an example" label; Digital Commons URL displayed; "Use this URL" button fills the input and disables itself |
 | Status banner states | Observe job page while pending | Spinner and "Processing audit…" text |
 | Status banner: failed | Upload a corrupt file | "Audit could not complete" banner; error message; "Try another file" and "Help" links |
 | Status banner: complete | Upload a valid file and wait | Success banner; job ID prefix and file name visible |

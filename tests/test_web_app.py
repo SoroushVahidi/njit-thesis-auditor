@@ -2199,3 +2199,104 @@ def test_results_page_page_links_present_for_findings_with_page(
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" in body
     assert "page-link" in body
+
+
+# ---------------------------------------------------------------------------
+# Example-thesis URL box on the upload page
+# ---------------------------------------------------------------------------
+
+_EXAMPLE_URL = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses"
+
+
+def test_index_page_has_example_thesis_box(client: tuple[TestClient, Any]) -> None:
+    """Upload page must include the example-thesis box with its stable id."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"example-thesis-box" in resp.content
+
+
+def test_index_page_example_url_is_present(client: tuple[TestClient, Any]) -> None:
+    """The Digital Commons example URL must appear on the upload page."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    # URL appears HTML-encoded (&amp; for &) inside a <code> element
+    assert b"digitalcommons.njit.edu" in resp.content
+    assert b"article=4387" in resp.content
+
+
+def test_index_page_has_fill_example_url_button(client: tuple[TestClient, Any]) -> None:
+    """Upload page must include the fill-example-url button with its stable id."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"fill-example-url" in resp.content
+
+
+def test_index_page_url_help_text_mentions_direct_public_links(
+    client: tuple[TestClient, Any],
+) -> None:
+    """URL help text must mention NJIT Digital Commons and arXiv as supported sources."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"Digital Commons" in resp.content
+    assert b"arXiv" in resp.content
+
+
+def test_index_page_url_help_text_mentions_login_paywalled(
+    client: tuple[TestClient, Any],
+) -> None:
+    """URL help text must state that login-required or paywalled URLs are not supported."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.content
+    assert b"paywalled" in body or b"Login-required" in body or b"login-required" in body
+
+
+# ---------------------------------------------------------------------------
+# GET /audits/url guard — regression tests for route collision bug
+# ---------------------------------------------------------------------------
+
+
+def test_get_audits_url_redirects_to_index(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/url must redirect to the upload page, not fall through to the job page."""
+    c, _ = client
+    resp = c.get("/audits/url", follow_redirects=False)
+    assert resp.status_code in (301, 302, 303, 307, 308)
+    assert resp.headers.get("location", "").rstrip("/") in ("/", "")
+
+
+def test_get_audits_url_does_not_show_job_not_found(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/url must never show the 'Job was not found' error message."""
+    c, _ = client
+    resp = c.get("/audits/url", follow_redirects=True)
+    assert b"was not found" not in resp.content
+    assert b"job" not in resp.content.lower() or b"job 'url'" not in resp.content.lower()
+
+
+def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
+    """The URL-audit form on the upload page must use method=\"post\"."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    # Both the action and method must appear near each other in the rendered HTML
+    assert b'action="/audits/url"' in resp.content
+    assert b'method="post"' in resp.content
+
+
+def test_fill_example_url_button_has_type_button(client: tuple[TestClient, Any]) -> None:
+    """The fill-example-url button must be type=\"button\" so it never submits the form."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    # type="button" must appear alongside the fill-example-url id
+    body = resp.content.decode()
+    assert 'id="fill-example-url"' in body
+    # Locate the button tag containing the id and verify type="button"
+    import re as _re
+    btn_match = _re.search(r'<button[^>]*id="fill-example-url"[^>]*>', body)
+    assert btn_match is not None, "fill-example-url button not found"
+    assert 'type="button"' in btn_match.group(0)

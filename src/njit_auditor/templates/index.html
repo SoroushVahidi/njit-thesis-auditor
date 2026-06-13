@@ -114,6 +114,37 @@
     white-space: nowrap;
     border: 0;
   }
+  .example-url-box {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: #f0f7ff;
+    border: 1px solid #b8d4f0;
+    border-left: 4px solid var(--color-primary);
+    border-radius: var(--radius);
+  }
+  .example-url-box__eyebrow {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    margin: 0 0 0.35rem;
+  }
+  .example-url-box__desc {
+    font-size: 0.86rem;
+    color: var(--color-muted);
+    margin: 0 0 0.5rem;
+  }
+  .example-url-box__url {
+    display: block;
+    font-size: 0.78rem;
+    word-break: break-all;
+    color: var(--color-text);
+    background: #e8f0f9;
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    font-family: ui-monospace, "Cascadia Code", monospace;
+  }
 </style>
 {% endblock %}
 
@@ -195,11 +226,25 @@
       <input type="url" id="pdf_url" name="pdf_url"
              placeholder="https://example.com/thesis.pdf" required>
       <p class="file-hint">
-        PDF only &middot; direct public links &middot; private/internal URLs blocked &middot;
-        maximum {{ max_upload_mb }} MB
+        Works with direct public PDF links such as NJIT Digital Commons and arXiv.
+        Login-required or paywalled URLs are not supported.
+        For private dissertations, upload only if you are authorized.
+        Maximum {{ max_upload_mb }} MB.
       </p>
       <button type="submit">Audit PDF URL</button>
     </form>
+    <div class="example-url-box" id="example-thesis-box">
+      <p class="example-url-box__eyebrow">Try an example</p>
+      <p class="example-url-box__desc">
+        This is a public NJIT Digital Commons thesis PDF. Use it to test the auditor without uploading private files.
+      </p>
+      <code class="example-url-box__url">https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&amp;context=theses</code>
+      <br>
+      <button type="button" id="fill-example-url" class="btn btn-secondary"
+              style="margin-top:0.6rem;font-size:0.85rem;padding:0.4rem 0.9rem;">
+        Use this URL
+      </button>
+    </div>
   </div>
 
   <div class="card">
@@ -427,5 +472,18 @@
 
     renderCurrentSelection();
   });
+</script>
+<script>
+  (function () {
+    var fillBtn = document.getElementById("fill-example-url");
+    var urlInput = document.getElementById("pdf_url");
+    if (!fillBtn || !urlInput) return;
+    fillBtn.addEventListener("click", function () {
+      urlInput.value = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses";
+      urlInput.focus();
+      fillBtn.textContent = "URL filled — click “Audit PDF URL” to start";
+      fillBtn.disabled = true;
+    });
+  })();
 </script>
 {% endblock %}
