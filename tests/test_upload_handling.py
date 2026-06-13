@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
@@ -152,6 +153,43 @@ def test_corrupt_zip_rejected(tmp_path: Path) -> None:
     bad.write_bytes(b"not-a-zip-archive")
     with pytest.raises(UploadValidationError, match="valid ZIP"):
         validate_upload_path(bad)
+
+
+def test_duplicate_member_paths_rejected(tmp_path: Path) -> None:
+    zpath = tmp_path / "dup.zip"
+    with zipfile.ZipFile(zpath, "w") as zf:
+        zf.writestr("main.tex", rb"\documentclass{article}")
+        zf.writestr("main.tex", rb"\documentclass{report}")
+    with pytest.raises(ZipExtractionError, match="duplicate member path"):
+        safe_extract_zip(zpath, tmp_path / "out")
+
+
+def test_duplicate_normalized_member_paths_rejected(tmp_path: Path) -> None:
+    zpath = tmp_path / "dup_norm.zip"
+    with zipfile.ZipFile(zpath, "w") as zf:
+        info1 = zipfile.ZipInfo("./main.tex")
+        zf.writestr(info1, rb"\documentclass{article}")
+        info2 = zipfile.ZipInfo("main.tex")
+        zf.writestr(info2, rb"\documentclass{report}")
+    with pytest.raises(ZipExtractionError, match="duplicate member path"):
+        safe_extract_zip(zpath, tmp_path / "out")
+
+
+def test_symlink_zip_entry_rejected(tmp_path: Path) -> None:
+    zpath = tmp_path / "sym.zip"
+    with zipfile.ZipFile(zpath, "w") as zf:
+        info = zipfile.ZipInfo("link.tex")
+        info.external_attr = (stat.S_IFLNK | 0o777) << 16
+        zf.writestr(info, "/etc/passwd")
+    with pytest.raises(ZipExtractionError, match="symlink"):
+        safe_extract_zip(zpath, tmp_path / "out")
+
+
+def test_single_oversized_member_rejected(tmp_path: Path) -> None:
+    zpath = tmp_path / "big_one.zip"
+    _make_zip(zpath, {"big.tex": b"x" * 200})
+    with pytest.raises(ZipExtractionError, match="single-file size limit"):
+        safe_extract_zip(zpath, tmp_path / "out", max_single_file_bytes=100)
 
 
 # ---------------------------------------------------------------------------
