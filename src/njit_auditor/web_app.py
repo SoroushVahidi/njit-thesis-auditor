@@ -862,6 +862,19 @@ async def submit_audit_sample(
     return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 
 
+@app.get("/audits/url", response_model=None)
+async def get_audits_url_guard() -> RedirectResponse:
+    """Redirect accidental GET /audits/url to the upload page.
+
+    A browser issues GET /audits/url when the user navigates back/forward after a
+    failed URL-form submission (the POST error response leaves /audits/url in the
+    address bar).  Without this guard the path would be matched by the parameterised
+    /audits/{job_id} route with job_id="url", producing a confusing "job not found"
+    error message.
+    """
+    return RedirectResponse(url="/", status_code=302)
+
+
 @app.get("/audits/{job_id}", response_class=HTMLResponse)
 async def job_page(request: Request, job_id: str) -> HTMLResponse:
     cleanup_expired_jobs()

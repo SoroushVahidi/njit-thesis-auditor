@@ -2254,3 +2254,49 @@ def test_index_page_url_help_text_mentions_login_paywalled(
     assert resp.status_code == 200
     body = resp.content
     assert b"paywalled" in body or b"Login-required" in body or b"login-required" in body
+
+
+# ---------------------------------------------------------------------------
+# GET /audits/url guard — regression tests for route collision bug
+# ---------------------------------------------------------------------------
+
+
+def test_get_audits_url_redirects_to_index(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/url must redirect to the upload page, not fall through to the job page."""
+    c, _ = client
+    resp = c.get("/audits/url", follow_redirects=False)
+    assert resp.status_code in (301, 302, 303, 307, 308)
+    assert resp.headers.get("location", "").rstrip("/") in ("/", "")
+
+
+def test_get_audits_url_does_not_show_job_not_found(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/url must never show the 'Job was not found' error message."""
+    c, _ = client
+    resp = c.get("/audits/url", follow_redirects=True)
+    assert b"was not found" not in resp.content
+    assert b"job" not in resp.content.lower() or b"job 'url'" not in resp.content.lower()
+
+
+def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
+    """The URL-audit form on the upload page must use method=\"post\"."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    # Both the action and method must appear near each other in the rendered HTML
+    assert b'action="/audits/url"' in resp.content
+    assert b'method="post"' in resp.content
+
+
+def test_fill_example_url_button_has_type_button(client: tuple[TestClient, Any]) -> None:
+    """The fill-example-url button must be type=\"button\" so it never submits the form."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    # type="button" must appear alongside the fill-example-url id
+    body = resp.content.decode()
+    assert 'id="fill-example-url"' in body
+    # Locate the button tag containing the id and verify type="button"
+    import re as _re
+    btn_match = _re.search(r'<button[^>]*id="fill-example-url"[^>]*>', body)
+    assert btn_match is not None, "fill-example-url button not found"
+    assert 'type="button"' in btn_match.group(0)
