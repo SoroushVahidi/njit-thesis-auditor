@@ -293,6 +293,44 @@ def _is_p_rule_id(rule_id: str) -> bool:
 # Register as a Jinja2 global so templates can call it directly.
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
 
+# ---------------------------------------------------------------------------
+# Category humanization
+# ---------------------------------------------------------------------------
+
+_CATEGORY_LABELS: dict[str, str] = {
+    "abstract_language": "Abstract language",
+    "abstract_length": "Abstract length",
+    "abstract_structure": "Abstract structure",
+    "annotations": "Annotations / comments",
+    "capitalization_case": "Capitalization",
+    "committee_approval_page": "Approval page",
+    "figure_format": "Figure formatting",
+    "figure_table_format": "Figures / tables",
+    "font_format": "Font formatting",
+    "formatting_override": "Formatting overrides",
+    "frontmatter_structure": "Front matter structure",
+    "heading_title": "Headings / titles",
+    "indentation": "Indentation",
+    "labels_references": "Labels / cross-references",
+    "latex_linter": "LaTeX linting",
+    "list_of_tables_figures_toc": "TOC / lists",
+    "margin_or_overflow": "Margins / overflow",
+    "page_numbering": "Page numbering",
+    "punctuation": "Punctuation",
+    "references_citations": "References / citations",
+    "spacing_blank_lines": "Spacing / blank lines",
+    "table_format": "Table formatting",
+    "title_page_metadata": "Title page",
+}
+
+
+def _humanize_cat(category: str) -> str:
+    """Return a student-friendly display label for a raw category key."""
+    return _CATEGORY_LABELS.get(str(category), str(category).replace("_", " ").capitalize())
+
+
+_templates.env.filters["humanize_cat"] = _humanize_cat
+
 
 def _input_label(rule: dict[str, Any]) -> str:
     inp = rule.get("input_required") or []

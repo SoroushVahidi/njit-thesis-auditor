@@ -173,9 +173,22 @@
 
 {% elif state == "complete" %}
 
+{% if findings %}
+<nav class="jump-links" aria-label="Jump to section">
+  <a href="#section-summary">Summary</a>
+  {% if report_view and report_view.counts_by_category %}<a href="#section-overview">By category</a>{% endif %}
+  <a href="#section-review-order">Review order</a>
+  {% if report_view and report_view.triage_panels %}<a href="#section-triage">Triage</a>{% endif %}
+  {% if grouped_summary %}<a href="#section-rule-summary">By rule</a>{% endif %}
+  <a href="#section-findings">Findings</a>
+  <a href="#section-downloads">Downloads</a>
+</nav>
+{% endif %}
+
 <div class="status-banner status-banner--complete">
   <div>
     <p class="status-banner__title">Audit complete</p>
+    <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Heuristic review signals — verify all findings manually before submission</p>
     <p class="status-banner__meta">
       Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
       &middot; {{ audit_scope_label }}
@@ -195,7 +208,7 @@
   </div>
 </div>
 
-<section class="section" aria-label="Summary">
+<section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
     <span class="section-note">Heuristic counts — verify manually &middot; <a href="/help#audit-outcomes">What do Error, Warning, and Pass mean?</a></span>
@@ -218,7 +231,7 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
     <div class="summary-card">
-      <div class="summary-card__label">Warnings / errors</div>
+      <div class="summary-card__label">Review signals / Errors</div>
       <div class="summary-card__value" style="font-size:1.05rem">{{ warn_count }} / {{ fail_count }}</div>
     </div>
     <div class="summary-card">
@@ -228,8 +241,43 @@
   </div>
 </section>
 
+{% if findings %}
+<section id="section-review-order" class="section" aria-label="Recommended review order">
+  <div class="section-header">
+    <h2>Recommended review order</h2>
+    <span class="section-note">Work through these steps with the <a href="/rules">rule reference</a> open</span>
+  </div>
+  <div class="card card-compact">
+    <ol class="review-order-list">
+      {% if fail_count > 0 %}
+      <li>
+        <span class="ro-label">Errors first</span> —
+        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} flagged as FAIL. These are the most definite formatting issues. <a href="#section-findings">Filter by severity → FAIL</a> and verify each one against NJIT guidelines.
+      </li>
+      {% endif %}
+      {% if report_view and report_view.triage_panels %}
+      <li>
+        <span class="ro-label">High-volume triage</span> —
+        <a href="#section-triage">The triage summaries below</a> roll up the most common repeated patterns. Check each panel's affected-page range; a single underlying issue often explains dozens of findings.
+      </li>
+      {% endif %}
+      {% if warn_count > 0 %}
+      <li>
+        <span class="ro-label">Review signals (warnings)</span> —
+        {{ warn_count }} heuristic review {{ "signal" if warn_count == 1 else "signals" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and dismiss anything your formatting intentionally produces.
+      </li>
+      {% endif %}
+      <li>
+        <span class="ro-label">Manual verification</span> —
+        All findings are heuristic. Cross-check every flagged item against the official NJIT thesis/dissertation formatting guidelines before submission to your committee reviewer.
+      </li>
+    </ol>
+  </div>
+</section>
+{% endif %}
+
 {% if report_view and (report_view.counts_by_severity or report_view.counts_by_category) %}
-<section class="section" aria-label="Overview">
+<section id="section-overview" class="section" aria-label="Overview">
   <div class="section-header"><h2>Severity &amp; category overview</h2></div>
   <div class="card card-compact">
     {% if report_view.counts_by_severity %}
@@ -249,7 +297,7 @@
     <p style="margin:0.85rem 0 0.5rem;font-size:0.88rem;font-weight:600;">By category</p>
     <div class="overview-chips">
       {% for cat, count in report_view.counts_by_category.items() %}
-      <span class="chip"><strong>{{ count }}</strong> {{ cat }}</span>
+      <span class="chip"><strong>{{ count }}</strong> {{ cat | humanize_cat }}</span>
       {% endfor %}
     </div>
     {% endif %}
@@ -258,10 +306,10 @@
 {% endif %}
 
 {% if report_view and report_view.triage_panels %}
-<section class="section" aria-label="High-volume triage">
+<section id="section-triage" class="section" aria-label="High-volume triage">
   <div class="section-header">
     <h2>High-volume triage</h2>
-    <span class="section-note">Review these rollups first</span>
+    <span class="section-note">Repeated patterns — one root cause often explains many findings</span>
   </div>
   {% for panel in report_view.triage_panels %}
   <div class="card triage-panel">
@@ -296,7 +344,7 @@
 {% endif %}
 
 {% if grouped_summary %}
-<section class="section" aria-label="Summary by rule">
+<section id="section-rule-summary" class="section" aria-label="Summary by rule">
   <div class="section-header"><h2>Summary by rule</h2></div>
   <div class="card" style="padding:0.5rem 0.75rem">
     <table>
@@ -312,7 +360,7 @@
             {% else %}{{ row.rule_id }}{% endif %}
           </strong></td>
           <td>{{ row.count }}</td>
-          <td>{{ row.category }}</td>
+          <td>{{ row.category | humanize_cat }}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -321,7 +369,7 @@
 </section>
 {% endif %}
 
-<section class="section" aria-label="Findings">
+<section id="section-findings" class="section" aria-label="Findings">
   <div class="section-header">
     <div>
       <h2>Findings</h2>
@@ -361,7 +409,7 @@
       <select id="filter-category">
         <option value="">All categories</option>
         {% for cat in filter_categories %}
-        <option value="{{ cat }}">{{ cat }}</option>
+        <option value="{{ cat }}">{{ cat | humanize_cat }}</option>
         {% endfor %}
       </select>
     </div>
@@ -412,7 +460,7 @@
               {% if problem.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
               {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
               {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
-              <span class="badge badge-info">{{ problem.category }}</span>
+              <span class="badge badge-info">{{ problem.category | humanize_cat }}</span>
               {% if problem.is_grouped %}
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
               {% endif %}
@@ -505,7 +553,7 @@
               {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
               {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
             </td>
-            <td>{{ f.category }}</td>
+            <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
               {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
               {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
@@ -524,7 +572,7 @@
   {% endif %}
 </section>
 
-<section class="section export-section" aria-label="Downloads">
+<section id="section-downloads" class="section export-section" aria-label="Downloads">
   <h2 style="margin-top:0;">Download reports</h2>
   <p class="file-hint" style="margin-top:0">
     Raw JSON and Markdown schemas are unchanged — use these for archival or downstream tooling.
