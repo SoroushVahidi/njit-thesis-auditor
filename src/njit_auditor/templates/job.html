@@ -190,7 +190,7 @@
 <div class="status-banner status-banner--complete">
   <div>
     <p class="status-banner__title">Audit complete</p>
-    <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Heuristic review signals — verify all findings manually before submission</p>
+    <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Automated review signals — verify all findings manually before submission</p>
     <p class="status-banner__meta">
       Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
       &middot; {{ audit_scope_label }}
@@ -212,13 +212,13 @@
 
 {% if text_layer_quality == "image_only" %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">
-  <strong>Limited text layer detected.</strong>
-  This PDF appears to have little or no extractable text. Many checks require selectable text, so the audit may miss formatting problems. If possible, upload the original exported PDF from Word/LaTeX instead of a scanned copy.
+  <strong>This PDF has no selectable text.</strong>
+  Most formatting checks need selectable text to work. This is common with scanned PDFs. The audit may miss formatting problems — please upload the original exported PDF from Word or LaTeX if you have it.
 </div>
 {% elif text_layer_quality == "low_text" %}
 <div class="alert-info" role="alert" style="margin-bottom:1rem;">
-  <strong>Very limited extractable text.</strong>
-  This PDF has very limited extractable text. Some checks may be incomplete or less reliable.
+  <strong>This PDF has very little selectable text.</strong>
+  Some formatting checks may be incomplete or less accurate for this file.
 </div>
 {% endif %}
 
@@ -245,7 +245,7 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
     <div class="summary-card">
-      <div class="summary-card__label">Review signals / Errors</div>
+      <div class="summary-card__label">Warnings / Errors</div>
       <div class="summary-card__value" style="font-size:1.05rem">{{ warn_count }} / {{ fail_count }}</div>
     </div>
     <div class="summary-card">
@@ -271,14 +271,14 @@
       {% endif %}
       {% if report_view and report_view.triage_panels %}
       <li>
-        <span class="ro-label">High-volume triage</span> —
+        <span class="ro-label">Most common issues</span> —
         <a href="#section-triage">The triage summaries below</a> roll up the most common repeated patterns. Check each panel's affected-page range; a single underlying issue often explains dozens of findings.
       </li>
       {% endif %}
       {% if warn_count > 0 %}
       <li>
-        <span class="ro-label">Review signals (warnings)</span> —
-        {{ warn_count }} heuristic review {{ "signal" if warn_count == 1 else "signals" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and dismiss anything your formatting intentionally produces.
+        <span class="ro-label">Warnings</span> —
+        {{ warn_count }} {{ "warning" if warn_count == 1 else "warnings" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and dismiss anything your formatting intentionally produces.
       </li>
       {% endif %}
       <li>
@@ -320,9 +320,9 @@
 {% endif %}
 
 {% if report_view and report_view.triage_panels %}
-<section id="section-triage" class="section" aria-label="High-volume triage">
+<section id="section-triage" class="section" aria-label="Most common issues">
   <div class="section-header">
-    <h2>High-volume triage</h2>
+    <h2>Most common issues</h2>
     <span class="section-note">Repeated patterns — one root cause often explains many findings</span>
   </div>
   {% for panel in report_view.triage_panels %}
@@ -503,7 +503,7 @@
             <thead>
               <tr>
                 <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
-                <th>Issue / meta</th>
+                <th>Details</th>
                 <th>Comment</th>
               </tr>
             </thead>
@@ -582,7 +582,7 @@
     </div>
   </div>
   {% else %}
-  <div class="card"><p>No findings — all checks passed.</p></div>
+  <div class="card"><p>No issues detected. This does not guarantee full compliance. Review the <a href="/help">Help page</a> for limitations and checks that may not apply to every document.</p></div>
   {% endif %}
 </section>
 

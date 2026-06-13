@@ -301,7 +301,7 @@ def test_web_results_render_polished_comments(tmp_path: Path) -> None:
     assert resp.status_code == 200
     assert b"Polished comment" in resp.content
     assert b"Review needed" in resp.content
-    assert b"High-volume triage" in resp.content
+    assert b"Most common issues" in resp.content
 
 
 def test_json_download_unchanged_by_report_view(tmp_path: Path) -> None:

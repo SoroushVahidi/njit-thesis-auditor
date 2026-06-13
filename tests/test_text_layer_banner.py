@@ -194,8 +194,7 @@ def test_image_only_banner_shown(
     job_id = _inject_job(wa, tmp_path, text_layer_quality="image_only")
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Limited text layer detected" in resp.content
-    assert b"little or no extractable text" in resp.content
+    assert b"no selectable text" in resp.content
     assert b"alert-warn" in resp.content
 
 
@@ -206,7 +205,7 @@ def test_low_text_banner_shown(
     job_id = _inject_job(wa, tmp_path, text_layer_quality="low_text")
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Very limited extractable text" in resp.content
+    assert b"very little selectable text" in resp.content
     assert b"alert-info" in resp.content
 
 
@@ -216,7 +215,7 @@ def test_image_only_banner_not_shown_for_low_text(
     c, wa = client
     job_id = _inject_job(wa, tmp_path, text_layer_quality="low_text")
     resp = c.get(f"/audits/{job_id}")
-    assert b"Limited text layer detected" not in resp.content
+    assert b"no selectable text" not in resp.content
 
 
 def test_low_text_banner_not_shown_for_image_only(

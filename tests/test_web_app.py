@@ -197,7 +197,7 @@ def test_upload_tex_completes_with_source_report(
     assert resp.status_code == 200
     assert b"TeX source audit" in resp.content or b"P001" in resp.content
     assert b"Location" in resp.content
-    assert b"High-volume triage" not in resp.content
+    assert b"Most common issues" not in resp.content
     assert b"fig:secret" not in resp.content
 
 
@@ -602,7 +602,7 @@ def test_results_page_shows_triage_panels(client: tuple[TestClient, Any], tmp_pa
     job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"High-volume triage" in resp.content
+    assert b"Most common issues" in resp.content
     assert b"Margin" in resp.content or b"P011" in resp.content
 
 
@@ -2059,13 +2059,13 @@ def test_results_page_shows_jump_links(
 def test_results_page_review_signals_label(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Summary card must say 'Review signals / Errors', not the old 'Warnings / errors'."""
+    """Summary card must say 'Warnings / Errors'."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Review signals / Errors" in resp.content
-    assert b"Warnings / errors" not in resp.content
+    assert b"Warnings / Errors" in resp.content
+    assert b"Review signals / Errors" not in resp.content
 
 
 def test_results_page_heuristic_note_in_status_banner(
@@ -2076,7 +2076,7 @@ def test_results_page_heuristic_note_in_status_banner(
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Heuristic review signals" in resp.content
+    assert b"Automated review signals" in resp.content
 
 
 # ---------------------------------------------------------------------------

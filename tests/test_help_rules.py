@@ -288,7 +288,7 @@ def test_rules_contains_student_catalog_section(client: tuple[TestClient, Any]) 
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    assert "Student-facing detector rules" in body or "detector rules" in body.lower()
+    assert "Formatting checks" in body or "formatting checks" in body.lower()
 
 
 def test_rules_contains_technical_section(client: tuple[TestClient, Any]) -> None:
