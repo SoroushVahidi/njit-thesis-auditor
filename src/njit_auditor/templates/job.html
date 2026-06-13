@@ -5,6 +5,8 @@
 <style>
   .rule-link { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
   .rule-link:hover { color: var(--color-primary-dark); }
+  .page-link { color: var(--color-primary); font-size: 0.82rem; white-space: nowrap; }
+  .page-link:hover { text-decoration: underline; }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -485,7 +487,7 @@
             </div>
           </div>
           {% if problem.affected_compact %}
-          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}</div>
+          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}{% if not is_source_audit and problem.page_tokens %}&thinsp;&middot;&thinsp;<a href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ problem.page_tokens[0] }}">p.&nbsp;{{ problem.page_tokens[0] }}&nbsp;&#8599;</a>{% endif %}</div>
           {% endif %}
         </div>
         <div class="grouped-problem__meta">
@@ -508,7 +510,7 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% else %}{{ f.page if f.page is not none else "—" }}{% endif %}</td>
+                <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% else %}{% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link">{{ f.page }}</a>{% else %}—{% endif %}{% endif %}</td>
                 <td class="meta-cell">
                   {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
@@ -557,7 +559,7 @@
               {% if is_source_audit %}
                 {{ f.location_label if f.location_label else "—" }}
               {% else %}
-                {{ f.page if f.page is not none else "—" }}
+                {% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
               {% endif %}
             </td>
             <td>
@@ -590,6 +592,9 @@
     Raw JSON and Markdown schemas are unchanged — use these for archival or downstream tooling.
   </p>
   <div class="dl-links">
+    {% if not is_source_audit %}
+    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF &#8599;</a>
+    {% endif %}
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a>
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
