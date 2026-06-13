@@ -2077,3 +2077,125 @@ def test_results_page_heuristic_note_in_status_banner(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"Heuristic review signals" in resp.content
+
+
+# ---------------------------------------------------------------------------
+# PDF serve route (/audits/{job_id}/pdf)
+# ---------------------------------------------------------------------------
+
+def test_pdf_route_returns_pdf_inline(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """GET /audits/{job_id}/pdf returns the PDF with correct headers for a complete PDF job."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}/pdf")
+    assert resp.status_code == 200
+    assert "application/pdf" in resp.headers["content-type"]
+    assert resp.content[:4] == b"%PDF"
+    assert resp.headers.get("content-disposition", "").lower() == "inline"
+
+
+def test_pdf_route_unknown_job_returns_404(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/{job_id}/pdf returns 404 when the job does not exist."""
+    c, _ = client
+    resp = c.get("/audits/no_such_job_ever/pdf")
+    assert resp.status_code == 404
+
+
+def test_pdf_route_pending_job_returns_404(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """GET /audits/{job_id}/pdf returns 404 while the job is still pending."""
+    import secrets
+    from datetime import datetime, timezone
+
+    c, wa = client
+    job_id = secrets.token_urlsafe(16)
+    job = wa.JobState(
+        job_id=job_id,
+        state="pending",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+    wa._set_job(job)
+    resp = c.get(f"/audits/{job_id}/pdf")
+    assert resp.status_code == 404
+
+
+def test_pdf_route_tex_job_returns_404(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """GET /audits/{job_id}/pdf returns 404 for TeX/source audit jobs."""
+    import secrets
+    from datetime import datetime, timezone
+
+    c, wa = client
+    job_id = secrets.token_urlsafe(16)
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    jdir.mkdir(parents=True, exist_ok=True)
+    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="main.tex",
+        audit_type="tex",
+    )
+    wa._set_job(job)
+    resp = c.get(f"/audits/{job_id}/pdf")
+    assert resp.status_code == 404
+
+
+def test_results_page_open_pdf_button_shown_for_pdf_audit(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Results page for a PDF audit must include the Open PDF button linking to /audits/{id}/pdf."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"open-pdf-btn" in resp.content
+    assert f"/audits/{job_id}/pdf".encode() in resp.content
+
+
+def test_results_page_open_pdf_button_hidden_for_tex_audit(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Results page for a TeX/source audit must NOT include the Open PDF button."""
+    import secrets
+    from datetime import datetime, timezone
+
+    c, wa = client
+    job_id = secrets.token_urlsafe(16)
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="main.tex",
+        audit_type="tex",
+        finding_count=0,
+        findings=[],
+        grouped_summary=[],
+        report_view={},
+        md_preview="",
+    )
+    wa._set_job(job)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"open-pdf-btn" not in resp.content
+    assert f"/audits/{job_id}/pdf".encode() not in resp.content
+
+
+def test_results_page_page_links_present_for_findings_with_page(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Findings with a page number must render a page-link anchor pointing to /pdf#page=N."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    assert f"/audits/{job_id}/pdf#page=" in body
+    assert "page-link" in body

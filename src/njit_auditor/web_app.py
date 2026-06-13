@@ -914,6 +914,24 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
     )
 
 
+@app.get("/audits/{job_id}/pdf", response_model=None)
+async def serve_job_pdf(job_id: str) -> FileResponse | JSONResponse:
+    """Serve the uploaded PDF inline for the embedded viewer."""
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return JSONResponse({"error": "not available"}, status_code=404)
+    if job.audit_type != "pdf":
+        return JSONResponse({"error": "not a PDF audit"}, status_code=404)
+    pdf_path = _job_dir(job_id) / "upload.pdf"
+    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+        return JSONResponse({"error": "PDF not found"}, status_code=404)
+    return FileResponse(
+        path=str(pdf_path),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline"},
+    )
+
+
 @app.get("/help", response_class=HTMLResponse)
 async def help_page(request: Request) -> HTMLResponse:
     return _render(request, "help.html", {})
