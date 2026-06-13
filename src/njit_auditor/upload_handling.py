@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import stat
 import zipfile
 from enum import Enum
 from pathlib import Path, PurePosixPath
@@ -10,6 +11,7 @@ from pathlib import Path, PurePosixPath
 DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 DEFAULT_MAX_ZIP_FILES = 500
 DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES = 200 * 1024 * 1024
+DEFAULT_MAX_ZIP_SINGLE_FILE_BYTES = 50 * 1024 * 1024
 
 ALLOWED_ZIP_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -155,12 +157,22 @@ def _is_safe_zip_member(name: str) -> bool:
     return ".." not in pure.parts
 
 
+def _normalize_zip_member_path(name: str) -> str:
+    """Return a canonical relative path for duplicate-detection purposes.
+
+    PurePosixPath strips leading './' and collapses redundant separators so
+    that 'main.tex' and './main.tex' compare as equal.
+    """
+    return str(PurePosixPath(name))
+
+
 def safe_extract_zip(
     zip_path: Path,
     dest_dir: Path,
     *,
     max_files: int = DEFAULT_MAX_ZIP_FILES,
     max_total_uncompressed_bytes: int = DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
+    max_single_file_bytes: int = DEFAULT_MAX_ZIP_SINGLE_FILE_BYTES,
     allowed_extensions: frozenset[str] = ALLOWED_ZIP_EXTENSIONS,
 ) -> list[Path]:
     """Extract a ZIP archive safely into dest_dir.
@@ -175,6 +187,7 @@ def safe_extract_zip(
     dest_resolved = dest_dir.resolve()
     extracted: list[Path] = []
     total_uncompressed = 0
+    seen_paths: set[str] = set()
 
     with zipfile.ZipFile(zip_path) as zf:
         members = [info for info in zf.infolist() if not info.is_dir()]
@@ -187,9 +200,25 @@ def safe_extract_zip(
                 msg = f"Unsafe ZIP path: {info.filename}"
                 raise ZipExtractionError(msg)
 
+            # Reject Unix symlink entries by inspecting external file attributes.
+            unix_mode = info.external_attr >> 16
+            if stat.S_ISLNK(unix_mode):
+                msg = f"ZIP symlink entries are not allowed: {info.filename}"
+                raise ZipExtractionError(msg)
+
+            normalized = _normalize_zip_member_path(info.filename)
+            if normalized in seen_paths:
+                msg = f"ZIP contains duplicate member path: {info.filename}"
+                raise ZipExtractionError(msg)
+            seen_paths.add(normalized)
+
             ext = Path(info.filename).suffix.lower()
             if ext and ext not in allowed_extensions:
                 msg = f"Disallowed file type in ZIP: {info.filename}"
+                raise ZipExtractionError(msg)
+
+            if info.file_size > max_single_file_bytes:
+                msg = f"ZIP member exceeds single-file size limit: {info.filename}"
                 raise ZipExtractionError(msg)
 
             total_uncompressed += info.file_size
