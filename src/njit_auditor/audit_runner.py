@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pymupdf
 from pymupdf import FileDataError
 
 from njit_auditor.audit_options import DEFAULT_AUDIT_OPTIONS, AuditOptions
@@ -389,6 +390,31 @@ def run_audit_for_uploaded_file(
     unsupported = classify_upload(path)
     msg = f"Unsupported upload type: {unsupported.value}"
     raise UploadValidationError(msg)
+
+
+def classify_pdf_text_layer(pdf_path: Path) -> str:
+    """Return a text-layer quality label for a PDF's first five pages.
+
+    Samples up to five pages and sums the length of all extractable text.
+    Returns one of:
+      - ``"image_only"``  — zero extractable characters across all sampled pages
+      - ``"low_text"``    — some text, but fewer than 100 chars per sampled page
+      - ``"text_layer_ok"`` — normal amount of extractable text
+      - ``""``            — classification could not be performed (not a PDF / error)
+    """
+    try:
+        with pymupdf.open(str(pdf_path)) as doc:
+            n = min(5, len(doc))
+            if n == 0:
+                return "image_only"
+            total_chars = sum(len(doc[i].get_text()) for i in range(n))
+    except Exception:  # noqa: BLE001
+        return ""
+    if total_chars == 0:
+        return "image_only"
+    if total_chars < 100 * n:
+        return "low_text"
+    return "text_layer_ok"
 
 
 def iter_pdf_audit_post_p054_callables() -> list[tuple[str, Callable[..., Any]]]:
