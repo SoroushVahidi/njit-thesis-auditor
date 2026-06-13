@@ -1957,3 +1957,123 @@ def test_sanitize_report_for_web_export_unit_preserves_count() -> None:
     result = sanitize_report_for_web_export(report)
     assert result["metadata"]["total_findings"] == 3
     assert len(result["findings"]) == 3
+
+
+# ---------------------------------------------------------------------------
+# Category humanization filter
+# ---------------------------------------------------------------------------
+
+def test_humanize_cat_known_keys() -> None:
+    """_CATEGORY_LABELS must map all recognised snake_case keys to friendly labels."""
+    import importlib
+
+    import njit_auditor.web_app as wa
+    importlib.reload(wa)
+    assert wa._humanize_cat("page_numbering") == "Page numbering"
+    assert wa._humanize_cat("font_format") == "Font formatting"
+    assert wa._humanize_cat("margin_or_overflow") == "Margins / overflow"
+    assert wa._humanize_cat("list_of_tables_figures_toc") == "TOC / lists"
+    assert wa._humanize_cat("committee_approval_page") == "Approval page"
+    assert wa._humanize_cat("heading_title") == "Headings / titles"
+    assert wa._humanize_cat("abstract_length") == "Abstract length"
+    assert wa._humanize_cat("latex_linter") == "LaTeX linting"
+
+
+def test_humanize_cat_fallback_for_unknown_key() -> None:
+    """Unknown keys must not raise — fall back to a capitalised version."""
+    import importlib
+
+    import njit_auditor.web_app as wa
+    importlib.reload(wa)
+    result = wa._humanize_cat("some_new_category")
+    assert isinstance(result, str)
+    assert len(result) > 0
+    assert result == result.lstrip()
+
+
+def test_humanize_cat_all_labels_dict_keys_are_distinct() -> None:
+    """Every key and value in _CATEGORY_LABELS must be unique."""
+    import importlib
+
+    import njit_auditor.web_app as wa
+    importlib.reload(wa)
+    labels = wa._CATEGORY_LABELS
+    assert len(set(labels.keys())) == len(labels), "Duplicate keys in _CATEGORY_LABELS"
+    assert len(set(labels.values())) == len(labels), "Duplicate values in _CATEGORY_LABELS"
+
+
+def test_results_page_shows_human_category_labels(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The results page must display human-readable category labels, not raw snake_case."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    # P011 findings are categorised as margin_or_overflow — should render as human label
+    assert b"Margins / overflow" in resp.content
+    # Raw snake_case must NOT appear in the visible label positions
+    # (it may still appear in data-* attributes for JS filtering)
+    text = resp.text
+    # The category filter dropdown should use human label as option text
+    assert "Margins / overflow" in text
+
+
+def test_results_page_filter_category_raw_value_preserved(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Filter category <option value=...> must keep the raw snake_case key for JS matching."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    # value attribute must contain the raw key so JS data-category comparison works
+    assert b'value="margin_or_overflow"' in resp.content
+
+
+def test_results_page_shows_review_order_section(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Completed results with findings must include the Recommended review order section."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Recommended review order" in resp.content
+    assert b"Manual verification" in resp.content
+
+
+def test_results_page_shows_jump_links(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Completed results with findings must include the jump-links navigation bar."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"jump-links" in resp.content
+    assert b"#section-summary" in resp.content
+    assert b"#section-findings" in resp.content
+
+
+def test_results_page_review_signals_label(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Summary card must say 'Review signals / Errors', not the old 'Warnings / errors'."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Review signals / Errors" in resp.content
+    assert b"Warnings / errors" not in resp.content
+
+
+def test_results_page_heuristic_note_in_status_banner(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Status banner must include heuristic / verify wording."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Heuristic review signals" in resp.content
