@@ -187,8 +187,8 @@
     <label for="rule-filter-checkability">Check type</label>
     <select id="rule-filter-checkability" aria-label="Filter by check type">
       <option value="">All types</option>
-      <option value="Deterministic">Deterministic</option>
-      <option value="Heuristic">Heuristic</option>
+      <option value="Exact check">Exact check</option>
+      <option value="Pattern-based">Pattern-based</option>
     </select>
   </div>
   <div style="margin-left:auto;">
@@ -200,7 +200,7 @@
 <div id="rule-count" class="filter-count" aria-live="polite" style="margin-bottom:0.75rem;"></div>
 
 <div class="section-header-rules">
-  <h2>Student-facing detector rules</h2>
+  <h2>Formatting checks</h2>
   <span class="section-note">{{ total_student }} rules</span>
 </div>
 
@@ -230,10 +230,10 @@
     {% elif rule.severity_code == "info" %}
     <span class="badge badge-info">Info</span>
     {% endif %}
-    {% if rule.checkability_label == "Deterministic" %}
-    <span class="badge badge-deterministic">Deterministic</span>
-    {% elif rule.checkability_label in ("Heuristic", "Visual / heuristic") %}
-    <span class="badge badge-heuristic">Heuristic</span>
+    {% if rule.checkability_label == "Exact check" %}
+    <span class="badge badge-deterministic">Exact check</span>
+    {% elif rule.checkability_label in ("Pattern-based", "Visual / heuristic") %}
+    <span class="badge badge-heuristic">Pattern-based</span>
     {% elif rule.checkability_label == "Manual review" %}
     <span class="badge badge-manual">Manual review</span>
     {% else %}

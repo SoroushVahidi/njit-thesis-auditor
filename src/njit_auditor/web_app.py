@@ -359,12 +359,12 @@ def _severity_label(severity: str) -> str:
 
 def _checkability_label(checkability: str | None) -> str:
     mapping = {
-        "deterministic": "Deterministic",
-        "heuristic": "Heuristic",
+        "deterministic": "Exact check",
+        "heuristic": "Pattern-based",
         "visual": "Visual / heuristic",
         "manual": "Manual review",
     }
-    return mapping.get(checkability or "", "Heuristic")
+    return mapping.get(checkability or "", "Pattern-based")
 
 
 def _classify_rule(rule: dict[str, Any]) -> str:
