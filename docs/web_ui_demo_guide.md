@@ -233,6 +233,24 @@ Complete these steps in order for a full end-to-end demo.
 3. Repeat with `Space`.
 4. On touch/mobile, verify the normal file-picker flow still behaves the same way as before.
 
+### Step 6c — Test URL audit with the built-in example
+
+1. Return to the upload page (`/`).
+2. Locate the "Try an example" box below the "Audit a public PDF URL" form.
+3. Click **"Use this URL"** — the button should fill the URL input with the
+   `digitalcommons.njit.edu` thesis URL and disable itself.
+4. Click **"Audit PDF URL"** to submit.
+5. The job page appears with a spinner; after download + audit it shows a completed report.
+6. **What to look for on the results page:**
+   - "Audit complete" banner; audit scope "PDF layout audit (P011–P082)".
+   - Findings present (real thesis — expect margin/spacing advisories).
+   - "Open PDF ↗" button visible in the Downloads section (links to `/audits/{id}/pdf`).
+   - Page links (`p. N ↗`) on grouped problem cards navigate the PDF in a new tab.
+   - "Download JSON" and "Download Markdown" both return 200.
+
+> **Requires internet access.** Skip this step in air-gapped environments.
+> The Digital Commons URL is publicly accessible and requires no login.
+
 ### Step 7 — Check JSON and Markdown downloads
 
 For at least one fixture result (e.g., `issues_tex.tex`):

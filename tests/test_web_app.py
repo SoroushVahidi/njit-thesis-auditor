@@ -2199,3 +2199,58 @@ def test_results_page_page_links_present_for_findings_with_page(
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" in body
     assert "page-link" in body
+
+
+# ---------------------------------------------------------------------------
+# Example-thesis URL box on the upload page
+# ---------------------------------------------------------------------------
+
+_EXAMPLE_URL = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses"
+
+
+def test_index_page_has_example_thesis_box(client: tuple[TestClient, Any]) -> None:
+    """Upload page must include the example-thesis box with its stable id."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"example-thesis-box" in resp.content
+
+
+def test_index_page_example_url_is_present(client: tuple[TestClient, Any]) -> None:
+    """The Digital Commons example URL must appear on the upload page."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    # URL appears HTML-encoded (&amp; for &) inside a <code> element
+    assert b"digitalcommons.njit.edu" in resp.content
+    assert b"article=4387" in resp.content
+
+
+def test_index_page_has_fill_example_url_button(client: tuple[TestClient, Any]) -> None:
+    """Upload page must include the fill-example-url button with its stable id."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"fill-example-url" in resp.content
+
+
+def test_index_page_url_help_text_mentions_direct_public_links(
+    client: tuple[TestClient, Any],
+) -> None:
+    """URL help text must mention NJIT Digital Commons and arXiv as supported sources."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert b"Digital Commons" in resp.content
+    assert b"arXiv" in resp.content
+
+
+def test_index_page_url_help_text_mentions_login_paywalled(
+    client: tuple[TestClient, Any],
+) -> None:
+    """URL help text must state that login-required or paywalled URLs are not supported."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.content
+    assert b"paywalled" in body or b"Login-required" in body or b"login-required" in body
