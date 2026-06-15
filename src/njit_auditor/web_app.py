@@ -337,6 +337,14 @@ def _humanize_cat(category: str) -> str:
 _templates.env.filters["humanize_cat"] = _humanize_cat
 
 
+def humanize_detail_key(value: str) -> str:
+    """Replace underscores with spaces for student-facing display of raw detail keys."""
+    return str(value).replace("_", " ")
+
+
+_templates.env.filters["humanize_detail_key"] = humanize_detail_key
+
+
 def _input_label(rule: dict[str, Any]) -> str:
     inp = rule.get("input_required") or []
     if isinstance(inp, list):

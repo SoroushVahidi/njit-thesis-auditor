@@ -11,9 +11,9 @@ from njit_auditor.polished_comments import build_polished_comment
 from njit_auditor.report_outputs import _source_location_basename, format_source_location
 
 _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
-    ("p011_margin_triage", "P011", "Margin / overflow triage"),
-    ("p013_triage", "P013", "Page-number candidate triage"),
-    ("p026_font_triage", "P026", "Body font compliance triage"),
+    ("p011_margin_triage", "P011", "Margin / overflow summary"),
+    ("p013_triage", "P013", "Page-number candidates summary"),
+    ("p026_font_triage", "P026", "Body font summary"),
 )
 
 
@@ -99,15 +99,19 @@ def _build_triage_highlights(rule_id: str, triage: Mapping[str, Any]) -> list[tu
     if rule_id == "P011":
         side_counts = triage.get("side_counts", {})
         if isinstance(side_counts, dict) and side_counts:
-            top = ", ".join(f"{k}: {v}" for k, v in sorted(side_counts.items())[:4])
+            top = ", ".join(
+                f"{k.replace('_', ' ')}: {v}" for k, v in sorted(side_counts.items())[:4]
+            )
             highlights.append(("Margin sides", top))
         dominant = str(triage.get("dominant_margin_side", "")).strip()
         if dominant:
-            highlights.append(("Dominant side", dominant))
+            highlights.append(("Dominant side", dominant.replace("_", " ")))
     elif rule_id == "P013":
         position_counts = triage.get("position_type_counts", {})
         if isinstance(position_counts, dict) and position_counts:
-            top = ", ".join(f"{k}: {v}" for k, v in sorted(position_counts.items())[:4])
+            top = ", ".join(
+                f"{k.replace('_', ' ')}: {v}" for k, v in sorted(position_counts.items())[:4]
+            )
             highlights.append(("Position types", top))
         multi = str(triage.get("multiple_candidate_pages_compact", "")).strip()
         if multi:
@@ -115,7 +119,9 @@ def _build_triage_highlights(rule_id: str, triage: Mapping[str, Any]) -> list[tu
     elif rule_id == "P026":
         issue_counts = triage.get("issue_type_counts", {})
         if isinstance(issue_counts, dict) and issue_counts:
-            top = ", ".join(f"{k}: {v}" for k, v in sorted(issue_counts.items())[:4])
+            top = ", ".join(
+                f"{k.replace('_', ' ')}: {v}" for k, v in sorted(issue_counts.items())[:4]
+            )
             highlights.append(("Issue types", top))
 
     return highlights

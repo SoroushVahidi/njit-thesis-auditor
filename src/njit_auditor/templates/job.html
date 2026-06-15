@@ -180,7 +180,7 @@
   <a href="#section-summary">Summary</a>
   {% if report_view and report_view.counts_by_category %}<a href="#section-overview">By category</a>{% endif %}
   <a href="#section-review-order">Review order</a>
-  {% if report_view and report_view.triage_panels %}<a href="#section-triage">Triage</a>{% endif %}
+  {% if report_view and report_view.triage_panels %}<a href="#section-triage">Most common issues</a>{% endif %}
   {% if grouped_summary %}<a href="#section-rule-summary">By rule</a>{% endif %}
   <a href="#section-findings">Findings</a>
   <a href="#section-downloads">Downloads</a>
@@ -225,7 +225,7 @@
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Heuristic counts — verify manually &middot; <a href="/help#audit-outcomes">What do Error, Warning, and Pass mean?</a></span>
+    <span class="section-note">Automated findings — verify manually &middot; <a href="/help#audit-outcomes">What do Error, Warning, and Pass mean?</a></span>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
@@ -272,18 +272,18 @@
       {% if report_view and report_view.triage_panels %}
       <li>
         <span class="ro-label">Most common issues</span> —
-        <a href="#section-triage">The triage summaries below</a> roll up the most common repeated patterns. Check each panel's affected-page range; a single underlying issue often explains dozens of findings.
+        <a href="#section-triage">The summaries below</a> roll up the most common repeated patterns. Check each panel's affected-page range; a single underlying issue often explains dozens of findings.
       </li>
       {% endif %}
       {% if warn_count > 0 %}
       <li>
         <span class="ro-label">Warnings</span> —
-        {{ warn_count }} {{ "warning" if warn_count == 1 else "warnings" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and dismiss anything your formatting intentionally produces.
+        {{ warn_count }} {{ "warning" if warn_count == 1 else "warnings" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
       </li>
       {% endif %}
       <li>
         <span class="ro-label">Manual verification</span> —
-        All findings are heuristic. Cross-check every flagged item against the official NJIT thesis/dissertation formatting guidelines before submission to your committee reviewer.
+        All findings are automated signals and require manual verification. Cross-check every flagged item against the official NJIT thesis/dissertation formatting guidelines before submission to your committee reviewer.
       </li>
     </ol>
   </div>
@@ -336,7 +336,7 @@
       </span>
       <span class="badge badge-warn">{{ panel.raw_finding_count }} findings</span>
       {% if panel.triage_tier %}
-      <span class="badge badge-muted">tier: {{ panel.triage_tier }}</span>
+      <span class="badge badge-muted">review priority: {{ panel.triage_tier }}</span>
       {% endif %}
     </div>
     {% if panel.triage_note %}
@@ -359,7 +359,10 @@
 
 {% if grouped_summary %}
 <section id="section-rule-summary" class="section" aria-label="Summary by rule">
-  <div class="section-header"><h2>Summary by rule</h2></div>
+  <div class="section-header">
+    <h2>Summary by rule</h2>
+    <span class="section-note">Start with the rules that have the highest counts, then inspect the individual findings below.</span>
+  </div>
   <div class="card" style="padding:0.5rem 0.75rem">
     <table>
       <thead>
@@ -468,7 +471,7 @@
             {% if is_p_rule_id(problem.rule_id) %}
             <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
             {% else %}{{ problem.rule_id }}{% endif %}
-            {% if problem.issue_type %} · {{ problem.issue_type }}{% endif %}
+            {% if problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
             <div class="grouped-problem__summary">
               {% if problem.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
@@ -479,7 +482,7 @@
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
               {% endif %}
               {% if problem.triage_tier %}
-              <span class="badge badge-muted">tier: {{ problem.triage_tier }}</span>
+              <span class="badge badge-muted">review priority: {{ problem.triage_tier }}</span>
               {% endif %}
               {% if problem.confidence %}
               <span class="badge badge-muted">conf: {{ problem.confidence }}</span>
@@ -512,8 +515,8 @@
               <tr>
                 <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% else %}{% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link">{{ f.page }}</a>{% else %}—{% endif %}{% endif %}</td>
                 <td class="meta-cell">
-                  {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
-                  {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
+                  {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+                  {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
                   {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
                 </td>
@@ -569,8 +572,8 @@
             </td>
             <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
-              {% if f.issue_type %}{{ f.issue_type }}{% else %}—{% endif %}
-              {% if f.triage_tier %}<br>tier: {{ f.triage_tier }}{% endif %}
+              {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+              {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
               {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
               {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
             </td>
@@ -611,9 +614,9 @@
 {% endif %}
 
 <div class="privacy-note">
-  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, confidence, triage tier).
+  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, confidence, review priority).
   No dissertation body text, titles, author names, committee names, or captions are shown.
-  Heuristic findings require manual verification against NJIT guidelines.
+  Automated findings require manual verification against NJIT guidelines.
 </div>
 
 {% endif %}
