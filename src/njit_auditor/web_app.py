@@ -73,6 +73,18 @@ JOB_TTL_SECONDS: int = _parse_positive_int_env(
     _DEFAULT_JOB_TTL_SECONDS,
 )
 
+
+def _format_ttl(seconds: int) -> str:
+    """Convert a TTL in seconds to a human-readable string like 'about 1 hour'."""
+    if seconds < 3600:
+        mins = max(1, round(seconds / 60))
+        unit = "minute" if mins == 1 else "minutes"
+        return f"about {mins} {unit}"
+    hours = round(seconds / 3600)
+    unit = "hour" if hours == 1 else "hours"
+    return f"about {hours} {unit}"
+
+
 # ---------------------------------------------------------------------------
 # Job store (in-memory + runtime files on disk)
 # ---------------------------------------------------------------------------
@@ -251,11 +263,13 @@ def _new_job_id() -> str:
     return secrets.token_urlsafe(16)
 
 
-def _job_not_found_message(job_id: str) -> str:
-    ttl_hours = JOB_TTL_SECONDS / 3600
+def _expired_job_notice() -> str:
+    """Body text for the 'audit result no longer available' notice banner."""
+    ttl = _format_ttl(JOB_TTL_SECONDS)
     return (
-        f"Job '{job_id[:12]}' was not found. "
-        f"Completed jobs are removed after about {ttl_hours:g} hours."
+        f"This result may have expired or the server may have restarted — "
+        f"results are kept for {ttl}. "
+        f"Please upload the file again to start a new audit."
     )
 
 
@@ -582,6 +596,19 @@ def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLRe
     )
 
 
+def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTMLResponse:
+    return _render(
+        request,
+        "index.html",
+        {
+            "notice": notice,
+            "max_upload_mb": MAX_UPLOAD_MB,
+            "builtin_samples": list_builtin_samples(),
+        },
+        status_code=status_code,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Background audit task
 # ---------------------------------------------------------------------------
@@ -888,11 +915,7 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
     cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None:
-        return _index_error(
-            request,
-            _job_not_found_message(job_id),
-            status_code=404,
-        )
+        return _index_notice(request, _expired_job_notice(), status_code=404)
 
     return _render(request, "job.html", _job_page_context(job))
 
