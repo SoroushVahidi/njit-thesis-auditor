@@ -431,6 +431,15 @@
     }
     .site-nav__link:hover { text-decoration: underline; }
     .site-nav__sep { color: var(--color-border); }
+    @media (max-width: 640px) {
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+      .section-header h2 { width: 100%; }
+      .section-note { margin-top: 0; }
+    }
   </style>
   {% block head_extra %}{% endblock %}
 </head>
