@@ -513,7 +513,7 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% else %}{% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link">{{ f.page }}</a>{% else %}—{% endif %}{% endif %}</td>
+                <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% elif f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link">{{ f.page }}</a>{% if f.location_label %} → {{ f.location_label }}{% endif %}{% elif f.location_label %}{{ f.location_label }}{% else %}—{% endif %}</td>
                 <td class="meta-cell">
                   {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
@@ -561,9 +561,11 @@
             <td>
               {% if is_source_audit %}
                 {{ f.location_label if f.location_label else "—" }}
-              {% else %}
-                {% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
-              {% endif %}
+              {% elif f.page is not none %}
+                <a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ f.page }}">{{ f.page }}</a>{% if f.location_label %} → {{ f.location_label }}{% endif %}
+              {% elif f.location_label %}
+                {{ f.location_label }}
+              {% else %}—{% endif %}
             </td>
             <td>
               {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>

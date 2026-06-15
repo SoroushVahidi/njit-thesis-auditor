@@ -47,12 +47,14 @@ class CaptionLine:
         caption_type: str,
         caption_body: str,
         context: str,
+        number: str = "",
     ) -> None:
         self.page_number = page_number
         self.raw_text = raw_text
         self.caption_type = caption_type
         self.caption_body = caption_body
         self.context = context
+        self.number = number
 
 
 def normalize_caption_text(text: str) -> str:
@@ -144,6 +146,7 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
                     caption_type=caption_type,
                     caption_body=body,
                     context=context,
+                    number=match.group("number"),
                 )
             )
 
@@ -205,19 +208,22 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
         if issue_type is None:
             continue
 
+        details: dict[str, str] = {
+            "page_number": str(caption.page_number),
+            "caption_type": caption.caption_type,
+            "issue_type": issue_type,
+            "line_preview": _line_preview(caption.raw_text),
+            "confidence": confidence,
+        }
+        if caption.number:
+            details["caption_number"] = caption.number
         findings.append(
             AuditFinding(
                 rule_id="P017",
                 severity=Severity.WARNING,
                 page=caption.page_number,
                 message=message,
-                details={
-                    "page_number": str(caption.page_number),
-                    "caption_type": caption.caption_type,
-                    "issue_type": issue_type,
-                    "line_preview": _line_preview(caption.raw_text),
-                    "confidence": confidence,
-                },
+                details=details,
             )
         )
 

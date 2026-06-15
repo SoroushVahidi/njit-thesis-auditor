@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any
@@ -147,6 +148,125 @@ def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
     return panels
 
 
+_LEADER_DOTS_RE = re.compile(r"[.\s]{3,}\d+\s*$")
+_MAX_SUBLOC_LEN = 40
+
+
+def _trunc(text: str, max_len: int = _MAX_SUBLOC_LEN) -> str:
+    text = text.strip()
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rstrip() + "…"
+
+
+def _build_pdf_sublocation(rule_id: str, details: dict[str, str]) -> str:
+    """Return a short student-facing sub-page location label for a PDF finding.
+
+    Uses only existing details fields.  Returns empty string for unknown rules
+    or missing details.  Labels are truncated to _MAX_SUBLOC_LEN characters.
+    """
+    if rule_id == "P011":
+        side = details.get("side", "").replace("_", " ")
+        count = details.get("affected_line_count", "")
+        if side:
+            return f"{side}, {count} line(s)" if count else side
+        return ""
+
+    if rule_id == "P013":
+        pt = details.get("position_type", "").replace("_", " ")
+        return f"{pt} zone" if pt else ""
+
+    if rule_id == "P014":
+        heading = details.get("heading", "")
+        return f"heading '{_trunc(heading)}'" if heading else ""
+
+    if rule_id == "P017":
+        cap_type = details.get("caption_type", "")
+        cap_num = details.get("caption_number", "")
+        if cap_type and cap_num:
+            return f"{cap_type} {cap_num} caption"
+        if cap_type:
+            preview = details.get("line_preview", "")
+            if preview:
+                return f"{cap_type}: {_trunc(preview)}"
+        return ""
+
+    if rule_id == "P019":
+        text = details.get("candidate_text", "")
+        return f"pn '{_trunc(text)}'" if text else ""
+
+    if rule_id == "P020":
+        preview = details.get("line_preview", "")
+        return f"'{_trunc(preview)}'" if preview else ""
+
+    if rule_id == "P024":
+        preview = details.get("line_preview", "")
+        if preview:
+            cleaned = _LEADER_DOTS_RE.sub("", preview).strip()
+            return f"TOC: '{_trunc(cleaned)}'"
+        return ""
+
+    if rule_id == "P026":
+        summary = details.get("observed_summary", "")
+        return f"font: {_trunc(summary)}" if summary else ""
+
+    if rule_id == "P027":
+        preview = details.get("line_preview", "")
+        return f"heading '{_trunc(preview)}'" if preview else ""
+
+    if rule_id == "P029":
+        text = details.get("candidate_text", "")
+        expected = details.get("expected_value", "")
+        if text and expected:
+            return f"numeral '{_trunc(text)}', expected '{_trunc(expected)}'"
+        return f"numeral '{_trunc(text)}'" if text else ""
+
+    if rule_id == "P030":
+        heading = details.get("expected_heading", "")
+        return f"'{_trunc(heading)}' missing" if heading else ""
+
+    if rule_id == "P031":
+        labels = details.get("observed_header_labels", "")
+        return f"headers: {_trunc(labels)}" if labels else ""
+
+    if rule_id == "P035":
+        float_type = details.get("float_type", "")
+        float_num = details.get("float_number", "")
+        if float_type and float_num:
+            return f"{float_type} {float_num}"
+        return float_type or ""
+
+    if rule_id == "P037":
+        section = details.get("section_key", "").replace("_", " ")
+        exp = details.get("expected_roman", "")
+        obs = details.get("observed_roman", "")
+        if section and exp and obs:
+            return f"{section}: expected '{exp}', got '{obs}'"
+        return section or ""
+
+    if rule_id == "P038":
+        issue = details.get("issue_type", "")
+        if issue == "required_heading_missing":
+            heading = details.get("expected_heading", "")
+            return f"missing: '{_trunc(heading)}'" if heading else ""
+        if issue == "heading_phrase_not_exact":
+            observed = details.get("observed_heading_normalized", "")
+            expected = details.get("expected_heading", "")
+            if observed and expected:
+                return f"variant '{_trunc(observed)}' → '{_trunc(expected)}'"
+        return ""
+
+    if rule_id == "P074":
+        month = details.get("detected_month", "")
+        return f"graduation month: {month}" if month else ""
+
+    if rule_id == "P082":
+        bucket = details.get("location_bucket", "").replace("_", " ")
+        return f"pn at {bucket}" if bucket else ""
+
+    return ""
+
+
 def _finding_view_from_item(
     item: Mapping[str, Any],
     *,
@@ -167,7 +287,7 @@ def _finding_view_from_item(
     location_label = (
         format_source_location(details)
         if is_source_audit
-        else (str(page) if page is not None else "")
+        else _build_pdf_sublocation(rule_id, details)
     )
     issue_type = str(details.get("issue_type", ""))
     severity = str(item.get("severity", "WARNING"))
