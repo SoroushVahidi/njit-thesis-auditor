@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -190,35 +191,76 @@ def test_rules_contains_search_input(client: tuple[TestClient, Any]) -> None:
 
 
 def test_rules_evaluation_entry_not_in_main_catalog(client: tuple[TestClient, Any]) -> None:
-    """P083 (evaluation task) must NOT be in the student-facing main catalog as a rule card."""
+    """P083 (evaluation task) must not be rendered on the public /rules page at all."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    # P083 should appear somewhere (technical section), but not as a main student rule card
-    # with id="P083" in the main catalog — it appears in the technical table
-    # The key check: the technical section exists and evaluation entries are classified correctly
-    assert "Evaluation task" in body or "evaluation task" in body.lower() or "Technical" in body
+    assert 'id="P083"' not in body
 
 
-def test_rules_reporting_entry_classified_as_technical(client: tuple[TestClient, Any]) -> None:
-    """P081 (reporting-only) must be identified as a technical entry, not a student check."""
+def test_rules_reporting_entry_not_rendered(client: tuple[TestClient, Any]) -> None:
+    """P081 (reporting-only) must not be rendered on the public /rules page at all."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    # P081 should appear in the technical table with a reporting-only label
-    assert "P081" in body
-    # It should not appear as a student-facing rule card (no id="P081" in main catalog
-    # but it will appear in technical table which also has id="P081")
-    assert "Reporting" in body or "reporting" in body.lower()
+    assert 'id="P081"' not in body
 
 
-def test_rules_infrastructure_entry_classified_as_technical(client: tuple[TestClient, Any]) -> None:
-    """P069 (infrastructure-only) must be in technical section."""
+def test_rules_infrastructure_entry_not_rendered(client: tuple[TestClient, Any]) -> None:
+    """P069 (infrastructure-only) must not be rendered on the public /rules page at all."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    assert "P069" in body
-    assert "Infrastructure" in body or "infrastructure" in body.lower()
+    assert 'id="P069"' not in body
+
+
+def test_rules_experimental_entry_not_rendered(client: tuple[TestClient, Any]) -> None:
+    """P082 is opt-in/disabled by default and never runs in the web PDF audit, so it
+    must not be rendered on the public /rules page."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert 'id="P082"' not in body
+
+
+def test_rules_page_shows_only_web_pdf_rule_ids(client: tuple[TestClient, Any]) -> None:
+    """Every rule card rendered on /rules must match the catalog's web-facing rule set."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    catalog = _build_rule_catalog()
+    expected_ids = {r["id"] for r in catalog["student_rules"]}
+    rendered_ids = set(re.findall(r'id="(P\d+)"', body))
+    assert rendered_ids == expected_ids
+    assert expected_ids, "expected at least one web PDF rule to be shown"
+
+
+def test_rules_page_has_no_technical_section(client: tuple[TestClient, Any]) -> None:
+    """The public page must not show a separate technical/internal-inventory section."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "Technical and experimental entries" not in body
+    assert "tech-toggle" not in body
+    assert "Inclusion policy" not in body
+
+
+def test_rules_intro_describes_pdf_audits(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "automated formatting checks used for PDF audits in this website" in body
+
+
+def test_rules_p021_mixed_rule_shown_as_pdf(client: tuple[TestClient, Any]) -> None:
+    """P021 has both a TeX-side and PDF-side implementation; the PDF-side one runs in
+    the web audit, so it must still appear on the public page."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert 'id="P021"' in body
 
 
 def test_rules_no_implementation_module_paths(client: tuple[TestClient, Any]) -> None:
@@ -243,20 +285,6 @@ def test_rules_contains_student_catalog_section(client: tuple[TestClient, Any]) 
     resp = c.get("/rules")
     body = resp.text
     assert "Formatting checks" in body or "formatting checks" in body.lower()
-
-
-def test_rules_contains_technical_section(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    body = resp.text
-    assert "Technical" in body or "technical" in body.lower()
-
-
-def test_rules_contains_inclusion_policy(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    body = resp.text
-    assert "Inclusion policy" in body or "inclusion policy" in body.lower()
 
 
 def test_rules_has_client_side_filter_script(client: tuple[TestClient, Any]) -> None:
@@ -687,6 +715,34 @@ def test_build_rule_catalog_technical_contains_p081() -> None:
     catalog = _build_rule_catalog()
     tech_ids = {r["id"] for r in catalog["technical_rules"]}
     assert "P081" in tech_ids
+
+
+def test_build_rule_catalog_p082_not_in_student_rules() -> None:
+    """P082 is experimental/opt-in and disabled by default; the website never enables
+    it, so it must not appear in the public-facing student catalog."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    assert "P082" not in student_ids
+
+
+def test_build_rule_catalog_technical_contains_p082() -> None:
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    tech_ids = {r["id"] for r in catalog["technical_rules"]}
+    assert "P082" in tech_ids
+
+
+def test_build_rule_catalog_p021_in_student_rules() -> None:
+    """P021 has a mixed input_required (tex_source + compiled_pdf) but has a real PDF
+    detector wired into the web audit, so it must remain in the public catalog."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    assert "P021" in student_ids
 
 
 def test_build_rule_catalog_rule_fields_populated() -> None:

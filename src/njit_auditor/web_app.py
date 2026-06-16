@@ -380,6 +380,11 @@ def _classify_rule(rule: dict[str, Any]) -> str:
         return "technical"
     if rule_type in ("infrastructure", "reporting_refinement"):
         return "technical"
+    if "experimental" in rule_type:
+        # Experimental/opt-in rules (e.g. P082) are never enabled by default and
+        # this website never passes an AuditOptions with them turned on, so they
+        # never produce findings on a web PDF audit.
+        return "technical"
     if "infrastructure-only" in notes:
         return "technical"
     if "reporting-only" in notes:
@@ -541,6 +546,8 @@ def _technical_reason(rule: dict[str, Any]) -> str:
         return "Infrastructure capability — no standalone findings"
     if rule_type == "reporting_refinement":
         return "Reporting refinement — extends existing summaries, no new findings"
+    if "experimental" in rule_type:
+        return "Experimental / opt-in — not enabled in this website's PDF audit"
     if "infrastructure-only" in notes:
         return "Infrastructure scaffold — no standalone findings in this phase"
     if "reporting-only" in notes:

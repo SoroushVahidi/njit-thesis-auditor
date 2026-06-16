@@ -27,6 +27,7 @@ _BANNED_SUBSTRINGS = [
     "latex",
     "source audit",
     "command-line tool only",
+    "internal inventory",
 ]
 
 # Checked as word-boundary regexes rather than plain substrings, since
@@ -186,6 +187,22 @@ def test_rules_page_excludes_source_only_rule_ids(client: tuple[TestClient, Any]
     body = resp.text
     for n in range(1, 11):
         rule_id = f"P{n:03d}"
+        assert f'id="{rule_id}"' not in body, f"{rule_id} should not be rendered on /rules"
+
+
+def test_rules_page_excludes_internal_and_experimental_rule_ids(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Infrastructure, reporting-only, evaluation-only, and experimental/opt-in
+    entries never produce findings in the web PDF audit and must not be rendered."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    hidden_ids = [
+        "P069", "P070", "P071", "P072", "P073",
+        "P076", "P077", "P079", "P080", "P081", "P082", "P083",
+    ]
+    for rule_id in hidden_ids:
         assert f'id="{rule_id}"' not in body, f"{rule_id} should not be rendered on /rules"
 
 
