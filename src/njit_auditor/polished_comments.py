@@ -180,6 +180,26 @@ _RULE_FALLBACKS: dict[str, str] = {
     "P010": "LaTeX linter warning at {location}. Review flagged source pattern.",
 }
 
+# project_added_rules.json's remediation field for these PDF-active rules
+# references LaTeX-only syntax (\doublespacing, \pagenumbering{...}, etc.); the
+# canonical file stays untouched (also used by the CLI/source audit) but the
+# web/GUI-facing comment swaps in student-friendly wording. Mirrors the
+# rules-page override of the same names in web_app.py's _RULE_TEXT_OVERRIDES.
+_REMEDIATION_OVERRIDES: dict[str, str] = {
+    "P023": (
+        "Set body text to double line spacing. In Word: set paragraph line "
+        "spacing to 'Double'."
+    ),
+    "P026": (
+        "Set body text to Times New Roman 12pt throughout. Word/LibreOffice: "
+        "set paragraph font to Times New Roman, size 12."
+    ),
+    "P028": (
+        "Use lowercase Roman numerals (i, ii, iii) for front-matter numbered "
+        "pages and Arabic numerals (1, 2, 3) for body pages."
+    ),
+}
+
 
 @lru_cache(maxsize=1)
 def _remediation_by_rule() -> dict[str, str]:
@@ -204,6 +224,7 @@ def _remediation_by_rule() -> dict[str, str]:
         rule_id = str(item.get("id", "")).strip()
         remediation = str(item.get("remediation", "")).strip()
         if rule_id and remediation:
+            remediation = _REMEDIATION_OVERRIDES.get(rule_id, remediation)
             if len(remediation) > 200:
                 remediation = f"{remediation[:197]}..."
             result[rule_id] = remediation
@@ -311,3 +332,30 @@ def contains_blocked_detail_text(comment: str, details: dict[str, str]) -> bool:
         if len(value) >= 8 and value in comment:
             return True
     return False
+
+
+# A finding's suggested_fix normally comes from a detector's own clean wording, but
+# this is a defense-in-depth check: any value containing raw LaTeX-only syntax (e.g.
+# from a future detector regression) is swapped for the rule's clean remediation text
+# before it reaches the PDF-only web UI, rather than rendered as-is.
+_RAW_LATEX_SUGGESTED_FIX_TOKENS: tuple[str, ...] = (
+    "\\doublespacing",
+    "\\usepackage",
+    "mathptmx",
+    "newtxtext",
+    "newtxmath",
+    "\\setstretch",
+    "\\onehalfspacing",
+)
+
+
+def sanitize_suggested_fix_for_web(rule_id: str, suggested_fix: str) -> str:
+    """Replace a suggested_fix value with clean wording if it carries raw LaTeX syntax."""
+    if not suggested_fix:
+        return suggested_fix
+    if not any(token in suggested_fix for token in _RAW_LATEX_SUGGESTED_FIX_TOKENS):
+        return suggested_fix
+    fallback = _remediation_by_rule().get(rule_id, "")
+    if fallback and not any(token in fallback for token in _RAW_LATEX_SUGGESTED_FIX_TOKENS):
+        return fallback
+    return ""
