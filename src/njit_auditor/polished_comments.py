@@ -38,6 +38,10 @@ _SOURCE_RULE_IDS = frozenset(
 )
 
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
+    ("P012", "pdf_annotation_detected"): (
+        "A PDF annotation or comment was detected on page {page}. "
+        "Resolve or remove annotations before final submission."
+    ),
     ("P011", "margin_boundary_violation"): (
         "Possible text crossing the {side} margin on page {page}. "
         "Check that body text and headings respect NJIT margin requirements."

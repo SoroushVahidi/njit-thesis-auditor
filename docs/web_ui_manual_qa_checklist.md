@@ -89,6 +89,23 @@ For the same completed job on mobile and desktop, verify both show the same:
 
 Responsive layout differences are acceptable only if all actions remain reachable.
 
+### 5a. Actionability Checks (added PR #320)
+
+For each finding card on the result page:
+
+- Every card has an action button (never empty).
+- Cards with exact highlight coordinates (`P012` annotations) show **"Open highlighted PDF page"** and link to `/pdf/highlighted?...`.
+- Cards with page but no bbox show **"Open PDF page"** and link to `/audits/{job_id}/pdf#page=N`.
+- Cards with no page at all show **"Open PDF"** and a note that the finding is document-level.
+- Every grouped card shows a **"What does this mean?"** expandable details section.
+- Expanding "What does this mean?" shows a student-facing explanation (not internal rule jargon).
+- Abstract length findings (P021) show the observed word count, allowed maximum, and over-by amount in the explanation.
+- Font findings (P026) mention Times New Roman 12pt in the explanation.
+- Page numbering findings (P013/P019/P028) mention Roman/Arabic numeral requirements.
+- Annotation findings (P012) mention accepting/rejecting reviewer comments.
+- No-highlight notes appear only when highlight is not available.
+- No-highlight notes are honest: they say "relevant page is known" for page-only findings, and "document-level" for document-only findings.
+
 ## 6. Problem Pages
 
 Open both:
@@ -103,6 +120,9 @@ Verify on both mobile and desktop:
 - issue-type explanation
 - PDF links
 - back link
+- **"What does this mean?"** expandable explanation on every example card
+- Action button label matches action kind (highlighted vs. page vs. PDF)
+- No-highlight note appears when relevant
 
 ## 7. PDF Routes
 
@@ -118,6 +138,7 @@ Verify:
 - original PDF route serves inline where possible
 - highlighted route is safe on normal linked inputs
 - desktop is not forced to download when inline serving is available
+- highlighted route falls back to plain PDF when no valid bbox exists (zero-area or missing)
 
 Final preview-vs-download behavior may still vary by browser settings or installed PDF viewers.
 

@@ -110,6 +110,27 @@ Validation commands and exact results are recorded after the final repo validati
 - `mypy src` — passed (`Success: no issues found in 91 source files`)
 - `python -m pytest` — passed (`1319 passed, 1 warning in 8.87s`)
 
-Final automated test count:
+Final automated test count after PR #318/#319:
 
 - `1319`
+
+---
+
+## Update: Clickable Actionable Findings (PR #320)
+
+**Date:** 2026-06-16
+
+Additional parity tests were added for the actionability model in `tests/test_finding_actionability.py`.
+
+New parity assertions added:
+- Same action labels (`Open highlighted PDF page` / `Open PDF page` / `Read explanation`) on mobile and desktop
+- Same PDF links (normalized) on mobile and desktop for main result, category, and rule pages
+- Same issue-type labels on mobile and desktop
+- Same detailed explanations (via `What does this mean?`) on mobile and desktop
+- No `mobile-only` / `desktop-only` / `sm:hidden` / `md:hidden` / `lg:hidden` classes added
+- Same `no_highlight_reason` text on mobile and desktop
+- Grouped-card actions and individual finding actions parity
+
+Final automated test count after PR #320:
+
+- `1357`
