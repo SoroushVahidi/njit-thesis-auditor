@@ -55,9 +55,9 @@ def test_index_contains_file_input(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert b'type="file"' in resp.content
-    assert b".pdf" in resp.content
-    assert b".tex" in resp.content
-    assert b".zip" in resp.content
+    assert b'accept=".pdf"' in resp.content
+    assert b"TeX" not in resp.content
+    assert b".zip" not in resp.content
 
 
 def test_index_contains_drag_drop_upload_zone_markup(
@@ -67,7 +67,7 @@ def test_index_contains_drag_drop_upload_zone_markup(
     resp = c.get("/")
     assert resp.status_code == 200
     assert b'id="upload-drop-zone"' in resp.content
-    assert b'Drop a PDF, TeX, or ZIP file here' in resp.content
+    assert b'Drop a PDF file here' in resp.content
     assert b'role="button"' in resp.content
     assert b'tabindex="0"' in resp.content
     assert b'aria-controls="file"' in resp.content
@@ -88,18 +88,18 @@ def test_index_contains_drag_drop_progressive_enhancement_script(
     assert b"dragleave" in resp.content
     assert b"drop" in resp.content
     assert b"Drop one file at a time" in resp.content
-    assert b"Unsupported file:" in resp.content
+    assert b"Only PDF files are supported in the web interface" in resp.content
     assert b"Submit when ready or choose another file" in resp.content
 
 
-def test_index_advertises_pdf_tex_zip_support(client: tuple[TestClient, Any]) -> None:
+def test_index_advertises_pdf_only_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
     assert b"P011" in resp.content
-    assert b"P001" in resp.content
-    assert b"ZIP" in resp.content or b"zip" in resp.content.lower()
-    assert b"no LaTeX compilation" in resp.content or b"no compilation" in resp.content.lower()
+    assert b"TeX" not in resp.content
+    assert b".zip" not in resp.content
+    assert b"source audit" not in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +112,9 @@ def test_upload_no_file_rejected(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code in (400, 422)
 
 
+_PDF_ONLY_ERROR = b"Only PDF files are supported in the web interface. Please upload a PDF file."
+
+
 def test_upload_non_pdf_extension_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post(
@@ -120,7 +123,35 @@ def test_upload_non_pdf_extension_rejected(client: tuple[TestClient, Any]) -> No
         follow_redirects=False,
     )
     assert resp.status_code == 400
-    assert b"Supported uploads" in resp.content
+    assert _PDF_ONLY_ERROR in resp.content
+
+
+def test_upload_tex_extension_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits",
+        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
+
+
+def test_upload_zip_extension_rejected(client: tuple[TestClient, Any]) -> None:
+    import zipfile
+
+    c, _ = client
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as zf:
+        zf.writestr("main.tex", _MINIMAL_TEX)
+    zbuf.seek(0)
+    resp = c.post(
+        "/audits",
+        files={"file": ("project.zip", zbuf, "application/zip")},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
 
 
 def test_upload_wrong_magic_bytes_rejected(client: tuple[TestClient, Any]) -> None:
@@ -170,116 +201,6 @@ def _fake_dispatch(pdf_path: Path, **kwargs: Any) -> Any:
         upload_kind=UploadKind.PDF,
         audit_type="pdf",
         findings=_fake_audit(pdf_path),
-    )
-
-
-def test_upload_tex_creates_job_and_redirects(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "_run_audit_task", lambda job_id: None):
-        resp = c.post(
-            "/audits",
-            files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-            follow_redirects=False,
-        )
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-def test_upload_tex_completes_with_source_report(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    c, wa = client
-    resp = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert b"TeX source audit" in resp.content or b"P001" in resp.content
-    assert b"Location" in resp.content
-    assert b"Most common issues" not in resp.content
-    assert b"fig:secret" not in resp.content
-
-
-def test_tex_upload_json_and_markdown_downloads(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    post = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    page = c.get(f"/audits/{job_id}")
-    assert page.status_code == 200
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    md_resp = c.get(f"/audits/{job_id}/download/markdown")
-    if json_resp.status_code == 200:
-        data = json_resp.json()
-        assert data["metadata"]["audit_type"] == "tex"
-        assert "findings" in data
-    if md_resp.status_code == 200:
-        assert b"Source Audit Report" in md_resp.content
-
-
-def test_zip_upload_json_and_markdown_downloads(client: tuple[TestClient, Any]) -> None:
-    import zipfile
-
-    c, _ = client
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("main.tex", _MINIMAL_TEX)
-    zbuf.seek(0)
-    post = c.post(
-        "/audits",
-        files={"file": ("project.zip", zbuf, "application/zip")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    c.get(f"/audits/{job_id}")
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code == 200:
-        assert json_resp.json()["metadata"]["audit_type"] == "tex"
-
-
-def test_upload_zip_completes_with_source_report(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    import zipfile
-
-    c, _ = client
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("main.tex", _MINIMAL_TEX)
-    zbuf.seek(0)
-    resp = c.post(
-        "/audits",
-        files={"file": ("project.zip", zbuf, "application/zip")},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert b"TeX source audit" in resp.content or b"P001" in resp.content
-    assert b"Location" in resp.content
-
-
-def test_unsafe_zip_upload_shows_safe_error(client: tuple[TestClient, Any]) -> None:
-    import zipfile
-
-    c, _ = client
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("../evil.tex", _MINIMAL_TEX)
-    zbuf.seek(0)
-    resp = c.post(
-        "/audits",
-        files={"file": ("bad.zip", zbuf, "application/zip")},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert b"Traceback" not in resp.content
-    assert (
-        b"could not complete" in resp.content.lower()
-        or b"Unsafe ZIP" in resp.content
-        or b"unsafe" in resp.content.lower()
     )
 
 
@@ -482,15 +403,15 @@ def test_index_states_privacy_safe_local_processing(client: tuple[TestClient, An
     assert b"not stored permanently" in resp.content.lower()
 
 
-def test_index_states_pdf_tex_zip_web_support(client: tuple[TestClient, Any]) -> None:
+def test_index_states_pdf_only_web_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
     assert b"Supported inputs" in resp.content
     assert b"PDF" in resp.content
-    assert b"TeX source" in resp.content or b"TeX" in resp.content
     assert b"Supported" in resp.content
-    assert b"source only" in resp.content.lower() or b"not compiled" in resp.content.lower()
+    assert b"TeX" not in resp.content
+    assert b".zip" not in resp.content
 
 
 def test_index_lists_what_you_get_deliverables(client: tuple[TestClient, Any]) -> None:
@@ -1574,220 +1495,6 @@ def test_job_not_found_message_mentions_expiration(
     assert b"hours" in resp.content.lower()
 
 
-# ---------------------------------------------------------------------------
-# Web export path redaction
-# ---------------------------------------------------------------------------
-
-
-def test_tex_upload_json_redacts_absolute_paths(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    post = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    c.get(f"/audits/{job_id}")
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
-    serialized = json.dumps(data)
-    assert str(runtime_root) not in serialized
-    assert data["metadata"]["input_file_path"] == "upload.tex"
-    for finding in data.get("findings", []):
-        details = finding.get("details", {})
-        file_path = details.get("file", "")
-        if file_path:
-            assert "/" not in file_path
-            assert "\\" not in file_path
-
-
-def test_tex_upload_markdown_preview_redacts_absolute_paths(
-    client: tuple[TestClient, Any],
-) -> None:
-    c, wa = client
-    post = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    page = c.get(f"/audits/{job_id}")
-    if page.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
-    job = wa._get_job(job_id)
-    if job is None or not job.md_preview:
-        pytest.skip("markdown preview unavailable")
-    assert str(runtime_root) not in job.md_preview
-    assert "upload.tex" in job.md_preview
-
-
-# ---------------------------------------------------------------------------
-# Web export source-message privacy sanitization (#215)
-# ---------------------------------------------------------------------------
-
-# Synthetic TeX content that will produce findings with private label/ref names.
-# The label "fig:test_private_label" and ref "fig:test_private_ref" must NOT
-# appear in any web-generated JSON or Markdown report.
-_PRIVATE_LABEL_TEX = (
-    b"\\documentclass{report}\n"
-    b"\\begin{document}\n"
-    b"\\label{fig:test_private_label}\n"
-    b"\\ref{fig:test_private_ref}\n"
-    b"\\begin{figure}\n"
-    b"\\caption{A figure.}\n"
-    b"\\end{figure}\n"
-    b"\\begin{table}\n"
-    b"\\caption{A table}\n"
-    b"\\end{table}\n"
-    b"\\end{document}\n"
-)
-
-_PRIVATE_LABEL = "fig:test_private_label"
-_PRIVATE_REF = "fig:test_private_ref"
-
-
-def _submit_tex_and_get_job_id(
-    c: TestClient,
-    tex_content: bytes = _PRIVATE_LABEL_TEX,
-    filename: str = "main.tex",
-) -> str:
-    """Upload synthetic TeX, follow redirect, return job_id."""
-    post = c.post(
-        "/audits",
-        files={"file": (filename, io.BytesIO(tex_content), "text/plain")},
-        follow_redirects=False,
-    )
-    assert post.status_code == 303, f"Expected redirect, got {post.status_code}"
-    return post.headers["location"].split("/audits/")[1]
-
-
-def test_source_web_json_does_not_contain_private_label(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web JSON download for source audit must not contain synthetic private label name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")  # wait for completion
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    serialized = resp.text
-    assert _PRIVATE_LABEL not in serialized, (
-        f"Private label '{_PRIVATE_LABEL}' found in web JSON download"
-    )
-
-
-def test_source_web_json_does_not_contain_private_ref(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web JSON download for source audit must not contain synthetic private ref name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    serialized = resp.text
-    assert _PRIVATE_REF not in serialized, (
-        f"Private ref '{_PRIVATE_REF}' found in web JSON download"
-    )
-
-
-def test_source_web_markdown_does_not_contain_private_label(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web Markdown download for source audit must not contain synthetic private label name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/markdown")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    assert _PRIVATE_LABEL not in resp.text, (
-        f"Private label '{_PRIVATE_LABEL}' found in web Markdown download"
-    )
-
-
-def test_source_web_markdown_does_not_contain_private_ref(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web Markdown download for source audit must not contain synthetic private ref name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/markdown")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    assert _PRIVATE_REF not in resp.text, (
-        f"Private ref '{_PRIVATE_REF}' found in web Markdown download"
-    )
-
-
-def test_source_web_markdown_preview_does_not_contain_private_labels(
-    client: tuple[TestClient, Any],
-) -> None:
-    """In-page Markdown preview must not contain synthetic private label/ref names."""
-    c, wa = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    job = wa._get_job(job_id)
-    if job is None or not job.md_preview:
-        pytest.skip("markdown preview unavailable")
-    assert _PRIVATE_LABEL not in job.md_preview, (
-        f"Private label '{_PRIVATE_LABEL}' found in in-page Markdown preview"
-    )
-    assert _PRIVATE_REF not in job.md_preview, (
-        f"Private ref '{_PRIVATE_REF}' found in in-page Markdown preview"
-    )
-
-
-def test_source_web_json_finding_counts_unchanged_after_sanitization(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Sanitization must preserve finding counts — no findings removed."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    data = resp.json()
-    meta = data.get("metadata", {})
-    total = meta.get("total_findings", 0)
-    findings = data.get("findings", [])
-    # Total in metadata must match actual findings list length
-    assert total == len(findings), (
-        f"total_findings={total} != len(findings)={len(findings)} after sanitization"
-    )
-    # Must have at least some findings from the synthetic TeX (P002/P003/P004 etc.)
-    assert total > 0, "Expected at least one finding from synthetic TeX with dangling refs"
-
-
-def test_source_web_json_preserves_structural_fields(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Rule IDs, severity, category, source_file, source_line must survive sanitization."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    data = resp.json()
-    for finding in data.get("findings", []):
-        assert "rule_id" in finding, "rule_id missing from sanitized finding"
-        assert "severity" in finding, "severity missing from sanitized finding"
-        assert "message" in finding, "message missing from sanitized finding"
-        # source_file and source_line are set for tex audits
-        # (may be empty string for PASS findings)
-        assert "source_file" in finding, "source_file missing from sanitized finding"
-        assert "source_line" in finding, "source_line missing from sanitized finding"
-
-
 def _inject_complete_pdf_job(
     wa: Any,
     tmp_path: Path,
@@ -2158,34 +1865,6 @@ def test_results_page_open_pdf_button_shown_for_pdf_audit(
     assert resp.status_code == 200
     assert b"open-pdf-btn" in resp.content
     assert f"/audits/{job_id}/pdf".encode() in resp.content
-
-
-def test_results_page_open_pdf_button_hidden_for_tex_audit(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    """Results page for a TeX/source audit must NOT include the Open PDF button."""
-    import secrets
-    from datetime import datetime, timezone
-
-    c, wa = client
-    job_id = secrets.token_urlsafe(16)
-    job = wa.JobState(
-        job_id=job_id,
-        state="complete",
-        created_at=datetime.now(timezone.utc).isoformat(),
-        file_name="main.tex",
-        audit_type="tex",
-        finding_count=0,
-        findings=[],
-        grouped_summary=[],
-        report_view={},
-        md_preview="",
-    )
-    wa._set_job(job)
-    resp = c.get(f"/audits/{job_id}")
-    assert resp.status_code == 200
-    assert b"open-pdf-btn" not in resp.content
-    assert f"/audits/{job_id}/pdf".encode() not in resp.content
 
 
 def test_results_page_page_links_present_for_findings_with_page(

@@ -44,7 +44,7 @@
 
 <div class="disclaimer-box" role="note" aria-label="Important disclaimer">
   <strong>Important disclaimer.</strong>
-  <p>This tool is an automated research prototype that applies heuristic checks to PDF and LaTeX dissertation files. It is <strong>not an official NJIT approval system</strong>. A result of <em>PASS</em>, <em>no findings</em>, or any combination of results does <strong>not</strong> mean your dissertation has been approved by the Graduate Studies office. All findings are advisory signals — please verify every flagged item against the official NJIT formatting guidelines and consult your Graduate Studies coordinator.</p>
+  <p>This tool is an automated research prototype that applies heuristic checks to PDF dissertation files. It is <strong>not an official NJIT approval system</strong>. A result of <em>PASS</em>, <em>no findings</em>, or any combination of results does <strong>not</strong> mean your dissertation has been approved by the Graduate Studies office. All findings are advisory signals — please verify every flagged item against the official NJIT formatting guidelines and consult your Graduate Studies coordinator.</p>
   <p>Because many checks are heuristic (based on pattern-matching rather than exact rules), the tool may miss some issues and may sometimes flag content that is actually correct. <strong>Human review is always required.</strong></p>
 </div>
 
@@ -115,7 +115,7 @@
   <h2>Not checked / not reliably checkable</h2>
   <p>Some requirements cannot be checked automatically, or a check may not run because:</p>
   <ul>
-    <li><strong>Required input unavailable.</strong> A rule that needs a compiled PDF will not run on a TeX source upload, and vice versa.</li>
+    <li><strong>Source-only checks do not run on the website.</strong> Some catalog rules only apply to LaTeX source files (not a compiled PDF). This website accepts PDF uploads only, so those checks never produce findings here; they are available through the command-line tool.</li>
     <li><strong>Missing or unreliable text layer.</strong> If the PDF was scanned or generated from an image, the text layer may be absent and text-based checks may not work correctly.</li>
     <li><strong>Section not detected.</strong> If the tool cannot locate a specific section (such as the Abstract or Table of Contents), checks that rely on that section will produce no findings — not a PASS.</li>
     <li><strong>Rule requires manual judgment.</strong> Some requirements (such as whether content is appropriate or consistent with your research) cannot be assessed automatically.</li>
@@ -160,7 +160,7 @@
       </tr>
       <tr>
         <td>Source location</td>
-        <td>For TeX source audits, the file name and line number in your <code>.tex</code> source where the issue was detected (for example, <code>main.tex:42</code>).</td>
+        <td>For TeX source audits (command-line tool only — not available through this website), the file name and line number in the <code>.tex</code> source where the issue was detected (for example, <code>main.tex:42</code>).</td>
       </tr>
       <tr>
         <td>High-volume triage</td>
@@ -197,18 +197,21 @@
 <!-- Audit Types -->
 <section class="help-section" id="audit-types">
   <h2>PDF audit vs TeX source audit</h2>
+  <div class="alert-info" style="margin-bottom:1rem;">
+    This website currently supports <strong>PDF audits only</strong>. TeX source audits exist in the rule catalog and the command-line tool, but cannot be run from this website.
+  </div>
   <div style="display:grid;gap:1rem;margin-top:0.5rem;">
     <div class="card card-compact">
       <h3 style="margin-top:0;">PDF layout audit (P011–P082)</h3>
       <p style="font-size:0.9rem;margin:0;">Runs when you upload a compiled <strong>.pdf</strong> file. Checks visual layout properties: margins, page numbers, spacing, font usage, table of contents formatting, and similar layout requirements. These checks analyze the rendered output of your document.</p>
     </div>
     <div class="card card-compact">
-      <h3 style="margin-top:0;">TeX source audit (P001–P010)</h3>
-      <p style="font-size:0.9rem;margin:0;">Runs when you upload a <strong>.tex</strong> or <strong>.zip</strong> file containing LaTeX source. Checks source-level issues: duplicate labels, invalid cross-references, risky formatting commands, and document structure. The source is not compiled — the tool reads the source files directly.</p>
+      <h3 style="margin-top:0;">TeX source audit (P001–P010) — command-line tool only</h3>
+      <p style="font-size:0.9rem;margin:0;">Runs against a <strong>.tex</strong> file or a <strong>.zip</strong> archive containing LaTeX source via the command-line tool. Checks source-level issues: duplicate labels, invalid cross-references, risky formatting commands, and document structure. The source is not compiled — the tool reads the source files directly. <strong>Not available through this website.</strong></p>
     </div>
   </div>
   <p style="font-size:0.88rem;color:var(--color-muted);margin-top:0.75rem;">
-    A PDF audit and a TeX source audit are complementary — they check different aspects of your dissertation and neither alone is sufficient.
+    A PDF audit and a TeX source audit are complementary — they check different aspects of a dissertation and neither alone is sufficient.
   </p>
 </section>
 
