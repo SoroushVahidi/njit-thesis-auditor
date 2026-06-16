@@ -526,6 +526,27 @@ def test_results_page_shows_triage_panels(client: tuple[TestClient, Any], tmp_pa
     assert b"Margin" in resp.content or b"P011" in resp.content
 
 
+def test_results_page_category_chips_link_to_problem_pages(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert f'/audits/{job_id}/problems/category/margin-or-overflow'.encode() in resp.content
+
+
+def test_results_page_triage_cards_link_to_rule_problem_pages(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert f'/audits/{job_id}/problems/rule/P011'.encode() in resp.content
+    assert b"Examples of this problem" in resp.content
+
+
 def test_results_page_renders_polished_comments(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -600,6 +621,154 @@ def test_failed_job_shows_safe_error_no_stack_trace(
     assert resp.status_code == 200
     assert b"Traceback" not in resp.content
     assert b"valid PDF" in resp.content or b"could not complete" in resp.content.lower()
+
+
+def test_category_problem_page_route_returns_200(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=5,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=9,
+            message="Page number out of sequence.",
+            details={"issue_type": "page_number_sequence_error", "observed": "8"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/category/margin-or-overflow")
+
+    assert resp.status_code == 200
+    assert b"Examples of this problem" in resp.content
+    assert b"Margins / overflow" in resp.content
+    assert f"/audits/{job_id}/pdf#page=2".encode() in resp.content
+
+
+def test_rule_problem_page_route_returns_200(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=7,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+
+    assert resp.status_code == 200
+    assert b"Pages to review" in resp.content
+    assert f"/audits/{job_id}/pdf#page=7".encode() in resp.content
+    assert b"Back to all results" in resp.content
+
+
+def test_problem_group_pages_only_show_matching_findings(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=8,
+            message="Page number out of sequence.",
+            details={"issue_type": "page_number_sequence_error", "observed": "7"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    category_resp = c.get(f"/audits/{job_id}/problems/category/page-numbering")
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+
+    assert category_resp.status_code == 200
+    assert b"P013" in category_resp.content
+    assert b"P011" not in category_resp.content
+    assert rule_resp.status_code == 200
+    assert b"P011" in rule_resp.content
+    assert b"P013" not in rule_resp.content
+
+
+def test_unknown_problem_group_routes_return_404(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+
+    bad_category = c.get(f"/audits/{job_id}/problems/category/not-a-real-category")
+    bad_rule = c.get(f"/audits/{job_id}/problems/rule/P999")
+
+    assert bad_category.status_code == 404
+    assert bad_rule.status_code == 404
+
+
+def test_missing_job_problem_group_routes_return_404(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+
+    resp = c.get("/audits/no-such-job/problems/category/page-numbering")
+
+    assert resp.status_code == 404
+    assert b"not found" in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------
