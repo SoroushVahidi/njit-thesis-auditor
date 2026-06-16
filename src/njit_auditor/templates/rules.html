@@ -124,33 +124,17 @@
     color: var(--color-muted);
     font-size: 0.93rem;
   }
-  .policy-note {
-    font-size: 0.82rem;
-    color: var(--color-muted);
-    background: #f8fafc;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 0.85rem 1rem;
-    margin-bottom: 1.5rem;
-  }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1>Rule Reference</h1>
 <p class="rules-intro">
-  Each rule listed here corresponds to a specific automated formatting check that can run on a PDF uploaded through this website.
+  This page lists the automated formatting checks used for PDF audits in this website.
   Click a rule ID in your audit results to jump directly to its entry.
   Use the filters below to find checks by topic or priority.
   <a href="/help">How to read these results</a>
 </p>
-
-<div class="policy-note">
-  <strong>Inclusion policy.</strong>
-  This catalog shows <strong>{{ total_student }} automated formatting checks</strong> that can run on PDF uploads through this website.
-  Checks that exist only to refine reports, scaffold infrastructure, or record internal evaluation tasks are listed separately at the bottom.
-  Those entries do not produce student-facing findings and are grouped under "Technical and experimental entries."
-</div>
 
 <div class="filter-bar--rules" role="search" aria-label="Filter rules">
   <div>
@@ -163,15 +147,6 @@
       <option value="">All categories</option>
       {% for cat in categories %}
       <option value="{{ cat }}">{{ cat }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div>
-    <label for="rule-filter-input">Applies to</label>
-    <select id="rule-filter-input" aria-label="Filter by input type">
-      <option value="">All input types</option>
-      {% for inp in input_types %}
-      <option value="{{ inp }}">{{ inp }}</option>
       {% endfor %}
     </select>
   </div>
@@ -211,7 +186,6 @@
      id="{{ rule.id }}"
      data-rule-id="{{ rule.id }}"
      data-category="{{ rule.section }}"
-     data-input="{{ rule.input_label }}"
      data-severity="{{ rule.severity_label }}"
      data-checkability="{{ rule.checkability_label }}"
      data-searchtext="{{ rule.id }} {{ rule.title }} {{ rule.section }} {{ rule.what_it_checks }} {{ rule.how_to_correct }}">
@@ -268,44 +242,6 @@
   No rules match the current filters. <button type="button" id="no-results-reset" class="btn btn-secondary" style="padding:0.3rem 0.8rem;font-size:0.83rem;margin-left:0.4rem;">Reset filters</button>
 </div>
 
-<!-- Technical section -->
-<section aria-label="Technical and experimental entries">
-  <div class="section-header-rules" style="margin-top:2.5rem;">
-    <h2>Technical and experimental entries</h2>
-    <span class="section-note">{{ total_technical }} entries</span>
-  </div>
-  <div class="alert-info" style="margin-bottom:1rem;">
-    The entries below are <strong>not ordinary student-facing checks</strong>. They represent reporting refinements, infrastructure capabilities, experimental advisories, and evaluation tasks. They either produce no standalone audit findings or require explicit opt-in.
-  </div>
-  <div class="card card-compact" style="margin-bottom:1rem;">
-    <button type="button" id="tech-toggle" class="btn btn-secondary"
-            style="padding:0.4rem 0.9rem;font-size:0.85rem;"
-            aria-expanded="false" aria-controls="tech-table-body">
-      Show technical entries ({{ total_technical }})
-    </button>
-    <div id="tech-table-body" hidden style="overflow-x:auto;margin-top:0.85rem;">
-      <table style="font-size:0.86rem;word-break:break-word;">
-        <thead>
-          <tr>
-            <th style="width:3.5rem;">ID</th>
-            <th>Title</th>
-            <th>Classification</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for rule in technical_rules %}
-          <tr id="{{ rule.id }}">
-            <td><strong>{{ rule.id }}</strong></td>
-            <td>{{ rule.title }}</td>
-            <td style="color:var(--color-muted);font-size:0.82rem;">{{ rule.technical_reason }}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
 <p style="margin-top:1.5rem;">
   <a href="/help" class="btn btn-secondary">Help &amp; terminology &rarr;</a>
   <a href="/" class="btn btn-secondary" style="margin-left:0.5rem;">&larr; Back to upload</a>
@@ -315,7 +251,6 @@
 (function () {
   var searchInput = document.getElementById("rule-search");
   var catFilter = document.getElementById("rule-filter-category");
-  var inputFilter = document.getElementById("rule-filter-input");
   var sevFilter = document.getElementById("rule-filter-severity");
   var checkFilter = document.getElementById("rule-filter-checkability");
   var resetBtn = document.getElementById("rule-filter-reset");
@@ -327,7 +262,6 @@
   function applyFilters() {
     var searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
     var cat = catFilter ? catFilter.value : "";
-    var inp = inputFilter ? inputFilter.value : "";
     var sev = sevFilter ? sevFilter.value : "";
     var chk = checkFilter ? checkFilter.value : "";
 
@@ -335,7 +269,6 @@
     cards.forEach(function (card) {
       var show = true;
       if (cat && card.dataset.category !== cat) show = false;
-      if (inp && card.dataset.input !== inp) show = false;
       if (sev && card.dataset.severity !== sev) show = false;
       if (chk && card.dataset.checkability !== chk) show = false;
       if (searchVal) {
@@ -360,7 +293,6 @@
   function resetFilters() {
     if (searchInput) searchInput.value = "";
     if (catFilter) catFilter.value = "";
-    if (inputFilter) inputFilter.value = "";
     if (sevFilter) sevFilter.value = "";
     if (checkFilter) checkFilter.value = "";
     applyFilters();
@@ -368,31 +300,12 @@
 
   if (searchInput) searchInput.addEventListener("input", applyFilters);
   if (catFilter) catFilter.addEventListener("change", applyFilters);
-  if (inputFilter) inputFilter.addEventListener("change", applyFilters);
   if (sevFilter) sevFilter.addEventListener("change", applyFilters);
   if (checkFilter) checkFilter.addEventListener("change", applyFilters);
   if (resetBtn) resetBtn.addEventListener("click", resetFilters);
   if (noResultsReset) noResultsReset.addEventListener("click", resetFilters);
 
   applyFilters();
-
-  // Technical section toggle
-  var techToggle = document.getElementById("tech-toggle");
-  var techBody = document.getElementById("tech-table-body");
-  if (techToggle && techBody) {
-    techToggle.addEventListener("click", function () {
-      var isHidden = techBody.hasAttribute("hidden");
-      if (isHidden) {
-        techBody.removeAttribute("hidden");
-        techToggle.setAttribute("aria-expanded", "true");
-        techToggle.textContent = techToggle.textContent.replace("Show", "Hide");
-      } else {
-        techBody.setAttribute("hidden", "");
-        techToggle.setAttribute("aria-expanded", "false");
-        techToggle.textContent = techToggle.textContent.replace("Hide", "Show");
-      }
-    });
-  }
 })();
 </script>
 {% endblock %}
