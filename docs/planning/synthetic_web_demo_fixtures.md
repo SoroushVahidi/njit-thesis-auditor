@@ -1,5 +1,8 @@
 # Synthetic Web Demo Fixtures
 
+> Current stable scope note: the public web UI is PDF-only. For browser demos and screenshots, use the PDF fixtures in this directory.
+> The `.tex` and `.zip` fixtures remain only for CLI/internal source-audit coverage and historical tests; they do not describe the current public upload UI.
+
 - **Date:** 2026-06-07
 - **Baseline commit:** `4f3a70e` (post PR #216)
 - **Status:** Implemented — all five fixtures committed in `tests/fixtures/web_demo/` (PR #218)
