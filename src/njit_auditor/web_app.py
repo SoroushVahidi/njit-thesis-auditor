@@ -1123,6 +1123,17 @@ async def get_audits_url_guard() -> RedirectResponse:
     return RedirectResponse(url="/", status_code=302)
 
 
+@app.get("/audits/sample", response_model=None)
+async def get_audits_sample_guard() -> RedirectResponse:
+    """Redirect accidental GET /audits/sample to the upload page.
+
+    Same route-collision class as get_audits_url_guard above: without this guard,
+    GET /audits/sample would be matched by the parameterised /audits/{job_id} route
+    with job_id="sample", producing a confusing "job not found" error message.
+    """
+    return RedirectResponse(url="/", status_code=302)
+
+
 @app.get("/audits/{job_id}", response_class=HTMLResponse)
 async def job_page(request: Request, job_id: str) -> HTMLResponse:
     cleanup_expired_jobs()
