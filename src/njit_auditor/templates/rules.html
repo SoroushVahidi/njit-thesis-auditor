@@ -106,7 +106,7 @@
   .rule-card__meta-item { display: flex; gap: 0.25rem; }
   .badge-experimental { background: #fef3cd; color: #664d03; }
   .badge-deterministic { background: #d4f0e8; color: #0d5c3a; }
-  .badge-heuristic { background: #e3f0ff; color: #0c3a6b; }
+  .badge-pattern { background: #e3f0ff; color: #0c3a6b; }
   .badge-manual { background: #f3e3ff; color: #4b0c6b; }
   .section-header-rules {
     display: flex;
@@ -139,20 +139,16 @@
 {% block content %}
 <h1>Rule Reference</h1>
 <p class="rules-intro">
-  Each rule listed here corresponds to a specific automated check. Click a rule ID in your audit results to jump directly to its entry.
-  Use the filters below to find rules by topic, input type, or severity.
-  <a href="/help">What do Error, Warning, and Pass mean?</a>
+  Each rule listed here corresponds to a specific automated formatting check that can run on a PDF uploaded through this website.
+  Click a rule ID in your audit results to jump directly to its entry.
+  Use the filters below to find checks by topic or priority.
+  <a href="/help">How to read these results</a>
 </p>
-
-<div class="alert-info" style="margin-bottom:1rem;">
-  <strong>Web interface note.</strong> This website currently accepts <strong>PDF uploads only</strong>. Rules marked
-  "TeX / ZIP source" below describe checks available in the command-line tool; they do not run on web uploads.
-</div>
 
 <div class="policy-note">
   <strong>Inclusion policy.</strong>
-  This catalog shows <strong>{{ total_student }} active detector rules</strong> (P001–P082, minus infrastructure and reporting-only entries).
-  Rules that exist only to refine reports, scaffold infrastructure, or record evaluation tasks are listed separately at the bottom.
+  This catalog shows <strong>{{ total_student }} automated formatting checks</strong> that can run on PDF uploads through this website.
+  Checks that exist only to refine reports, scaffold infrastructure, or record internal evaluation tasks are listed separately at the bottom.
   Those entries do not produce student-facing findings and are grouped under "Technical and experimental entries."
 </div>
 
@@ -180,9 +176,9 @@
     </select>
   </div>
   <div>
-    <label for="rule-filter-severity">Severity</label>
-    <select id="rule-filter-severity" aria-label="Filter by severity">
-      <option value="">All severities</option>
+    <label for="rule-filter-severity">Priority</label>
+    <select id="rule-filter-severity" aria-label="Filter by priority">
+      <option value="">All</option>
       {% for sev in severities %}
       <option value="{{ sev }}">{{ sev }}</option>
       {% endfor %}
@@ -229,16 +225,16 @@
   </div>
   <div class="rule-card__badges">
     {% if rule.severity_code == "fail" %}
-    <span class="badge badge-fail">Error (FAIL)</span>
+    <span class="badge badge-fail">Problem</span>
     {% elif rule.severity_code == "warning" %}
-    <span class="badge badge-warn">Warning</span>
+    <span class="badge badge-warn">Problem</span>
     {% elif rule.severity_code == "info" %}
-    <span class="badge badge-info">Info</span>
+    <span class="badge badge-info">Information</span>
     {% endif %}
     {% if rule.checkability_label == "Exact check" %}
     <span class="badge badge-deterministic">Exact check</span>
-    {% elif rule.checkability_label in ("Pattern-based", "Visual / heuristic") %}
-    <span class="badge badge-heuristic">Pattern-based</span>
+    {% elif rule.checkability_label in ("Pattern-based", "Visual check") %}
+    <span class="badge badge-pattern">Pattern-based</span>
     {% elif rule.checkability_label == "Manual review" %}
     <span class="badge badge-manual">Manual review</span>
     {% else %}

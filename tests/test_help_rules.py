@@ -43,32 +43,16 @@ def test_help_returns_200(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 200
 
 
-def test_help_contains_fail_definition(client: tuple[TestClient, Any]) -> None:
+def test_help_explains_problems_found(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
     body = resp.text
-    assert "FAIL" in body
-    assert "Error" in body
-    assert "correction" in body.lower() or "problem" in body.lower()
-
-
-def test_help_contains_warning_definition(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/help")
-    body = resp.text
-    assert "WARNING" in body or "Warning" in body
+    assert "Problems found" in body
     assert "review" in body.lower()
 
 
-def test_help_contains_pass_definition(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/help")
-    body = resp.text
-    assert "PASS" in body or "Pass" in body or "Check passed" in body
-
-
 def test_help_pass_does_not_mean_approval(client: tuple[TestClient, Any]) -> None:
-    """PASS must be explicitly clarified as not meaning dissertation approval."""
+    """"No problems found" must be explicitly clarified as not meaning dissertation approval."""
     c, _ = client
     resp = c.get("/help")
     body = resp.text.lower()
@@ -79,8 +63,8 @@ def test_help_pass_does_not_mean_approval(client: tuple[TestClient, Any]) -> Non
 def test_help_contains_no_findings_explanation(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
-    body = resp.text.lower()
-    assert "no findings" in body or "zero findings" in body
+    body = resp.text
+    assert "No problems found" in body
 
 
 def test_help_contains_not_checked_explanation(client: tuple[TestClient, Any]) -> None:
@@ -90,11 +74,11 @@ def test_help_contains_not_checked_explanation(client: tuple[TestClient, Any]) -
     assert "not checked" in body or "not reliably checkable" in body
 
 
-def test_help_disclaimer_says_heuristic_not_official(client: tuple[TestClient, Any]) -> None:
+def test_help_disclaimer_no_heuristic_says_not_official(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
     body = resp.text.lower()
-    assert "heuristic" in body
+    assert "heuristic" not in body
     assert "not an official" in body or "research prototype" in body or "not official" in body
 
 
@@ -127,10 +111,10 @@ def test_help_contains_confidence_explanation(client: tuple[TestClient, Any]) ->
     assert "confidence" in body
 
 
-def test_help_audit_outcomes_anchor(client: tuple[TestClient, Any]) -> None:
+def test_help_results_anchor(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
-    assert b'id="audit-outcomes"' in resp.content
+    assert b'id="results"' in resp.content
 
 
 def test_help_links_to_rule_reference(client: tuple[TestClient, Any]) -> None:
@@ -158,24 +142,6 @@ def test_rules_returns_200(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 200
 
 
-def test_rules_contains_p001(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b"P001" in resp.content
-
-
-def test_rules_contains_p002(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b"P002" in resp.content
-
-
-def test_rules_contains_p003(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b"P003" in resp.content
-
-
 def test_rules_contains_p011(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/rules")
@@ -195,25 +161,13 @@ def test_rules_p013_has_stable_anchor(client: tuple[TestClient, Any]) -> None:
     assert b'id="P013"' in resp.content
 
 
-def test_rules_p001_has_stable_anchor(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b'id="P001"' in resp.content
-
-
-def test_rules_p002_has_stable_anchor(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b'id="P002"' in resp.content
-
-
 def test_rules_generated_from_canonical_data(client: tuple[TestClient, Any]) -> None:
     """Rule cards must be generated from canonical structured data."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
     # Should show content from canonical JSON (section names, questions, remediation)
-    assert "TeX Source Hygiene" in body or "Cross-references" in body
+    assert "PDF layout" in body or "PDF page numbering" in body
     assert "label" in body.lower() or "margin" in body.lower()
 
 
@@ -553,12 +507,12 @@ def test_results_unknown_rule_id_no_broken_link(
 def test_results_page_has_help_link_in_summary(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Summary section must contain contextual help link to /help#audit-outcomes."""
+    """Summary section must contain contextual help link to /help#results."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=1)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"/help#audit-outcomes" in resp.content
+    assert b"/help#results" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -644,12 +598,15 @@ def test_build_rule_catalog_returns_student_rules() -> None:
     assert len(catalog["student_rules"]) > 0
 
 
-def test_build_rule_catalog_p001_in_student_rules() -> None:
+def test_build_rule_catalog_p001_not_in_catalog() -> None:
+    """P001 is TeX/ZIP-source-only and never runs on a web PDF upload."""
     from njit_auditor.web_app import _build_rule_catalog
 
     catalog = _build_rule_catalog()
-    ids = [r["id"] for r in catalog["student_rules"]]
-    assert "P001" in ids
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    tech_ids = {r["id"] for r in catalog["technical_rules"]}
+    assert "P001" not in student_ids
+    assert "P001" not in tech_ids
 
 
 def test_build_rule_catalog_p013_in_student_rules() -> None:
@@ -658,6 +615,26 @@ def test_build_rule_catalog_p013_in_student_rules() -> None:
     catalog = _build_rule_catalog()
     ids = [r["id"] for r in catalog["student_rules"]]
     assert "P013" in ids
+
+
+def test_build_rule_catalog_excludes_all_tex_source_only_rules() -> None:
+    """P001-P010 are TeX/ZIP-source-only and must not be advertised on the website."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    tech_ids = {r["id"] for r in catalog["technical_rules"]}
+    tex_only_ids = {f"P{n:03d}" for n in range(1, 11)}
+    assert not (tex_only_ids & student_ids)
+    assert not (tex_only_ids & tech_ids)
+
+
+def test_build_rule_catalog_input_types_pdf_only() -> None:
+    """The "Applies to" filter values must never mention TeX/ZIP on the website."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    assert catalog["input_types"] == ["PDF (compiled)"]
 
 
 def test_build_rule_catalog_p083_not_in_student_rules() -> None:
