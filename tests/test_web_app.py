@@ -2160,6 +2160,22 @@ def test_get_audits_url_does_not_show_job_not_found(client: tuple[TestClient, An
     assert b"job" not in resp.content.lower() or b"job 'url'" not in resp.content.lower()
 
 
+def test_get_audits_sample_redirects_to_index(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/sample must redirect to the upload page, not fall through to the job page."""
+    c, _ = client
+    resp = c.get("/audits/sample", follow_redirects=False)
+    assert resp.status_code in (301, 302, 303, 307, 308)
+    assert resp.headers.get("location", "").rstrip("/") in ("/", "")
+
+
+def test_get_audits_sample_does_not_show_job_not_found(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/sample must never show the 'Job was not found' error message."""
+    c, _ = client
+    resp = c.get("/audits/sample", follow_redirects=True)
+    assert b"was not found" not in resp.content
+    assert b"job" not in resp.content.lower() or b"job 'sample'" not in resp.content.lower()
+
+
 def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
     """The URL-audit form on the upload page must use method=\"post\"."""
     c, _ = client
