@@ -32,7 +32,6 @@ from njit_auditor.report_outputs import (
 )
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.upload_handling import (
-    UploadKind,
     UploadValidationError,
     sanitize_upload_filename,
     validate_upload_path,
@@ -77,7 +76,7 @@ JOB_TTL_SECONDS: int = _parse_positive_int_env(
 # Job store (in-memory + runtime files on disk)
 # ---------------------------------------------------------------------------
 
-_ALLOWED_WEB_EXTENSIONS = frozenset({".pdf", ".tex", ".zip"})
+_PDF_ONLY_ERROR = "Only PDF files are supported in the web interface. Please upload a PDF file."
 
 
 @dataclass
@@ -127,23 +126,9 @@ def _job_dir(job_id: str) -> Path:
     return RUNTIME_DIR / job_id
 
 
-def _stored_upload_path(jdir: Path, ext: str) -> Path:
-    """Return the on-disk path for a job upload with a known extension."""
-    return jdir / f"upload{ext}"
-
-
-def _resolve_job_upload_path(jdir: Path, file_name: str) -> Path:
-    """Locate the stored upload file for a job (PDF, TeX, or ZIP)."""
-    ext = Path(file_name).suffix.lower()
-    if ext in _ALLOWED_WEB_EXTENSIONS:
-        candidate = _stored_upload_path(jdir, ext)
-        if candidate.exists():
-            return candidate
-    for fallback_ext in (".pdf", ".tex", ".zip"):
-        candidate = _stored_upload_path(jdir, fallback_ext)
-        if candidate.exists():
-            return candidate
-    return _stored_upload_path(jdir, ".pdf")
+def _job_pdf_path(jdir: Path) -> Path:
+    """Return the on-disk path for a job's uploaded PDF."""
+    return jdir / "upload.pdf"
 
 
 def _parse_job_timestamp(value: str) -> datetime:
@@ -497,7 +482,7 @@ def _highest_severity_label(counts: dict[str, int]) -> tuple[str, str]:
 
 
 def _job_page_context(job: JobState) -> dict[str, Any]:
-    """Build template context for the job results page."""
+    """Build template context for the job results page (PDF audits only)."""
     report_view = job.report_view or {}
     counts_by_severity = report_view.get("counts_by_severity", {}) or {}
     highest_sev, highest_label = _highest_severity_label(
@@ -517,30 +502,6 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         {str(f.get("page")) for f in job.findings if f.get("page") is not None},
         key=lambda x: int(x),
     )
-    filter_locations = sorted(
-        {
-            str(f.get("location_label"))
-            for f in job.findings
-            if f.get("location_label")
-        }
-    )
-    ext = Path(job.file_name).suffix.lower()
-    audit_type = job.audit_type or ("tex" if ext in {".tex", ".zip"} else "pdf")
-    is_source_audit = audit_type == "tex"
-    locations_affected = 0
-    if is_source_audit:
-        locations_affected = len(
-            {
-                (f.get("source_file"), f.get("source_line"))
-                for f in job.findings
-                if f.get("source_file") or f.get("source_line")
-            }
-        )
-    audit_scope_label = (
-        "TeX source audit (P001–P010)"
-        if is_source_audit
-        else "PDF layout audit (P011–P082)"
-    )
 
     return {
         "job_id": job.job_id,
@@ -559,16 +520,12 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "highest_severity": highest_sev,
         "highest_severity_label": highest_label,
         "pages_affected": len(pages),
-        "locations_affected": locations_affected,
-        "is_source_audit": is_source_audit,
-        "audit_scope_label": audit_scope_label,
         "rules_flagged": len(counts_by_rule),
         "grouped_problem_count": len(report_view.get("grouped_problems", []) or []),
         "filter_rules": filter_rules,
         "filter_severities": filter_severities,
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
-        "filter_locations": filter_locations,
         "text_layer_quality": job.text_layer_quality,
     }
 
@@ -596,7 +553,7 @@ def _run_audit_task(job_id: str) -> None:
     _set_job(job)
 
     jdir = _job_dir(job_id)
-    upload_path = _resolve_job_upload_path(jdir, job.file_name)
+    upload_path = _job_pdf_path(jdir)
 
     try:
         result = run_audit_for_uploaded_file(
@@ -605,8 +562,7 @@ def _run_audit_task(job_id: str) -> None:
             work_dir=jdir,
         )
         findings = result.findings
-        if result.audit_type == "pdf":
-            job.text_layer_quality = classify_pdf_text_layer(upload_path)
+        job.text_layer_quality = classify_pdf_text_layer(upload_path)
     except UploadValidationError as exc:
         job.state = "failed"
         job.error_message = str(exc)
@@ -632,14 +588,6 @@ def _run_audit_task(job_id: str) -> None:
         "job_id": job_id,
         "input_file_path": str(upload_path),
     }
-    if result.audit_type == "tex":
-        metadata["input_kind"] = (
-            "zip" if result.upload_kind == UploadKind.ZIP else "tex"
-        )
-        if result.main_tex_path is not None:
-            metadata["main_tex_path"] = str(result.main_tex_path)
-        if result.loaded_tex_file_count is not None:
-            metadata["loaded_tex_file_count"] = str(result.loaded_tex_file_count)
 
     export_metadata = _web_export_metadata(metadata)
     export_findings = _web_export_findings(findings)
@@ -655,28 +603,7 @@ def _run_audit_task(job_id: str) -> None:
     # Write Markdown report using sanitized findings so label/ref names do not
     # appear in the downloaded .md or in the in-page preview.
     md_report_path = jdir / "report.md"
-    if result.audit_type == "tex":
-        # Rebuild AuditFinding list from sanitized JSON payload so Markdown
-        # report message fields are also privacy-safe.
-        from njit_auditor.models import Severity as _Severity
-
-        sanitized_findings: list[AuditFinding] = []
-        for entry in web_payload.get("findings", []):
-            sanitized_findings.append(
-                AuditFinding(
-                    rule_id=str(entry.get("rule_id", "")),
-                    severity=_Severity(str(entry.get("severity", "WARNING"))),
-                    message=str(entry.get("message", "")),
-                    page=entry.get("page"),
-                    details={
-                        str(k): str(v)
-                        for k, v in (entry.get("details") or {}).items()
-                    },
-                )
-            )
-        write_markdown_report(sanitized_findings, export_metadata, md_report_path)
-    else:
-        write_markdown_report(export_findings, export_metadata, md_report_path)
+    write_markdown_report(export_findings, export_metadata, md_report_path)
 
     view = build_report_view(web_payload)
     view_dict = report_view_to_dict(view)
@@ -746,12 +673,8 @@ async def submit_audit(
     filename = file.filename or "upload.bin"
     ext = Path(filename).suffix.lower()
 
-    if ext not in _ALLOWED_WEB_EXTENSIONS:
-        return _index_error(
-            request,
-            "Supported uploads: PDF (.pdf), TeX source (.tex), and ZIP (.zip). "
-            f"Got: {ext or '(no extension)'}",
-        )
+    if ext != ".pdf":
+        return _index_error(request, _PDF_ONLY_ERROR)
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
@@ -761,8 +684,8 @@ async def submit_audit(
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = sanitize_upload_filename(filename, default_ext=ext or ".pdf")
-    upload_path = _stored_upload_path(jdir, ext)
+    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
+    upload_path = _job_pdf_path(jdir)
     upload_path.write_bytes(content)
 
     try:
@@ -771,13 +694,11 @@ async def submit_audit(
         shutil.rmtree(jdir, ignore_errors=True)
         return _index_error(request, str(exc))
 
-    pending_audit_type = "tex" if ext in {".tex", ".zip"} else "pdf"
     job = JobState(
         job_id=job_id,
         state="pending",
         created_at=datetime.now(timezone.utc).isoformat(),
         file_name=safe_name,
-        audit_type=pending_audit_type,
     )
     _set_job(job)
     background_tasks.add_task(_run_audit_task, job_id)
