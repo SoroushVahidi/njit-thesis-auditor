@@ -1,5 +1,8 @@
 # Historical P082 Project Closeout Snapshot
 
+> Historical note: this closeout snapshot predates the current public PDF-only web UI wording.
+> Current live browser behavior is documented in `docs/status/current_project_state_and_next_steps.md`.
+
 - **Date:** 2026-06-09 (final whole-repository polish after PR #290)
 - **Historical status:** point-in-time P082 closeout snapshot; superseded for live/current values by `docs/status/current_project_state_and_next_steps.md` and `docs/status/evaluation_data_manifest.md`
 - **Latest main:** `0f74980` (PR #290 — final whole-repository polish after P081)
@@ -24,7 +27,7 @@
 | Finding model | `src/njit_auditor/models.py` | `AuditFinding(rule_id, severity, page, message, details)` |
 | Report outputs | `src/njit_auditor/report_outputs.py` | JSON/Markdown report generation; 8 triage rollups |
 | CLI entrypoint | `src/njit_auditor/cli.py` | `njit-audit tex` / `njit-audit pdf` commands |
-| Web UI | `src/njit_auditor/web_app.py` | FastAPI upload form (PDF / TeX / ZIP); browser report view and download |
+| Web UI | `src/njit_auditor/web_app.py` | Historical snapshot: FastAPI upload form scope at closeout time; current public browser UI is now PDF-only |
 | Rule inventories | `data/processed/rules/` | `njit_rule_inventory.json` (79 Q-rules) + `project_added_rules.json` (81 P-rules) |
 
 ### Design principles
@@ -63,7 +66,7 @@
 
 ### Phase 1 (TeX) rules — P001–P010
 
-TeX checks fire on `.tex` source file uploads via `njit-audit tex` and the web UI ZIP path. They cover abstract word count, font declarations, prohibited commands, title/abstract structure, and source-level formatting indicators.
+TeX checks fire on `.tex` source files via `njit-audit tex`. This historical snapshot also referenced an older web ZIP path; the current public browser UI is PDF-only.
 
 ### Phase 2 (PDF) detection rules — P011–P068, P074, P078
 

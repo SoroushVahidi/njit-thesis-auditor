@@ -108,8 +108,8 @@ Validation commands and exact results are recorded after the final repo validati
 - `python -m pip install -e ".[dev]"` — passed
 - `ruff check .` — passed (`All checks passed!`)
 - `mypy src` — passed (`Success: no issues found in 91 source files`)
-- `python -m pytest` — passed (`1325 passed, 1 warning in 8.93s`)
+- `python -m pytest` — passed (`1319 passed, 1 warning in 8.87s`)
 
 Final automated test count:
 
-- `1325`
+- `1319`

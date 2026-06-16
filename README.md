@@ -29,20 +29,23 @@ A browser-based upload form is available via the bundled FastAPI application:
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in a browser. The web UI accepts **PDF**, **TeX (.tex)**, and
-**ZIP** uploads through the same form. PDF uploads run the **current implemented PDF layout
-audit** (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, P077, P079, and P081 infrastructure/reporting
-refinements);
-TeX and ZIP uploads run **P001–P010** source audits (ZIP is safely extracted and main
-`.tex` is detected — no LaTeX compilation). All supported uploads use
-`run_audit_for_uploaded_file()` and provide JSON/Markdown downloads. Three additional audit
-methods are available:
+Open `http://localhost:8000` in a browser. The public web UI is **PDF-only**:
+
+- **Upload a local PDF** — select a PDF and submit.
+- **Audit a public PDF URL** — paste a direct public PDF link and submit.
+- **Audit a built-in sample PDF** — select a locally available sample on servers where the repository is checked out.
+
+PDF uploads run the current implemented PDF layout audit surface (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, P077, P079, and P081 reporting/infrastructure refinements). The results page keeps the same substantive content and actions across mobile and desktop: summary cards, grouped problems, individual findings, issue explanations, PDF links, and JSON/Markdown downloads. PDF routes are served with inline `Content-Disposition` where possible, but final preview-vs-download behavior can still vary by browser or device settings.
+
+CLI/source-audit support is separate from the public web UI. Use `njit-audit tex ...` for TeX source audits and `njit-audit docx-comments extract ...` for DOCX comment extraction.
+
+Three web audit entrypoints are available:
 
 - **Upload a PDF file** — select a local file and submit.
 - **Audit a public PDF URL** — paste a direct public PDF link and submit.
   Server downloads the PDF safely: only `http://` and `https://` schemes are accepted;
   `localhost`, private IP ranges (10.x.x.x, 172.16–31.x.x, 192.168.x.x, etc.), and
-  hostnames resolving to internal addresses are blocked. ZIP files are not supported for URL audit.
+  hostnames resolving to internal addresses are blocked.
 - **Audit a built-in sample PDF** — select a local repository evaluation sample from the dropdown
   and submit. These are private dissertation samples available only on servers where the repository
   is checked out. Do not expose built-in samples on a public site unless authorized.
@@ -53,8 +56,14 @@ client-side finding filters (rule, severity, category, page), and privacy-safe p
 comments per finding. Web-generated JSON/Markdown use basename-only paths (CLI exports are
 unchanged). Completed jobs and runtime files are removed automatically after 24 hours by default
 (`NJIT_AUDITOR_WEB_JOB_TTL_SECONDS`). The upload page explains local privacy-safe processing
-and which input formats the web UI supports. Use
-`njit-audit tex --json-out report.json --md-out report.md` for CLI source audit exports.
+and the PDF-only scope of the public site. Use `njit-audit tex --json-out report.json --md-out report.md`
+for CLI source audit exports.
+
+Important operational note: after changing routes, Jinja globals, filters, template helpers,
+startup configuration, or environment-dependent behavior, restart the uvicorn/tmux process.
+Template auto-reload is not sufficient for those changes because Python route tables and Jinja
+registrations are created at import time.
+
 For persistent always-on hosting, start in a detached tmux session:
 
 ```bash
@@ -70,8 +79,10 @@ See [docs/web_ui_demo_guide.md](docs/web_ui_demo_guide.md) for the end-to-end de
 synthetic fixtures (install, run, step-by-step upload flow, privacy statement, caveats).
 
 **Demo fixtures:** The directory `tests/fixtures/web_demo/` contains committed synthetic
-test files (PDF, TeX, ZIP) for manual QA and automated smoke tests. All content is
-synthetic placeholder text — no real dissertation content. See
+test files for manual QA and automated smoke tests. For the public web UI, use the PDF fixtures
+(`clean_minimal.pdf` and `issues_pdf.pdf`). The TeX/ZIP fixtures remain for CLI/internal
+source-audit coverage only. All content is synthetic placeholder text — no real dissertation
+content. See
 [docs/planning/synthetic_web_demo_fixtures.md](docs/planning/synthetic_web_demo_fixtures.md)
 for fixture details and
 [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the QA

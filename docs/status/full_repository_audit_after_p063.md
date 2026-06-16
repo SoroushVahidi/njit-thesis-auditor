@@ -1,5 +1,8 @@
 # Full Repository Audit After P063
 
+> Historical note: this snapshot predates the later narrowing of the public browser UI.
+> Current live behavior is documented in `docs/status/current_project_state_and_next_steps.md` and is PDF-only for the public web UI.
+
 - **Date:** 2026-06-07
 - **Branch:** main
 - **Latest commit:** `71b3823` (PR #223 — Implement P063: body-page appendix heading label check)
@@ -276,7 +279,7 @@ All in `data/evaluation/generated/` (gitignored). Key subdirectories present:
 
 | Feature | Status |
 |---|---|
-| Upload types accepted | PDF, TeX (.tex), ZIP |
+| Historical upload types at audit time | PDF, TeX (.tex), ZIP |
 | PDF audit scope | P011–P063 |
 | TeX/ZIP audit scope | P001–P010 (source; no compilation) |
 | URL audit | Public HTTPS PDF URLs; SSRF-guarded |
