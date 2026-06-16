@@ -744,6 +744,7 @@ def _problem_group_examples(
                 "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
                 "location_text": _student_location_text(finding),
                 "page": page,
+                "pdf_url": f"/audits/{job.job_id}/pdf",
                 "pdf_page_url": f"/audits/{job.job_id}/pdf#page={page}" if page is not None else "",
             }
         )

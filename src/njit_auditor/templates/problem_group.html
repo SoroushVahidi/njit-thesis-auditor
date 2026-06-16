@@ -142,6 +142,8 @@
       <div class="example-card__actions">
         {% if example.pdf_page_url %}
         <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener">Open PDF page</a>
+        {% else %}
+        <a href="{{ example.pdf_url }}" class="btn btn-secondary" target="_blank" rel="noopener">Open PDF</a>
         {% endif %}
       </div>
     </article>

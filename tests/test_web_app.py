@@ -706,6 +706,41 @@ def test_rule_problem_page_route_returns_200(
     assert b"Back to all results" in resp.content
 
 
+def test_problem_group_page_page_less_pdf_finding_still_has_pdf_link(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P038",
+            severity=Severity.WARNING,
+            page=None,
+            message="Required front-matter heading 'APPROVAL PAGE' not detected.",
+            details={
+                "issue_type": "required_heading_missing",
+                "section_key": "approval_page",
+                "expected_heading": "APPROVAL PAGE",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P038")
+
+    assert resp.status_code == 200
+    assert b"Document-wide overview" in resp.content
+    assert f'href="/audits/{job_id}/pdf"'.encode() in resp.content
+    assert b"Open PDF" in resp.content
+
+
 def test_problem_group_pages_only_show_matching_findings(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
