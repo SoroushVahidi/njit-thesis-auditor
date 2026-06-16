@@ -96,7 +96,7 @@ def test_index_advertises_pdf_only_support(client: tuple[TestClient, Any]) -> No
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
-    assert b"P011" in resp.content
+    assert b"formatting issues automatically" in resp.content
     assert b"TeX" not in resp.content
     assert b".zip" not in resp.content
     assert b"source audit" not in resp.content.lower()
@@ -430,8 +430,7 @@ def test_results_page_shows_summary_cards(client: tuple[TestClient, Any], tmp_pa
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Total findings" in resp.content
-    assert b"Highest severity" in resp.content
+    assert b"Problems found" in resp.content
     assert b"Pages affected" in resp.content
     assert b"Rules flagged" in resp.content
 
@@ -474,7 +473,7 @@ def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Summary cards and severity/category totals remain based on raw findings."
+        b"Summary numbers reflect every raw finding, even when similar problems are grouped below."
         in resp.content
     )
     assert b'id="grouped-problems-panel"' in resp.content
@@ -1763,27 +1762,28 @@ def test_results_page_shows_jump_links(
     assert b"#section-findings" in resp.content
 
 
-def test_results_page_review_signals_label(
+def test_results_page_review_order_uses_simple_priority_labels(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Summary card must say 'Warnings / Errors'."""
+    """Recommended review order must use plain-language priority labels, not severity jargon."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Warnings / Errors" in resp.content
-    assert b"Review signals / Errors" not in resp.content
+    assert b"Other items to check" in resp.content
+    assert b"Warnings / Errors" not in resp.content
 
 
-def test_results_page_heuristic_note_in_status_banner(
+def test_results_page_verify_wording_in_status_banner(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Status banner must include heuristic / verify wording."""
+    """Status banner must include automated / verify wording, without the word "heuristic"."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"Automated review signals" in resp.content
+    assert b"heuristic" not in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------

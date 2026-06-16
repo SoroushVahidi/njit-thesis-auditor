@@ -198,14 +198,10 @@
     </p>
   </div>
   <div>
-    {% if highest_severity == "FAIL" %}
-    <span class="badge badge-fail">Highest severity: FAIL</span>
-    {% elif highest_severity == "WARNING" %}
-    <span class="badge badge-warn">Highest severity: WARNING</span>
-    {% elif highest_severity == "PASS" %}
-    <span class="badge badge-pass">Highest severity: PASS</span>
+    {% if problems_found_count > 0 %}
+    <span class="badge badge-fail">Problems found</span>
     {% else %}
-    <span class="badge badge-pass">No issues</span>
+    <span class="badge badge-pass">No problems found</span>
     {% endif %}
   </div>
 </div>
@@ -213,7 +209,7 @@
 {% if text_layer_quality == "image_only" %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">
   <strong>This PDF has no selectable text.</strong>
-  Most formatting checks need selectable text to work. This is common with scanned PDFs. The audit may miss formatting problems — please upload the original exported PDF from Word or LaTeX if you have it.
+  Most formatting checks need selectable text to work. This is common with scanned PDFs. The audit may miss formatting problems — please upload the original exported PDF if you have one, rather than a scanned copy.
 </div>
 {% elif text_layer_quality == "low_text" %}
 <div class="alert-info" role="alert" style="margin-bottom:1rem;">
@@ -225,16 +221,12 @@
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Automated findings — verify manually &middot; <a href="/help#audit-outcomes">What do Error, Warning, and Pass mean?</a></span>
+    <span class="section-note">Automated findings — verify manually &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
-      <div class="summary-card__label">Total findings</div>
-      <div class="summary-card__value">{{ finding_count }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card__label">Highest severity</div>
-      <div class="summary-card__value" style="font-size:1.1rem">{{ highest_severity_label }}</div>
+      <div class="summary-card__label">Problems found</div>
+      <div class="summary-card__value">{{ problems_found_count }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card__label">Pages affected</div>
@@ -245,12 +237,8 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
     <div class="summary-card">
-      <div class="summary-card__label">Warnings / Errors</div>
-      <div class="summary-card__value" style="font-size:1.05rem">{{ warn_count }} / {{ fail_count }}</div>
-    </div>
-    <div class="summary-card">
       <div class="summary-card__label">Exports</div>
-      <div class="summary-card__value" style="font-size:1.05rem">JSON + MD</div>
+      <div class="summary-card__value" style="font-size:1.05rem">JSON + Markdown</div>
     </div>
   </div>
 </section>
@@ -265,8 +253,8 @@
     <ol class="review-order-list">
       {% if fail_count > 0 %}
       <li>
-        <span class="ro-label">Errors first</span> —
-        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} flagged as FAIL. These are the most definite formatting issues. <a href="#section-findings">Filter by severity → FAIL</a> and verify each one against NJIT guidelines.
+        <span class="ro-label">Fix these first</span> —
+        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Filter by priority → Needs fixing</a> and verify each one against NJIT guidelines.
       </li>
       {% endif %}
       {% if report_view and report_view.triage_panels %}
@@ -277,8 +265,8 @@
       {% endif %}
       {% if warn_count > 0 %}
       <li>
-        <span class="ro-label">Warnings</span> —
-        {{ warn_count }} {{ "warning" if warn_count == 1 else "warnings" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
+        <span class="ro-label">Other items to check</span> —
+        {{ warn_count }} {{ "item" if warn_count == 1 else "items" }} need your judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
       </li>
       {% endif %}
       <li>
@@ -290,31 +278,15 @@
 </section>
 {% endif %}
 
-{% if report_view and (report_view.counts_by_severity or report_view.counts_by_category) %}
+{% if report_view and report_view.counts_by_category %}
 <section id="section-overview" class="section" aria-label="Overview">
-  <div class="section-header"><h2>Severity &amp; category overview</h2></div>
+  <div class="section-header"><h2>By category</h2></div>
   <div class="card card-compact">
-    {% if report_view.counts_by_severity %}
-    <p style="margin:0 0 0.5rem;font-size:0.88rem;font-weight:600;">By severity</p>
-    <div class="overview-chips">
-      {% for sev, count in report_view.counts_by_severity.items() %}
-      <span class="chip">
-        {% if sev == "WARNING" %}<span class="badge badge-warn">WARN</span>
-        {% elif sev == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-        {% else %}<span class="badge badge-pass">{{ sev }}</span>{% endif %}
-        <strong>{{ count }}</strong>
-      </span>
-      {% endfor %}
-    </div>
-    {% endif %}
-    {% if report_view.counts_by_category %}
-    <p style="margin:0.85rem 0 0.5rem;font-size:0.88rem;font-weight:600;">By category</p>
     <div class="overview-chips">
       {% for cat, count in report_view.counts_by_category.items() %}
       <span class="chip"><strong>{{ count }}</strong> {{ cat | humanize_cat }}</span>
       {% endfor %}
     </div>
-    {% endif %}
   </div>
 </section>
 {% endif %}
@@ -390,7 +362,7 @@
   <div class="section-header">
     <div>
       <h2>Findings</h2>
-      <span class="section-note">Summary cards and severity/category totals remain based on raw findings.</span>
+      <span class="section-note">Summary numbers reflect every raw finding, even when similar problems are grouped below.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -413,11 +385,17 @@
       </select>
     </div>
     <div>
-      <label for="filter-severity">Severity</label>
+      <label for="filter-severity">Priority</label>
       <select id="filter-severity">
-        <option value="">All severities</option>
+        <option value="">All</option>
         {% for sev in filter_severities %}
-        <option value="{{ sev }}">{{ sev }}</option>
+        <option value="{{ sev }}">
+          {% if sev == "FAIL" %}Needs fixing
+          {% elif sev == "WARNING" %}Worth checking
+          {% elif sev == "PASS" %}Information
+          {% else %}{{ sev }}
+          {% endif %}
+        </option>
         {% endfor %}
       </select>
     </div>
@@ -462,9 +440,9 @@
             {% if problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
             <div class="grouped-problem__summary">
-              {% if problem.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
-              {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-              {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+              {% if problem.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
+              {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
+              {% else %}<span class="badge badge-pass">Information</span>{% endif %}
               <span class="badge badge-info">{{ problem.category | humanize_cat }}</span>
               {% if problem.is_grouped %}
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
@@ -527,7 +505,7 @@
           <tr>
             <th>Rule</th>
             <th>Page</th>
-            <th>Severity</th>
+            <th>Priority</th>
             <th>Category</th>
             <th>Details</th>
             <th>Polished comment</th>
@@ -549,9 +527,9 @@
               {% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
             </td>
             <td>
-              {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
-              {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-              {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+              {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
+              {% elif f.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
+              {% else %}<span class="badge badge-pass">Information</span>{% endif %}
             </td>
             <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
@@ -575,7 +553,7 @@
 <section id="section-downloads" class="section export-section" aria-label="Downloads">
   <h2 style="margin-top:0;">Download reports</h2>
   <p class="file-hint" style="margin-top:0">
-    Raw JSON and Markdown schemas are unchanged — use these for archival or downstream tooling.
+    Download the full results as a JSON file (for use with other tools) or a Markdown file (easy to read or share).
   </p>
   <div class="dl-links">
     <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF &#8599;</a>

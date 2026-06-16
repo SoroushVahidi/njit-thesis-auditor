@@ -331,14 +331,19 @@ _templates.env.filters["humanize_detail_key"] = humanize_detail_key
 
 
 def _input_label(rule: dict[str, Any]) -> str:
+    """Return a web-facing input label for a rule.
+
+    This website only ever runs the PDF path, so a rule that also has a
+    CLI-only source-side implementation (e.g. P021) is still labeled "PDF
+    (compiled)" here — the source-only label is reserved for rules that
+    have no PDF path at all and are therefore excluded from this catalog.
+    """
     inp = rule.get("input_required") or []
     if isinstance(inp, list):
-        if "tex_source" in inp and ("compiled_pdf" in inp or "pdf" in inp):
-            return "TeX or PDF"
-        if "tex_source" in inp:
-            return "TeX / ZIP source"
         if "compiled_pdf" in inp or "pdf" in inp:
             return "PDF (compiled)"
+        if "tex_source" in inp:
+            return "TeX / ZIP source"
     phase = rule.get("phase", "") or ""
     if phase == "tex_source":
         return "TeX / ZIP source"
@@ -346,15 +351,20 @@ def _input_label(rule: dict[str, Any]) -> str:
 
 
 def _severity_label(severity: str) -> str:
-    mapping = {"fail": "Error (FAIL)", "warning": "Warning", "info": "Info"}
-    return mapping.get((severity or "").lower(), severity.upper() if severity else "—")
+    """Map an internal severity code to a simple public label.
+
+    Public-facing pages only distinguish "needs review" from "informational" —
+    see the website wording simplification task for rationale.
+    """
+    mapping = {"fail": "Problem", "warning": "Problem", "info": "Information"}
+    return mapping.get((severity or "").lower(), "Information" if severity else "—")
 
 
 def _checkability_label(checkability: str | None) -> str:
     mapping = {
         "deterministic": "Exact check",
         "heuristic": "Pattern-based",
-        "visual": "Visual / heuristic",
+        "visual": "Visual check",
         "manual": "Manual review",
     }
     return mapping.get(checkability or "", "Pattern-based")
@@ -379,6 +389,76 @@ def _classify_rule(rule: dict[str, Any]) -> str:
     return "student"
 
 
+_HEURISTIC_WORDING = [
+    # Order matters: collapse the "heuristic check" bigram first so it
+    # doesn't end up as the doubled-up "check check".
+    (re.compile(r"\bHeuristic check\b"), "Automated check"),
+    (re.compile(r"\bheuristic check\b"), "automated check"),
+    (re.compile(r"\bHeuristically\b"), "Automatically"),
+    (re.compile(r"\bheuristically\b"), "automatically"),
+    (re.compile(r"\bHeuristics\b"), "Checks"),
+    (re.compile(r"\bheuristics\b"), "checks"),
+    (re.compile(r"\bHeuristic\b"), "Check"),
+    (re.compile(r"\bheuristic\b"), "check"),
+]
+
+# A handful of canonical rule_definition/remediation strings reference
+# LaTeX-specific authoring/implementation detail (e.g. LaTeX-only remediation
+# commands, "implemented for both LaTeX source and compiled PDF"). This
+# website only ever runs the PDF path, so those mentions are confusing here.
+# Override just the public display text for those entries — the canonical
+# rule data on disk (used by the CLI's source audit) is left untouched.
+_RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
+    "P021": {
+        "rule_definition": (
+            "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 "
+            "words. Degree type is inferred from the document text. Word count "
+            "uses conservative tokenization (letter-containing tokens only)."
+        ),
+    },
+    "P023": {
+        "remediation": (
+            "Set body text to double line spacing. In Word: set paragraph line "
+            "spacing to 'Double'."
+        ),
+    },
+    "P026": {
+        "rule_definition": (
+            "NJIT guidelines require body text to use Times New Roman 12pt "
+            "throughout. This check looks at ordinary body-text spans on each "
+            "page for (A) font size outside 11.0-13.0pt and (B) font family that "
+            "is not Times New Roman or an accepted near-equivalent "
+            "(NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, "
+            "STIX). Computer Modern (CMR) is flagged as likely non-Times. "
+            "Embedded subset font-name prefixes (e.g. ABCDEF+TimesNewRomanPSMT) "
+            "are stripped before classification. One finding per (page, "
+            "issue_type). Warnings emitted only when both violation count >=5 "
+            "AND fraction >=50% of body candidate spans on the page."
+        ),
+        "remediation": (
+            "Set body text to Times New Roman 12pt throughout. Word/LibreOffice: "
+            "set paragraph font to Times New Roman, size 12."
+        ),
+    },
+    "P028": {
+        "remediation": (
+            "Use lowercase Roman numerals (i, ii, iii) for front-matter "
+            "numbered pages and Arabic numerals (1, 2, 3) for body pages."
+        ),
+    },
+}
+
+
+def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
+    """Rewrite internal authoring language (e.g. "heuristic", LaTeX-only
+    remediation commands) for the public rules page without touching the
+    canonical rule data on disk."""
+    result = _RULE_TEXT_OVERRIDES.get(rule_id, {}).get(field, text)
+    for pattern, replacement in _HEURISTIC_WORDING:
+        result = pattern.sub(replacement, result)
+    return result
+
+
 def _build_rule_catalog() -> dict[str, Any]:
     """Load P-rules from canonical source and classify for the rules page."""
     try:
@@ -394,6 +474,12 @@ def _build_rule_catalog() -> dict[str, Any]:
         if not _is_p_rule_id(rule_id):
             continue
 
+        # This website accepts PDF uploads only, so source-only checks (TeX / ZIP
+        # input, no PDF path) never produce findings here. Keep them out of the
+        # public catalog entirely; they remain available to the CLI's source audit.
+        if _input_label(rule) == "TeX / ZIP source":
+            continue
+
         notes = (rule.get("notes", "") or "")
         is_experimental = any(
             kw in notes.lower()
@@ -403,15 +489,21 @@ def _build_rule_catalog() -> dict[str, Any]:
 
         enriched: dict[str, Any] = {
             "id": rule_id,
-            "title": rule.get("question", rule.get("title", rule_id)),
+            "title": _websafe_rule_text(
+                rule_id, "question", rule.get("question", rule.get("title", rule_id))
+            ),
             "section": rule.get("section", ""),
             "input_label": _input_label(rule),
             "severity_code": (rule.get("severity", "") or "").lower(),
             "severity_label": _severity_label(rule.get("severity", "")),
             "checkability": rule.get("checkability") or "",
             "checkability_label": _checkability_label(rule.get("checkability")),
-            "what_it_checks": rule.get("rule_definition", ""),
-            "how_to_correct": rule.get("remediation", ""),
+            "what_it_checks": _websafe_rule_text(
+                rule_id, "rule_definition", rule.get("rule_definition", "")
+            ),
+            "how_to_correct": _websafe_rule_text(
+                rule_id, "remediation", rule.get("remediation", "")
+            ),
             "is_experimental": is_experimental,
             "is_active_default": is_active_default,
             "implementation_status": rule.get("implementation_status", ""),
@@ -470,24 +562,11 @@ def _render(
     )
 
 
-def _highest_severity_label(counts: dict[str, int]) -> tuple[str, str]:
-    """Return (severity code, human label) for the highest present severity."""
-    if counts.get("FAIL", 0) > 0:
-        return "FAIL", "Error (FAIL)"
-    if counts.get("WARNING", 0) > 0:
-        return "WARNING", "Warning"
-    if counts.get("PASS", 0) > 0:
-        return "PASS", "Pass"
-    return "NONE", "None"
 
 
 def _job_page_context(job: JobState) -> dict[str, Any]:
     """Build template context for the job results page (PDF audits only)."""
     report_view = job.report_view or {}
-    counts_by_severity = report_view.get("counts_by_severity", {}) or {}
-    highest_sev, highest_label = _highest_severity_label(
-        {str(k): int(v) for k, v in counts_by_severity.items()}
-    )
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
 
@@ -517,8 +596,7 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "grouped_summary": job.grouped_summary,
         "report_view": job.report_view,
         "md_preview": job.md_preview,
-        "highest_severity": highest_sev,
-        "highest_severity_label": highest_label,
+        "problems_found_count": job.fail_count + job.warn_count,
         "pages_affected": len(pages),
         "rules_flagged": len(counts_by_rule),
         "grouped_problem_count": len(report_view.get("grouped_problems", []) or []),

@@ -8,7 +8,7 @@ from pathlib import Path
 from njit_auditor.report_outputs import derive_source_issue_type
 
 REVIEW_PREFIX = "Review needed:"
-VERIFY_SUFFIX = "Heuristic signal — please verify against NJIT guidelines manually."
+VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
 
 # Detail keys that may contain dissertation text and must never appear in comments.
 _BLOCKED_DETAIL_KEYS: frozenset[str] = frozenset(

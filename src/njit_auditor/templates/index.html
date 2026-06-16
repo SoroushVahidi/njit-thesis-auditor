@@ -151,8 +151,8 @@
 {% block content %}
 <h1>NJIT Thesis Auditor</h1>
 <p class="subtitle">
-  Check dissertation and thesis formatting against NJIT guidelines.
-  Processing runs locally on this server — files are not committed to any repository.
+  Upload a thesis or dissertation PDF and the tool checks it for common NJIT formatting issues automatically.
+  Results are advisory and require human review — processing runs locally on this server and files are not committed to any repository.
 </p>
 
 {% if error %}
@@ -277,7 +277,7 @@
         <tr>
           <td><strong>PDF</strong></td>
           <td class="support-yes">Supported</td>
-          <td>P011–P082 layout audit (P082 experimental/opt-in; disabled by default); JSON and Markdown export</td>
+          <td>Automated formatting checks; JSON and Markdown export</td>
         </tr>
       </tbody>
     </table>
@@ -288,7 +288,7 @@
     <ul class="bullet-list">
       <li><strong>JSON report</strong> — full structured findings for downstream tools</li>
       <li><strong>Markdown report</strong> — human-readable summary</li>
-      <li><strong>Triage summaries</strong> — PDF high-volume rollups (P011, P013, P026) when applicable</li>
+      <li><strong>Triage summaries</strong> — rollups for common, high-volume problems when applicable</li>
       <li><strong>Polished comments</strong> — privacy-safe review guidance per finding</li>
     </ul>
   </div>
@@ -297,10 +297,9 @@
 <div class="section">
   <h2>What it checks</h2>
   <p style="font-size:0.9rem;color:var(--color-muted);margin:0;">
-    <strong>PDF uploads</strong> run P011–P082 heuristic layout checks: margins, spacing, fonts, page numbering,
-    headings, table of contents, and similar formatting requirements (P082 is experimental/opt-in and disabled
-    by default in the web UI).
-    All findings are advisory signals — please verify against NJIT guidelines manually.
+    <strong>PDF uploads</strong> are checked for common NJIT formatting issues automatically: margins, spacing,
+    fonts, page numbering, headings, table of contents, and similar formatting requirements.
+    Results are advisory — please verify against NJIT guidelines manually.
   </p>
 </div>
 <script>
