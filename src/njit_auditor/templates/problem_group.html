@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ group_title }} — NJIT Thesis Auditor{% endblock %}
+
+{% block head_extra %}
+<style>
+  .problem-group-hero {
+    background: linear-gradient(135deg, #eef6ff 0%, #f8fbff 100%);
+    border: 1px solid #b8d4f0;
+  }
+  .problem-group-kicker {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    margin: 0 0 0.35rem;
+  }
+  .problem-group-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+  .problem-group-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  .problem-group-actions .btn {
+    min-height: 2.7rem;
+    display: inline-flex;
+    align-items: center;
+  }
+  .example-list {
+    display: grid;
+    gap: 0.9rem;
+  }
+  .example-card {
+    border-left: 4px solid var(--color-primary);
+  }
+  .example-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+  }
+  .example-card__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .example-card__meta {
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.92rem;
+  }
+  .example-card__actions {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+  .example-card__actions .btn {
+    min-height: 2.7rem;
+    display: inline-flex;
+    align-items: center;
+  }
+  .rule-link { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+  .rule-link:hover { color: var(--color-primary-dark); }
+  @media (max-width: 640px) {
+    .example-card__header {
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="card problem-group-hero">
+    <p class="problem-group-kicker">Examples of this problem</p>
+    <h1>{{ group_title }}</h1>
+    <p class="subtitle" style="margin-bottom:0.9rem;">Audit file: <strong>{{ file_name }}</strong></p>
+    <p style="margin:0;">{{ group_explanation }}</p>
+    <div class="problem-group-meta">
+      {% if group_kind == "rule" %}
+      <span class="badge badge-info">{{ group_key }}</span>
+      {% else %}
+      <span class="badge badge-info">{{ group_title }}</span>
+      {% endif %}
+      <span class="badge badge-muted">{{ example_count }} {{ "example" if example_count == 1 else "examples" }}</span>
+      {% if pages_to_review %}
+      <span class="badge badge-muted">Pages to review: {{ pages_to_review }}</span>
+      {% endif %}
+    </div>
+    <div class="problem-group-actions">
+      <a href="{{ audit_page_url }}" class="btn btn-secondary">&larr; Back to all results</a>
+      <a href="/audits/{{ job_id }}/pdf" class="btn btn-secondary" target="_blank" rel="noopener">Open PDF &#8599;</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-label="Problem examples">
+  <div class="section-header">
+    <h2>Examples of this problem</h2>
+    {% if pages_to_review %}
+    <span class="section-note">Pages to review: {{ pages_to_review }}</span>
+    {% endif %}
+  </div>
+  <div class="example-list">
+    {% for example in examples %}
+    <article class="card example-card">
+      <div class="example-card__header">
+        <div>
+          <p class="example-card__title">
+            {% if group_kind == "category" %}
+              {% if is_p_rule_id(example.rule_id) %}
+              <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
+              {% else %}{{ example.rule_id }}{% endif %}
+              {% if example.rule_title %} · {{ example.rule_title }}{% endif %}
+            {% else %}
+              {% if example.issue_type %}{{ example.issue_type | humanize_detail_key }}{% else %}Finding {{ loop.index }}{% endif %}
+            {% endif %}
+          </p>
+        </div>
+        {% if example.page is not none %}
+        <span class="badge badge-info">Page {{ example.page }}</span>
+        {% else %}
+        <span class="badge badge-muted">No page number</span>
+        {% endif %}
+      </div>
+      <div class="example-card__meta">
+        <div><strong>Location:</strong> {{ example.location_text }}</div>
+        <div>{{ example.polished_comment }}</div>
+        {% if example.suggested_fix %}
+        <div><strong>Suggested fix:</strong> {{ example.suggested_fix }}</div>
+        {% endif %}
+      </div>
+      <div class="example-card__actions">
+        {% if example.pdf_page_url %}
+        <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener">Open PDF page</a>
+        {% else %}
+        <a href="{{ example.pdf_url }}" class="btn btn-secondary" target="_blank" rel="noopener">Open PDF</a>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

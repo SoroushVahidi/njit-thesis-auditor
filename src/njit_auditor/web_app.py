@@ -12,6 +12,7 @@ import urllib.parse
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,7 @@ from njit_auditor.audit_runner import (
 from njit_auditor.models import AuditFinding
 from njit_auditor.report_outputs import (
     build_audit_report,
+    compact_page_list,
     sanitize_report_for_web_export,
     write_markdown_report,
 )
@@ -330,6 +332,104 @@ def humanize_detail_key(value: str) -> str:
 _templates.env.filters["humanize_detail_key"] = humanize_detail_key
 
 
+def _category_slug(category: str) -> str:
+    """Return a stable URL slug for a finding category."""
+    return str(category).strip().replace("_", "-")
+
+
+_templates.env.filters["category_slug"] = _category_slug
+
+
+_CATEGORY_EXPLANATIONS: dict[str, str] = {
+    "abstract_language": (
+        "These examples point to abstract wording or structure that should be checked manually."
+    ),
+    "abstract_length": (
+        "These examples relate to abstract length limits for the degree type detected in the PDF."
+    ),
+    "abstract_structure": (
+        "These examples point to abstract structure issues that often affect "
+        "approval-ready formatting."
+    ),
+    "annotations": (
+        "These examples show comments or annotations that should usually be "
+        "removed before submission."
+    ),
+    "capitalization_case": (
+        "These examples show capitalization patterns that may be inconsistent with NJIT formatting "
+        "expectations."
+    ),
+    "committee_approval_page": (
+        "These examples focus on the approval page and similar "
+        "committee-signature formatting details."
+    ),
+    "figure_format": (
+        "These examples point to figure formatting issues that may need visual review in the PDF."
+    ),
+    "figure_table_format": (
+        "These examples cover figure and table layout problems that often repeat across a document."
+    ),
+    "font_format": (
+        "These examples show font-related issues such as inconsistent "
+        "body-text sizing or family usage."
+    ),
+    "formatting_override": (
+        "These examples point to formatting overrides that may break consistent document styling."
+    ),
+    "frontmatter_structure": "These examples cover front-matter ordering or structure problems.",
+    "heading_title": (
+        "These examples point to heading or title formatting problems that can "
+        "repeat across sections."
+    ),
+    "indentation": (
+        "These examples show indentation patterns that may need review for "
+        "consistent paragraph formatting."
+    ),
+    "labels_references": (
+        "These examples relate to labels or cross-references that may need a manual check."
+    ),
+    "latex_linter": (
+        "These examples come from source-side linting checks and are shown only when that audit "
+        "type is used."
+    ),
+    "list_of_tables_figures_toc": (
+        "These examples cover the table of contents and list pages, where formatting often repeats."
+    ),
+    "margin_or_overflow": (
+        "These examples show text or objects that may be too close to the margins or spilling "
+        "outside them."
+    ),
+    "page_numbering": (
+        "These examples show page-numbering problems such as missing, misplaced, or inconsistent "
+        "page numbers."
+    ),
+    "punctuation": (
+        "These examples point to punctuation patterns that may not match the expected formatting "
+        "style."
+    ),
+    "references_citations": (
+        "These examples relate to references or citations that may need manual formatting review."
+    ),
+    "spacing_blank_lines": (
+        "These examples show spacing or blank-line patterns that may be inconsistent."
+    ),
+    "table_format": (
+        "These examples focus on table formatting problems that may need layout review."
+    ),
+    "title_page_metadata": (
+        "These examples focus on title-page details that often affect submission formatting."
+    ),
+}
+
+
+def _category_explanation(category: str) -> str:
+    """Return simple student-facing help text for a category page."""
+    return _CATEGORY_EXPLANATIONS.get(
+        category,
+        f'These examples show findings in the "{_humanize_cat(category)}" group.',
+    )
+
+
 def _input_label(rule: dict[str, Any]) -> str:
     """Return a web-facing input label for a rule.
 
@@ -555,6 +655,140 @@ def _technical_reason(rule: dict[str, Any]) -> str:
     if phase == "docx_comments":
         return "DOCX comment extraction infrastructure"
     return "Technical entry"
+
+
+@lru_cache(maxsize=1)
+def _public_rule_lookup() -> dict[str, dict[str, Any]]:
+    """Return public PDF rules keyed by rule ID."""
+    catalog = _build_rule_catalog()
+    rules = catalog.get("student_rules", [])
+    if not isinstance(rules, list):
+        return {}
+    return {
+        str(rule.get("id", "")): rule
+        for rule in rules
+        if isinstance(rule, dict) and str(rule.get("id", "")).strip()
+    }
+
+
+def _coerce_page_number(raw_page: Any) -> int | None:
+    """Convert a stored page value to an integer when possible."""
+    if raw_page is None or isinstance(raw_page, bool):
+        return None
+    try:
+        return int(raw_page)
+    except (TypeError, ValueError):
+        return None
+
+
+def _student_location_text(finding: dict[str, Any]) -> str:
+    """Return a simple location label for a student-facing example card."""
+    page = _coerce_page_number(finding.get("page"))
+    location_label = str(finding.get("location_label", "")).strip()
+    if page is not None:
+        if not location_label or location_label == str(page):
+            return f"Page {page}"
+        if location_label.lower().startswith("page "):
+            return location_label
+        return f"Page {page} - {location_label}"
+    if location_label:
+        return location_label
+    return "Document-wide overview"
+
+
+def _short_rule_explanation(rule: dict[str, Any] | None) -> str:
+    """Return a compact student-facing explanation for a rule group."""
+    if not isinstance(rule, dict):
+        return "These examples show all findings for this formatting check."
+
+    text = " ".join(str(rule.get("what_it_checks", "")).split()).strip()
+    if not text:
+        return "These examples show all findings for this formatting check."
+
+    sentence_parts = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)
+    first_sentence = sentence_parts[0].strip()
+    if first_sentence and len(first_sentence) <= 220:
+        return first_sentence
+    return text[:217].rstrip() + "..."
+
+
+def _available_job_categories(job: JobState) -> list[str]:
+    """Return distinct finding categories available for a completed job."""
+    categories = {
+        str(finding.get("category", "")).strip()
+        for finding in job.findings
+        if str(finding.get("category", "")).strip()
+    }
+    return sorted(categories)
+
+
+def _problem_group_examples(
+    job: JobState,
+    *,
+    findings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build template-ready example cards for a problem-group page."""
+    rule_lookup = _public_rule_lookup()
+    examples: list[dict[str, Any]] = []
+    for finding in findings:
+        rule_id = str(finding.get("rule_id", "")).strip()
+        page = _coerce_page_number(finding.get("page"))
+        rule = rule_lookup.get(rule_id, {})
+        examples.append(
+            {
+                "rule_id": rule_id,
+                "rule_title": str(rule.get("title", "")).strip(),
+                "category": str(finding.get("category", "")).strip(),
+                "issue_type": str(finding.get("issue_type", "")).strip(),
+                "polished_comment": str(finding.get("polished_comment", "")).strip(),
+                "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
+                "location_text": _student_location_text(finding),
+                "page": page,
+                "pdf_url": f"/audits/{job.job_id}/pdf",
+                "pdf_page_url": f"/audits/{job.job_id}/pdf#page={page}" if page is not None else "",
+            }
+        )
+
+    return sorted(
+        examples,
+        key=lambda example: (
+            example["page"] if example["page"] is not None else 10**9,
+            example["rule_id"],
+            example["location_text"],
+            example["polished_comment"],
+        ),
+    )
+
+
+def _problem_group_context(
+    *,
+    job: JobState,
+    group_title: str,
+    group_kind: str,
+    group_key: str,
+    group_explanation: str,
+    examples: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build template context for a category- or rule-specific problem page."""
+    pages = sorted(
+        {
+            page
+            for page in (_coerce_page_number(example.get("page")) for example in examples)
+            if page is not None
+        }
+    )
+    return {
+        "job_id": job.job_id,
+        "file_name": job.file_name,
+        "audit_page_url": f"/audits/{job.job_id}",
+        "group_title": group_title,
+        "group_kind": group_kind,
+        "group_key": group_key,
+        "group_explanation": group_explanation,
+        "example_count": len(examples),
+        "pages_to_review": compact_page_list(pages) if pages else "",
+        "examples": examples,
+    }
 
 
 def _render(
@@ -901,6 +1135,103 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
         )
 
     return _render(request, "job.html", _job_page_context(job))
+
+
+@app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)
+async def category_problem_page(
+    request: Request, job_id: str, category_slug: str
+) -> HTMLResponse:
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_error(
+            request,
+            _job_not_found_message(job_id),
+            status_code=404,
+        )
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    matched_category = next(
+        (
+            category
+            for category in _available_job_categories(job)
+            if _category_slug(category) == category_slug
+        ),
+        "",
+    )
+    if not matched_category:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    matching_findings = [
+        finding
+        for finding in job.findings
+        if str(finding.get("category", "")).strip() == matched_category
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    context = _problem_group_context(
+        job=job,
+        group_title=_humanize_cat(matched_category),
+        group_kind="category",
+        group_key=matched_category,
+        group_explanation=_category_explanation(matched_category),
+        examples=_problem_group_examples(job, findings=matching_findings),
+    )
+    return _render(request, "problem_group.html", context)
+
+
+@app.get("/audits/{job_id}/problems/rule/{rule_id}", response_class=HTMLResponse)
+async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTMLResponse:
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_error(
+            request,
+            _job_not_found_message(job_id),
+            status_code=404,
+        )
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    matching_findings = [
+        finding for finding in job.findings if str(finding.get("rule_id", "")).strip() == rule_id
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    rule = _public_rule_lookup().get(rule_id, {})
+    group_title = str(rule.get("title", "")).strip() or f"Rule {rule_id}"
+    context = _problem_group_context(
+        job=job,
+        group_title=group_title,
+        group_kind="rule",
+        group_key=rule_id,
+        group_explanation=_short_rule_explanation(rule),
+        examples=_problem_group_examples(job, findings=matching_findings),
+    )
+    return _render(request, "problem_group.html", context)
 
 
 @app.get("/audits/{job_id}/status")

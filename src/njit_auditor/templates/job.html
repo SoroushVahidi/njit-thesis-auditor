@@ -7,6 +7,14 @@
   .rule-link:hover { color: var(--color-primary-dark); }
   .page-link { color: var(--color-primary); font-size: 0.82rem; white-space: nowrap; }
   .page-link:hover { text-decoration: underline; }
+  .chip-link { color: var(--color-text); text-decoration: none; min-height: 2.2rem; }
+  .chip-link:hover { background: #e5edf5; border-color: #b8d4f0; }
+  .chip-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .triage-panel--clickable { cursor: pointer; }
+  .triage-panel--clickable:hover { background: #f9fbfd; border-left-color: var(--color-primary-dark); }
+  .triage-panel--clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .triage-panel__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
+  .triage-panel__actions .btn { min-height: 2.6rem; display: inline-flex; align-items: center; }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -134,6 +142,28 @@
     document.querySelectorAll("[data-results-mode]").forEach(function(button) {
       button.addEventListener("click", function() {
         setMode(button.dataset.resultsMode || "grouped");
+      });
+    });
+    document.querySelectorAll(".js-card-link").forEach(function(card) {
+      var href = card.dataset.href;
+      if (!href) {
+        return;
+      }
+      card.addEventListener("click", function(event) {
+        if (event.target && event.target.closest("a, button, summary")) {
+          return;
+        }
+        window.location.href = href;
+      });
+      card.addEventListener("keydown", function(event) {
+        if (event.key !== "Enter" && event.key !== " ") {
+          return;
+        }
+        if (event.target !== card) {
+          return;
+        }
+        event.preventDefault();
+        window.location.href = href;
       });
     });
     setMode("grouped");
@@ -284,7 +314,7 @@
   <div class="card card-compact">
     <div class="overview-chips">
       {% for cat, count in report_view.counts_by_category.items() %}
-      <span class="chip"><strong>{{ count }}</strong> {{ cat | humanize_cat }}</span>
+      <a href="/audits/{{ job_id }}/problems/category/{{ cat | category_slug }}" class="chip chip-link" aria-label="Open {{ cat | humanize_cat }} examples"><strong>{{ count }}</strong> {{ cat | humanize_cat }}</a>
       {% endfor %}
     </div>
   </div>
@@ -298,7 +328,11 @@
     <span class="section-note">Repeated patterns — one root cause often explains many findings</span>
   </div>
   {% for panel in report_view.triage_panels %}
-  <div class="card triage-panel">
+  <div class="card triage-panel triage-panel--clickable js-card-link"
+       data-href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}"
+       tabindex="0"
+       role="link"
+       aria-label="Open examples for {{ panel.title }}">
     <div class="triage-panel__header">
       <span class="triage-panel__title">{{ panel.title }}</span>
       <span class="badge badge-info">
@@ -324,6 +358,9 @@
       {% endfor %}
     </ul>
     {% endif %}
+    <div class="triage-panel__actions">
+      <a href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
+    </div>
   </div>
   {% endfor %}
 </section>
