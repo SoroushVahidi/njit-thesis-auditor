@@ -7,7 +7,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from njit_auditor.evaluation import map_finding_rule_to_category
-from njit_auditor.polished_comments import build_polished_comment
+from njit_auditor.pdf_highlight import is_drawable_bbox
+from njit_auditor.polished_comments import build_polished_comment, sanitize_suggested_fix_for_web
 from njit_auditor.report_outputs import _source_location_basename, format_source_location
 
 _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
@@ -44,6 +45,7 @@ class FindingView:
     source_file: str = ""
     source_line: str = ""
     location_label: str = ""
+    bbox: tuple[float, float, float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,41 @@ def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
     return panels
 
 
+_BBOX_DETAIL_KEYS: tuple[str, ...] = ("bbox", "rect")
+
+
+def _parse_bbox_from_details(
+    details: Mapping[str, str],
+) -> tuple[float, float, float, float] | None:
+    """Extract a drawable (x0, y0, x1, y1) box from finding details when present."""
+    for key in _BBOX_DETAIL_KEYS:
+        raw = str(details.get(key, "")).strip()
+        if not raw:
+            continue
+        parts = [part.strip() for part in raw.split(",")]
+        if len(parts) != 4:
+            continue
+        try:
+            x0, y0, x1, y1 = (float(part) for part in parts)
+        except ValueError:
+            continue
+        box = (x0, y0, x1, y1)
+        return box if is_drawable_bbox(box) else None
+
+    if all(str(details.get(key, "")).strip() for key in ("x0", "y0", "x1", "y1")):
+        try:
+            box = (
+                float(details["x0"]),
+                float(details["y0"]),
+                float(details["x1"]),
+                float(details["y1"]),
+            )
+        except ValueError:
+            return None
+        return box if is_drawable_bbox(box) else None
+    return None
+
+
 def _finding_view_from_item(
     item: Mapping[str, Any],
     *,
@@ -188,12 +225,15 @@ def _finding_view_from_item(
             severity=severity,
             issue_type=issue_type,
             polished_comment=polished,
-            suggested_fix=str(details.get("suggested_fix", "")),
+            suggested_fix=sanitize_suggested_fix_for_web(
+                rule_id, str(details.get("suggested_fix", ""))
+            ),
             triage_tier=str(details.get("triage_tier", "")),
             confidence=str(details.get("confidence", "")),
             source_file=source_file,
             source_line=source_line,
             location_label=location_label,
+            bbox=_parse_bbox_from_details(details),
         ),
         location_key,
     )
@@ -284,8 +324,9 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
                     polished_comment=str(
                         entry.get("problem", first.polished_comment)
                     ),
-                    suggested_fix=str(
-                        entry.get("suggested_fix", first.suggested_fix)
+                    suggested_fix=sanitize_suggested_fix_for_web(
+                        str(entry.get("rule_id", first.rule_id)),
+                        str(entry.get("suggested_fix", first.suggested_fix)),
                     ),
                     occurrence_count=int(entry.get("occurrence_count", len(individual_views)) or 0),
                     affected_label=str(entry.get("affected_label", "Occurrences")),

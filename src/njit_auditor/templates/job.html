@@ -15,6 +15,8 @@
   .triage-panel--clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
   .triage-panel__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
   .triage-panel__actions .btn { min-height: 2.6rem; display: inline-flex; align-items: center; }
+  .grouped-problem__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.8rem; }
+  .grouped-problem__actions .btn { min-height: 2.5rem; display: inline-flex; align-items: center; }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -259,16 +261,20 @@
       <div class="summary-card__value">{{ problems_found_count }}</div>
     </div>
     <div class="summary-card">
+      <div class="summary-card__label">Needs fixing</div>
+      <div class="summary-card__value">{{ fail_count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Worth checking</div>
+      <div class="summary-card__value">{{ warn_count }}</div>
+    </div>
+    <div class="summary-card">
       <div class="summary-card__label">Pages affected</div>
       <div class="summary-card__value">{{ pages_affected }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card__label">Rules flagged</div>
       <div class="summary-card__value">{{ rules_flagged }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card__label">Exports</div>
-      <div class="summary-card__value" style="font-size:1.05rem">JSON + Markdown</div>
     </div>
   </div>
 </section>
@@ -399,7 +405,7 @@
   <div class="section-header">
     <div>
       <h2>Findings</h2>
-      <span class="section-note">Summary numbers reflect every raw finding, even when similar problems are grouped below.</span>
+      <span class="section-note">Summary numbers reflect every raw finding. <strong>Grouped problems</strong> combines matching findings into one card per issue and lists all affected pages; <strong>All individual findings</strong> lists every raw finding separately.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -493,14 +499,42 @@
             </div>
           </div>
           {% if problem.affected_compact %}
-          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}{% if problem.page_tokens %}&thinsp;&middot;&thinsp;<a href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ problem.page_tokens[0] }}">p.&nbsp;{{ problem.page_tokens[0] }}&nbsp;&#8599;</a>{% endif %}</div>
+          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}{% if problem.page_tokens %}&thinsp;&middot;&thinsp;<a href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}" target="_blank" rel="noopener noreferrer" class="page-link" title="Open PDF at page {{ problem.page_tokens[0] }}">p.&nbsp;{{ problem.page_tokens[0] }}&nbsp;&#8599;</a>{% endif %}</div>
           {% endif %}
         </div>
         <div class="grouped-problem__meta">
+          {% if problem.issue_type %}
+          <div class="grouped-problem__meta-line"><strong>Issue type:</strong> {{ problem.issue_type | humanize_detail_key }}</div>
+          {% endif %}
           <div class="grouped-problem__meta-line">{{ problem.polished_comment }}</div>
           {% if problem.suggested_fix %}
           <div class="grouped-problem__meta-line"><strong>Suggested fix:</strong> {{ problem.suggested_fix }}</div>
           {% endif %}
+        </div>
+        <div class="grouped-problem__actions">
+          {% if problem.individual_findings and problem.individual_findings[0].page is not none %}
+          {% set first_finding = problem.individual_findings[0] %}
+          <a
+            href="{{ pdf_finding_url(job_id, page=first_finding.page, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type, bbox=first_finding.bbox) }}"
+            class="btn btn-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {% if pdf_finding_is_highlighted(first_finding.bbox) %}Open highlighted PDF page{% else %}Open PDF page{% endif %}
+          </a>
+          {% elif problem.page_tokens %}
+          <a
+            href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}"
+            class="btn btn-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open PDF page
+          </a>
+          {% else %}
+          <a href="/audits/{{ job_id }}/pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Open PDF</a>
+          {% endif %}
+          <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
         </div>
         {% if problem.is_grouped %}
         <details class="grouped-problem__details collapsible">
@@ -516,7 +550,7 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link">{{ f.page }}</a>{% else %}—{% endif %}</td>
+                <td>{% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{% if pdf_finding_is_highlighted(f.bbox) %}Open highlighted PDF at page{% else %}Open PDF at page{% endif %} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}</td>
                 <td class="meta-cell">
                   {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
@@ -561,7 +595,7 @@
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
+              {% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{% if pdf_finding_is_highlighted(f.bbox) %}Open highlighted PDF at page{% else %}Open PDF at page{% endif %} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
             </td>
             <td>
               {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
@@ -593,7 +627,7 @@
     Download the full results as a JSON file (for use with other tools) or a Markdown file (easy to read or share).
   </p>
   <div class="dl-links">
-    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF &#8599;</a>
+    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open PDF &#8599;</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a>
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>

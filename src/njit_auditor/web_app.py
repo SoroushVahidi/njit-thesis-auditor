@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -26,6 +28,7 @@ from njit_auditor.audit_runner import (
     run_audit_for_uploaded_file,
 )
 from njit_auditor.models import AuditFinding
+from njit_auditor.pdf_highlight import build_highlighted_pdf, is_drawable_bbox
 from njit_auditor.report_outputs import (
     build_audit_report,
     compact_page_list,
@@ -51,6 +54,8 @@ from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
 
 _DEFAULT_RUNTIME = Path(".runtime") / "web_audits"
 _DEFAULT_JOB_TTL_SECONDS = 86400
+
+_logger = logging.getLogger(__name__)
 
 RUNTIME_DIR = Path(os.environ.get("NJIT_AUDITOR_WEB_RUNTIME_DIR", str(_DEFAULT_RUNTIME)))
 MAX_UPLOAD_MB: int = int(os.environ.get("NJIT_AUDITOR_WEB_MAX_UPLOAD_MB", "50"))
@@ -284,6 +289,54 @@ def _is_p_rule_id(rule_id: str) -> bool:
 
 # Register as a Jinja2 global so templates can call it directly.
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
+
+# ---------------------------------------------------------------------------
+# PDF finding links (plain page-anchor vs. highlighted-PDF endpoint)
+# ---------------------------------------------------------------------------
+
+
+def _pdf_finding_is_highlighted(bbox: Any) -> bool:
+    """Return True when *bbox* looks like a usable (x0, y0, x1, y1) tuple/list."""
+    return isinstance(bbox, (list, tuple)) and len(bbox) == 4
+
+
+_templates.env.globals["pdf_finding_is_highlighted"] = _pdf_finding_is_highlighted
+
+
+def _pdf_finding_url(
+    job_id: str,
+    *,
+    page: int | None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+    bbox: Any = None,
+) -> str:
+    """Return the best PDF link for a finding.
+
+    Uses the highlighted-PDF endpoint when *bbox* coordinates are available;
+    otherwise falls back to the plain PDF opened at the right page (or with
+    no page anchor at all when no page number is known).
+    """
+    if not _pdf_finding_is_highlighted(bbox):
+        if page is not None:
+            return f"/audits/{job_id}/pdf#page={page}"
+        return f"/audits/{job_id}/pdf"
+
+    params: dict[str, str] = {}
+    if page is not None:
+        params["page"] = str(page)
+    if rule_id:
+        params["rule_id"] = rule_id
+    if issue_type:
+        params["issue_type"] = issue_type
+    if finding_index is not None:
+        params["finding_index"] = str(finding_index)
+    fragment = f"#page={page}" if page is not None else ""
+    return f"/audits/{job_id}/pdf/highlighted?{urllib.parse.urlencode(params)}{fragment}"
+
+
+_templates.env.globals["pdf_finding_url"] = _pdf_finding_url
 
 # ---------------------------------------------------------------------------
 # Category humanization
@@ -732,20 +785,29 @@ def _problem_group_examples(
     examples: list[dict[str, Any]] = []
     for finding in findings:
         rule_id = str(finding.get("rule_id", "")).strip()
+        issue_type = str(finding.get("issue_type", "")).strip()
         page = _coerce_page_number(finding.get("page"))
+        bbox = finding.get("bbox")
         rule = rule_lookup.get(rule_id, {})
         examples.append(
             {
                 "rule_id": rule_id,
                 "rule_title": str(rule.get("title", "")).strip(),
                 "category": str(finding.get("category", "")).strip(),
-                "issue_type": str(finding.get("issue_type", "")).strip(),
+                "issue_type": issue_type,
                 "polished_comment": str(finding.get("polished_comment", "")).strip(),
                 "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
                 "location_text": _student_location_text(finding),
                 "page": page,
                 "pdf_url": f"/audits/{job.job_id}/pdf",
-                "pdf_page_url": f"/audits/{job.job_id}/pdf#page={page}" if page is not None else "",
+                "pdf_page_url": (
+                    _pdf_finding_url(
+                        job.job_id, page=page, rule_id=rule_id, issue_type=issue_type, bbox=bbox
+                    )
+                    if page is not None
+                    else ""
+                ),
+                "highlighted": _pdf_finding_is_highlighted(bbox),
             }
         )
 
@@ -941,6 +1003,7 @@ def _run_audit_task(job_id: str) -> None:
             "source_file": fv.get("source_file", ""),
             "source_line": fv.get("source_line", ""),
             "location_label": fv.get("location_label", ""),
+            "bbox": fv.get("bbox"),
         }
         for fv in view_dict.get("findings", [])
     ]
@@ -1283,22 +1346,162 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
     )
 
 
+def _safe_pdf_disposition_filename(file_name: str) -> str:
+    """Return a Content-Disposition-safe filename for an inline PDF response."""
+    name = (file_name or "document.pdf").strip()
+    for unsafe in ('"', "\\", "\n", "\r"):
+        name = name.replace(unsafe, "_")
+    return name or "document.pdf"
+
+
 @app.get("/audits/{job_id}/pdf", response_model=None)
 async def serve_job_pdf(job_id: str) -> FileResponse | JSONResponse:
-    """Serve the uploaded PDF inline for the embedded viewer."""
+    """Serve the uploaded PDF inline (not as a forced download) for the embedded viewer."""
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return JSONResponse({"error": "not available"}, status_code=404)
     if job.audit_type != "pdf":
         return JSONResponse({"error": "not a PDF audit"}, status_code=404)
-    pdf_path = _job_dir(job_id) / "upload.pdf"
+    pdf_path = _job_pdf_path(_job_dir(job_id))
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
         return JSONResponse({"error": "PDF not found"}, status_code=404)
+    safe_filename = _safe_pdf_disposition_filename(job.file_name)
     return FileResponse(
         path=str(pdf_path),
         media_type="application/pdf",
-        headers={"Content-Disposition": "inline"},
+        headers={"Content-Disposition": f'inline; filename="{safe_filename}"'},
     )
+
+
+def _coerce_bbox(raw: Any) -> tuple[float, float, float, float] | None:
+    """Coerce a stored finding bbox value into a 4-tuple of floats, if drawable."""
+    if not isinstance(raw, (list, tuple)) or len(raw) != 4:
+        return None
+    try:
+        box = (float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))
+    except (TypeError, ValueError):
+        return None
+    return box if is_drawable_bbox(box) else None
+
+
+def _matching_findings_for_highlight(
+    job: JobState,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> list[dict[str, Any]]:
+    """Return job findings matching the highlight request's filters."""
+    if finding_index is not None and 0 <= finding_index < len(job.findings):
+        return [job.findings[finding_index]]
+
+    matches = job.findings
+    if page is not None:
+        matches = [f for f in matches if _coerce_page_number(f.get("page")) == page]
+    if rule_id:
+        matches = [f for f in matches if str(f.get("rule_id", "")) == rule_id]
+    if issue_type:
+        matches = [f for f in matches if str(f.get("issue_type", "")) == issue_type]
+    return matches
+
+
+def _highlight_boxes_by_page(
+    findings: list[dict[str, Any]],
+) -> dict[int, list[tuple[float, float, float, float]]]:
+    """Group parsed bounding boxes by 1-based page number across matched findings."""
+    boxes_by_page: dict[int, list[tuple[float, float, float, float]]] = {}
+    for finding in findings:
+        page = _coerce_page_number(finding.get("page"))
+        bbox = _coerce_bbox(finding.get("bbox"))
+        if page is None or bbox is None:
+            continue
+        boxes_by_page.setdefault(page, []).append(bbox)
+    return boxes_by_page
+
+
+def _highlight_cache_path(
+    jdir: Path,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> Path:
+    """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
+    key = f"{page}|{rule_id}|{issue_type}|{finding_index}"
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+    return jdir / f"highlighted-{digest}.pdf"
+
+
+@app.get("/audits/{job_id}/pdf/highlighted", response_model=None)
+async def serve_job_pdf_highlighted(
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> FileResponse | JSONResponse:
+    """Serve the uploaded PDF inline with a highlight for a specific finding.
+
+    Falls back to the plain (unhighlighted) PDF when the matched finding(s)
+    carry no bounding-box coordinates. The original uploaded PDF is never
+    modified -- highlights are always drawn on a separate generated copy.
+    """
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return JSONResponse({"error": "not available"}, status_code=404)
+    if job.audit_type != "pdf":
+        return JSONResponse({"error": "not a PDF audit"}, status_code=404)
+
+    jdir = _job_dir(job_id)
+    pdf_path = _job_pdf_path(jdir)
+    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+        return JSONResponse({"error": "PDF not found"}, status_code=404)
+
+    headers = {
+        "Content-Disposition": f'inline; filename="{_safe_pdf_disposition_filename(job.file_name)}"'
+    }
+    plain_response = FileResponse(
+        path=str(pdf_path), media_type="application/pdf", headers=headers
+    )
+
+    # Highlight generation is a best-effort enhancement layered on top of the
+    # always-available plain PDF: any unexpected failure below (bad query
+    # params, an unanticipated PDF-geometry edge case, a filesystem race,
+    # etc.) must fall back to the plain inline PDF rather than ever surface
+    # as a 500 to the browser.
+    try:
+        matches = _matching_findings_for_highlight(
+            job,
+            page=page,
+            rule_id=rule_id.strip(),
+            issue_type=issue_type.strip(),
+            finding_index=finding_index,
+        )
+        boxes_by_page = _highlight_boxes_by_page(matches)
+        if not boxes_by_page:
+            return plain_response
+
+        cache_path = _highlight_cache_path(
+            jdir, page=page, rule_id=rule_id, issue_type=issue_type, finding_index=finding_index
+        )
+        if not _is_under_runtime(cache_path):
+            return plain_response
+
+        if not cache_path.exists():
+            build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
+        if not cache_path.exists():
+            return plain_response
+
+        return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+    except Exception:
+        _logger.warning(
+            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
+            job_id,
+            exc_info=True,
+        )
+        return plain_response
 
 
 @app.get("/help", response_class=HTMLResponse)
