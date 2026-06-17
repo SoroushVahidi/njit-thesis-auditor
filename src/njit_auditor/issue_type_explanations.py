@@ -24,8 +24,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "mixed_numbering_style": "Mixed numbering style",
     "sequence_gap": "Page number sequence gap",
     "p013_document_overview": "Page numbering overview (document-level)",
-    # Page numbering — P028/P029 style
-    "frontmatter_page_has_page_number": "Front-matter page has a page number",
+    # Page numbering — P022/P028/P029 style
+    "visible_page_number_on_no_number_page": "Page number visible on a no-number page",
     "frontmatter_page_number_style_issue": "Front-matter page number style issue",
     "body_page_roman_number": "Body page uses Roman numeral",
     "frontmatter_arabic_number": "Front-matter page uses Arabic numeral",
@@ -68,6 +68,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     # References
     "references_structural_issue": "References structural issue",
     # Appendix
+    "single_appendix_uses_letter_label": "Single appendix uses letter label",
+    "multiple_appendix_missing_letter": "Appendix missing letter label",
     "appendix_letter_sequence_gap": "Appendix letter sequence gap",
     "appendix_letter_sequence_repeat": "Appendix letter sequence repeated",
     # Approval page
@@ -115,54 +117,60 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "are in effect."
     ),
     ("P013", "page_number_candidate"): (
-        "The checker detected text that looks like a page number. Verify that the "
-        "page number is in the required position and uses the correct numbering style. "
-        "Front-matter pages should use lowercase Roman numerals (i, ii, iii). "
-        "Body pages should use Arabic numerals (1, 2, 3)."
+        "This means the auditor detected text that looks like a page number. "
+        "This issue type is primarily a verification signal: it helps identify "
+        "where the page number appears so that placement, style, visibility, "
+        "and sequence can be checked. NJIT requires page numbers to appear at "
+        "the bottom of the page, using lowercase Roman numerals (i, ii, iii) "
+        "for front matter and Arabic numerals (1, 2, 3) for body pages. If "
+        "the number is already in the required bottom position and uses the "
+        "correct numbering style, this finding may not require any change."
     ),
     ("P013", "p013_document_overview"): (
-        "This is a document-level summary of page numbering patterns across the PDF. "
-        "It does not correspond to a single page. Review individual page-number "
-        "findings below for specific issues to correct."
-    ),
-    ("P013", "missing_page_number"): (
-        "A page is missing a visible page number. NJIT requires page numbers on all "
-        "pages except the title page and possibly the first body page. Verify that "
-        "no pages have been accidentally left unnumbered."
-    ),
-    ("P013", "multiple_page_numbers"): (
-        "More than one page-number-like token was found on this page. Each page "
-        "should have exactly one page number in the correct position. Review the "
-        "page and remove any extra numbers."
-    ),
-    ("P013", "inconsistent_position"): (
-        "The page number position on this page does not match the expected placement. "
-        "NJIT requires page numbers to be consistently placed — typically centered "
-        "at the bottom of each page throughout the document."
-    ),
-    ("P013", "mixed_numbering_style"): (
-        "This page uses a numbering style that does not match the expected section. "
-        "Front-matter pages must use Roman numerals (i, ii, iii) and body pages "
-        "must use Arabic numerals (1, 2, 3) in their respective sections."
-    ),
-    ("P013", "sequence_gap"): (
-        "There is a gap in the page number sequence. Page numbers must be "
-        "consecutive with no skipped numbers. Verify no pages were accidentally "
-        "removed or misnumbered."
+        "This is a document-level, informational summary of page numbering "
+        "patterns across the PDF. It does not by itself identify a specific "
+        "formatting defect and does not correspond to a single page. Review "
+        "individual page-number findings below for specific issues to correct."
     ),
     ("P019", "page_number_sequence_error"): (
         "The page number sequence has an error — a number is out of order, repeated, "
         "or missing. Page numbers must increase sequentially with no gaps or repeats."
+    ),
+    ("P019", "missing_page_number"): (
+        "A page is missing a visible page number even though neighboring pages "
+        "have one. NJIT requires every counted page to display a visible page "
+        "number. Verify that no page was accidentally left unnumbered."
+    ),
+    ("P019", "multiple_page_numbers"): (
+        "More than one page-number-like token was found on this page. Each page "
+        "should have exactly one page number in the correct position. Review the "
+        "page and remove any extra numbers."
+    ),
+    ("P019", "inconsistent_position"): (
+        "The page number position on this page does not match the dominant "
+        "placement used elsewhere in the document. "
+        "NJIT requires page numbers to be consistently placed at the bottom "
+        "of each page throughout the document."
+    ),
+    ("P019", "mixed_numbering_style"): (
+        "This page uses a numbering style that does not match the expected section. "
+        "Front-matter pages must use Roman numerals (i, ii, iii) and body pages "
+        "must use Arabic numerals (1, 2, 3) in their respective sections."
+    ),
+    ("P019", "sequence_gap"): (
+        "There is a gap in the page number sequence. Page numbers must be "
+        "consecutive with no skipped numbers. Verify no pages were accidentally "
+        "removed or misnumbered."
     ),
     ("P021", "abstract_word_count_exceeded"): (
         "The abstract appears to exceed the allowed word count for the detected "
         "degree type. PhD abstracts must be 350 words or fewer; MS/Master abstracts "
         "must be 150 words or fewer. Shorten the abstract before submission."
     ),
-    ("P022", "frontmatter_page_has_page_number"): (
+    ("P022", "visible_page_number_on_no_number_page"): (
         "A front-matter page that should not display a page number was found with "
-        "one. Certain pages (such as the title page) should not show a page number "
-        "even though they are counted in the sequence."
+        "one. The abstract, title, approval, and copyright pages should not show "
+        "a page number even though they are counted in the sequence."
     ),
     ("P028", "frontmatter_page_number_style_issue"): (
         "The page number style on this front-matter page does not match NJIT "
@@ -177,6 +185,21 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P028", "frontmatter_arabic_number"): (
         "A front-matter page is numbered with an Arabic numeral instead of a Roman "
         "numeral. Front-matter pages must use lowercase Roman numerals (i, ii, iii)."
+    ),
+    ("P028", "arabic_number_on_frontmatter_page"): (
+        "A front-matter page is numbered with an Arabic numeral instead of a "
+        "Roman numeral. Front-matter pages must use lowercase Roman numerals "
+        "(i, ii, iii)."
+    ),
+    ("P028", "uppercase_roman_on_frontmatter_page"): (
+        "A front-matter page is numbered with an uppercase Roman numeral. "
+        "Front-matter pages must use lowercase Roman numerals (i, ii, iii), "
+        "not uppercase (I, II, III)."
+    ),
+    ("P028", "roman_number_on_body_page"): (
+        "A body page is numbered with a Roman numeral instead of an Arabic "
+        "numeral. Body pages (starting from the main text) must use Arabic "
+        "numerals (1, 2, 3). Only front-matter pages use Roman numerals."
     ),
     ("P029", "roman_sequence_gap"): (
         "There is a gap in the Roman numeral page number sequence for front-matter "
@@ -220,6 +243,22 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "NJIT requires specific exact heading text for sections such as the abstract, "
         "dedication, acknowledgements, and others. Check spelling, capitalization, "
         "and spacing against the official NJIT formatting guidelines."
+    ),
+    ("P063", "single_appendix_uses_letter_label"): (
+        "This means the document appears to have only one appendix, but its "
+        "heading uses a lettered label such as 'APPENDIX A.' NJIT convention "
+        "expects a single appendix to be labeled 'APPENDIX' without a "
+        "letter. Lettered labels ('APPENDIX A,' 'APPENDIX B,' etc.) are only "
+        "used when the document has multiple appendices. Rename the "
+        "appendix heading, or check whether the document actually has "
+        "additional appendices that were not detected."
+    ),
+    ("P063", "multiple_appendix_missing_letter"): (
+        "This means multiple appendices were detected, but at least one "
+        "appendix heading does not include a letter identifier. NJIT "
+        "convention requires every appendix to be labeled 'APPENDIX A,' "
+        "'APPENDIX B,' etc. when there is more than one. Add the missing "
+        "letter to the appendix heading."
     ),
     ("P063", "appendix_letter_sequence_gap"): (
         "The appendix letters appear to have a gap in their sequence "
@@ -281,9 +320,10 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
         "tables, figures, or long lines."
     ),
     "page_number_candidate": (
-        "The checker detected text that looks like a page number. Verify that the "
-        "page number is in the required position and uses the correct numbering "
-        "style for that section."
+        "The checker detected text that looks like a page number. This is "
+        "primarily a verification signal, not a confirmed defect by itself. "
+        "Verify that the page number is in the required bottom position and "
+        "uses the correct Roman or Arabic numbering style for that section."
     ),
     "body_spacing_issue": (
         "Body text on this page does not appear to use the required double line "

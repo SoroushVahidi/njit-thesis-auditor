@@ -76,47 +76,28 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "comments before resubmitting."
     ),
     # --- P013 page number candidates ---
+    # P013 only records a candidate's observed position/style — it has no
+    # notion of "correct" on its own (see P019/P028 for confirmed defects),
+    # so this explanation frames it as a verification signal rather than a
+    # defect. NJIT only specifies a bottom placement (0.5" from the bottom
+    # edge); there is no "top right" allowance.
     ("P013", "page_number_candidate"): (
-        "A page-number-like token was detected in the {position_type_label} area "
-        "of this page. "
-        "NJIT requires page numbers to appear at the bottom center or top right, "
-        "using lowercase Roman numerals (i, ii, iii) for front matter "
-        "and Arabic numerals (1, 2, 3) for body pages. "
-        "Verify that the page number is in the required position and uses the "
-        "correct style."
+        "A page-number-like token was detected in the {position_type_label} "
+        "area of this page. This finding is a manual-verification signal: it "
+        "records where the candidate page number was found so a person can "
+        "confirm it. It does not by itself confirm a formatting defect. "
+        "NJIT requires page numbers to appear at the bottom of the page "
+        "(0.5 inches from the bottom edge), using lowercase Roman numerals "
+        "(i, ii, iii) for front matter and Arabic numerals (1, 2, 3) for "
+        "body pages. Verify that this page number is visible, correctly "
+        "placed, and uses the correct style."
     ),
     ("P013", "p013_document_overview"): (
-        "This is a document-level summary of page-number patterns detected across "
-        "the PDF. It does not correspond to a specific page or visual location. "
-        "Review the individual page-number findings for details on specific pages."
-    ),
-    ("P013", "missing_page_number"): (
-        "A page that should carry a page number appears to be missing one. "
-        "NJIT requires every numbered page to display a visible page number. "
-        "Check this page in the PDF and add a page number if it is missing."
-    ),
-    ("P013", "multiple_page_numbers"): (
-        "Multiple page-number-like tokens were detected on this page. "
-        "A page should have exactly one page number. "
-        "Review the page and remove any duplicate or extraneous page numbers."
-    ),
-    ("P013", "inconsistent_position"): (
-        "Page numbers appear in inconsistent positions across pages. "
-        "NJIT requires page numbers to be consistently positioned (e.g., always "
-        "bottom center). "
-        "Standardize the position of all page numbers throughout the document."
-    ),
-    ("P013", "mixed_numbering_style"): (
-        "Page numbers appear to use a mix of Roman and Arabic numerals on what "
-        "should be a single numbering-regime page. "
-        "Front matter must use lowercase Roman numerals (i, ii, iii); "
-        "body pages must use Arabic numerals (1, 2, 3). "
-        "Review the page-numbering style and correct any inconsistencies."
-    ),
-    ("P013", "sequence_gap"): (
-        "The page-number sequence appears to have a gap or jump on this page. "
-        "Page numbers must be consecutive with no skipped values. "
-        "Review the affected pages and renumber them to restore the sequence."
+        "This is a document-level, informational summary of page-number "
+        "patterns detected across the PDF. It does not by itself identify a "
+        "specific formatting defect, and does not correspond to a specific "
+        "page or visual location. Review the individual page-number findings "
+        "below for page-specific details."
     ),
     # --- P019 page number validation ---
     ("P019", "page_number_sequence_error"): (
@@ -135,6 +116,24 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A page should have exactly one page number. "
         "Review and remove any duplicate or extraneous page numbers."
     ),
+    ("P019", "inconsistent_position"): (
+        "Page numbers appear in inconsistent positions across pages. "
+        "NJIT requires page numbers to be consistently positioned at the "
+        "bottom of the page. "
+        "Standardize the position of all page numbers throughout the document."
+    ),
+    ("P019", "mixed_numbering_style"): (
+        "Page numbers appear to use a mix of Roman and Arabic numerals on what "
+        "should be a single numbering-regime page. "
+        "Front matter must use lowercase Roman numerals (i, ii, iii); "
+        "body pages must use Arabic numerals (1, 2, 3). "
+        "Review the page-numbering style and correct any inconsistencies."
+    ),
+    ("P019", "sequence_gap"): (
+        "The page-number sequence appears to have a gap or jump on this page. "
+        "Page numbers must be consecutive with no skipped values. "
+        "Review the affected pages and renumber them to restore the sequence."
+    ),
     # --- P021 abstract word count ---
     ("P021", "abstract_word_count_exceeded"): (
         "The abstract appears to contain {word_count} words. "
@@ -146,11 +145,12 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Review the abstract text and shorten it before submission."
     ),
     # --- P022 frontmatter no page number ---
-    ("P022", "frontmatter_page_has_page_number"): (
-        "A front-matter page that should not be numbered appears to have a visible "
-        "page number. "
-        "NJIT requires the title page and certain other front-matter pages to "
-        "appear unnumbered. "
+    ("P022", "visible_page_number_on_no_number_page"): (
+        "A front-matter page that should not be numbered ({page_type_label}) "
+        "appears to have a visible page number. "
+        "NJIT requires the abstract, title, approval, and copyright pages to "
+        "appear unnumbered, even though they are counted in the page "
+        "sequence. "
         "Remove the page number from this page."
     ),
     # --- P023 body spacing ---
@@ -211,6 +211,26 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "of a Roman numeral. "
         "Front-matter numbered pages must use lowercase Roman numerals (i, ii, iii). "
         "Review and correct the page-number style."
+    ),
+    ("P028", "arabic_number_on_frontmatter_page"): (
+        "This front-matter page shows an Arabic-numeral page number "
+        "('{candidate_text}') instead of a Roman numeral. "
+        "NJIT requires front-matter pages to use lowercase Roman numerals "
+        "(i, ii, iii). "
+        "Correct the numbering style for this page."
+    ),
+    ("P028", "uppercase_roman_on_frontmatter_page"): (
+        "This front-matter page shows an uppercase Roman numeral page number "
+        "('{candidate_text}') instead of lowercase. "
+        "NJIT requires lowercase Roman numerals (i, ii, iii) in the front "
+        "matter, not uppercase (I, II, III). "
+        "Correct the numbering style for this page."
+    ),
+    ("P028", "roman_number_on_body_page"): (
+        "This main-body page shows a Roman-numeral page number "
+        "('{candidate_text}') instead of an Arabic numeral. "
+        "NJIT requires body pages to use Arabic numerals (1, 2, 3). "
+        "Correct the numbering style for this page."
     ),
     # --- P029 roman sequence ---
     ("P029", "roman_sequence_gap"): (
@@ -308,6 +328,25 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Apply italic formatting to the dedication text."
     ),
     # --- P063 appendix/body headings ---
+    ("P063", "single_appendix_uses_letter_label"): (
+        "Observed: The document appears to have only one appendix, but its "
+        "heading is labeled 'APPENDIX {letter_found}' with a letter. "
+        "Expected: NJIT convention requires a single appendix to be labeled "
+        "'APPENDIX' with no letter. Use 'APPENDIX A,' 'APPENDIX B,' etc. "
+        "only when the document has multiple appendices. "
+        "What to fix: Rename the appendix heading to 'APPENDIX' (remove the "
+        "letter), or, if the document actually has more than one appendix, "
+        "add the missing appendix heading(s) so every appendix is present "
+        "and lettered."
+    ),
+    ("P063", "multiple_appendix_missing_letter"): (
+        "Observed: Multiple appendices were detected, but at least one "
+        "appendix heading does not include a letter identifier. "
+        "Expected: NJIT convention requires every appendix to be labeled "
+        "'APPENDIX A,' 'APPENDIX B,' etc. when there is more than one. "
+        "What to fix: Add the missing letter to the appendix heading so it "
+        "matches the 'APPENDIX <letter>' format."
+    ),
     ("P063", "appendix_letter_sequence_gap"): (
         "The appendix letter sequence appears to have a gap (e.g., jumps from "
         "Appendix A to Appendix C without a B). "
@@ -318,13 +357,6 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "An appendix letter appears to be repeated. "
         "NJIT requires each appendix to have a unique letter. "
         "Review the appendix headings and correct the labeling."
-    ),
-    ("P063", "multiple_appendix_missing_letter"): (
-        "Multiple appendices are present but one or more may be missing a letter "
-        "designation (e.g., 'Appendix' without 'A', 'B', etc.). "
-        "NJIT requires all appendices to be clearly labeled (Appendix A, "
-        "Appendix B, …). "
-        "Add the required letter to each appendix heading."
     ),
     # --- P064 references structural ---
     ("P064", "references_structural_issue"): (
@@ -529,6 +561,12 @@ def build_detailed_explanation(
         position_type = details.get("position_type", "")
         position_type_label = position_type.replace("_", " ") if position_type else "margin"
 
+        page_type = details.get("page_type", "")
+        page_type_label = page_type.replace("_", " ") if page_type else "this"
+
+        candidate_text = details.get("candidate_text", "") or "this token"
+        letter_found = details.get("letter_found", "") or "A"
+
         # P021-specific
         word_count_raw = details.get("word_count", "")
         limit_raw = details.get("limit", "")
@@ -553,6 +591,9 @@ def build_detailed_explanation(
                 annotation_type_label=annotation_type_label,
                 side_label=side_label,
                 position_type_label=position_type_label,
+                page_type_label=page_type_label,
+                candidate_text=candidate_text,
+                letter_found=letter_found,
                 word_count=word_count or "unknown",
                 limit=limit or "unknown",
                 over_by=over_by or "unknown",
@@ -587,9 +628,17 @@ def build_group_explanation(
 ) -> str:
     """Return a group-level explanation for a grouped problem card.
 
-    Uses the rule-level fallback rather than per-finding details, since a
-    grouped card spans multiple findings with varying detail values.
+    Prefers the same per-issue-type template used for individual findings,
+    rendered with neutral defaults instead of per-finding details (since a
+    grouped card spans multiple findings with varying detail values). Falls
+    back to the rule-level text, then a generic phrase, when no template
+    exists for this exact (rule_id, issue_type) pair.
     """
+    effective_issue_type = _resolve_issue_type(rule_id, issue_type, {})
+    if (rule_id, effective_issue_type) in _EXPLANATION_TEMPLATES:
+        return build_detailed_explanation(
+            rule_id=rule_id, issue_type=issue_type, details={}, page=None
+        )
     fallback = _RULE_FALLBACKS.get(rule_id)
     if fallback:
         return fallback.strip()

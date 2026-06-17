@@ -107,12 +107,16 @@
     </div>
     <div class="problem-group-actions">
       <a href="{{ audit_page_url }}" class="btn btn-secondary">&larr; Back to all results</a>
-      <a href="/audits/{{ job_id }}/pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Open PDF &#8599;</a>
+      {% if hero_action_kind == "explanation" %}
+      <a href="{{ hero_action_url }}" class="btn btn-secondary">{{ hero_action_label }}</a>
+      {% elif hero_action_url %}
+      <a href="{{ hero_action_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">{{ hero_action_label }} &#8599;</a>
+      {% endif %}
     </div>
   </div>
 </section>
 
-<section class="section" aria-label="Problem examples">
+<section class="section" aria-label="Problem examples" id="examples">
   <div class="section-header">
     <h2>Examples of this problem</h2>
     {% if pages_to_review %}
@@ -129,7 +133,9 @@
               {% if is_p_rule_id(example.rule_id) %}
               <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
               {% else %}{{ example.rule_id }}{% endif %}
-              {% if example.rule_title %} · {{ example.rule_title }}{% endif %}
+              {% if example.issue_type_label %} · {{ example.issue_type_label }}
+              {% elif example.issue_type %} · {{ example.issue_type | humanize_detail_key }}
+              {% elif example.rule_title %} · {{ example.rule_title }}{% endif %}
             {% else %}
               {% if example.issue_type_label %}{{ example.issue_type_label }}{% elif example.issue_type %}{{ example.issue_type | humanize_detail_key }}{% else %}Finding {{ loop.index }}{% endif %}
             {% endif %}
@@ -174,10 +180,7 @@
         <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason }}</span>
         {% endif %}
         {% else %}
-        <a href="{{ example.pdf_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Open PDF</a>
-        {% if example.no_highlight_reason %}
-        <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason }}</span>
-        {% endif %}
+        <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>
         {% endif %}
       </div>
     </article>

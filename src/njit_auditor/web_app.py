@@ -354,7 +354,7 @@ _CATEGORY_LABELS: dict[str, str] = {
     "figure_table_format": "Figures / tables",
     "font_format": "Font formatting",
     "formatting_override": "Formatting overrides",
-    "frontmatter_structure": "Front matter structure",
+    "frontmatter_structure": "Front matter / appendix structure",
     "heading_title": "Headings / titles",
     "indentation": "Indentation",
     "labels_references": "Labels / cross-references",
@@ -443,7 +443,13 @@ _CATEGORY_EXPLANATIONS: dict[str, str] = {
     "formatting_override": (
         "These examples point to formatting overrides that may break consistent document styling."
     ),
-    "frontmatter_structure": "These examples cover front-matter ordering or structure problems.",
+    "frontmatter_structure": (
+        "This group covers several different front-matter and appendix-heading "
+        "checks (ordering, dedication formatting, biosketch order, appendix "
+        "letter labeling, and similar structure problems). Each example below "
+        "shows its exact issue type so you can see precisely which check it "
+        "failed."
+    ),
     "heading_title": (
         "These examples point to heading or title formatting problems that can "
         "repeat across sections."
@@ -616,6 +622,21 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "remediation": (
             "Use lowercase Roman numerals (i, ii, iii) for front-matter "
             "numbered pages and Arabic numerals (1, 2, 3) for body pages."
+        ),
+    },
+    "P013": {
+        "question": "Page-number candidates detected for verification",
+        "rule_definition": (
+            "Detect text that looks like a page number and record its position "
+            "and style so it can be checked manually. This is a verification "
+            "signal, not a confirmed formatting defect by itself — see the "
+            "page-number sequence/style and page-numbering-regime rules for "
+            "findings that flag a specific page-numbering problem."
+        ),
+        "remediation": (
+            "Verify the detected page number is visible, in the required "
+            "bottom position, and uses the correct numbering style for that "
+            "section."
         ),
     },
 }
@@ -877,6 +898,29 @@ def _problem_group_context(
             if page is not None
         }
     )
+    hero_action_kind = "none"
+    hero_action_label = ""
+    hero_action_url = ""
+    for example in examples:
+        if example.get("action_kind") == "highlight" and example.get("pdf_page_url"):
+            hero_action_kind = "highlight"
+            hero_action_label = "Open first highlighted example"
+            hero_action_url = str(example["pdf_page_url"])
+            break
+    if hero_action_kind == "none":
+        for example in examples:
+            if example.get("pdf_page_url"):
+                hero_action_kind = "page"
+                hero_action_label = "Open first example page"
+                hero_action_url = str(example["pdf_page_url"])
+                break
+    if hero_action_kind == "none" and examples:
+        # No example in this group has a known page or highlight — never show
+        # a destination-less PDF button; offer an in-page jump to the
+        # per-example explanations instead.
+        hero_action_kind = "explanation"
+        hero_action_label = "Read explanation"
+        hero_action_url = "#examples"
     return {
         "job_id": job.job_id,
         "file_name": job.file_name,
@@ -888,6 +932,9 @@ def _problem_group_context(
         "example_count": len(examples),
         "pages_to_review": compact_page_list(pages) if pages else "",
         "examples": examples,
+        "hero_action_kind": hero_action_kind,
+        "hero_action_label": hero_action_label,
+        "hero_action_url": hero_action_url,
     }
 
 

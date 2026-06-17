@@ -814,9 +814,12 @@ def test_rule_problem_page_route_returns_200(
     assert b"Back to all results" in resp.content
 
 
-def test_problem_group_page_page_less_pdf_finding_still_has_pdf_link(
+def test_problem_group_page_page_less_finding_has_no_generic_pdf_link(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
+    """A finding with no page and no highlight must not offer a destination-less
+    "Open PDF" button — see docs/planning/problem_page_actionability_audit.md.
+    The explanation block is the actionable content instead."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -845,8 +848,9 @@ def test_problem_group_page_page_less_pdf_finding_still_has_pdf_link(
 
     assert resp.status_code == 200
     assert b"Document-wide overview" in resp.content
-    assert f'href="/audits/{job_id}/pdf"'.encode() in resp.content
-    assert b"Open PDF" in resp.content
+    assert f'href="/audits/{job_id}/pdf"'.encode() not in resp.content
+    assert b"Open PDF" not in resp.content
+    assert b"explanation above" in resp.content
 
 
 def test_problem_group_pages_only_show_matching_findings(

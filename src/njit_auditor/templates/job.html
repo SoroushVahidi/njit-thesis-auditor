@@ -572,8 +572,7 @@
           </a>
           <span class="file-hint no-highlight-note" style="align-self:center;">Exact highlight is not available for this finding, but the relevant page is known.</span>
           {% else %}
-          <a href="/audits/{{ job_id }}/pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Open PDF</a>
-          <span class="file-hint no-highlight-note" style="align-self:center;">This finding is document-level and does not correspond to a specific page or visual location.</span>
+          <span class="file-hint no-highlight-note" style="align-self:center;">This finding is document-level and does not correspond to a specific page or visual location — see the explanation above.</span>
           {% endif %}
           <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
         </div>
