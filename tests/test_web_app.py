@@ -915,7 +915,7 @@ def test_missing_job_problem_group_routes_return_404(
     resp = c.get("/audits/no-such-job/problems/category/page-numbering")
 
     assert resp.status_code == 404
-    assert b"not found" in resp.content.lower()
+    assert b"Audit result no longer available" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -1806,8 +1806,126 @@ def test_job_not_found_message_mentions_expiration(
     c, _ = client
     resp = c.get("/audits/doesnotexistjob")
     assert resp.status_code == 404
-    assert b"not found" in resp.content.lower()
-    assert b"hours" in resp.content.lower()
+    assert b"no longer available" in resp.content.lower()
+    assert b"kept for" in resp.content  # retention period always present
+
+
+def test_expired_job_does_not_show_could_not_start(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/audits/somenonexistentjob1")
+    assert resp.status_code == 404
+    assert b"Could not start audit" not in resp.content
+
+
+def test_expired_job_shows_audit_result_no_longer_available(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/audits/somenonexistentjob2")
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_notice_on_category_problem_page(
+    client: tuple[TestClient, Any],
+) -> None:
+    """The category/rule/issue-type drill-down routes added after this branch
+    forked must use the same expired-job notice as /audits/{job_id}, not the
+    old _job_not_found_message helper this branch renamed away."""
+    c, _ = client
+    resp = c.get("/audits/doesnotexistjob/problems/category/page-numbering")
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_notice_on_rule_problem_page(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/audits/doesnotexistjob/problems/rule/P013")
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_notice_on_issue_type_problem_page(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get(
+        "/audits/doesnotexistjob/problems/rule/P013/issue-type/some-issue-type"
+    )
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_message_mentions_configured_ttl_one_hour(tmp_path: Path) -> None:
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="3600")
+    c = TestClient(wa.app, raise_server_exceptions=False)
+    resp = c.get("/audits/somefakejobid1hr")
+    assert resp.status_code == 404
+    assert b"1 hour" in resp.content
+    assert b"24 hours" not in resp.content
+
+
+def test_expired_job_message_mentions_configured_ttl_30_minutes(tmp_path: Path) -> None:
+    wa = _reload_web_app(tmp_path, NJIT_AUDITOR_WEB_JOB_TTL_SECONDS="1800")
+    c = TestClient(wa.app, raise_server_exceptions=False)
+    resp = c.get("/audits/somefakejobid30m")
+    assert resp.status_code == 404
+    assert b"30 minutes" in resp.content
+
+
+def test_upload_start_error_still_uses_could_not_start(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits",
+        files={"file": ("thesis.docx", io.BytesIO(b"PK\x03\x04fake"), "application/octet-stream")},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+    assert b"Could not start audit" in resp.content
+    assert b"Audit result no longer available" not in resp.content
+
+
+def test_successful_job_page_shows_no_expired_message(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert b"Audit result no longer available" not in resp.content
+    assert b"Could not start audit" not in resp.content
+
+
+# ---------------------------------------------------------------------------
+# _format_ttl unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_format_ttl_seconds_to_minutes() -> None:
+    import njit_auditor.web_app as wa
+
+    assert wa._format_ttl(1800) == "about 30 minutes"
+    assert wa._format_ttl(60) == "about 1 minute"
+    assert wa._format_ttl(3599) == "about 60 minutes"
+
+
+def test_format_ttl_one_hour() -> None:
+    import njit_auditor.web_app as wa
+
+    assert wa._format_ttl(3600) == "about 1 hour"
+
+
+def test_format_ttl_multiple_hours() -> None:
+    import njit_auditor.web_app as wa
+
+    assert wa._format_ttl(86400) == "about 24 hours"
+    assert wa._format_ttl(7200) == "about 2 hours"
 
 
 def _inject_complete_pdf_job(

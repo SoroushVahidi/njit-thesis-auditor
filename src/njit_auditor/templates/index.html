@@ -155,6 +155,12 @@
   Results are advisory and require human review — processing runs locally on this server and files are not committed to any repository.
 </p>
 
+{% if notice %}
+<div class="alert-warn" role="alert">
+  <strong>Audit result no longer available.</strong><br>
+  {{ notice }}
+</div>
+{% endif %}
 {% if error %}
 <div class="alert-error" role="alert">
   <strong>Could not start audit.</strong><br>
