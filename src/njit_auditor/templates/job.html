@@ -521,7 +521,7 @@
             </div>
           </div>
           {% if problem.affected_compact %}
-          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}{% if problem.page_tokens %}&thinsp;&middot;&thinsp;<a href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}" target="_blank" rel="noopener noreferrer" class="page-link" title="Open PDF at page {{ problem.page_tokens[0] }}">p.&nbsp;{{ problem.page_tokens[0] }}&nbsp;&#8599;</a>{% endif %}</div>
+          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}</div>
           {% endif %}
         </div>
         <div class="grouped-problem__meta">
@@ -548,31 +548,18 @@
         </details>
         {% endif %}
         <div class="grouped-problem__actions">
-          {% if problem.individual_findings and problem.individual_findings[0].page is not none %}
           {% set first_finding = problem.individual_findings[0] %}
+          {% if first_finding.has_highlight %}
           <a
-            href="{{ pdf_finding_url(job_id, page=first_finding.page, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type, bbox=first_finding.bbox) }}"
+            href="{{ pdf_finding_url(job_id, page=first_finding.page, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type) }}"
             class="btn btn-secondary"
             target="_blank"
             rel="noopener noreferrer"
           >
-            {{ first_finding.action_label if first_finding.action_label else ("Open highlighted PDF page" if pdf_finding_is_highlighted(first_finding.bbox) else "Open PDF page") }}
+            {{ first_finding.action_label }}
           </a>
-          {% if not first_finding.has_highlight and first_finding.page is not none %}
-          <span class="file-hint no-highlight-note" style="align-self:center;">{{ first_finding.no_highlight_reason }}</span>
-          {% endif %}
-          {% elif problem.page_tokens %}
-          <a
-            href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}"
-            class="btn btn-secondary"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open PDF page
-          </a>
-          <span class="file-hint no-highlight-note" style="align-self:center;">Exact highlight is not available for this finding, but the relevant page is known.</span>
           {% else %}
-          <span class="file-hint no-highlight-note" style="align-self:center;">This finding is document-level and does not correspond to a specific page or visual location — see the explanation above.</span>
+          <span class="file-hint no-highlight-note" style="align-self:center;">{{ first_finding.no_highlight_reason }}</span>
           {% endif %}
           <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
         </div>
@@ -590,7 +577,7 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label if f.action_label else ('Open highlighted PDF at page' if pdf_finding_is_highlighted(f.bbox) else 'Open PDF at page') }} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}</td>
+                <td>{% if f.has_highlight %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}</td>
                 <td class="meta-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
@@ -635,7 +622,7 @@
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label if f.action_label else ('Open highlighted PDF at page' if pdf_finding_is_highlighted(f.bbox) else 'Open PDF at page') }} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
+              {% if f.has_highlight %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}
             </td>
             <td>
               {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>

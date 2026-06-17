@@ -11,11 +11,9 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 _ACTION_HIGHLIGHT = "highlight"
-_ACTION_PAGE = "page"
 _ACTION_EXPLANATION = "explanation"
 
 _LABEL_HIGHLIGHT = "Open highlighted PDF page"
-_LABEL_PAGE = "Open PDF page"
 _LABEL_EXPLANATION = "Read explanation"
 
 _NO_HIGHLIGHT_PAGE_REASON = (
@@ -26,27 +24,24 @@ _NO_HIGHLIGHT_DOC_REASON = (
 )
 
 
-def get_action_kind(*, has_bbox: bool, page: int | None) -> str:
-    """Return the preferred action kind for a finding."""
-    if has_bbox:
-        return _ACTION_HIGHLIGHT
-    if page is not None:
-        return _ACTION_PAGE
-    return _ACTION_EXPLANATION
+def get_action_kind(*, has_highlight: bool, page: int | None) -> str:
+    """Return the action kind for a finding: "highlight" or "explanation".
+
+    There is no "page-only" action kind. A finding either has a real,
+    visible highlight to show, or it gets an explanation only -- a known
+    page number is never enough on its own to justify a PDF link/button.
+    """
+    return _ACTION_HIGHLIGHT if has_highlight else _ACTION_EXPLANATION
 
 
-def get_action_label(*, has_bbox: bool, page: int | None) -> str:
+def get_action_label(*, has_highlight: bool, page: int | None) -> str:
     """Return the button label for a finding's primary action."""
-    if has_bbox:
-        return _LABEL_HIGHLIGHT
-    if page is not None:
-        return _LABEL_PAGE
-    return _LABEL_EXPLANATION
+    return _LABEL_HIGHLIGHT if has_highlight else _LABEL_EXPLANATION
 
 
-def get_no_highlight_reason(*, has_bbox: bool, page: int | None) -> str:
+def get_no_highlight_reason(*, has_highlight: bool, page: int | None) -> str:
     """Return a student-facing reason why no exact highlight is available."""
-    if has_bbox:
+    if has_highlight:
         return ""
     if page is not None:
         return _NO_HIGHLIGHT_PAGE_REASON
@@ -542,8 +537,25 @@ def build_detailed_explanation(
     """Build a student-facing detailed explanation for a finding.
 
     Returns a non-empty string in all cases. Never reproduces dissertation body
-    text, author names, or raw LaTeX.
+    text, author names, or raw LaTeX. When *page* is known, the page number is
+    appended to the explanation so it is visible even when no PDF action
+    button is shown (e.g. when no highlight is available).
     """
+    text = _build_explanation_text(
+        rule_id=rule_id, issue_type=issue_type, details=details, page=page
+    )
+    if page is not None:
+        return f"{text} This finding is on page {page}."
+    return text
+
+
+def _build_explanation_text(
+    *,
+    rule_id: str,
+    issue_type: str,
+    details: dict[str, str],
+    page: int | None,
+) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
     template = _EXPLANATION_TEMPLATES.get((rule_id, effective_issue_type))
 

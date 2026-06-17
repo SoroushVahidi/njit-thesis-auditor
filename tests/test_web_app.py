@@ -327,23 +327,32 @@ def _inject_complete_job_with_findings(
     findings: list[Any],
     file_name: str,
     audit_type: str,
+    page_count: int = 5,
 ) -> str:
     """Create a complete job from an explicit findings list."""
     import secrets
     from datetime import datetime, timezone
 
+    from njit_auditor.pdf_highlight import get_pdf_page_sizes
     from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
     from njit_auditor.report_view import build_report_view, report_view_to_dict
 
     job_id = secrets.token_urlsafe(16)
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
     jdir.mkdir(parents=True, exist_ok=True)
-    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+    if audit_type == "pdf":
+        _make_real_pdf(jdir / "upload.pdf", page_count=page_count)
+    else:
+        (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
     metadata = {"input_file_name": file_name, "audit_type": audit_type, "job_id": job_id}
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
-    view = build_report_view(payload)
+    pdf_page_sizes = (
+        get_pdf_page_sizes(jdir / "upload.pdf") if audit_type == "pdf" else []
+    )
+    view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
+    view_dict = report_view_to_dict(view)
 
     job = wa.JobState(
         job_id=job_id,
@@ -351,26 +360,35 @@ def _inject_complete_job_with_findings(
         created_at=datetime.now(timezone.utc).isoformat(),
         file_name=file_name,
         audit_type=audit_type,
+        pdf_page_count=len(pdf_page_sizes),
+        pdf_page_sizes=pdf_page_sizes,
         finding_count=view.total_findings,
         warn_count=sum(1 for fv in view.findings if fv.severity == "WARNING"),
         fail_count=sum(1 for fv in view.findings if fv.severity == "FAIL"),
         findings=[
             {
-                "rule_id": fv.rule_id,
-                "severity": fv.severity,
-                "page": fv.page,
-                "issue_type": fv.issue_type,
-                "category": fv.category,
-                "polished_comment": fv.polished_comment,
-                "suggested_fix": fv.suggested_fix,
-                "triage_tier": fv.triage_tier,
-                "confidence": fv.confidence,
-                "source_file": fv.source_file,
-                "source_line": fv.source_line,
-                "location_label": fv.location_label,
-                "bbox": fv.bbox,
+                "rule_id": fv["rule_id"],
+                "severity": fv["severity"],
+                "page": fv["page"],
+                "issue_type": fv["issue_type"],
+                "category": fv["category"],
+                "polished_comment": fv["polished_comment"],
+                "suggested_fix": fv.get("suggested_fix", ""),
+                "triage_tier": fv.get("triage_tier", ""),
+                "confidence": fv.get("confidence", ""),
+                "source_file": fv.get("source_file", ""),
+                "source_line": fv.get("source_line", ""),
+                "location_label": fv.get("location_label", ""),
+                "bbox": fv.get("bbox"),
+                "action_kind": fv.get("action_kind", ""),
+                "action_label": fv.get("action_label", ""),
+                "has_highlight": fv.get("has_highlight", False),
+                "no_highlight_reason": fv.get("no_highlight_reason", ""),
+                "detailed_explanation": fv.get("detailed_explanation", ""),
+                "issue_type_label": fv.get("issue_type_label", ""),
+                "issue_type_explanation": fv.get("issue_type_explanation", ""),
             }
-            for fv in view.findings
+            for fv in view_dict.get("findings", [])
         ],
         grouped_summary=[
             {
@@ -380,7 +398,7 @@ def _inject_complete_job_with_findings(
             }
             for rs in view.rule_summaries
         ],
-        report_view=report_view_to_dict(view),
+        report_view=view_dict,
         md_preview="# Audit Report\n",
     )
     wa._set_job(job)
@@ -772,8 +790,13 @@ def test_category_problem_page_route_returns_200(
 
     assert resp.status_code == 200
     assert b"Examples of this problem" in resp.content
-    assert b"Margins / overflow" in resp.content
-    assert f"/audits/{job_id}/pdf#page=2".encode() in resp.content
+    # Both matching findings share one issue type, so the page title narrows
+    # to that issue type rather than staying at the broad category label.
+    assert b"Margin boundary violation (P011)" in resp.content
+    # P011 findings here carry no bbox, so the strict highlight-only PDF-action
+    # policy shows no PDF link for them at all (no page-only fallback either).
+    assert f"/audits/{job_id}/pdf#page=2".encode() not in resp.content
+    assert b"Exact highlight is not available" in resp.content
 
 
 def test_rule_problem_page_route_returns_200(
@@ -810,7 +833,10 @@ def test_rule_problem_page_route_returns_200(
 
     assert resp.status_code == 200
     assert b"Pages to review" in resp.content
-    assert f"/audits/{job_id}/pdf#page=7".encode() in resp.content
+    # P011 findings here carry no bbox, so the strict highlight-only PDF-action
+    # policy shows no PDF link for them at all (no page-only fallback either).
+    assert f"/audits/{job_id}/pdf#page=7".encode() not in resp.content
+    assert b"Exact highlight is not available" in resp.content
     assert b"Back to all results" in resp.content
 
 
@@ -850,7 +876,7 @@ def test_problem_group_page_page_less_finding_has_no_generic_pdf_link(
     assert b"Document-wide overview" in resp.content
     assert f'href="/audits/{job_id}/pdf"'.encode() not in resp.content
     assert b"Open PDF" not in resp.content
-    assert b"explanation above" in resp.content
+    assert b"document-level" in resp.content.lower()
 
 
 def test_problem_group_pages_only_show_matching_findings(
@@ -2310,14 +2336,32 @@ def test_results_page_open_pdf_button_shown_for_pdf_audit(
 def test_results_page_page_links_present_for_findings_with_page(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Findings with a page number must render a page-link anchor pointing to /pdf#page=N."""
+    """A known page number alone must NOT render a page-link anchor; only a real,
+    visible highlight does (pointing to /pdf/highlighted, not a plain /pdf#page=N)."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    assert f"/audits/{job_id}/pdf#page=" not in body
+    assert "/pdf/highlighted" in body
+    assert "page-link" in body
+
+
+def test_results_page_no_page_link_for_known_page_without_highlight(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A finding whose page is known but has no bbox must render no PDF link at all."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert f"/audits/{job_id}/pdf#page=" in body
-    assert "page-link" in body
+    assert f"/audits/{job_id}/pdf#page=" not in body
+    assert "/pdf/highlighted" not in body
 
 
 # ---------------------------------------------------------------------------
@@ -2374,29 +2418,19 @@ def test_category_and_rule_problem_pages_pdf_links_use_new_tab_and_noreferrer(
 ) -> None:
     """Category/rule problem pages must open PDF links in a new tab without referrer leak."""
     c, wa = client
-    from njit_auditor.models import AuditFinding, Severity
-
-    findings = [
-        AuditFinding(
-            rule_id="P011",
-            severity=Severity.WARNING,
-            page=2,
-            message="Left margin too narrow.",
-            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
-        )
-    ]
+    findings = [_p012_annotation_finding_with_bbox(page=2)]
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
     )
 
-    cat_resp = c.get(f"/audits/{job_id}/problems/category/margin-or-overflow")
+    cat_resp = c.get(f"/audits/{job_id}/problems/category/annotations")
     assert cat_resp.status_code == 200
     cat_body = cat_resp.text
     assert 'target="_blank"' in cat_body
     assert 'rel="noopener noreferrer"' in cat_body
     assert 'rel="noopener"' not in cat_body
 
-    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P012")
     assert rule_resp.status_code == 200
     rule_body = rule_resp.text
     assert 'target="_blank"' in rule_body
@@ -2525,6 +2559,62 @@ def test_highlighted_pdf_endpoint_degenerate_bbox_falls_back_without_500(
     assert "attachment" not in disposition
 
 
+def test_highlighted_pdf_endpoint_draws_all_valid_boxes_for_multiple_matches(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Multiple findings matching the same page/rule must each contribute their own box,
+    with degenerate boxes among them skipped rather than failing the whole request."""
+    import fitz
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=4,
+            message="PDF annotation/comment detected (Text).",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Text",
+                "rect": "50.0,50.0,150.0,100.0",
+            },
+        ),
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=4,
+            message="PDF annotation/comment detected (Text).",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Text",
+                "rect": "200.0,200.0,300.0,260.0",
+            },
+        ),
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=4,
+            message="PDF annotation/comment detected (Text).",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Text",
+                "rect": "0.0,0.0,0.0,0.0",  # degenerate -- must be skipped, not fatal
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 4, "rule_id": "P012"})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert len(list(doc[3].annots() or [])) == 2
+
+
 def test_result_and_problem_pages_pdf_links_never_500(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -2575,7 +2665,7 @@ def test_problem_group_page_links_to_highlighted_pdf_when_bbox_available(
 def test_problem_group_page_falls_back_honestly_without_bbox(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """A finding without bbox data must still link to the plain page-specific PDF URL."""
+    """A finding without bbox data must render no PDF link at all, only the honest reason."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
 
@@ -2583,7 +2673,10 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     assert resp.status_code == 200
     body = resp.text
     assert "Open highlighted PDF page" not in body
-    assert f"/audits/{job_id}/pdf#page=" in body
+    assert "Open PDF page" not in body
+    assert f"/audits/{job_id}/pdf#page=" not in body
+    assert f"/audits/{job_id}/pdf/highlighted?" not in body
+    assert "Exact highlight is not available" in body
 
 
 def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]) -> None:
@@ -2601,7 +2694,6 @@ def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]
     _, wa = client
     globals_ = wa._templates.env.globals
     assert callable(globals_.get("pdf_finding_url"))
-    assert callable(globals_.get("pdf_finding_is_highlighted"))
 
     template_dir = Path(wa.__file__).parent / "templates"
     for name in ("job.html", "problem_group.html"):

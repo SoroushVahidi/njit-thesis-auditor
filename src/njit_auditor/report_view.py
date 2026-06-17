@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -15,7 +15,7 @@ from njit_auditor.finding_explanations import (
     get_no_highlight_reason,
 )
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
-from njit_auditor.pdf_highlight import is_drawable_bbox
+from njit_auditor.pdf_highlight import has_visible_highlight, is_drawable_bbox
 from njit_auditor.polished_comments import build_polished_comment, sanitize_suggested_fix_for_web
 from njit_auditor.report_outputs import _source_location_basename, format_source_location
 
@@ -55,7 +55,7 @@ class FindingView:
     location_label: str = ""
     bbox: tuple[float, float, float, float] | None = None
     # Actionability fields (presentation layer only — never change detection semantics)
-    action_kind: str = ""       # "highlight" | "page" | "explanation"
+    action_kind: str = ""       # "highlight" | "explanation"
     action_label: str = ""      # button label
     has_highlight: bool = False  # True when bbox is valid and drawable
     no_highlight_reason: str = ""  # why no highlight is available
@@ -211,6 +211,7 @@ def _finding_view_from_item(
     item: Mapping[str, Any],
     *,
     is_source_audit: bool,
+    pdf_page_sizes: Sequence[tuple[float, float]] | None = None,
 ) -> tuple[FindingView, tuple[str, str] | None]:
     rule_id = str(item.get("rule_id", ""))
     details_raw = item.get("details", {})
@@ -241,7 +242,15 @@ def _finding_view_from_item(
         category=category,
     )
     bbox = _parse_bbox_from_details(details)
-    has_highlight = bbox is not None
+    page_count = len(pdf_page_sizes) if pdf_page_sizes else None
+    page_size = (
+        pdf_page_sizes[page - 1]
+        if pdf_page_sizes and page is not None and 1 <= page <= len(pdf_page_sizes)
+        else None
+    )
+    has_highlight = has_visible_highlight(
+        bbox, page=page, page_count=page_count, page_size=page_size
+    )
     return (
         FindingView(
             rule_id=rule_id,
@@ -259,10 +268,10 @@ def _finding_view_from_item(
             source_line=source_line,
             location_label=location_label,
             bbox=bbox,
-            action_kind=get_action_kind(has_bbox=has_highlight, page=page),
-            action_label=get_action_label(has_bbox=has_highlight, page=page),
+            action_kind=get_action_kind(has_highlight=has_highlight, page=page),
+            action_label=get_action_label(has_highlight=has_highlight, page=page),
             has_highlight=has_highlight,
-            no_highlight_reason=get_no_highlight_reason(has_bbox=has_highlight, page=page),
+            no_highlight_reason=get_no_highlight_reason(has_highlight=has_highlight, page=page),
             detailed_explanation=build_detailed_explanation(
                 rule_id=rule_id,
                 issue_type=issue_type,
@@ -276,8 +285,19 @@ def _finding_view_from_item(
     )
 
 
-def build_report_view(report: Mapping[str, Any]) -> ReportView:
-    """Convert an audit JSON payload into a GUI-friendly report view."""
+def build_report_view(
+    report: Mapping[str, Any],
+    *,
+    pdf_page_sizes: Sequence[tuple[float, float]] | None = None,
+) -> ReportView:
+    """Convert an audit JSON payload into a GUI-friendly report view.
+
+    *pdf_page_sizes* is the (width, height) of each page of the audited PDF,
+    in order, when available. It lets ``has_highlight`` be computed against
+    real page geometry (page-in-range and bbox-intersects-page-bounds)
+    rather than just bbox shape validity; pass None when no PDF is available
+    (e.g. TeX-source audits) to fall back to shape-only validation.
+    """
     metadata = report.get("metadata", {})
     if not isinstance(metadata, Mapping):
         metadata = {}
@@ -327,7 +347,7 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
             if not isinstance(item, Mapping):
                 continue
             finding_view, location_key = _finding_view_from_item(
-                item, is_source_audit=is_source_audit
+                item, is_source_audit=is_source_audit, pdf_page_sizes=pdf_page_sizes
             )
             page = finding_view.page
             if page is not None:
