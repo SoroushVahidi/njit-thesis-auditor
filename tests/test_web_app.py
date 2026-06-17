@@ -915,7 +915,7 @@ def test_missing_job_problem_group_routes_return_404(
     resp = c.get("/audits/no-such-job/problems/category/page-numbering")
 
     assert resp.status_code == 404
-    assert b"not found" in resp.content.lower()
+    assert b"Audit result no longer available" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -1824,6 +1824,38 @@ def test_expired_job_shows_audit_result_no_longer_available(
 ) -> None:
     c, _ = client
     resp = c.get("/audits/somenonexistentjob2")
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_notice_on_category_problem_page(
+    client: tuple[TestClient, Any],
+) -> None:
+    """The category/rule/issue-type drill-down routes added after this branch
+    forked must use the same expired-job notice as /audits/{job_id}, not the
+    old _job_not_found_message helper this branch renamed away."""
+    c, _ = client
+    resp = c.get("/audits/doesnotexistjob/problems/category/page-numbering")
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_notice_on_rule_problem_page(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get("/audits/doesnotexistjob/problems/rule/P013")
+    assert resp.status_code == 404
+    assert b"Audit result no longer available" in resp.content
+
+
+def test_expired_job_notice_on_issue_type_problem_page(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    resp = c.get(
+        "/audits/doesnotexistjob/problems/rule/P013/issue-type/some-issue-type"
+    )
     assert resp.status_code == 404
     assert b"Audit result no longer available" in resp.content
 

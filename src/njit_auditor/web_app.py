@@ -1339,11 +1339,7 @@ async def category_problem_page(
     cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None:
-        return _index_error(
-            request,
-            _job_not_found_message(job_id),
-            status_code=404,
-        )
+        return _index_notice(request, _expired_job_notice(), status_code=404)
     if job.state != "complete" or job.audit_type != "pdf":
         return _index_error(
             request,
@@ -1394,11 +1390,7 @@ async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTML
     cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None:
-        return _index_error(
-            request,
-            _job_not_found_message(job_id),
-            status_code=404,
-        )
+        return _index_notice(request, _expired_job_notice(), status_code=404)
     if job.state != "complete" or job.audit_type != "pdf":
         return _index_error(
             request,
@@ -1440,11 +1432,7 @@ async def issue_type_problem_page(
     cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None:
-        return _index_error(
-            request,
-            _job_not_found_message(job_id),
-            status_code=404,
-        )
+        return _index_notice(request, _expired_job_notice(), status_code=404)
     if job.state != "complete" or job.audit_type != "pdf":
         return _index_error(
             request,
