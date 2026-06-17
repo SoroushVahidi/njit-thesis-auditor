@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -43,32 +44,16 @@ def test_help_returns_200(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 200
 
 
-def test_help_contains_fail_definition(client: tuple[TestClient, Any]) -> None:
+def test_help_explains_problems_found(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
     body = resp.text
-    assert "FAIL" in body
-    assert "Error" in body
-    assert "correction" in body.lower() or "problem" in body.lower()
-
-
-def test_help_contains_warning_definition(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/help")
-    body = resp.text
-    assert "WARNING" in body or "Warning" in body
+    assert "Problems found" in body
     assert "review" in body.lower()
 
 
-def test_help_contains_pass_definition(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/help")
-    body = resp.text
-    assert "PASS" in body or "Pass" in body or "Check passed" in body
-
-
 def test_help_pass_does_not_mean_approval(client: tuple[TestClient, Any]) -> None:
-    """PASS must be explicitly clarified as not meaning dissertation approval."""
+    """"No problems found" must be explicitly clarified as not meaning dissertation approval."""
     c, _ = client
     resp = c.get("/help")
     body = resp.text.lower()
@@ -79,8 +64,8 @@ def test_help_pass_does_not_mean_approval(client: tuple[TestClient, Any]) -> Non
 def test_help_contains_no_findings_explanation(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
-    body = resp.text.lower()
-    assert "no findings" in body or "zero findings" in body
+    body = resp.text
+    assert "No problems found" in body
 
 
 def test_help_contains_not_checked_explanation(client: tuple[TestClient, Any]) -> None:
@@ -90,11 +75,11 @@ def test_help_contains_not_checked_explanation(client: tuple[TestClient, Any]) -
     assert "not checked" in body or "not reliably checkable" in body
 
 
-def test_help_disclaimer_says_heuristic_not_official(client: tuple[TestClient, Any]) -> None:
+def test_help_disclaimer_no_heuristic_says_not_official(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
     body = resp.text.lower()
-    assert "heuristic" in body
+    assert "heuristic" not in body
     assert "not an official" in body or "research prototype" in body or "not official" in body
 
 
@@ -127,10 +112,10 @@ def test_help_contains_confidence_explanation(client: tuple[TestClient, Any]) ->
     assert "confidence" in body
 
 
-def test_help_audit_outcomes_anchor(client: tuple[TestClient, Any]) -> None:
+def test_help_results_anchor(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/help")
-    assert b'id="audit-outcomes"' in resp.content
+    assert b'id="results"' in resp.content
 
 
 def test_help_links_to_rule_reference(client: tuple[TestClient, Any]) -> None:
@@ -158,24 +143,6 @@ def test_rules_returns_200(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 200
 
 
-def test_rules_contains_p001(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b"P001" in resp.content
-
-
-def test_rules_contains_p002(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b"P002" in resp.content
-
-
-def test_rules_contains_p003(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b"P003" in resp.content
-
-
 def test_rules_contains_p011(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/rules")
@@ -195,25 +162,13 @@ def test_rules_p013_has_stable_anchor(client: tuple[TestClient, Any]) -> None:
     assert b'id="P013"' in resp.content
 
 
-def test_rules_p001_has_stable_anchor(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b'id="P001"' in resp.content
-
-
-def test_rules_p002_has_stable_anchor(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    assert b'id="P002"' in resp.content
-
-
 def test_rules_generated_from_canonical_data(client: tuple[TestClient, Any]) -> None:
     """Rule cards must be generated from canonical structured data."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
     # Should show content from canonical JSON (section names, questions, remediation)
-    assert "TeX Source Hygiene" in body or "Cross-references" in body
+    assert "PDF layout" in body or "PDF page numbering" in body
     assert "label" in body.lower() or "margin" in body.lower()
 
 
@@ -236,35 +191,76 @@ def test_rules_contains_search_input(client: tuple[TestClient, Any]) -> None:
 
 
 def test_rules_evaluation_entry_not_in_main_catalog(client: tuple[TestClient, Any]) -> None:
-    """P083 (evaluation task) must NOT be in the student-facing main catalog as a rule card."""
+    """P083 (evaluation task) must not be rendered on the public /rules page at all."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    # P083 should appear somewhere (technical section), but not as a main student rule card
-    # with id="P083" in the main catalog — it appears in the technical table
-    # The key check: the technical section exists and evaluation entries are classified correctly
-    assert "Evaluation task" in body or "evaluation task" in body.lower() or "Technical" in body
+    assert 'id="P083"' not in body
 
 
-def test_rules_reporting_entry_classified_as_technical(client: tuple[TestClient, Any]) -> None:
-    """P081 (reporting-only) must be identified as a technical entry, not a student check."""
+def test_rules_reporting_entry_not_rendered(client: tuple[TestClient, Any]) -> None:
+    """P081 (reporting-only) must not be rendered on the public /rules page at all."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    # P081 should appear in the technical table with a reporting-only label
-    assert "P081" in body
-    # It should not appear as a student-facing rule card (no id="P081" in main catalog
-    # but it will appear in technical table which also has id="P081")
-    assert "Reporting" in body or "reporting" in body.lower()
+    assert 'id="P081"' not in body
 
 
-def test_rules_infrastructure_entry_classified_as_technical(client: tuple[TestClient, Any]) -> None:
-    """P069 (infrastructure-only) must be in technical section."""
+def test_rules_infrastructure_entry_not_rendered(client: tuple[TestClient, Any]) -> None:
+    """P069 (infrastructure-only) must not be rendered on the public /rules page at all."""
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    assert "P069" in body
-    assert "Infrastructure" in body or "infrastructure" in body.lower()
+    assert 'id="P069"' not in body
+
+
+def test_rules_experimental_entry_not_rendered(client: tuple[TestClient, Any]) -> None:
+    """P082 is opt-in/disabled by default and never runs in the web PDF audit, so it
+    must not be rendered on the public /rules page."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert 'id="P082"' not in body
+
+
+def test_rules_page_shows_only_web_pdf_rule_ids(client: tuple[TestClient, Any]) -> None:
+    """Every rule card rendered on /rules must match the catalog's web-facing rule set."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    catalog = _build_rule_catalog()
+    expected_ids = {r["id"] for r in catalog["student_rules"]}
+    rendered_ids = set(re.findall(r'id="(P\d+)"', body))
+    assert rendered_ids == expected_ids
+    assert expected_ids, "expected at least one web PDF rule to be shown"
+
+
+def test_rules_page_has_no_technical_section(client: tuple[TestClient, Any]) -> None:
+    """The public page must not show a separate technical/internal-inventory section."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "Technical and experimental entries" not in body
+    assert "tech-toggle" not in body
+    assert "Inclusion policy" not in body
+
+
+def test_rules_intro_describes_pdf_audits(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "automated formatting checks used for PDF audits in this website" in body
+
+
+def test_rules_p021_mixed_rule_shown_as_pdf(client: tuple[TestClient, Any]) -> None:
+    """P021 has both a TeX-side and PDF-side implementation; the PDF-side one runs in
+    the web audit, so it must still appear on the public page."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert 'id="P021"' in body
 
 
 def test_rules_no_implementation_module_paths(client: tuple[TestClient, Any]) -> None:
@@ -289,20 +285,6 @@ def test_rules_contains_student_catalog_section(client: tuple[TestClient, Any]) 
     resp = c.get("/rules")
     body = resp.text
     assert "Formatting checks" in body or "formatting checks" in body.lower()
-
-
-def test_rules_contains_technical_section(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    body = resp.text
-    assert "Technical" in body or "technical" in body.lower()
-
-
-def test_rules_contains_inclusion_policy(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/rules")
-    body = resp.text
-    assert "Inclusion policy" in body or "inclusion policy" in body.lower()
 
 
 def test_rules_has_client_side_filter_script(client: tuple[TestClient, Any]) -> None:
@@ -553,12 +535,12 @@ def test_results_unknown_rule_id_no_broken_link(
 def test_results_page_has_help_link_in_summary(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Summary section must contain contextual help link to /help#audit-outcomes."""
+    """Summary section must contain contextual help link to /help#results."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=1)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"/help#audit-outcomes" in resp.content
+    assert b"/help#results" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -644,12 +626,15 @@ def test_build_rule_catalog_returns_student_rules() -> None:
     assert len(catalog["student_rules"]) > 0
 
 
-def test_build_rule_catalog_p001_in_student_rules() -> None:
+def test_build_rule_catalog_p001_not_in_catalog() -> None:
+    """P001 is TeX/ZIP-source-only and never runs on a web PDF upload."""
     from njit_auditor.web_app import _build_rule_catalog
 
     catalog = _build_rule_catalog()
-    ids = [r["id"] for r in catalog["student_rules"]]
-    assert "P001" in ids
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    tech_ids = {r["id"] for r in catalog["technical_rules"]}
+    assert "P001" not in student_ids
+    assert "P001" not in tech_ids
 
 
 def test_build_rule_catalog_p013_in_student_rules() -> None:
@@ -658,6 +643,26 @@ def test_build_rule_catalog_p013_in_student_rules() -> None:
     catalog = _build_rule_catalog()
     ids = [r["id"] for r in catalog["student_rules"]]
     assert "P013" in ids
+
+
+def test_build_rule_catalog_excludes_all_tex_source_only_rules() -> None:
+    """P001-P010 are TeX/ZIP-source-only and must not be advertised on the website."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    tech_ids = {r["id"] for r in catalog["technical_rules"]}
+    tex_only_ids = {f"P{n:03d}" for n in range(1, 11)}
+    assert not (tex_only_ids & student_ids)
+    assert not (tex_only_ids & tech_ids)
+
+
+def test_build_rule_catalog_input_types_pdf_only() -> None:
+    """The "Applies to" filter values must never mention TeX/ZIP on the website."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    assert catalog["input_types"] == ["PDF (compiled)"]
 
 
 def test_build_rule_catalog_p083_not_in_student_rules() -> None:
@@ -710,6 +715,34 @@ def test_build_rule_catalog_technical_contains_p081() -> None:
     catalog = _build_rule_catalog()
     tech_ids = {r["id"] for r in catalog["technical_rules"]}
     assert "P081" in tech_ids
+
+
+def test_build_rule_catalog_p082_not_in_student_rules() -> None:
+    """P082 is experimental/opt-in and disabled by default; the website never enables
+    it, so it must not appear in the public-facing student catalog."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    assert "P082" not in student_ids
+
+
+def test_build_rule_catalog_technical_contains_p082() -> None:
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    tech_ids = {r["id"] for r in catalog["technical_rules"]}
+    assert "P082" in tech_ids
+
+
+def test_build_rule_catalog_p021_in_student_rules() -> None:
+    """P021 has a mixed input_required (tex_source + compiled_pdf) but has a real PDF
+    detector wired into the web audit, so it must remain in the public catalog."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    catalog = _build_rule_catalog()
+    student_ids = {r["id"] for r in catalog["student_rules"]}
+    assert "P021" in student_ids
 
 
 def test_build_rule_catalog_rule_fields_populated() -> None:

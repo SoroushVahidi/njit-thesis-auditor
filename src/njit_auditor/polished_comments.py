@@ -8,7 +8,7 @@ from pathlib import Path
 from njit_auditor.report_outputs import derive_source_issue_type
 
 REVIEW_PREFIX = "Review needed:"
-VERIFY_SUFFIX = "Heuristic signal — please verify against NJIT guidelines manually."
+VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
 
 # Detail keys that may contain dissertation text and must never appear in comments.
 _BLOCKED_DETAIL_KEYS: frozenset[str] = frozenset(
@@ -38,17 +38,71 @@ _SOURCE_RULE_IDS = frozenset(
 )
 
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
+    ("P012", "pdf_annotation_detected"): (
+        "A PDF annotation or comment was detected on page {page}. "
+        "Resolve or remove annotations before final submission."
+    ),
     ("P011", "margin_boundary_violation"): (
         "Possible text crossing the {side} margin on page {page}. "
         "Check that body text and headings respect NJIT margin requirements."
     ),
-    ("P013", "page_number_candidate"): (
-        "A page-number-like token was detected ({position_type}) on page {page}. "
-        "Verify page numbering placement and style match NJIT requirements."
-    ),
     ("P013", "p013_document_overview"): (
-        "Document-level page-number pattern summary detected. "
-        "Review overall page numbering consistency across the PDF."
+        "Document-level page-number pattern summary detected (informational; "
+        "not a page-specific defect). Review the individual page-number "
+        "findings below for anything that needs manual verification."
+    ),
+    ("P019", "missing_page_number"): (
+        "Page {page} appears to be missing a visible page number, even though "
+        "neighboring pages have one. NJIT requires every counted page to "
+        "display a visible page number. Verify whether a page number is "
+        "missing on this page."
+    ),
+    ("P019", "multiple_page_numbers"): (
+        "Multiple page-number-like tokens were detected on page {page}. A "
+        "page should show exactly one page number. Verify which token is the "
+        "actual page number and remove or correct any unintended duplicate."
+    ),
+    ("P019", "inconsistent_position"): (
+        "The page-number position on page {page} does not match the dominant "
+        "position used elsewhere in the document. NJIT requires page numbers "
+        "to be consistently positioned at the bottom of the page. Verify the "
+        "page-number placement on this page."
+    ),
+    ("P019", "mixed_numbering_style"): (
+        "Mixed page-numbering styles (e.g., Roman and Arabic numerals) were "
+        "detected on page {page}. NJIT requires front-matter pages to use "
+        "lowercase Roman numerals and body pages to use Arabic numerals, not "
+        "a mix within the same section. Verify the numbering style here."
+    ),
+    ("P019", "sequence_gap"): (
+        "The page-number sequence appears to skip or break around page "
+        "{page}. NJIT requires page numbers to increase consecutively with "
+        "no gaps. Verify that no pages were removed, duplicated, or "
+        "misnumbered near this page."
+    ),
+    ("P022", "visible_page_number_on_no_number_page"): (
+        "A visible page number was detected on the {page_type} page (page "
+        "{page}). NJIT requires this page to have no visible page number, "
+        "even though it is counted in the page sequence. Remove the page "
+        "number from this page."
+    ),
+    ("P028", "arabic_number_on_frontmatter_page"): (
+        "Page {page} is in the front matter but shows an Arabic-numeral page "
+        "number ('{candidate_text}'). NJIT requires front-matter pages to use "
+        "lowercase Roman numerals (i, ii, iii) instead. Correct the numbering "
+        "style for this page."
+    ),
+    ("P028", "uppercase_roman_on_frontmatter_page"): (
+        "Page {page} is in the front matter but shows an uppercase Roman "
+        "numeral page number ('{candidate_text}'). NJIT requires lowercase "
+        "Roman numerals (i, ii, iii) in the front matter. Correct the "
+        "numbering style for this page."
+    ),
+    ("P028", "roman_number_on_body_page"): (
+        "Page {page} is in the main body but shows a Roman-numeral page "
+        "number ('{candidate_text}'). NJIT requires body pages to use Arabic "
+        "numerals (1, 2, 3) instead. Correct the numbering style for this "
+        "page."
     ),
     ("P026", "possible_body_font_family_issue"): (
         "Body text on page {page} may not use the expected font family. "
@@ -85,6 +139,29 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ("P034", "copyright_year_not_found"): (
         "A copyright page was detected on page {page} but no year token was found. "
         "Confirm the copyright block includes the required year."
+    ),
+    ("P063", "single_appendix_uses_letter_label"): (
+        "The single appendix heading on page {page} is labeled 'APPENDIX "
+        "{letter_found}' with a letter. NJIT requires a single appendix to "
+        "be labeled 'APPENDIX' with no letter. Remove the letter, or add the "
+        "missing appendix heading(s) if the document actually has more than "
+        "one appendix."
+    ),
+    ("P063", "multiple_appendix_missing_letter"): (
+        "An appendix heading on page {page} is missing its letter "
+        "identifier. NJIT requires every appendix to be labeled 'APPENDIX "
+        "A,' 'APPENDIX B,' etc. when there is more than one. Add the "
+        "missing letter to this heading."
+    ),
+    ("P063", "appendix_letter_sequence_gap"): (
+        "The appendix letter sequence on page {page} skips a letter (e.g., "
+        "jumps from A to C without a B). NJIT requires appendices to be "
+        "lettered consecutively. Correct the lettering sequence."
+    ),
+    ("P063", "appendix_letter_sequence_repeat"): (
+        "The appendix heading on page {page} repeats a letter already used "
+        "by another appendix. NJIT requires each appendix to have a unique "
+        "letter. Correct the labeling so each letter is used once."
     ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
         "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "
@@ -142,8 +219,22 @@ _RULE_FALLBACKS: dict[str, str] = {
         "Review layout against NJIT margin rules."
     ),
     "P013": (
-        "Page-number candidate detected on page {page}. "
-        "Review numbering placement and style."
+        "Page-number candidate detected on page {page} for manual "
+        "verification. This does not by itself confirm a formatting defect."
+    ),
+    "P019": (
+        "Page-numbering sequence or style issue detected on page {page}. "
+        "Review numbering placement, style, and sequence against NJIT "
+        "requirements."
+    ),
+    "P022": (
+        "A visible page number was detected on page {page} where NJIT "
+        "requires none. Review whether this page should show a page number."
+    ),
+    "P028": (
+        "Page-numbering style on page {page} may not match the expected "
+        "regime for its section. Review whether this page should use Roman "
+        "or Arabic numerals."
     ),
     "P026": (
         "Possible font compliance issue on page {page}. "
@@ -180,6 +271,30 @@ _RULE_FALLBACKS: dict[str, str] = {
     "P010": "LaTeX linter warning at {location}. Review flagged source pattern.",
 }
 
+# project_added_rules.json's remediation field for these PDF-active rules
+# references LaTeX-only syntax (\doublespacing, \pagenumbering{...}, etc.); the
+# canonical file stays untouched (also used by the CLI/source audit) but the
+# web/GUI-facing comment swaps in student-friendly wording. Mirrors the
+# rules-page override of the same names in web_app.py's _RULE_TEXT_OVERRIDES.
+_REMEDIATION_OVERRIDES: dict[str, str] = {
+    "P023": (
+        "Set body text to double line spacing. In Word: set paragraph line "
+        "spacing to 'Double'."
+    ),
+    "P026": (
+        "Set body text to Times New Roman 12pt throughout. Word/LibreOffice: "
+        "set paragraph font to Times New Roman, size 12."
+    ),
+    "P028": (
+        "Use lowercase Roman numerals (i, ii, iii) for front-matter numbered "
+        "pages and Arabic numerals (1, 2, 3) for body pages."
+    ),
+    # P013's comment body already states the verification action for every
+    # branch (see _p013_candidate_comment); appending the canonical
+    # remediation line on top would repeat "verify..." a third time.
+    "P013": "",
+}
+
 
 @lru_cache(maxsize=1)
 def _remediation_by_rule() -> dict[str, str]:
@@ -204,6 +319,7 @@ def _remediation_by_rule() -> dict[str, str]:
         rule_id = str(item.get("id", "")).strip()
         remediation = str(item.get("remediation", "")).strip()
         if rule_id and remediation:
+            remediation = _REMEDIATION_OVERRIDES.get(rule_id, remediation)
             if len(remediation) > 200:
                 remediation = f"{remediation[:197]}..."
             result[rule_id] = remediation
@@ -239,6 +355,7 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
     side = details.get("side", "document") or "document"
     position_type = details.get("position_type", "unknown position") or "unknown position"
     command = details.get("command", "formatting command") or "formatting command"
+    page_type = details.get("page_type", "") or "this"
     return template.format(
         page=_safe_page_label(page),
         side=side.replace("_", " "),
@@ -246,6 +363,58 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         page_range=_safe_page_range(details),
         location=_safe_location_label(details),
         command=command,
+        candidate_text=details.get("candidate_text", "") or "unknown",
+        page_type=page_type.replace("_", " "),
+        letter_found=details.get("letter_found", "") or "A",
+    )
+
+
+def _p013_candidate_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P013 page_number_candidate comment body.
+
+    P013 only ever records a detected token's position/style — it has no
+    notion of "correct" on its own. The wording must therefore say what was
+    observed and frame it as a verification signal, not a confirmed defect,
+    except when the position itself is outside the bottom area NJIT requires.
+    """
+    page_label = _safe_page_label(page)
+    try:
+        count = int(details.get("candidate_count_on_page", "1") or "1")
+    except ValueError:
+        count = 1
+    position_type = details.get("position_type", "") or ""
+
+    if count > 1:
+        return (
+            f"Multiple page-number-like tokens were detected on page "
+            f"{page_label}. This may indicate duplicate numbering, extra "
+            "footer/header text being mistaken for a page number, or an "
+            "ambiguous page-number location. Verify which token is the "
+            "actual page number and remove or correct any unintended "
+            "duplicate."
+        )
+    if position_type in {"bottom_center", "bottom_right"}:
+        position_label = position_type.replace("_", " ")
+        return (
+            f"A page-number-like token was detected at the {position_label} "
+            f"of page {page_label}. This finding records the detected page "
+            "number for manual verification; it does not by itself confirm "
+            "a formatting defect. Verify that the number is correct, "
+            "visible, in the required bottom position, and consistent with "
+            "the document's numbering sequence."
+        )
+    if position_type in {"top_center", "top_right", "other"}:
+        return (
+            "A page-number-like token was detected outside the expected "
+            f"bottom page-number area on page {page_label}. NJIT page "
+            "numbers should appear in the required bottom position. Verify "
+            "the page-number placement and correct it if necessary."
+        )
+    return (
+        f"A page-number-like token was detected on page {page_label}. No "
+        "specific page-numbering defect is confirmed by this finding; it is "
+        "a manual-verification signal. Verify that the number is correct, "
+        "visible, and in the required bottom position."
     )
 
 
@@ -265,6 +434,10 @@ def build_polished_comment(
     issue = issue_type or safe_details.get("issue_type", "")
     if rule_id in _SOURCE_RULE_IDS and not issue:
         issue = derive_source_issue_type(rule_id, safe_details)
+
+    if rule_id == "P013" and issue == "page_number_candidate":
+        body = _p013_candidate_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, details=safe_details)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))
     if template is None:
@@ -290,12 +463,16 @@ def build_polished_comment(
     else:
         body = _format_template(template, page=page, details=safe_details)
 
+    return _finish_comment(body, rule_id=rule_id, details=safe_details)
+
+
+def _finish_comment(body: str, *, rule_id: str, details: dict[str, str]) -> str:
     remediation = _remediation_by_rule().get(rule_id, "")
     parts = [f"{REVIEW_PREFIX} {body}"]
     if remediation and remediation not in body:
         parts.append(remediation)
-    confidence = safe_details.get("confidence", "")
-    triage_tier = safe_details.get("triage_tier", "")
+    confidence = details.get("confidence", "")
+    triage_tier = details.get("triage_tier", "")
     if confidence:
         parts.append(f"Confidence: {confidence}.")
     elif triage_tier:
@@ -311,3 +488,30 @@ def contains_blocked_detail_text(comment: str, details: dict[str, str]) -> bool:
         if len(value) >= 8 and value in comment:
             return True
     return False
+
+
+# A finding's suggested_fix normally comes from a detector's own clean wording, but
+# this is a defense-in-depth check: any value containing raw LaTeX-only syntax (e.g.
+# from a future detector regression) is swapped for the rule's clean remediation text
+# before it reaches the PDF-only web UI, rather than rendered as-is.
+_RAW_LATEX_SUGGESTED_FIX_TOKENS: tuple[str, ...] = (
+    "\\doublespacing",
+    "\\usepackage",
+    "mathptmx",
+    "newtxtext",
+    "newtxmath",
+    "\\setstretch",
+    "\\onehalfspacing",
+)
+
+
+def sanitize_suggested_fix_for_web(rule_id: str, suggested_fix: str) -> str:
+    """Replace a suggested_fix value with clean wording if it carries raw LaTeX syntax."""
+    if not suggested_fix:
+        return suggested_fix
+    if not any(token in suggested_fix for token in _RAW_LATEX_SUGGESTED_FIX_TOKENS):
+        return suggested_fix
+    fallback = _remediation_by_rule().get(rule_id, "")
+    if fallback and not any(token in fallback for token in _RAW_LATEX_SUGGESTED_FIX_TOKENS):
+        return fallback
+    return ""

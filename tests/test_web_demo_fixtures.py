@@ -7,7 +7,6 @@ no real dissertation content, real student names, committee names, or thesis tit
 from __future__ import annotations
 
 import io
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -175,118 +174,36 @@ def test_issues_pdf_produces_findings(client: tuple[TestClient, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. clean_minimal.tex upload succeeds
+# 5. clean_minimal.tex / issues_tex.tex / demo_project.zip are rejected by the
+#    web upload form — the web UI is PDF-only. These fixtures remain useful
+#    for the command-line source audit, which is unaffected by this gating.
 # ---------------------------------------------------------------------------
 
+_PDF_ONLY_ERROR = b"Only PDF files are supported in the web interface. Please upload a PDF file."
 
-def test_clean_minimal_tex_upload_succeeds(client: tuple[TestClient, Any]) -> None:
-    """clean_minimal.tex uploads and produces a TeX source report."""
+
+def test_clean_minimal_tex_upload_rejected(client: tuple[TestClient, Any]) -> None:
+    """clean_minimal.tex is rejected by the web upload form (PDF-only)."""
     c, _ = client
-    resp = _upload_file(c, "clean_minimal.tex", "text/plain", follow_redirects=True)
-    assert resp.status_code == 200
-    body = resp.content
-    # Source audit scope label or findings table should be present
-    assert (
-        b"TeX source audit" in body
-        or b"P001" in body
-        or b"source" in body.lower()
-        or b"Location" in body
-    )
+    resp = _upload_file(c, "clean_minimal.tex", "text/plain", follow_redirects=False)
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
 
 
-def test_clean_minimal_tex_upload_creates_job_redirect(
-    client: tuple[TestClient, Any],
-) -> None:
-    """clean_minimal.tex upload returns 303 redirect to a job page."""
-    c, _ = client
-    resp = _upload_file(c, "clean_minimal.tex", "text/plain")
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-# ---------------------------------------------------------------------------
-# 6. issues_tex.tex produces at least one source finding
-# ---------------------------------------------------------------------------
-
-
-def test_issues_tex_produces_source_finding(client: tuple[TestClient, Any]) -> None:
-    """issues_tex.tex must trigger at least one P001–P010 source finding."""
+def test_issues_tex_upload_rejected(client: tuple[TestClient, Any]) -> None:
+    """issues_tex.tex is rejected by the web upload form (PDF-only)."""
     c, _ = client
     resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    page = c.get(f"/audits/{job_id}")
-    assert page.status_code == 200
-
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time for JSON download")
-    data = json_resp.json()
-    findings = data.get("findings", [])
-    rule_ids = {f["rule_id"] for f in findings}
-    assert len(findings) > 0, "Expected at least one finding from issues_tex.tex"
-    # Should include P001 (\vspace), P002 (duplicate label), P004 (dangling ref), P005 (no caption)
-    source_rules = rule_ids & {"P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008"}
-    assert source_rules, (
-        f"Expected at least one P001–P010 finding from issues_tex.tex; got rule IDs: {rule_ids}"
-    )
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
 
 
-def test_issues_tex_triggers_vspace_finding(client: tuple[TestClient, Any]) -> None:
-    r"""issues_tex.tex contains \vspace{1cm} — must produce a P001 finding."""
-    c, _ = client
-    resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    c.get(f"/audits/{job_id}")  # trigger completion
-
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    rule_ids = {f["rule_id"] for f in data.get("findings", [])}
-    assert "P001" in rule_ids, f"Expected P001 from \\vspace in issues_tex.tex; got {rule_ids}"
-
-
-# ---------------------------------------------------------------------------
-# 7. demo_project.zip upload succeeds, detects main.tex, produces source report
-# ---------------------------------------------------------------------------
-
-
-def test_demo_project_zip_upload_succeeds(client: tuple[TestClient, Any]) -> None:
-    """demo_project.zip extracts safely, detects main.tex, and produces a source report."""
-    c, _ = client
-    resp = _upload_file(c, "demo_project.zip", "application/zip", follow_redirects=True)
-    assert resp.status_code == 200
-    body = resp.content
-    assert (
-        b"TeX source audit" in body
-        or b"P001" in body
-        or b"source" in body.lower()
-        or b"Location" in body
-    )
-
-
-def test_demo_project_zip_creates_job_redirect(client: tuple[TestClient, Any]) -> None:
-    """demo_project.zip upload returns 303 redirect to a job page."""
-    c, _ = client
-    resp = _upload_file(c, "demo_project.zip", "application/zip")
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-def test_demo_project_zip_json_audit_type_is_tex(client: tuple[TestClient, Any]) -> None:
-    """demo_project.zip job JSON download has audit_type == 'tex'."""
+def test_demo_project_zip_upload_rejected(client: tuple[TestClient, Any]) -> None:
+    """demo_project.zip is rejected by the web upload form (PDF-only)."""
     c, _ = client
     resp = _upload_file(c, "demo_project.zip", "application/zip", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    c.get(f"/audits/{job_id}")  # trigger completion
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    assert data["metadata"]["audit_type"] == "tex"
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -310,29 +227,6 @@ def test_demo_pdf_json_download_works(client: tuple[TestClient, Any]) -> None:
     assert "findings" in data
     assert "metadata" in data
     assert data["metadata"]["audit_type"] == "pdf"
-
-
-# ---------------------------------------------------------------------------
-# 9. JSON download works for clean_minimal.tex
-# ---------------------------------------------------------------------------
-
-
-def test_demo_tex_json_download_works(client: tuple[TestClient, Any]) -> None:
-    """JSON download for a clean_minimal.tex job returns valid JSON with expected keys."""
-    c, _ = client
-    resp = _upload_file(c, "clean_minimal.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    c.get(f"/audits/{job_id}")  # trigger completion
-
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    assert json_resp.headers["content-type"].startswith("application/json")
-    data = json_resp.json()
-    assert "findings" in data
-    assert "metadata" in data
-    assert data["metadata"]["audit_type"] == "tex"
 
 
 # ---------------------------------------------------------------------------
@@ -371,105 +265,6 @@ def test_demo_pdf_json_no_full_path(client: tuple[TestClient, Any]) -> None:
     assert str(runtime_root) not in json_resp.text, (
         "Full server path leaked into PDF JSON download"
     )
-
-
-# ---------------------------------------------------------------------------
-# 11. Source reports show basename:line location labels (TeX)
-# ---------------------------------------------------------------------------
-
-
-def test_demo_tex_basename_line_in_render(client: tuple[TestClient, Any]) -> None:
-    """Source-audit results page for issues_tex.tex must show basename:line locations."""
-    c, _ = client
-    resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    page = c.get(f"/audits/{job_id}")
-    assert page.status_code == 200
-
-    body_text = page.content.decode("utf-8", errors="replace")
-    # There should be at least one "filename:N" location label in the rendered page.
-    # The web app strips absolute paths to basenames, e.g. "upload.tex:5".
-    import re
-
-    has_location = bool(re.search(r"\w+\.tex:\d+", body_text))
-    # If the page hasn't rendered findings yet, skip rather than fail
-    if b"Processing" in page.content:
-        pytest.skip("job still processing")
-    assert has_location, (
-        "Expected basename:line location labels in source audit results page"
-    )
-
-
-def test_demo_tex_json_basename_path_only(client: tuple[TestClient, Any]) -> None:
-    """JSON download for issues_tex.tex must use basename-only file paths."""
-    c, _ = client
-    resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    c.get(f"/audits/{job_id}")
-
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
-    serialized = json.dumps(data)
-    assert str(runtime_root) not in serialized, (
-        "Absolute server path leaked into TeX JSON download"
-    )
-    # input_file_path in metadata should be basename only
-    assert "/" not in data["metadata"].get("input_file_path", "upload.tex")
-
-
-# ---------------------------------------------------------------------------
-# 12. issues_tex.tex — no private label/ref names in JSON after sanitization
-# ---------------------------------------------------------------------------
-
-
-def test_issues_tex_json_no_label_detail_key(client: tuple[TestClient, Any]) -> None:
-    """Web JSON for issues_tex.tex must not expose raw label names in details."""
-    c, _ = client
-    resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    c.get(f"/audits/{job_id}")
-
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    for finding in data.get("findings", []):
-        details = finding.get("details", {})
-        assert "label" not in details, (
-            f"Private 'label' key found in web JSON details for finding {finding['rule_id']}"
-        )
-        assert "ref" not in details, (
-            f"Private 'ref' key found in web JSON details for finding {finding['rule_id']}"
-        )
-
-
-def test_issues_tex_web_json_preserves_finding_count(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Sanitization must not remove any findings — count must be preserved."""
-    c, _ = client
-    resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
-    assert resp.status_code == 303
-    job_id = _job_id_from_redirect(resp)
-    c.get(f"/audits/{job_id}")
-
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    total = data["metadata"].get("total_findings", 0)
-    findings = data.get("findings", [])
-    assert total == len(findings), (
-        f"Sanitization changed finding count: metadata says {total}, "
-        f"but findings list has {len(findings)}"
-    )
-    assert total > 0, "Expected at least one finding from issues_tex.tex"
 
 
 # ---------------------------------------------------------------------------

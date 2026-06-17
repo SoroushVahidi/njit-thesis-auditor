@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -55,9 +56,9 @@ def test_index_contains_file_input(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert b'type="file"' in resp.content
-    assert b".pdf" in resp.content
-    assert b".tex" in resp.content
-    assert b".zip" in resp.content
+    assert b'accept=".pdf"' in resp.content
+    assert b"TeX" not in resp.content
+    assert b".zip" not in resp.content
 
 
 def test_index_contains_drag_drop_upload_zone_markup(
@@ -67,7 +68,7 @@ def test_index_contains_drag_drop_upload_zone_markup(
     resp = c.get("/")
     assert resp.status_code == 200
     assert b'id="upload-drop-zone"' in resp.content
-    assert b'Drop a PDF, TeX, or ZIP file here' in resp.content
+    assert b'Drop a PDF file here' in resp.content
     assert b'role="button"' in resp.content
     assert b'tabindex="0"' in resp.content
     assert b'aria-controls="file"' in resp.content
@@ -88,18 +89,18 @@ def test_index_contains_drag_drop_progressive_enhancement_script(
     assert b"dragleave" in resp.content
     assert b"drop" in resp.content
     assert b"Drop one file at a time" in resp.content
-    assert b"Unsupported file:" in resp.content
+    assert b"Only PDF files are supported in the web interface" in resp.content
     assert b"Submit when ready or choose another file" in resp.content
 
 
-def test_index_advertises_pdf_tex_zip_support(client: tuple[TestClient, Any]) -> None:
+def test_index_advertises_pdf_only_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
-    assert b"P011" in resp.content
-    assert b"P001" in resp.content
-    assert b"ZIP" in resp.content or b"zip" in resp.content.lower()
-    assert b"no LaTeX compilation" in resp.content or b"no compilation" in resp.content.lower()
+    assert b"formatting issues automatically" in resp.content
+    assert b"TeX" not in resp.content
+    assert b".zip" not in resp.content
+    assert b"source audit" not in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +113,9 @@ def test_upload_no_file_rejected(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code in (400, 422)
 
 
+_PDF_ONLY_ERROR = b"Only PDF files are supported in the web interface. Please upload a PDF file."
+
+
 def test_upload_non_pdf_extension_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post(
@@ -120,7 +124,35 @@ def test_upload_non_pdf_extension_rejected(client: tuple[TestClient, Any]) -> No
         follow_redirects=False,
     )
     assert resp.status_code == 400
-    assert b"Supported uploads" in resp.content
+    assert _PDF_ONLY_ERROR in resp.content
+
+
+def test_upload_tex_extension_rejected(client: tuple[TestClient, Any]) -> None:
+    c, _ = client
+    resp = c.post(
+        "/audits",
+        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
+
+
+def test_upload_zip_extension_rejected(client: tuple[TestClient, Any]) -> None:
+    import zipfile
+
+    c, _ = client
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as zf:
+        zf.writestr("main.tex", _MINIMAL_TEX)
+    zbuf.seek(0)
+    resp = c.post(
+        "/audits",
+        files={"file": ("project.zip", zbuf, "application/zip")},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 400
+    assert _PDF_ONLY_ERROR in resp.content
 
 
 def test_upload_wrong_magic_bytes_rejected(client: tuple[TestClient, Any]) -> None:
@@ -170,116 +202,6 @@ def _fake_dispatch(pdf_path: Path, **kwargs: Any) -> Any:
         upload_kind=UploadKind.PDF,
         audit_type="pdf",
         findings=_fake_audit(pdf_path),
-    )
-
-
-def test_upload_tex_creates_job_and_redirects(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "_run_audit_task", lambda job_id: None):
-        resp = c.post(
-            "/audits",
-            files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-            follow_redirects=False,
-        )
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-def test_upload_tex_completes_with_source_report(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    c, wa = client
-    resp = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert b"TeX source audit" in resp.content or b"P001" in resp.content
-    assert b"Location" in resp.content
-    assert b"Most common issues" not in resp.content
-    assert b"fig:secret" not in resp.content
-
-
-def test_tex_upload_json_and_markdown_downloads(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    post = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    page = c.get(f"/audits/{job_id}")
-    assert page.status_code == 200
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    md_resp = c.get(f"/audits/{job_id}/download/markdown")
-    if json_resp.status_code == 200:
-        data = json_resp.json()
-        assert data["metadata"]["audit_type"] == "tex"
-        assert "findings" in data
-    if md_resp.status_code == 200:
-        assert b"Source Audit Report" in md_resp.content
-
-
-def test_zip_upload_json_and_markdown_downloads(client: tuple[TestClient, Any]) -> None:
-    import zipfile
-
-    c, _ = client
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("main.tex", _MINIMAL_TEX)
-    zbuf.seek(0)
-    post = c.post(
-        "/audits",
-        files={"file": ("project.zip", zbuf, "application/zip")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    c.get(f"/audits/{job_id}")
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code == 200:
-        assert json_resp.json()["metadata"]["audit_type"] == "tex"
-
-
-def test_upload_zip_completes_with_source_report(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    import zipfile
-
-    c, _ = client
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("main.tex", _MINIMAL_TEX)
-    zbuf.seek(0)
-    resp = c.post(
-        "/audits",
-        files={"file": ("project.zip", zbuf, "application/zip")},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert b"TeX source audit" in resp.content or b"P001" in resp.content
-    assert b"Location" in resp.content
-
-
-def test_unsafe_zip_upload_shows_safe_error(client: tuple[TestClient, Any]) -> None:
-    import zipfile
-
-    c, _ = client
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("../evil.tex", _MINIMAL_TEX)
-    zbuf.seek(0)
-    resp = c.post(
-        "/audits",
-        files={"file": ("bad.zip", zbuf, "application/zip")},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert b"Traceback" not in resp.content
-    assert (
-        b"could not complete" in resp.content.lower()
-        or b"Unsafe ZIP" in resp.content
-        or b"unsafe" in resp.content.lower()
     )
 
 
@@ -446,6 +368,7 @@ def _inject_complete_job_with_findings(
                 "source_file": fv.source_file,
                 "source_line": fv.source_line,
                 "location_label": fv.location_label,
+                "bbox": fv.bbox,
             }
             for fv in view.findings
         ],
@@ -462,6 +385,66 @@ def _inject_complete_job_with_findings(
     )
     wa._set_job(job)
     return job_id
+
+
+_RAW_LATEX_WEB_PATTERNS = (
+    b"\\doublespacing",
+    b"\\usepackage",
+    b"mathptmx",
+    b"newtxtext",
+    b"newtxmath",
+    b"\\setstretch",
+    b"\\onehalfspacing",
+)
+
+
+def _assert_no_raw_latex_web_syntax(content: bytes) -> None:
+    for pattern in _RAW_LATEX_WEB_PATTERNS:
+        assert pattern not in content
+
+
+def _p023_p026_p028_findings_with_raw_latex_suggested_fix() -> list[Any]:
+    """P023/P026/P028 findings whose suggested_fix is intentionally raw LaTeX.
+
+    Detector-level suggested_fix strings for these rules were already cleaned up, so
+    this constructs synthetic findings that bypass the detectors and inject raw LaTeX
+    syntax directly into details["suggested_fix"], to verify the web rendering layer
+    itself never surfaces that syntax (defense in depth, not just clean producers).
+    """
+    from njit_auditor.models import AuditFinding, Severity
+
+    return [
+        AuditFinding(
+            rule_id="P023",
+            severity=Severity.WARNING,
+            page=12,
+            message="Body text spacing may not be double-spaced.",
+            details={
+                "issue_type": "body_spacing_issue",
+                "suggested_fix": "Use \\doublespacing in the LaTeX source.",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=14,
+            message="Body text may not use the expected font.",
+            details={
+                "issue_type": "possible_body_font_family_issue",
+                "suggested_fix": "Use \\usepackage{mathptmx} or \\usepackage{newtxtext,newtxmath}.",
+            },
+        ),
+        AuditFinding(
+            rule_id="P028",
+            severity=Severity.WARNING,
+            page=3,
+            message="Front-matter page numbering style may need review.",
+            details={
+                "issue_type": "frontmatter_page_number_style_issue",
+                "suggested_fix": "Adjust LaTeX page numbering commands.",
+            },
+        ),
+    ]
 
 
 def test_results_page_shows_findings(client: tuple[TestClient, Any], tmp_path: Path) -> None:
@@ -482,15 +465,15 @@ def test_index_states_privacy_safe_local_processing(client: tuple[TestClient, An
     assert b"not stored permanently" in resp.content.lower()
 
 
-def test_index_states_pdf_tex_zip_web_support(client: tuple[TestClient, Any]) -> None:
+def test_index_states_pdf_only_web_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
     assert b"Supported inputs" in resp.content
     assert b"PDF" in resp.content
-    assert b"TeX source" in resp.content or b"TeX" in resp.content
     assert b"Supported" in resp.content
-    assert b"source only" in resp.content.lower() or b"not compiled" in resp.content.lower()
+    assert b"TeX" not in resp.content
+    assert b".zip" not in resp.content
 
 
 def test_index_lists_what_you_get_deliverables(client: tuple[TestClient, Any]) -> None:
@@ -509,8 +492,7 @@ def test_results_page_shows_summary_cards(client: tuple[TestClient, Any], tmp_pa
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Total findings" in resp.content
-    assert b"Highest severity" in resp.content
+    assert b"Problems found" in resp.content
     assert b"Pages affected" in resp.content
     assert b"Rules flagged" in resp.content
 
@@ -553,7 +535,7 @@ def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Summary cards and severity/category totals remain based on raw findings."
+        b"Summary numbers reflect every raw finding."
         in resp.content
     )
     assert b'id="grouped-problems-panel"' in resp.content
@@ -604,6 +586,27 @@ def test_results_page_shows_triage_panels(client: tuple[TestClient, Any], tmp_pa
     assert resp.status_code == 200
     assert b"Most common issues" in resp.content
     assert b"Margin" in resp.content or b"P011" in resp.content
+
+
+def test_results_page_category_chips_link_to_problem_pages(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert f'/audits/{job_id}/problems/category/margin-or-overflow'.encode() in resp.content
+
+
+def test_results_page_triage_cards_link_to_rule_problem_pages(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert f'/audits/{job_id}/problems/rule/P011'.encode() in resp.content
+    assert b"Examples of this problem" in resp.content
 
 
 def test_results_page_renders_polished_comments(
@@ -662,6 +665,52 @@ def test_results_polished_comments_exclude_private_sample_text(
     assert forbidden not in resp.content
 
 
+def test_results_page_does_not_leak_raw_latex_in_comments_or_fixes(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Main job results page must never render raw LaTeX command/package syntax.
+
+    P023/P026/P028 findings here carry deliberately raw-LaTeX suggested_fix text
+    (bypassing the already-cleaned detectors) to verify the rendering layer itself
+    sanitizes suggested_fix, not just the known producers.
+    """
+    c, wa = client
+    findings = _p023_p026_p028_findings_with_raw_latex_suggested_fix()
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    assert b"Polished comment" in resp.content
+    assert b"Review needed" in resp.content
+    assert b"Double" in resp.content
+    assert b"Times New Roman" in resp.content
+    assert b"Roman numerals" in resp.content
+    _assert_no_raw_latex_web_syntax(resp.content)
+
+
+def test_problem_group_pages_do_not_leak_raw_latex_in_comments_or_fixes(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Category/rule problem pages must never render raw LaTeX command/package syntax.
+
+    The original leak was visible on these pages too (they render the same
+    suggested_fix/polished_comment fields as the main job page).
+    """
+    c, wa = client
+    findings = _p023_p026_p028_findings_with_raw_latex_suggested_fix()
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    for rule_id in ("P023", "P026", "P028"):
+        resp = c.get(f"/audits/{job_id}/problems/rule/{rule_id}")
+        assert resp.status_code == 200
+        _assert_no_raw_latex_web_syntax(resp.content)
+
+
 def test_failed_job_shows_safe_error_no_stack_trace(
     client: tuple[TestClient, Any],
 ) -> None:
@@ -680,6 +729,193 @@ def test_failed_job_shows_safe_error_no_stack_trace(
     assert resp.status_code == 200
     assert b"Traceback" not in resp.content
     assert b"valid PDF" in resp.content or b"could not complete" in resp.content.lower()
+
+
+def test_category_problem_page_route_returns_200(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=5,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=9,
+            message="Page number out of sequence.",
+            details={"issue_type": "page_number_sequence_error", "observed": "8"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/category/margin-or-overflow")
+
+    assert resp.status_code == 200
+    assert b"Examples of this problem" in resp.content
+    assert b"Margins / overflow" in resp.content
+    assert f"/audits/{job_id}/pdf#page=2".encode() in resp.content
+
+
+def test_rule_problem_page_route_returns_200(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=7,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+
+    assert resp.status_code == 200
+    assert b"Pages to review" in resp.content
+    assert f"/audits/{job_id}/pdf#page=7".encode() in resp.content
+    assert b"Back to all results" in resp.content
+
+
+def test_problem_group_page_page_less_finding_has_no_generic_pdf_link(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A finding with no page and no highlight must not offer a destination-less
+    "Open PDF" button — see docs/planning/problem_page_actionability_audit.md.
+    The explanation block is the actionable content instead."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P038",
+            severity=Severity.WARNING,
+            page=None,
+            message="Required front-matter heading 'APPROVAL PAGE' not detected.",
+            details={
+                "issue_type": "required_heading_missing",
+                "section_key": "approval_page",
+                "expected_heading": "APPROVAL PAGE",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P038")
+
+    assert resp.status_code == 200
+    assert b"Document-wide overview" in resp.content
+    assert f'href="/audits/{job_id}/pdf"'.encode() not in resp.content
+    assert b"Open PDF" not in resp.content
+    assert b"explanation above" in resp.content
+
+
+def test_problem_group_pages_only_show_matching_findings(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=8,
+            message="Page number out of sequence.",
+            details={"issue_type": "page_number_sequence_error", "observed": "7"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    category_resp = c.get(f"/audits/{job_id}/problems/category/page-numbering")
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+
+    assert category_resp.status_code == 200
+    assert b"P013" in category_resp.content
+    assert b"P011" not in category_resp.content
+    assert rule_resp.status_code == 200
+    assert b"P011" in rule_resp.content
+    assert b"P013" not in rule_resp.content
+
+
+def test_unknown_problem_group_routes_return_404(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+
+    bad_category = c.get(f"/audits/{job_id}/problems/category/not-a-real-category")
+    bad_rule = c.get(f"/audits/{job_id}/problems/rule/P999")
+
+    assert bad_category.status_code == 404
+    assert bad_rule.status_code == 404
+
+
+def test_missing_job_problem_group_routes_return_404(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+
+    resp = c.get("/audits/no-such-job/problems/category/page-numbering")
+
+    assert resp.status_code == 404
+    assert b"not found" in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -1660,220 +1896,6 @@ def test_format_ttl_multiple_hours() -> None:
     assert wa._format_ttl(7200) == "about 2 hours"
 
 
-# ---------------------------------------------------------------------------
-# Web export path redaction
-# ---------------------------------------------------------------------------
-
-
-def test_tex_upload_json_redacts_absolute_paths(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    post = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    c.get(f"/audits/{job_id}")
-    json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    data = json_resp.json()
-    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
-    serialized = json.dumps(data)
-    assert str(runtime_root) not in serialized
-    assert data["metadata"]["input_file_path"] == "upload.tex"
-    for finding in data.get("findings", []):
-        details = finding.get("details", {})
-        file_path = details.get("file", "")
-        if file_path:
-            assert "/" not in file_path
-            assert "\\" not in file_path
-
-
-def test_tex_upload_markdown_preview_redacts_absolute_paths(
-    client: tuple[TestClient, Any],
-) -> None:
-    c, wa = client
-    post = c.post(
-        "/audits",
-        files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
-    )
-    job_id = post.headers["location"].split("/audits/")[1]
-    page = c.get(f"/audits/{job_id}")
-    if page.status_code != 200:
-        pytest.skip("audit did not complete in time")
-    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
-    job = wa._get_job(job_id)
-    if job is None or not job.md_preview:
-        pytest.skip("markdown preview unavailable")
-    assert str(runtime_root) not in job.md_preview
-    assert "upload.tex" in job.md_preview
-
-
-# ---------------------------------------------------------------------------
-# Web export source-message privacy sanitization (#215)
-# ---------------------------------------------------------------------------
-
-# Synthetic TeX content that will produce findings with private label/ref names.
-# The label "fig:test_private_label" and ref "fig:test_private_ref" must NOT
-# appear in any web-generated JSON or Markdown report.
-_PRIVATE_LABEL_TEX = (
-    b"\\documentclass{report}\n"
-    b"\\begin{document}\n"
-    b"\\label{fig:test_private_label}\n"
-    b"\\ref{fig:test_private_ref}\n"
-    b"\\begin{figure}\n"
-    b"\\caption{A figure.}\n"
-    b"\\end{figure}\n"
-    b"\\begin{table}\n"
-    b"\\caption{A table}\n"
-    b"\\end{table}\n"
-    b"\\end{document}\n"
-)
-
-_PRIVATE_LABEL = "fig:test_private_label"
-_PRIVATE_REF = "fig:test_private_ref"
-
-
-def _submit_tex_and_get_job_id(
-    c: TestClient,
-    tex_content: bytes = _PRIVATE_LABEL_TEX,
-    filename: str = "main.tex",
-) -> str:
-    """Upload synthetic TeX, follow redirect, return job_id."""
-    post = c.post(
-        "/audits",
-        files={"file": (filename, io.BytesIO(tex_content), "text/plain")},
-        follow_redirects=False,
-    )
-    assert post.status_code == 303, f"Expected redirect, got {post.status_code}"
-    return post.headers["location"].split("/audits/")[1]
-
-
-def test_source_web_json_does_not_contain_private_label(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web JSON download for source audit must not contain synthetic private label name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")  # wait for completion
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    serialized = resp.text
-    assert _PRIVATE_LABEL not in serialized, (
-        f"Private label '{_PRIVATE_LABEL}' found in web JSON download"
-    )
-
-
-def test_source_web_json_does_not_contain_private_ref(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web JSON download for source audit must not contain synthetic private ref name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    serialized = resp.text
-    assert _PRIVATE_REF not in serialized, (
-        f"Private ref '{_PRIVATE_REF}' found in web JSON download"
-    )
-
-
-def test_source_web_markdown_does_not_contain_private_label(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web Markdown download for source audit must not contain synthetic private label name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/markdown")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    assert _PRIVATE_LABEL not in resp.text, (
-        f"Private label '{_PRIVATE_LABEL}' found in web Markdown download"
-    )
-
-
-def test_source_web_markdown_does_not_contain_private_ref(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Web Markdown download for source audit must not contain synthetic private ref name."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/markdown")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    assert _PRIVATE_REF not in resp.text, (
-        f"Private ref '{_PRIVATE_REF}' found in web Markdown download"
-    )
-
-
-def test_source_web_markdown_preview_does_not_contain_private_labels(
-    client: tuple[TestClient, Any],
-) -> None:
-    """In-page Markdown preview must not contain synthetic private label/ref names."""
-    c, wa = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    job = wa._get_job(job_id)
-    if job is None or not job.md_preview:
-        pytest.skip("markdown preview unavailable")
-    assert _PRIVATE_LABEL not in job.md_preview, (
-        f"Private label '{_PRIVATE_LABEL}' found in in-page Markdown preview"
-    )
-    assert _PRIVATE_REF not in job.md_preview, (
-        f"Private ref '{_PRIVATE_REF}' found in in-page Markdown preview"
-    )
-
-
-def test_source_web_json_finding_counts_unchanged_after_sanitization(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Sanitization must preserve finding counts — no findings removed."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    data = resp.json()
-    meta = data.get("metadata", {})
-    total = meta.get("total_findings", 0)
-    findings = data.get("findings", [])
-    # Total in metadata must match actual findings list length
-    assert total == len(findings), (
-        f"total_findings={total} != len(findings)={len(findings)} after sanitization"
-    )
-    # Must have at least some findings from the synthetic TeX (P002/P003/P004 etc.)
-    assert total > 0, "Expected at least one finding from synthetic TeX with dangling refs"
-
-
-def test_source_web_json_preserves_structural_fields(
-    client: tuple[TestClient, Any],
-) -> None:
-    """Rule IDs, severity, category, source_file, source_line must survive sanitization."""
-    c, _ = client
-    job_id = _submit_tex_and_get_job_id(c)
-    c.get(f"/audits/{job_id}")
-    resp = c.get(f"/audits/{job_id}/download/json")
-    if resp.status_code != 200:
-        pytest.skip("audit did not complete")
-    data = resp.json()
-    for finding in data.get("findings", []):
-        assert "rule_id" in finding, "rule_id missing from sanitized finding"
-        assert "severity" in finding, "severity missing from sanitized finding"
-        assert "message" in finding, "message missing from sanitized finding"
-        # source_file and source_line are set for tex audits
-        # (may be empty string for PASS findings)
-        assert "source_file" in finding, "source_file missing from sanitized finding"
-        assert "source_line" in finding, "source_line missing from sanitized finding"
-
-
 def _inject_complete_pdf_job(
     wa: Any,
     tmp_path: Path,
@@ -2142,27 +2164,28 @@ def test_results_page_shows_jump_links(
     assert b"#section-findings" in resp.content
 
 
-def test_results_page_review_signals_label(
+def test_results_page_review_order_uses_simple_priority_labels(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Summary card must say 'Warnings / Errors'."""
+    """Recommended review order must use plain-language priority labels, not severity jargon."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Warnings / Errors" in resp.content
-    assert b"Review signals / Errors" not in resp.content
+    assert b"Other items to check" in resp.content
+    assert b"Warnings / Errors" not in resp.content
 
 
-def test_results_page_heuristic_note_in_status_banner(
+def test_results_page_verify_wording_in_status_banner(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Status banner must include heuristic / verify wording."""
+    """Status banner must include automated / verify wording, without the word "heuristic"."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"Automated review signals" in resp.content
+    assert b"heuristic" not in resp.content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -2172,14 +2195,20 @@ def test_results_page_heuristic_note_in_status_banner(
 def test_pdf_route_returns_pdf_inline(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """GET /audits/{job_id}/pdf returns the PDF with correct headers for a complete PDF job."""
+    """GET /audits/{job_id}/pdf returns the PDF with correct headers for a complete PDF job.
+
+    Desktop browsers must not be instructed to download the PDF: the response must be
+    inline (never attachment) so it opens directly in a new tab.
+    """
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}/pdf")
     assert resp.status_code == 200
-    assert "application/pdf" in resp.headers["content-type"]
+    assert resp.headers["content-type"].startswith("application/pdf")
     assert resp.content[:4] == b"%PDF"
-    assert resp.headers.get("content-disposition", "").lower() == "inline"
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "attachment" not in disposition
 
 
 def test_pdf_route_unknown_job_returns_404(client: tuple[TestClient, Any]) -> None:
@@ -2246,34 +2275,6 @@ def test_results_page_open_pdf_button_shown_for_pdf_audit(
     assert f"/audits/{job_id}/pdf".encode() in resp.content
 
 
-def test_results_page_open_pdf_button_hidden_for_tex_audit(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    """Results page for a TeX/source audit must NOT include the Open PDF button."""
-    import secrets
-    from datetime import datetime, timezone
-
-    c, wa = client
-    job_id = secrets.token_urlsafe(16)
-    job = wa.JobState(
-        job_id=job_id,
-        state="complete",
-        created_at=datetime.now(timezone.utc).isoformat(),
-        file_name="main.tex",
-        audit_type="tex",
-        finding_count=0,
-        findings=[],
-        grouped_summary=[],
-        report_view={},
-        md_preview="",
-    )
-    wa._set_job(job)
-    resp = c.get(f"/audits/{job_id}")
-    assert resp.status_code == 200
-    assert b"open-pdf-btn" not in resp.content
-    assert f"/audits/{job_id}/pdf".encode() not in resp.content
-
-
 def test_results_page_page_links_present_for_findings_with_page(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -2285,6 +2286,387 @@ def test_results_page_page_links_present_for_findings_with_page(
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" in body
     assert "page-link" in body
+
+
+# ---------------------------------------------------------------------------
+# Highlighted PDF endpoint (/audits/{job_id}/pdf/highlighted) and new-tab links
+# ---------------------------------------------------------------------------
+
+
+def _make_real_pdf(path: Path, page_count: int = 5) -> None:
+    """Write a real, fitz-openable multi-page PDF (unlike the minimal stub bytes)."""
+    import fitz
+
+    doc = fitz.open()
+    for _ in range(page_count):
+        doc.new_page(width=612, height=792)
+    doc.save(path)
+    doc.close()
+
+
+def _p012_annotation_finding_with_bbox(page: int = 3) -> Any:
+    """A P012 finding carrying a parseable rect bbox, as written by the real detector."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    return AuditFinding(
+        rule_id="P012",
+        severity=Severity.WARNING,
+        page=page,
+        message="PDF annotation/comment detected (Text).",
+        details={
+            "issue_type": "pdf_annotation_detected",
+            "annotation_type": "Text",
+            "rect": "100.0,200.0,300.0,260.0",
+            "suggested_fix": "Resolve/remove reviewer comments before final submission.",
+            "triage_tier": "informational",
+        },
+    )
+
+
+def test_results_page_pdf_links_use_new_tab_and_noreferrer(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Every PDF link on the main results page must open in a new tab without referrer leak."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    assert 'target="_blank"' in body
+    assert 'rel="noopener noreferrer"' in body
+    assert 'rel="noopener"' not in body
+
+
+def test_category_and_rule_problem_pages_pdf_links_use_new_tab_and_noreferrer(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Category/rule problem pages must open PDF links in a new tab without referrer leak."""
+    c, wa = client
+    from njit_auditor.models import AuditFinding, Severity
+
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    cat_resp = c.get(f"/audits/{job_id}/problems/category/margin-or-overflow")
+    assert cat_resp.status_code == 200
+    cat_body = cat_resp.text
+    assert 'target="_blank"' in cat_body
+    assert 'rel="noopener noreferrer"' in cat_body
+    assert 'rel="noopener"' not in cat_body
+
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+    assert rule_resp.status_code == 200
+    rule_body = rule_resp.text
+    assert 'target="_blank"' in rule_body
+    assert 'rel="noopener noreferrer"' in rule_body
+    assert 'rel="noopener"' not in rule_body
+
+
+def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The highlighted-PDF endpoint must serve a real, inline PDF when bbox data exists."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    pdf_path = jdir / "upload.pdf"
+    _make_real_pdf(pdf_path, page_count=5)
+    original_bytes = pdf_path.read_bytes()
+
+    resp = c.get(
+        f"/audits/{job_id}/pdf/highlighted",
+        params={"page": 3, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "attachment" not in disposition
+    assert resp.content[:4] == b"%PDF"
+
+    # The original uploaded PDF must never be modified by highlight generation.
+    assert pdf_path.read_bytes() == original_bytes
+
+
+def test_highlighted_pdf_endpoint_falls_back_without_bbox(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The highlighted-PDF endpoint must fall back to the plain PDF when no bbox matches."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+
+    resp = c.get(
+        f"/audits/{job_id}/pdf/highlighted",
+        params={"page": 1, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "attachment" not in disposition
+
+
+@pytest.mark.parametrize("page", ["0", "-1", "99999"])
+def test_highlighted_pdf_endpoint_invalid_page_number_never_500s(
+    client: tuple[TestClient, Any], tmp_path: Path, page: str
+) -> None:
+    """Out-of-range page numbers must fall back safely, never 500."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": page, "rule_id": "P012"})
+    assert resp.status_code != 500
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+
+
+def test_highlighted_pdf_endpoint_non_numeric_page_never_500s(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A non-numeric page query value must be rejected safely, never 500."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+
+    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": "abc"})
+    assert resp.status_code != 500
+    assert resp.status_code in (400, 404, 422)
+
+
+def test_highlighted_pdf_endpoint_degenerate_bbox_falls_back_without_500(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A finding with a degenerate (zero-area/inverted/NaN) bbox must fall back, not 500.
+
+    Regression test: PyMuPDF's annotation reader does not validate the rect stored in an
+    uploaded PDF, so a real document can produce a degenerate rect string here. Previously
+    this reached fitz.Rect/add_rect_annot unfiltered and raised ValueError("rect is infinite
+    or empty"), which FastAPI surfaced as a 500.
+    """
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=2,
+            message="PDF annotation/comment detected (Text).",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Text",
+                "rect": "100.0,200.0,100.0,200.0",
+                "suggested_fix": "Resolve/remove reviewer comments before final submission.",
+                "triage_tier": "informational",
+            },
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 2, "rule_id": "P012"})
+    assert resp.status_code != 500
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "attachment" not in disposition
+
+
+def test_result_and_problem_pages_pdf_links_never_500(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Every PDF link rendered on the result/category/rule pages must resolve safely."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    pages = [
+        f"/audits/{job_id}",
+        f"/audits/{job_id}/problems/category/annotations",
+        f"/audits/{job_id}/problems/rule/P012",
+    ]
+    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    checked_any = False
+    for page_url in pages:
+        resp = c.get(page_url)
+        assert resp.status_code == 200
+        for link in pdf_link_re.findall(resp.text):
+            link_resp = c.get(link)
+            assert link_resp.status_code != 500, f"{link} (from {page_url}) returned 500"
+            checked_any = True
+    assert checked_any
+
+
+def test_problem_group_page_links_to_highlighted_pdf_when_bbox_available(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A finding with bbox data must get an "Open highlighted PDF page" link; others fall back."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P012")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Open highlighted PDF page" in body
+    assert f"/audits/{job_id}/pdf/highlighted?" in body
+    assert 'rel="noopener noreferrer"' in body
+
+
+def test_problem_group_page_falls_back_honestly_without_bbox(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A finding without bbox data must still link to the plain page-specific PDF URL."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P011")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Open highlighted PDF page" not in body
+    assert f"/audits/{job_id}/pdf#page=" in body
+
+
+def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]) -> None:
+    """Every Jinja global referenced by job.html/problem_group.html must be registered.
+
+    Regression test: a stale, long-running server process was previously caught
+    serving an up-to-date job.html (Jinja auto-reloads templates from disk) while
+    its in-memory Jinja environment lacked ``pdf_finding_url`` because that global
+    registration line did not exist yet when the process imported web_app.py --
+    raising ``jinja2.exceptions.UndefinedError: 'pdf_finding_url' is undefined``
+    on every results-page render. This only catches a *missing registration*, not
+    process staleness itself (every test run re-imports fresh code), but it
+    guards against ever shipping a template that calls an unregistered global.
+    """
+    _, wa = client
+    globals_ = wa._templates.env.globals
+    assert callable(globals_.get("pdf_finding_url"))
+    assert callable(globals_.get("pdf_finding_is_highlighted"))
+
+    template_dir = Path(wa.__file__).parent / "templates"
+    for name in ("job.html", "problem_group.html"):
+        text = (template_dir / name).read_text(encoding="utf-8")
+        for global_name in ("pdf_finding_url", "pdf_finding_is_highlighted"):
+            if global_name in text:
+                assert global_name in globals_, (
+                    f"{name} calls {global_name}() but it is unregistered"
+                )
+
+
+def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
+    tmp_path: Path,
+) -> None:
+    """A real upload through the actual audit pipeline must never 500 on its PDF links.
+
+    Uses TestClient(raise_server_exceptions=True) with a real fitz-generated PDF
+    carrying a real annotation (the same finding type -- a P012 annotation -- that
+    triggered the live degenerate-bbox 500) run through the unmocked
+    run_audit_for_uploaded_file pipeline, end to end, exactly as a student's
+    browser session would.
+    """
+    import fitz
+
+    app, wa = _make_app(tmp_path)
+    c = TestClient(app, raise_server_exceptions=True)
+
+    pdf_path = tmp_path / "real_upload.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72, 100), "Sample dissertation text for end-to-end testing.")
+    page.add_text_annot((100, 200), "Reviewer comment")
+    doc.save(pdf_path)
+    doc.close()
+
+    with pdf_path.open("rb") as fh:
+        post = c.post(
+            "/audits",
+            files={"file": ("real_upload.pdf", fh, "application/pdf")},
+            follow_redirects=True,
+        )
+    assert post.status_code == 200
+    job_id = str(post.url).split("/audits/")[1].rstrip("/")
+
+    status = c.get(f"/audits/{job_id}/status").json()
+    assert status["state"] == "complete", status
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert "pdf_finding_url" not in resp.text
+    assert "Undefined" not in resp.text
+
+    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    links = set(pdf_link_re.findall(resp.text))
+    assert links, "expected at least one PDF link on the rendered job page"
+    for link in links:
+        link_resp = c.get(link)
+        assert link_resp.status_code == 200, f"{link} returned {link_resp.status_code}"
+        assert link_resp.headers["content-type"].startswith("application/pdf")
+
+
+def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """After clearing the runtime directory, a freshly created job still works.
+
+    Mirrors the live-deployment remediation step (``rm -rf .runtime/web_audits/*``)
+    to confirm stale on-disk state from prior jobs is never required for a new
+    job's PDF links to resolve correctly.
+    """
+    import shutil
+
+    c, wa = client
+    stale_job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[_p012_annotation_finding_with_bbox(page=1)],
+        file_name="stale.pdf", audit_type="pdf",
+    )
+    runtime_dir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
+    assert (runtime_dir / stale_job_id).exists()
+    shutil.rmtree(runtime_dir)
+    assert not runtime_dir.exists()
+
+    findings = [_p012_annotation_finding_with_bbox(page=2)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="fresh.pdf", audit_type="pdf"
+    )
+    jdir = runtime_dir / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    links = pdf_link_re.findall(resp.text)
+    assert links
+    for link in links:
+        link_resp = c.get(link)
+        assert link_resp.status_code != 500
 
 
 # ---------------------------------------------------------------------------
@@ -2361,6 +2743,22 @@ def test_get_audits_url_does_not_show_job_not_found(client: tuple[TestClient, An
     resp = c.get("/audits/url", follow_redirects=True)
     assert b"was not found" not in resp.content
     assert b"job" not in resp.content.lower() or b"job 'url'" not in resp.content.lower()
+
+
+def test_get_audits_sample_redirects_to_index(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/sample must redirect to the upload page, not fall through to the job page."""
+    c, _ = client
+    resp = c.get("/audits/sample", follow_redirects=False)
+    assert resp.status_code in (301, 302, 303, 307, 308)
+    assert resp.headers.get("location", "").rstrip("/") in ("/", "")
+
+
+def test_get_audits_sample_does_not_show_job_not_found(client: tuple[TestClient, Any]) -> None:
+    """GET /audits/sample must never show the 'Job was not found' error message."""
+    c, _ = client
+    resp = c.get("/audits/sample", follow_redirects=True)
+    assert b"was not found" not in resp.content
+    assert b"job" not in resp.content.lower() or b"job 'sample'" not in resp.content.lower()
 
 
 def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:

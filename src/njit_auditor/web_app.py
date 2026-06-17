@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -12,6 +14,7 @@ import urllib.parse
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -24,15 +27,17 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
 from njit_auditor.models import AuditFinding
+from njit_auditor.pdf_highlight import build_highlighted_pdf, is_drawable_bbox
 from njit_auditor.report_outputs import (
     build_audit_report,
+    compact_page_list,
     sanitize_report_for_web_export,
     write_markdown_report,
 )
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.upload_handling import (
-    UploadKind,
     UploadValidationError,
     sanitize_upload_filename,
     validate_upload_path,
@@ -50,6 +55,8 @@ from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
 
 _DEFAULT_RUNTIME = Path(".runtime") / "web_audits"
 _DEFAULT_JOB_TTL_SECONDS = 86400
+
+_logger = logging.getLogger(__name__)
 
 RUNTIME_DIR = Path(os.environ.get("NJIT_AUDITOR_WEB_RUNTIME_DIR", str(_DEFAULT_RUNTIME)))
 MAX_UPLOAD_MB: int = int(os.environ.get("NJIT_AUDITOR_WEB_MAX_UPLOAD_MB", "50"))
@@ -89,7 +96,7 @@ def _format_ttl(seconds: int) -> str:
 # Job store (in-memory + runtime files on disk)
 # ---------------------------------------------------------------------------
 
-_ALLOWED_WEB_EXTENSIONS = frozenset({".pdf", ".tex", ".zip"})
+_PDF_ONLY_ERROR = "Only PDF files are supported in the web interface. Please upload a PDF file."
 
 
 @dataclass
@@ -139,23 +146,9 @@ def _job_dir(job_id: str) -> Path:
     return RUNTIME_DIR / job_id
 
 
-def _stored_upload_path(jdir: Path, ext: str) -> Path:
-    """Return the on-disk path for a job upload with a known extension."""
-    return jdir / f"upload{ext}"
-
-
-def _resolve_job_upload_path(jdir: Path, file_name: str) -> Path:
-    """Locate the stored upload file for a job (PDF, TeX, or ZIP)."""
-    ext = Path(file_name).suffix.lower()
-    if ext in _ALLOWED_WEB_EXTENSIONS:
-        candidate = _stored_upload_path(jdir, ext)
-        if candidate.exists():
-            return candidate
-    for fallback_ext in (".pdf", ".tex", ".zip"):
-        candidate = _stored_upload_path(jdir, fallback_ext)
-        if candidate.exists():
-            return candidate
-    return _stored_upload_path(jdir, ".pdf")
+def _job_pdf_path(jdir: Path) -> Path:
+    """Return the on-disk path for a job's uploaded PDF."""
+    return jdir / "upload.pdf"
 
 
 def _parse_job_timestamp(value: str) -> datetime:
@@ -313,6 +306,54 @@ def _is_p_rule_id(rule_id: str) -> bool:
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
 
 # ---------------------------------------------------------------------------
+# PDF finding links (plain page-anchor vs. highlighted-PDF endpoint)
+# ---------------------------------------------------------------------------
+
+
+def _pdf_finding_is_highlighted(bbox: Any) -> bool:
+    """Return True when *bbox* looks like a usable (x0, y0, x1, y1) tuple/list."""
+    return isinstance(bbox, (list, tuple)) and len(bbox) == 4
+
+
+_templates.env.globals["pdf_finding_is_highlighted"] = _pdf_finding_is_highlighted
+
+
+def _pdf_finding_url(
+    job_id: str,
+    *,
+    page: int | None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+    bbox: Any = None,
+) -> str:
+    """Return the best PDF link for a finding.
+
+    Uses the highlighted-PDF endpoint when *bbox* coordinates are available;
+    otherwise falls back to the plain PDF opened at the right page (or with
+    no page anchor at all when no page number is known).
+    """
+    if not _pdf_finding_is_highlighted(bbox):
+        if page is not None:
+            return f"/audits/{job_id}/pdf#page={page}"
+        return f"/audits/{job_id}/pdf"
+
+    params: dict[str, str] = {}
+    if page is not None:
+        params["page"] = str(page)
+    if rule_id:
+        params["rule_id"] = rule_id
+    if issue_type:
+        params["issue_type"] = issue_type
+    if finding_index is not None:
+        params["finding_index"] = str(finding_index)
+    fragment = f"#page={page}" if page is not None else ""
+    return f"/audits/{job_id}/pdf/highlighted?{urllib.parse.urlencode(params)}{fragment}"
+
+
+_templates.env.globals["pdf_finding_url"] = _pdf_finding_url
+
+# ---------------------------------------------------------------------------
 # Category humanization
 # ---------------------------------------------------------------------------
 
@@ -327,7 +368,7 @@ _CATEGORY_LABELS: dict[str, str] = {
     "figure_table_format": "Figures / tables",
     "font_format": "Font formatting",
     "formatting_override": "Formatting overrides",
-    "frontmatter_structure": "Front matter structure",
+    "frontmatter_structure": "Front matter / appendix structure",
     "heading_title": "Headings / titles",
     "indentation": "Indentation",
     "labels_references": "Labels / cross-references",
@@ -359,15 +400,137 @@ def humanize_detail_key(value: str) -> str:
 _templates.env.filters["humanize_detail_key"] = humanize_detail_key
 
 
+def _category_slug(category: str) -> str:
+    """Return a stable URL slug for a finding category."""
+    return str(category).strip().replace("_", "-")
+
+
+_templates.env.filters["category_slug"] = _category_slug
+
+
+def _issue_type_slug(issue_type: str) -> str:
+    """Return a stable URL slug for a finding issue_type."""
+    return str(issue_type).strip().replace("_", "-")
+
+
+def _issue_type_from_slug(slug: str) -> str:
+    """Recover the original issue_type from its URL slug."""
+    return str(slug).strip().replace("-", "_")
+
+
+_templates.env.filters["issue_type_slug"] = _issue_type_slug
+
+
+_CATEGORY_EXPLANATIONS: dict[str, str] = {
+    "abstract_language": (
+        "These examples point to abstract wording or structure that should be checked manually."
+    ),
+    "abstract_length": (
+        "These examples relate to abstract length limits for the degree type detected in the PDF."
+    ),
+    "abstract_structure": (
+        "These examples point to abstract structure issues that often affect "
+        "approval-ready formatting."
+    ),
+    "annotations": (
+        "These examples show comments or annotations that should usually be "
+        "removed before submission."
+    ),
+    "capitalization_case": (
+        "These examples show capitalization patterns that may be inconsistent with NJIT formatting "
+        "expectations."
+    ),
+    "committee_approval_page": (
+        "These examples focus on the approval page and similar "
+        "committee-signature formatting details."
+    ),
+    "figure_format": (
+        "These examples point to figure formatting issues that may need visual review in the PDF."
+    ),
+    "figure_table_format": (
+        "These examples cover figure and table layout problems that often repeat across a document."
+    ),
+    "font_format": (
+        "These examples show font-related issues such as inconsistent "
+        "body-text sizing or family usage."
+    ),
+    "formatting_override": (
+        "These examples point to formatting overrides that may break consistent document styling."
+    ),
+    "frontmatter_structure": (
+        "This group covers several different front-matter and appendix-heading "
+        "checks (ordering, dedication formatting, biosketch order, appendix "
+        "letter labeling, and similar structure problems). Each example below "
+        "shows its exact issue type so you can see precisely which check it "
+        "failed."
+    ),
+    "heading_title": (
+        "These examples point to heading or title formatting problems that can "
+        "repeat across sections."
+    ),
+    "indentation": (
+        "These examples show indentation patterns that may need review for "
+        "consistent paragraph formatting."
+    ),
+    "labels_references": (
+        "These examples relate to labels or cross-references that may need a manual check."
+    ),
+    "latex_linter": (
+        "These examples come from source-side linting checks and are shown only when that audit "
+        "type is used."
+    ),
+    "list_of_tables_figures_toc": (
+        "These examples cover the table of contents and list pages, where formatting often repeats."
+    ),
+    "margin_or_overflow": (
+        "These examples show text or objects that may be too close to the margins or spilling "
+        "outside them."
+    ),
+    "page_numbering": (
+        "These examples show page-numbering problems such as missing, misplaced, or inconsistent "
+        "page numbers."
+    ),
+    "punctuation": (
+        "These examples point to punctuation patterns that may not match the expected formatting "
+        "style."
+    ),
+    "references_citations": (
+        "These examples relate to references or citations that may need manual formatting review."
+    ),
+    "spacing_blank_lines": (
+        "These examples show spacing or blank-line patterns that may be inconsistent."
+    ),
+    "table_format": (
+        "These examples focus on table formatting problems that may need layout review."
+    ),
+    "title_page_metadata": (
+        "These examples focus on title-page details that often affect submission formatting."
+    ),
+}
+
+
+def _category_explanation(category: str) -> str:
+    """Return simple student-facing help text for a category page."""
+    return _CATEGORY_EXPLANATIONS.get(
+        category,
+        f'These examples show findings in the "{_humanize_cat(category)}" group.',
+    )
+
+
 def _input_label(rule: dict[str, Any]) -> str:
+    """Return a web-facing input label for a rule.
+
+    This website only ever runs the PDF path, so a rule that also has a
+    CLI-only source-side implementation (e.g. P021) is still labeled "PDF
+    (compiled)" here — the source-only label is reserved for rules that
+    have no PDF path at all and are therefore excluded from this catalog.
+    """
     inp = rule.get("input_required") or []
     if isinstance(inp, list):
-        if "tex_source" in inp and ("compiled_pdf" in inp or "pdf" in inp):
-            return "TeX or PDF"
-        if "tex_source" in inp:
-            return "TeX / ZIP source"
         if "compiled_pdf" in inp or "pdf" in inp:
             return "PDF (compiled)"
+        if "tex_source" in inp:
+            return "TeX / ZIP source"
     phase = rule.get("phase", "") or ""
     if phase == "tex_source":
         return "TeX / ZIP source"
@@ -375,15 +538,20 @@ def _input_label(rule: dict[str, Any]) -> str:
 
 
 def _severity_label(severity: str) -> str:
-    mapping = {"fail": "Error (FAIL)", "warning": "Warning", "info": "Info"}
-    return mapping.get((severity or "").lower(), severity.upper() if severity else "—")
+    """Map an internal severity code to a simple public label.
+
+    Public-facing pages only distinguish "needs review" from "informational" —
+    see the website wording simplification task for rationale.
+    """
+    mapping = {"fail": "Problem", "warning": "Problem", "info": "Information"}
+    return mapping.get((severity or "").lower(), "Information" if severity else "—")
 
 
 def _checkability_label(checkability: str | None) -> str:
     mapping = {
         "deterministic": "Exact check",
         "heuristic": "Pattern-based",
-        "visual": "Visual / heuristic",
+        "visual": "Visual check",
         "manual": "Manual review",
     }
     return mapping.get(checkability or "", "Pattern-based")
@@ -399,6 +567,11 @@ def _classify_rule(rule: dict[str, Any]) -> str:
         return "technical"
     if rule_type in ("infrastructure", "reporting_refinement"):
         return "technical"
+    if "experimental" in rule_type:
+        # Experimental/opt-in rules (e.g. P082) are never enabled by default and
+        # this website never passes an AuditOptions with them turned on, so they
+        # never produce findings on a web PDF audit.
+        return "technical"
     if "infrastructure-only" in notes:
         return "technical"
     if "reporting-only" in notes:
@@ -406,6 +579,91 @@ def _classify_rule(rule: dict[str, Any]) -> str:
     if phase == "docx_comments":
         return "technical"
     return "student"
+
+
+_HEURISTIC_WORDING = [
+    # Order matters: collapse the "heuristic check" bigram first so it
+    # doesn't end up as the doubled-up "check check".
+    (re.compile(r"\bHeuristic check\b"), "Automated check"),
+    (re.compile(r"\bheuristic check\b"), "automated check"),
+    (re.compile(r"\bHeuristically\b"), "Automatically"),
+    (re.compile(r"\bheuristically\b"), "automatically"),
+    (re.compile(r"\bHeuristics\b"), "Checks"),
+    (re.compile(r"\bheuristics\b"), "checks"),
+    (re.compile(r"\bHeuristic\b"), "Check"),
+    (re.compile(r"\bheuristic\b"), "check"),
+]
+
+# A handful of canonical rule_definition/remediation strings reference
+# LaTeX-specific authoring/implementation detail (e.g. LaTeX-only remediation
+# commands, "implemented for both LaTeX source and compiled PDF"). This
+# website only ever runs the PDF path, so those mentions are confusing here.
+# Override just the public display text for those entries — the canonical
+# rule data on disk (used by the CLI's source audit) is left untouched.
+_RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
+    "P021": {
+        "rule_definition": (
+            "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 "
+            "words. Degree type is inferred from the document text. Word count "
+            "uses conservative tokenization (letter-containing tokens only)."
+        ),
+    },
+    "P023": {
+        "remediation": (
+            "Set body text to double line spacing. In Word: set paragraph line "
+            "spacing to 'Double'."
+        ),
+    },
+    "P026": {
+        "rule_definition": (
+            "NJIT guidelines require body text to use Times New Roman 12pt "
+            "throughout. This check looks at ordinary body-text spans on each "
+            "page for (A) font size outside 11.0-13.0pt and (B) font family that "
+            "is not Times New Roman or an accepted near-equivalent "
+            "(NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, "
+            "STIX). Computer Modern (CMR) is flagged as likely non-Times. "
+            "Embedded subset font-name prefixes (e.g. ABCDEF+TimesNewRomanPSMT) "
+            "are stripped before classification. One finding per (page, "
+            "issue_type). Warnings emitted only when both violation count >=5 "
+            "AND fraction >=50% of body candidate spans on the page."
+        ),
+        "remediation": (
+            "Set body text to Times New Roman 12pt throughout. Word/LibreOffice: "
+            "set paragraph font to Times New Roman, size 12."
+        ),
+    },
+    "P028": {
+        "remediation": (
+            "Use lowercase Roman numerals (i, ii, iii) for front-matter "
+            "numbered pages and Arabic numerals (1, 2, 3) for body pages."
+        ),
+    },
+    "P013": {
+        "question": "Page-number candidates detected for verification",
+        "rule_definition": (
+            "Detect text that looks like a page number and record its position "
+            "and style so it can be checked manually. This is a verification "
+            "signal, not a confirmed formatting defect by itself — see the "
+            "page-number sequence/style and page-numbering-regime rules for "
+            "findings that flag a specific page-numbering problem."
+        ),
+        "remediation": (
+            "Verify the detected page number is visible, in the required "
+            "bottom position, and uses the correct numbering style for that "
+            "section."
+        ),
+    },
+}
+
+
+def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
+    """Rewrite internal authoring language (e.g. "heuristic", LaTeX-only
+    remediation commands) for the public rules page without touching the
+    canonical rule data on disk."""
+    result = _RULE_TEXT_OVERRIDES.get(rule_id, {}).get(field, text)
+    for pattern, replacement in _HEURISTIC_WORDING:
+        result = pattern.sub(replacement, result)
+    return result
 
 
 def _build_rule_catalog() -> dict[str, Any]:
@@ -423,6 +681,12 @@ def _build_rule_catalog() -> dict[str, Any]:
         if not _is_p_rule_id(rule_id):
             continue
 
+        # This website accepts PDF uploads only, so source-only checks (TeX / ZIP
+        # input, no PDF path) never produce findings here. Keep them out of the
+        # public catalog entirely; they remain available to the CLI's source audit.
+        if _input_label(rule) == "TeX / ZIP source":
+            continue
+
         notes = (rule.get("notes", "") or "")
         is_experimental = any(
             kw in notes.lower()
@@ -432,15 +696,21 @@ def _build_rule_catalog() -> dict[str, Any]:
 
         enriched: dict[str, Any] = {
             "id": rule_id,
-            "title": rule.get("question", rule.get("title", rule_id)),
+            "title": _websafe_rule_text(
+                rule_id, "question", rule.get("question", rule.get("title", rule_id))
+            ),
             "section": rule.get("section", ""),
             "input_label": _input_label(rule),
             "severity_code": (rule.get("severity", "") or "").lower(),
             "severity_label": _severity_label(rule.get("severity", "")),
             "checkability": rule.get("checkability") or "",
             "checkability_label": _checkability_label(rule.get("checkability")),
-            "what_it_checks": rule.get("rule_definition", ""),
-            "how_to_correct": rule.get("remediation", ""),
+            "what_it_checks": _websafe_rule_text(
+                rule_id, "rule_definition", rule.get("rule_definition", "")
+            ),
+            "how_to_correct": _websafe_rule_text(
+                rule_id, "remediation", rule.get("remediation", "")
+            ),
             "is_experimental": is_experimental,
             "is_active_default": is_active_default,
             "implementation_status": rule.get("implementation_status", ""),
@@ -478,6 +748,8 @@ def _technical_reason(rule: dict[str, Any]) -> str:
         return "Infrastructure capability — no standalone findings"
     if rule_type == "reporting_refinement":
         return "Reporting refinement — extends existing summaries, no new findings"
+    if "experimental" in rule_type:
+        return "Experimental / opt-in — not enabled in this website's PDF audit"
     if "infrastructure-only" in notes:
         return "Infrastructure scaffold — no standalone findings in this phase"
     if "reporting-only" in notes:
@@ -485,6 +757,199 @@ def _technical_reason(rule: dict[str, Any]) -> str:
     if phase == "docx_comments":
         return "DOCX comment extraction infrastructure"
     return "Technical entry"
+
+
+@lru_cache(maxsize=1)
+def _public_rule_lookup() -> dict[str, dict[str, Any]]:
+    """Return public PDF rules keyed by rule ID."""
+    catalog = _build_rule_catalog()
+    rules = catalog.get("student_rules", [])
+    if not isinstance(rules, list):
+        return {}
+    return {
+        str(rule.get("id", "")): rule
+        for rule in rules
+        if isinstance(rule, dict) and str(rule.get("id", "")).strip()
+    }
+
+
+def _coerce_page_number(raw_page: Any) -> int | None:
+    """Convert a stored page value to an integer when possible."""
+    if raw_page is None or isinstance(raw_page, bool):
+        return None
+    try:
+        return int(raw_page)
+    except (TypeError, ValueError):
+        return None
+
+
+def _student_location_text(finding: dict[str, Any]) -> str:
+    """Return a simple location label for a student-facing example card."""
+    page = _coerce_page_number(finding.get("page"))
+    location_label = str(finding.get("location_label", "")).strip()
+    if page is not None:
+        if not location_label or location_label == str(page):
+            return f"Page {page}"
+        if location_label.lower().startswith("page "):
+            return location_label
+        return f"Page {page} - {location_label}"
+    if location_label:
+        return location_label
+    return "Document-wide overview"
+
+
+def _short_rule_explanation(rule: dict[str, Any] | None) -> str:
+    """Return a compact student-facing explanation for a rule group."""
+    if not isinstance(rule, dict):
+        return "These examples show all findings for this formatting check."
+
+    text = " ".join(str(rule.get("what_it_checks", "")).split()).strip()
+    if not text:
+        return "These examples show all findings for this formatting check."
+
+    sentence_parts = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)
+    first_sentence = sentence_parts[0].strip()
+    if first_sentence and len(first_sentence) <= 220:
+        return first_sentence
+    return text[:217].rstrip() + "..."
+
+
+def _available_job_categories(job: JobState) -> list[str]:
+    """Return distinct finding categories available for a completed job."""
+    categories = {
+        str(finding.get("category", "")).strip()
+        for finding in job.findings
+        if str(finding.get("category", "")).strip()
+    }
+    return sorted(categories)
+
+
+def _problem_group_examples(
+    job: JobState,
+    *,
+    findings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build template-ready example cards for a problem-group page."""
+    rule_lookup = _public_rule_lookup()
+    examples: list[dict[str, Any]] = []
+    for finding in findings:
+        rule_id = str(finding.get("rule_id", "")).strip()
+        issue_type = str(finding.get("issue_type", "")).strip()
+        page = _coerce_page_number(finding.get("page"))
+        bbox = finding.get("bbox")
+        rule = rule_lookup.get(rule_id, {})
+        has_highlight = _pdf_finding_is_highlighted(bbox)
+        action_kind = str(finding.get("action_kind", "")).strip()
+        action_label = str(finding.get("action_label", "")).strip()
+        no_highlight_reason = str(finding.get("no_highlight_reason", "")).strip()
+        detailed_explanation = str(finding.get("detailed_explanation", "")).strip()
+        issue_type_label = str(finding.get("issue_type_label", "")).strip()
+        issue_type_explanation = str(finding.get("issue_type_explanation", "")).strip()
+        # Fall back to computing action_kind/label from bbox+page if not in finding
+        if not action_kind:
+            if has_highlight:
+                action_kind = "highlight"
+                action_label = action_label or "Open highlighted PDF page"
+            elif page is not None:
+                action_kind = "page"
+                action_label = action_label or "Open PDF page"
+            else:
+                action_kind = "explanation"
+                action_label = action_label or "Read explanation"
+        examples.append(
+            {
+                "rule_id": rule_id,
+                "rule_title": str(rule.get("title", "")).strip(),
+                "category": str(finding.get("category", "")).strip(),
+                "issue_type": issue_type,
+                "polished_comment": str(finding.get("polished_comment", "")).strip(),
+                "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
+                "location_text": _student_location_text(finding),
+                "page": page,
+                "pdf_url": f"/audits/{job.job_id}/pdf",
+                "pdf_page_url": (
+                    _pdf_finding_url(
+                        job.job_id, page=page, rule_id=rule_id, issue_type=issue_type, bbox=bbox
+                    )
+                    if page is not None
+                    else ""
+                ),
+                "highlighted": has_highlight,
+                "action_kind": action_kind,
+                "action_label": action_label,
+                "no_highlight_reason": no_highlight_reason,
+                "detailed_explanation": detailed_explanation,
+                "issue_type_label": issue_type_label,
+                "issue_type_explanation": issue_type_explanation,
+            }
+        )
+
+    return sorted(
+        examples,
+        key=lambda example: (
+            example["page"] if example["page"] is not None else 10**9,
+            example["rule_id"],
+            example["location_text"],
+            example["polished_comment"],
+        ),
+    )
+
+
+def _problem_group_context(
+    *,
+    job: JobState,
+    group_title: str,
+    group_kind: str,
+    group_key: str,
+    group_explanation: str,
+    examples: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build template context for a category- or rule-specific problem page."""
+    pages = sorted(
+        {
+            page
+            for page in (_coerce_page_number(example.get("page")) for example in examples)
+            if page is not None
+        }
+    )
+    hero_action_kind = "none"
+    hero_action_label = ""
+    hero_action_url = ""
+    for example in examples:
+        if example.get("action_kind") == "highlight" and example.get("pdf_page_url"):
+            hero_action_kind = "highlight"
+            hero_action_label = "Open first highlighted example"
+            hero_action_url = str(example["pdf_page_url"])
+            break
+    if hero_action_kind == "none":
+        for example in examples:
+            if example.get("pdf_page_url"):
+                hero_action_kind = "page"
+                hero_action_label = "Open first example page"
+                hero_action_url = str(example["pdf_page_url"])
+                break
+    if hero_action_kind == "none" and examples:
+        # No example in this group has a known page or highlight — never show
+        # a destination-less PDF button; offer an in-page jump to the
+        # per-example explanations instead.
+        hero_action_kind = "explanation"
+        hero_action_label = "Read explanation"
+        hero_action_url = "#examples"
+    return {
+        "job_id": job.job_id,
+        "file_name": job.file_name,
+        "audit_page_url": f"/audits/{job.job_id}",
+        "group_title": group_title,
+        "group_kind": group_kind,
+        "group_key": group_key,
+        "group_explanation": group_explanation,
+        "example_count": len(examples),
+        "pages_to_review": compact_page_list(pages) if pages else "",
+        "examples": examples,
+        "hero_action_kind": hero_action_kind,
+        "hero_action_label": hero_action_label,
+        "hero_action_url": hero_action_url,
+    }
 
 
 def _render(
@@ -499,26 +964,18 @@ def _render(
     )
 
 
-def _highest_severity_label(counts: dict[str, int]) -> tuple[str, str]:
-    """Return (severity code, human label) for the highest present severity."""
-    if counts.get("FAIL", 0) > 0:
-        return "FAIL", "Error (FAIL)"
-    if counts.get("WARNING", 0) > 0:
-        return "WARNING", "Warning"
-    if counts.get("PASS", 0) > 0:
-        return "PASS", "Pass"
-    return "NONE", "None"
 
 
 def _job_page_context(job: JobState) -> dict[str, Any]:
-    """Build template context for the job results page."""
+    """Build template context for the job results page (PDF audits only)."""
     report_view = job.report_view or {}
-    counts_by_severity = report_view.get("counts_by_severity", {}) or {}
-    highest_sev, highest_label = _highest_severity_label(
-        {str(k): int(v) for k, v in counts_by_severity.items()}
-    )
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
+    counts_by_category = report_view.get("counts_by_category", {}) or {}
+    category_summary = sorted(
+        [{"category": cat, "count": count} for cat, count in counts_by_category.items()],
+        key=lambda r: (-r["count"], r["category"]),
+    )
 
     filter_rules = sorted({str(f.get("rule_id", "")) for f in job.findings if f.get("rule_id")})
     filter_severities = sorted(
@@ -530,30 +987,6 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
     filter_pages = sorted(
         {str(f.get("page")) for f in job.findings if f.get("page") is not None},
         key=lambda x: int(x),
-    )
-    filter_locations = sorted(
-        {
-            str(f.get("location_label"))
-            for f in job.findings
-            if f.get("location_label")
-        }
-    )
-    ext = Path(job.file_name).suffix.lower()
-    audit_type = job.audit_type or ("tex" if ext in {".tex", ".zip"} else "pdf")
-    is_source_audit = audit_type == "tex"
-    locations_affected = 0
-    if is_source_audit:
-        locations_affected = len(
-            {
-                (f.get("source_file"), f.get("source_line"))
-                for f in job.findings
-                if f.get("source_file") or f.get("source_line")
-            }
-        )
-    audit_scope_label = (
-        "TeX source audit (P001–P010)"
-        if is_source_audit
-        else "PDF layout audit (P011–P082)"
     )
 
     return {
@@ -570,20 +1003,16 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "grouped_summary": job.grouped_summary,
         "report_view": job.report_view,
         "md_preview": job.md_preview,
-        "highest_severity": highest_sev,
-        "highest_severity_label": highest_label,
+        "problems_found_count": job.fail_count + job.warn_count,
         "pages_affected": len(pages),
-        "locations_affected": locations_affected,
-        "is_source_audit": is_source_audit,
-        "audit_scope_label": audit_scope_label,
         "rules_flagged": len(counts_by_rule),
         "grouped_problem_count": len(report_view.get("grouped_problems", []) or []),
         "filter_rules": filter_rules,
         "filter_severities": filter_severities,
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
-        "filter_locations": filter_locations,
         "text_layer_quality": job.text_layer_quality,
+        "category_summary": category_summary,
     }
 
 
@@ -623,7 +1052,7 @@ def _run_audit_task(job_id: str) -> None:
     _set_job(job)
 
     jdir = _job_dir(job_id)
-    upload_path = _resolve_job_upload_path(jdir, job.file_name)
+    upload_path = _job_pdf_path(jdir)
 
     try:
         result = run_audit_for_uploaded_file(
@@ -632,8 +1061,7 @@ def _run_audit_task(job_id: str) -> None:
             work_dir=jdir,
         )
         findings = result.findings
-        if result.audit_type == "pdf":
-            job.text_layer_quality = classify_pdf_text_layer(upload_path)
+        job.text_layer_quality = classify_pdf_text_layer(upload_path)
     except UploadValidationError as exc:
         job.state = "failed"
         job.error_message = str(exc)
@@ -659,14 +1087,6 @@ def _run_audit_task(job_id: str) -> None:
         "job_id": job_id,
         "input_file_path": str(upload_path),
     }
-    if result.audit_type == "tex":
-        metadata["input_kind"] = (
-            "zip" if result.upload_kind == UploadKind.ZIP else "tex"
-        )
-        if result.main_tex_path is not None:
-            metadata["main_tex_path"] = str(result.main_tex_path)
-        if result.loaded_tex_file_count is not None:
-            metadata["loaded_tex_file_count"] = str(result.loaded_tex_file_count)
 
     export_metadata = _web_export_metadata(metadata)
     export_findings = _web_export_findings(findings)
@@ -682,28 +1102,7 @@ def _run_audit_task(job_id: str) -> None:
     # Write Markdown report using sanitized findings so label/ref names do not
     # appear in the downloaded .md or in the in-page preview.
     md_report_path = jdir / "report.md"
-    if result.audit_type == "tex":
-        # Rebuild AuditFinding list from sanitized JSON payload so Markdown
-        # report message fields are also privacy-safe.
-        from njit_auditor.models import Severity as _Severity
-
-        sanitized_findings: list[AuditFinding] = []
-        for entry in web_payload.get("findings", []):
-            sanitized_findings.append(
-                AuditFinding(
-                    rule_id=str(entry.get("rule_id", "")),
-                    severity=_Severity(str(entry.get("severity", "WARNING"))),
-                    message=str(entry.get("message", "")),
-                    page=entry.get("page"),
-                    details={
-                        str(k): str(v)
-                        for k, v in (entry.get("details") or {}).items()
-                    },
-                )
-            )
-        write_markdown_report(sanitized_findings, export_metadata, md_report_path)
-    else:
-        write_markdown_report(export_findings, export_metadata, md_report_path)
+    write_markdown_report(export_findings, export_metadata, md_report_path)
 
     view = build_report_view(web_payload)
     view_dict = report_view_to_dict(view)
@@ -722,6 +1121,14 @@ def _run_audit_task(job_id: str) -> None:
             "source_file": fv.get("source_file", ""),
             "source_line": fv.get("source_line", ""),
             "location_label": fv.get("location_label", ""),
+            "bbox": fv.get("bbox"),
+            "action_kind": fv.get("action_kind", ""),
+            "action_label": fv.get("action_label", ""),
+            "has_highlight": fv.get("has_highlight", False),
+            "no_highlight_reason": fv.get("no_highlight_reason", ""),
+            "detailed_explanation": fv.get("detailed_explanation", ""),
+            "issue_type_label": fv.get("issue_type_label", ""),
+            "issue_type_explanation": fv.get("issue_type_explanation", ""),
         }
         for fv in view_dict.get("findings", [])
     ]
@@ -773,12 +1180,8 @@ async def submit_audit(
     filename = file.filename or "upload.bin"
     ext = Path(filename).suffix.lower()
 
-    if ext not in _ALLOWED_WEB_EXTENSIONS:
-        return _index_error(
-            request,
-            "Supported uploads: PDF (.pdf), TeX source (.tex), and ZIP (.zip). "
-            f"Got: {ext or '(no extension)'}",
-        )
+    if ext != ".pdf":
+        return _index_error(request, _PDF_ONLY_ERROR)
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
@@ -788,8 +1191,8 @@ async def submit_audit(
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = sanitize_upload_filename(filename, default_ext=ext or ".pdf")
-    upload_path = _stored_upload_path(jdir, ext)
+    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
+    upload_path = _job_pdf_path(jdir)
     upload_path.write_bytes(content)
 
     try:
@@ -798,13 +1201,11 @@ async def submit_audit(
         shutil.rmtree(jdir, ignore_errors=True)
         return _index_error(request, str(exc))
 
-    pending_audit_type = "tex" if ext in {".tex", ".zip"} else "pdf"
     job = JobState(
         job_id=job_id,
         state="pending",
         created_at=datetime.now(timezone.utc).isoformat(),
         file_name=safe_name,
-        audit_type=pending_audit_type,
     )
     _set_job(job)
     background_tasks.add_task(_run_audit_task, job_id)
@@ -910,6 +1311,17 @@ async def get_audits_url_guard() -> RedirectResponse:
     return RedirectResponse(url="/", status_code=302)
 
 
+@app.get("/audits/sample", response_model=None)
+async def get_audits_sample_guard() -> RedirectResponse:
+    """Redirect accidental GET /audits/sample to the upload page.
+
+    Same route-collision class as get_audits_url_guard above: without this guard,
+    GET /audits/sample would be matched by the parameterised /audits/{job_id} route
+    with job_id="sample", producing a confusing "job not found" error message.
+    """
+    return RedirectResponse(url="/", status_code=302)
+
+
 @app.get("/audits/{job_id}", response_class=HTMLResponse)
 async def job_page(request: Request, job_id: str) -> HTMLResponse:
     cleanup_expired_jobs()
@@ -918,6 +1330,154 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
     return _render(request, "job.html", _job_page_context(job))
+
+
+@app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)
+async def category_problem_page(
+    request: Request, job_id: str, category_slug: str
+) -> HTMLResponse:
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_error(
+            request,
+            _job_not_found_message(job_id),
+            status_code=404,
+        )
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    matched_category = next(
+        (
+            category
+            for category in _available_job_categories(job)
+            if _category_slug(category) == category_slug
+        ),
+        "",
+    )
+    if not matched_category:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    matching_findings = [
+        finding
+        for finding in job.findings
+        if str(finding.get("category", "")).strip() == matched_category
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    context = _problem_group_context(
+        job=job,
+        group_title=_humanize_cat(matched_category),
+        group_kind="category",
+        group_key=matched_category,
+        group_explanation=_category_explanation(matched_category),
+        examples=_problem_group_examples(job, findings=matching_findings),
+    )
+    return _render(request, "problem_group.html", context)
+
+
+@app.get("/audits/{job_id}/problems/rule/{rule_id}", response_class=HTMLResponse)
+async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTMLResponse:
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_error(
+            request,
+            _job_not_found_message(job_id),
+            status_code=404,
+        )
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    matching_findings = [
+        finding for finding in job.findings if str(finding.get("rule_id", "")).strip() == rule_id
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    rule = _public_rule_lookup().get(rule_id, {})
+    group_title = str(rule.get("title", "")).strip() or f"Rule {rule_id}"
+    context = _problem_group_context(
+        job=job,
+        group_title=group_title,
+        group_kind="rule",
+        group_key=rule_id,
+        group_explanation=_short_rule_explanation(rule),
+        examples=_problem_group_examples(job, findings=matching_findings),
+    )
+    return _render(request, "problem_group.html", context)
+
+
+@app.get(
+    "/audits/{job_id}/problems/rule/{rule_id}/issue-type/{issue_type_slug}",
+    response_class=HTMLResponse,
+)
+async def issue_type_problem_page(
+    request: Request, job_id: str, rule_id: str, issue_type_slug: str
+) -> HTMLResponse:
+    """Show all findings for a specific (rule_id, issue_type) combination."""
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_error(
+            request,
+            _job_not_found_message(job_id),
+            status_code=404,
+        )
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    issue_type = _issue_type_from_slug(issue_type_slug)
+    matching_findings = [
+        f
+        for f in job.findings
+        if str(f.get("rule_id", "")).strip() == rule_id
+        and str(f.get("issue_type", "")).strip() == issue_type
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    issue_type_label = humanize_issue_type(issue_type) or issue_type.replace("_", " ")
+    group_title = f"{issue_type_label} ({rule_id})"
+    group_explanation = explain_issue_type(rule_id, issue_type)
+    context = _problem_group_context(
+        job=job,
+        group_title=group_title,
+        group_kind="issue_type",
+        group_key=issue_type,
+        group_explanation=group_explanation,
+        examples=_problem_group_examples(job, findings=matching_findings),
+    )
+    return _render(request, "problem_group.html", context)
 
 
 @app.get("/audits/{job_id}/status")
@@ -958,22 +1518,162 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
     )
 
 
+def _safe_pdf_disposition_filename(file_name: str) -> str:
+    """Return a Content-Disposition-safe filename for an inline PDF response."""
+    name = (file_name or "document.pdf").strip()
+    for unsafe in ('"', "\\", "\n", "\r"):
+        name = name.replace(unsafe, "_")
+    return name or "document.pdf"
+
+
 @app.get("/audits/{job_id}/pdf", response_model=None)
 async def serve_job_pdf(job_id: str) -> FileResponse | JSONResponse:
-    """Serve the uploaded PDF inline for the embedded viewer."""
+    """Serve the uploaded PDF inline (not as a forced download) for the embedded viewer."""
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return JSONResponse({"error": "not available"}, status_code=404)
     if job.audit_type != "pdf":
         return JSONResponse({"error": "not a PDF audit"}, status_code=404)
-    pdf_path = _job_dir(job_id) / "upload.pdf"
+    pdf_path = _job_pdf_path(_job_dir(job_id))
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
         return JSONResponse({"error": "PDF not found"}, status_code=404)
+    safe_filename = _safe_pdf_disposition_filename(job.file_name)
     return FileResponse(
         path=str(pdf_path),
         media_type="application/pdf",
-        headers={"Content-Disposition": "inline"},
+        headers={"Content-Disposition": f'inline; filename="{safe_filename}"'},
     )
+
+
+def _coerce_bbox(raw: Any) -> tuple[float, float, float, float] | None:
+    """Coerce a stored finding bbox value into a 4-tuple of floats, if drawable."""
+    if not isinstance(raw, (list, tuple)) or len(raw) != 4:
+        return None
+    try:
+        box = (float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))
+    except (TypeError, ValueError):
+        return None
+    return box if is_drawable_bbox(box) else None
+
+
+def _matching_findings_for_highlight(
+    job: JobState,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> list[dict[str, Any]]:
+    """Return job findings matching the highlight request's filters."""
+    if finding_index is not None and 0 <= finding_index < len(job.findings):
+        return [job.findings[finding_index]]
+
+    matches = job.findings
+    if page is not None:
+        matches = [f for f in matches if _coerce_page_number(f.get("page")) == page]
+    if rule_id:
+        matches = [f for f in matches if str(f.get("rule_id", "")) == rule_id]
+    if issue_type:
+        matches = [f for f in matches if str(f.get("issue_type", "")) == issue_type]
+    return matches
+
+
+def _highlight_boxes_by_page(
+    findings: list[dict[str, Any]],
+) -> dict[int, list[tuple[float, float, float, float]]]:
+    """Group parsed bounding boxes by 1-based page number across matched findings."""
+    boxes_by_page: dict[int, list[tuple[float, float, float, float]]] = {}
+    for finding in findings:
+        page = _coerce_page_number(finding.get("page"))
+        bbox = _coerce_bbox(finding.get("bbox"))
+        if page is None or bbox is None:
+            continue
+        boxes_by_page.setdefault(page, []).append(bbox)
+    return boxes_by_page
+
+
+def _highlight_cache_path(
+    jdir: Path,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> Path:
+    """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
+    key = f"{page}|{rule_id}|{issue_type}|{finding_index}"
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+    return jdir / f"highlighted-{digest}.pdf"
+
+
+@app.get("/audits/{job_id}/pdf/highlighted", response_model=None)
+async def serve_job_pdf_highlighted(
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> FileResponse | JSONResponse:
+    """Serve the uploaded PDF inline with a highlight for a specific finding.
+
+    Falls back to the plain (unhighlighted) PDF when the matched finding(s)
+    carry no bounding-box coordinates. The original uploaded PDF is never
+    modified -- highlights are always drawn on a separate generated copy.
+    """
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return JSONResponse({"error": "not available"}, status_code=404)
+    if job.audit_type != "pdf":
+        return JSONResponse({"error": "not a PDF audit"}, status_code=404)
+
+    jdir = _job_dir(job_id)
+    pdf_path = _job_pdf_path(jdir)
+    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+        return JSONResponse({"error": "PDF not found"}, status_code=404)
+
+    headers = {
+        "Content-Disposition": f'inline; filename="{_safe_pdf_disposition_filename(job.file_name)}"'
+    }
+    plain_response = FileResponse(
+        path=str(pdf_path), media_type="application/pdf", headers=headers
+    )
+
+    # Highlight generation is a best-effort enhancement layered on top of the
+    # always-available plain PDF: any unexpected failure below (bad query
+    # params, an unanticipated PDF-geometry edge case, a filesystem race,
+    # etc.) must fall back to the plain inline PDF rather than ever surface
+    # as a 500 to the browser.
+    try:
+        matches = _matching_findings_for_highlight(
+            job,
+            page=page,
+            rule_id=rule_id.strip(),
+            issue_type=issue_type.strip(),
+            finding_index=finding_index,
+        )
+        boxes_by_page = _highlight_boxes_by_page(matches)
+        if not boxes_by_page:
+            return plain_response
+
+        cache_path = _highlight_cache_path(
+            jdir, page=page, rule_id=rule_id, issue_type=issue_type, finding_index=finding_index
+        )
+        if not _is_under_runtime(cache_path):
+            return plain_response
+
+        if not cache_path.exists():
+            build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
+        if not cache_path.exists():
+            return plain_response
+
+        return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+    except Exception:
+        _logger.warning(
+            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
+            job_id,
+            exc_info=True,
+        )
+        return plain_response
 
 
 @app.get("/help", response_class=HTMLResponse)

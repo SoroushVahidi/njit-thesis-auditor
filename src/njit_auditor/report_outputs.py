@@ -669,7 +669,7 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
         ),
         "triage_tier": "informational",
         "triage_note": (
-            "P013 reports heuristic page-number candidates for manual NJIT verification. "
+            "P013 reports automated page-number candidates for manual NJIT verification. "
             "Page-level warnings are triage signals, not confirmed formatting defects."
         ),
     }
@@ -812,7 +812,7 @@ def build_p026_font_triage_summary(findings: list[AuditFinding]) -> dict[str, An
         ),
         "triage_tier": "informational",
         "triage_note": (
-            "P026 reports heuristic body-font size/family compliance warnings for manual "
+            "P026 reports automated body-font size/family compliance warnings for manual "
             "NJIT verification. Page-level warnings are triage signals, not confirmed "
             "formatting defects."
         ),
@@ -976,7 +976,7 @@ def build_p011_margin_triage_summary(findings: list[AuditFinding]) -> dict[str, 
         "dominant_margin_side": dominant_side,
         "triage_tier": "informational",
         "triage_note": (
-            "P011 reports heuristic margin-boundary crossings for manual NJIT verification. "
+            "P011 reports automated margin-boundary crossings for manual NJIT verification. "
             "Page-level warnings are triage signals, not confirmed layout defects. "
             "Many small same-side overflows on compressed PDFs may reflect coordinate shifts "
             "rather than true margin violations."
@@ -1122,7 +1122,7 @@ def build_p036_toc_list_spacing_triage_summary(
         "min_gap_ratio": min(gap_ratios) if gap_ratios else None,
         "max_gap_ratio": max(gap_ratios) if gap_ratios else None,
         "triage_note": (
-            "P036 reports heuristic TOC/LoT/LoF inter-entry spacing warnings for "
+            "P036 reports automated TOC/LoT/LoF inter-entry spacing warnings for "
             "manual NJIT verification."
         ),
         "recommended_action": (
@@ -1241,7 +1241,7 @@ def build_p044_abstract_indentation_triage_summary(
         "triage_tier_counts": dict(sorted(triage_tier_counts.items())),
         "paragraph_index_counts": dict(sorted(paragraph_index_counts.items())),
         "triage_note": (
-            "P044 reports heuristic Abstract paragraph indentation warnings "
+            "P044 reports automated Abstract paragraph indentation warnings "
             "for manual NJIT verification."
         ),
         "recommended_action": (

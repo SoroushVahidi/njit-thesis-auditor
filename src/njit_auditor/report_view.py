@@ -7,7 +7,16 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from njit_auditor.evaluation import map_finding_rule_to_category
-from njit_auditor.polished_comments import build_polished_comment
+from njit_auditor.finding_explanations import (
+    build_detailed_explanation,
+    build_group_explanation,
+    get_action_kind,
+    get_action_label,
+    get_no_highlight_reason,
+)
+from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
+from njit_auditor.pdf_highlight import is_drawable_bbox
+from njit_auditor.polished_comments import build_polished_comment, sanitize_suggested_fix_for_web
 from njit_auditor.report_outputs import _source_location_basename, format_source_location
 
 _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
@@ -44,6 +53,16 @@ class FindingView:
     source_file: str = ""
     source_line: str = ""
     location_label: str = ""
+    bbox: tuple[float, float, float, float] | None = None
+    # Actionability fields (presentation layer only — never change detection semantics)
+    action_kind: str = ""       # "highlight" | "page" | "explanation"
+    action_label: str = ""      # button label
+    has_highlight: bool = False  # True when bbox is valid and drawable
+    no_highlight_reason: str = ""  # why no highlight is available
+    detailed_explanation: str = ""  # extended student-facing explanation
+    # Issue-type display fields
+    issue_type_label: str = ""        # readable label, e.g. "PDF annotation detected"
+    issue_type_explanation: str = ""  # student-facing explanation of what the issue means
 
 
 @dataclass(frozen=True)
@@ -74,6 +93,12 @@ class GroupedProblemView:
     page_tokens: list[str] = field(default_factory=list)
     location_tokens: list[str] = field(default_factory=list)
     individual_findings: list[FindingView] = field(default_factory=list)
+    # Actionability fields for the group card
+    detailed_explanation: str = ""  # group-level explanation
+    has_any_highlight: bool = False  # whether any individual finding has a highlight
+    # Issue-type display fields
+    issue_type_label: str = ""        # readable label for the grouped issue type
+    issue_type_explanation: str = ""  # student-facing explanation of what the issue means
 
 
 @dataclass(frozen=True)
@@ -147,6 +172,41 @@ def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
     return panels
 
 
+_BBOX_DETAIL_KEYS: tuple[str, ...] = ("bbox", "rect")
+
+
+def _parse_bbox_from_details(
+    details: Mapping[str, str],
+) -> tuple[float, float, float, float] | None:
+    """Extract a drawable (x0, y0, x1, y1) box from finding details when present."""
+    for key in _BBOX_DETAIL_KEYS:
+        raw = str(details.get(key, "")).strip()
+        if not raw:
+            continue
+        parts = [part.strip() for part in raw.split(",")]
+        if len(parts) != 4:
+            continue
+        try:
+            x0, y0, x1, y1 = (float(part) for part in parts)
+        except ValueError:
+            continue
+        box = (x0, y0, x1, y1)
+        return box if is_drawable_bbox(box) else None
+
+    if all(str(details.get(key, "")).strip() for key in ("x0", "y0", "x1", "y1")):
+        try:
+            box = (
+                float(details["x0"]),
+                float(details["y0"]),
+                float(details["x1"]),
+                float(details["y1"]),
+            )
+        except ValueError:
+            return None
+        return box if is_drawable_bbox(box) else None
+    return None
+
+
 def _finding_view_from_item(
     item: Mapping[str, Any],
     *,
@@ -180,6 +240,8 @@ def _finding_view_from_item(
         details=details,
         category=category,
     )
+    bbox = _parse_bbox_from_details(details)
+    has_highlight = bbox is not None
     return (
         FindingView(
             rule_id=rule_id,
@@ -188,12 +250,27 @@ def _finding_view_from_item(
             severity=severity,
             issue_type=issue_type,
             polished_comment=polished,
-            suggested_fix=str(details.get("suggested_fix", "")),
+            suggested_fix=sanitize_suggested_fix_for_web(
+                rule_id, str(details.get("suggested_fix", ""))
+            ),
             triage_tier=str(details.get("triage_tier", "")),
             confidence=str(details.get("confidence", "")),
             source_file=source_file,
             source_line=source_line,
             location_label=location_label,
+            bbox=bbox,
+            action_kind=get_action_kind(has_bbox=has_highlight, page=page),
+            action_label=get_action_label(has_bbox=has_highlight, page=page),
+            has_highlight=has_highlight,
+            no_highlight_reason=get_no_highlight_reason(has_bbox=has_highlight, page=page),
+            detailed_explanation=build_detailed_explanation(
+                rule_id=rule_id,
+                issue_type=issue_type,
+                details=details,
+                page=page,
+            ),
+            issue_type_label=humanize_issue_type(issue_type),
+            issue_type_explanation=explain_issue_type(rule_id, issue_type),
         ),
         location_key,
     )
@@ -275,17 +352,21 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
             if not individual_views:
                 continue
             first = individual_views[0]
+            group_rule_id = str(entry.get("rule_id", first.rule_id))
+            group_issue_type = str(entry.get("issue_type", first.issue_type))
+            has_any_highlight = any(f.has_highlight for f in individual_views)
             grouped_problem_views.append(
                 GroupedProblemView(
-                    rule_id=str(entry.get("rule_id", first.rule_id)),
+                    rule_id=group_rule_id,
                     category=str(entry.get("category", first.category)),
                     severity=str(entry.get("severity", first.severity)),
-                    issue_type=str(entry.get("issue_type", first.issue_type)),
+                    issue_type=group_issue_type,
                     polished_comment=str(
                         entry.get("problem", first.polished_comment)
                     ),
-                    suggested_fix=str(
-                        entry.get("suggested_fix", first.suggested_fix)
+                    suggested_fix=sanitize_suggested_fix_for_web(
+                        group_rule_id,
+                        str(entry.get("suggested_fix", first.suggested_fix)),
                     ),
                     occurrence_count=int(entry.get("occurrence_count", len(individual_views)) or 0),
                     affected_label=str(entry.get("affected_label", "Occurrences")),
@@ -296,6 +377,15 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
                     page_tokens=[str(value) for value in entry.get("pages", [])],
                     location_tokens=[str(value) for value in entry.get("locations", [])],
                     individual_findings=individual_views,
+                    detailed_explanation=build_group_explanation(
+                        rule_id=group_rule_id,
+                        issue_type=group_issue_type,
+                    ),
+                    has_any_highlight=has_any_highlight,
+                    issue_type_label=humanize_issue_type(group_issue_type),
+                    issue_type_explanation=explain_issue_type(
+                        group_rule_id, group_issue_type
+                    ),
                 )
             )
 
@@ -320,6 +410,15 @@ def build_report_view(report: Mapping[str, Any]) -> ReportView:
                 page_tokens=[str(finding.page)] if finding.page is not None else [],
                 location_tokens=[finding.location_label] if finding.location_label else [],
                 individual_findings=[finding],
+                detailed_explanation=build_group_explanation(
+                    rule_id=finding.rule_id,
+                    issue_type=finding.issue_type,
+                ),
+                has_any_highlight=finding.has_highlight,
+                issue_type_label=humanize_issue_type(finding.issue_type),
+                issue_type_explanation=explain_issue_type(
+                    finding.rule_id, finding.issue_type
+                ),
             )
             for finding in finding_views
         ]

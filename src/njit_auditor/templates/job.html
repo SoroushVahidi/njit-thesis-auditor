@@ -7,6 +7,25 @@
   .rule-link:hover { color: var(--color-primary-dark); }
   .page-link { color: var(--color-primary); font-size: 0.82rem; white-space: nowrap; }
   .page-link:hover { text-decoration: underline; }
+  .chip-link { color: var(--color-text); text-decoration: none; min-height: 2.2rem; }
+  .chip-link:hover { background: #e5edf5; border-color: #b8d4f0; }
+  .chip-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .triage-panel--clickable { cursor: pointer; }
+  .triage-panel--clickable:hover { background: #f9fbfd; border-left-color: var(--color-primary-dark); }
+  .triage-panel--clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .triage-panel__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
+  .triage-panel__actions .btn { min-height: 2.6rem; display: inline-flex; align-items: center; }
+  .grouped-problem__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.8rem; }
+  .grouped-problem__actions .btn { min-height: 2.5rem; display: inline-flex; align-items: center; }
+  .finding-explanation { margin: 0.5rem 0 0.4rem; font-size: 0.91rem; }
+  .finding-explanation summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.2rem 0; }
+  .finding-explanation summary:hover { text-decoration: underline; }
+  .finding-explanation p { margin: 0.35rem 0 0; color: var(--color-text-muted, #555); }
+  .no-highlight-note { font-size: 0.82rem; color: var(--color-text-muted, #666); font-style: italic; }
+  .issue-type-help { margin: 0.35rem 0 0.3rem; font-size: 0.91rem; }
+  .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.15rem 0; }
+  .issue-type-help summary:hover { text-decoration: underline; }
+  .issue-type-help p { margin: 0.3rem 0 0; color: var(--color-text-muted, #555); font-size: 0.88rem; }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -136,6 +155,28 @@
         setMode(button.dataset.resultsMode || "grouped");
       });
     });
+    document.querySelectorAll(".js-card-link").forEach(function(card) {
+      var href = card.dataset.href;
+      if (!href) {
+        return;
+      }
+      card.addEventListener("click", function(event) {
+        if (event.target && event.target.closest("a, button, summary")) {
+          return;
+        }
+        window.location.href = href;
+      });
+      card.addEventListener("keydown", function(event) {
+        if (event.key !== "Enter" && event.key !== " ") {
+          return;
+        }
+        if (event.target !== card) {
+          return;
+        }
+        event.preventDefault();
+        window.location.href = href;
+      });
+    });
     setMode("grouped");
   });
 </script>
@@ -152,7 +193,7 @@
   </div>
 </div>
 <div class="card">
-  <p>Your file is being audited ({{ audit_scope_label|default("PDF layout audit") }}). This page refreshes automatically when results are ready.</p>
+  <p>Your file is being audited (PDF layout audit). This page refreshes automatically when results are ready.</p>
   <p class="file-hint" style="margin:0.5rem 0 0;">Started: {{ created_at }}</p>
 </div>
 
@@ -167,7 +208,7 @@
   <strong>Something went wrong.</strong><br>
   {{ error_message }}
 </div>
-<p class="file-hint">Check that the file is a valid PDF, TeX source, or ZIP archive. ZIP uploads must contain a detectable main .tex file.</p>
+<p class="file-hint">Check that the file is a valid PDF document under the size limit, then try again.</p>
 <p>
   <a href="/" class="btn btn-secondary">&larr; Try another file</a>
   <a href="/help" class="btn btn-secondary" style="margin-left:0.5rem;">Help</a>
@@ -178,7 +219,7 @@
 {% if findings %}
 <nav class="jump-links" aria-label="Jump to section">
   <a href="#section-summary">Summary</a>
-  {% if report_view and report_view.counts_by_category %}<a href="#section-overview">By category</a>{% endif %}
+  {% if category_summary %}<a href="#section-overview">By problem type</a>{% endif %}
   <a href="#section-review-order">Review order</a>
   {% if report_view and report_view.triage_panels %}<a href="#section-triage">Most common issues</a>{% endif %}
   {% if grouped_summary %}<a href="#section-rule-summary">By rule</a>{% endif %}
@@ -193,19 +234,15 @@
     <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Automated review signals — verify all findings manually before submission</p>
     <p class="status-banner__meta">
       Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
-      &middot; {{ audit_scope_label }}
+      &middot; PDF layout audit
       {% if finished_at %} &middot; Finished {{ finished_at[:19] }}{% endif %}
     </p>
   </div>
   <div>
-    {% if highest_severity == "FAIL" %}
-    <span class="badge badge-fail">Highest severity: FAIL</span>
-    {% elif highest_severity == "WARNING" %}
-    <span class="badge badge-warn">Highest severity: WARNING</span>
-    {% elif highest_severity == "PASS" %}
-    <span class="badge badge-pass">Highest severity: PASS</span>
+    {% if problems_found_count > 0 %}
+    <span class="badge badge-fail">Problems found</span>
     {% else %}
-    <span class="badge badge-pass">No issues</span>
+    <span class="badge badge-pass">No problems found</span>
     {% endif %}
   </div>
 </div>
@@ -213,7 +250,7 @@
 {% if text_layer_quality == "image_only" %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">
   <strong>This PDF has no selectable text.</strong>
-  Most formatting checks need selectable text to work. This is common with scanned PDFs. The audit may miss formatting problems — please upload the original exported PDF from Word or LaTeX if you have it.
+  Most formatting checks need selectable text to work. This is common with scanned PDFs. The audit may miss formatting problems — please upload the original exported PDF if you have one, rather than a scanned copy.
 </div>
 {% elif text_layer_quality == "low_text" %}
 <div class="alert-info" role="alert" style="margin-bottom:1rem;">
@@ -225,32 +262,28 @@
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Automated findings — verify manually &middot; <a href="/help#audit-outcomes">What do Error, Warning, and Pass mean?</a></span>
+    <span class="section-note">Automated findings — verify manually &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
-      <div class="summary-card__label">Total findings</div>
-      <div class="summary-card__value">{{ finding_count }}</div>
+      <div class="summary-card__label">Problems found</div>
+      <div class="summary-card__value">{{ problems_found_count }}</div>
     </div>
     <div class="summary-card">
-      <div class="summary-card__label">Highest severity</div>
-      <div class="summary-card__value" style="font-size:1.1rem">{{ highest_severity_label }}</div>
+      <div class="summary-card__label">Needs fixing</div>
+      <div class="summary-card__value">{{ fail_count }}</div>
     </div>
     <div class="summary-card">
-      <div class="summary-card__label">{% if is_source_audit %}Source locations{% else %}Pages affected{% endif %}</div>
-      <div class="summary-card__value">{% if is_source_audit %}{{ locations_affected }}{% else %}{{ pages_affected }}{% endif %}</div>
+      <div class="summary-card__label">Worth checking</div>
+      <div class="summary-card__value">{{ warn_count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Pages affected</div>
+      <div class="summary-card__value">{{ pages_affected }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card__label">Rules flagged</div>
       <div class="summary-card__value">{{ rules_flagged }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card__label">Warnings / Errors</div>
-      <div class="summary-card__value" style="font-size:1.05rem">{{ warn_count }} / {{ fail_count }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card__label">Exports</div>
-      <div class="summary-card__value" style="font-size:1.05rem">JSON + MD</div>
     </div>
   </div>
 </section>
@@ -265,8 +298,8 @@
     <ol class="review-order-list">
       {% if fail_count > 0 %}
       <li>
-        <span class="ro-label">Errors first</span> —
-        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} flagged as FAIL. These are the most definite formatting issues. <a href="#section-findings">Filter by severity → FAIL</a> and verify each one against NJIT guidelines.
+        <span class="ro-label">Fix these first</span> —
+        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Filter by priority → Needs fixing</a> and verify each one against NJIT guidelines.
       </li>
       {% endif %}
       {% if report_view and report_view.triage_panels %}
@@ -277,8 +310,8 @@
       {% endif %}
       {% if warn_count > 0 %}
       <li>
-        <span class="ro-label">Warnings</span> —
-        {{ warn_count }} {{ "warning" if warn_count == 1 else "warnings" }} require judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
+        <span class="ro-label">Other items to check</span> —
+        {{ warn_count }} {{ "item" if warn_count == 1 else "items" }} need your judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
       </li>
       {% endif %}
       <li>
@@ -290,31 +323,27 @@
 </section>
 {% endif %}
 
-{% if report_view and (report_view.counts_by_severity or report_view.counts_by_category) %}
-<section id="section-overview" class="section" aria-label="Overview">
-  <div class="section-header"><h2>Severity &amp; category overview</h2></div>
-  <div class="card card-compact">
-    {% if report_view.counts_by_severity %}
-    <p style="margin:0 0 0.5rem;font-size:0.88rem;font-weight:600;">By severity</p>
-    <div class="overview-chips">
-      {% for sev, count in report_view.counts_by_severity.items() %}
-      <span class="chip">
-        {% if sev == "WARNING" %}<span class="badge badge-warn">WARN</span>
-        {% elif sev == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-        {% else %}<span class="badge badge-pass">{{ sev }}</span>{% endif %}
-        <strong>{{ count }}</strong>
-      </span>
+{% if category_summary %}
+<section id="section-overview" class="section" aria-label="Summary by problem type">
+  <div class="section-header">
+    <h2>Summary by problem type</h2>
+    <span class="section-note">Click a problem type or View all to see every matching finding</span>
+  </div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <table>
+      <thead>
+        <tr><th>Problem type</th><th>Findings</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for row in category_summary %}
+        <tr>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
+          <td>{{ row.count }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">View all</a></td>
+        </tr>
       {% endfor %}
-    </div>
-    {% endif %}
-    {% if report_view.counts_by_category %}
-    <p style="margin:0.85rem 0 0.5rem;font-size:0.88rem;font-weight:600;">By category</p>
-    <div class="overview-chips">
-      {% for cat, count in report_view.counts_by_category.items() %}
-      <span class="chip"><strong>{{ count }}</strong> {{ cat | humanize_cat }}</span>
-      {% endfor %}
-    </div>
-    {% endif %}
+      </tbody>
+    </table>
   </div>
 </section>
 {% endif %}
@@ -326,7 +355,11 @@
     <span class="section-note">Repeated patterns — one root cause often explains many findings</span>
   </div>
   {% for panel in report_view.triage_panels %}
-  <div class="card triage-panel">
+  <div class="card triage-panel triage-panel--clickable js-card-link"
+       data-href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}"
+       tabindex="0"
+       role="link"
+       aria-label="Open examples for {{ panel.title }}">
     <div class="triage-panel__header">
       <span class="triage-panel__title">{{ panel.title }}</span>
       <span class="badge badge-info">
@@ -352,6 +385,9 @@
       {% endfor %}
     </ul>
     {% endif %}
+    <div class="triage-panel__actions">
+      <a href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
+    </div>
   </div>
   {% endfor %}
 </section>
@@ -361,12 +397,12 @@
 <section id="section-rule-summary" class="section" aria-label="Summary by rule">
   <div class="section-header">
     <h2>Summary by rule</h2>
-    <span class="section-note">Start with the rules that have the highest counts, then inspect the individual findings below.</span>
+    <span class="section-note">Click a rule ID for rule reference, or View all to see every finding for that rule.</span>
   </div>
   <div class="card" style="padding:0.5rem 0.75rem">
     <table>
       <thead>
-        <tr><th>Rule</th><th>Count</th><th>Category</th></tr>
+        <tr><th>Rule</th><th>Count</th><th>Category</th><th></th></tr>
       </thead>
       <tbody>
       {% for row in grouped_summary %}
@@ -377,7 +413,8 @@
             {% else %}{{ row.rule_id }}{% endif %}
           </strong></td>
           <td>{{ row.count }}</td>
-          <td>{{ row.category | humanize_cat }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
+          <td><a href="/audits/{{ job_id }}/problems/rule/{{ row.rule_id }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">View all</a></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -390,7 +427,7 @@
   <div class="section-header">
     <div>
       <h2>Findings</h2>
-      <span class="section-note">Summary cards and severity/category totals remain based on raw findings.</span>
+      <span class="section-note">Summary numbers reflect every raw finding. <strong>Grouped problems</strong> combines matching findings into one card per issue and lists all affected pages; <strong>All individual findings</strong> lists every raw finding separately.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -413,11 +450,17 @@
       </select>
     </div>
     <div>
-      <label for="filter-severity">Severity</label>
+      <label for="filter-severity">Priority</label>
       <select id="filter-severity">
-        <option value="">All severities</option>
+        <option value="">All</option>
         {% for sev in filter_severities %}
-        <option value="{{ sev }}">{{ sev }}</option>
+        <option value="{{ sev }}">
+          {% if sev == "FAIL" %}Needs fixing
+          {% elif sev == "WARNING" %}Worth checking
+          {% elif sev == "PASS" %}Information
+          {% else %}{{ sev }}
+          {% endif %}
+        </option>
         {% endfor %}
       </select>
     </div>
@@ -430,17 +473,6 @@
         {% endfor %}
       </select>
     </div>
-    {% if is_source_audit %}
-    <div>
-      <label for="filter-location">Location</label>
-      <select id="filter-location">
-        <option value="">All locations</option>
-        {% for loc in filter_locations %}
-        <option value="{{ loc }}">{{ loc }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    {% else %}
     <div>
       <label for="filter-page">Page</label>
       <select id="filter-page">
@@ -450,7 +482,6 @@
         {% endfor %}
       </select>
     </div>
-    {% endif %}
     <div class="filter-actions">
       <button type="button" id="filter-reset" class="btn btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.85rem">Reset filters</button>
     </div>
@@ -471,12 +502,12 @@
             {% if is_p_rule_id(problem.rule_id) %}
             <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
             {% else %}{{ problem.rule_id }}{% endif %}
-            {% if problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
+            {% if problem.issue_type_label %} · {{ problem.issue_type_label }}{% elif problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
             <div class="grouped-problem__summary">
-              {% if problem.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
-              {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-              {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+              {% if problem.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
+              {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
+              {% else %}<span class="badge badge-pass">Information</span>{% endif %}
               <span class="badge badge-info">{{ problem.category | humanize_cat }}</span>
               {% if problem.is_grouped %}
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
@@ -490,14 +521,60 @@
             </div>
           </div>
           {% if problem.affected_compact %}
-          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}{% if not is_source_audit and problem.page_tokens %}&thinsp;&middot;&thinsp;<a href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ problem.page_tokens[0] }}">p.&nbsp;{{ problem.page_tokens[0] }}&nbsp;&#8599;</a>{% endif %}</div>
+          <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}{% if problem.page_tokens %}&thinsp;&middot;&thinsp;<a href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}" target="_blank" rel="noopener noreferrer" class="page-link" title="Open PDF at page {{ problem.page_tokens[0] }}">p.&nbsp;{{ problem.page_tokens[0] }}&nbsp;&#8599;</a>{% endif %}</div>
           {% endif %}
         </div>
         <div class="grouped-problem__meta">
+          {% if problem.issue_type_label %}
+          <details class="issue-type-help">
+            <summary>Issue type: {{ problem.issue_type_label }}</summary>
+            <p>{{ problem.issue_type_explanation if problem.issue_type_explanation else "Review this finding against NJIT formatting requirements." }}</p>
+            {% if problem.issue_type and problem.rule_id %}
+            <p style="margin:0.3rem 0 0;font-size:0.86rem"><a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}/issue-type/{{ problem.issue_type | issue_type_slug }}" class="rule-link">View all findings of this type &rarr;</a></p>
+            {% endif %}
+          </details>
+          {% elif problem.issue_type %}
+          <div class="grouped-problem__meta-line"><strong>Issue type:</strong> {{ problem.issue_type | humanize_detail_key }}</div>
+          {% endif %}
           <div class="grouped-problem__meta-line">{{ problem.polished_comment }}</div>
           {% if problem.suggested_fix %}
           <div class="grouped-problem__meta-line"><strong>Suggested fix:</strong> {{ problem.suggested_fix }}</div>
           {% endif %}
+        </div>
+        {% if problem.detailed_explanation %}
+        <details class="finding-explanation">
+          <summary>What does this mean?</summary>
+          <p>{{ problem.detailed_explanation }}</p>
+        </details>
+        {% endif %}
+        <div class="grouped-problem__actions">
+          {% if problem.individual_findings and problem.individual_findings[0].page is not none %}
+          {% set first_finding = problem.individual_findings[0] %}
+          <a
+            href="{{ pdf_finding_url(job_id, page=first_finding.page, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type, bbox=first_finding.bbox) }}"
+            class="btn btn-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ first_finding.action_label if first_finding.action_label else ("Open highlighted PDF page" if pdf_finding_is_highlighted(first_finding.bbox) else "Open PDF page") }}
+          </a>
+          {% if not first_finding.has_highlight and first_finding.page is not none %}
+          <span class="file-hint no-highlight-note" style="align-self:center;">{{ first_finding.no_highlight_reason }}</span>
+          {% endif %}
+          {% elif problem.page_tokens %}
+          <a
+            href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}"
+            class="btn btn-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open PDF page
+          </a>
+          <span class="file-hint no-highlight-note" style="align-self:center;">Exact highlight is not available for this finding, but the relevant page is known.</span>
+          {% else %}
+          <span class="file-hint no-highlight-note" style="align-self:center;">This finding is document-level and does not correspond to a specific page or visual location — see the explanation above.</span>
+          {% endif %}
+          <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
         </div>
         {% if problem.is_grouped %}
         <details class="grouped-problem__details collapsible">
@@ -505,7 +582,7 @@
           <table class="occurrence-table">
             <thead>
               <tr>
-                <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
+                <th>Page</th>
                 <th>Details</th>
                 <th>Comment</th>
               </tr>
@@ -513,9 +590,9 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if is_source_audit %}{{ f.location_label if f.location_label else "—" }}{% else %}{% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link">{{ f.page }}</a>{% else %}—{% endif %}{% endif %}</td>
+                <td>{% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label if f.action_label else ('Open highlighted PDF at page' if pdf_finding_is_highlighted(f.bbox) else 'Open PDF at page') }} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}</td>
                 <td class="meta-cell">
-                  {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+                  {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
                   {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
@@ -538,8 +615,8 @@
         <thead>
           <tr>
             <th>Rule</th>
-            <th>{% if is_source_audit %}Location{% else %}Page{% endif %}</th>
-            <th>Severity</th>
+            <th>Page</th>
+            <th>Priority</th>
             <th>Category</th>
             <th>Details</th>
             <th>Polished comment</th>
@@ -551,28 +628,23 @@
               data-rule="{{ f.rule_id }}"
               data-severity="{{ f.severity }}"
               data-category="{{ f.category }}"
-              data-page="{{ f.page if f.page is not none else '' }}"
-              data-location="{{ f.location_label if f.location_label else '' }}">
+              data-page="{{ f.page if f.page is not none else '' }}">
             <td><strong>
               {% if is_p_rule_id(f.rule_id) %}
               <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if is_source_audit %}
-                {{ f.location_label if f.location_label else "—" }}
-              {% else %}
-                {% if f.page is not none %}<a href="/audits/{{ job_id }}/pdf#page={{ f.page }}" target="_blank" rel="noopener" class="page-link" title="Open PDF at page {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
-              {% endif %}
+              {% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label if f.action_label else ('Open highlighted PDF at page' if pdf_finding_is_highlighted(f.bbox) else 'Open PDF at page') }} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
             </td>
             <td>
-              {% if f.severity == "WARNING" %}<span class="badge badge-warn">WARN</span>
-              {% elif f.severity == "FAIL" %}<span class="badge badge-fail">FAIL</span>
-              {% else %}<span class="badge badge-pass">PASS</span>{% endif %}
+              {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
+              {% elif f.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
+              {% else %}<span class="badge badge-pass">Information</span>{% endif %}
             </td>
             <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
-              {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+              {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
               {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
               {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
               {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
@@ -592,12 +664,10 @@
 <section id="section-downloads" class="section export-section" aria-label="Downloads">
   <h2 style="margin-top:0;">Download reports</h2>
   <p class="file-hint" style="margin-top:0">
-    Raw JSON and Markdown schemas are unchanged — use these for archival or downstream tooling.
+    Download the full results as a JSON file (for use with other tools) or a Markdown file (easy to read or share).
   </p>
   <div class="dl-links">
-    {% if not is_source_audit %}
-    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener" class="btn btn-secondary">Open PDF &#8599;</a>
-    {% endif %}
+    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open PDF &#8599;</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a>
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>

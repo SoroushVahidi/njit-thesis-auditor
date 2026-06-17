@@ -1,386 +1,188 @@
 # Web UI Manual QA Checklist
 
-- **Date:** 2026-06-07
-- **Baseline commit:** `4f3a70e` (post PR #216)
-- **Scope:** Manual browser verification of the FastAPI web UI (PDF, TeX, ZIP uploads; drag-and-drop upload zone; JSON/Markdown downloads; triage panels; privacy controls)
-- **Related:** `docs/web_gui_mvp.md` (setup and operations), `docs/planning/synthetic_web_demo_fixtures.md` (fixture details), `docs/planning/gui_scope_and_design.md` (design reference)
-- **Demo guide:** See [`docs/web_ui_demo_guide.md`](web_ui_demo_guide.md) for the quick-start end-to-end demo using the committed synthetic fixtures (install, run, step-by-step upload flow, privacy statement, caveats).
+- **Date:** 2026-06-16
+- **Scope:** Manual browser verification of the current public PDF-only FastAPI web UI
+- **Recommended browser profiles:** phone-sized (`390x844`) and laptop-sized (`1440x900`)
 
----
+## 1. Preconditions
 
-## 1. Purpose and Scope
+1. Use only synthetic or explicitly approved PDF files.
+2. Start the app locally or from the intended server revision.
+3. If routes, Jinja globals/filters, startup configuration, or environment-dependent behavior changed, restart the uvicorn/tmux process before QA.
+4. Prefer checking both a mobile browser/device and a desktop browser/device against the same job URL.
 
-This checklist is for manual testers who want to verify the end-to-end behavior of the
-NJIT Thesis Auditor web UI in a real browser. It covers:
-
-- Upload flows for all three supported input types (PDF, TeX, ZIP)
-- Rejection of unsupported, corrupt, and unsafe inputs
-- JSON and Markdown download correctness
-- Report rendering: status banner, summary cards, triage panels, grouped problems, raw findings table, filters
-- Job TTL and expiration behavior
-- Privacy controls: what must not appear in web exports or the UI
-
-This checklist does **not** test CLI behavior. CLI paths are unaffected by web export
-sanitization and are not verified here.
-
----
-
-## 2. Preconditions
-
-1. **Local install only.** Run the web UI on your own machine with a local Python environment.
-   Never process real dissertation files on a shared or public server during QA.
-
-2. **Install the package:**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -e ".[dev]"
-   ```
-
-3. **Use only synthetic or explicitly approved files.** Do not upload real dissertation PDFs,
-   real TeX source files, or any document containing real student names, committee names, or
-   private thesis content. See Section 3 for the privacy warning and Section 4 for how to
-   create safe test inputs.
-
-4. **Browser requirements:** Any modern browser (Chrome, Firefox, Edge, Safari). JavaScript
-   must be enabled for auto-refresh polling and client-side filters.
-
-5. **No external network required** for file-upload QA. URL-fetch testing requires
-   outbound HTTPS.
-
----
-
-## 3. Privacy Warning
-
-**CRITICAL: Use ONLY synthetic or explicitly approved files for all QA.**
-
-The web UI is a local research prototype. During testing:
-
-- Do NOT upload real dissertation PDF files.
-- Do NOT upload real `.tex` source files that contain student names, committee names,
-  thesis titles, bibliography entries, or any private academic content.
-- Do NOT upload real ZIP archives containing real thesis content.
-- Do NOT use the "Audit a built-in sample PDF" feature on any shared or networked server
-  without explicit authorization from the dissertation author.
-- Do NOT take screenshots of results from real dissertation files.
-
-All synthetic test inputs used in QA must follow the same privacy rules as the project's
-automated tests: generic placeholder text only (e.g., "This is a sample chapter." or
-Lorem Ipsum), no real names, no real institutional affiliations, no real thesis content.
-
-See `docs/planning/synthetic_web_demo_fixtures.md` for a plan to create standardized
-safe demo fixtures.
-
----
-
-## 4. Starting the Web UI Locally
+## 2. Start the App
 
 ```bash
-# From the repository root, with the virtualenv active:
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+./scripts/run_web_gui.sh 127.0.0.1
+```
+
+Or:
+
+```bash
 python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://localhost:8000` in a browser.
+## 3. Home Page
 
-Alternatively, use the helper script (binds to 0.0.0.0 by default — localhost access only for QA):
+Verify `/` includes all of the following on both mobile and desktop:
+
+- PDF upload form
+- public PDF URL form
+- built-in sample PDF form or a clear "no built-in samples" message
+- wording that the public UI is PDF-only
+- privacy/local-processing note
+- reachable links to `/help` and `/rules`
+
+## 4. Upload Flow
+
+### Local PDF
+
+Use `tests/fixtures/web_demo/clean_minimal.pdf` or `tests/fixtures/web_demo/issues_pdf.pdf`.
+
+Verify:
+
+- the file picker accepts `.pdf`
+- upload starts successfully
+- `POST /audits` redirects to `/audits/{job_id}`
+- pending/running state renders without errors
+- completed jobs show a normal result page
+- failed jobs show a safe, user-facing error message without stack traces
+
+### Public PDF URL
+
+Verify:
+
+- the form accepts a direct public PDF URL
+- internal/private URL targets are rejected safely
+- successful submissions reach the same result-page UI shape as local uploads
+
+### Built-In Sample
+
+If samples exist:
+
+- the sample form submits successfully
+- accidental `GET /audits/sample` returns to `/` instead of a confusing job-not-found page
+
+## 5. Result Page
+
+For the same completed job on mobile and desktop, verify both show the same:
+
+- job status
+- total finding count
+- warning/error-style counts
+- rules flagged
+- categories represented
+- summary cards
+- grouped problem cards
+- individual findings
+- filters
+- polished comments
+- suggested fixes
+- issue-type labels/explanations
+- PDF links
+- JSON/Markdown download links
+- privacy note
+
+Responsive layout differences are acceptable only if all actions remain reachable.
+
+### 5a. Actionability Checks (added PR #320)
+
+For each finding card on the result page:
+
+- Every card has an action button (never empty).
+- Cards with exact highlight coordinates (`P012` annotations) show **"Open highlighted PDF page"** and link to `/pdf/highlighted?...`.
+- Cards with page but no bbox show **"Open PDF page"** and link to `/audits/{job_id}/pdf#page=N`.
+- Cards with no page at all show **"Open PDF"** and a note that the finding is document-level.
+- Every grouped card shows a **"What does this mean?"** expandable details section.
+- Expanding "What does this mean?" shows a student-facing explanation (not internal rule jargon).
+- Abstract length findings (P021) show the observed word count, allowed maximum, and over-by amount in the explanation.
+- Font findings (P026) mention Times New Roman 12pt in the explanation.
+- Page numbering findings (P013/P019/P028) mention Roman/Arabic numeral requirements.
+- Annotation findings (P012) mention accepting/rejecting reviewer comments.
+- No-highlight notes appear only when highlight is not available.
+- No-highlight notes are honest: they say "relevant page is known" for page-only findings, and "document-level" for document-only findings.
+
+## 6. Problem Pages
+
+Open both:
+
+- `/audits/{job_id}/problems/category/{category}`
+- `/audits/{job_id}/problems/rule/{rule_id}`
+
+Verify on both mobile and desktop:
+
+- title/group label
+- examples
+- issue-type explanation
+- PDF links
+- back link
+- **"What does this mean?"** expandable explanation on every example card
+- Action button label matches action kind (highlighted vs. page vs. PDF)
+- No-highlight note appears when relevant
+
+## 7. PDF Routes
+
+From the UI, follow links to:
+
+- `/audits/{job_id}/pdf`
+- `/audits/{job_id}/pdf#page=N`
+- `/audits/{job_id}/pdf/highlighted?...`
+
+Verify:
+
+- no 500 responses
+- original PDF route serves inline where possible
+- highlighted route is safe on normal linked inputs
+- desktop is not forced to download when inline serving is available
+- highlighted route falls back to plain PDF when no valid bbox exists (zero-area or missing)
+
+Final preview-vs-download behavior may still vary by browser settings or installed PDF viewers.
+
+## 8. Help and Rules
+
+Verify `/help` and `/rules` load and stay aligned with the current public site:
+
+- PDF-only wording
+- no source-only upload instructions for the public browser UI
+- clear explanation that P082 is experimental/opt-in and not enabled by default
+
+## 9. Hidden-Content Regression Checks
+
+While testing both viewports, confirm there is no viewport where any of the following disappears entirely:
+
+- summary cards
+- grouped/individual findings access
+- polished comments
+- suggested fixes
+- issue explanations
+- PDF links
+- download links
+
+Collapsed menus or wrapped buttons are acceptable if the same actions remain reachable.
+
+## 10. Runtime and Cleanup
+
+Recommended cleanup before a live restart:
 
 ```bash
-./scripts/run_web_gui.sh 127.0.0.1   # binds to localhost only
+rm -rf .runtime/web_audits/*
 ```
 
-Environment variables for QA tuning (optional):
+Also verify:
 
-| Variable | Default | Notes for QA |
-|---|---|---|
-| `NJIT_AUDITOR_WEB_RUNTIME_DIR` | `.runtime/web_audits` | Set to a temp dir if you want clean isolation |
-| `NJIT_AUDITOR_WEB_MAX_UPLOAD_MB` | `50` | Lower to test size-limit rejection |
-| `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` | `86400` | Set to `10` to test TTL expiration quickly |
+- `.runtime/` remains gitignored
+- completed jobs age out according to `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS`
 
-To stop the server: press `Ctrl+C` in the terminal where uvicorn is running.
+## 11. Record the QA Result
 
----
+For each QA run, record:
 
-## 5. Recommended Synthetic Fixtures
-
-The committed fixtures in `tests/fixtures/web_demo/` are ready to use for manual QA.
-They contain only synthetic placeholder text — no real dissertation content, real names,
-or private data. Use them as drop-in upload inputs during browser QA:
-
-| Scenario | Fixture file | Expected outcome |
-|---|---|---|
-| Clean PDF upload (no findings) | `tests/fixtures/web_demo/clean_minimal.pdf` | Audit completes; few findings; no triage panels needed |
-| PDF with issues (P011/P013) | `tests/fixtures/web_demo/issues_pdf.pdf` | P011 margin warnings and P013 finding appear; triage panel if counts high enough |
-| Clean TeX source | `tests/fixtures/web_demo/clean_minimal.tex` | Source audit completes; few/no source findings; "TeX source audit" scope label |
-| TeX with issues (P001–P008) | `tests/fixtures/web_demo/issues_tex.tex` | P001/P002/P004/P005/P007/P008 source findings; sanitized web JSON |
-| ZIP project upload | `tests/fixtures/web_demo/demo_project.zip` | ZIP extracted; `main.tex` detected; source report produced |
-| Unsafe ZIP (path traversal) | Generate at test time with `tmp_path` — never committed | Server rejects with 400 or `failed` state |
-
-These fixtures are also used by the 21 automated tests in `tests/test_web_demo_fixtures.py`.
-
-### Creating Synthetic Test Inputs
-
-For additional manual testing beyond the committed fixtures, create minimal synthetic
-inputs by hand:
-
-**Minimal synthetic PDF (clean):**
-Use the committed `tests/fixtures/web_demo/clean_minimal.pdf`, or use PyMuPDF (`fitz`)
-to create a single-page document with generic text. No real dissertation content.
-
-**Minimal synthetic TeX:**
-```latex
-\documentclass{report}
-\begin{document}
-This is a sample chapter.
-\end{document}
-```
-
-**Minimal synthetic ZIP:**
-Create a ZIP archive containing only the TeX file above as `main.tex`.
-
-**Unsafe ZIP (path traversal — for rejection testing only):**
-Create programmatically at test time; do not commit to the repository. The archive should
-contain an entry named `../evil.tex` to verify the server rejects it.
-
-All synthetic inputs used in QA must not contain any real dissertation text, real names,
-real labels, or real bibliographic content.
-
----
-
-## 6. Test Matrix
-
-For each scenario, the "Expected result" column describes what a tester should observe in
-the browser. Where "must not appear" is specified, verify by inspecting page source and
-downloaded files.
-
-### 6.1 Upload page
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Upload page loads | Open `http://localhost:8000` | HTTP 200; "NJIT Thesis Auditor" heading visible; three input panels (file, URL, built-in sample) |
-| File input accepts PDF/TeX/ZIP | Inspect the file input element | `accept=".pdf,.tex,.zip"` attribute present |
-| Drag-and-drop zone visible | Inspect the file upload card | A drop zone invites the user to drag a PDF/TeX/ZIP file or click to browse |
-| Drop zone accessibility | Tab to the upload zone | Visible focus ring; upload zone announces button-like interaction; Enter/Space opens file picker |
-| Privacy note visible | Read the info banner on the upload page | "Privacy-safe processing" banner present; mentions no repository commit |
-| Supported format descriptions | Read the bullet list under the file upload card | PDF → "P011–P082"; TeX → "P001–P010"; ZIP → "safe extract … P001–P010"; "no compilation" stated |
-| Upload page copy | Read the URL form card | States PDF only; mentions private/internal URLs are blocked |
-| Built-in sample card | Read the sample card | If no samples configured: "No built-in samples are available on this server"; if samples present: dropdown visible |
-
-### 6.2 PDF upload (valid synthetic PDF)
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Drag PDF onto zone | Drag `tests/fixtures/web_demo/clean_minimal.pdf` onto the drop zone | Zone changes to drag-over state before drop; selected-file state after drop; filename shown clearly; upload does not start until "Start audit" is clicked |
-| Upload accepted | Select a valid minimal synthetic PDF; click "Start audit" | Redirect to `/audits/{job_id}`; spinning status banner "Processing audit…" |
-| Polling auto-refresh | Wait on job page | Page auto-refreshes every ~2 seconds while pending/running; no manual reload needed |
-| Completion banner | Wait for completion | Status banner changes to green "Audit complete" style; shows file name and job ID prefix |
-| Summary cards | Inspect results after completion | Cards show: total findings, WARNING count, FAIL count, category breakdown |
-| Grouped problems default view | Inspect the findings section before changing any toggle | "Grouped problems" mode is active by default; repeated problems appear once with an occurrence count and compact page ranges |
-| Expand grouped problem | Open "Show individual occurrences" on any repeated problem | Every original per-page occurrence remains available with its page/location and metadata |
-| Raw findings toggle | Click "All individual findings" | The raw findings table appears without reloading; switching back to "Grouped problems" restores the compact default view |
-| Findings table | Inspect the raw findings table after switching modes | Columns: Rule, Category, Page, Severity, Issue Type, Comment; at least header row visible |
-| Triage panels | If any P011/P013/P026 findings present | Triage panels appear above the raw findings table with structured rollup counts |
-| JSON download | Click "Download JSON" | Download completes; file is valid JSON; `metadata`, `findings`, `grouped_summary`, and `grouped_findings` keys present |
-| Markdown download | Click "Download Markdown" | Download completes; file contains "##" headings, rule IDs, finding counts |
-| No server path in JSON | Open downloaded JSON; search for absolute path strings | `metadata.file` or equivalent fields show basename only (e.g., `upload.pdf`), not a full server path |
-| No stack trace on completion | Inspect results page | No Python tracebacks visible |
-
-### 6.3 TeX upload (valid synthetic .tex)
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Drag TeX onto zone | Drag `tests/fixtures/web_demo/clean_minimal.tex` onto the drop zone | Selected-file state shown; filename updates to `.tex`; no automatic submit |
-| TeX upload accepted | Select a valid synthetic `.tex` file; click "Start audit" | Redirect to job page; status shows "TeX source audit" scope label |
-| Source rules fire | Inspect findings after completion | Rule IDs are P001–P010 (or Q004–Q006); no P011+ PDF rules appear |
-| JSON download | Download JSON | Valid JSON; `findings` present; `metadata.file` shows basename `.tex` only |
-| Markdown download | Download Markdown | Valid Markdown; no raw LaTeX label names, ref names, or caption text in download |
-| Privacy: no label names | Open downloaded JSON; search for `label`, `ref`, `caption` keys in finding details | These keys must not appear in any finding's `details` object in the web download |
-| Privacy: sanitized messages | Inspect finding `message` fields in JSON | Messages are generic structural descriptions (e.g., "Structural issue detected"); not raw audit messages that may embed `\label{fig:something}` |
-| No server path in JSON | Open downloaded JSON | File fields are basename-only |
-
-### 6.4 ZIP upload (valid synthetic .zip with main .tex)
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Drag ZIP onto zone | Drag `tests/fixtures/web_demo/demo_project.zip` onto the drop zone | Selected-file state shown; filename updates to `.zip`; no automatic submit |
-| ZIP upload accepted | Select a valid synthetic `.zip` containing `main.tex`; click "Start audit" | Redirect to job page; "ZIP" or "source audit" visible in scope label |
-| Source rules fire | Inspect findings | Same as TeX: P001–P010 rules only |
-| Extraction transparent | No intermediate extraction artifacts shown | Page shows results as if a single `.tex` was uploaded |
-| JSON/Markdown downloads | Download both | Same privacy behavior as TeX upload (sanitized messages, no private keys, basename paths) |
-
-### 6.5 Unsupported file upload (e.g., .docx)
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Unsupported drop rejected client-side | Drag a `.docx` file onto the drop zone | Drop zone enters invalid-file state; clear message says only `.pdf`, `.tex`, `.zip` are accepted; no upload starts |
-| Rejection with clear error | Select a `.docx` file; click "Start audit" | HTTP 400 response or redirect back to upload page with error message; no job created |
-| Error message is safe | Read the error | No stack trace; no internal server path; user-friendly message about unsupported format |
-
-### 6.5a Multiple dropped files
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Multi-file drop rejected client-side | Drag two supported files onto the drop zone at once | Drop zone enters invalid-file state; clear message says to drop one file at a time; existing selection remains unchanged or empty; no automatic submit |
-
-### 6.5b Click and keyboard activation
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Click drop zone opens picker | Click inside the drop zone instead of the native file input | Standard OS file picker opens; selecting a supported file updates the selected filename |
-| Keyboard activation | Tab to the drop zone and press `Enter`, then repeat with `Space` | Standard OS file picker opens both times; focus styling remains visible |
-| Replace selected file | Select one file, then drop or browse to a different supported file | Selected filename updates to the new file; form still submits through the same "Start audit" button |
-| Mobile/browser fallback | On a touch device or narrow viewport, use the normal picker flow | File-picker behavior remains unchanged; no drag-and-drop requirement for successful upload |
-
-### 6.6 Corrupt or empty PDF
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Corrupt PDF rejected | Upload a file named `.pdf` that does not start with `%PDF` bytes | HTTP 400 or job `failed` state with safe error message |
-| Empty PDF rejected | Upload a zero-byte file with `.pdf` extension | Validation error before job creation; clear user-facing message |
-| Failed job page | If job reaches `failed` state | Status banner shows "Audit could not complete"; safe error message; "Try another file" link present; no stack trace |
-
-### 6.7 Unsafe ZIP (path traversal attempt)
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Path traversal rejected | Upload a ZIP containing an entry named `../evil.tex` | Server rejects with HTTP 400 or job `failed`; no files written outside the job directory |
-| File bomb (too many files) | Upload a ZIP with > 500 entries | Server rejects with appropriate error; no extraction attempt |
-| Error is safe | Read the error message | No internal path disclosure; user-facing message only |
-
-### 6.8 JSON download
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Download link present | On a completed job page | "Download JSON" button/link visible |
-| File is valid JSON | Download and parse | JSON parses without error; top-level keys: `metadata`, `findings`, `grouped_summary`, `grouped_findings` |
-| Metadata keys | Inspect `metadata` | `total_findings`, `counts_by_severity`, `counts_by_rule_id`, `counts_by_category`, `generated_at`, `note` present |
-| Findings array | Inspect `findings` | Each finding has `rule_id`, `severity`, `message`, `page` (or `location` for source), `details` |
-| Grouped findings array | Inspect `grouped_findings` | Repeated browser-facing problems are grouped additively; raw `findings` length is unchanged |
-| No absolute paths | Search JSON for the server's absolute path | Must not appear; only basename (e.g., `upload.pdf`) |
-| Source audit: no private keys | For TeX/ZIP uploads: inspect each finding's `details` object | Keys `label`, `ref`, `caption`, `title`, `author`, `body`, `text` must not appear |
-
-### 6.9 Markdown download
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Download link present | On a completed job page | "Download Markdown" button/link visible |
-| File is valid Markdown | Open downloaded `.md` file | Readable headings, table rows, rule IDs; no binary content |
-| Triage sections | For PDF uploads with P011/P013/P026 findings | Markdown includes "### P011 Triage" / "### P013 Triage" / "### P026 Font Triage" sections when rollups present |
-| Privacy: source messages | For TeX/ZIP uploads | Raw LaTeX label names and `\ref{}` keys must not appear in the Markdown download |
-| Summary table | Top of Markdown | Summary table with severity counts; "Heuristic signal" or equivalent disclaimer |
-
-### 6.10 Job expiration and TTL behavior
-
-| Check | Steps | Expected result |
-|---|---|---|
-| TTL variable respected | Start server with `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS=10`; complete an audit; wait >10 seconds; trigger another request | Expired job's runtime directory is removed from disk; accessing the old job URL returns a 404 or "job not found" response |
-| Active jobs not evicted | A job in `pending` or `running` state must never be evicted | Even with very short TTL, in-progress jobs are preserved |
-| In-memory state on restart | Restart the server; navigate to a previously completed job URL | Job not found (expected: in-memory state is lost on restart; on-disk files remain until next TTL sweep) |
-| Runtime dir cleanup | After TTL expiry: check `.runtime/web_audits/` | Job subdirectory for expired job is removed |
-
-### 6.11 Source report rendering (TeX/ZIP results)
-
-| Check | Steps | Expected result |
-|---|---|---|
-| File:line location | Inspect findings table for a TeX/ZIP audit | Location column shows `filename:lineno` format; filename is basename only |
-| Rule IDs | Inspect findings | Only P001–P010 (and Q004–Q006) appear |
-| No raw TeX content | Inspect all visible finding comments/messages in the browser UI | No literal `\label{...}`, `\ref{...}`, or `\caption{...}` content visible |
-| Polished comments | Inspect the "Comment" column | Structural descriptions like "Review needed: …"; no dissertation body text |
-
-### 6.12 PDF report rendering
-
-| Check | Steps | Expected result |
-|---|---|---|
-| Page ranges in grouped view | Inspect grouped problems on a repeated-PDF fixture | Repeated warnings render compact ranges such as `3–7, 10, 14–16`; ranges are sorted and deduplicated |
-| Page numbers in findings | Inspect raw findings table | "Page" column shows integer page numbers (or "—" for source audits) |
-| Triage-first panels | For PDF uploads with high-volume rules | P011/P013/P026 panels appear above the raw findings table; show counts and page ranges; no page content reproduced |
-| Filters in grouped mode | Use the "Rule", "Severity", "Category", "Page" filter dropdowns while "Grouped problems" is active | Grouped cards update without page reload; filter count label updates in grouped-problem terms |
-| Filters in raw mode | Switch to "All individual findings" and reuse the same filters | Raw findings table updates without page reload; filter count label updates in individual-finding terms |
-| Filter reset | Click "Reset" or equivalent | All filters cleared; full findings table visible |
-| Grouped summary | If any rule has 5+ findings | The specialized high-volume summary remains above the grouped-problems section; this is distinct from the generic grouped-problem view |
-| Polished comments | Inspect "Comment" column | Heuristic language ("Review needed:"); no dissertation body text |
-| Source location grouping | For TeX/ZIP uploads with repeated findings | Grouped problems show basename-only compact locations such as `thesis.tex:12, thesis.tex:18–21`; no absolute paths |
-
-### 6.13 Privacy checks (what must NOT appear anywhere in web outputs)
-
-The following must not appear in the web UI, downloaded JSON, or downloaded Markdown under any circumstances:
-
-| Prohibited content | Where to check |
-|---|---|
-| Absolute server paths (e.g., `/home/user/...`) | Downloaded JSON `metadata.file`; finding `details.file` |
-| Raw source lines from TeX files | Finding `message` fields in web JSON/Markdown downloads |
-| LaTeX label names (e.g., `fig:demo_label`) | Finding `details.label` — key must be absent |
-| LaTeX ref names | Finding `details.ref` — key must be absent |
-| Caption text | Finding `details.caption` — key must be absent |
-| Author names | Finding `details.author` — key must be absent |
-| Dissertation body text | Any field in web-exported findings |
-| Python stack traces | Error message area in the browser |
-| Internal server error details | HTTP 5xx responses must show safe message only |
-
----
-
-## 7. Browser and Visual Checklist
-
-These checks do not require synthetic files — they verify page copy and layout.
-
-| Item | Check | Pass criteria |
-|---|---|---|
-| Upload page heading | Open `http://localhost:8000` | "NJIT Thesis Auditor" visible in `<h1>` |
-| Navigation bar | Every page | "Help" and "Rule Reference" links visible in nav bar at top |
-| Privacy info banner | Read the banner on the upload page | Mentions local/temporary processing; no repository commit |
-| File input label | Read the label for the file input | "Select PDF, TeX, or ZIP" or equivalent |
-| Format hint text | Read the small text under the file input | Lists accepted formats; mentions max upload size |
-| Start audit button | Read the submit button | "Start audit" label |
-| URL form | Second panel on the upload page | "Audit a public PDF URL" heading; URL input field; "Audit PDF URL" button |
-| Example URL box | Below the URL form in the same card | Blue left-bordered box with "Try an example" label; Digital Commons URL displayed; "Use this URL" button fills the input and disables itself |
-| Status banner states | Observe job page while pending | Spinner and "Processing audit…" text |
-| Status banner: failed | Upload a corrupt file | "Audit could not complete" banner; error message; "Try another file" and "Help" links |
-| Status banner: complete | Upload a valid file and wait | Success banner; job ID prefix and file name visible |
-| Summary cards | After completion | Cards visible for total, WARNING, FAIL counts; link to `/help#audit-outcomes` |
-| Contextual help link | Summary section | "What do Error, Warning, and Pass mean?" link pointing to `/help#audit-outcomes` |
-| Results mode controls | Inspect completed job page | "Grouped problems" and "All individual findings" controls; grouped is default; tooltips explain each mode |
-| Clickable rule IDs | Grouped problems and raw findings | P-rule IDs (e.g. P013) appear as links to `/rules#P013`; unknown IDs appear as plain text |
-| Findings table headers | Inspect completed job page in raw mode | Rule, Category, Page/Location, Severity, Issue Type, Comment column headers |
-| Filter controls | Inspect completed job page with findings | Rule/Severity/Category/Page dropdowns visible; count label updates on filter |
-| Download buttons | Inspect completed job page | "Download JSON" and "Download Markdown" links/buttons present |
-| Privacy note on results | Read the results page footer or note | Note about heuristic signals; disclaimer that manual review is required |
-| Back link | Inspect completed or failed job page | Link to upload page ("Try another file" or similar) |
-| Help page (/help) | Navigate to `/help` | FAIL, WARNING, PASS, and "No findings" all defined; PASS disclaimer present; "not an official" disclaimer present |
-| Rules page (/rules) | Navigate to `/rules` | Rule cards for P001–P082 (minus technical entries); search and filter controls work; stable anchors (e.g. `#P013`) exist; technical entries in separate section |
-| Rules search | On `/rules`, type "P013" in search | P013 rule card visible (others hidden) |
-| Rules category filter | On `/rules`, select a category | Only rules in that category shown |
-| Rules P013 anchor | Navigate to `/rules#P013` | Page scrolls to P013 rule card |
-| Back navigation | Click Help from results page, then browser back | Returns to results page with state preserved |
-
----
-
-## 8. Known Limitations
-
-These limitations are expected and do not constitute test failures:
-
-| Limitation | Notes |
-|---|---|
-| No PDF annotation overlays | Findings are listed in a table; no visual page overlay exists yet (Phase 4+ in roadmap) |
-| No LaTeX compilation | TeX/ZIP uploads run P001–P010 source checks only; a compiled PDF is not produced or audited |
-| No authentication or rate limiting | Default bind is `0.0.0.0`; no login required; only use on localhost for QA |
-| In-memory state lost on restart | Job list is cleared when the server restarts; old job URLs return 404 after restart |
-| Web exports are privacy-reduced, not fully anonymized | `sanitize_report_for_web_export()` removes known private-content keys; it does not guarantee perfect anonymization for all possible future field values |
-| CLI exports are not sanitized | The web sanitizer applies only to web JSON/Markdown downloads; CLI `--json-out` output is unchanged |
-| Sanitizer key list requires maintenance | If future source rules (P001–P010 scope) add new private-content detail fields, `_UNSAFE_SOURCE_DETAIL_KEYS` in `report_outputs.py` must be updated |
-| URL fetch requires outbound access | The "Audit a public PDF URL" form requires internet access; skip this flow in offline environments |
-| Built-in samples expose private evaluation PDFs | The sample dropdown must not be exposed on any shared server without explicit authorization |
-| chktex/lacheck are optional | P009/P010 findings only appear if these binaries are installed; gracefully skipped if absent |
-
----
-
-## 9. Reporting Issues
-
-When filing a bug from this checklist, include:
-
-1. Which checklist item failed (section and row).
-2. The browser used and version.
-3. The server startup command used.
-4. A description of what was observed vs. expected.
-5. Any relevant server log output (from the uvicorn terminal).
-
-Do **not** include real dissertation content, real file names from private documents, or
-personal information in bug reports.
+- commit SHA tested
+- device/browser used
+- whether mobile and desktop showed the same substantive content/actions
+- any PDF preview/download quirks caused by browser settings
+- any route returning non-200 or 500 unexpectedly
