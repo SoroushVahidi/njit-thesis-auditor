@@ -303,7 +303,7 @@ def test_summary_by_rule_guidance_present(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert "Start with the rules that have the highest counts" in body
+    assert "Click a rule ID for rule reference" in body
 
 
 # ---------------------------------------------------------------------------

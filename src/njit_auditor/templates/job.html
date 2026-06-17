@@ -17,6 +17,15 @@
   .triage-panel__actions .btn { min-height: 2.6rem; display: inline-flex; align-items: center; }
   .grouped-problem__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.8rem; }
   .grouped-problem__actions .btn { min-height: 2.5rem; display: inline-flex; align-items: center; }
+  .finding-explanation { margin: 0.5rem 0 0.4rem; font-size: 0.91rem; }
+  .finding-explanation summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.2rem 0; }
+  .finding-explanation summary:hover { text-decoration: underline; }
+  .finding-explanation p { margin: 0.35rem 0 0; color: var(--color-text-muted, #555); }
+  .no-highlight-note { font-size: 0.82rem; color: var(--color-text-muted, #666); font-style: italic; }
+  .issue-type-help { margin: 0.35rem 0 0.3rem; font-size: 0.91rem; }
+  .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.15rem 0; }
+  .issue-type-help summary:hover { text-decoration: underline; }
+  .issue-type-help p { margin: 0.3rem 0 0; color: var(--color-text-muted, #555); font-size: 0.88rem; }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -210,7 +219,7 @@
 {% if findings %}
 <nav class="jump-links" aria-label="Jump to section">
   <a href="#section-summary">Summary</a>
-  {% if report_view and report_view.counts_by_category %}<a href="#section-overview">By category</a>{% endif %}
+  {% if category_summary %}<a href="#section-overview">By problem type</a>{% endif %}
   <a href="#section-review-order">Review order</a>
   {% if report_view and report_view.triage_panels %}<a href="#section-triage">Most common issues</a>{% endif %}
   {% if grouped_summary %}<a href="#section-rule-summary">By rule</a>{% endif %}
@@ -314,15 +323,27 @@
 </section>
 {% endif %}
 
-{% if report_view and report_view.counts_by_category %}
-<section id="section-overview" class="section" aria-label="Overview">
-  <div class="section-header"><h2>By category</h2></div>
-  <div class="card card-compact">
-    <div class="overview-chips">
-      {% for cat, count in report_view.counts_by_category.items() %}
-      <a href="/audits/{{ job_id }}/problems/category/{{ cat | category_slug }}" class="chip chip-link" aria-label="Open {{ cat | humanize_cat }} examples"><strong>{{ count }}</strong> {{ cat | humanize_cat }}</a>
+{% if category_summary %}
+<section id="section-overview" class="section" aria-label="Summary by problem type">
+  <div class="section-header">
+    <h2>Summary by problem type</h2>
+    <span class="section-note">Click a problem type or View all to see every matching finding</span>
+  </div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <table>
+      <thead>
+        <tr><th>Problem type</th><th>Findings</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for row in category_summary %}
+        <tr>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
+          <td>{{ row.count }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">View all</a></td>
+        </tr>
       {% endfor %}
-    </div>
+      </tbody>
+    </table>
   </div>
 </section>
 {% endif %}
@@ -376,12 +397,12 @@
 <section id="section-rule-summary" class="section" aria-label="Summary by rule">
   <div class="section-header">
     <h2>Summary by rule</h2>
-    <span class="section-note">Start with the rules that have the highest counts, then inspect the individual findings below.</span>
+    <span class="section-note">Click a rule ID for rule reference, or View all to see every finding for that rule.</span>
   </div>
   <div class="card" style="padding:0.5rem 0.75rem">
     <table>
       <thead>
-        <tr><th>Rule</th><th>Count</th><th>Category</th></tr>
+        <tr><th>Rule</th><th>Count</th><th>Category</th><th></th></tr>
       </thead>
       <tbody>
       {% for row in grouped_summary %}
@@ -392,7 +413,8 @@
             {% else %}{{ row.rule_id }}{% endif %}
           </strong></td>
           <td>{{ row.count }}</td>
-          <td>{{ row.category | humanize_cat }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
+          <td><a href="/audits/{{ job_id }}/problems/rule/{{ row.rule_id }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">View all</a></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -480,7 +502,7 @@
             {% if is_p_rule_id(problem.rule_id) %}
             <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
             {% else %}{{ problem.rule_id }}{% endif %}
-            {% if problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
+            {% if problem.issue_type_label %} · {{ problem.issue_type_label }}{% elif problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
             <div class="grouped-problem__summary">
               {% if problem.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
@@ -503,7 +525,15 @@
           {% endif %}
         </div>
         <div class="grouped-problem__meta">
-          {% if problem.issue_type %}
+          {% if problem.issue_type_label %}
+          <details class="issue-type-help">
+            <summary>Issue type: {{ problem.issue_type_label }}</summary>
+            <p>{{ problem.issue_type_explanation if problem.issue_type_explanation else "Review this finding against NJIT formatting requirements." }}</p>
+            {% if problem.issue_type and problem.rule_id %}
+            <p style="margin:0.3rem 0 0;font-size:0.86rem"><a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}/issue-type/{{ problem.issue_type | issue_type_slug }}" class="rule-link">View all findings of this type &rarr;</a></p>
+            {% endif %}
+          </details>
+          {% elif problem.issue_type %}
           <div class="grouped-problem__meta-line"><strong>Issue type:</strong> {{ problem.issue_type | humanize_detail_key }}</div>
           {% endif %}
           <div class="grouped-problem__meta-line">{{ problem.polished_comment }}</div>
@@ -511,6 +541,12 @@
           <div class="grouped-problem__meta-line"><strong>Suggested fix:</strong> {{ problem.suggested_fix }}</div>
           {% endif %}
         </div>
+        {% if problem.detailed_explanation %}
+        <details class="finding-explanation">
+          <summary>What does this mean?</summary>
+          <p>{{ problem.detailed_explanation }}</p>
+        </details>
+        {% endif %}
         <div class="grouped-problem__actions">
           {% if problem.individual_findings and problem.individual_findings[0].page is not none %}
           {% set first_finding = problem.individual_findings[0] %}
@@ -520,8 +556,11 @@
             target="_blank"
             rel="noopener noreferrer"
           >
-            {% if pdf_finding_is_highlighted(first_finding.bbox) %}Open highlighted PDF page{% else %}Open PDF page{% endif %}
+            {{ first_finding.action_label if first_finding.action_label else ("Open highlighted PDF page" if pdf_finding_is_highlighted(first_finding.bbox) else "Open PDF page") }}
           </a>
+          {% if not first_finding.has_highlight and first_finding.page is not none %}
+          <span class="file-hint no-highlight-note" style="align-self:center;">{{ first_finding.no_highlight_reason }}</span>
+          {% endif %}
           {% elif problem.page_tokens %}
           <a
             href="/audits/{{ job_id }}/pdf#page={{ problem.page_tokens[0] }}"
@@ -531,8 +570,9 @@
           >
             Open PDF page
           </a>
+          <span class="file-hint no-highlight-note" style="align-self:center;">Exact highlight is not available for this finding, but the relevant page is known.</span>
           {% else %}
-          <a href="/audits/{{ job_id }}/pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Open PDF</a>
+          <span class="file-hint no-highlight-note" style="align-self:center;">This finding is document-level and does not correspond to a specific page or visual location — see the explanation above.</span>
           {% endif %}
           <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
         </div>
@@ -550,9 +590,9 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{% if pdf_finding_is_highlighted(f.bbox) %}Open highlighted PDF at page{% else %}Open PDF at page{% endif %} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}</td>
+                <td>{% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label if f.action_label else ('Open highlighted PDF at page' if pdf_finding_is_highlighted(f.bbox) else 'Open PDF at page') }} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}</td>
                 <td class="meta-cell">
-                  {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+                  {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
                   {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
@@ -595,7 +635,7 @@
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{% if pdf_finding_is_highlighted(f.bbox) %}Open highlighted PDF at page{% else %}Open PDF at page{% endif %} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
+              {% if f.page is not none %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0, bbox=f.bbox) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label if f.action_label else ('Open highlighted PDF at page' if pdf_finding_is_highlighted(f.bbox) else 'Open PDF at page') }} {{ f.page }}">{{ f.page }}</a>{% else %}—{% endif %}
             </td>
             <td>
               {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
@@ -604,7 +644,7 @@
             </td>
             <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
-              {% if f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+              {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
               {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
               {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
               {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}

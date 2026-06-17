@@ -814,9 +814,12 @@ def test_rule_problem_page_route_returns_200(
     assert b"Back to all results" in resp.content
 
 
-def test_problem_group_page_page_less_pdf_finding_still_has_pdf_link(
+def test_problem_group_page_page_less_finding_has_no_generic_pdf_link(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
+    """A finding with no page and no highlight must not offer a destination-less
+    "Open PDF" button — see docs/planning/problem_page_actionability_audit.md.
+    The explanation block is the actionable content instead."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -845,8 +848,9 @@ def test_problem_group_page_page_less_pdf_finding_still_has_pdf_link(
 
     assert resp.status_code == 200
     assert b"Document-wide overview" in resp.content
-    assert f'href="/audits/{job_id}/pdf"'.encode() in resp.content
-    assert b"Open PDF" in resp.content
+    assert f'href="/audits/{job_id}/pdf"'.encode() not in resp.content
+    assert b"Open PDF" not in resp.content
+    assert b"explanation above" in resp.content
 
 
 def test_problem_group_pages_only_show_matching_findings(
@@ -2420,7 +2424,7 @@ def test_result_and_problem_pages_pdf_links_never_500(
         f"/audits/{job_id}/problems/category/annotations",
         f"/audits/{job_id}/problems/rule/P012",
     ]
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf[^"]*)"')
+    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
     checked_any = False
     for page_url in pages:
         resp = c.get(page_url)
@@ -2532,7 +2536,7 @@ def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
     assert "pdf_finding_url" not in resp.text
     assert "Undefined" not in resp.text
 
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf[^"#]*)')
+    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
     links = set(pdf_link_re.findall(resp.text))
     assert links, "expected at least one PDF link on the rendered job page"
     for link in links:
@@ -2571,7 +2575,7 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
 
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf[^"]*)"')
+    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
     links = pdf_link_re.findall(resp.text)
     assert links
     for link in links:

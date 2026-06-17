@@ -27,6 +27,7 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_highlight import build_highlighted_pdf, is_drawable_bbox
 from njit_auditor.report_outputs import (
@@ -353,7 +354,7 @@ _CATEGORY_LABELS: dict[str, str] = {
     "figure_table_format": "Figures / tables",
     "font_format": "Font formatting",
     "formatting_override": "Formatting overrides",
-    "frontmatter_structure": "Front matter structure",
+    "frontmatter_structure": "Front matter / appendix structure",
     "heading_title": "Headings / titles",
     "indentation": "Indentation",
     "labels_references": "Labels / cross-references",
@@ -393,6 +394,19 @@ def _category_slug(category: str) -> str:
 _templates.env.filters["category_slug"] = _category_slug
 
 
+def _issue_type_slug(issue_type: str) -> str:
+    """Return a stable URL slug for a finding issue_type."""
+    return str(issue_type).strip().replace("_", "-")
+
+
+def _issue_type_from_slug(slug: str) -> str:
+    """Recover the original issue_type from its URL slug."""
+    return str(slug).strip().replace("-", "_")
+
+
+_templates.env.filters["issue_type_slug"] = _issue_type_slug
+
+
 _CATEGORY_EXPLANATIONS: dict[str, str] = {
     "abstract_language": (
         "These examples point to abstract wording or structure that should be checked manually."
@@ -429,7 +443,13 @@ _CATEGORY_EXPLANATIONS: dict[str, str] = {
     "formatting_override": (
         "These examples point to formatting overrides that may break consistent document styling."
     ),
-    "frontmatter_structure": "These examples cover front-matter ordering or structure problems.",
+    "frontmatter_structure": (
+        "This group covers several different front-matter and appendix-heading "
+        "checks (ordering, dedication formatting, biosketch order, appendix "
+        "letter labeling, and similar structure problems). Each example below "
+        "shows its exact issue type so you can see precisely which check it "
+        "failed."
+    ),
     "heading_title": (
         "These examples point to heading or title formatting problems that can "
         "repeat across sections."
@@ -602,6 +622,21 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "remediation": (
             "Use lowercase Roman numerals (i, ii, iii) for front-matter "
             "numbered pages and Arabic numerals (1, 2, 3) for body pages."
+        ),
+    },
+    "P013": {
+        "question": "Page-number candidates detected for verification",
+        "rule_definition": (
+            "Detect text that looks like a page number and record its position "
+            "and style so it can be checked manually. This is a verification "
+            "signal, not a confirmed formatting defect by itself — see the "
+            "page-number sequence/style and page-numbering-regime rules for "
+            "findings that flag a specific page-numbering problem."
+        ),
+        "remediation": (
+            "Verify the detected page number is visible, in the required "
+            "bottom position, and uses the correct numbering style for that "
+            "section."
         ),
     },
 }
@@ -789,6 +824,24 @@ def _problem_group_examples(
         page = _coerce_page_number(finding.get("page"))
         bbox = finding.get("bbox")
         rule = rule_lookup.get(rule_id, {})
+        has_highlight = _pdf_finding_is_highlighted(bbox)
+        action_kind = str(finding.get("action_kind", "")).strip()
+        action_label = str(finding.get("action_label", "")).strip()
+        no_highlight_reason = str(finding.get("no_highlight_reason", "")).strip()
+        detailed_explanation = str(finding.get("detailed_explanation", "")).strip()
+        issue_type_label = str(finding.get("issue_type_label", "")).strip()
+        issue_type_explanation = str(finding.get("issue_type_explanation", "")).strip()
+        # Fall back to computing action_kind/label from bbox+page if not in finding
+        if not action_kind:
+            if has_highlight:
+                action_kind = "highlight"
+                action_label = action_label or "Open highlighted PDF page"
+            elif page is not None:
+                action_kind = "page"
+                action_label = action_label or "Open PDF page"
+            else:
+                action_kind = "explanation"
+                action_label = action_label or "Read explanation"
         examples.append(
             {
                 "rule_id": rule_id,
@@ -807,7 +860,13 @@ def _problem_group_examples(
                     if page is not None
                     else ""
                 ),
-                "highlighted": _pdf_finding_is_highlighted(bbox),
+                "highlighted": has_highlight,
+                "action_kind": action_kind,
+                "action_label": action_label,
+                "no_highlight_reason": no_highlight_reason,
+                "detailed_explanation": detailed_explanation,
+                "issue_type_label": issue_type_label,
+                "issue_type_explanation": issue_type_explanation,
             }
         )
 
@@ -839,6 +898,29 @@ def _problem_group_context(
             if page is not None
         }
     )
+    hero_action_kind = "none"
+    hero_action_label = ""
+    hero_action_url = ""
+    for example in examples:
+        if example.get("action_kind") == "highlight" and example.get("pdf_page_url"):
+            hero_action_kind = "highlight"
+            hero_action_label = "Open first highlighted example"
+            hero_action_url = str(example["pdf_page_url"])
+            break
+    if hero_action_kind == "none":
+        for example in examples:
+            if example.get("pdf_page_url"):
+                hero_action_kind = "page"
+                hero_action_label = "Open first example page"
+                hero_action_url = str(example["pdf_page_url"])
+                break
+    if hero_action_kind == "none" and examples:
+        # No example in this group has a known page or highlight — never show
+        # a destination-less PDF button; offer an in-page jump to the
+        # per-example explanations instead.
+        hero_action_kind = "explanation"
+        hero_action_label = "Read explanation"
+        hero_action_url = "#examples"
     return {
         "job_id": job.job_id,
         "file_name": job.file_name,
@@ -850,6 +932,9 @@ def _problem_group_context(
         "example_count": len(examples),
         "pages_to_review": compact_page_list(pages) if pages else "",
         "examples": examples,
+        "hero_action_kind": hero_action_kind,
+        "hero_action_label": hero_action_label,
+        "hero_action_url": hero_action_url,
     }
 
 
@@ -872,6 +957,11 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
     report_view = job.report_view or {}
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
+    counts_by_category = report_view.get("counts_by_category", {}) or {}
+    category_summary = sorted(
+        [{"category": cat, "count": count} for cat, count in counts_by_category.items()],
+        key=lambda r: (-r["count"], r["category"]),
+    )
 
     filter_rules = sorted({str(f.get("rule_id", "")) for f in job.findings if f.get("rule_id")})
     filter_severities = sorted(
@@ -908,6 +998,7 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,
+        "category_summary": category_summary,
     }
 
 
@@ -1004,6 +1095,13 @@ def _run_audit_task(job_id: str) -> None:
             "source_line": fv.get("source_line", ""),
             "location_label": fv.get("location_label", ""),
             "bbox": fv.get("bbox"),
+            "action_kind": fv.get("action_kind", ""),
+            "action_label": fv.get("action_label", ""),
+            "has_highlight": fv.get("has_highlight", False),
+            "no_highlight_reason": fv.get("no_highlight_reason", ""),
+            "detailed_explanation": fv.get("detailed_explanation", ""),
+            "issue_type_label": fv.get("issue_type_label", ""),
+            "issue_type_explanation": fv.get("issue_type_explanation", ""),
         }
         for fv in view_dict.get("findings", [])
     ]
@@ -1303,6 +1401,57 @@ async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTML
         group_kind="rule",
         group_key=rule_id,
         group_explanation=_short_rule_explanation(rule),
+        examples=_problem_group_examples(job, findings=matching_findings),
+    )
+    return _render(request, "problem_group.html", context)
+
+
+@app.get(
+    "/audits/{job_id}/problems/rule/{rule_id}/issue-type/{issue_type_slug}",
+    response_class=HTMLResponse,
+)
+async def issue_type_problem_page(
+    request: Request, job_id: str, rule_id: str, issue_type_slug: str
+) -> HTMLResponse:
+    """Show all findings for a specific (rule_id, issue_type) combination."""
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_error(
+            request,
+            _job_not_found_message(job_id),
+            status_code=404,
+        )
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    issue_type = _issue_type_from_slug(issue_type_slug)
+    matching_findings = [
+        f
+        for f in job.findings
+        if str(f.get("rule_id", "")).strip() == rule_id
+        and str(f.get("issue_type", "")).strip() == issue_type
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That problem group was not found for this audit.",
+            status_code=404,
+        )
+
+    issue_type_label = humanize_issue_type(issue_type) or issue_type.replace("_", " ")
+    group_title = f"{issue_type_label} ({rule_id})"
+    group_explanation = explain_issue_type(rule_id, issue_type)
+    context = _problem_group_context(
+        job=job,
+        group_title=group_title,
+        group_kind="issue_type",
+        group_key=issue_type,
+        group_explanation=group_explanation,
         examples=_problem_group_examples(job, findings=matching_findings),
     )
     return _render(request, "problem_group.html", context)
