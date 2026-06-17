@@ -327,7 +327,10 @@ def test_font_category_page_title(
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/category/font-format")
-    assert "Font" in text
+    # All 3 P026 findings share one issue type, so the page uses a precise,
+    # issue-specific title instead of the broad "Font formatting" category
+    # label — it still mentions "font" via that issue-specific title.
+    assert "font" in text.lower()
 
 
 def test_font_category_page_shows_p026_findings(
@@ -347,13 +350,16 @@ def test_font_category_page_shows_3_examples(
     assert "3 example" in text
 
 
-def test_font_category_page_has_pdf_links(
+def test_font_category_page_has_no_pdf_link_without_highlight(
     drilldown_job: tuple[TestClient, Any, str],
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/category/font-format")
-    links = _pdf_links(text)
-    assert any(f"/audits/{job_id}/pdf" in lnk for lnk in links)
+    # These P026 findings have no bbox/highlight, so the drill-down page's
+    # strict highlight-only PDF-action policy shows no PDF link at all —
+    # the no-highlight explanation carries the page information instead.
+    assert not _pdf_links(text)
+    assert "Exact highlight is not available" in text
 
 
 def test_annotations_category_page_does_not_show_p026(
@@ -404,12 +410,15 @@ def test_p013_rule_page_shows_4_examples(
     assert "4 example" in text
 
 
-def test_p013_rule_page_has_pdf_page_links(
+def test_p013_rule_page_has_no_pdf_link_without_highlight(
     drilldown_job: tuple[TestClient, Any, str],
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
-    assert f"/audits/{job_id}/pdf" in text
+    # P013 findings here have no bbox/highlight, so the strict highlight-only
+    # policy on drill-down pages shows no PDF link — only the explanation.
+    assert not _pdf_links(text)
+    assert "Exact highlight is not available" in text
 
 
 def test_p026_rule_page_shows_3_examples(

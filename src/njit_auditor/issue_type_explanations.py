@@ -83,6 +83,48 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
+# Precise, issue-specific titles (used when a category/rule/issue-type page
+# narrows down to exactly one issue type, instead of a broad category/rule
+# title that could describe several unrelated checks).
+# ---------------------------------------------------------------------------
+
+_ISSUE_TYPE_TITLES: dict[tuple[str, str], str] = {
+    ("P063", "single_appendix_uses_letter_label"): "Appendix heading label convention",
+    ("P063", "multiple_appendix_missing_letter"): "Appendix heading label convention",
+    ("P063", "appendix_letter_sequence_gap"): "Appendix letter sequence gap",
+    ("P063", "appendix_letter_sequence_repeat"): "Appendix letter sequence repeated",
+}
+
+
+def issue_type_title(rule_id: str, issue_type: str) -> str:
+    """Return a precise, issue-specific page title for a (rule_id, issue_type) pair.
+
+    Falls back to the humanized issue-type label when no explicit override
+    exists, so every issue type still gets a specific (not broad-category)
+    title.
+    """
+    explicit = _ISSUE_TYPE_TITLES.get((rule_id, issue_type))
+    if explicit is not None:
+        return explicit
+    label = humanize_issue_type(issue_type)
+    if label and rule_id:
+        return f"{label} ({rule_id})"
+    return label or rule_id or "Finding"
+
+
+def has_curated_issue_type_title(rule_id: str, issue_type: str) -> bool:
+    """Return True when an explicit, hand-curated title override exists.
+
+    Used to decide whether a rule page (whose canonical rule title is
+    usually already specific to one check) should be replaced with an
+    issue-specific title, versus a category page (whose label is always a
+    broad umbrella) which should switch to *some* issue-specific title
+    whenever exactly one issue type is present, curated or not.
+    """
+    return (rule_id, issue_type) in _ISSUE_TYPE_TITLES
+
+
+# ---------------------------------------------------------------------------
 # Student-facing explanations
 # ---------------------------------------------------------------------------
 

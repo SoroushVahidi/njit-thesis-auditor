@@ -2,7 +2,7 @@
 
 Covers:
 1. Highlightable finding renders highlighted action
-2. Page-only finding renders page action
+2. Page-known/no-bbox finding renders explanation action, no PDF button at all
 3. Document-level finding renders explanation action
 4. Abstract length explanation is detailed
 5. Font explanation is detailed
@@ -50,6 +50,7 @@ from njit_auditor.finding_explanations import (
 )
 from njit_auditor.issue_type_explanations import explain_issue_type
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_highlight import get_pdf_page_sizes
 from njit_auditor.polished_comments import build_polished_comment
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
 from njit_auditor.report_view import build_report_view, report_view_to_dict
@@ -121,7 +122,8 @@ def _inject_job(
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
-    view = build_report_view(payload)
+    pdf_page_sizes = get_pdf_page_sizes(jdir / "upload.pdf")
+    view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
 
     job = wa.JobState(
@@ -131,6 +133,8 @@ def _inject_job(
         finished_at=datetime.now(timezone.utc).isoformat(),
         file_name=file_name,
         audit_type="pdf",
+        pdf_page_count=len(pdf_page_sizes),
+        pdf_page_sizes=pdf_page_sizes,
         finding_count=view.total_findings,
         warn_count=sum(1 for f in view.findings if f.severity == "WARNING"),
         fail_count=sum(1 for f in view.findings if f.severity == "FAIL"),
@@ -204,13 +208,16 @@ def test_highlightable_finding_renders_highlighted_action(app: tuple[TestClient,
         )
     ]
     job_id = _inject_job(wa, findings)
+    original_bytes = (
+        Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf"
+    ).read_bytes()
     page_html = _get_html(c, f"/audits/{job_id}")
 
     # Action label
     assert "Open highlighted PDF page" in page_html
     # URL must point to highlighted endpoint
     assert "/pdf/highlighted" in page_html
-    # Route must return a PDF, not 500
+    # Route must return a PDF, not 500, with at least one real visible annotation.
     highlighted_links = [
         link for link in _pdf_links(page_html) if "highlighted" in link
     ]
@@ -220,12 +227,16 @@ def test_highlightable_finding_renders_highlighted_action(app: tuple[TestClient,
         assert resp.status_code != 500, f"{link} returned 500"
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("application/pdf")
+        assert resp.content != original_bytes
+        with fitz.open(stream=resp.content, filetype="pdf") as doc:
+            total_annots = sum(len(list(page.annots() or [])) for page in doc)
+        assert total_annots >= 1
 
 
 def test_highlightable_finding_action_kind_and_label() -> None:
-    assert get_action_kind(has_bbox=True, page=2) == "highlight"
-    assert get_action_label(has_bbox=True, page=2) == "Open highlighted PDF page"
-    assert get_no_highlight_reason(has_bbox=True, page=2) == ""
+    assert get_action_kind(has_highlight=True, page=2) == "highlight"
+    assert get_action_label(has_highlight=True, page=2) == "Open highlighted PDF page"
+    assert get_no_highlight_reason(has_highlight=True, page=2) == ""
 
 
 def test_findingview_has_highlight_field() -> None:
@@ -261,7 +272,9 @@ def test_findingview_has_highlight_field() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_page_only_finding_renders_page_action(app: tuple[TestClient, Any]) -> None:
+def test_page_known_no_bbox_finding_renders_explanation_only(
+    app: tuple[TestClient, Any],
+) -> None:
     c, wa = app
     findings = [
         AuditFinding(
@@ -278,18 +291,19 @@ def test_page_only_finding_renders_page_action(app: tuple[TestClient, Any]) -> N
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
 
-    # Must show page action, NOT highlighted action for this finding
-    assert "Open PDF page" in page_html
-    # Plain PDF link (not highlighted)
-    assert f"/audits/{job_id}/pdf#page=3" in page_html
-    # No-highlight note must be present
+    # No PDF button at all for a known-page-but-no-highlight finding.
+    assert "Open PDF page" not in page_html
+    assert "Open highlighted PDF page" not in page_html
+    assert f"/audits/{job_id}/pdf#page=3" not in page_html
+    assert "/pdf/highlighted" not in page_html
+    # No-highlight note must be present instead.
     assert "Exact highlight is not available" in page_html
 
 
 def test_page_only_action_kind_and_label() -> None:
-    assert get_action_kind(has_bbox=False, page=5) == "page"
-    assert get_action_label(has_bbox=False, page=5) == "Open PDF page"
-    reason = get_no_highlight_reason(has_bbox=False, page=5)
+    assert get_action_kind(has_highlight=False, page=5) == "explanation"
+    assert get_action_label(has_highlight=False, page=5) == "Read explanation"
+    reason = get_no_highlight_reason(has_highlight=False, page=5)
     assert "relevant page is known" in reason
 
 
@@ -311,8 +325,8 @@ def test_findingview_page_only_fields() -> None:
     view = build_report_view(payload)
     fv = view.findings[0]
     assert fv.has_highlight is False
-    assert fv.action_kind == "page"
-    assert fv.action_label == "Open PDF page"
+    assert fv.action_kind == "explanation"
+    assert fv.action_label == "Read explanation"
     assert "relevant page is known" in fv.no_highlight_reason
     assert fv.bbox is None
 
@@ -343,9 +357,9 @@ def test_document_level_finding_renders_explanation(app: tuple[TestClient, Any])
 
 
 def test_document_level_action_kind() -> None:
-    assert get_action_kind(has_bbox=False, page=None) == "explanation"
-    assert get_action_label(has_bbox=False, page=None) == "Read explanation"
-    reason = get_no_highlight_reason(has_bbox=False, page=None)
+    assert get_action_kind(has_highlight=False, page=None) == "explanation"
+    assert get_action_label(has_highlight=False, page=None) == "Read explanation"
+    reason = get_no_highlight_reason(has_highlight=False, page=None)
     assert "document-level" in reason
 
 
@@ -444,8 +458,8 @@ def test_abstract_findingview_has_explanation() -> None:
     assert "350" in fv.detailed_explanation
     assert "50" in fv.detailed_explanation  # over_by
     assert "PhD" in fv.detailed_explanation
-    # Must be page-only (no highlight)
-    assert fv.action_kind == "page"
+    # No bbox available: explanation only, no PDF button.
+    assert fv.action_kind == "explanation"
     assert fv.has_highlight is False
 
 
@@ -510,9 +524,12 @@ def test_font_findingview_explanation(app: tuple[TestClient, Any]) -> None:
     # Rule problem page
     page_html = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
     assert "Times New Roman" in page_html
-    # No highlight link on font findings
+    # No highlight available for this font finding, and the drill-down
+    # page's strict highlight-only PDF-action policy means no PDF button is
+    # shown at all — the page number and explanation carry the location.
     assert "/pdf/highlighted" not in page_html
-    assert "Open PDF page" in page_html
+    assert "Open PDF page" not in page_html
+    assert "Page 5" in page_html
 
 
 # ---------------------------------------------------------------------------
@@ -559,7 +576,10 @@ def test_page_numbering_findingview(app: tuple[TestClient, Any]) -> None:
     ]
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
-    assert "Open PDF page" in page_html
+    # No highlight available, so the drill-down page's strict highlight-only
+    # PDF-action policy shows no PDF button at all.
+    assert "Open PDF page" not in page_html
+    assert "Page 2" in page_html
     # Explanation must reference page numbering
     assert (
         "Roman" in page_html
@@ -616,7 +636,25 @@ def test_annotation_findingview_highlight(app: tuple[TestClient, Any]) -> None:
         assert resp.status_code != 500
 
 
-def test_annotation_invalid_bbox_falls_back(app: tuple[TestClient, Any]) -> None:
+@pytest.mark.parametrize(
+    ("case_name", "rect"),
+    [
+        ("zero_area", "0.0,0.0,0.0,0.0"),
+        ("inverted", "300.0,260.0,100.0,200.0"),
+        ("nan", "nan,nan,nan,nan"),
+        ("infinity", "inf,inf,inf,inf"),
+        ("outside_page_bounds", "2000.0,2000.0,2100.0,2100.0"),
+        ("too_tiny", "100.0,200.0,100.5,200.5"),
+        ("malformed_string", "not-a-number,200.0,300.0,260.0"),
+        # 0-1 normalized fractions mistaken for PDF points: technically a
+        # valid, positive-area rectangle, but vanishingly thin once placed on
+        # a real (612x792pt) page -- must not be treated as a real highlight.
+        ("normalized_coordinates", "0.1,0.1,0.5,0.5"),
+    ],
+)
+def test_annotation_invalid_bbox_falls_back(
+    app: tuple[TestClient, Any], case_name: str, rect: str
+) -> None:
     c, wa = app
     findings = [
         AuditFinding(
@@ -627,20 +665,51 @@ def test_annotation_invalid_bbox_falls_back(app: tuple[TestClient, Any]) -> None
             details={
                 "issue_type": "pdf_annotation_detected",
                 "annotation_type": "FreeText",
-                "rect": "0.0,0.0,0.0,0.0",  # zero-area — invalid
+                "rect": rect,
                 "triage_tier": "informational",
             },
         )
     ]
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
-    # Zero-area bbox → no highlight → must fall back to page link
-    assert "Open PDF page" in page_html
-    assert "/pdf/highlighted" not in page_html
-    # No 500
+    # Invalid/unusable bbox → no highlight → no PDF button at all, explanation only.
+    assert "Open PDF page" not in page_html, case_name
+    assert "Open highlighted PDF page" not in page_html, case_name
+    assert "/pdf/highlighted" not in page_html, case_name
+    assert "Exact highlight is not available" in page_html, case_name
+    # No 500, regardless of which malformed bbox shape produced this state.
     for link in _pdf_links(page_html):
         resp = c.get(link)
         assert resp.status_code != 500
+
+
+def test_annotation_page_out_of_pdf_range_falls_back(app: tuple[TestClient, Any]) -> None:
+    """A finding whose page number exceeds the PDF's actual page count must not highlight."""
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=99,
+            message="PDF annotation detected.",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Text",
+                "rect": "100.0,200.0,300.0,260.0",  # otherwise-valid bbox
+                "triage_tier": "informational",
+            },
+        )
+    ]
+    job_id = _inject_job(wa, findings, page_count=5)  # PDF only has 5 pages
+    page_html = _get_html(c, f"/audits/{job_id}")
+    assert "Open highlighted PDF page" not in page_html
+    assert "Open PDF page" not in page_html
+    assert "Exact highlight is not available" in page_html
+
+    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 99, "rule_id": "P012"})
+    assert resp.status_code != 500
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
 
 
 # ---------------------------------------------------------------------------
@@ -683,14 +752,13 @@ def test_main_category_rule_parity(app: tuple[TestClient, Any]) -> None:
         assert "Open highlighted PDF page" in page_html, "P012 highlight missing"
         assert "/pdf/highlighted" in page_html
 
-    # P026 page-only appears on main and rule page
-    for page_html in (main_html, rule_p026_html):
-        assert "Open PDF page" in page_html
-        # P026 has no bbox — any highlighted links must not be for P026
-        assert (
-            "/pdf/highlighted" not in page_html
-            or "P026" not in page_html.split("/pdf/highlighted")[0].split("P026")[-1]
-        )
+    # P026 has no bbox: every page (main results, category, and rule
+    # drill-down) applies the same strict highlight-only PDF-action policy
+    # and shows no PDF button at all for it.
+    assert "Open PDF page" not in main_html
+    assert "Open PDF page" not in rule_p026_html
+    assert "Open highlighted PDF page" not in rule_p026_html
+    assert "/pdf/highlighted" not in rule_p026_html
 
     # issue types appear on all pages
     assert "pdf annotation detected" in main_html.lower()
@@ -718,9 +786,10 @@ def test_rule_page_explanation_present(app: tuple[TestClient, Any]) -> None:
     rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P021")
     # Explanation shown
     assert "What does this mean?" in rule_html
-    # page-only action
-    assert "Open PDF page" in rule_html
+    # No highlight available — drill-down page shows no PDF button at all.
+    assert "Open PDF page" not in rule_html
     assert "/pdf/highlighted" not in rule_html
+    assert "Page 5" in rule_html
 
 
 # ---------------------------------------------------------------------------
@@ -779,7 +848,8 @@ def _build_parity_job(wa: Any) -> str:
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
-    view = build_report_view(payload)
+    pdf_page_sizes = get_pdf_page_sizes(jdir / "upload.pdf")
+    view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
 
     job = wa.JobState(
@@ -789,6 +859,8 @@ def _build_parity_job(wa: Any) -> str:
         finished_at=datetime.now(timezone.utc).isoformat(),
         file_name="parity-thesis.pdf",
         audit_type="pdf",
+        pdf_page_count=len(pdf_page_sizes),
+        pdf_page_sizes=pdf_page_sizes,
         finding_count=view.total_findings,
         warn_count=sum(1 for f in view.findings if f.severity == "WARNING"),
         fail_count=sum(1 for f in view.findings if f.severity == "FAIL"),
@@ -1193,6 +1265,18 @@ def _build_page_numbering_job(wa: Any) -> str:
                 "candidate_text": "4",
             },
         ),
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=6,
+            message="PDF annotation detected.",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Text",
+                "rect": "100.0,200.0,300.0,260.0",
+                "triage_tier": "informational",
+            },
+        ),
     ]
     return _inject_job(wa, findings, file_name="page-numbering-thesis.pdf", page_count=10)
 
@@ -1243,6 +1327,31 @@ def test_page_numbering_main_category_rule_issue_type_parity(
     for page_html in (main_html, cat_html, rule_p028_html):
         assert "Roman numerals" in page_html
         assert "front matter" in page_html.lower() or "front-matter" in page_html.lower()
+
+
+def test_highlight_action_consistent_across_main_category_rule_issue_type_pages(
+    app: tuple[TestClient, Any],
+) -> None:
+    """A highlightable finding's action must appear identically on every page that lists it."""
+    c, wa = app
+    job_id = _build_page_numbering_job(wa)  # includes a P012 finding with a valid bbox on page 6
+
+    main_html = _get_html(c, f"/audits/{job_id}")
+    cat_html = _get_html(c, f"/audits/{job_id}/problems/category/annotations")
+    rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P012")
+    issue_html = _get_html(
+        c, f"/audits/{job_id}/problems/rule/P012/issue-type/pdf-annotation-detected"
+    )
+
+    for page_html in (main_html, cat_html, rule_html, issue_html):
+        assert "Open highlighted PDF page" in page_html
+        assert "/pdf/highlighted" in page_html
+        for link in _pdf_links(page_html):
+            if "highlighted" not in link:
+                continue
+            resp = c.get(link)
+            assert resp.status_code == 200
+            assert resp.headers["content-type"].startswith("application/pdf")
 
 
 # ---------------------------------------------------------------------------
@@ -1380,9 +1489,11 @@ def test_p063_category_title_not_misleadingly_vague(app: tuple[TestClient, Any])
     job_id = _inject_job(wa, [_p063_single_appendix_finding()], page_count=80)
     cat_html = _get_html(c, f"/audits/{job_id}/problems/category/frontmatter-structure")
 
-    # Old bare heading must not appear without an appendix-specific explanation.
+    # Only one issue type is present, so the page must use a precise,
+    # issue-specific title instead of the broad category umbrella label.
+    assert "Appendix heading label convention" in cat_html
     assert "Front matter structure" not in cat_html
-    assert "Front matter / appendix structure" in cat_html
+    assert "Front matter / appendix structure" not in cat_html
     assert "appendix" in cat_html.lower()
     # The exact issue is visible above the findings, not hidden.
     assert "APPENDIX A" in cat_html
@@ -1446,8 +1557,10 @@ def test_p063_page_known_no_highlight_wording(app: tuple[TestClient, Any]) -> No
     job_id = _inject_job(wa, [_p063_single_appendix_finding()], page_count=80)
     page_html = _get_html(c, f"/audits/{job_id}")
 
-    assert "Open PDF page" in page_html
+    # No bbox available for this finding: no PDF button at all, explanation only.
+    assert "Open PDF page" not in page_html
     assert "Open highlighted PDF page" not in page_html
+    assert "/pdf/highlighted" not in page_html
     assert "Exact highlight is not available" in page_html
     assert "relevant page is known" in page_html
 

@@ -70,6 +70,7 @@ def _write_real_pdf(path: Path, *, page_count: int = 8) -> None:
 
 def _inject_complete_pdf_job(wa: Any) -> tuple[str, Any]:
     from njit_auditor.models import AuditFinding, Severity
+    from njit_auditor.pdf_highlight import get_pdf_page_sizes
     from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
     from njit_auditor.report_view import build_report_view, report_view_to_dict
 
@@ -155,7 +156,8 @@ def _inject_complete_pdf_job(wa: Any) -> tuple[str, Any]:
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
-    view = build_report_view(payload)
+    pdf_page_sizes = get_pdf_page_sizes(jdir / "upload.pdf")
+    view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
 
     job = wa.JobState(
@@ -165,26 +167,35 @@ def _inject_complete_pdf_job(wa: Any) -> tuple[str, Any]:
         finished_at=datetime.now(timezone.utc).isoformat(),
         file_name="synthetic-thesis.pdf",
         audit_type="pdf",
+        pdf_page_count=len(pdf_page_sizes),
+        pdf_page_sizes=pdf_page_sizes,
         finding_count=view.total_findings,
         warn_count=sum(1 for finding in view.findings if finding.severity == "WARNING"),
         fail_count=sum(1 for finding in view.findings if finding.severity == "FAIL"),
         findings=[
             {
-                "rule_id": finding.rule_id,
-                "severity": finding.severity,
-                "page": finding.page,
-                "issue_type": finding.issue_type,
-                "category": finding.category,
-                "polished_comment": finding.polished_comment,
-                "suggested_fix": finding.suggested_fix,
-                "triage_tier": finding.triage_tier,
-                "confidence": finding.confidence,
-                "source_file": finding.source_file,
-                "source_line": finding.source_line,
-                "location_label": finding.location_label,
-                "bbox": finding.bbox,
+                "rule_id": fv["rule_id"],
+                "severity": fv["severity"],
+                "page": fv["page"],
+                "issue_type": fv["issue_type"],
+                "category": fv["category"],
+                "polished_comment": fv["polished_comment"],
+                "suggested_fix": fv.get("suggested_fix", ""),
+                "triage_tier": fv.get("triage_tier", ""),
+                "confidence": fv.get("confidence", ""),
+                "source_file": fv.get("source_file", ""),
+                "source_line": fv.get("source_line", ""),
+                "location_label": fv.get("location_label", ""),
+                "bbox": fv.get("bbox"),
+                "action_kind": fv.get("action_kind", ""),
+                "action_label": fv.get("action_label", ""),
+                "has_highlight": fv.get("has_highlight", False),
+                "no_highlight_reason": fv.get("no_highlight_reason", ""),
+                "detailed_explanation": fv.get("detailed_explanation", ""),
+                "issue_type_label": fv.get("issue_type_label", ""),
+                "issue_type_explanation": fv.get("issue_type_explanation", ""),
             }
-            for finding in view.findings
+            for fv in view_dict.get("findings", [])
         ],
         grouped_summary=[
             {"rule_id": row.rule_id, "count": row.count, "category": row.category}
@@ -372,7 +383,7 @@ def test_result_page_content_parity(client: tuple[TestClient, Any]) -> None:
     common_tokens.extend(
         sorted(
             {
-                finding.issue_type.replace("_", " ")
+                finding.issue_type_label or finding.issue_type.replace("_", " ")
                 for finding in view.findings
                 if finding.issue_type
             }
@@ -423,7 +434,8 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Examples of this problem",
         "Page numbering",
         "Back to all results",
-        "Open PDF",
+        "Read explanation",
+        "Exact highlight is not available",
         "Page 1",
         "Page 6",
         "Issue type:",
@@ -434,7 +446,7 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Open highlighted PDF page",
         "Page 3",
         "Issue type:",
-        "pdf annotation detected",
+        "PDF annotation detected",
     ]
     for comment in {f.polished_comment for f in view.findings if f.category == "page_numbering"}:
         category_tokens.append(comment)

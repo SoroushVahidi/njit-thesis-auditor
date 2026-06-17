@@ -27,9 +27,17 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
-from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
+from njit_auditor.issue_type_explanations import (
+    explain_issue_type,
+    has_curated_issue_type_title,
+    issue_type_title,
+)
 from njit_auditor.models import AuditFinding
-from njit_auditor.pdf_highlight import build_highlighted_pdf, is_drawable_bbox
+from njit_auditor.pdf_highlight import (
+    build_highlighted_pdf,
+    get_pdf_page_sizes,
+    is_drawable_bbox,
+)
 from njit_auditor.report_outputs import (
     build_audit_report,
     compact_page_list,
@@ -112,6 +120,8 @@ class JobState:
     fail_count: int = 0
     error_message: str = ""
     text_layer_quality: str = ""  # "text_layer_ok" | "low_text" | "image_only" | ""
+    pdf_page_count: int = 0
+    pdf_page_sizes: list[tuple[float, float]] = field(default_factory=list)
     findings: list[dict[str, Any]] = field(default_factory=list)
     grouped_summary: list[dict[str, Any]] = field(default_factory=list)
     report_view: dict[str, Any] = field(default_factory=dict)
@@ -310,14 +320,6 @@ _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
 # ---------------------------------------------------------------------------
 
 
-def _pdf_finding_is_highlighted(bbox: Any) -> bool:
-    """Return True when *bbox* looks like a usable (x0, y0, x1, y1) tuple/list."""
-    return isinstance(bbox, (list, tuple)) and len(bbox) == 4
-
-
-_templates.env.globals["pdf_finding_is_highlighted"] = _pdf_finding_is_highlighted
-
-
 def _pdf_finding_url(
     job_id: str,
     *,
@@ -325,19 +327,15 @@ def _pdf_finding_url(
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
-    bbox: Any = None,
 ) -> str:
-    """Return the best PDF link for a finding.
+    """Return the highlighted-PDF URL for a finding.
 
-    Uses the highlighted-PDF endpoint when *bbox* coordinates are available;
-    otherwise falls back to the plain PDF opened at the right page (or with
-    no page anchor at all when no page number is known).
+    Callers must only invoke this once they have confirmed the finding has
+    a real, visible highlight (``FindingView.has_highlight`` /
+    ``has_visible_highlight``) -- there is no page-only fallback link here,
+    since a known page number alone is never sufficient justification for a
+    PDF action button under the strict highlight-only policy.
     """
-    if not _pdf_finding_is_highlighted(bbox):
-        if page is not None:
-            return f"/audits/{job_id}/pdf#page={page}"
-        return f"/audits/{job_id}/pdf"
-
     params: dict[str, str] = {}
     if page is not None:
         params["page"] = str(page)
@@ -824,38 +822,101 @@ def _available_job_categories(job: JobState) -> list[str]:
     return sorted(categories)
 
 
+def _distinct_issue_types(findings: list[dict[str, Any]]) -> list[str]:
+    """Return the distinct, non-empty issue_type values among *findings*."""
+    return sorted(
+        {
+            str(finding.get("issue_type", "")).strip()
+            for finding in findings
+            if str(finding.get("issue_type", "")).strip()
+        }
+    )
+
+
+def _single_issue_type_override(
+    matching_findings: list[dict[str, Any]],
+    *,
+    curated_only: bool = False,
+) -> tuple[str, str] | None:
+    """Return a precise (title, explanation) when all findings share one issue type.
+
+    A category page label is always a broad umbrella (e.g. "Front matter /
+    appendix structure" covers ordering, dedication formatting, and appendix
+    letter labeling), so it should switch to an issue-specific title whenever
+    exactly one issue type is present, whether or not that title is hand
+    curated. A rule page's canonical title is usually already specific to one
+    check, so *curated_only* restricts the override there to hand-curated
+    titles only — this avoids replacing an already-precise rule title (e.g.
+    "Page-number candidates detected for verification") with a less specific,
+    auto-generated one. Returns None when zero or more than one distinct
+    issue type is present, or (if curated_only) no curated title exists.
+    """
+    issue_types = _distinct_issue_types(matching_findings)
+    if len(issue_types) != 1:
+        return None
+    issue_type = issue_types[0]
+    rule_id = next(
+        (
+            str(finding.get("rule_id", "")).strip()
+            for finding in matching_findings
+            if str(finding.get("issue_type", "")).strip() == issue_type
+        ),
+        "",
+    )
+    if curated_only and not has_curated_issue_type_title(rule_id, issue_type):
+        return None
+    return issue_type_title(rule_id, issue_type), explain_issue_type(rule_id, issue_type)
+
+
+_MULTI_ISSUE_TYPE_NOTE = (
+    "This page includes several different issue types under one heading. Each "
+    "example below identifies its own exact issue type and explains what was "
+    "observed, what NJIT expects, and what to fix."
+)
+
+
+def _with_multi_issue_type_note(
+    explanation: str, matching_findings: list[dict[str, Any]]
+) -> str:
+    """Append a note clarifying that a broad group page mixes several issue types."""
+    if len(_distinct_issue_types(matching_findings)) > 1:
+        return f"{explanation} {_MULTI_ISSUE_TYPE_NOTE}"
+    return explanation
+
+
 def _problem_group_examples(
     job: JobState,
     *,
     findings: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Build template-ready example cards for a problem-group page."""
+    """Build template-ready example cards for a problem-group page.
+
+    Trusts each finding's canonical ``has_highlight``/``action_kind``/
+    ``action_label`` fields (computed once in report_view.py and stored in
+    job.findings) rather than recomputing bbox eligibility here, so every
+    drill-down page applies the exact same strict, highlight-only
+    PDF-action policy as the main results page: a PDF-opening button is
+    only ever shown when a real, visible highlight is available.
+    """
     rule_lookup = _public_rule_lookup()
     examples: list[dict[str, Any]] = []
     for finding in findings:
         rule_id = str(finding.get("rule_id", "")).strip()
         issue_type = str(finding.get("issue_type", "")).strip()
         page = _coerce_page_number(finding.get("page"))
-        bbox = finding.get("bbox")
         rule = rule_lookup.get(rule_id, {})
-        has_highlight = _pdf_finding_is_highlighted(bbox)
-        action_kind = str(finding.get("action_kind", "")).strip()
-        action_label = str(finding.get("action_label", "")).strip()
+        has_highlight = bool(finding.get("has_highlight", False))
+        action_kind = str(finding.get("action_kind", "")).strip() or "explanation"
+        action_label = str(finding.get("action_label", "")).strip() or "Read explanation"
         no_highlight_reason = str(finding.get("no_highlight_reason", "")).strip()
         detailed_explanation = str(finding.get("detailed_explanation", "")).strip()
         issue_type_label = str(finding.get("issue_type_label", "")).strip()
         issue_type_explanation = str(finding.get("issue_type_explanation", "")).strip()
-        # Fall back to computing action_kind/label from bbox+page if not in finding
-        if not action_kind:
-            if has_highlight:
-                action_kind = "highlight"
-                action_label = action_label or "Open highlighted PDF page"
-            elif page is not None:
-                action_kind = "page"
-                action_label = action_label or "Open PDF page"
-            else:
-                action_kind = "explanation"
-                action_label = action_label or "Read explanation"
+        pdf_page_url = (
+            _pdf_finding_url(job.job_id, page=page, rule_id=rule_id, issue_type=issue_type)
+            if has_highlight
+            else ""
+        )
         examples.append(
             {
                 "rule_id": rule_id,
@@ -867,13 +928,7 @@ def _problem_group_examples(
                 "location_text": _student_location_text(finding),
                 "page": page,
                 "pdf_url": f"/audits/{job.job_id}/pdf",
-                "pdf_page_url": (
-                    _pdf_finding_url(
-                        job.job_id, page=page, rule_id=rule_id, issue_type=issue_type, bbox=bbox
-                    )
-                    if page is not None
-                    else ""
-                ),
+                "pdf_page_url": pdf_page_url,
                 "highlighted": has_highlight,
                 "action_kind": action_kind,
                 "action_label": action_label,
@@ -912,6 +967,10 @@ def _problem_group_context(
             if page is not None
         }
     )
+    # Strict highlight-only hero policy: a PDF-opening hero action is only
+    # ever shown when a real highlight exists. Never show a page-only
+    # "Open first example page" action — a known page without a highlight
+    # does not visually mark the relevant problem, so it would be misleading.
     hero_action_kind = "none"
     hero_action_label = ""
     hero_action_url = ""
@@ -921,16 +980,9 @@ def _problem_group_context(
             hero_action_label = "Open first highlighted example"
             hero_action_url = str(example["pdf_page_url"])
             break
-    if hero_action_kind == "none":
-        for example in examples:
-            if example.get("pdf_page_url"):
-                hero_action_kind = "page"
-                hero_action_label = "Open first example page"
-                hero_action_url = str(example["pdf_page_url"])
-                break
     if hero_action_kind == "none" and examples:
-        # No example in this group has a known page or highlight — never show
-        # a destination-less PDF button; offer an in-page jump to the
+        # No example in this group has a highlight — never show a
+        # destination-less PDF button; offer an in-page jump to the
         # per-example explanations instead.
         hero_action_kind = "explanation"
         hero_action_label = "Read explanation"
@@ -1081,6 +1133,15 @@ def _run_audit_task(job_id: str) -> None:
         _set_job(job)
         return
 
+    pdf_page_sizes: list[tuple[float, float]] = []
+    if result.audit_type == "pdf":
+        try:
+            pdf_page_sizes = get_pdf_page_sizes(upload_path)
+        except Exception:  # noqa: BLE001
+            pdf_page_sizes = []
+    job.pdf_page_sizes = pdf_page_sizes
+    job.pdf_page_count = len(pdf_page_sizes)
+
     metadata: dict[str, str] = {
         "input_file_name": job.file_name,
         "audit_type": result.audit_type,
@@ -1104,7 +1165,7 @@ def _run_audit_task(job_id: str) -> None:
     md_report_path = jdir / "report.md"
     write_markdown_report(export_findings, export_metadata, md_report_path)
 
-    view = build_report_view(web_payload)
+    view = build_report_view(web_payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
 
     serialized = [
@@ -1374,12 +1435,20 @@ async def category_problem_page(
             status_code=404,
         )
 
+    override = _single_issue_type_override(matching_findings)
+    if override is not None:
+        group_title, group_explanation = override
+    else:
+        group_title = _humanize_cat(matched_category)
+        group_explanation = _with_multi_issue_type_note(
+            _category_explanation(matched_category), matching_findings
+        )
     context = _problem_group_context(
         job=job,
-        group_title=_humanize_cat(matched_category),
+        group_title=group_title,
         group_kind="category",
         group_key=matched_category,
-        group_explanation=_category_explanation(matched_category),
+        group_explanation=group_explanation,
         examples=_problem_group_examples(job, findings=matching_findings),
     )
     return _render(request, "problem_group.html", context)
@@ -1409,13 +1478,20 @@ async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTML
         )
 
     rule = _public_rule_lookup().get(rule_id, {})
-    group_title = str(rule.get("title", "")).strip() or f"Rule {rule_id}"
+    override = _single_issue_type_override(matching_findings, curated_only=True)
+    if override is not None:
+        group_title, group_explanation = override
+    else:
+        group_title = str(rule.get("title", "")).strip() or f"Rule {rule_id}"
+        group_explanation = _with_multi_issue_type_note(
+            _short_rule_explanation(rule), matching_findings
+        )
     context = _problem_group_context(
         job=job,
         group_title=group_title,
         group_kind="rule",
         group_key=rule_id,
-        group_explanation=_short_rule_explanation(rule),
+        group_explanation=group_explanation,
         examples=_problem_group_examples(job, findings=matching_findings),
     )
     return _render(request, "problem_group.html", context)
@@ -1454,8 +1530,7 @@ async def issue_type_problem_page(
             status_code=404,
         )
 
-    issue_type_label = humanize_issue_type(issue_type) or issue_type.replace("_", " ")
-    group_title = f"{issue_type_label} ({rule_id})"
+    group_title = issue_type_title(rule_id, issue_type)
     group_explanation = explain_issue_type(rule_id, issue_type)
     context = _problem_group_context(
         job=job,
@@ -1650,7 +1725,15 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         if not cache_path.exists():
-            build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
+            result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
+            if not result.has_highlight:
+                _logger.warning(
+                    "Highlight request for job %s matched %d finding(s) but drew no "
+                    "visible annotation (skipped=%d); falling back to plain PDF.",
+                    job_id,
+                    len(matches),
+                    result.skipped_count,
+                )
         if not cache_path.exists():
             return plain_response
 
