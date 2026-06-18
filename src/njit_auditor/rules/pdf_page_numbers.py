@@ -190,6 +190,27 @@ def _candidate_confidence(candidate: PageNumberCandidate) -> str:
     return "low"
 
 
+def _position_label(position_type: str) -> str:
+    labels = {
+        "bottom_center": "bottom center",
+        "bottom_right": "bottom right",
+        "top_center": "top center",
+        "top_right": "top right",
+        "other": "an unexpected location",
+    }
+    return labels.get(position_type, "an unexpected location")
+
+
+def _style_label(number_style: str) -> str:
+    labels = {
+        "arabic": "Arabic numerals",
+        "roman_lower": "lowercase Roman numerals",
+        "roman_upper": "uppercase Roman numerals",
+        "other": "an unexpected style",
+    }
+    return labels.get(number_style, "an unexpected style")
+
+
 def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P013 findings for candidate page numbers."""
 
@@ -236,7 +257,9 @@ def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFindi
                     "issue_type": "page_number_candidate",
                     "location": primary.location,
                     "position_type": primary.position_type,
+                    "candidate_position_label": _position_label(primary.position_type),
                     "number_style": primary.number_style,
+                    "candidate_style_label": _style_label(primary.number_style),
                     "candidate_count_on_page": str(len(page_candidates)),
                     "candidate_sample": sample_text,
                     "observed_summary": f"{primary.position_type}/{primary.number_style}",
@@ -323,8 +346,12 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     if dominant_position:
         dominant_position_type = dominant_position[0][0]
         for page, page_candidates in by_page.items():
-            mismatch_count = sum(
-                1 for c in page_candidates if c.position_type != dominant_position_type
+            mismatched_candidates = [
+                c for c in page_candidates if c.position_type != dominant_position_type
+            ]
+            mismatch_count = len(mismatched_candidates)
+            observed_positions = sorted(
+                {_position_label(c.position_type) for c in mismatched_candidates}
             )
             if mismatch_count >= POSITION_DOMINANT_MISMATCH_THRESHOLD:
                 findings.append(
@@ -337,6 +364,12 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                             "page_number": str(page),
                             "issue_type": "inconsistent_position",
                             "expected_or_context": f"dominant={dominant_position_type}",
+                            "observed_location": (
+                                ", ".join(observed_positions)
+                                if observed_positions
+                                else _position_label(dominant_position_type)
+                            ),
+                            "expected_position": _position_label(dominant_position_type),
                             "confidence": "medium",
                         },
                     )
@@ -346,6 +379,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     for page, page_candidates in by_page.items():
         styles = {c.number_style for c in page_candidates if c.number_style != "other"}
         if len(styles) > 1:
+            observed_style_labels = sorted(_style_label(style) for style in styles)
             findings.append(
                 AuditFinding(
                     rule_id="P019",
@@ -356,6 +390,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "page_number": str(page),
                         "issue_type": "mixed_numbering_style",
                         "expected_or_context": ",".join(sorted(styles)),
+                        "observed_style": ", ".join(observed_style_labels),
+                        "expected_style": "one consistent page-numbering style",
                         "confidence": "medium",
                     },
                 )
@@ -364,6 +400,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     # Mixed dominant style across document.
     style_counts = Counter(c.number_style for c in candidates if c.number_style != "other")
     if len([s for s in style_counts if style_counts[s] > 0]) > 1:
+        observed_style_labels = sorted(_style_label(style) for style in style_counts)
         findings.append(
             AuditFinding(
                 rule_id="P019",
@@ -375,6 +412,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "expected_or_context": ",".join(
                         f"{style}:{count}" for style, count in sorted(style_counts.items())
                     ),
+                    "observed_style": ", ".join(observed_style_labels),
+                    "expected_style": "one consistent page-numbering style per numbering section",
                     "confidence": "low",
                 },
             )
@@ -400,6 +439,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "page_number": str(page),
                     "issue_type": "sequence_gap",
                     "expected_or_context": f"expected={expected},actual={actual},style=arabic",
+                    "observed_sequence": str(actual),
+                    "expected_sequence": str(expected),
                     "confidence": "medium",
                 },
             )
@@ -425,6 +466,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "page_number": str(page),
                     "issue_type": "sequence_gap",
                     "expected_or_context": f"expected={expected},actual={actual},style=roman_lower",
+                    "observed_sequence": str(actual),
+                    "expected_sequence": str(expected),
                     "confidence": "medium",
                 },
             )

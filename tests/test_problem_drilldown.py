@@ -213,7 +213,10 @@ def _make_drilldown_findings() -> list[AuditFinding]:
                 severity=Severity.WARNING,
                 page=pg,
                 message="Page number candidate detected.",
-                details={"issue_type": "page_number_candidate"},
+                details={
+                    "issue_type": "page_number_candidate",
+                    "position_type": "top_center",
+                },
             )
         )
     return findings
@@ -768,7 +771,7 @@ def test_all_drilldown_routes_return_non_500(
         ),
         (
             f"/audits/{job_id}/problems/rule/P013"
-            "/issue-type/page-number-candidate"
+            "/issue-type/wrong-page-number-location"
         ),
     ]
     for path in routes:

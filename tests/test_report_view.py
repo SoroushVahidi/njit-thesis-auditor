@@ -110,12 +110,13 @@ def _sample_source_report() -> dict[str, Any]:
 def test_build_report_view_counts() -> None:
     report = _sample_report()
     view = build_report_view(report)
-    assert view.total_findings == 7
-    assert view.counts_by_severity["WARNING"] == 7
+    assert view.total_findings == 5
+    assert view.counts_by_severity["WARNING"] == 5
     assert view.counts_by_rule["P011"] == 2
     assert "margin_or_overflow" in view.counts_by_category
     assert len(view.summary_cards) >= 4
     assert view.pages == [1, 2, 12]
+    assert len(view.inventory_findings) == 2
 
 
 def test_build_report_view_triage_panels() -> None:
@@ -123,7 +124,6 @@ def test_build_report_view_triage_panels() -> None:
     view = build_report_view(report)
     rule_ids = {p.rule_id for p in view.triage_panels}
     assert "P011" in rule_ids
-    assert "P013" in rule_ids
     assert "P026" in rule_ids
     p011 = next(p for p in view.triage_panels if p.rule_id == "P011")
     assert p011.raw_finding_count >= 2
@@ -139,7 +139,7 @@ def test_finding_views_include_polished_comments() -> None:
 def test_grouped_problem_views_default_to_grouped_problems_for_repeats() -> None:
     view = build_report_view(_sample_report())
 
-    assert len(view.grouped_problems) == 4
+    assert len(view.grouped_problems) == 3
     p011 = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
     assert p011.is_grouped is True
     assert p011.occurrence_count == 2
@@ -158,6 +158,14 @@ def test_grouped_problem_views_keep_single_findings_simple() -> None:
     assert p030.occurrence_count == 1
     assert p030.affected_compact == "12"
     assert len(p030.individual_findings) == 1
+
+
+def test_routine_p013_candidates_move_to_inventory() -> None:
+    view = build_report_view(_sample_report())
+
+    assert all(f.rule_id != "P013" for f in view.findings)
+    assert len(view.inventory_findings) == 2
+    assert all(f.issue_type == "detected_page_number_candidate" for f in view.inventory_findings)
 
 
 def test_grouped_problem_views_group_source_locations_compactly() -> None:

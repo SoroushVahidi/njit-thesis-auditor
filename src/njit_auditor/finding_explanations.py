@@ -103,31 +103,29 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "body pages use Arabic numerals starting from 1."
     ),
     ("P019", "missing_page_number"): (
-        "A page that should carry a page number appears to be missing one. "
-        "NJIT requires every numbered page to display a visible page number."
+        "Problem: The auditor did not find a clear page number on this page. "
+        "NJIT requires page numbers on this type of page unless numbering is "
+        "intentionally suppressed for that page type."
     ),
     ("P019", "multiple_page_numbers"): (
-        "Multiple page-number-like tokens were detected on this page. "
-        "A page should have exactly one page number. "
-        "Review and remove any duplicate or extraneous page numbers."
+        "Problem: Multiple page-number-like tokens were detected on this page. "
+        "This may indicate duplicate page numbering or footer/header text being "
+        "mistaken for a page number. Verify which token is the actual page "
+        "number and remove or correct duplicates."
     ),
     ("P019", "inconsistent_position"): (
-        "Page numbers appear in inconsistent positions across pages. "
-        "NJIT requires page numbers to be consistently positioned at the "
-        "bottom of the page. "
-        "Standardize the position of all page numbers throughout the document."
+        "Problem: The detected page number appears outside the required bottom "
+        "position. NJIT expects page numbers in the required bottom position."
     ),
     ("P019", "mixed_numbering_style"): (
-        "Page numbers appear to use a mix of Roman and Arabic numerals on what "
-        "should be a single numbering-regime page. "
-        "Front matter must use lowercase Roman numerals (i, ii, iii); "
-        "body pages must use Arabic numerals (1, 2, 3). "
-        "Review the page-numbering style and correct any inconsistencies."
+        "Problem: The detected page number appears to use a numbering style "
+        "that does not match what this section should use. Front matter should "
+        "use lowercase Roman numerals and body pages should use Arabic numerals."
     ),
     ("P019", "sequence_gap"): (
-        "The page-number sequence appears to have a gap or jump on this page. "
-        "Page numbers must be consecutive with no skipped values. "
-        "Review the affected pages and renumber them to restore the sequence."
+        "Problem: The detected page number does not appear to follow the expected "
+        "numbering sequence. Review the affected pages and renumber them to "
+        "restore the sequence."
     ),
     # --- P021 abstract word count ---
     ("P021", "abstract_word_count_exceeded"): (
@@ -141,12 +139,9 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P022 frontmatter no page number ---
     ("P022", "visible_page_number_on_no_number_page"): (
-        "A front-matter page that should not be numbered ({page_type_label}) "
-        "appears to have a visible page number. "
-        "NJIT requires the abstract, title, approval, and copyright pages to "
-        "appear unnumbered, even though they are counted in the page "
-        "sequence. "
-        "Remove the page number from this page."
+        "Problem: A page number appears on a page type that may require the "
+        "page number to be suppressed or hidden ({page_type_label}). Remove "
+        "the page number unless this page type is intentionally numbered."
     ),
     # --- P023 body spacing ---
     ("P023", "possible_body_text_not_double_spaced"): (
@@ -286,32 +281,22 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Review and correct the page-number style."
     ),
     ("P028", "arabic_number_on_frontmatter_page"): (
-        "This front-matter page shows an Arabic-numeral page number "
-        "('{candidate_text}') instead of a Roman numeral. "
-        "NJIT requires front-matter pages to use lowercase Roman numerals "
-        "(i, ii, iii). "
-        "Correct the numbering style for this page."
+        "Problem: This page appears to use Arabic numerals, but front matter "
+        "should use lowercase Roman numerals."
     ),
     ("P028", "uppercase_roman_on_frontmatter_page"): (
-        "This front-matter page shows an uppercase Roman numeral page number "
-        "('{candidate_text}') instead of lowercase. "
-        "NJIT requires lowercase Roman numerals (i, ii, iii) in the front "
-        "matter, not uppercase (I, II, III). "
-        "Correct the numbering style for this page."
+        "Problem: This page appears to use uppercase Roman numerals, but front "
+        "matter should use lowercase Roman numerals."
     ),
     ("P028", "roman_number_on_body_page"): (
-        "This main-body page shows a Roman-numeral page number "
-        "('{candidate_text}') instead of an Arabic numeral. "
-        "NJIT requires body pages to use Arabic numerals (1, 2, 3). "
-        "Correct the numbering style for this page."
+        "Problem: This page appears to use Roman numerals, but the main body "
+        "should use Arabic numerals."
     ),
     # --- P029 roman sequence ---
     ("P029", "roman_sequence_gap"): (
-        "The Roman numeral sequence in the front matter appears to have a gap or "
-        "inconsistency at this page. "
-        "Front-matter page numbers should be consecutive lowercase Roman numerals "
-        "(i, ii, iii, …). "
-        "Review the front-matter page numbering and correct the sequence."
+        "Problem: The detected page number does not appear to follow the expected "
+        "front-matter Roman numeral sequence. Review the front-matter page "
+        "numbering and correct the sequence."
     ),
     # --- P030 TOC continued headings ---
     ("P030", "missing_continued_heading"): (

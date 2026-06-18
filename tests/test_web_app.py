@@ -553,7 +553,11 @@ def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Summary numbers reflect every raw finding."
+        b"Grouped problems"
+        in resp.content
+    )
+    assert (
+        b"Inventory-only page-number candidates appear in their own section"
         in resp.content
     )
     assert b'id="grouped-problems-panel"' in resp.content

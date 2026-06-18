@@ -223,6 +223,7 @@
   <a href="#section-review-order">Review order</a>
   {% if report_view and report_view.triage_panels %}<a href="#section-triage">Most common issues</a>{% endif %}
   {% if grouped_summary %}<a href="#section-rule-summary">By rule</a>{% endif %}
+  {% if report_view and report_view.inventory_findings %}<a href="#section-inventory">Detected candidates</a>{% endif %}
   <a href="#section-findings">Findings</a>
   <a href="#section-downloads">Downloads</a>
 </nav>
@@ -262,7 +263,7 @@
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Automated findings — verify manually &middot; <a href="/help#results">What do these results mean?</a></span>
+    <span class="section-note">Problem counts exclude non-problem page-number inventory candidates &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
@@ -427,7 +428,7 @@
   <div class="section-header">
     <div>
       <h2>Findings</h2>
-      <span class="section-note">Summary numbers reflect every raw finding. <strong>Grouped problems</strong> combines matching findings into one card per issue and lists all affected pages; <strong>All individual findings</strong> lists every raw finding separately.</span>
+      <span class="section-note"><strong>Grouped problems</strong> combines matching problem findings into one card per issue and lists all affected pages; <strong>All individual findings</strong> lists every counted problem finding separately. Inventory-only page-number candidates appear in their own section and are not counted as problems.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -596,6 +597,39 @@
     </div>
   </div>
 
+  {% if report_view.inventory_findings %}
+  <section id="section-inventory" class="section" aria-label="Detected page-number candidates">
+    <div class="section-header">
+      <h2>Detected page-number candidates</h2>
+      <span class="section-note">Not counted as problems</span>
+    </div>
+    <details class="card collapsible">
+      <summary>{{ report_view.inventory_findings|length }} detected candidate{{ "" if report_view.inventory_findings|length == 1 else "s" }}</summary>
+      <p class="file-hint" style="margin-top:0.75rem;">
+        These are page-number-like tokens detected for internal verification. They are not formatting problems unless another rule reports a specific defect such as missing, misplaced, duplicate, wrong-style, or wrong-sequence numbering.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Page</th>
+            <th>Details</th>
+            <th>Why it is not a problem</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for f in report_view.inventory_findings %}
+          <tr>
+            <td>{{ f.page if f.page is not none else "—" }}</td>
+            <td>{{ f.issue_type_label if f.issue_type_label else "Detected page-number candidate" }}</td>
+            <td>{{ f.polished_comment }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </section>
+  {% endif %}
+
   <div id="individual-findings-panel" class="results-panel--hidden">
     <div class="card" style="padding:0.5rem 0.75rem">
       <table>
@@ -673,7 +707,7 @@
 <div class="privacy-note">
   <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, confidence, review priority).
   No dissertation body text, titles, author names, committee names, or captions are shown.
-  Automated findings require manual verification against NJIT guidelines.
+  Automated findings require manual verification against NJIT guidelines. Routine page-number candidates in the inventory section are not counted as problems.
 </div>
 
 {% endif %}

@@ -138,6 +138,7 @@ def check_pdf_frontmatter_no_page_number(pdf_doc: PdfDocument) -> list[AuditFind
                     "issue_type": "visible_page_number_on_no_number_page",
                     "candidate_text": first["text"],
                     "candidate_position": first["location"],
+                    "observed_location": first["location"],
                     "candidate_count": str(len(candidates)),
                     "source_q_rule_id": q_rule_id,
                     "confidence": "medium",

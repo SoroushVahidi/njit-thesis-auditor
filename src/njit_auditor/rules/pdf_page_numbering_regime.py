@@ -37,6 +37,15 @@ _NO_NUMBER_HEADINGS: frozenset[str] = frozenset(["ABSTRACT", "APPROVAL PAGE"])
 _MIN_CLASSIFIED_PAGES = 2
 
 
+def _style_label(number_style: str) -> str:
+    labels = {
+        "arabic": "Arabic numerals",
+        "roman_lower": "lowercase Roman numerals",
+        "roman_upper": "uppercase Roman numerals",
+    }
+    return labels.get(number_style, "an unexpected numbering style")
+
+
 def _find_body_start_page(pdf_doc: PdfDocument) -> int | None:
     """Return the page number of the first body chapter/appendix heading, or None."""
     for page in pdf_doc.pages:
@@ -133,18 +142,18 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if region == "front_matter":
             if candidate.number_style == "arabic":
                 issue_type = "arabic_number_on_frontmatter_page"
-                expected = "lowercase Roman numeral (i, ii, iii, …)"
+                expected = "lowercase Roman numerals"
                 q_rule = "Q022"
             elif candidate.number_style == "roman_upper":
                 issue_type = "uppercase_roman_on_frontmatter_page"
-                expected = "lowercase Roman numeral (not uppercase)"
+                expected = "lowercase Roman numerals"
                 q_rule = "Q022"
             # roman_lower is correct — no warning
 
         elif region == "body":
             if candidate.number_style in ("roman_lower", "roman_upper"):
                 issue_type = "roman_number_on_body_page"
-                expected = "Arabic numeral (1, 2, 3, …)"
+                expected = "Arabic numerals"
                 q_rule = ""
 
         if issue_type is None:
@@ -169,8 +178,10 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "issue_type": issue_type,
                     "candidate_text": candidate.text,
                     "candidate_style": candidate.number_style,
+                    "observed_style": _style_label(candidate.number_style),
                     "page_region": region,
                     "expected_or_reason": expected or "",
+                    "expected_style": expected or "",
                     "source_q_rule_id": q_rule,
                     "confidence": "medium",
                     "suggested_fix": (

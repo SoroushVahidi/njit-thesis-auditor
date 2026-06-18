@@ -18,6 +18,17 @@ from njit_auditor.rules.pdf_page_numbers import (
 _MAX_PLAUSIBLE_FRONTMATTER_ROMAN = 50
 
 
+def _int_to_roman_lower(value: int) -> str:
+    vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    syms = ["m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i"]
+    result: list[str] = []
+    for amount, symbol in zip(vals, syms):
+        while value >= amount:
+            result.append(symbol)
+            value -= amount
+    return "".join(result)
+
+
 def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P029 warnings for front-matter lowercase Roman numeral ordering.
 
@@ -109,6 +120,8 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 "candidate_value": str(cand.value),
                 "previous_value": str(prev.value),
                 "expected_value": str(expected),
+                "observed_sequence": cand.text,
+                "expected_sequence": _int_to_roman_lower(expected),
                 "page_region": "front_matter",
                 "confidence": confidence,
             }

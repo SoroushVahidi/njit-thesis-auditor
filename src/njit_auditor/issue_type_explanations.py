@@ -18,11 +18,17 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "margin_boundary_violation": "Margin boundary violation",
     # Page numbering — P013 candidates
     "page_number_candidate": "Page number candidate",
+    "detected_page_number_candidate": "Detected page-number candidate",
     "missing_page_number": "Missing page number",
     "multiple_page_numbers": "Multiple page numbers on one page",
     "inconsistent_position": "Inconsistent page number position",
     "mixed_numbering_style": "Mixed numbering style",
     "sequence_gap": "Page number sequence gap",
+    "wrong_page_number_location": "Wrong page-number location",
+    "wrong_page_numbering_style": "Wrong page-numbering style",
+    "wrong_page_number_sequence": "Wrong page-number sequence",
+    "duplicate_or_ambiguous_page_number": "Duplicate or ambiguous page number",
+    "page_number_should_be_suppressed": "Page number should be suppressed",
     "p013_document_overview": "Page numbering overview (document-level)",
     # Page numbering — P022/P028/P029 style
     "visible_page_number_on_no_number_page": "Page number visible on a no-number page",
@@ -472,6 +478,38 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
         "primarily a verification signal, not a confirmed defect by itself. "
         "Verify that the page number is in the required bottom position and "
         "uses the correct Roman or Arabic numbering style for that section."
+    ),
+    "detected_page_number_candidate": (
+        "The checker detected a normal-looking page-number candidate in the "
+        "expected bottom area. This is inventory-only verification data and is "
+        "not counted as a formatting problem unless another finding reports a "
+        "specific defect such as missing, misplaced, duplicate, wrong-style, "
+        "or wrong-sequence numbering."
+    ),
+    "wrong_page_number_location": (
+        "This means the detected page number appears outside the required bottom "
+        "position. Review the page and move the page number to the required "
+        "bottom location."
+    ),
+    "wrong_page_numbering_style": (
+        "This means the detected page number does not appear to use the numbering "
+        "style expected for that section. Front matter should use lowercase Roman "
+        "numerals and body pages should use Arabic numerals."
+    ),
+    "wrong_page_number_sequence": (
+        "This means the detected page number does not appear to follow the "
+        "expected numbering sequence. Review the affected pages and correct the "
+        "numbering order."
+    ),
+    "duplicate_or_ambiguous_page_number": (
+        "This means multiple page-number-like tokens were detected on the same "
+        "page. Verify which token is the real page number and remove or correct "
+        "duplicates or misleading footer/header text."
+    ),
+    "page_number_should_be_suppressed": (
+        "This means a page number appears on a page type that may need to hide "
+        "or suppress numbering. Remove the page number unless this page type is "
+        "intentionally numbered."
     ),
     "possible_body_text_not_double_spaced": (
         "Body text on this page does not appear to use the required double line "
