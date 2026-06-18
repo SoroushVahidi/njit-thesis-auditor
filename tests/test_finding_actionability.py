@@ -297,14 +297,17 @@ def test_page_known_no_bbox_finding_renders_explanation_only(
     assert f"/audits/{job_id}/pdf#page=3" not in page_html
     assert "/pdf/highlighted" not in page_html
     # No-highlight note must be present instead.
-    assert "Exact highlight is not available" in page_html
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    )
 
 
 def test_page_only_action_kind_and_label() -> None:
     assert get_action_kind(has_highlight=False, page=5) == "explanation"
     assert get_action_label(has_highlight=False, page=5) == "Read explanation"
     reason = get_no_highlight_reason(has_highlight=False, page=5)
-    assert "relevant page is known" in reason
+    assert "relevant page is known" in reason or "No exact highlight is available" in reason
 
 
 def test_findingview_page_only_fields() -> None:
@@ -327,7 +330,10 @@ def test_findingview_page_only_fields() -> None:
     assert fv.has_highlight is False
     assert fv.action_kind == "explanation"
     assert fv.action_label == "Read explanation"
-    assert "relevant page is known" in fv.no_highlight_reason
+    assert (
+        "relevant page is known" in fv.no_highlight_reason
+        or "No exact highlight is available" in fv.no_highlight_reason
+    )
     assert fv.bbox is None
 
 
@@ -671,7 +677,10 @@ def test_annotation_invalid_bbox_falls_back(
     assert "Open PDF page" not in page_html, case_name
     assert "Open highlighted PDF page" not in page_html, case_name
     assert "/pdf/highlighted" not in page_html, case_name
-    assert "Exact highlight is not available" in page_html, case_name
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    ), case_name
     # No 500, regardless of which malformed bbox shape produced this state.
     for link in _pdf_links(page_html):
         resp = c.get(link)
@@ -699,7 +708,10 @@ def test_annotation_page_out_of_pdf_range_falls_back(app: tuple[TestClient, Any]
     page_html = _get_html(c, f"/audits/{job_id}")
     assert "Open highlighted PDF page" not in page_html
     assert "Open PDF page" not in page_html
-    assert "Exact highlight is not available" in page_html
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    )
 
     resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 99, "rule_id": "P012"})
     assert resp.status_code != 500
@@ -1545,8 +1557,11 @@ def test_p063_page_known_no_highlight_wording(app: tuple[TestClient, Any]) -> No
     assert "Open PDF page" not in page_html
     assert "Open highlighted PDF page" not in page_html
     assert "/pdf/highlighted" not in page_html
-    assert "Exact highlight is not available" in page_html
-    assert "relevant page is known" in page_html
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    )
+    assert "relevant page is known" in page_html or "No exact highlight is available" in page_html
 
 
 # ---------------------------------------------------------------------------

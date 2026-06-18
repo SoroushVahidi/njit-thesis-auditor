@@ -157,21 +157,23 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "all reviewer comments before resubmitting."
     ),
     ("P026", "possible_body_font_family_issue"): (
-        "This means some body text on this page appears to use a font that does not "
-        "look like Times New Roman or an accepted Times-compatible font. Review the "
-        "listed or highlighted text and correct the source document's font settings. "
-        "NJIT requires Times New Roman 12pt for body text throughout."
+        "This means sampled body-text-like spans appear to use a font family other "
+        "than Times New Roman or an accepted Times-compatible font. Review the card's "
+        "observed font value, confirm whether the flagged text is body text rather than "
+        "a caption, heading, table entry, or footnote, and then correct the source "
+        "document's body-text font settings if needed."
     ),
     ("P026", "possible_body_font_size_issue"): (
-        "This means some body text on this page appears outside the expected 12pt "
-        "body-text size range. Review the listed or highlighted text and correct the "
-        "source document's font size. NJIT requires Times New Roman 12pt for body text."
+        "This means sampled body-text-like spans appear outside the expected 12pt "
+        "body-text size. Review the card's observed size value, confirm whether the "
+        "flagged text is body text rather than a caption, heading, table entry, or "
+        "footnote, and then correct the source document's body-text size if needed."
     ),
     ("P011", "margin_boundary_violation"): (
-        "Some content appears too close to or beyond the required page margin. "
-        "NJIT requires: left margin 1.5 inches, right margin 1 inch, top and bottom "
-        "margins 1 inch. Review the highlighted area or listed page and adjust "
-        "layout, indentation, tables, figures, or long lines."
+        "This means the auditor found content that appears too close to or beyond a "
+        "required page margin boundary. Review the card for the flagged side and page, "
+        "then inspect tables, figures, long lines, indentation, headers, and footers. "
+        "NJIT requires a 1.5-inch left margin and 1-inch top, right, and bottom margins."
     ),
     ("P020", "possible_title_capitalization_issue"): (
         "This means a Level 2 heading or table title appears to violate NJIT "

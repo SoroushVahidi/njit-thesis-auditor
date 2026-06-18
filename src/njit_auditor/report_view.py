@@ -300,6 +300,282 @@ def _page_number_position_label(position_type: str) -> str:
     return labels.get(position_type, "an unexpected location")
 
 
+def _problem_prefix(confidence: str) -> str:
+    return "Problem" if confidence.strip().lower() == "high" else "Likely problem"
+
+
+def _margin_side_label(side: str) -> str:
+    labels = {
+        "left_margin": "left margin",
+        "right_margin": "right margin",
+        "top_margin": "top margin",
+        "bottom_margin": "bottom margin",
+        "left": "left margin",
+        "right": "right margin",
+        "top": "top margin",
+        "bottom": "bottom margin",
+    }
+    return labels.get(side.strip().lower(), "required page margin")
+
+
+def _margin_observed_phrase(details: Mapping[str, str]) -> str:
+    side = _margin_side_label(details.get("side", ""))
+    overflow = details.get("worst_overflow_pt", "").strip()
+    line_count = details.get("affected_line_count", "").strip()
+    if side == "required page margin":
+        base = "Some content appears too close to or beyond a required page margin"
+    else:
+        base = f"Content appears to cross the required {side} boundary"
+    extras: list[str] = []
+    if overflow:
+        extras.append(f"about {overflow}pt beyond the boundary")
+    if line_count:
+        noun = "line" if line_count == "1" else "lines"
+        extras.append(f"across {line_count} text {noun}")
+    if not extras:
+        return base
+    return f"{base} ({'; '.join(extras)})"
+
+
+def _margin_issue_type_explanation(details: Mapping[str, str], *, page: int | None) -> str:
+    side = _margin_side_label(details.get("side", ""))
+    page_text = f" on page {page}" if page is not None else ""
+    if side == "required page margin":
+        return (
+            "This means the auditor found content that appears too close to or beyond "
+            f"a required page margin{page_text}, but it could not determine the exact side."
+        )
+    return (
+        "This means the auditor found content that appears to cross the required "
+        f"{side} boundary{page_text}."
+    )
+
+
+def _margin_detailed_explanation(details: Mapping[str, str], *, page: int | None) -> str:
+    side = _margin_side_label(details.get("side", ""))
+    observed = _margin_observed_phrase(details)
+    if side == "required page margin":
+        why = (
+            "the detector found layout content outside the expected body area, but the "
+            "stored metadata does not identify which margin side was crossed"
+        )
+    else:
+        why = (
+            f"body content should stay inside the {side}, not extend beyond the required "
+            "page boundary"
+        )
+    page_text = f" on page {page}" if page is not None else ""
+    return (
+        f"Observed: {observed}{page_text}. "
+        "Expected: Content should stay inside NJIT's required page margins "
+        "(left 1.5 inches; right, top, and bottom 1 inch). "
+        f"Why this is suspicious: {why}. "
+        "What to check or fix: inspect tables, figures, long lines, indentation, "
+        "headers, and footers on this page. "
+        "No exact highlight is available for this finding."
+    )
+
+
+def _margin_comment_and_fix(
+    *, page: int | None, details: Mapping[str, str], confidence: str
+) -> tuple[str, str]:
+    page_label = str(page) if page is not None else "this page"
+    prefix = _problem_prefix(confidence)
+    side = _margin_side_label(details.get("side", ""))
+    if side == "required page margin":
+        comment = (
+            "Review needed: "
+            f"{prefix}: Some content on page {page_label} appears too close to or beyond "
+            "a required page margin. The auditor could not determine the exact margin "
+            "side from the available metadata. NJIT formatting expects body content to "
+            "remain inside the required page margins. Review tables, figures, long "
+            "lines, indentation, headers, and footers on this page."
+        )
+        fix = (
+            "Move the flagged content back inside the required page margins and inspect "
+            "tables, figures, long lines, indentation, headers, and footers on this page."
+        )
+        return comment, fix
+    comment = (
+        "Review needed: "
+        f"{prefix}: Content on page {page_label} appears to cross the required {side} "
+        "boundary. NJIT formatting expects body content to remain inside the required "
+        "page margins. Review the highlighted area if available, or inspect tables, "
+        "figures, long lines, indentation, headers, and footers on this page."
+    )
+    fix = (
+        f"Move the flagged content back inside the required {side} and correct any "
+        "table, figure, long-line, indentation, header, or footer layout causing the overflow."
+    )
+    return comment, fix
+
+
+def _font_issue_kind(issue_type: str) -> str:
+    if issue_type == "possible_body_font_size_issue":
+        return "size"
+    return "family"
+
+
+def _font_role_text(details: Mapping[str, str]) -> tuple[str, str]:
+    text_role = details.get("text_role", "").strip().replace("_", " ")
+    if text_role:
+        role = text_role.capitalize()
+        role_fix = text_role
+    else:
+        role = "Body text"
+        role_fix = "body text"
+    return role, role_fix
+
+
+def _font_expected_family(details: Mapping[str, str]) -> str:
+    return details.get("expected_font", "").strip() or details.get("expected", "").strip() or (
+        "Times New Roman or an accepted Times-compatible font"
+    )
+
+
+def _font_expected_size(details: Mapping[str, str]) -> str:
+    expected = details.get("expected_size", "").strip() or details.get("expected", "").strip()
+    if expected:
+        return expected
+    return "12pt"
+
+
+def _font_observed_value(details: Mapping[str, str]) -> str:
+    return details.get("observed_font", "").strip() or details.get("observed_size", "").strip() or (
+        details.get("observed_summary", "").strip()
+    )
+
+
+def _font_issue_type_explanation(
+    details: Mapping[str, str], *, issue_type: str, page: int | None
+) -> str:
+    role, _ = _font_role_text(details)
+    observed = _font_observed_value(details)
+    page_text = f" on page {page}" if page is not None else ""
+    if _font_issue_kind(issue_type) == "size":
+        if observed:
+            return (
+                f"This means sampled {role.lower()} spans{page_text} appear at {observed} "
+                "instead of the expected 12pt body-text size."
+            )
+        return (
+            f"This means sampled {role.lower()} spans{page_text} appear not to match "
+            "the expected 12pt body-text size, but the precise observed size was unavailable."
+        )
+    if observed:
+        return (
+            f"This means sampled {role.lower()} spans{page_text} appear to use {observed} "
+            "instead of Times New Roman or another accepted Times-compatible font."
+        )
+    return (
+        f"This means sampled {role.lower()} spans{page_text} appear not to use the "
+        "expected font family, but the precise observed font name was unavailable."
+    )
+
+
+def _font_detailed_explanation(
+    details: Mapping[str, str], *, issue_type: str, page: int | None
+) -> str:
+    role, role_fix = _font_role_text(details)
+    observed = _font_observed_value(details)
+    span_count = details.get("affected_span_count", "").strip()
+    candidate_count = details.get("candidate_count", "").strip()
+    if _font_issue_kind(issue_type) == "size":
+        expected = _font_expected_size(details)
+        if observed:
+            observed_text = f"{role} spans appear at {observed}"
+        else:
+            observed_text = (
+                f"Some {role.lower()}-like spans appear not to match the expected size, "
+                "but the precise observed value was unavailable"
+            )
+    else:
+        expected = _font_expected_family(details)
+        if observed:
+            observed_text = f"{role} spans appear to use {observed}"
+        else:
+            observed_text = (
+                f"Some {role.lower()}-like spans appear not to match the expected font family, "
+                "but the precise observed value was unavailable"
+            )
+    count_bits: list[str] = []
+    if span_count:
+        noun = "span" if span_count == "1" else "spans"
+        count_bits.append(f"{span_count} flagged {noun}")
+    if candidate_count:
+        noun = "candidate" if candidate_count == "1" else "candidates"
+        count_bits.append(f"{candidate_count} sampled {noun}")
+    counts_text = f" ({'; '.join(count_bits)})" if count_bits else ""
+    page_text = f" on page {page}" if page is not None else ""
+    return (
+        f"Observed: {observed_text}{counts_text}{page_text}. "
+        f"Expected: {role} should use {expected}. "
+        "Why this is suspicious: the detector repeatedly saw a non-matching font pattern "
+        "in body-text-like spans on this page. "
+        f"What to check or fix: confirm whether the flagged text is {role_fix}, a caption, "
+        "a heading, table text, a footnote, or another exception, then update the source "
+        "document's font settings if needed. "
+        "No exact highlight is available for this finding."
+    )
+
+
+def _font_comment_and_fix(
+    *, issue_type: str, page: int | None, details: Mapping[str, str], confidence: str
+) -> tuple[str, str]:
+    prefix = _problem_prefix(confidence)
+    page_label = str(page) if page is not None else "this page"
+    role, role_fix = _font_role_text(details)
+    observed = _font_observed_value(details)
+    if _font_issue_kind(issue_type) == "size":
+        expected = _font_expected_size(details)
+        if observed:
+            comment = (
+                "Review needed: "
+                f"{prefix}: {role} on page {page_label} appears to use font size {observed}. "
+                f"NJIT expects {role_fix} to use {expected}. Update the source document's "
+                f"{role_fix} style or verify whether the flagged text is a permitted exception "
+                "such as a table, figure caption, heading, or footnote."
+            )
+        else:
+            comment = (
+                "Review needed: "
+                f"{prefix}: Some {role_fix}-like spans on page {page_label} appear not to "
+                f"match NJIT's expected font size. The auditor could not extract a precise "
+                f"observed size value for this card. NJIT expects {role_fix} to use {expected}. "
+                "Review the explanation and verify whether the flagged text is a permitted "
+                "exception such as a table, figure caption, heading, or footnote."
+            )
+        fix = (
+            f"Update the source document's {role_fix} font size to {expected} and verify "
+            "whether the flagged text is body text or a permitted exception."
+        )
+        return comment, fix
+
+    expected = _font_expected_family(details)
+    if observed:
+        comment = (
+            "Review needed: "
+            f"{prefix}: {role} on page {page_label} appears to use font family {observed}. "
+            "NJIT expects "
+            f"{role_fix} to use {expected}. Update the source document's {role_fix} style if "
+            "this text is part of the main body."
+        )
+    else:
+        comment = (
+            "Review needed: "
+            f"{prefix}: Some {role_fix}-like spans on page {page_label} appear not to match "
+            "NJIT's expected font family. The auditor could not extract a precise observed "
+            f"font value for this card. NJIT expects {role_fix} to use {expected}. Review "
+            "the explanation and confirm whether the flagged text is body text or another "
+            "text role."
+        )
+    fix = (
+        f"Update the source document's {role_fix} font family to {expected} and verify "
+        "whether the flagged text is body text or a permitted exception."
+    )
+    return comment, fix
+
+
 def _compact_page_ranges(values: Sequence[int]) -> str:
     if not values:
         return ""
@@ -528,6 +804,76 @@ def _apply_page_number_presentation(
     )
 
 
+def _apply_margin_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    if finding.rule_id != "P011" or finding.issue_type != "margin_boundary_violation":
+        return finding, True
+    comment, suggested_fix = _margin_comment_and_fix(
+        page=finding.page,
+        details=details,
+        confidence=finding.confidence,
+    )
+    return (
+        replace(
+            finding,
+            polished_comment=comment,
+            suggested_fix=suggested_fix,
+            no_highlight_reason=(
+                finding.no_highlight_reason
+                if finding.has_highlight
+                else "No exact highlight is available for this finding."
+            ),
+            detailed_explanation=_margin_detailed_explanation(details, page=finding.page),
+            issue_type_explanation=_margin_issue_type_explanation(details, page=finding.page),
+        ),
+        True,
+    )
+
+
+def _apply_font_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    if finding.rule_id != "P026":
+        return finding, True
+    if finding.issue_type not in {
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue",
+    }:
+        return finding, True
+    comment, suggested_fix = _font_comment_and_fix(
+        issue_type=finding.issue_type,
+        page=finding.page,
+        details=details,
+        confidence=finding.confidence,
+    )
+    return (
+        replace(
+            finding,
+            polished_comment=comment,
+            suggested_fix=suggested_fix,
+            no_highlight_reason=(
+                finding.no_highlight_reason
+                if finding.has_highlight
+                else "No exact highlight is available for this finding."
+            ),
+            detailed_explanation=_font_detailed_explanation(
+                details,
+                issue_type=finding.issue_type,
+                page=finding.page,
+            ),
+            issue_type_explanation=_font_issue_type_explanation(
+                details,
+                issue_type=finding.issue_type,
+                page=finding.page,
+            ),
+        ),
+        True,
+    )
+
+
 def build_report_view(
     report: Mapping[str, Any],
     *,
@@ -577,6 +923,10 @@ def build_report_view(
         is_problem = True
         if visible_view.category == "page_numbering":
             visible_view, is_problem = _apply_page_number_presentation(visible_view, details)
+        elif visible_view.rule_id == "P011":
+            visible_view, is_problem = _apply_margin_presentation(visible_view, details)
+        elif visible_view.rule_id == "P026":
+            visible_view, is_problem = _apply_font_presentation(visible_view, details)
         if is_problem:
             visible_indexes.add(index)
             visible_view_by_index[index] = visible_view

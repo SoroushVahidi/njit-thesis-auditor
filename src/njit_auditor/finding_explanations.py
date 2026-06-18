@@ -607,6 +607,110 @@ def _resolve_issue_type(rule_id: str, issue_type: str, details: dict[str, str]) 
     return issue_type
 
 
+def _margin_side_label(details: dict[str, str]) -> str:
+    side = details.get("side", "").strip().lower()
+    labels = {
+        "left_margin": "left margin",
+        "right_margin": "right margin",
+        "top_margin": "top margin",
+        "bottom_margin": "bottom margin",
+        "left": "left margin",
+        "right": "right margin",
+        "top": "top margin",
+        "bottom": "bottom margin",
+    }
+    return labels.get(side, "required page margin")
+
+
+def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> str:
+    side = _margin_side_label(details)
+    overflow = details.get("worst_overflow_pt", "").strip()
+    line_count = details.get("affected_line_count", "").strip()
+    if side == "required page margin":
+        observed = (
+            "Some content appears too close to or beyond a required page margin, "
+            "but the exact side is unavailable"
+        )
+    else:
+        observed = f"Content appears to cross the required {side} boundary"
+    extras: list[str] = []
+    if overflow:
+        extras.append(f"about {overflow}pt beyond the boundary")
+    if line_count:
+        noun = "line" if line_count == "1" else "lines"
+        extras.append(f"{line_count} affected text {noun}")
+    if extras:
+        observed = f"{observed} ({'; '.join(extras)})"
+    return (
+        f"Observed: {observed}. "
+        "Expected: Content should stay inside NJIT's required page margins "
+        "(left 1.5 inches; right, top, and bottom 1 inch). "
+        "Why this is suspicious: layout content appears outside the printable body area. "
+        "What to check or fix: inspect tables, figures, long lines, indentation, headers, "
+        "and footers on this page."
+    )
+
+
+def _p026_font_explanation(
+    issue_type: str,
+    details: dict[str, str],
+    *,
+    page: int | None,
+) -> str:
+    observed = (
+        details.get("observed_font", "").strip()
+        or details.get("observed_size", "").strip()
+        or details.get("observed_summary", "").strip()
+    )
+    span_count = details.get("affected_span_count", "").strip()
+    candidate_count = details.get("candidate_count", "").strip()
+    count_bits: list[str] = []
+    if span_count:
+        noun = "span" if span_count == "1" else "spans"
+        count_bits.append(f"{span_count} flagged {noun}")
+    if candidate_count:
+        noun = "candidate" if candidate_count == "1" else "candidates"
+        count_bits.append(f"{candidate_count} sampled {noun}")
+    counts = f" ({'; '.join(count_bits)})" if count_bits else ""
+    if issue_type == "possible_body_font_size_issue":
+        expected = (
+            details.get("expected_size", "").strip()
+            or details.get("expected", "").strip()
+            or "12pt"
+        )
+        if observed:
+            observed_text = f"Body-text-like spans appear at {observed}{counts}"
+        else:
+            observed_text = (
+                "Some body-text-like spans appear not to match the expected size, "
+                "but the precise observed value was unavailable"
+            )
+        expected_text = f"Body text should use {expected}"
+    else:
+        expected = (
+            details.get("expected_font", "").strip()
+            or details.get("expected", "").strip()
+            or "Times New Roman or an accepted Times-compatible font"
+        )
+        if observed:
+            observed_text = f"Body-text-like spans appear to use {observed}{counts}"
+        else:
+            observed_text = (
+                "Some body-text-like spans appear not to match the expected font family, "
+                "but the precise observed value was unavailable"
+            )
+        expected_text = f"Body text should use {expected}"
+    return (
+        f"Observed: {observed_text}. "
+        f"Expected: {expected_text}. "
+        "Why this is suspicious: the detector repeatedly saw a non-matching font pattern "
+        "in body-text-like spans on this page. "
+        "What to check or fix: confirm whether the flagged text is body text, a caption, "
+        "a heading, table text, a footnote, or another exception, then correct the source "
+        "document's font settings if needed."
+    )
+
+
 def build_detailed_explanation(
     *,
     rule_id: str,
@@ -637,6 +741,13 @@ def _build_explanation_text(
     page: int | None,
 ) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
+    if rule_id == "P011" and effective_issue_type == "margin_boundary_violation":
+        return _p011_margin_explanation(details, page=page)
+    if rule_id == "P026" and effective_issue_type in {
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue",
+    }:
+        return _p026_font_explanation(effective_issue_type, details, page=page)
     template = _EXPLANATION_TEMPLATES.get((rule_id, effective_issue_type))
 
     if template is not None:

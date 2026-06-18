@@ -667,6 +667,95 @@ def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> st
     )
 
 
+def _margin_side_label(details: dict[str, str]) -> str:
+    side = details.get("side", "").strip().lower()
+    labels = {
+        "left_margin": "left margin",
+        "right_margin": "right margin",
+        "top_margin": "top margin",
+        "bottom_margin": "bottom margin",
+        "left": "left margin",
+        "right": "right margin",
+        "top": "top margin",
+        "bottom": "bottom margin",
+    }
+    return labels.get(side, "required page margin")
+
+
+def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    side = _margin_side_label(details)
+    if side == "required page margin":
+        return (
+            f"Likely problem: Some content on page {page_label} appears too close to or "
+            "beyond a required page margin. The auditor could not determine the exact "
+            "margin side from the available metadata. NJIT formatting expects body "
+            "content to remain inside the required page margins. Review tables, figures, "
+            "long lines, indentation, headers, and footers on this page."
+        )
+    return (
+        f"Likely problem: Content on page {page_label} appears to cross the required "
+        f"{side} boundary. NJIT formatting expects body content to remain inside the "
+        "required page margins. Review the highlighted area if available, or inspect "
+        "tables, figures, long lines, indentation, headers, and footers on this page."
+    )
+
+
+def _p026_font_comment(
+    *,
+    issue_type: str,
+    page: int | None,
+    details: dict[str, str],
+    raw_details: dict[str, str],
+) -> str:
+    page_label = _safe_page_label(page)
+    observed = (
+        raw_details.get("observed_font", "").strip()
+        or raw_details.get("observed_size", "").strip()
+    )
+    if issue_type == "possible_body_font_size_issue":
+        expected = (
+            details.get("expected_size", "").strip()
+            or details.get("expected", "").strip()
+            or "12pt"
+        )
+        if observed:
+            return (
+                "Likely problem: Body text on page "
+                f"{page_label} appears to use font size {observed}. "
+                f"NJIT expects body text to use {expected}. Update the source document's "
+                "body-text style or verify whether the flagged text is a permitted exception "
+                "such as a table, figure caption, heading, or footnote."
+            )
+        return (
+            f"Likely problem: Some body-text-like spans on page {page_label} appear not to "
+            "match NJIT's expected font size. The auditor could not extract a precise "
+            f"observed size value for this card. NJIT expects body text to use {expected}. "
+            "Review the explanation and verify whether the flagged text is a permitted "
+            "exception such as a table, figure caption, heading, or footnote."
+        )
+    expected = (
+        details.get("expected_font", "").strip()
+        or details.get("expected", "").strip()
+        or "Times New Roman or an accepted Times-compatible font"
+    )
+    if observed:
+        return (
+            "Likely problem: Body text on page "
+            f"{page_label} appears to use font family {observed}. "
+            "NJIT expects body text to use "
+            f"{expected}. Update the source document's body-text style if this text is "
+            "part of the main body."
+        )
+    return (
+        f"Likely problem: Some body-text-like spans on page {page_label} appear not to "
+        "match NJIT's expected font family. The auditor could not extract a precise "
+        f"observed font value for this card. NJIT expects body text to use {expected}. "
+        "Review the explanation and confirm whether the flagged text is body text or "
+        "another text role."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -677,6 +766,7 @@ def build_polished_comment(
     category: str | None = None,
 ) -> str:
     """Build a privacy-safe polished comment from finding metadata only."""
+    raw_details = {str(k): str(v) for k, v in (details or {}).items()}
     safe_details = {
         k: v for k, v in (details or {}).items() if k not in _BLOCKED_DETAIL_KEYS
     }
@@ -690,6 +780,22 @@ def build_polished_comment(
 
     if rule_id == "P020" and issue == "possible_title_capitalization_issue":
         body = _p020_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P011" and issue == "margin_boundary_violation":
+        body = _p011_margin_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P026" and issue in {
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue",
+    }:
+        body = _p026_font_comment(
+            issue_type=issue,
+            page=page,
+            details=safe_details,
+            raw_details=raw_details,
+        )
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))

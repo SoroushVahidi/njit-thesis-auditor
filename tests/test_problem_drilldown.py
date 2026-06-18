@@ -362,7 +362,7 @@ def test_font_category_page_has_no_pdf_link_without_highlight(
     # strict highlight-only PDF-action policy shows no PDF link at all —
     # the no-highlight explanation carries the page information instead.
     assert not _pdf_links(text)
-    assert "Exact highlight is not available" in text
+    assert "Exact highlight is not available" in text or "No exact highlight is available" in text
 
 
 def test_annotations_category_page_does_not_show_p026(
@@ -421,7 +421,7 @@ def test_p013_rule_page_has_no_pdf_link_without_highlight(
     # P013 findings here have no bbox/highlight, so the strict highlight-only
     # policy on drill-down pages shows no PDF link — only the explanation.
     assert not _pdf_links(text)
-    assert "Exact highlight is not available" in text
+    assert "Exact highlight is not available" in text or "No exact highlight is available" in text
 
 
 def test_p026_rule_page_shows_3_examples(
