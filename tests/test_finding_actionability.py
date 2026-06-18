@@ -1735,3 +1735,196 @@ def test_p063_no_500_route_crawl(app: tuple[TestClient, Any]) -> None:
         assert resp.status_code != 500, f"{link} returned 500"
         assert resp.status_code == 200, f"{link} returned {resp.status_code}"
         assert resp.headers["content-type"].startswith("application/pdf"), f"{link} not a PDF"
+
+
+# ---------------------------------------------------------------------------
+# 24. Ester YES/NO matrix alignment — one check, one matching remediation
+#
+# See docs/planning/ester_yesno_matrix_alignment_audit.md. P027 is the rule
+# that actually spans heading Levels 1-5 (Ester's "P020 mixes levels"
+# complaint, as literally reproducible, maps onto P027); P020 mixes two
+# subjects (Level 2 headings vs. table titles) under one issue_type. Both
+# used to append one combined, rule-level remediation regardless of which
+# level/subject actually applied — the exact failure mode being fixed here.
+# ---------------------------------------------------------------------------
+
+_OLD_COMBINED_P027_REMEDIATION = "Level 2 (1.x): Title Case; Level 3 (1.x.x): Sentence case"
+_OLD_COMBINED_P025_REMEDIATION = "the title page includes the degree and institution name"
+_OLD_BANNED_FALLBACK_PHRASE = "flagged issue type"
+
+
+def test_p027_level1_remediation_is_level_specific() -> None:
+    comment = build_polished_comment(
+        rule_id="P027", issue_type="level1_not_all_caps", page=3, details={}
+    )
+    assert "Level 1" in comment
+    assert "ALL CAPS" in comment
+    for other_level in ("Level 2", "Level 3", "Level 4", "Level 5"):
+        assert other_level not in comment
+    assert _OLD_COMBINED_P027_REMEDIATION not in comment
+
+
+def test_p027_level3_remediation_is_level_specific() -> None:
+    comment = build_polished_comment(
+        rule_id="P027", issue_type="level3_sentence_case_issue", page=12, details={}
+    )
+    assert "Level 3" in comment
+    assert "Sentence case" in comment
+    for other_level in ("Level 1", "Level 2", "Level 4", "Level 5"):
+        assert other_level not in comment
+    assert "ALL CAPS" not in comment
+    assert _OLD_COMBINED_P027_REMEDIATION not in comment
+
+
+def test_p027_all_issue_types_avoid_old_combined_remediation() -> None:
+    for issue_type in (
+        "level1_not_all_caps",
+        "level2_title_case_issue",
+        "level3_sentence_case_issue",
+        "level4_sentence_case_issue",
+        "level4_sentence_case_or_punctuation_issue",
+        "level5_sentence_case_issue",
+        "level5_sentence_case_or_punctuation_issue",
+    ):
+        comment = build_polished_comment(
+            rule_id="P027", issue_type=issue_type, page=3, details={}
+        )
+        assert _OLD_COMBINED_P027_REMEDIATION not in comment
+        assert _OLD_BANNED_FALLBACK_PHRASE not in comment
+
+
+def test_p027_explanation_templates_are_level_specific() -> None:
+    level1 = build_detailed_explanation(
+        rule_id="P027", issue_type="level1_not_all_caps", page=3, details={}
+    )
+    level3 = build_detailed_explanation(
+        rule_id="P027", issue_type="level3_sentence_case_issue", page=12, details={}
+    )
+    assert "Level 1" in level1 and "Level 3" not in level1
+    assert "Level 3" in level3 and "Level 1" not in level3
+
+
+def test_p020_heading_source_comment_is_title_case_specific_not_mixed_with_caption() -> None:
+    comment = build_polished_comment(
+        rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        page=5,
+        details={"source": "heading", "expected_or_reason": "first_word_requires_capital"},
+    )
+    assert "Level 2 heading" in comment
+    assert "table title" not in comment
+    assert "the first word is not capitalized" in comment
+
+
+def test_p020_caption_source_comment_is_title_case_specific_not_mixed_with_heading() -> None:
+    comment = build_polished_comment(
+        rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        page=7,
+        details={"source": "caption", "expected_or_reason": "major_word_requires_capital"},
+    )
+    assert "table title" in comment
+    assert "Level 2 heading" not in comment
+    assert "a major word (4+ letters) is not capitalized" in comment
+
+
+def test_p020_comment_never_quotes_flagged_word() -> None:
+    # The actual flagged word is dissertation body text and must never appear,
+    # even if accidentally passed through in details.
+    comment = build_polished_comment(
+        rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        page=5,
+        details={
+            "source": "heading",
+            "expected_or_reason": "first_word_requires_capital",
+            "word": "the",
+        },
+    )
+    assert "'the'" not in comment
+
+
+def test_p025_missing_abstract_body_remediation_matches_only_that_issue() -> None:
+    comment = build_polished_comment(
+        rule_id="P025", issue_type="missing_abstract_body", page=2, details={}
+    )
+    assert "Add the abstract body text directly below the ABSTRACT heading" in comment
+    for unrelated in ("degree phrase", "institution", "Approval Page", "Table of Contents"):
+        assert unrelated not in comment
+    assert _OLD_COMBINED_P025_REMEDIATION not in comment
+
+
+def test_p025_frontmatter_order_remediation_matches_only_that_issue() -> None:
+    comment = build_polished_comment(
+        rule_id="P025",
+        issue_type="possible_frontmatter_order_issue",
+        page=4,
+        details={"toc_page": "6"},
+    )
+    assert "before the Table of Contents" in comment
+    assert "Move the Abstract" in comment
+    for unrelated in ("degree phrase", "institution name", "Approval Page", "abstract body text"):
+        assert unrelated not in comment
+    assert _OLD_COMBINED_P025_REMEDIATION not in comment
+
+
+def test_p025_all_issue_types_avoid_old_combined_remediation() -> None:
+    for issue_type in (
+        "missing_abstract_body",
+        "missing_title_page_degree_phrase",
+        "missing_title_page_institution",
+        "sparse_approval_page_content",
+        "possible_frontmatter_order_issue",
+    ):
+        comment = build_polished_comment(
+            rule_id="P025",
+            issue_type=issue_type,
+            page=3,
+            details={"toc_page": "5", "substantial_line_count": "1"},
+        )
+        assert _OLD_COMBINED_P025_REMEDIATION not in comment
+        assert _OLD_BANNED_FALLBACK_PHRASE not in comment
+
+
+def test_p038_required_heading_missing_uses_matrix_aligned_wording() -> None:
+    comment = build_polished_comment(
+        rule_id="P038",
+        issue_type="required_heading_missing",
+        page=None,
+        details={"expected_heading": "ACKNOWLEDGEMENTS"},
+    )
+    assert "ACKNOWLEDGEMENTS" in comment
+    assert "was not found anywhere in the document" in comment
+    explanation = explain_issue_type("P038", "required_heading_missing")
+    assert "required front-matter section heading was not found" in explanation
+
+
+def test_p038_required_heading_missing_explanation_distinct_from_phrase_not_exact() -> None:
+    missing = explain_issue_type("P038", "required_heading_missing")
+    not_exact = explain_issue_type("P038", "heading_phrase_not_exact")
+    assert missing != not_exact
+    assert "not found anywhere" in missing
+    assert "not found anywhere" not in not_exact
+
+
+def test_unhandled_issue_type_fallback_has_no_banned_phrase_but_keeps_rule_remediation() -> None:
+    # P029 (Roman-numeral sequence) has no bespoke polished_comments template,
+    # so it exercises the absolute generic fallback branch. Known issue types
+    # must never fall through to the old "Formatting check PXXX flagged issue
+    # type ..." phrase, and the rule's catalog remediation must still be the
+    # appended fix, not just a bare verify-manually instruction.
+    comment = build_polished_comment(
+        rule_id="P029", issue_type="roman_sequence_gap", page=5, details={}
+    )
+    assert _OLD_BANNED_FALLBACK_PHRASE not in comment
+    assert "Formatting check" not in comment
+    assert "roman numeral sequence gap" in comment.lower()
+    assert "ascending sequence" in comment
+
+
+def test_unhandled_issue_type_fallback_document_level_has_no_banned_phrase() -> None:
+    comment = build_polished_comment(
+        rule_id="P029", issue_type="roman_sequence_decrease", page=None, details={}
+    )
+    assert _OLD_BANNED_FALLBACK_PHRASE not in comment
+    assert "document level" in comment

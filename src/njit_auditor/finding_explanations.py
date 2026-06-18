@@ -180,12 +180,84 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "NJIT expects body text to be 12pt. "
         "Review the highlighted text or the listed page and correct the font size."
     ),
-    # --- P027 heading level style ---
-    ("P027", "heading_style_issue"): (
-        "A heading on this page may not match the expected NJIT heading style "
-        "(e.g., bold, capitalization, or font size). "
-        "Review the heading formatting and compare it against the NJIT style "
-        "guidelines for chapter and section headings."
+    # --- P027 heading level style: one explanation per level, never combined ---
+    ("P027", "level1_not_all_caps"): (
+        "A Level 1 heading (a CHAPTER or APPENDIX title) on this page may not be "
+        "in ALL CAPS. "
+        "NJIT requires Level 1 headings to be ALL CAPS, bold, and centered. "
+        "This explanation applies only to Level 1 — other heading levels use "
+        "different capitalization rules."
+    ),
+    ("P027", "level2_title_case_issue"): (
+        "A Level 2 heading (numbered like 1.1 or 1.2) on this page may not use "
+        "Title Case. "
+        "NJIT requires Level 2 headings to use Title Case, bold. "
+        "This explanation applies only to Level 2 — other heading levels use "
+        "different capitalization rules."
+    ),
+    ("P027", "level3_sentence_case_issue"): (
+        "A Level 3 heading (numbered like 1.1.1) on this page may use Title "
+        "Case where Sentence case is expected. "
+        "NJIT requires Level 3 headings to use Sentence case (only the first "
+        "word capitalized), bold. "
+        "This explanation applies only to Level 3 — other heading levels use "
+        "different capitalization rules."
+    ),
+    ("P027", "level4_sentence_case_issue"): (
+        "A Level 4 heading (numbered like 1.1.1.1) on this page may use Title "
+        "Case where Sentence case is expected. "
+        "NJIT requires Level 4 headings to use Sentence case, ending with a "
+        "period. "
+        "This explanation applies only to Level 4 — other heading levels use "
+        "different capitalization rules."
+    ),
+    ("P027", "level4_sentence_case_or_punctuation_issue"): (
+        "A Level 4 heading (numbered like 1.1.1.1) on this page may be missing "
+        "its required terminal period. "
+        "NJIT requires Level 4 headings to end with a period."
+    ),
+    ("P027", "level5_sentence_case_issue"): (
+        "A Level 5 heading (numbered like 1.1.1.1.1) on this page may use "
+        "Title Case where Sentence case is expected. "
+        "NJIT requires Level 5 headings to use Sentence case, ending with a "
+        "period. "
+        "This explanation applies only to Level 5 — other heading levels use "
+        "different capitalization rules."
+    ),
+    ("P027", "level5_sentence_case_or_punctuation_issue"): (
+        "A Level 5 heading (numbered like 1.1.1.1.1) on this page may be "
+        "missing its required terminal period. "
+        "NJIT requires Level 5 headings to end with a period."
+    ),
+    # --- P025 front-matter structure: one explanation per required element ---
+    ("P025", "missing_abstract_body"): (
+        "An ABSTRACT heading was found on this page, but no body text was "
+        "detected below it. "
+        "NJIT requires the Abstract page to contain the abstract text beneath "
+        "the heading. Add the abstract body text below the heading."
+    ),
+    ("P025", "missing_title_page_degree_phrase"): (
+        "No degree phrase (e.g. 'Doctor of Philosophy', 'Master of Science') "
+        "was detected on the title page. "
+        "NJIT requires the title page to state the degree being conferred. "
+        "Add the degree phrase to the title page."
+    ),
+    ("P025", "missing_title_page_institution"): (
+        "The institution name was not detected on the title page. "
+        "NJIT requires the title page to include 'New Jersey Institute of "
+        "Technology'. Add the institution name to the title page."
+    ),
+    ("P025", "sparse_approval_page_content"): (
+        "An APPROVAL PAGE heading was found on this page, but the content "
+        "below it appears sparse. "
+        "NJIT requires the Approval Page to include committee member names, "
+        "titles, and signature lines. Add the missing committee content."
+    ),
+    ("P025", "possible_frontmatter_order_issue"): (
+        "The ABSTRACT heading appears after the TABLE OF CONTENTS in the "
+        "document. "
+        "NJIT requires the Abstract to appear before the Table of Contents. "
+        "Move the Abstract earlier in the front matter."
     ),
     # --- P028 page numbering regime ---
     ("P028", "frontmatter_page_number_style_issue"): (
@@ -298,6 +370,13 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Review the copyright page layout."
     ),
     # --- P038 frontmatter headings ---
+    ("P038", "required_heading_missing"): (
+        "A required front-matter section heading was not found anywhere in "
+        "the document. "
+        "NJIT requires APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, "
+        "and TABLE OF CONTENTS to all be present. "
+        "Add the missing section with its exact required heading."
+    ),
     ("P038", "heading_phrase_not_exact"): (
         "A required front-matter section heading may not match the exact expected "
         "phrase. "
@@ -433,6 +512,14 @@ _RULE_FALLBACKS: dict[str, str] = {
         "Set the paragraph line spacing to 'Double' throughout the body of the "
         "document."
     ),
+    "P025": (
+        "A required front-matter structural element may be missing or "
+        "incomplete — the Abstract body, the title page's degree phrase or "
+        "institution name, the Approval Page's committee content, or the "
+        "Abstract-before-Table-of-Contents ordering. "
+        "Review the specific element noted in this finding against NJIT "
+        "front-matter requirements."
+    ),
     "P026": (
         "Body text on this page may not use the expected font (Times New Roman 12pt). "
         "NJIT expects body text to use Times New Roman 12pt throughout. "
@@ -440,9 +527,11 @@ _RULE_FALLBACKS: dict[str, str] = {
         "in your source document."
     ),
     "P027": (
-        "A heading on this page may not match the expected NJIT heading style. "
-        "Review heading formatting (bold, capitalization, font size) against the "
-        "NJIT style guidelines."
+        "A numbered heading on this page may not match the capitalization or "
+        "punctuation style expected for its heading level. "
+        "NJIT uses a different style for each level (1 = ALL CAPS, 2 = Title "
+        "Case, 3-5 = Sentence case), so check the level noted on this finding "
+        "and apply only that level's style."
     ),
     "P028": (
         "Page numbering on this page may not follow the required NJIT regime. "

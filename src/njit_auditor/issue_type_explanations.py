@@ -51,6 +51,18 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "heading_style_issue": "Heading style issue",
     "level1_not_all_caps": "Level-1 heading not all caps",
     "level2_title_case_issue": "Level-2 heading not title case",
+    "level3_sentence_case_issue": "Level-3 heading not sentence case",
+    "level4_sentence_case_issue": "Level-4 heading not sentence case",
+    "level4_sentence_case_or_punctuation_issue": "Level-4 heading missing terminal period",
+    "level5_sentence_case_issue": "Level-5 heading not sentence case",
+    "level5_sentence_case_or_punctuation_issue": "Level-5 heading missing terminal period",
+    "possible_title_capitalization_issue": "Possible title-case issue",
+    "missing_abstract_body": "Abstract heading present but body text missing",
+    "missing_title_page_degree_phrase": "Title page missing degree phrase",
+    "missing_title_page_institution": "Title page missing institution name",
+    "sparse_approval_page_content": "Approval page content appears sparse",
+    "possible_frontmatter_order_issue": "Front-matter ordering issue",
+    "required_heading_missing": "Required front-matter heading missing",
     # Figure / Table
     "table_body_not_centered": "Table body not centered",
     "figure_body_not_centered": "Figure body not centered",
@@ -151,6 +163,75 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "NJIT requires: left margin 1.5 inches, right margin 1 inch, top and bottom "
         "margins 1 inch. Review the highlighted area or listed page and adjust "
         "layout, indentation, tables, figures, or long lines."
+    ),
+    ("P020", "possible_title_capitalization_issue"): (
+        "This means a Level 2 heading or table title appears to violate NJIT "
+        "title-case rules: the first word, last word, or a major word (4+ "
+        "letters) is not capitalized. Capitalize the flagged word so the "
+        "title-like text follows Title Case."
+    ),
+    ("P027", "level1_not_all_caps"): (
+        "This means a Level 1 heading (a CHAPTER or APPENDIX title) does not "
+        "appear to be in ALL CAPS. NJIT requires Level 1 headings to be ALL "
+        "CAPS, bold, and centered. This applies only to Level 1 headings."
+    ),
+    ("P027", "level2_title_case_issue"): (
+        "This means a Level 2 heading (numbered like 1.1 or 1.2) does not "
+        "appear to use Title Case. NJIT requires Level 2 headings to use "
+        "Title Case, bold. This applies only to Level 2 headings."
+    ),
+    ("P027", "level3_sentence_case_issue"): (
+        "This means a Level 3 heading (numbered like 1.1.1) appears to use "
+        "Title Case where Sentence case is expected. NJIT requires Level 3 "
+        "headings to use Sentence case, bold. This applies only to Level 3 "
+        "headings."
+    ),
+    ("P027", "level4_sentence_case_issue"): (
+        "This means a Level 4 heading (numbered like 1.1.1.1) appears to use "
+        "Title Case where Sentence case is expected. NJIT requires Level 4 "
+        "headings to use Sentence case, ending with a period. This applies "
+        "only to Level 4 headings."
+    ),
+    ("P027", "level4_sentence_case_or_punctuation_issue"): (
+        "This means a Level 4 heading (numbered like 1.1.1.1) appears to be "
+        "missing its required terminal period. NJIT requires Level 4 "
+        "headings to end with a period."
+    ),
+    ("P027", "level5_sentence_case_issue"): (
+        "This means a Level 5 heading (numbered like 1.1.1.1.1) appears to "
+        "use Title Case where Sentence case is expected. NJIT requires Level "
+        "5 headings to use Sentence case, ending with a period. This "
+        "applies only to Level 5 headings."
+    ),
+    ("P027", "level5_sentence_case_or_punctuation_issue"): (
+        "This means a Level 5 heading (numbered like 1.1.1.1.1) appears to "
+        "be missing its required terminal period. NJIT requires Level 5 "
+        "headings to end with a period."
+    ),
+    ("P025", "missing_abstract_body"): (
+        "This means an ABSTRACT heading was found but no body text was "
+        "detected below it. NJIT requires the Abstract page to contain the "
+        "abstract text. Add the abstract body text below the heading."
+    ),
+    ("P025", "missing_title_page_degree_phrase"): (
+        "This means no degree phrase (e.g. 'Doctor of Philosophy', 'Master "
+        "of Science') was detected on the title page. NJIT requires the "
+        "title page to state the degree being conferred."
+    ),
+    ("P025", "missing_title_page_institution"): (
+        "This means the institution name was not detected on the title "
+        "page. NJIT requires the title page to include 'New Jersey "
+        "Institute of Technology'."
+    ),
+    ("P025", "sparse_approval_page_content"): (
+        "This means an APPROVAL PAGE heading was found but the content "
+        "below it appears sparse. NJIT requires the Approval Page to "
+        "include committee member names, titles, and signature lines."
+    ),
+    ("P025", "possible_frontmatter_order_issue"): (
+        "This means the ABSTRACT heading appears after the TABLE OF "
+        "CONTENTS. NJIT requires the Abstract to appear before the Table "
+        "of Contents."
     ),
     ("P023", "body_spacing_issue"): (
         "Body text on this page does not appear to use the required double line "
@@ -279,6 +360,12 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P034", "copyright_year_not_found"): (
         "A copyright page was detected but no year token was found. "
         "Confirm the copyright block includes the required year."
+    ),
+    ("P038", "required_heading_missing"): (
+        "This means a required front-matter section heading was not found "
+        "anywhere in the document. NJIT requires APPROVAL PAGE, "
+        "BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, and TABLE OF CONTENTS to "
+        "all be present. Add the missing section with its exact heading."
     ),
     ("P038", "heading_phrase_not_exact"): (
         "A required heading phrase does not exactly match the expected wording. "

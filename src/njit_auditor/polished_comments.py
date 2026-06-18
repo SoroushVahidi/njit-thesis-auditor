@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.report_outputs import derive_source_issue_type
 
 REVIEW_PREFIX = "Review needed:"
@@ -163,6 +164,90 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "by another appendix. NJIT requires each appendix to have a unique "
         "letter. Correct the labeling so each letter is used once."
     ),
+    # --- P027 heading-level style: one template per level, never combined ---
+    ("P027", "level1_not_all_caps"): (
+        "A Level 1 heading (CHAPTER/APPENDIX title) on page {page} may not be in "
+        "ALL CAPS. NJIT requires Level 1 headings to be ALL CAPS, bold, and centered."
+    ),
+    ("P027", "level2_title_case_issue"): (
+        "A Level 2 heading (e.g. 1.1, 1.2) on page {page} may not use Title Case. "
+        "NJIT requires Level 2 headings to use Title Case, bold."
+    ),
+    ("P027", "level3_sentence_case_issue"): (
+        "A Level 3 heading (e.g. 1.1.1) on page {page} may use Title Case where "
+        "Sentence case is expected. NJIT requires Level 3 headings to use Sentence "
+        "case (only the first word capitalized), bold."
+    ),
+    ("P027", "level4_sentence_case_issue"): (
+        "A Level 4 heading (e.g. 1.1.1.1) on page {page} may use Title Case where "
+        "Sentence case is expected. NJIT requires Level 4 headings to use Sentence "
+        "case, ending with a period."
+    ),
+    ("P027", "level4_sentence_case_or_punctuation_issue"): (
+        "A Level 4 heading (e.g. 1.1.1.1) on page {page} may be missing its "
+        "required terminal period. NJIT requires Level 4 headings to end with a "
+        "period."
+    ),
+    ("P027", "level5_sentence_case_issue"): (
+        "A Level 5 heading (e.g. 1.1.1.1.1) on page {page} may use Title Case "
+        "where Sentence case is expected. NJIT requires Level 5 headings to use "
+        "Sentence case, ending with a period."
+    ),
+    ("P027", "level5_sentence_case_or_punctuation_issue"): (
+        "A Level 5 heading (e.g. 1.1.1.1.1) on page {page} may be missing its "
+        "required terminal period. NJIT requires Level 5 headings to end with a "
+        "period."
+    ),
+    # --- P025 front-matter structure: one template per required element ---
+    ("P025", "missing_abstract_body"): (
+        "An ABSTRACT heading was found on page {page}, but no body text was "
+        "detected below it. NJIT requires the Abstract page to contain the "
+        "abstract text beneath the heading."
+    ),
+    ("P025", "missing_title_page_degree_phrase"): (
+        "No degree phrase (e.g. 'Doctor of Philosophy', 'Master of Science') was "
+        "detected on the title page. NJIT requires the title page to state the "
+        "degree being conferred."
+    ),
+    ("P025", "missing_title_page_institution"): (
+        "The institution name was not detected on the title page. NJIT requires "
+        "the title page to include 'New Jersey Institute of Technology'."
+    ),
+    ("P025", "sparse_approval_page_content"): (
+        "An APPROVAL PAGE heading was found on page {page}, but the content "
+        "below it appears sparse ({substantial_line_count} substantial lines "
+        "detected). NJIT requires the Approval Page to include committee member "
+        "names, titles, and signature lines."
+    ),
+    ("P025", "possible_frontmatter_order_issue"): (
+        "The ABSTRACT heading appears on page {page}, after the TABLE OF "
+        "CONTENTS on page {toc_page}. NJIT requires the Abstract to appear "
+        "before the Table of Contents."
+    ),
+    # --- P038 front-matter exact headings: one template per failure mode ---
+    ("P038", "required_heading_missing"): (
+        "The required front-matter heading '{expected_heading}' was not found "
+        "anywhere in the document."
+    ),
+    ("P038", "heading_phrase_not_exact"): (
+        "A front-matter heading on page {page} uses a non-canonical wording "
+        "variant. NJIT requires the exact canonical phrase '{expected_heading}'."
+    ),
+    # --- P023 body spacing ---
+    ("P023", "body_spacing_issue"): (
+        "Body text on page {page} appears to be single-spaced or less than "
+        "double-spaced. NJIT requires all body text to be double-spaced "
+        "throughout."
+    ),
+    ("P023", "excessive_line_gap"): (
+        "Unusually large spacing was detected between lines on page {page}. "
+        "Body text should be double-spaced with consistent spacing throughout."
+    ),
+    ("P023", "excessive_paragraph_gap"): (
+        "Unusually large spacing was detected between paragraphs on page "
+        "{page}. Paragraph spacing should be consistent with double-spaced "
+        "body text."
+    ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
         "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "
         "Verify cross-page numbering continuity in the LoT."
@@ -295,6 +380,58 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
     "P013": "",
 }
 
+# Per-issue-type remediation overrides, checked before _REMEDIATION_OVERRIDES /
+# _remediation_by_rule(). Needed for rules whose catalog remediation combines
+# guidance for several distinct sub-cases into one sentence (e.g. P027 covers
+# five heading levels, P025 covers four front-matter elements): appending that
+# combined sentence to a single-issue finding would re-describe levels/elements
+# that do not apply here. An empty string means "this finding's comment body
+# already states the complete fix; do not append anything else."
+_ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P020", "possible_title_capitalization_issue"): "",
+    ("P027", "level1_not_all_caps"): "",
+    ("P027", "level2_title_case_issue"): "",
+    ("P027", "level3_sentence_case_issue"): "",
+    ("P027", "level4_sentence_case_issue"): "",
+    ("P027", "level4_sentence_case_or_punctuation_issue"): "",
+    ("P027", "level5_sentence_case_issue"): "",
+    ("P027", "level5_sentence_case_or_punctuation_issue"): "",
+    ("P025", "missing_abstract_body"): (
+        "Add the abstract body text directly below the ABSTRACT heading."
+    ),
+    ("P025", "missing_title_page_degree_phrase"): (
+        "Add the degree phrase to the title page (e.g. 'Doctor of Philosophy' "
+        "or 'Master of Science')."
+    ),
+    ("P025", "missing_title_page_institution"): (
+        "Add 'New Jersey Institute of Technology' to the title page."
+    ),
+    ("P025", "sparse_approval_page_content"): (
+        "Add the committee member names, titles, and signature lines to the "
+        "Approval Page."
+    ),
+    ("P025", "possible_frontmatter_order_issue"): (
+        "Move the Abstract so it appears before the Table of Contents."
+    ),
+    ("P038", "required_heading_missing"): (
+        "Add this required section heading to the front matter, worded "
+        "exactly as NJIT specifies."
+    ),
+    ("P038", "heading_phrase_not_exact"): (
+        "Correct this heading to use the exact canonical NJIT phrase."
+    ),
+}
+
+_NO_ISSUE_OVERRIDE = object()
+
+
+def _resolve_remediation(rule_id: str, issue_type: str) -> str:
+    """Return the remediation text to append, preferring an issue-specific override."""
+    override = _ISSUE_REMEDIATION_OVERRIDES.get((rule_id, issue_type), _NO_ISSUE_OVERRIDE)
+    if override is not _NO_ISSUE_OVERRIDE:
+        return str(override)
+    return _remediation_by_rule().get(rule_id, "")
+
 
 @lru_cache(maxsize=1)
 def _remediation_by_rule() -> dict[str, str]:
@@ -366,6 +503,9 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         candidate_text=details.get("candidate_text", "") or "unknown",
         page_type=page_type.replace("_", " "),
         letter_found=details.get("letter_found", "") or "A",
+        expected_heading=details.get("expected_heading", "") or "the required heading",
+        toc_page=details.get("toc_page", "") or "unknown",
+        substantial_line_count=details.get("substantial_line_count", "") or "0",
     )
 
 
@@ -418,6 +558,41 @@ def _p013_candidate_comment(*, page: int | None, details: dict[str, str]) -> str
     )
 
 
+_TITLE_CASE_REASON_TEXT: dict[str, str] = {
+    "first_word_requires_capital": "the first word is not capitalized",
+    "word_after_separator_requires_capital": (
+        "a word after a colon, dash, or similar separator is not capitalized"
+    ),
+    "major_word_requires_capital": "a major word (4+ letters) is not capitalized",
+}
+
+
+def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P020 possible_title_capitalization_issue comment body.
+
+    P020 covers two unrelated kinds of title-like text (Level 2 headings and
+    table titles) under one issue_type. Branching on the line's recorded
+    `source` keeps the comment scoped to the one rule that actually applies,
+    instead of describing both at once. The flagged word itself is never
+    quoted here — only the violation category from `expected_or_reason`.
+    """
+    page_label = _safe_page_label(page)
+    source = details.get("source", "") or "heading"
+    reason = details.get("expected_or_reason", "") or ""
+    reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
+    if source == "caption":
+        subject = "table title"
+        rule_text = "NJIT requires table titles to use Title Case"
+    else:
+        subject = "Level 2 heading"
+        rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
+    return (
+        f"Possible title-case issue in a {subject} on page {page_label}: "
+        f"{reason_text}. {rule_text} (capitalize the first word, last word, "
+        "and all major words of 4+ letters)."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -437,37 +612,39 @@ def build_polished_comment(
 
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
-        return _finish_comment(body, rule_id=rule_id, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P020" and issue == "possible_title_capitalization_issue":
+        body = _p020_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))
     if template is None:
-        template = _RULE_FALLBACKS.get(
-            rule_id,
-            (
-                "Formatting check {rule_id} flagged issue type '{issue}' at {location}."
-                if rule_id in _SOURCE_RULE_IDS
-                else "Formatting check {rule_id} flagged issue type '{issue}' on page {page}."
-            ),
-        )
-        if "{rule_id}" in template:
-            body = template.format(
-                rule_id=rule_id,
-                issue=issue or "unspecified",
-                page=_safe_page_label(page),
-                page_range=_safe_page_range(safe_details),
-                location=_safe_location_label(safe_details),
-                command=safe_details.get("command", "formatting command"),
-            )
-        else:
-            body = _format_template(template, page=page, details=safe_details)
+        template = _RULE_FALLBACKS.get(rule_id)
+        if template is None:
+            issue_label = humanize_issue_type(issue).lower() if issue else "formatting"
+            if rule_id in _SOURCE_RULE_IDS:
+                body = (
+                    f"This check ({rule_id}) found a possible {issue_label} issue "
+                    f"at {_safe_location_label(safe_details)}."
+                )
+            else:
+                body = (
+                    f"This check ({rule_id}) found a possible {issue_label} issue "
+                    f"on page {_safe_page_label(page)}."
+                )
+            return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        body = _format_template(template, page=page, details=safe_details)
     else:
         body = _format_template(template, page=page, details=safe_details)
 
-    return _finish_comment(body, rule_id=rule_id, details=safe_details)
+    return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
 
 
-def _finish_comment(body: str, *, rule_id: str, details: dict[str, str]) -> str:
-    remediation = _remediation_by_rule().get(rule_id, "")
+def _finish_comment(
+    body: str, *, rule_id: str, issue_type: str = "", details: dict[str, str]
+) -> str:
+    remediation = _resolve_remediation(rule_id, issue_type)
     parts = [f"{REVIEW_PREFIX} {body}"]
     if remediation and remediation not in body:
         parts.append(remediation)

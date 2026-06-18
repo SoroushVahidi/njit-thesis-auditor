@@ -86,6 +86,16 @@
     letter-spacing: 0.04em;
     margin-bottom: 0.15rem;
   }
+  .rule-card__details summary.rule-card__label {
+    cursor: pointer;
+    margin-bottom: 0;
+  }
+  .rule-card__details summary.rule-card__label:hover {
+    color: var(--color-primary);
+  }
+  .rule-card__details .rule-card__def {
+    margin-top: 0.35rem;
+  }
   .rule-card__remediation {
     font-size: 0.88rem;
     margin: 0.5rem 0 0;
@@ -224,10 +234,10 @@
     <span class="rule-card__meta-item"><strong>Applies to:</strong>&nbsp;{{ rule.input_label }}</span>
   </div>
   {% if rule.what_it_checks %}
-  <div style="margin-top:0.7rem;">
-    <div class="rule-card__label">What it checks</div>
+  <details class="rule-card__details" style="margin-top:0.7rem;">
+    <summary class="rule-card__label">What it checks (details)</summary>
     <p class="rule-card__def">{{ rule.what_it_checks }}</p>
-  </div>
+  </details>
   {% endif %}
   {% if rule.how_to_correct %}
   <div class="rule-card__remediation">

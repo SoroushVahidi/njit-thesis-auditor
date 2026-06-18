@@ -299,6 +299,28 @@ def test_rules_links_to_help(client: tuple[TestClient, Any]) -> None:
     assert b"/help" in resp.content
 
 
+def test_rules_what_it_checks_is_collapsible(client: tuple[TestClient, Any]) -> None:
+    """Per Ester's feedback, 'What it checks' is de-emphasized (collapsed) so the
+    question/title and 'How to correct it' are the primary visible content."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "<details" in body
+    assert "What it checks" in body
+
+
+def test_rules_how_to_correct_remains_always_visible(client: tuple[TestClient, Any]) -> None:
+    """'How to correct it' must never be hidden inside the collapsible block."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "How to correct it" in body
+    # The remediation block must not be nested inside <details> (only "what it checks" is).
+    details_blocks = re.findall(r"<details.*?</details>", body, flags=re.DOTALL)
+    for block in details_blocks:
+        assert "How to correct it" not in block
+
+
 # ---------------------------------------------------------------------------
 # Navigation links in base template
 # ---------------------------------------------------------------------------
