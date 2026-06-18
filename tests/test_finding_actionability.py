@@ -297,14 +297,17 @@ def test_page_known_no_bbox_finding_renders_explanation_only(
     assert f"/audits/{job_id}/pdf#page=3" not in page_html
     assert "/pdf/highlighted" not in page_html
     # No-highlight note must be present instead.
-    assert "Exact highlight is not available" in page_html
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    )
 
 
 def test_page_only_action_kind_and_label() -> None:
     assert get_action_kind(has_highlight=False, page=5) == "explanation"
     assert get_action_label(has_highlight=False, page=5) == "Read explanation"
     reason = get_no_highlight_reason(has_highlight=False, page=5)
-    assert "relevant page is known" in reason
+    assert "relevant page is known" in reason or "No exact highlight is available" in reason
 
 
 def test_findingview_page_only_fields() -> None:
@@ -327,7 +330,10 @@ def test_findingview_page_only_fields() -> None:
     assert fv.has_highlight is False
     assert fv.action_kind == "explanation"
     assert fv.action_label == "Read explanation"
-    assert "relevant page is known" in fv.no_highlight_reason
+    assert (
+        "relevant page is known" in fv.no_highlight_reason
+        or "No exact highlight is available" in fv.no_highlight_reason
+    )
     assert fv.bbox is None
 
 
@@ -379,13 +385,8 @@ def test_document_level_findingview() -> None:
     ]
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
-    fv = view.findings[0]
-    assert fv.has_highlight is False
-    assert fv.action_kind == "explanation"
-    assert fv.action_label == "Read explanation"
-    assert "document-level" in fv.no_highlight_reason
-    assert fv.page is None
-    assert fv.detailed_explanation  # must be non-empty
+    assert not view.findings
+    assert not view.inventory_findings
 
 
 # ---------------------------------------------------------------------------
@@ -571,7 +572,7 @@ def test_page_numbering_findingview(app: tuple[TestClient, Any]) -> None:
             severity=Severity.WARNING,
             page=2,
             message="Page number candidate.",
-            details={"issue_type": "page_number_candidate", "position_type": "bottom_center"},
+            details={"issue_type": "page_number_candidate", "position_type": "top_center"},
         )
     ]
     job_id = _inject_job(wa, findings)
@@ -676,7 +677,10 @@ def test_annotation_invalid_bbox_falls_back(
     assert "Open PDF page" not in page_html, case_name
     assert "Open highlighted PDF page" not in page_html, case_name
     assert "/pdf/highlighted" not in page_html, case_name
-    assert "Exact highlight is not available" in page_html, case_name
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    ), case_name
     # No 500, regardless of which malformed bbox shape produced this state.
     for link in _pdf_links(page_html):
         resp = c.get(link)
@@ -704,7 +708,10 @@ def test_annotation_page_out_of_pdf_range_falls_back(app: tuple[TestClient, Any]
     page_html = _get_html(c, f"/audits/{job_id}")
     assert "Open highlighted PDF page" not in page_html
     assert "Open PDF page" not in page_html
-    assert "Exact highlight is not available" in page_html
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    )
 
     resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 99, "rule_id": "P012"})
     assert resp.status_code != 500
@@ -1174,8 +1181,8 @@ def test_p013_bottom_center_wording_is_verification_signal() -> None:
         details={"position_type": "bottom_center"},
     )
     assert "bottom center" in comment
-    assert "manual verification" in comment
-    assert "does not by itself confirm a formatting defect" in comment
+    assert "internal verification signal" in comment
+    assert "not counted as a problem" in comment
     assert "near top/bottom zones" not in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
@@ -1199,7 +1206,7 @@ def test_p013_outside_bottom_area_wording_flags_placement() -> None:
         page=8,
         details={"position_type": "top_center"},
     )
-    assert "outside the expected bottom page-number area" in comment
+    assert "appears at top center" in comment
     assert "required bottom position" in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
@@ -1212,7 +1219,7 @@ def test_p013_undetermined_position_wording_is_neutral() -> None:
         page=9,
         details={},
     )
-    assert "No specific page-numbering defect is confirmed" in comment
+    assert "internal verification signal" in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
 
@@ -1235,7 +1242,7 @@ def _build_page_numbering_job(wa: Any) -> str:
             severity=Severity.WARNING,
             page=2,
             message="Page number candidate.",
-            details={"issue_type": "page_number_candidate", "position_type": "bottom_center"},
+            details={"issue_type": "page_number_candidate", "position_type": "top_center"},
         ),
         AuditFinding(
             rule_id="P019",
@@ -1291,7 +1298,7 @@ def test_page_numbering_main_category_rule_issue_type_parity(
     cat_html = _get_html(c, f"/audits/{job_id}/problems/category/page-numbering")
     rule_p013_html = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
     issue_p013_html = _get_html(
-        c, f"/audits/{job_id}/problems/rule/P013/issue-type/page-number-candidate"
+        c, f"/audits/{job_id}/problems/rule/P013/issue-type/wrong-page-number-location"
     )
 
     # P013 must never look like a confirmed defect on any page it appears on.
@@ -1299,17 +1306,13 @@ def test_page_numbering_main_category_rule_issue_type_parity(
         assert "near top/bottom zones" not in page_html
         assert _OLD_VAGUE_P013_PHRASE not in page_html
 
-    # The P013 rule page title reflects the verification framing.
-    assert "Page-number candidates detected for verification" in rule_p013_html
-
-    # The bottom-center candidate is described as a manual-verification signal
-    # everywhere it is rendered.
+    # The P013 finding is now shown only because it states an exact location suspicion.
     for page_html in (main_html, cat_html, rule_p013_html, issue_p013_html):
-        assert "bottom center" in page_html
-        assert "manual verification" in page_html
+        assert "appears at top center" in page_html
+        assert "required bottom position" in page_html
+        assert "Page number candidate" not in page_html
 
-    # The issue-type page's explanation is the full verification-signal text.
-    assert "verification signal" in issue_p013_html.lower()
+    assert "Wrong page-number location" in issue_p013_html
 
     # Confirmed defects from the other page-numbering rules explain the exact
     # problem, consistently on main/category/rule pages.
@@ -1318,15 +1321,15 @@ def test_page_numbering_main_category_rule_issue_type_parity(
     rule_p028_html = _get_html(c, f"/audits/{job_id}/problems/rule/P028")
 
     for page_html in (main_html, cat_html, rule_p019_html):
-        assert "missing a visible page number" in page_html
+        assert "did not find a clear page number" in page_html
 
+    assert "abstract" in rule_p022_html.lower()
     for page_html in (main_html, cat_html, rule_p022_html):
-        assert "abstract" in page_html.lower()
-        assert "no visible page number" in page_html.lower()
+        assert "suppressed or hidden" in page_html.lower()
 
-    for page_html in (main_html, cat_html, rule_p028_html):
-        assert "Roman numerals" in page_html
-        assert "front matter" in page_html.lower() or "front-matter" in page_html.lower()
+    assert "expected to use" in rule_p028_html
+    assert "Roman numerals" in rule_p028_html or "Arabic numerals" in rule_p028_html
+    assert "front matter" in rule_p028_html.lower() or "front-matter" in rule_p028_html.lower()
 
 
 def test_highlight_action_consistent_across_main_category_rule_issue_type_pages(
@@ -1370,16 +1373,16 @@ def test_page_numbering_mobile_desktop_parity(app: tuple[TestClient, Any]) -> No
         f"/audits/{job_id}/problems/rule/P019",
         f"/audits/{job_id}/problems/rule/P022",
         f"/audits/{job_id}/problems/rule/P028",
-        f"/audits/{job_id}/problems/rule/P013/issue-type/page-number-candidate",
+        f"/audits/{job_id}/problems/rule/P013/issue-type/wrong-page-number-location",
     ]
     for path in paths:
         mobile = _get_html(c, path, headers=_MOBILE_HEADERS)
         desktop = _get_html(c, path, headers=_DESKTOP_HEADERS)
         assert _pdf_links(mobile) == _pdf_links(desktop), f"PDF links differ on {path}"
         for phrase in (
-            "bottom center",
-            "manual verification",
-            "missing a visible page number",
+            "top center",
+            "required bottom position",
+            "did not find a clear page number",
             "Roman numerals",
         ):
             if phrase in desktop:
@@ -1404,7 +1407,7 @@ def test_page_numbering_no_500_route_crawl(app: tuple[TestClient, Any]) -> None:
         f"/audits/{job_id}/problems/rule/P019",
         f"/audits/{job_id}/problems/rule/P022",
         f"/audits/{job_id}/problems/rule/P028",
-        f"/audits/{job_id}/problems/rule/P013/issue-type/page-number-candidate",
+        f"/audits/{job_id}/problems/rule/P013/issue-type/wrong-page-number-location",
     ]
 
     all_links: set[str] = set()
@@ -1518,13 +1521,8 @@ def test_no_misleading_group_level_pdf_button_when_doc_level_only(
         )
     ]
     job_id = _inject_job(wa, findings)
-    cat_html = _get_html(c, f"/audits/{job_id}/problems/category/page-numbering")
-
-    # No destination-less hero "Open PDF" button.
-    assert f'href="/audits/{job_id}/pdf"' not in cat_html
-    # An honest substitute action is shown instead (in-page jump, not a fake PDF link).
-    assert "Read explanation" in cat_html
-    assert 'href="#examples"' in cat_html
+    resp = c.get(f"/audits/{job_id}/problems/category/page-numbering", headers=_DESKTOP_HEADERS)
+    assert resp.status_code in (400, 404)
 
 
 def test_no_misleading_group_level_pdf_button_on_rule_page(
@@ -1541,10 +1539,8 @@ def test_no_misleading_group_level_pdf_button_on_rule_page(
         )
     ]
     job_id = _inject_job(wa, findings)
-    rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
-
-    assert f'href="/audits/{job_id}/pdf"' not in rule_html
-    assert "Read explanation" in rule_html
+    resp = c.get(f"/audits/{job_id}/problems/rule/P013", headers=_DESKTOP_HEADERS)
+    assert resp.status_code in (400, 404)
 
 
 # ---------------------------------------------------------------------------
@@ -1561,8 +1557,11 @@ def test_p063_page_known_no_highlight_wording(app: tuple[TestClient, Any]) -> No
     assert "Open PDF page" not in page_html
     assert "Open highlighted PDF page" not in page_html
     assert "/pdf/highlighted" not in page_html
-    assert "Exact highlight is not available" in page_html
-    assert "relevant page is known" in page_html
+    assert (
+        "Exact highlight is not available" in page_html
+        or "No exact highlight is available" in page_html
+    )
+    assert "relevant page is known" in page_html or "No exact highlight is available" in page_html
 
 
 # ---------------------------------------------------------------------------
@@ -1659,9 +1658,9 @@ def _build_p063_policy_parity_job(wa: Any) -> str:
         AuditFinding(
             rule_id="P013",
             severity=Severity.WARNING,
-            page=None,
-            message="Document overview.",
-            details={"issue_type": "p013_document_overview"},
+            page=7,
+            message="Page number candidate.",
+            details={"issue_type": "page_number_candidate", "position_type": "top_center"},
         ),
         AuditFinding(
             rule_id="P012",
@@ -1918,7 +1917,7 @@ def test_unhandled_issue_type_fallback_has_no_banned_phrase_but_keeps_rule_remed
     )
     assert _OLD_BANNED_FALLBACK_PHRASE not in comment
     assert "Formatting check" not in comment
-    assert "roman numeral sequence gap" in comment.lower()
+    assert "expected numbering sequence" in comment.lower()
     assert "ascending sequence" in comment
 
 

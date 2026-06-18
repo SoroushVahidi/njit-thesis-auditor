@@ -103,31 +103,29 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "body pages use Arabic numerals starting from 1."
     ),
     ("P019", "missing_page_number"): (
-        "A page that should carry a page number appears to be missing one. "
-        "NJIT requires every numbered page to display a visible page number."
+        "Problem: The auditor did not find a clear page number on this page. "
+        "NJIT requires page numbers on this type of page unless numbering is "
+        "intentionally suppressed for that page type."
     ),
     ("P019", "multiple_page_numbers"): (
-        "Multiple page-number-like tokens were detected on this page. "
-        "A page should have exactly one page number. "
-        "Review and remove any duplicate or extraneous page numbers."
+        "Problem: Multiple page-number-like tokens were detected on this page. "
+        "This may indicate duplicate page numbering or footer/header text being "
+        "mistaken for a page number. Verify which token is the actual page "
+        "number and remove or correct duplicates."
     ),
     ("P019", "inconsistent_position"): (
-        "Page numbers appear in inconsistent positions across pages. "
-        "NJIT requires page numbers to be consistently positioned at the "
-        "bottom of the page. "
-        "Standardize the position of all page numbers throughout the document."
+        "Problem: The detected page number appears outside the required bottom "
+        "position. NJIT expects page numbers in the required bottom position."
     ),
     ("P019", "mixed_numbering_style"): (
-        "Page numbers appear to use a mix of Roman and Arabic numerals on what "
-        "should be a single numbering-regime page. "
-        "Front matter must use lowercase Roman numerals (i, ii, iii); "
-        "body pages must use Arabic numerals (1, 2, 3). "
-        "Review the page-numbering style and correct any inconsistencies."
+        "Problem: The detected page number appears to use a numbering style "
+        "that does not match what this section should use. Front matter should "
+        "use lowercase Roman numerals and body pages should use Arabic numerals."
     ),
     ("P019", "sequence_gap"): (
-        "The page-number sequence appears to have a gap or jump on this page. "
-        "Page numbers must be consecutive with no skipped values. "
-        "Review the affected pages and renumber them to restore the sequence."
+        "Problem: The detected page number does not appear to follow the expected "
+        "numbering sequence. Review the affected pages and renumber them to "
+        "restore the sequence."
     ),
     # --- P021 abstract word count ---
     ("P021", "abstract_word_count_exceeded"): (
@@ -141,12 +139,9 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P022 frontmatter no page number ---
     ("P022", "visible_page_number_on_no_number_page"): (
-        "A front-matter page that should not be numbered ({page_type_label}) "
-        "appears to have a visible page number. "
-        "NJIT requires the abstract, title, approval, and copyright pages to "
-        "appear unnumbered, even though they are counted in the page "
-        "sequence. "
-        "Remove the page number from this page."
+        "Problem: A page number appears on a page type that may require the "
+        "page number to be suppressed or hidden ({page_type_label}). Remove "
+        "the page number unless this page type is intentionally numbered."
     ),
     # --- P023 body spacing ---
     ("P023", "possible_body_text_not_double_spaced"): (
@@ -286,32 +281,22 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Review and correct the page-number style."
     ),
     ("P028", "arabic_number_on_frontmatter_page"): (
-        "This front-matter page shows an Arabic-numeral page number "
-        "('{candidate_text}') instead of a Roman numeral. "
-        "NJIT requires front-matter pages to use lowercase Roman numerals "
-        "(i, ii, iii). "
-        "Correct the numbering style for this page."
+        "Problem: This page appears to use Arabic numerals, but front matter "
+        "should use lowercase Roman numerals."
     ),
     ("P028", "uppercase_roman_on_frontmatter_page"): (
-        "This front-matter page shows an uppercase Roman numeral page number "
-        "('{candidate_text}') instead of lowercase. "
-        "NJIT requires lowercase Roman numerals (i, ii, iii) in the front "
-        "matter, not uppercase (I, II, III). "
-        "Correct the numbering style for this page."
+        "Problem: This page appears to use uppercase Roman numerals, but front "
+        "matter should use lowercase Roman numerals."
     ),
     ("P028", "roman_number_on_body_page"): (
-        "This main-body page shows a Roman-numeral page number "
-        "('{candidate_text}') instead of an Arabic numeral. "
-        "NJIT requires body pages to use Arabic numerals (1, 2, 3). "
-        "Correct the numbering style for this page."
+        "Problem: This page appears to use Roman numerals, but the main body "
+        "should use Arabic numerals."
     ),
     # --- P029 roman sequence ---
     ("P029", "roman_sequence_gap"): (
-        "The Roman numeral sequence in the front matter appears to have a gap or "
-        "inconsistency at this page. "
-        "Front-matter page numbers should be consecutive lowercase Roman numerals "
-        "(i, ii, iii, …). "
-        "Review the front-matter page numbering and correct the sequence."
+        "Problem: The detected page number does not appear to follow the expected "
+        "front-matter Roman numeral sequence. Review the front-matter page "
+        "numbering and correct the sequence."
     ),
     # --- P030 TOC continued headings ---
     ("P030", "missing_continued_heading"): (
@@ -622,6 +607,110 @@ def _resolve_issue_type(rule_id: str, issue_type: str, details: dict[str, str]) 
     return issue_type
 
 
+def _margin_side_label(details: dict[str, str]) -> str:
+    side = details.get("side", "").strip().lower()
+    labels = {
+        "left_margin": "left margin",
+        "right_margin": "right margin",
+        "top_margin": "top margin",
+        "bottom_margin": "bottom margin",
+        "left": "left margin",
+        "right": "right margin",
+        "top": "top margin",
+        "bottom": "bottom margin",
+    }
+    return labels.get(side, "required page margin")
+
+
+def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> str:
+    side = _margin_side_label(details)
+    overflow = details.get("worst_overflow_pt", "").strip()
+    line_count = details.get("affected_line_count", "").strip()
+    if side == "required page margin":
+        observed = (
+            "Some content appears too close to or beyond a required page margin, "
+            "but the exact side is unavailable"
+        )
+    else:
+        observed = f"Content appears to cross the required {side} boundary"
+    extras: list[str] = []
+    if overflow:
+        extras.append(f"about {overflow}pt beyond the boundary")
+    if line_count:
+        noun = "line" if line_count == "1" else "lines"
+        extras.append(f"{line_count} affected text {noun}")
+    if extras:
+        observed = f"{observed} ({'; '.join(extras)})"
+    return (
+        f"Observed: {observed}. "
+        "Expected: Content should stay inside NJIT's required page margins "
+        "(left 1.5 inches; right, top, and bottom 1 inch). "
+        "Why this is suspicious: layout content appears outside the printable body area. "
+        "What to check or fix: inspect tables, figures, long lines, indentation, headers, "
+        "and footers on this page."
+    )
+
+
+def _p026_font_explanation(
+    issue_type: str,
+    details: dict[str, str],
+    *,
+    page: int | None,
+) -> str:
+    observed = (
+        details.get("observed_font", "").strip()
+        or details.get("observed_size", "").strip()
+        or details.get("observed_summary", "").strip()
+    )
+    span_count = details.get("affected_span_count", "").strip()
+    candidate_count = details.get("candidate_count", "").strip()
+    count_bits: list[str] = []
+    if span_count:
+        noun = "span" if span_count == "1" else "spans"
+        count_bits.append(f"{span_count} flagged {noun}")
+    if candidate_count:
+        noun = "candidate" if candidate_count == "1" else "candidates"
+        count_bits.append(f"{candidate_count} sampled {noun}")
+    counts = f" ({'; '.join(count_bits)})" if count_bits else ""
+    if issue_type == "possible_body_font_size_issue":
+        expected = (
+            details.get("expected_size", "").strip()
+            or details.get("expected", "").strip()
+            or "12pt"
+        )
+        if observed:
+            observed_text = f"Body-text-like spans appear at {observed}{counts}"
+        else:
+            observed_text = (
+                "Some body-text-like spans appear not to match the expected size, "
+                "but the precise observed value was unavailable"
+            )
+        expected_text = f"Body text should use {expected}"
+    else:
+        expected = (
+            details.get("expected_font", "").strip()
+            or details.get("expected", "").strip()
+            or "Times New Roman or an accepted Times-compatible font"
+        )
+        if observed:
+            observed_text = f"Body-text-like spans appear to use {observed}{counts}"
+        else:
+            observed_text = (
+                "Some body-text-like spans appear not to match the expected font family, "
+                "but the precise observed value was unavailable"
+            )
+        expected_text = f"Body text should use {expected}"
+    return (
+        f"Observed: {observed_text}. "
+        f"Expected: {expected_text}. "
+        "Why this is suspicious: the detector repeatedly saw a non-matching font pattern "
+        "in body-text-like spans on this page. "
+        "What to check or fix: confirm whether the flagged text is body text, a caption, "
+        "a heading, table text, a footnote, or another exception, then correct the source "
+        "document's font settings if needed."
+    )
+
+
 def build_detailed_explanation(
     *,
     rule_id: str,
@@ -652,6 +741,13 @@ def _build_explanation_text(
     page: int | None,
 ) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
+    if rule_id == "P011" and effective_issue_type == "margin_boundary_violation":
+        return _p011_margin_explanation(details, page=page)
+    if rule_id == "P026" and effective_issue_type in {
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue",
+    }:
+        return _p026_font_explanation(effective_issue_type, details, page=page)
     template = _EXPLANATION_TEMPLATES.get((rule_id, effective_issue_type))
 
     if template is not None:

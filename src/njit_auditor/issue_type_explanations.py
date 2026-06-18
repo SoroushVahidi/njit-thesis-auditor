@@ -18,11 +18,17 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "margin_boundary_violation": "Margin boundary violation",
     # Page numbering — P013 candidates
     "page_number_candidate": "Page number candidate",
+    "detected_page_number_candidate": "Detected page-number candidate",
     "missing_page_number": "Missing page number",
     "multiple_page_numbers": "Multiple page numbers on one page",
     "inconsistent_position": "Inconsistent page number position",
     "mixed_numbering_style": "Mixed numbering style",
     "sequence_gap": "Page number sequence gap",
+    "wrong_page_number_location": "Wrong page-number location",
+    "wrong_page_numbering_style": "Wrong page-numbering style",
+    "wrong_page_number_sequence": "Wrong page-number sequence",
+    "duplicate_or_ambiguous_page_number": "Duplicate or ambiguous page number",
+    "page_number_should_be_suppressed": "Page number should be suppressed",
     "p013_document_overview": "Page numbering overview (document-level)",
     # Page numbering — P022/P028/P029 style
     "visible_page_number_on_no_number_page": "Page number visible on a no-number page",
@@ -151,21 +157,23 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "all reviewer comments before resubmitting."
     ),
     ("P026", "possible_body_font_family_issue"): (
-        "This means some body text on this page appears to use a font that does not "
-        "look like Times New Roman or an accepted Times-compatible font. Review the "
-        "listed or highlighted text and correct the source document's font settings. "
-        "NJIT requires Times New Roman 12pt for body text throughout."
+        "This means sampled body-text-like spans appear to use a font family other "
+        "than Times New Roman or an accepted Times-compatible font. Review the card's "
+        "observed font value, confirm whether the flagged text is body text rather than "
+        "a caption, heading, table entry, or footnote, and then correct the source "
+        "document's body-text font settings if needed."
     ),
     ("P026", "possible_body_font_size_issue"): (
-        "This means some body text on this page appears outside the expected 12pt "
-        "body-text size range. Review the listed or highlighted text and correct the "
-        "source document's font size. NJIT requires Times New Roman 12pt for body text."
+        "This means sampled body-text-like spans appear outside the expected 12pt "
+        "body-text size. Review the card's observed size value, confirm whether the "
+        "flagged text is body text rather than a caption, heading, table entry, or "
+        "footnote, and then correct the source document's body-text size if needed."
     ),
     ("P011", "margin_boundary_violation"): (
-        "Some content appears too close to or beyond the required page margin. "
-        "NJIT requires: left margin 1.5 inches, right margin 1 inch, top and bottom "
-        "margins 1 inch. Review the highlighted area or listed page and adjust "
-        "layout, indentation, tables, figures, or long lines."
+        "This means the auditor found content that appears too close to or beyond a "
+        "required page margin boundary. Review the card for the flagged side and page, "
+        "then inspect tables, figures, long lines, indentation, headers, and footers. "
+        "NJIT requires a 1.5-inch left margin and 1-inch top, right, and bottom margins."
     ),
     ("P020", "possible_title_capitalization_issue"): (
         "This means a Level 2 heading or table title appears to violate NJIT "
@@ -472,6 +480,38 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
         "primarily a verification signal, not a confirmed defect by itself. "
         "Verify that the page number is in the required bottom position and "
         "uses the correct Roman or Arabic numbering style for that section."
+    ),
+    "detected_page_number_candidate": (
+        "The checker detected a normal-looking page-number candidate in the "
+        "expected bottom area. This is inventory-only verification data and is "
+        "not counted as a formatting problem unless another finding reports a "
+        "specific defect such as missing, misplaced, duplicate, wrong-style, "
+        "or wrong-sequence numbering."
+    ),
+    "wrong_page_number_location": (
+        "This means the detected page number appears outside the required bottom "
+        "position. Review the page and move the page number to the required "
+        "bottom location."
+    ),
+    "wrong_page_numbering_style": (
+        "This means the detected page number does not appear to use the numbering "
+        "style expected for that section. Front matter should use lowercase Roman "
+        "numerals and body pages should use Arabic numerals."
+    ),
+    "wrong_page_number_sequence": (
+        "This means the detected page number does not appear to follow the "
+        "expected numbering sequence. Review the affected pages and correct the "
+        "numbering order."
+    ),
+    "duplicate_or_ambiguous_page_number": (
+        "This means multiple page-number-like tokens were detected on the same "
+        "page. Verify which token is the real page number and remove or correct "
+        "duplicates or misleading footer/header text."
+    ),
+    "page_number_should_be_suppressed": (
+        "This means a page number appears on a page type that may need to hide "
+        "or suppress numbering. Remove the page number unless this page type is "
+        "intentionally numbered."
     ),
     "possible_body_text_not_double_spaced": (
         "Body text on this page does not appear to use the required double line "

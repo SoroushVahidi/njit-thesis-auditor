@@ -1065,6 +1065,7 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,
         "category_summary": category_summary,
+        "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
     }
 
 

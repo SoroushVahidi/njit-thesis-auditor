@@ -155,6 +155,8 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "expected_value": str(expected_value),
                     "observed_roman": cand.text,
                     "observed_value": str(cand.value),
+                    "observed_sequence": cand.text,
+                    "expected_sequence": expected_roman,
                     "triage_tier": "check",
                     "confidence": "medium",
                 },

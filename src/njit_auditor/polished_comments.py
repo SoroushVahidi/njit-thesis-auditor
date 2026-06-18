@@ -53,57 +53,82 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "findings below for anything that needs manual verification."
     ),
     ("P019", "missing_page_number"): (
-        "Page {page} appears to be missing a visible page number, even though "
-        "neighboring pages have one. NJIT requires every counted page to "
-        "display a visible page number. Verify whether a page number is "
-        "missing on this page."
+        "Problem: The auditor did not find a clear page number on page {page}. "
+        "NJIT requires page numbers on this type of page unless numbering is "
+        "intentionally suppressed for that page type. Add the required page "
+        "number unless this page type should suppress numbering."
     ),
     ("P019", "multiple_page_numbers"): (
-        "Multiple page-number-like tokens were detected on page {page}. A "
-        "page should show exactly one page number. Verify which token is the "
-        "actual page number and remove or correct any unintended duplicate."
+        "Problem: Multiple page-number-like tokens were detected on page {page}. "
+        "This may indicate duplicate page numbering or footer/header text "
+        "being mistaken for a page number. Verify which token is the actual "
+        "page number and remove or correct duplicates."
     ),
     ("P019", "inconsistent_position"): (
-        "The page-number position on page {page} does not match the dominant "
-        "position used elsewhere in the document. NJIT requires page numbers "
-        "to be consistently positioned at the bottom of the page. Verify the "
-        "page-number placement on this page."
+        "Problem: The page number on page {page} appears at {observed_location}, "
+        "but NJIT expects the page number in the required bottom position. "
+        "Move the page number to the required bottom position."
     ),
     ("P019", "mixed_numbering_style"): (
-        "Mixed page-numbering styles (e.g., Roman and Arabic numerals) were "
-        "detected on page {page}. NJIT requires front-matter pages to use "
-        "lowercase Roman numerals and body pages to use Arabic numerals, not "
-        "a mix within the same section. Verify the numbering style here."
+        "Problem: The page number on page {page} appears to use {observed_style}, "
+        "but this section is expected to use {expected_style}. Update the "
+        "page-numbering style for this section."
     ),
     ("P019", "sequence_gap"): (
-        "The page-number sequence appears to skip or break around page "
-        "{page}. NJIT requires page numbers to increase consecutively with "
-        "no gaps. Verify that no pages were removed, duplicated, or "
-        "misnumbered near this page."
+        "Problem: The detected page number on page {page} does not appear to "
+        "follow the expected numbering sequence. Observed: {observed_sequence}. "
+        "Expected: {expected_sequence}. Renumber the affected pages so the "
+        "sequence is correct."
     ),
     ("P022", "visible_page_number_on_no_number_page"): (
-        "A visible page number was detected on the {page_type} page (page "
-        "{page}). NJIT requires this page to have no visible page number, "
-        "even though it is counted in the page sequence. Remove the page "
-        "number from this page."
+        "Problem: A page number appears on page {page}, but this {page_type} "
+        "page may require the page number to be suppressed or hidden. Remove "
+        "the page number unless this page type is intentionally numbered."
     ),
     ("P028", "arabic_number_on_frontmatter_page"): (
-        "Page {page} is in the front matter but shows an Arabic-numeral page "
-        "number ('{candidate_text}'). NJIT requires front-matter pages to use "
-        "lowercase Roman numerals (i, ii, iii) instead. Correct the numbering "
-        "style for this page."
+        "Problem: The page number on page {page} appears to use {observed_style}, "
+        "but this section is expected to use {expected_style}. Update the "
+        "page-numbering style for this section."
     ),
     ("P028", "uppercase_roman_on_frontmatter_page"): (
-        "Page {page} is in the front matter but shows an uppercase Roman "
-        "numeral page number ('{candidate_text}'). NJIT requires lowercase "
-        "Roman numerals (i, ii, iii) in the front matter. Correct the "
-        "numbering style for this page."
+        "Problem: The page number on page {page} appears to use {observed_style}, "
+        "but this section is expected to use {expected_style}. Update the "
+        "page-numbering style for this section."
     ),
     ("P028", "roman_number_on_body_page"): (
-        "Page {page} is in the main body but shows a Roman-numeral page "
-        "number ('{candidate_text}'). NJIT requires body pages to use Arabic "
-        "numerals (1, 2, 3) instead. Correct the numbering style for this "
-        "page."
+        "Problem: The page number on page {page} appears to use {observed_style}, "
+        "but this section is expected to use {expected_style}. Update the "
+        "page-numbering style for this section."
+    ),
+    ("P029", "roman_sequence_gap"): (
+        "Problem: The detected page number on page {page} does not appear to "
+        "follow the expected numbering sequence. Observed: {observed_sequence}. "
+        "Expected: {expected_sequence}. Renumber the affected pages so the "
+        "sequence is correct."
+    ),
+    ("P029", "roman_sequence_repeat"): (
+        "Problem: The detected page number on page {page} does not appear to "
+        "follow the expected numbering sequence. Observed: {observed_sequence}. "
+        "Expected: {expected_sequence}. Renumber the affected pages so the "
+        "sequence is correct."
+    ),
+    ("P029", "roman_sequence_decrease"): (
+        "Problem: The detected page number on page {page} does not appear to "
+        "follow the expected numbering sequence. Observed: {observed_sequence}. "
+        "Expected: {expected_sequence}. Renumber the affected pages so the "
+        "sequence is correct."
+    ),
+    ("P037", "roman_bio_sketch_not_iv"): (
+        "Problem: The detected page number on page {page} does not appear to "
+        "follow the expected numbering sequence. Observed: {observed_sequence}. "
+        "Expected: {expected_sequence}. Renumber the affected pages so the "
+        "sequence is correct."
+    ),
+    ("P037", "roman_section_wrong_value"): (
+        "Problem: The detected page number on page {page} does not appear to "
+        "follow the expected numbering sequence. Observed: {observed_sequence}. "
+        "Expected: {expected_sequence}. Renumber the affected pages so the "
+        "sequence is correct."
     ),
     ("P026", "possible_body_font_family_issue"): (
         "Body text on page {page} may not use the expected font family. "
@@ -494,11 +519,52 @@ def _safe_page_range(details: dict[str, str]) -> str:
     return "listed pages"
 
 
+def _safe_position_label(position_type: str) -> str:
+    labels = {
+        "bottom_center": "bottom center",
+        "bottom_right": "bottom right",
+        "top_center": "top center",
+        "top_right": "top right",
+        "other": "an unexpected location",
+    }
+    return labels.get(position_type, "an unexpected location")
+
+
 def _format_template(template: str, *, page: int | None, details: dict[str, str]) -> str:
     side = details.get("side", "document") or "document"
     position_type = details.get("position_type", "unknown position") or "unknown position"
     command = details.get("command", "formatting command") or "formatting command"
     page_type = details.get("page_type", "") or "this"
+    observed_location = (
+        details.get("observed_location", "")
+        or details.get("candidate_position_label", "")
+        or position_type.replace("_", " ")
+        or "an unexpected location"
+    )
+    observed_style = (
+        details.get("observed_style", "")
+        or details.get("candidate_style_label", "")
+        or details.get("observed_styles", "")
+        or details.get("candidate_style", "")
+        or "the observed numbering style"
+    )
+    expected_style = (
+        details.get("expected_style", "")
+        or details.get("expected_or_reason", "")
+        or "the numbering style required for this section"
+    )
+    observed_sequence = (
+        details.get("observed_sequence", "")
+        or details.get("observed_value", "")
+        or details.get("candidate_text", "")
+        or "the detected value"
+    )
+    expected_sequence = (
+        details.get("expected_sequence", "")
+        or details.get("expected_value", "")
+        or details.get("expected_roman", "")
+        or "the expected sequence value"
+    )
     return template.format(
         page=_safe_page_label(page),
         side=side.replace("_", " "),
@@ -512,6 +578,11 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         expected_heading=details.get("expected_heading", "") or "the required heading",
         toc_page=details.get("toc_page", "") or "unknown",
         substantial_line_count=details.get("substantial_line_count", "") or "0",
+        observed_location=observed_location,
+        observed_style=observed_style,
+        expected_style=expected_style,
+        observed_sequence=observed_sequence,
+        expected_sequence=expected_sequence,
     )
 
 
@@ -543,24 +614,21 @@ def _p013_candidate_comment(*, page: int | None, details: dict[str, str]) -> str
         position_label = position_type.replace("_", " ")
         return (
             f"A page-number-like token was detected at the {position_label} "
-            f"of page {page_label}. This finding records the detected page "
-            "number for manual verification; it does not by itself confirm "
-            "a formatting defect. Verify that the number is correct, "
-            "visible, in the required bottom position, and consistent with "
-            "the document's numbering sequence."
+            f"of page {page_label}. This is an internal verification signal "
+            "and is not counted as a problem unless another finding reports a "
+            "specific defect."
         )
     if position_type in {"top_center", "top_right", "other"}:
         return (
-            "A page-number-like token was detected outside the expected "
-            f"bottom page-number area on page {page_label}. NJIT page "
-            "numbers should appear in the required bottom position. Verify "
-            "the page-number placement and correct it if necessary."
+            "Problem: The page number on page "
+            f"{page_label} appears at {_safe_position_label(position_type)}, "
+            "but NJIT expects the page number in the required bottom "
+            "position. Move the page number to the required bottom position."
         )
     return (
-        f"A page-number-like token was detected on page {page_label}. No "
-        "specific page-numbering defect is confirmed by this finding; it is "
-        "a manual-verification signal. Verify that the number is correct, "
-        "visible, and in the required bottom position."
+        f"A page-number-like token was detected on page {page_label}. This "
+        "is an internal verification signal and is not counted as a problem "
+        "unless another finding reports a specific defect."
     )
 
 
@@ -599,6 +667,95 @@ def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> st
     )
 
 
+def _margin_side_label(details: dict[str, str]) -> str:
+    side = details.get("side", "").strip().lower()
+    labels = {
+        "left_margin": "left margin",
+        "right_margin": "right margin",
+        "top_margin": "top margin",
+        "bottom_margin": "bottom margin",
+        "left": "left margin",
+        "right": "right margin",
+        "top": "top margin",
+        "bottom": "bottom margin",
+    }
+    return labels.get(side, "required page margin")
+
+
+def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    side = _margin_side_label(details)
+    if side == "required page margin":
+        return (
+            f"Likely problem: Some content on page {page_label} appears too close to or "
+            "beyond a required page margin. The auditor could not determine the exact "
+            "margin side from the available metadata. NJIT formatting expects body "
+            "content to remain inside the required page margins. Review tables, figures, "
+            "long lines, indentation, headers, and footers on this page."
+        )
+    return (
+        f"Likely problem: Content on page {page_label} appears to cross the required "
+        f"{side} boundary. NJIT formatting expects body content to remain inside the "
+        "required page margins. Review the highlighted area if available, or inspect "
+        "tables, figures, long lines, indentation, headers, and footers on this page."
+    )
+
+
+def _p026_font_comment(
+    *,
+    issue_type: str,
+    page: int | None,
+    details: dict[str, str],
+    raw_details: dict[str, str],
+) -> str:
+    page_label = _safe_page_label(page)
+    observed = (
+        raw_details.get("observed_font", "").strip()
+        or raw_details.get("observed_size", "").strip()
+    )
+    if issue_type == "possible_body_font_size_issue":
+        expected = (
+            details.get("expected_size", "").strip()
+            or details.get("expected", "").strip()
+            or "12pt"
+        )
+        if observed:
+            return (
+                "Likely problem: Body text on page "
+                f"{page_label} appears to use font size {observed}. "
+                f"NJIT expects body text to use {expected}. Update the source document's "
+                "body-text style or verify whether the flagged text is a permitted exception "
+                "such as a table, figure caption, heading, or footnote."
+            )
+        return (
+            f"Likely problem: Some body-text-like spans on page {page_label} appear not to "
+            "match NJIT's expected font size. The auditor could not extract a precise "
+            f"observed size value for this card. NJIT expects body text to use {expected}. "
+            "Review the explanation and verify whether the flagged text is a permitted "
+            "exception such as a table, figure caption, heading, or footnote."
+        )
+    expected = (
+        details.get("expected_font", "").strip()
+        or details.get("expected", "").strip()
+        or "Times New Roman or an accepted Times-compatible font"
+    )
+    if observed:
+        return (
+            "Likely problem: Body text on page "
+            f"{page_label} appears to use font family {observed}. "
+            "NJIT expects body text to use "
+            f"{expected}. Update the source document's body-text style if this text is "
+            "part of the main body."
+        )
+    return (
+        f"Likely problem: Some body-text-like spans on page {page_label} appear not to "
+        "match NJIT's expected font family. The auditor could not extract a precise "
+        f"observed font value for this card. NJIT expects body text to use {expected}. "
+        "Review the explanation and confirm whether the flagged text is body text or "
+        "another text role."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -609,6 +766,7 @@ def build_polished_comment(
     category: str | None = None,
 ) -> str:
     """Build a privacy-safe polished comment from finding metadata only."""
+    raw_details = {str(k): str(v) for k, v in (details or {}).items()}
     safe_details = {
         k: v for k, v in (details or {}).items() if k not in _BLOCKED_DETAIL_KEYS
     }
@@ -622,6 +780,22 @@ def build_polished_comment(
 
     if rule_id == "P020" and issue == "possible_title_capitalization_issue":
         body = _p020_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P011" and issue == "margin_boundary_violation":
+        body = _p011_margin_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P026" and issue in {
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue",
+    }:
+        body = _p026_font_comment(
+            issue_type=issue,
+            page=page,
+            details=safe_details,
+            raw_details=raw_details,
+        )
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))

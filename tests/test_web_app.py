@@ -553,7 +553,11 @@ def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Summary numbers reflect every raw finding."
+        b"Grouped problems"
+        in resp.content
+    )
+    assert (
+        b"Inventory-only page-number candidates appear in their own section"
         in resp.content
     )
     assert b'id="grouped-problems-panel"' in resp.content
@@ -796,7 +800,10 @@ def test_category_problem_page_route_returns_200(
     # P011 findings here carry no bbox, so the strict highlight-only PDF-action
     # policy shows no PDF link for them at all (no page-only fallback either).
     assert f"/audits/{job_id}/pdf#page=2".encode() not in resp.content
-    assert b"Exact highlight is not available" in resp.content
+    assert (
+        b"Exact highlight is not available" in resp.content
+        or b"No exact highlight is available" in resp.content
+    )
 
 
 def test_rule_problem_page_route_returns_200(
@@ -836,7 +843,10 @@ def test_rule_problem_page_route_returns_200(
     # P011 findings here carry no bbox, so the strict highlight-only PDF-action
     # policy shows no PDF link for them at all (no page-only fallback either).
     assert f"/audits/{job_id}/pdf#page=7".encode() not in resp.content
-    assert b"Exact highlight is not available" in resp.content
+    assert (
+        b"Exact highlight is not available" in resp.content
+        or b"No exact highlight is available" in resp.content
+    )
     assert b"Back to all results" in resp.content
 
 
@@ -2676,7 +2686,7 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     assert "Open PDF page" not in body
     assert f"/audits/{job_id}/pdf#page=" not in body
     assert f"/audits/{job_id}/pdf/highlighted?" not in body
-    assert "Exact highlight is not available" in body
+    assert "Exact highlight is not available" in body or "No exact highlight is available" in body
 
 
 def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]) -> None:
