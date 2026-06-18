@@ -191,7 +191,10 @@ def test_humanize_page_number_candidate() -> None:
 
 
 def test_humanize_body_spacing_issue() -> None:
-    assert humanize_issue_type("body_spacing_issue") == "Body spacing issue"
+    assert (
+        humanize_issue_type("possible_body_text_not_double_spaced")
+        == "Body text not double-spaced"
+    )
 
 
 def test_humanize_frontmatter_page_number_style_issue() -> None:
@@ -245,7 +248,7 @@ def test_explain_page_number_candidate_mentions_roman_arabic() -> None:
 
 
 def test_explain_body_spacing_issue_mentions_double() -> None:
-    expl = explain_issue_type("P023", "body_spacing_issue")
+    expl = explain_issue_type("P023", "possible_body_text_not_double_spaced")
     assert "double" in expl.lower()
 
 
@@ -266,7 +269,7 @@ def test_explain_no_raw_latex_in_output() -> None:
         "possible_body_font_family_issue",
         "possible_body_font_size_issue",
         "margin_boundary_violation",
-        "body_spacing_issue",
+        "possible_body_text_not_double_spaced",
         "frontmatter_page_number_style_issue",
         "abstract_word_count_exceeded",
     ):
@@ -625,7 +628,7 @@ def test_no_raw_latex_in_p026_explanation() -> None:
 
 
 def test_no_raw_latex_in_p023_explanation() -> None:
-    expl = explain_issue_type("P023", "body_spacing_issue")
+    expl = explain_issue_type("P023", "possible_body_text_not_double_spaced")
     for token in _LATEX_TOKENS:
         assert token not in expl, (
             f"Raw LaTeX token {token!r} found in P023 spacing explanation"
@@ -660,7 +663,7 @@ def multi_rule_job(app: tuple[TestClient, Any]) -> tuple[TestClient, Any, str]:
             severity=Severity.WARNING,
             page=2,
             message="Spacing issue.",
-            details={"issue_type": "body_spacing_issue"},
+            details={"issue_type": "possible_body_text_not_double_spaced"},
         ),
     ]
     job_id = _inject_job(wa, findings)
@@ -688,7 +691,7 @@ def test_multi_rule_spacing_issue_label_on_main_page(
 ) -> None:
     c, _, job_id = multi_rule_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "Body spacing issue" in text
+    assert "Body text not double-spaced" in text
 
 
 def test_multi_rule_no_raw_snake_case_on_main_page(
@@ -701,7 +704,7 @@ def test_multi_rule_no_raw_snake_case_on_main_page(
     for raw in (
         "possible_body_font_family_issue",
         "margin_boundary_violation",
-        "body_spacing_issue",
+        "possible_body_text_not_double_spaced",
     ):
         # Allow issue_type in data attributes (data-*) but not in visible spans/text
         # We check that readable label IS present, not that raw key is absent everywhere
@@ -709,7 +712,7 @@ def test_multi_rule_no_raw_snake_case_on_main_page(
     # The readable labels should be present
     assert "Possible body font family issue" in text
     assert "Margin boundary violation" in text
-    assert "Body spacing issue" in text
+    assert "Body text not double-spaced" in text
 
 
 def test_p026_rule_page_shows_times_new_roman(
