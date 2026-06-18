@@ -438,7 +438,7 @@ def _p023_p026_p028_findings_with_raw_latex_suggested_fix() -> list[Any]:
             page=12,
             message="Body text spacing may not be double-spaced.",
             details={
-                "issue_type": "body_spacing_issue",
+                "issue_type": "possible_body_text_not_double_spaced",
                 "suggested_fix": "Use \\doublespacing in the LaTeX source.",
             },
         ),

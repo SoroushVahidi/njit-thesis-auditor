@@ -234,19 +234,25 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "variant. NJIT requires the exact canonical phrase '{expected_heading}'."
     ),
     # --- P023 body spacing ---
-    ("P023", "body_spacing_issue"): (
+    ("P023", "possible_body_text_not_double_spaced"): (
         "Body text on page {page} appears to be single-spaced or less than "
         "double-spaced. NJIT requires all body text to be double-spaced "
         "throughout."
     ),
-    ("P023", "excessive_line_gap"): (
+    # --- P016 paragraph/line spacing gaps ---
+    ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on page {page}. "
         "Body text should be double-spaced with consistent spacing throughout."
     ),
-    ("P023", "excessive_paragraph_gap"): (
+    ("P016", "excessive_paragraph_gap"): (
         "Unusually large spacing was detected between paragraphs on page "
         "{page}. Paragraph spacing should be consistent with double-spaced "
         "body text."
+    ),
+    ("P016", "suspicious_heading_blank_gap"): (
+        "An unusually large blank gap was detected just before a heading on "
+        "page {page}. Verify this is intentional heading spacing and not an "
+        "extra blank line or page-break artifact."
     ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
         "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "

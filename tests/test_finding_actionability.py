@@ -1089,7 +1089,7 @@ def test_annotation_explanation_unknown_type() -> None:
 def test_p023_body_spacing_explanation() -> None:
     expl = build_detailed_explanation(
         rule_id="P023",
-        issue_type="body_spacing_issue",
+        issue_type="possible_body_text_not_double_spaced",
         details={},
         page=5,
     )

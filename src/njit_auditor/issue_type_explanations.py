@@ -39,7 +39,10 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     # Page number sequence (P019)
     "page_number_sequence_error": "Page number sequence error",
     # Spacing
-    "body_spacing_issue": "Body spacing issue",
+    "possible_body_text_not_double_spaced": "Body text not double-spaced",
+    "excessive_line_gap": "Excessive line gap",
+    "excessive_paragraph_gap": "Excessive paragraph gap",
+    "suspicious_heading_blank_gap": "Suspicious heading blank gap",
     # Abstract
     "abstract_word_count_exceeded": "Abstract word count exceeded",
     "abstract_pdf_forbidden_term": "Abstract contains a forbidden term",
@@ -233,11 +236,27 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "CONTENTS. NJIT requires the Abstract to appear before the Table "
         "of Contents."
     ),
-    ("P023", "body_spacing_issue"): (
+    ("P023", "possible_body_text_not_double_spaced"): (
         "Body text on this page does not appear to use the required double line "
         "spacing. NJIT requires double line spacing throughout the body text. "
         "Check paragraph spacing settings and ensure no manual spacing overrides "
         "are in effect."
+    ),
+    ("P016", "excessive_line_gap"): (
+        "This means unusually large spacing was detected between lines on this "
+        "page. Body text should be double-spaced with consistent spacing. "
+        "Review for extra blank lines or manual spacing overrides."
+    ),
+    ("P016", "excessive_paragraph_gap"): (
+        "This means unusually large spacing was detected between paragraphs on "
+        "this page. Paragraph spacing should be consistent with double-spaced "
+        "body text. Review for extra blank lines or manual paragraph-spacing "
+        "overrides."
+    ),
+    ("P016", "suspicious_heading_blank_gap"): (
+        "This means an unusually large blank gap was detected just before a "
+        "heading on this page. Verify this is intentional heading spacing and "
+        "not an extra blank line or page-break artifact."
     ),
     ("P013", "page_number_candidate"): (
         "This means the auditor detected text that looks like a page number. "
@@ -454,9 +473,21 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
         "Verify that the page number is in the required bottom position and "
         "uses the correct Roman or Arabic numbering style for that section."
     ),
-    "body_spacing_issue": (
+    "possible_body_text_not_double_spaced": (
         "Body text on this page does not appear to use the required double line "
         "spacing. NJIT requires double line spacing throughout the body text."
+    ),
+    "excessive_line_gap": (
+        "Unusually large spacing was detected between lines on this page. Body "
+        "text should be double-spaced with consistent spacing."
+    ),
+    "excessive_paragraph_gap": (
+        "Unusually large spacing was detected between paragraphs on this page. "
+        "Paragraph spacing should be consistent with double-spaced body text."
+    ),
+    "suspicious_heading_blank_gap": (
+        "An unusually large blank gap was detected just before a heading on "
+        "this page. Verify this is intentional heading spacing."
     ),
     "frontmatter_page_number_style_issue": (
         "The page number style on this front-matter page does not match NJIT "

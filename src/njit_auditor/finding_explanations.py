@@ -149,22 +149,28 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Remove the page number from this page."
     ),
     # --- P023 body spacing ---
-    ("P023", "body_spacing_issue"): (
+    ("P023", "possible_body_text_not_double_spaced"): (
         "Body text on this page appears to be single-spaced or less than "
         "double-spaced. "
         "NJIT requires all body text to be double-spaced throughout. "
         "Set the paragraph line spacing to 'Double' in Word, or use the equivalent "
         "setting in your editor."
     ),
-    ("P023", "excessive_line_gap"): (
+    # --- P016 paragraph/line spacing gaps ---
+    ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on this page. "
         "Body text should be double-spaced with consistent spacing. "
         "Review for extra blank lines or manual spacing overrides."
     ),
-    ("P023", "excessive_paragraph_gap"): (
+    ("P016", "excessive_paragraph_gap"): (
         "Unusually large spacing was detected between paragraphs on this page. "
         "Paragraph spacing should be consistent with double-spaced body text. "
         "Review for extra blank lines or manual paragraph-spacing overrides."
+    ),
+    ("P016", "suspicious_heading_blank_gap"): (
+        "An unusually large blank gap was detected just before a heading on this "
+        "page. Verify this is intentional heading spacing and not an extra blank "
+        "line or page-break artifact."
     ),
     # --- P026 font compliance ---
     ("P026", "possible_body_font_family_issue"): (

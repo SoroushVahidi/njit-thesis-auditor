@@ -112,7 +112,7 @@ def _inject_complete_pdf_job(wa: Any) -> tuple[str, Any]:
             page=4,
             message="Body text spacing may not be double-spaced.",
             details={
-                "issue_type": "body_spacing_issue",
+                "issue_type": "possible_body_text_not_double_spaced",
                 "suggested_fix": "Set body text to double spacing throughout.",
             },
         ),
