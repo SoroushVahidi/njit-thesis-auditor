@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -208,19 +208,23 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
         if issue_type is None:
             continue
 
+        details = {
+            "page_number": str(caption.page_number),
+            "caption_type": caption.caption_type,
+            "issue_type": issue_type,
+            "line_preview": _line_preview(caption.raw_text),
+            "confidence": confidence,
+        }
+        if caption.bbox is not None:
+            details["bbox"] = format_bbox_detail(caption.bbox)
+
         findings.append(
             AuditFinding(
                 rule_id="P017",
                 severity=Severity.WARNING,
                 page=caption.page_number,
                 message=message,
-                details={
-                    "page_number": str(caption.page_number),
-                    "caption_type": caption.caption_type,
-                    "issue_type": issue_type,
-                    "line_preview": _line_preview(caption.raw_text),
-                    "confidence": confidence,
-                },
+                details=details,
             )
         )
 
