@@ -394,7 +394,13 @@ def test_no_geometry_findings_stay_explanation_only(app: tuple[TestClient, Any])
         ),
     ]
     job_id, view = _inject_job(wa, findings)
-    for fv in view.findings:
+    page_known = [fv for fv in view.findings if fv.page is not None]
+    doc_level = [fv for fv in view.findings if fv.page is None]
+    for fv in page_known:
+        assert fv.has_highlight is False
+        assert fv.action_kind == "original_page"
+        assert fv.action_label == "Open original PDF page"
+    for fv in doc_level:
         assert fv.has_highlight is False
         assert fv.action_kind == "explanation"
         assert fv.action_label == "Read explanation"
@@ -402,6 +408,7 @@ def test_no_geometry_findings_stay_explanation_only(app: tuple[TestClient, Any])
     text, status = _get_html(c, f"/audits/{job_id}")
     assert status == 200
     assert "Open highlighted PDF page" not in text
+    assert "Open original PDF page" in text
     assert "/pdf/highlighted" not in text
 
 
@@ -437,7 +444,8 @@ def test_invalid_bbox_never_produces_fake_highlight_or_crash(
     text, status = _get_html(c, f"/audits/{job_id}")
     assert status == 200
     assert "Open highlighted PDF page" not in text
-    assert "No exact highlight is available for this finding." in text
+    assert "Open original PDF page" in text
+    assert "No exact highlight is available" in text
 
     # Even a manually-constructed highlight request for this job/rule must not 500.
     resp = c.get(

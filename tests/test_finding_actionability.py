@@ -272,7 +272,7 @@ def test_findingview_has_highlight_field() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_page_known_no_bbox_finding_renders_explanation_only(
+def test_page_known_no_bbox_finding_renders_original_page_action(
     app: tuple[TestClient, Any],
 ) -> None:
     c, wa = app
@@ -291,23 +291,22 @@ def test_page_known_no_bbox_finding_renders_explanation_only(
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
 
-    # No PDF button at all for a known-page-but-no-highlight finding.
-    assert "Open PDF page" not in page_html
     assert "Open highlighted PDF page" not in page_html
-    assert f"/audits/{job_id}/pdf#page=3" not in page_html
+    assert "Open original PDF page" in page_html
+    assert f"/audits/{job_id}/pdf#page=3" in page_html
     assert "/pdf/highlighted" not in page_html
-    # No-highlight note must be present instead.
     assert (
-        "Exact highlight is not available" in page_html
-        or "No exact highlight is available" in page_html
+        "No exact highlight is available" in page_html
+        and "page 3" in page_html
     )
 
 
 def test_page_only_action_kind_and_label() -> None:
-    assert get_action_kind(has_highlight=False, page=5) == "explanation"
-    assert get_action_label(has_highlight=False, page=5) == "Read explanation"
+    assert get_action_kind(has_highlight=False, page=5) == "original_page"
+    assert get_action_label(has_highlight=False, page=5) == "Open original PDF page"
     reason = get_no_highlight_reason(has_highlight=False, page=5)
-    assert "relevant page is known" in reason or "No exact highlight is available" in reason
+    assert "Open the original PDF page" in reason
+    assert "page 5" in reason
 
 
 def test_findingview_page_only_fields() -> None:
@@ -328,12 +327,10 @@ def test_findingview_page_only_fields() -> None:
     view = build_report_view(payload)
     fv = view.findings[0]
     assert fv.has_highlight is False
-    assert fv.action_kind == "explanation"
-    assert fv.action_label == "Read explanation"
-    assert (
-        "relevant page is known" in fv.no_highlight_reason
-        or "No exact highlight is available" in fv.no_highlight_reason
-    )
+    assert fv.action_kind == "original_page"
+    assert fv.action_label == "Open original PDF page"
+    assert "Open the original PDF page" in fv.no_highlight_reason
+    assert "left margin" in fv.no_highlight_reason
     assert fv.bbox is None
 
 
@@ -459,8 +456,8 @@ def test_abstract_findingview_has_explanation() -> None:
     assert "350" in fv.detailed_explanation
     assert "50" in fv.detailed_explanation  # over_by
     assert "PhD" in fv.detailed_explanation
-    # No bbox available: explanation only, no PDF button.
-    assert fv.action_kind == "explanation"
+    # No bbox available: original-page action only, never a fake highlight.
+    assert fv.action_kind == "original_page"
     assert fv.has_highlight is False
 
 
@@ -525,11 +522,8 @@ def test_font_findingview_explanation(app: tuple[TestClient, Any]) -> None:
     # Rule problem page
     page_html = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
     assert "Times New Roman" in page_html
-    # No highlight available for this font finding, and the drill-down
-    # page's strict highlight-only PDF-action policy means no PDF button is
-    # shown at all — the page number and explanation carry the location.
     assert "/pdf/highlighted" not in page_html
-    assert "Open PDF page" not in page_html
+    assert "Open original PDF page" in page_html
     assert "Page 5" in page_html
 
 
@@ -577,9 +571,7 @@ def test_page_numbering_findingview(app: tuple[TestClient, Any]) -> None:
     ]
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
-    # No highlight available, so the drill-down page's strict highlight-only
-    # PDF-action policy shows no PDF button at all.
-    assert "Open PDF page" not in page_html
+    assert "Open original PDF page" in page_html
     assert "Page 2" in page_html
     # Explanation must reference page numbering
     assert (
@@ -673,14 +665,11 @@ def test_annotation_invalid_bbox_falls_back(
     ]
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
-    # Invalid/unusable bbox → no highlight → no PDF button at all, explanation only.
-    assert "Open PDF page" not in page_html, case_name
+    # Invalid/unusable bbox → no highlight → original-page fallback only.
+    assert "Open original PDF page" in page_html, case_name
     assert "Open highlighted PDF page" not in page_html, case_name
     assert "/pdf/highlighted" not in page_html, case_name
-    assert (
-        "Exact highlight is not available" in page_html
-        or "No exact highlight is available" in page_html
-    ), case_name
+    assert "No exact highlight is available" in page_html, case_name
     # No 500, regardless of which malformed bbox shape produced this state.
     for link in _pdf_links(page_html):
         resp = c.get(link)
@@ -707,11 +696,8 @@ def test_annotation_page_out_of_pdf_range_falls_back(app: tuple[TestClient, Any]
     job_id = _inject_job(wa, findings, page_count=5)  # PDF only has 5 pages
     page_html = _get_html(c, f"/audits/{job_id}")
     assert "Open highlighted PDF page" not in page_html
-    assert "Open PDF page" not in page_html
-    assert (
-        "Exact highlight is not available" in page_html
-        or "No exact highlight is available" in page_html
-    )
+    assert "Open original PDF page" in page_html
+    assert "No exact highlight is available" in page_html
 
     resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 99, "rule_id": "P012"})
     assert resp.status_code != 500
@@ -759,11 +745,8 @@ def test_main_category_rule_parity(app: tuple[TestClient, Any]) -> None:
         assert "Open highlighted PDF page" in page_html, "P012 highlight missing"
         assert "/pdf/highlighted" in page_html
 
-    # P026 has no bbox: every page (main results, category, and rule
-    # drill-down) applies the same strict highlight-only PDF-action policy
-    # and shows no PDF button at all for it.
-    assert "Open PDF page" not in main_html
-    assert "Open PDF page" not in rule_p026_html
+    assert "Open original PDF page" in main_html
+    assert "Open original PDF page" in rule_p026_html
     assert "Open highlighted PDF page" not in rule_p026_html
     assert "/pdf/highlighted" not in rule_p026_html
 
@@ -793,8 +776,7 @@ def test_rule_page_explanation_present(app: tuple[TestClient, Any]) -> None:
     rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P021")
     # Explanation shown
     assert "What does this mean?" in rule_html
-    # No highlight available — drill-down page shows no PDF button at all.
-    assert "Open PDF page" not in rule_html
+    assert "Open original PDF page" in rule_html
     assert "/pdf/highlighted" not in rule_html
     assert "Page 5" in rule_html
 
@@ -920,7 +902,7 @@ def test_mobile_desktop_parity_job_page(app: tuple[TestClient, Any]) -> None:
     desktop = html.unescape(c.get(f"/audits/{job_id}", headers=_DESKTOP_HEADERS).text)
 
     # Same action labels on both viewports
-    for label in ("Open highlighted PDF page", "Open PDF page", "What does this mean?"):
+    for label in ("Open highlighted PDF page", "Open original PDF page", "What does this mean?"):
         if label in desktop:
             assert label in mobile, f"Mobile missing: {label!r}"
         if label in mobile:
@@ -1553,15 +1535,11 @@ def test_p063_page_known_no_highlight_wording(app: tuple[TestClient, Any]) -> No
     job_id = _inject_job(wa, [_p063_single_appendix_finding()], page_count=80)
     page_html = _get_html(c, f"/audits/{job_id}")
 
-    # No bbox available for this finding: no PDF button at all, explanation only.
-    assert "Open PDF page" not in page_html
+    assert "Open original PDF page" in page_html
     assert "Open highlighted PDF page" not in page_html
     assert "/pdf/highlighted" not in page_html
-    assert (
-        "Exact highlight is not available" in page_html
-        or "No exact highlight is available" in page_html
-    )
-    assert "relevant page is known" in page_html or "No exact highlight is available" in page_html
+    assert "No exact highlight is available" in page_html
+    assert "Open the original PDF page" in page_html
 
 
 # ---------------------------------------------------------------------------
@@ -1696,9 +1674,9 @@ def test_p063_and_policy_mobile_desktop_parity(app: tuple[TestClient, Any]) -> N
         assert _pdf_links(mobile) == _pdf_links(desktop), f"PDF links differ on {path}"
         for phrase in (
             "APPENDIX A",
-            "Open PDF page",
+            "Open original PDF page",
             "Open highlighted PDF page",
-            "Exact highlight is not available",
+            "No exact highlight is available",
             "Read explanation",
         ):
             if phrase in desktop:

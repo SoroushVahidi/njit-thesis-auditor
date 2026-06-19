@@ -95,7 +95,7 @@ For each finding card on the result page:
 
 - Every card has an action button (never empty).
 - Cards with exact highlight coordinates (`P012` annotations) show **"Open highlighted PDF page"** and link to `/pdf/highlighted?...`.
-- Cards with page but no bbox show **"Open PDF page"** and link to `/audits/{job_id}/pdf#page=N`.
+- Cards with page but no bbox show **"Open original PDF page"** and link to `/audits/{job_id}/pdf#page=N`.
 - Cards with no page at all show **"Open PDF"** and a note that the finding is document-level.
 - Every grouped card shows a **"What does this mean?"** expandable details section.
 - Expanding "What does this mean?" shows a student-facing explanation (not internal rule jargon).
@@ -104,7 +104,7 @@ For each finding card on the result page:
 - Page numbering findings (P013/P019/P028) mention Roman/Arabic numeral requirements.
 - Annotation findings (P012) mention accepting/rejecting reviewer comments.
 - No-highlight notes appear only when highlight is not available.
-- No-highlight notes are honest: they say "relevant page is known" for page-only findings, and "document-level" for document-only findings.
+- No-highlight guidance is honest and specific: page-known/no-highlight findings point to the original PDF page and explain what region to inspect; document-level findings remain explanation-only.
 
 ## 6. Problem Pages
 

@@ -125,10 +125,11 @@
   </div>
   <div class="example-list">
     {% for example in examples %}
-    <article class="card example-card">
+    <article id="{{ example.problem_anchor if example.problem_anchor else '' }}" class="card example-card">
       <div class="example-card__header">
         <div>
           <p class="example-card__title">
+            {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
             {% if group_kind == "category" %}
               {% if is_p_rule_id(example.rule_id) %}
               <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
@@ -172,7 +173,7 @@
       </details>
       {% endif %}
       <div class="example-card__actions">
-        {% if example.pdf_page_url %}
+        {% if example.action_kind in ("highlight", "original_page") and example.pdf_page_url %}
         <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
           {{ example.action_label }}
         </a>

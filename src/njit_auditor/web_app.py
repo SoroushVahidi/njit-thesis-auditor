@@ -360,7 +360,7 @@ _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
 # ---------------------------------------------------------------------------
 
 
-def _pdf_finding_url(
+def _pdf_highlight_url(
     job_id: str,
     *,
     page: int | None,
@@ -368,14 +368,7 @@ def _pdf_finding_url(
     issue_type: str = "",
     finding_index: int | None = None,
 ) -> str:
-    """Return the highlighted-PDF URL for a finding.
-
-    Callers must only invoke this once they have confirmed the finding has
-    a real, visible highlight (``FindingView.has_highlight`` /
-    ``has_visible_highlight``) -- there is no page-only fallback link here,
-    since a known page number alone is never sufficient justification for a
-    PDF action button under the strict highlight-only policy.
-    """
+    """Return the highlighted-PDF URL for a finding."""
     params: dict[str, str] = {}
     if page is not None:
         params["page"] = str(page)
@@ -389,7 +382,35 @@ def _pdf_finding_url(
     return f"/audits/{job_id}/pdf/highlighted?{urllib.parse.urlencode(params)}{fragment}"
 
 
-_templates.env.globals["pdf_finding_url"] = _pdf_finding_url
+def _pdf_original_page_url(job_id: str, *, page: int | None) -> str:
+    fragment = f"#page={page}" if page is not None else ""
+    return f"/audits/{job_id}/pdf{fragment}"
+
+
+def _pdf_action_url(
+    job_id: str,
+    *,
+    page: int | None,
+    action_kind: str,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> str:
+    if action_kind == "highlight":
+        return _pdf_highlight_url(
+            job_id,
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_index=finding_index,
+        )
+    if action_kind == "original_page" and page is not None:
+        return _pdf_original_page_url(job_id, page=page)
+    return ""
+
+
+_templates.env.globals["pdf_finding_url"] = _pdf_highlight_url
+_templates.env.globals["pdf_action_url"] = _pdf_action_url
 
 # ---------------------------------------------------------------------------
 # Category humanization
@@ -931,14 +952,17 @@ def _problem_group_examples(
 ) -> list[dict[str, Any]]:
     """Build template-ready example cards for a problem-group page.
 
-    Trusts each finding's canonical ``has_highlight``/``action_kind``/
+    Trusts each finding's canonical ``has_highlight`` / ``action_kind`` /
     ``action_label`` fields (computed once in report_view.py and stored in
     job.findings) rather than recomputing bbox eligibility here, so every
-    drill-down page applies the exact same strict, highlight-only
-    PDF-action policy as the main results page: a PDF-opening button is
-    only ever shown when a real, visible highlight is available.
+    drill-down page applies the exact same PDF-action policy as the main
+    results page.
     """
     rule_lookup = _public_rule_lookup()
+    problem_number_by_identity = {
+        id(finding): index
+        for index, finding in enumerate(job.findings, start=1)
+    }
     examples: list[dict[str, Any]] = []
     for finding in findings:
         rule_id = str(finding.get("rule_id", "")).strip()
@@ -952,13 +976,26 @@ def _problem_group_examples(
         detailed_explanation = str(finding.get("detailed_explanation", "")).strip()
         issue_type_label = str(finding.get("issue_type_label", "")).strip()
         issue_type_explanation = str(finding.get("issue_type_explanation", "")).strip()
-        pdf_page_url = (
-            _pdf_finding_url(job.job_id, page=page, rule_id=rule_id, issue_type=issue_type)
-            if has_highlight
-            else ""
+        problem_number_raw = finding.get("problem_number")
+        if isinstance(problem_number_raw, int) and problem_number_raw > 0:
+            problem_number = problem_number_raw
+        else:
+            problem_number = problem_number_by_identity.get(id(finding), 0)
+        pdf_page_url = _pdf_action_url(
+            job.job_id,
+            page=page,
+            action_kind=action_kind,
+            rule_id=rule_id,
+            issue_type=issue_type,
+        )
+        problem_anchor = (
+            str(finding.get("problem_anchor", "")).strip()
+            or (f"problem-{problem_number}" if problem_number > 0 else "")
         )
         examples.append(
             {
+                "problem_number": problem_number,
+                "problem_anchor": problem_anchor,
                 "rule_id": rule_id,
                 "rule_title": str(rule.get("title", "")).strip(),
                 "category": str(finding.get("category", "")).strip(),
@@ -967,7 +1004,6 @@ def _problem_group_examples(
                 "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
                 "location_text": _student_location_text(finding),
                 "page": page,
-                "pdf_url": f"/audits/{job.job_id}/pdf",
                 "pdf_page_url": pdf_page_url,
                 "highlighted": has_highlight,
                 "action_kind": action_kind,
@@ -1007,23 +1043,23 @@ def _problem_group_context(
             if page is not None
         }
     )
-    # Strict highlight-only hero policy: a PDF-opening hero action is only
-    # ever shown when a real highlight exists. Never show a page-only
-    # "Open first example page" action — a known page without a highlight
-    # does not visually mark the relevant problem, so it would be misleading.
     hero_action_kind = "none"
     hero_action_label = ""
     hero_action_url = ""
     for example in examples:
         if example.get("action_kind") == "highlight" and example.get("pdf_page_url"):
             hero_action_kind = "highlight"
-            hero_action_label = "Open first highlighted example"
+            hero_action_label = str(example.get("action_label", "")).strip()
             hero_action_url = str(example["pdf_page_url"])
             break
+    if hero_action_kind == "none":
+        for example in examples:
+            if example.get("action_kind") == "original_page" and example.get("pdf_page_url"):
+                hero_action_kind = "original_page"
+                hero_action_label = str(example.get("action_label", "")).strip()
+                hero_action_url = str(example["pdf_page_url"])
+                break
     if hero_action_kind == "none" and examples:
-        # No example in this group has a highlight — never show a
-        # destination-less PDF button; offer an in-page jump to the
-        # per-example explanations instead.
         hero_action_kind = "explanation"
         hero_action_label = "Read explanation"
         hero_action_url = "#examples"
@@ -1214,6 +1250,8 @@ def _run_audit_task(job_id: str) -> None:
             "rule_id": fv["rule_id"],
             "severity": fv["severity"],
             "page": fv["page"],
+            "problem_number": fv.get("problem_number", 0),
+            "problem_anchor": fv.get("problem_anchor", ""),
             "issue_type": fv["issue_type"],
             "category": fv["category"],
             "polished_comment": fv["polished_comment"],

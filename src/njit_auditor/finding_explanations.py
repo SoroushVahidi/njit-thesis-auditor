@@ -11,41 +11,134 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 _ACTION_HIGHLIGHT = "highlight"
+_ACTION_ORIGINAL_PAGE = "original_page"
 _ACTION_EXPLANATION = "explanation"
 
 _LABEL_HIGHLIGHT = "Open highlighted PDF page"
+_LABEL_ORIGINAL_PAGE = "Open original PDF page"
 _LABEL_EXPLANATION = "Read explanation"
 
-_NO_HIGHLIGHT_PAGE_REASON = (
-    "Exact highlight is not available for this finding, but the relevant page is known."
-)
 _NO_HIGHLIGHT_DOC_REASON = (
     "This finding is document-level and does not correspond to a specific page or visual location."
 )
 
 
 def get_action_kind(*, has_highlight: bool, page: int | None) -> str:
-    """Return the action kind for a finding: "highlight" or "explanation".
+    """Return the action kind for a finding.
 
-    There is no "page-only" action kind. A finding either has a real,
-    visible highlight to show, or it gets an explanation only -- a known
-    page number is never enough on its own to justify a PDF link/button.
+    Actionability policy:
+    - real visible highlight -> "highlight"
+    - no highlight, but page known -> "original_page"
+    - no page -> "explanation"
     """
-    return _ACTION_HIGHLIGHT if has_highlight else _ACTION_EXPLANATION
+    if has_highlight:
+        return _ACTION_HIGHLIGHT
+    if page is not None:
+        return _ACTION_ORIGINAL_PAGE
+    return _ACTION_EXPLANATION
 
 
 def get_action_label(*, has_highlight: bool, page: int | None) -> str:
     """Return the button label for a finding's primary action."""
-    return _LABEL_HIGHLIGHT if has_highlight else _LABEL_EXPLANATION
+    if has_highlight:
+        return _LABEL_HIGHLIGHT
+    if page is not None:
+        return _LABEL_ORIGINAL_PAGE
+    return _LABEL_EXPLANATION
 
 
-def get_no_highlight_reason(*, has_highlight: bool, page: int | None) -> str:
+def _humanize_safe_label(raw: str) -> str:
+    return raw.replace("_", " ").strip()
+
+
+def _location_phrase(
+    *, page: int | None, location_label: str, details: dict[str, str]
+) -> str:
+    parts: list[str] = []
+    if page is not None:
+        parts.append(f"on page {page}")
+    location = location_label.strip()
+    if location:
+        parts.append(f"near the {location.lower()}")
+    page_type = (
+        details.get("page_type_label", "").strip()
+        or details.get("page_type", "").strip()
+        or details.get("section_type", "").strip()
+    )
+    if page_type:
+        parts.append(f"in the {_humanize_safe_label(page_type)} section")
+    if not parts:
+        return "in this document"
+    return " ".join(parts)
+
+
+def _inspection_target(rule_id: str, issue_type: str, details: dict[str, str]) -> str:
+    caption_type = _humanize_safe_label(details.get("caption_type", ""))
+    page_type = _humanize_safe_label(
+        details.get("page_type_label", "")
+        or details.get("page_type", "")
+        or details.get("section_type", "")
+    )
+    if rule_id == "P017" and caption_type:
+        return f"the {caption_type} caption area"
+    if rule_id in {"P013", "P019", "P022", "P028", "P029", "P037"}:
+        return "the page-number region"
+    if rule_id == "P011":
+        side = _humanize_safe_label(details.get("side", ""))
+        return f"the {side} area" if side else "the page-margin area"
+    if rule_id in {"P020", "P027", "P038", "P063"}:
+        return "the heading area"
+    if caption_type:
+        return f"the {caption_type} caption area"
+    if "caption" in issue_type:
+        return "the caption area"
+    if "heading" in issue_type or "title" in issue_type:
+        return "the heading area"
+    if "margin" in issue_type:
+        return "the page-margin area"
+    if page_type:
+        return f"the {page_type} section"
+    return "the flagged area"
+
+
+def build_no_highlight_guidance(
+    *,
+    rule_id: str,
+    issue_type: str,
+    details: dict[str, str],
+    page: int | None,
+    location_label: str = "",
+) -> str:
+    """Return a precise student-facing fallback when no exact highlight exists."""
+    if page is None:
+        return _NO_HIGHLIGHT_DOC_REASON
+    location = _location_phrase(page=page, location_label=location_label, details=details)
+    target = _inspection_target(rule_id, issue_type, details)
+    return (
+        f"No exact highlight is available, but this finding is {location}. "
+        f"Open the original PDF page and inspect {target}."
+    )
+
+
+def get_no_highlight_reason(
+    *,
+    has_highlight: bool,
+    page: int | None,
+    rule_id: str = "",
+    issue_type: str = "",
+    details: dict[str, str] | None = None,
+    location_label: str = "",
+) -> str:
     """Return a student-facing reason why no exact highlight is available."""
     if has_highlight:
         return ""
-    if page is not None:
-        return _NO_HIGHLIGHT_PAGE_REASON
-    return _NO_HIGHLIGHT_DOC_REASON
+    return build_no_highlight_guidance(
+        rule_id=rule_id,
+        issue_type=issue_type,
+        details=details or {},
+        page=page,
+        location_label=location_label,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -717,6 +810,8 @@ def build_detailed_explanation(
     issue_type: str,
     details: dict[str, str],
     page: int | None,
+    has_highlight: bool = False,
+    location_label: str = "",
 ) -> str:
     """Build a student-facing detailed explanation for a finding.
 
@@ -728,6 +823,18 @@ def build_detailed_explanation(
     text = _build_explanation_text(
         rule_id=rule_id, issue_type=issue_type, details=details, page=page
     )
+    if not has_highlight and page is not None:
+        guidance = build_no_highlight_guidance(
+            rule_id=rule_id,
+            issue_type=issue_type,
+            details=details,
+            page=page,
+            location_label=location_label,
+        )
+        return (
+            f"{text} "
+            f"{guidance}"
+        )
     if page is not None:
         return f"{text} This finding is on page {page}."
     return text

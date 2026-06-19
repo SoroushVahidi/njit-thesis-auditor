@@ -249,15 +249,15 @@ def test_p017_without_bbox_stays_explanation_only(app: tuple[TestClient, Any]) -
     job_id, view = _inject_job(wa, [finding])
     fv = next(f for f in view.findings if f.rule_id == "P017")
     assert fv.has_highlight is False
-    assert fv.action_kind == "explanation"
-    assert fv.action_label == "Read explanation"
+    assert fv.action_kind == "original_page"
+    assert fv.action_label == "Open original PDF page"
     assert fv.bbox is None
 
     text, status = _get_html(c, f"/audits/{job_id}")
     assert status == 200
     assert "Open highlighted PDF page" not in text
-    assert "/pdf/highlighted" not in text
-    assert "Open PDF page" not in text
+    assert "Open original PDF page" in text
+    assert f"/audits/{job_id}/pdf#page=4" in text
     assert "Open first example page" not in text
     # Explanation is still present and correct.
     assert fv.detailed_explanation in text

@@ -168,8 +168,10 @@ def test_margin_side_specific_wording(app: tuple[TestClient, Any]) -> None:
     assert "page 2 appears to cross the required right margin boundary" in text
     assert "inside the required page margins" in text
     assert "tables, figures, long lines, indentation, headers, and footers" in text
-    assert "No exact highlight is available for this finding." in text
+    assert "No exact highlight is available" in text
+    assert "Open the original PDF page" in text
     assert "Open PDF page" not in text
+    assert "Open original PDF page" in text
     assert "Open highlighted PDF page" not in text
 
 
@@ -485,7 +487,7 @@ def test_margin_font_mobile_desktop_parity(app: tuple[TestClient, Any]) -> None:
     for fragment in (
         "right margin",
         "font size 10.5pt",
-        "No exact highlight is available for this finding.",
+        "No exact highlight is available",
         "Problems found",
     ):
         assert fragment in mobile
