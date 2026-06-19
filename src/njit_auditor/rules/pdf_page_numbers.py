@@ -7,7 +7,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 
 PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
 ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
@@ -64,6 +64,7 @@ class PageNumberCandidate:
     number_style: str
     position_type: str
     value: int | None
+    bbox: tuple[float, float, float, float] | None = None
 
 
 def _is_top_or_bottom_zone(
@@ -161,6 +162,7 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
                         number_style=number_style,
                         position_type=position_type,
                         value=value,
+                        bbox=(line.bbox.x0, line.bbox.y0, line.bbox.x1, line.bbox.y1),
                     )
                 )
     return candidates
@@ -247,28 +249,31 @@ def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFindi
         sample_text = ", ".join(distinct_texts[:3])
         if len(distinct_texts) > 3:
             sample_text += ", ..."
+        details: dict[str, str] = {
+            "issue_type": "page_number_candidate",
+            "location": primary.location,
+            "position_type": primary.position_type,
+            "candidate_position_label": _position_label(primary.position_type),
+            "number_style": primary.number_style,
+            "candidate_style_label": _style_label(primary.number_style),
+            "candidate_count_on_page": str(len(page_candidates)),
+            "candidate_sample": sample_text,
+            "observed_summary": f"{primary.position_type}/{primary.number_style}",
+            "confidence": _candidate_confidence(primary),
+            "triage_tier": "informational",
+            "suggested_fix": (
+                "Verify placement/format against NJIT page-number requirements."
+            ),
+        }
+        if primary.bbox is not None:
+            details["bbox"] = format_bbox_detail(primary.bbox)
         findings.append(
             AuditFinding(
                 rule_id="P013",
                 severity=Severity.WARNING,
                 page=page,
                 message=f"Page has {len(page_candidates)} page-number-like candidate(s).",
-                details={
-                    "issue_type": "page_number_candidate",
-                    "location": primary.location,
-                    "position_type": primary.position_type,
-                    "candidate_position_label": _position_label(primary.position_type),
-                    "number_style": primary.number_style,
-                    "candidate_style_label": _style_label(primary.number_style),
-                    "candidate_count_on_page": str(len(page_candidates)),
-                    "candidate_sample": sample_text,
-                    "observed_summary": f"{primary.position_type}/{primary.number_style}",
-                    "confidence": _candidate_confidence(primary),
-                    "triage_tier": "informational",
-                    "suggested_fix": (
-                        "Verify placement/format against NJIT page-number requirements."
-                    ),
-                },
+                details=details,
             )
         )
     return findings
@@ -354,24 +359,28 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 {_position_label(c.position_type) for c in mismatched_candidates}
             )
             if mismatch_count >= POSITION_DOMINANT_MISMATCH_THRESHOLD:
+                inconsistent_details: dict[str, str] = {
+                    "page_number": str(page),
+                    "issue_type": "inconsistent_position",
+                    "expected_or_context": f"dominant={dominant_position_type}",
+                    "observed_location": (
+                        ", ".join(observed_positions)
+                        if observed_positions
+                        else _position_label(dominant_position_type)
+                    ),
+                    "expected_position": _position_label(dominant_position_type),
+                    "confidence": "medium",
+                }
+                mismatch_bbox = mismatched_candidates[0].bbox
+                if mismatch_bbox is not None:
+                    inconsistent_details["bbox"] = format_bbox_detail(mismatch_bbox)
                 findings.append(
                     AuditFinding(
                         rule_id="P019",
                         severity=Severity.WARNING,
                         page=page,
                         message="Page-number position appears inconsistent with dominant pattern.",
-                        details={
-                            "page_number": str(page),
-                            "issue_type": "inconsistent_position",
-                            "expected_or_context": f"dominant={dominant_position_type}",
-                            "observed_location": (
-                                ", ".join(observed_positions)
-                                if observed_positions
-                                else _position_label(dominant_position_type)
-                            ),
-                            "expected_position": _position_label(dominant_position_type),
-                            "confidence": "medium",
-                        },
+                        details=inconsistent_details,
                     )
                 )
 

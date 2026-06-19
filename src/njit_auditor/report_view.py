@@ -355,7 +355,9 @@ def _margin_issue_type_explanation(details: Mapping[str, str], *, page: int | No
     )
 
 
-def _margin_detailed_explanation(details: Mapping[str, str], *, page: int | None) -> str:
+def _margin_detailed_explanation(
+    details: Mapping[str, str], *, page: int | None, has_highlight: bool
+) -> str:
     side = _margin_side_label(details.get("side", ""))
     observed = _margin_observed_phrase(details)
     if side == "required page margin":
@@ -369,14 +371,17 @@ def _margin_detailed_explanation(details: Mapping[str, str], *, page: int | None
             "page boundary"
         )
     page_text = f" on page {page}" if page is not None else ""
+    no_highlight_text = (
+        "" if has_highlight else " No exact highlight is available for this finding."
+    )
     return (
         f"Observed: {observed}{page_text}. "
         "Expected: Content should stay inside NJIT's required page margins "
         "(left 1.5 inches; right, top, and bottom 1 inch). "
         f"Why this is suspicious: {why}. "
         "What to check or fix: inspect tables, figures, long lines, indentation, "
-        "headers, and footers on this page. "
-        "No exact highlight is available for this finding."
+        "headers, and footers on this page."
+        f"{no_highlight_text}"
     )
 
 
@@ -478,7 +483,7 @@ def _font_issue_type_explanation(
 
 
 def _font_detailed_explanation(
-    details: Mapping[str, str], *, issue_type: str, page: int | None
+    details: Mapping[str, str], *, issue_type: str, page: int | None, has_highlight: bool
 ) -> str:
     role, role_fix = _font_role_text(details)
     observed = _font_observed_value(details)
@@ -511,6 +516,9 @@ def _font_detailed_explanation(
         count_bits.append(f"{candidate_count} sampled {noun}")
     counts_text = f" ({'; '.join(count_bits)})" if count_bits else ""
     page_text = f" on page {page}" if page is not None else ""
+    no_highlight_text = (
+        "" if has_highlight else " No exact highlight is available for this finding."
+    )
     return (
         f"Observed: {observed_text}{counts_text}{page_text}. "
         f"Expected: {role} should use {expected}. "
@@ -518,8 +526,7 @@ def _font_detailed_explanation(
         "in body-text-like spans on this page. "
         f"What to check or fix: confirm whether the flagged text is {role_fix}, a caption, "
         "a heading, table text, a footnote, or another exception, then update the source "
-        "document's font settings if needed. "
-        "No exact highlight is available for this finding."
+        f"document's font settings if needed.{no_highlight_text}"
     )
 
 
@@ -829,7 +836,9 @@ def _apply_margin_presentation(
                 if finding.has_highlight
                 else "No exact highlight is available for this finding."
             ),
-            detailed_explanation=_margin_detailed_explanation(details, page=finding.page),
+            detailed_explanation=_margin_detailed_explanation(
+                details, page=finding.page, has_highlight=finding.has_highlight
+            ),
             issue_type_explanation=_margin_issue_type_explanation(details, page=finding.page),
         ),
         True,
@@ -867,6 +876,7 @@ def _apply_font_presentation(
                 details,
                 issue_type=finding.issue_type,
                 page=finding.page,
+                has_highlight=finding.has_highlight,
             ),
             issue_type_explanation=_font_issue_type_explanation(
                 details,

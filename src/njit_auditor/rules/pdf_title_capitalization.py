@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_captions import CAPTION_START_RE, detect_caption_lines
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
@@ -90,6 +90,7 @@ class TitleLikeLine:
     line_preview: str  # ≤80-char preview of the original line
     source: str        # "caption" | "heading"
     detection_reason: str = field(default="bold_heading")
+    bbox: BBox | None = None
     # detection_reason values: "bold_heading" | "cmbx_bold_heading" | "font_size_heading_fallback"
 
 
@@ -326,6 +327,7 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                 check_text=caption.caption_body,
                 line_preview=caption.raw_text[:MAX_PREVIEW_LEN],
                 source="caption",
+                bbox=caption.bbox,
             )
         )
 
@@ -365,6 +367,7 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                             line_preview=clean[:MAX_PREVIEW_LEN],
                             source="heading",
                             detection_reason=detection_reason,
+                            bbox=line.bbox,
                         )
                     )
 
@@ -388,6 +391,17 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
             continue
 
         first_issue = issues[0]
+        details: dict[str, str] = {
+            "page_number": str(title_line.page_number),
+            "issue_type": "possible_title_capitalization_issue",
+            "line_preview": title_line.line_preview,
+            "expected_or_reason": first_issue["reason"],
+            "confidence": first_issue["confidence"],
+            "source": title_line.source,
+            "detection_reason": title_line.detection_reason,
+        }
+        if title_line.bbox is not None:
+            details["bbox"] = format_bbox_detail(title_line.bbox)
         findings.append(
             AuditFinding(
                 rule_id="P020",
@@ -398,15 +412,7 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
                     f"'{first_issue['word']}' may need to be capitalized "
                     f"({first_issue['reason']})."
                 ),
-                details={
-                    "page_number": str(title_line.page_number),
-                    "issue_type": "possible_title_capitalization_issue",
-                    "line_preview": title_line.line_preview,
-                    "expected_or_reason": first_issue["reason"],
-                    "confidence": first_issue["confidence"],
-                    "source": title_line.source,
-                    "detection_reason": title_line.detection_reason,
-                },
+                details=details,
             )
         )
 

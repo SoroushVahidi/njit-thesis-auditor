@@ -31,7 +31,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextSpan
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextSpan, format_bbox_detail
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -205,6 +205,7 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "candidate_count": str(len(body_spans)),
                         "confidence": "medium",
                         "triage_tier": "informational",
+                        "bbox": format_bbox_detail(size_violations[0].bbox),
                         "suggested_fix": (
                             "Set body text font size to 12pt throughout the document "
                             "(LaTeX: \\normalsize in a 12pt document class; "
@@ -246,6 +247,7 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "candidate_count": str(len(named_spans)),
                         "confidence": "medium",
                         "triage_tier": "informational",
+                        "bbox": format_bbox_detail(family_violations[0].bbox),
                         "suggested_fix": (
                             "Set body text font to Times New Roman 12pt throughout the document "
                             "(LaTeX: use \\usepackage{mathptmx} or \\usepackage{times}; "
