@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage
+from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
 from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings
 
 # P013-compatible candidate pattern: isolated numeric or Roman numeral token.
@@ -54,7 +54,9 @@ def _candidates_on_page(page: PdfPage, suppress_years: bool = False) -> list[dic
             if suppress_years and _YEAR_RE.match(normalized):
                 continue
             location = "top" if line.bbox.y1 <= page.height * _TOP_ZONE_RATIO else "bottom"
-            candidates.append({"text": clean, "location": location})
+            candidates.append(
+                {"text": clean, "location": location, "bbox": format_bbox_detail(line.bbox)}
+            )
     return candidates
 
 
@@ -142,6 +144,7 @@ def check_pdf_frontmatter_no_page_number(pdf_doc: PdfDocument) -> list[AuditFind
                     "candidate_count": str(len(candidates)),
                     "source_q_rule_id": q_rule_id,
                     "confidence": "medium",
+                    "bbox": first["bbox"],
                     "suggested_fix": (
                         f"Remove the visible page number from the {label} page."
                     ),

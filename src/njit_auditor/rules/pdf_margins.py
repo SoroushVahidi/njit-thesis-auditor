@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, _is_top_or_bottom_zone
 
 INCH_TO_PT = 72.0
@@ -108,7 +108,8 @@ def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 grouped.setdefault(violation.side, []).append(violation)
 
         for side, violations in grouped.items():
-            worst = max(v.overflow_pt for v in violations)
+            worst_violation = max(violations, key=lambda v: v.overflow_pt)
+            worst = worst_violation.overflow_pt
             count = len(violations)
             # Suppress groups where many lines all barely cross the margin: this pattern
             # indicates a compressed-PDF coordinate shift, not a real margin violation.
@@ -128,6 +129,7 @@ def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "affected_line_count": str(count),
                         "confidence": confidence,
                         "triage_tier": "informational",
+                        "bbox": format_bbox_detail(worst_violation.line.bbox),
                         "suggested_fix": (
                             "Review margin settings and move content inside required layout bounds."
                         ),

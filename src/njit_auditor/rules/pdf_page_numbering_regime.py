@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings
 from njit_auditor.rules.pdf_page_numbers import detect_page_number_candidates
 
@@ -163,6 +163,23 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
             continue
         seen.add(key)
 
+        regime_details: dict[str, str] = {
+            "page_number": str(pn),
+            "issue_type": issue_type,
+            "candidate_text": candidate.text,
+            "candidate_style": candidate.number_style,
+            "observed_style": _style_label(candidate.number_style),
+            "page_region": region,
+            "expected_or_reason": expected or "",
+            "expected_style": expected or "",
+            "source_q_rule_id": q_rule,
+            "confidence": "medium",
+            "suggested_fix": (
+                f"Use {expected} for {region.replace('_', ' ')} pages." if expected else ""
+            ),
+        }
+        if candidate.bbox is not None:
+            regime_details["bbox"] = format_bbox_detail(candidate.bbox)
         findings.append(
             AuditFinding(
                 rule_id="P028",
@@ -173,23 +190,7 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     f"'{candidate.text}' ({candidate.number_style}) that does not "
                     f"match the expected regime for that region."
                 ),
-                details={
-                    "page_number": str(pn),
-                    "issue_type": issue_type,
-                    "candidate_text": candidate.text,
-                    "candidate_style": candidate.number_style,
-                    "observed_style": _style_label(candidate.number_style),
-                    "page_region": region,
-                    "expected_or_reason": expected or "",
-                    "expected_style": expected or "",
-                    "source_q_rule_id": q_rule,
-                    "confidence": "medium",
-                    "suggested_fix": (
-                        f"Use {expected} for {region.replace('_', ' ')} pages."
-                        if expected
-                        else ""
-                    ),
-                },
+                details=regime_details,
             )
         )
 

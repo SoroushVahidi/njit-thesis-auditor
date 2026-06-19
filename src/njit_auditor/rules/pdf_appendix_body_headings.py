@@ -54,7 +54,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
 
 # Matches a line starting with APPENDIX (case-insensitive), possibly followed by
 # a letter identifier and/or title text.
@@ -89,15 +89,15 @@ def _find_body_start_page(pdf_doc: PdfDocument) -> int | None:
 
 def _collect_appendix_headings(
     pdf_doc: PdfDocument, body_start: int
-) -> list[tuple[int, str]]:
-    """Return (page_number, normalized_heading_text) for all body-page APPENDIX headings.
+) -> list[tuple[int, str, BBox]]:
+    """Return (page_number, normalized_heading_text, bbox) for body-page APPENDIX headings.
 
     Only lines starting with APPENDIX (case-insensitive), on pages at or after
     body_start, with length >= _MIN_LINE_LEN, are collected.
     Duplicate headings on the same page are skipped (multi-line wrapped headings).
     """
     seen_pages: set[int] = set()
-    results: list[tuple[int, str]] = []
+    results: list[tuple[int, str, BBox]] = []
     for page in pdf_doc.pages:
         if page.page_number < body_start:
             continue
@@ -111,7 +111,7 @@ def _collect_appendix_headings(
                 if _APPENDIX_LINE_RE.match(clean):
                     if page.page_number not in seen_pages:
                         seen_pages.add(page.page_number)
-                        results.append((page.page_number, clean.upper()))
+                        results.append((page.page_number, clean.upper(), line.bbox))
                     break  # Only first matching line per page
     return results
 
@@ -150,7 +150,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
     n = len(headings)
 
     if n == 1:
-        page_num, heading = headings[0]
+        page_num, heading, bbox = headings[0]
         letter = _extract_letter(heading)
         if letter is not None:
             # Single appendix uses a letter suffix — not required per Q058.
@@ -171,13 +171,14 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                         "letter_found": letter,
                         "triage_tier": "medium",
                         "source_q_rule_id": "Q058",
+                        "bbox": format_bbox_detail(bbox),
                     },
                 )
             )
     else:
         # Multiple appendices: each must use APPENDIX <letter> format.
         letters: list[str | None] = []
-        for page_num, heading in headings:
+        for page_num, heading, bbox in headings:
             letter = _extract_letter(heading)
             letters.append(letter)
             if letter is None:
@@ -197,6 +198,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                             "appendix_count": str(n),
                             "triage_tier": "medium",
                             "source_q_rule_id": "Q059",
+                            "bbox": format_bbox_detail(bbox),
                         },
                     )
                 )
@@ -206,7 +208,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
         if len(resolved) == n:
             # Check for repeated letters.
             seen_letters: set[str] = set()
-            for idx, (page_num, _) in enumerate(headings):
+            for idx, (page_num, _, bbox) in enumerate(headings):
                 letter = resolved[idx]
                 if letter in seen_letters:
                     findings.append(
@@ -226,6 +228,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                                 "letter_repeated": letter,
                                 "triage_tier": "medium",
                                 "source_q_rule_id": "Q059",
+                                "bbox": format_bbox_detail(bbox),
                             },
                         )
                     )
@@ -235,7 +238,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
             # Expected: A, B, C, D, ... in order.
             if not findings:  # Only check gaps when no repeat found.
                 expected_letters = [chr(ord("A") + i) for i in range(n)]
-                for idx, (page_num, _) in enumerate(headings):
+                for idx, (page_num, _, bbox) in enumerate(headings):
                     actual = resolved[idx]
                     expected = expected_letters[idx]
                     if actual != expected:
@@ -259,6 +262,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                                     "sequence_position": str(idx + 1),
                                     "triage_tier": "medium",
                                     "source_q_rule_id": "Q059",
+                                    "bbox": format_bbox_detail(bbox),
                                 },
                             )
                         )

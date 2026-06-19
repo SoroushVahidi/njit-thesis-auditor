@@ -206,11 +206,16 @@ def test_p063_finding_privacy_safe(tmp_path: Path) -> None:
         "letter_found",
         "triage_tier",
         "source_q_rule_id",
+        "bbox",
     }
     for key in f.details:
         assert key in allowed_keys, f"Unexpected metadata key: {key!r}"
     for val in f.details.values():
         assert isinstance(val, str), "All detail values must be str"
+    bbox_parts = f.details["bbox"].split(",")
+    assert len(bbox_parts) == 4
+    for part in bbox_parts:
+        float(part)  # must be numeric, not heading text
 
 
 def test_p063_import_and_wiring(tmp_path: Path) -> None:

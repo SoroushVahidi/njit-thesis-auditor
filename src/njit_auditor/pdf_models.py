@@ -22,6 +22,20 @@ class BBox(BaseModel):
         return self.y1 - self.y0
 
 
+def format_bbox_detail(bbox: BBox | tuple[float, float, float, float]) -> str:
+    """Serialize a bbox into the comma-separated string ``AuditFinding.details["bbox"]`` expects.
+
+    Shared by detector modules so every rule that propagates geometry uses the
+    same on-disk shape that :func:`njit_auditor.report_view._parse_bbox_from_details`
+    parses back out.
+    """
+    if isinstance(bbox, BBox):
+        x0, y0, x1, y1 = bbox.x0, bbox.y0, bbox.x1, bbox.y1
+    else:
+        x0, y0, x1, y1 = bbox
+    return f"{x0:.1f},{y0:.1f},{x1:.1f},{y1:.1f}"
+
+
 class PdfTextSpan(BaseModel):
     """Smallest text run with style metadata."""
 

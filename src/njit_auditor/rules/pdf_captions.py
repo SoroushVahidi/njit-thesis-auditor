@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -47,12 +47,14 @@ class CaptionLine:
         caption_type: str,
         caption_body: str,
         context: str,
+        bbox: BBox | None = None,
     ) -> None:
         self.page_number = page_number
         self.raw_text = raw_text
         self.caption_type = caption_type
         self.caption_body = caption_body
         self.context = context
+        self.bbox = bbox
 
 
 def normalize_caption_text(text: str) -> str:
@@ -144,6 +146,7 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
                     caption_type=caption_type,
                     caption_body=body,
                     context=context,
+                    bbox=line.bbox,
                 )
             )
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_frontmatter_heading_gate import FRONTMATTER_HEADING_VARIANTS
 from njit_auditor.rules.pdf_headings import (
     find_named_frontmatter_headings,
@@ -127,6 +127,7 @@ def check_pdf_frontmatter_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
                             "observed_heading_normalized": normalized_upper,
                             "triage_tier": "check",
                             "confidence": "medium",
+                            "bbox": format_bbox_detail(line.bbox),
                         },
                     )
                 )

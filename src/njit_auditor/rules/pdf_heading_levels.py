@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 from njit_auditor.rules.pdf_title_capitalization import (
@@ -133,6 +133,7 @@ def _finding(
     line_preview: str,
     confidence: str,
     source_q_rule_id: str = "",
+    bbox: BBox | None = None,
 ) -> AuditFinding:
     details: dict[str, str] = {
         "page_number": str(page_number),
@@ -145,6 +146,8 @@ def _finding(
     }
     if source_q_rule_id:
         details["source_q_rule_id"] = source_q_rule_id
+    if bbox is not None:
+        details["bbox"] = format_bbox_detail(bbox)
     return AuditFinding(
         rule_id="P027",
         severity=Severity.WARNING,
@@ -197,6 +200,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     ),
                     line_preview=preview,
                     confidence="medium",
+                    bbox=line.bbox,
                 ))
 
         else:  # level 3, 4, 5
@@ -216,6 +220,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     line_preview=preview,
                     confidence="medium",
                     source_q_rule_id=q_rule,
+                    bbox=line.bbox,
                 ))
             # Level 4/5: heading text should end with a period.
             if level in (4, 5) and not heading_text.rstrip().endswith("."):
@@ -233,6 +238,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     line_preview=preview,
                     confidence="low",
                     source_q_rule_id=q_rule,
+                    bbox=line.bbox,
                 ))
         break  # apply only the most specific matched level
 
@@ -254,6 +260,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     expected_or_reason="ALL CAPS heading title after CHAPTER/APPENDIX N",
                     line_preview=preview,
                     confidence="medium",
+                    bbox=line.bbox,
                 ))
 
     return results
