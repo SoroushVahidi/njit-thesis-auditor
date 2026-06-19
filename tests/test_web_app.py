@@ -797,13 +797,9 @@ def test_category_problem_page_route_returns_200(
     # Both matching findings share one issue type, so the page title narrows
     # to that issue type rather than staying at the broad category label.
     assert b"Margin boundary violation (P011)" in resp.content
-    # P011 findings here carry no bbox, so the strict highlight-only PDF-action
-    # policy shows no PDF link for them at all (no page-only fallback either).
-    assert f"/audits/{job_id}/pdf#page=2".encode() not in resp.content
-    assert (
-        b"Exact highlight is not available" in resp.content
-        or b"No exact highlight is available" in resp.content
-    )
+    assert f"/audits/{job_id}/pdf#page=2".encode() in resp.content
+    assert b"Open original PDF page" in resp.content
+    assert b"No exact highlight is available" in resp.content
 
 
 def test_rule_problem_page_route_returns_200(
@@ -840,13 +836,9 @@ def test_rule_problem_page_route_returns_200(
 
     assert resp.status_code == 200
     assert b"Pages to review" in resp.content
-    # P011 findings here carry no bbox, so the strict highlight-only PDF-action
-    # policy shows no PDF link for them at all (no page-only fallback either).
-    assert f"/audits/{job_id}/pdf#page=7".encode() not in resp.content
-    assert (
-        b"Exact highlight is not available" in resp.content
-        or b"No exact highlight is available" in resp.content
-    )
+    assert f"/audits/{job_id}/pdf#page=7".encode() in resp.content
+    assert b"Open original PDF page" in resp.content
+    assert b"No exact highlight is available" in resp.content
     assert b"Back to all results" in resp.content
 
 
@@ -2361,17 +2353,18 @@ def test_results_page_page_links_present_for_findings_with_page(
     assert "page-link" in body
 
 
-def test_results_page_no_page_link_for_known_page_without_highlight(
+def test_results_page_uses_original_page_link_for_known_page_without_highlight(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """A finding whose page is known but has no bbox must render no PDF link at all."""
+    """A finding whose page is known but has no bbox must render the original-page link only."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert f"/audits/{job_id}/pdf#page=" not in body
+    assert f"/audits/{job_id}/pdf#page=" in body
     assert "/pdf/highlighted" not in body
+    assert "Open original PDF page" in body
 
 
 # ---------------------------------------------------------------------------
@@ -2675,7 +2668,7 @@ def test_problem_group_page_links_to_highlighted_pdf_when_bbox_available(
 def test_problem_group_page_falls_back_honestly_without_bbox(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """A finding without bbox data must render no PDF link at all, only the honest reason."""
+    """A finding without bbox data must render the original-page action, never a fake highlight."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
 
@@ -2684,9 +2677,10 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     body = resp.text
     assert "Open highlighted PDF page" not in body
     assert "Open PDF page" not in body
-    assert f"/audits/{job_id}/pdf#page=" not in body
+    assert f"/audits/{job_id}/pdf#page=" in body
     assert f"/audits/{job_id}/pdf/highlighted?" not in body
-    assert "Exact highlight is not available" in body or "No exact highlight is available" in body
+    assert "Open original PDF page" in body
+    assert "No exact highlight is available" in body
 
 
 def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]) -> None:

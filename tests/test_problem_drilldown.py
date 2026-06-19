@@ -358,11 +358,10 @@ def test_font_category_page_has_no_pdf_link_without_highlight(
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/category/font-format")
-    # These P026 findings have no bbox/highlight, so the drill-down page's
-    # strict highlight-only PDF-action policy shows no PDF link at all —
-    # the no-highlight explanation carries the page information instead.
-    assert not _pdf_links(text)
-    assert "Exact highlight is not available" in text or "No exact highlight is available" in text
+    assert "/pdf/highlighted" not in text
+    assert f"/audits/{job_id}/pdf#page=" in text
+    assert "Open original PDF page" in text
+    assert "No exact highlight is available" in text
 
 
 def test_annotations_category_page_does_not_show_p026(
@@ -418,10 +417,10 @@ def test_p013_rule_page_has_no_pdf_link_without_highlight(
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
-    # P013 findings here have no bbox/highlight, so the strict highlight-only
-    # policy on drill-down pages shows no PDF link — only the explanation.
-    assert not _pdf_links(text)
-    assert "Exact highlight is not available" in text or "No exact highlight is available" in text
+    assert "/pdf/highlighted" not in text
+    assert f"/audits/{job_id}/pdf#page=" in text
+    assert "Open original PDF page" in text
+    assert "Page 1" in text or "Page 2" in text or "Page 3" in text or "Page 5" in text
 
 
 def test_p026_rule_page_shows_3_examples(

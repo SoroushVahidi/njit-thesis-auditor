@@ -9,6 +9,7 @@ from typing import Any
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.finding_explanations import (
     build_detailed_explanation,
+    build_no_highlight_guidance,
     get_action_kind,
     get_action_label,
     get_no_highlight_reason,
@@ -53,6 +54,8 @@ class FindingView:
     severity: str
     issue_type: str
     polished_comment: str
+    problem_number: int = 0
+    problem_anchor: str = ""
     suggested_fix: str = ""
     triage_tier: str = ""
     confidence: str = ""
@@ -61,7 +64,7 @@ class FindingView:
     location_label: str = ""
     bbox: tuple[float, float, float, float] | None = None
     # Actionability fields (presentation layer only — never change detection semantics)
-    action_kind: str = ""       # "highlight" | "explanation"
+    action_kind: str = ""       # "highlight" | "original_page" | "explanation"
     action_label: str = ""      # button label
     has_highlight: bool = False  # True when bbox is valid and drawable
     no_highlight_reason: str = ""  # why no highlight is available
@@ -93,6 +96,9 @@ class GroupedProblemView:
     occurrence_count: int
     affected_label: str
     affected_compact: str
+    problem_numbers: list[int] = field(default_factory=list)
+    problem_number_label: str = ""
+    problem_anchor: str = ""
     triage_tier: str = ""
     confidence: str = ""
     is_grouped: bool = False
@@ -263,6 +269,8 @@ def _finding_view_from_item(
             rule_id=rule_id,
             category=category,
             page=page,
+            problem_number=0,
+            problem_anchor="",
             severity=severity,
             issue_type=issue_type,
             polished_comment=polished,
@@ -278,12 +286,21 @@ def _finding_view_from_item(
             action_kind=get_action_kind(has_highlight=has_highlight, page=page),
             action_label=get_action_label(has_highlight=has_highlight, page=page),
             has_highlight=has_highlight,
-            no_highlight_reason=get_no_highlight_reason(has_highlight=has_highlight, page=page),
+            no_highlight_reason=get_no_highlight_reason(
+                has_highlight=has_highlight,
+                page=page,
+                rule_id=rule_id,
+                issue_type=issue_type,
+                details=details,
+                location_label=location_label,
+            ),
             detailed_explanation=build_detailed_explanation(
                 rule_id=rule_id,
                 issue_type=issue_type,
                 details=details,
                 page=page,
+                has_highlight=has_highlight,
+                location_label=location_label,
             ),
             issue_type_label=humanize_issue_type(issue_type),
             issue_type_explanation=explain_issue_type(rule_id, issue_type),
@@ -356,7 +373,7 @@ def _margin_issue_type_explanation(details: Mapping[str, str], *, page: int | No
 
 
 def _margin_detailed_explanation(
-    details: Mapping[str, str], *, page: int | None, has_highlight: bool
+    details: Mapping[str, str], *, page: int | None, has_highlight: bool, location_label: str
 ) -> str:
     side = _margin_side_label(details.get("side", ""))
     observed = _margin_observed_phrase(details)
@@ -372,7 +389,16 @@ def _margin_detailed_explanation(
         )
     page_text = f" on page {page}" if page is not None else ""
     no_highlight_text = (
-        "" if has_highlight else " No exact highlight is available for this finding."
+        ""
+        if has_highlight
+        else " "
+        + build_no_highlight_guidance(
+            rule_id="P011",
+            issue_type="margin_boundary_violation",
+            details=dict(details),
+            page=page,
+            location_label=location_label,
+        )
     )
     return (
         f"Observed: {observed}{page_text}. "
@@ -483,7 +509,12 @@ def _font_issue_type_explanation(
 
 
 def _font_detailed_explanation(
-    details: Mapping[str, str], *, issue_type: str, page: int | None, has_highlight: bool
+    details: Mapping[str, str],
+    *,
+    issue_type: str,
+    page: int | None,
+    has_highlight: bool,
+    location_label: str,
 ) -> str:
     role, role_fix = _font_role_text(details)
     observed = _font_observed_value(details)
@@ -517,7 +548,16 @@ def _font_detailed_explanation(
     counts_text = f" ({'; '.join(count_bits)})" if count_bits else ""
     page_text = f" on page {page}" if page is not None else ""
     no_highlight_text = (
-        "" if has_highlight else " No exact highlight is available for this finding."
+        ""
+        if has_highlight
+        else " "
+        + build_no_highlight_guidance(
+            rule_id="P026",
+            issue_type=issue_type,
+            details=dict(details),
+            page=page,
+            location_label=location_label,
+        )
     )
     return (
         f"Observed: {observed_text}{counts_text}{page_text}. "
@@ -601,6 +641,15 @@ def _compact_page_ranges(values: Sequence[int]) -> str:
         start = end = value
     ranges.append(str(start) if start == end else f"{start}–{end}")
     return ", ".join(ranges)
+
+
+def _problem_number_label(problem_numbers: Sequence[int]) -> str:
+    if not problem_numbers:
+        return ""
+    compact = _compact_page_ranges([int(number) for number in problem_numbers])
+    if len(set(problem_numbers)) == 1:
+        return f"Problem {compact}"
+    return f"Problems {compact}"
 def _page_number_detail_text(issue_type: str, *, page: int | None) -> str:
     text = explain_issue_type("", issue_type)
     if page is not None:
@@ -785,6 +834,7 @@ def _apply_page_number_presentation(
                     suggested_fix="",
                     action_kind="",
                     action_label="",
+                    no_highlight_reason="",
                     detailed_explanation=_page_number_detail_text(
                         "detected_page_number_candidate", page=finding.page
                     ),
@@ -799,6 +849,21 @@ def _apply_page_number_presentation(
         page=finding.page,
         details=details,
     )
+    detailed_explanation = _page_number_detail_text(
+        visible_issue_type, page=finding.page
+    )
+    if not finding.has_highlight and finding.page is not None:
+        guidance = build_no_highlight_guidance(
+            rule_id=finding.rule_id,
+            issue_type=visible_issue_type,
+            details=dict(details),
+            page=finding.page,
+            location_label=finding.location_label,
+        )
+        detailed_explanation = (
+            f"{detailed_explanation} "
+            f"{guidance}"
+        )
     return (
         replace(
             finding,
@@ -807,9 +872,7 @@ def _apply_page_number_presentation(
             issue_type_explanation=explain_issue_type("", visible_issue_type),
             polished_comment=comment,
             suggested_fix=suggested_fix,
-            detailed_explanation=_page_number_detail_text(
-                visible_issue_type, page=finding.page
-            ),
+            detailed_explanation=detailed_explanation,
         ),
         is_problem,
     )
@@ -834,10 +897,19 @@ def _apply_margin_presentation(
             no_highlight_reason=(
                 finding.no_highlight_reason
                 if finding.has_highlight
-                else "No exact highlight is available for this finding."
+                else build_no_highlight_guidance(
+                    rule_id=finding.rule_id,
+                    issue_type=finding.issue_type,
+                    details=dict(details),
+                    page=finding.page,
+                    location_label=finding.location_label,
+                )
             ),
             detailed_explanation=_margin_detailed_explanation(
-                details, page=finding.page, has_highlight=finding.has_highlight
+                details,
+                page=finding.page,
+                has_highlight=finding.has_highlight,
+                location_label=finding.location_label,
             ),
             issue_type_explanation=_margin_issue_type_explanation(details, page=finding.page),
         ),
@@ -870,13 +942,20 @@ def _apply_font_presentation(
             no_highlight_reason=(
                 finding.no_highlight_reason
                 if finding.has_highlight
-                else "No exact highlight is available for this finding."
+                else build_no_highlight_guidance(
+                    rule_id=finding.rule_id,
+                    issue_type=finding.issue_type,
+                    details=dict(details),
+                    page=finding.page,
+                    location_label=finding.location_label,
+                )
             ),
             detailed_explanation=_font_detailed_explanation(
                 details,
                 issue_type=finding.issue_type,
                 page=finding.page,
                 has_highlight=finding.has_highlight,
+                location_label=finding.location_label,
             ),
             issue_type_explanation=_font_issue_type_explanation(
                 details,
@@ -958,6 +1037,17 @@ def build_report_view(
         elif visible_view.issue_type == "detected_page_number_candidate":
             inventory_findings.append(visible_view)
 
+    numbered_finding_views: list[FindingView] = []
+    for problem_number, index in enumerate(sorted(visible_indexes), start=1):
+        numbered_view = replace(
+            visible_view_by_index[index],
+            problem_number=problem_number,
+            problem_anchor=f"problem-{problem_number}",
+        )
+        visible_view_by_index[index] = numbered_view
+        numbered_finding_views.append(numbered_view)
+    finding_views = numbered_finding_views
+
     counts_by_severity = {
         "PASS": sum(1 for finding in finding_views if finding.severity == "PASS"),
         "WARNING": sum(1 for finding in finding_views if finding.severity == "WARNING"),
@@ -1006,6 +1096,7 @@ def build_report_view(
             group_rule_id = str(entry.get("rule_id", first.rule_id))
             group_issue_type = first.issue_type
             has_any_highlight = any(f.has_highlight for f in individual_views)
+            problem_numbers = [f.problem_number for f in individual_views if f.problem_number > 0]
             page_values = sorted({f.page for f in individual_views if f.page is not None})
             location_values = sorted(
                 {f.location_label for f in individual_views if f.location_label}
@@ -1021,6 +1112,9 @@ def build_report_view(
                     category=first.category,
                     severity=first.severity,
                     issue_type=group_issue_type,
+                    problem_numbers=problem_numbers,
+                    problem_number_label=_problem_number_label(problem_numbers),
+                    problem_anchor=first.problem_anchor,
                     polished_comment=first.polished_comment,
                     suggested_fix=first.suggested_fix,
                     occurrence_count=len(individual_views),
@@ -1049,6 +1143,13 @@ def build_report_view(
                 category=finding.category,
                 severity=finding.severity,
                 issue_type=finding.issue_type,
+                problem_numbers=([finding.problem_number] if finding.problem_number > 0 else []),
+                problem_number_label=(
+                    _problem_number_label([finding.problem_number])
+                    if finding.problem_number > 0
+                    else ""
+                ),
+                problem_anchor=finding.problem_anchor,
                 polished_comment=finding.polished_comment,
                 suggested_fix=finding.suggested_fix,
                 occurrence_count=1,

@@ -1383,9 +1383,16 @@ def audit_findings_to_json_dict(
             entry["source_line"] = details.get("line", "")
         serialized_findings.append(entry)
 
+    problem_number_map = _problem_number_map(serialized_findings)
+    for index, entry in enumerate(serialized_findings):
+        problem_number = problem_number_map.get(index)
+        entry["problem_number"] = problem_number
+        entry["problem_anchor"] = f"problem-{problem_number}" if problem_number else ""
+
     meta_block: dict[str, Any] = {
         **metadata,
         "total_findings": len(prepared),
+        "visible_problem_count": len(problem_number_map),
         "counts_by_severity": _severity_counts(prepared),
         "counts_by_rule_id": _rule_counts(prepared),
         "counts_by_category": _category_counts(prepared),
@@ -2254,6 +2261,49 @@ def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[di
     return dict(sorted(grouped.items()))
 
 
+def _serialized_finding_is_visible_problem(finding: dict[str, Any]) -> bool:
+    rule_id = str(finding.get("rule_id", "")).strip()
+    details_raw = finding.get("details", {})
+    details = (
+        {str(k): str(v) for k, v in details_raw.items()}
+        if isinstance(details_raw, dict)
+        else {}
+    )
+    issue_type = details.get("issue_type", "").strip()
+    category = map_finding_rule_to_category(rule_id, details)
+
+    if category != "page_numbering":
+        return True
+    if rule_id == "P013":
+        if issue_type == P013_DOC_ISSUE_TYPE:
+            return False
+        if issue_type != P013_PAGE_ISSUE_TYPE:
+            return True
+        try:
+            candidate_count = int(details.get("candidate_count_on_page", "1") or "1")
+        except ValueError:
+            candidate_count = 1
+        if candidate_count > 1:
+            return True
+        if details.get("position_type", "").strip() in {"top_center", "top_right", "other"}:
+            return True
+        return False
+    return True
+
+
+def _problem_number_map(
+    serialized_findings: list[dict[str, Any]],
+) -> dict[int, int]:
+    mapping: dict[int, int] = {}
+    next_problem_number = 1
+    for index, finding in enumerate(serialized_findings):
+        if not _serialized_finding_is_visible_problem(finding):
+            continue
+        mapping[index] = next_problem_number
+        next_problem_number += 1
+    return mapping
+
+
 def format_source_location(details: dict[str, str]) -> str:
     """Return a privacy-safe file:line label for source findings."""
     file_name = _source_location_basename(details)
@@ -2292,11 +2342,46 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
         page=page,
         details=safe_details,
     )
-    line = f"- **{loc_text}** [{finding['severity']}] {polished}"
+    problem_number = finding.get("problem_number")
+    problem_prefix = ""
+    if isinstance(problem_number, int) and problem_number > 0:
+        problem_prefix = f"Problem {problem_number} · "
+    line = f"- **{problem_prefix}{loc_text}** [{finding['severity']}] {polished}"
     suggested_fix = safe_details.get("suggested_fix")
     if suggested_fix:
         line += f" | Suggested fix: {suggested_fix}"
     return line
+
+
+def _problem_heading_text(finding: dict[str, Any], *, audit_type: str) -> str:
+    from njit_auditor.polished_comments import build_polished_comment
+
+    details = finding.get("details", {})
+    if not isinstance(details, dict):
+        details = {}
+    safe_details = {str(k): str(v) for k, v in details.items()}
+    page_raw = finding.get("page")
+    page = int(page_raw) if page_raw is not None else None
+    polished = build_polished_comment(
+        rule_id=str(finding.get("rule_id", "")),
+        issue_type=safe_details.get("issue_type", ""),
+        severity=str(finding.get("severity", "WARNING")),
+        page=page,
+        details=safe_details,
+    )
+    return _truncate(polished, 96)
+
+
+def _problem_location_text(finding: dict[str, Any], *, audit_type: str) -> str:
+    details = finding.get("details", {})
+    if not isinstance(details, dict):
+        details = {}
+    safe_details = {str(k): str(v) for k, v in details.items()}
+    page_raw = finding.get("page")
+    page = int(page_raw) if page_raw is not None else None
+    if audit_type == "tex":
+        return _safe_source_location(safe_details)
+    return f"Page {page}" if page is not None else "Document-wide overview"
 
 
 def write_markdown_report(
@@ -2379,6 +2464,29 @@ def write_markdown_report(
 
         p044_section = _format_p044_triage_section(payload["grouped_summary"])
         lines.extend(p044_section)
+
+    visible_problem_findings = [
+        finding
+        for finding in serialized_findings
+        if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
+    ]
+    if visible_problem_findings:
+        lines.append("## Problems")
+        lines.append("")
+        for finding in visible_problem_findings:
+            problem_number = int(finding["problem_number"])
+            heading_text = _problem_heading_text(finding, audit_type=audit_type)
+            lines.append(
+                f"### Problem {problem_number} — {heading_text}"
+            )
+            lines.append("")
+            lines.append(f"- Rule: `{finding['rule_id']}`")
+            lines.append(f"- Severity: `{finding['severity']}`")
+            lines.append(
+                f"- Location: `{_problem_location_text(finding, audit_type=audit_type)}`"
+            )
+            lines.append(_finding_markdown_line(finding, audit_type=audit_type))
+            lines.append("")
 
     lines.append("## Findings by Rule")
     lines.append("")
