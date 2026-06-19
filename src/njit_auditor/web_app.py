@@ -6,9 +6,11 @@ import hashlib
 import json
 import logging
 import os
+import platform
 import re
 import secrets
 import shutil
+import subprocess
 import threading
 import urllib.parse
 from contextlib import asynccontextmanager
@@ -69,6 +71,44 @@ _logger = logging.getLogger(__name__)
 RUNTIME_DIR = Path(os.environ.get("NJIT_AUDITOR_WEB_RUNTIME_DIR", str(_DEFAULT_RUNTIME)))
 MAX_UPLOAD_MB: int = int(os.environ.get("NJIT_AUDITOR_WEB_MAX_UPLOAD_MB", "50"))
 MAX_UPLOAD_BYTES: int = MAX_UPLOAD_MB * 1024 * 1024
+ENVIRONMENT_NAME: str = os.environ.get("NJIT_AUDITOR_WEB_ENVIRONMENT", "local-dev")
+
+# Captured once per process (at import time) so /version reports when this
+# worker actually started, not the time of the current request.
+_PROCESS_START_TIME: datetime = datetime.now(timezone.utc)
+
+
+def _read_git_metadata() -> tuple[str, str]:
+    """Return (commit, branch) from local Git metadata, or ("unknown", "unknown").
+
+    Deployment may run from a source tree without a usable Git checkout
+    (e.g. an exported archive), so any failure here must degrade to
+    "unknown" rather than raise.
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        ).stdout.strip()
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        ).stdout.strip()
+        return commit or "unknown", branch or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown", "unknown"
+
+
+_GIT_COMMIT, _GIT_BRANCH = _read_git_metadata()
 
 
 def _parse_positive_int_env(name: str, default: int) -> int:
@@ -1223,6 +1263,28 @@ def _run_audit_task(job_id: str) -> None:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+
+@app.get("/healthz")
+async def healthz() -> JSONResponse:
+    """Lightweight liveness probe: no job lookup, no filesystem scan, no I/O."""
+    return JSONResponse({"ok": True, "app": "njit-thesis-auditor", "status": "healthy"})
+
+
+@app.get("/version")
+async def version() -> JSONResponse:
+    """Safe deployment metadata: no local paths, env vars, or upload content."""
+    return JSONResponse(
+        {
+            "app": "njit-thesis-auditor",
+            "commit": _GIT_COMMIT,
+            "branch": _GIT_BRANCH,
+            "process_start_time": _PROCESS_START_TIME.isoformat(),
+            "python_version": platform.python_version(),
+            "environment": ENVIRONMENT_NAME,
+        }
+    )
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, error: str = "") -> HTMLResponse:
