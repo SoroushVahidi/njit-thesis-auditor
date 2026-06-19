@@ -96,6 +96,48 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     # Approval page
     "approval_page_advisor_role_label_missing": "Approval page advisor role label missing",
     "approval_page_signature_blocks_sparse": "Approval page signature blocks sparse",
+    "title_page_graduation_month_invalid": "Title page graduation month invalid",
+    "references_section_heading_not_detected": "References section heading not detected",
+    "references_entry_indentation_inconsistent": "References entry indentation inconsistent",
+    "references_entry_spacing_inconsistent": "References entry spacing inconsistent",
+    "toc_page_numbers_not_nondecreasing": "TOC page numbers not in ascending order",
+    "toc_entry_numbers_not_nondecreasing": "TOC section numbers not in order",
+    "lot_entry_has_terminal_period": "List of Tables entry has terminal period",
+    "toc_entry_has_terminal_period": "TOC entry has terminal period",
+    "lot_entry_is_figure": "List of Tables entry describes a figure",
+    "lof_entry_is_table": "List of Figures entry describes a table",
+    "lof_entry_missing_terminal_punctuation": "List of Figures entry missing terminal punctuation",
+    "toc_l2_not_indented_relative_to_l1": "TOC level-2 entry not indented relative to level-1",
+    "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
+    "toc_level_capitalization": "TOC entry capitalization issue",
+    "list_of_tables_title_case": "List of Tables title case issue",
+    "list_of_figures_sentence_case": "List of Figures sentence case issue",
+    "misaligned_page_number_column": "Misaligned page-number column",
+    "inconsistent_leader_dots": "Inconsistent leader dots",
+    "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
+    "acknowledgements_first_paragraph_indented": "Acknowledgements first paragraph indented",
+    "acknowledgements_subsequent_paragraph_not_indented": (
+        "Acknowledgements later paragraph not indented"
+    ),
+    "abstract_first_paragraph_indented": "Abstract first paragraph indented",
+    "abstract_subsequent_paragraph_not_indented": "Abstract later paragraph not indented",
+    "biosketch_publication_missing_hanging_indent": (
+        "Biographical Sketch publication missing hanging indent"
+    ),
+    "biosketch_publication_entry_spacing_not_double": (
+        "Biographical Sketch publication entry spacing not double"
+    ),
+    "biosketch_bullet_section_not_single_spaced": (
+        "Biographical Sketch bullet section not single-spaced"
+    ),
+    "biosketch_degree_order_suspicious": "Biographical Sketch degree order suspicious",
+    "biosketch_publication_order_suspicious": "Biographical Sketch publication order suspicious",
+    "unexpected_opening_indent": "Unexpected opening paragraph indent",
+    "missing_later_indent": "Missing later-paragraph indent",
+    "wrapped_entry_internal_spacing": "Wrapped list entry internal spacing",
+    "single_appendix_missing_title": "Single appendix missing title",
+    "lot_mixed_numbering_format": "List of Tables mixed numbering format",
+    "lof_mixed_numbering_format": "List of Figures mixed numbering format",
     # Captions
     "unexpected_terminal_period": "Unexpected terminal period in caption",
     "missing_terminal_punctuation": "Missing terminal punctuation in caption",
@@ -450,6 +492,158 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "The abstract uses a first-person pronoun (I, we, my, our). Thesis "
         "abstracts should typically be written in third person. Revise the "
         "abstract to avoid first-person language."
+    ),
+    ("P015", "unexpected_opening_indent"): (
+        "This means a paragraph appears to have an unintended first-line indent "
+        "where NJIT expects a flush-left opening paragraph. Remove the extra "
+        "indent or confirm this is a permitted exception."
+    ),
+    ("P015", "missing_later_indent"): (
+        "This means a paragraph appears to start flush-left where NJIT expects "
+        "a first-line indent for a non-opening paragraph. Add the required indent."
+    ),
+    ("P017", "unexpected_terminal_period"): (
+        "This means a figure or table caption ends with a terminal period where "
+        "NJIT expects no ending punctuation for this caption type."
+    ),
+    ("P017", "missing_terminal_punctuation"): (
+        "This means a figure or table caption is missing terminal punctuation. "
+        "Add a period, question mark, or exclamation point as appropriate."
+    ),
+    ("P017", "possible_sentence_case_issue"): (
+        "This means a caption appears to use Title Case where sentence case may "
+        "be expected. Review caption capitalization against NJIT guidance."
+    ),
+    ("P017", "possible_title_case_issue"): (
+        "This means a caption may violate title-case expectations. Capitalize "
+        "the first word, last word, and major words of four or more letters."
+    ),
+    ("P018", "misaligned_page_number_column"): (
+        "This means a TOC or list entry page-number column does not align with "
+        "the dominant column on this list page."
+    ),
+    ("P018", "missing_page_number"): (
+        "This means a TOC or list entry appears to be missing its trailing page "
+        "number. Add the correct page number."
+    ),
+    ("P018", "inconsistent_leader_dots"): (
+        "This means leader dots or spacing before page numbers are inconsistent "
+        "with the dominant style on this list page."
+    ),
+    ("P018", "inconsistent_hierarchy_indent"): (
+        "This means entry indentation does not match the expected hierarchy "
+        "level for this TOC or list page."
+    ),
+    ("P024", "toc_level_capitalization"): (
+        "This means a Table of Contents entry may not follow NJIT capitalization "
+        "rules for its heading level."
+    ),
+    ("P024", "list_of_tables_title_case"): (
+        "This means a List of Tables entry may not use Title Case or may include "
+        "terminal punctuation."
+    ),
+    ("P024", "list_of_figures_sentence_case"): (
+        "This means a List of Figures entry may not use sentence case."
+    ),
+    ("P024", "unexpected_terminal_punctuation"): (
+        "This means a TOC or list entry ends with terminal punctuation where "
+        "NJIT expects none for that list type."
+    ),
+    ("P025", "title_page_graduation_month_invalid"): (
+        "This means the graduation month on the title page may not match the "
+        "expected NJIT format (spelled-out month and year)."
+    ),
+    ("P035", "table_caption_not_above_body"): (
+        "This means a table caption does not appear above the table body. "
+        "NJIT expects table captions above the table."
+    ),
+    ("P035", "figure_caption_not_below_body"): (
+        "This means a figure caption does not appear below the figure body. "
+        "NJIT expects figure captions below the figure."
+    ),
+    ("P035", "table_body_not_centered"): (
+        "This means a table body block does not appear centered within the "
+        "text area."
+    ),
+    ("P035", "figure_body_not_centered"): (
+        "This means a figure body block does not appear centered within the "
+        "text area."
+    ),
+    ("P039", "toc_l2_not_indented_relative_to_l1"): (
+        "This means a level-2 TOC entry does not appear indented to the right "
+        "of its level-1 parent entry."
+    ),
+    ("P039", "toc_l3_not_indented_relative_to_l2"): (
+        "This means a level-3 TOC entry does not appear indented relative to "
+        "its level-2 parent entry."
+    ),
+    ("P040", "lof_entry_missing_terminal_punctuation"): (
+        "This means a List of Figures entry is missing terminal punctuation. "
+        "Every figure description should end with a period, question mark, or "
+        "exclamation point."
+    ),
+    ("P041", "dedication_top_margin_header_text"): (
+        "This means text was detected in the top margin area of the dedication "
+        "page. The dedication page should not have running headers."
+    ),
+    ("P043", "acknowledgements_first_paragraph_indented"): (
+        "This means the first paragraph on the Acknowledgements page appears "
+        "indented. NJIT requires the first paragraph to begin flush-left."
+    ),
+    ("P043", "acknowledgements_subsequent_paragraph_not_indented"): (
+        "This means a later Acknowledgements paragraph appears flush-left where "
+        "NJIT expects a first-line indent."
+    ),
+    ("P044", "abstract_first_paragraph_indented"): (
+        "This means the first paragraph on the Abstract page appears indented. "
+        "NJIT requires the first abstract paragraph to begin flush-left."
+    ),
+    ("P044", "abstract_subsequent_paragraph_not_indented"): (
+        "This means a later Abstract paragraph appears flush-left where NJIT "
+        "expects a first-line indent."
+    ),
+    ("P053", "lot_entry_has_terminal_period"): (
+        "This means a List of Tables entry ends with a terminal period. Remove "
+        "the trailing period."
+    ),
+    ("P054", "toc_entry_has_terminal_period"): (
+        "This means a Table of Contents entry ends with a terminal period. "
+        "Remove the trailing period."
+    ),
+    ("P055", "lot_entry_is_figure"): (
+        "This means a List of Tables entry appears to describe a figure. Move "
+        "this entry to the List of Figures."
+    ),
+    ("P055", "lof_entry_is_table"): (
+        "This means a List of Figures entry appears to describe a table. Move "
+        "this entry to the List of Tables."
+    ),
+    ("P058", "toc_page_numbers_not_nondecreasing"): (
+        "This means Table of Contents page numbers do not appear in ascending "
+        "order on this page."
+    ),
+    ("P060", "toc_entry_numbers_not_nondecreasing"): (
+        "This means Table of Contents section numbers do not appear in "
+        "non-decreasing order on this page."
+    ),
+    ("P064", "references_section_heading_not_detected"): (
+        "This means no recognized REFERENCES or BIBLIOGRAPHY section heading "
+        "was detected."
+    ),
+    ("P064", "references_entry_indentation_inconsistent"): (
+        "This means reference entries appear to use inconsistent indentation "
+        "styles."
+    ),
+    ("P064", "references_entry_spacing_inconsistent"): (
+        "This means spacing between reference entries appears inconsistent."
+    ),
+    ("P068", "approval_page_advisor_role_label_missing"): (
+        "This means the Approval Page may be missing a recognizable advisor role "
+        "label such as 'Dissertation Advisor' or 'Major Professor'."
+    ),
+    ("P068", "approval_page_signature_blocks_sparse"): (
+        "This means the Approval Page appears to have too few signature or date "
+        "structural blocks for the committee entries present."
     ),
 }
 

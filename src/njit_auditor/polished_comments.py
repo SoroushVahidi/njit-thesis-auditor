@@ -327,6 +327,216 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "lacheck linter warning at {location}. "
         "Review the flagged source pattern against NJIT formatting rules."
     ),
+    # --- P015 paragraph indentation ---
+    ("P015", "unexpected_opening_indent"): (
+        "Likely problem: A paragraph on page {page} appears to have an "
+        "unintended first-line indent where NJIT expects a flush-left opening "
+        "paragraph. Remove the extra indent or confirm this is a permitted "
+        "exception such as a block quote or list item."
+    ),
+    ("P015", "missing_later_indent"): (
+        "Likely problem: A paragraph on page {page} appears to start flush-left "
+        "where NJIT expects a first-line indent for a non-opening paragraph. "
+        "Add the required first-line indent or confirm this paragraph is meant "
+        "to begin a new block."
+    ),
+    # --- P017 figure/table captions ---
+    ("P017", "unexpected_terminal_period"): (
+        "Likely problem: A {caption_type} caption on page {page} appears to end "
+        "with a terminal period where NJIT expects no ending punctuation for "
+        "this caption type. Remove the trailing period unless the caption is "
+        "written as a full sentence that requires one."
+    ),
+    ("P017", "missing_terminal_punctuation"): (
+        "Likely problem: A {caption_type} caption on page {page} appears to "
+        "be missing terminal punctuation where NJIT expects a period, question "
+        "mark, or exclamation point. Add appropriate ending punctuation."
+    ),
+    ("P017", "possible_sentence_case_issue"): (
+        "Likely problem: A {caption_type} caption on page {page} appears to use "
+        "Title Case where sentence case may be expected. Review the caption "
+        "capitalization against NJIT caption-style guidance for this float type."
+    ),
+    ("P017", "possible_title_case_issue"): (
+        "Likely problem: A {caption_type} caption on page {page} appears to "
+        "violate title-case expectations. Capitalize the first word, last word, "
+        "and major words of four or more letters."
+    ),
+    # --- P018 TOC/LoT/LoF alignment ---
+    ("P018", "misaligned_page_number_column"): (
+        "Likely problem: A TOC, List of Tables, or List of Figures entry on "
+        "page {page} has a page-number column that does not align with the "
+        "dominant column on this list page. Align entry page numbers to the "
+        "same right-hand column throughout the list."
+    ),
+    ("P018", "missing_page_number"): (
+        "Likely problem: A TOC, List of Tables, or List of Figures entry on "
+        "page {page} appears to be missing its trailing page number. Add the "
+        "correct page number for this entry."
+    ),
+    ("P018", "inconsistent_leader_dots"): (
+        "Likely problem: Leader dots or spacing before page numbers on page "
+        "{page} are inconsistent with the dominant style on this list page. "
+        "Use consistent leader-dot spacing between entry text and page numbers."
+    ),
+    ("P018", "inconsistent_hierarchy_indent"): (
+        "Likely problem: Entry indentation on page {page} does not match the "
+        "expected hierarchy level for this TOC or list page. Adjust indentation "
+        "so chapter, section, and subsection entries visually reflect their level."
+    ),
+    # --- P021 abstract word count ---
+    ("P021", "abstract_word_count_exceeded"): (
+        "Problem: The abstract appears to contain {word_count} words, which "
+        "exceeds the {limit}-word limit for a {degree_label} thesis. Shorten "
+        "the abstract before submission."
+    ),
+    # --- P024 TOC/LoT/LoF capitalization and punctuation ---
+    ("P024", "toc_level_capitalization"): (
+        "Likely problem: A Table of Contents entry on page {page} may not "
+        "follow NJIT capitalization rules for its heading level (Level 1 = ALL "
+        "CAPS, Level 2 = Title Case). Correct the entry capitalization."
+    ),
+    ("P024", "list_of_tables_title_case"): (
+        "Likely problem: A List of Tables entry on page {page} may not use "
+        "Title Case or may include terminal punctuation. Table titles in the "
+        "List of Tables should use Title Case with no ending period."
+    ),
+    ("P024", "list_of_figures_sentence_case"): (
+        "Likely problem: A List of Figures entry on page {page} may not use "
+        "sentence case. Figure descriptions in the List of Figures should "
+        "begin with a capital letter and use sentence case."
+    ),
+    ("P024", "unexpected_terminal_punctuation"): (
+        "Likely problem: A TOC or list entry on page {page} ends with terminal "
+        "punctuation where NJIT expects none for that list type. Remove the "
+        "trailing period unless the entry is intentionally written as a sentence."
+    ),
+    # --- P025 title page graduation month ---
+    ("P025", "title_page_graduation_month_invalid"): (
+        "Problem: The graduation month on the title page may not match the "
+        "expected NJIT format. NJIT expects a spelled-out month and year on "
+        "the title page (for example, 'May 2025'). Correct the graduation date line."
+    ),
+    # --- P035 figure/table layout ---
+    ("P035", "table_caption_not_above_body"): (
+        "Likely problem: A table caption on page {page} does not appear above "
+        "the table body. NJIT expects table captions to appear above the table."
+    ),
+    ("P035", "figure_caption_not_below_body"): (
+        "Likely problem: A figure caption on page {page} does not appear below "
+        "the figure body. NJIT expects figure captions to appear below the figure."
+    ),
+    ("P035", "table_body_not_centered"): (
+        "Likely problem: A table body block on page {page} does not appear "
+        "centered within the text area. Center the table within the page margins."
+    ),
+    ("P035", "figure_body_not_centered"): (
+        "Likely problem: A figure body block on page {page} does not appear "
+        "centered within the text area. Center the figure within the page margins."
+    ),
+    # --- P039 TOC hierarchy indentation ---
+    ("P039", "toc_l2_not_indented_relative_to_l1"): (
+        "Likely problem: A level-2 Table of Contents entry on page {page} does "
+        "not appear indented to the right of its level-1 parent entry. Indent "
+        "level-2 section entries relative to chapter entries."
+    ),
+    ("P039", "toc_l3_not_indented_relative_to_l2"): (
+        "Likely problem: A level-3 Table of Contents entry on page {page} does "
+        "not appear indented relative to its level-2 parent entry. Indent "
+        "level-3 subsection entries further than level-2 entries."
+    ),
+    # --- P040 List of Figures punctuation ---
+    ("P040", "lof_entry_missing_terminal_punctuation"): (
+        "Problem: A List of Figures entry on page {page} appears to be missing "
+        "terminal punctuation. Every figure description in the List of Figures "
+        "should end with a period, question mark, or exclamation point."
+    ),
+    # --- P041 dedication header text ---
+    ("P041", "dedication_top_margin_header_text"): (
+        "Problem: Text was detected in the top margin area of the dedication "
+        "page on page {page}. The dedication page should not have running "
+        "headers or header text in the top margin."
+    ),
+    # --- P043 acknowledgements indentation ---
+    ("P043", "acknowledgements_first_paragraph_indented"): (
+        "Problem: The first paragraph on the Acknowledgements page (page "
+        "{page}) appears to be indented. NJIT requires the first paragraph "
+        "to begin flush with the left margin."
+    ),
+    ("P043", "acknowledgements_subsequent_paragraph_not_indented"): (
+        "Problem: A later paragraph on the Acknowledgements page (page {page}) "
+        "appears flush-left where NJIT expects a first-line indent. Indent "
+        "each paragraph after the first."
+    ),
+    # --- P044 abstract indentation ---
+    ("P044", "abstract_first_paragraph_indented"): (
+        "Problem: The first paragraph on the Abstract page (page {page}) "
+        "appears to be indented. NJIT requires the first abstract paragraph "
+        "to begin flush with the left margin."
+    ),
+    ("P044", "abstract_subsequent_paragraph_not_indented"): (
+        "Problem: A later paragraph on the Abstract page (page {page}) appears "
+        "flush-left where NJIT expects a first-line indent. Indent each "
+        "abstract paragraph after the first."
+    ),
+    # --- P053/P054 list terminal periods ---
+    ("P053", "lot_entry_has_terminal_period"): (
+        "Problem: A List of Tables entry on page {page} ends with a terminal "
+        "period. Remove the trailing period — table titles in the List of "
+        "Tables should not end with punctuation."
+    ),
+    ("P054", "toc_entry_has_terminal_period"): (
+        "Problem: A Table of Contents entry on page {page} ends with a terminal "
+        "period. Remove the trailing period — TOC entries should not end with "
+        "punctuation."
+    ),
+    # --- P055 misplaced list entries ---
+    ("P055", "lot_entry_is_figure"): (
+        "Problem: A List of Tables entry on page {page} appears to describe a "
+        "figure rather than a table. Move this entry to the List of Figures."
+    ),
+    ("P055", "lof_entry_is_table"): (
+        "Problem: A List of Figures entry on page {page} appears to describe a "
+        "table rather than a figure. Move this entry to the List of Tables."
+    ),
+    # --- P058/P060 TOC ordering ---
+    ("P058", "toc_page_numbers_not_nondecreasing"): (
+        "Problem: Table of Contents page numbers on page {page} do not appear "
+        "in ascending order. Reorder entries so listed page numbers increase "
+        "from top to bottom."
+    ),
+    ("P060", "toc_entry_numbers_not_nondecreasing"): (
+        "Problem: Table of Contents section numbers on page {page} do not "
+        "appear in non-decreasing order. Reorder entries so section numbers "
+        "increase correctly down the list."
+    ),
+    # --- P064 references structural ---
+    ("P064", "references_section_heading_not_detected"): (
+        "Problem: No recognized REFERENCES or BIBLIOGRAPHY section heading "
+        "was detected. Add a REFERENCES (or BIBLIOGRAPHY) heading before the "
+        "reference list."
+    ),
+    ("P064", "references_entry_indentation_inconsistent"): (
+        "Likely problem: Reference entries on page {page} appear to use "
+        "inconsistent indentation styles. Use either hanging indent or "
+        "flush-left formatting consistently for all entries."
+    ),
+    ("P064", "references_entry_spacing_inconsistent"): (
+        "Likely problem: Spacing between reference entries on page {page} "
+        "appears inconsistent. Use uniform spacing between all reference "
+        "entries throughout the section."
+    ),
+    # --- P068 approval page structure ---
+    ("P068", "approval_page_advisor_role_label_missing"): (
+        "Problem: The Approval Page on page {page} may be missing a recognizable "
+        "advisor role label (for example, 'Dissertation Advisor' or 'Major "
+        "Professor'). Add the required advisor role label."
+    ),
+    ("P068", "approval_page_signature_blocks_sparse"): (
+        "Problem: The Approval Page on page {page} appears to have too few "
+        "signature or date structural blocks for the committee entries present. "
+        "Add signature and date lines for each committee member."
+    ),
 }
 
 _RULE_FALLBACKS: dict[str, str] = {
@@ -451,6 +661,34 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P038", "heading_phrase_not_exact"): (
         "Correct this heading to use the exact canonical NJIT phrase."
     ),
+    ("P021", "abstract_word_count_exceeded"): "",
+    ("P025", "title_page_graduation_month_invalid"): (
+        "Correct the graduation month and year on the title page to use a "
+        "spelled-out month and four-digit year."
+    ),
+    ("P017", "unexpected_terminal_period"): "",
+    ("P017", "missing_terminal_punctuation"): "",
+    ("P017", "possible_sentence_case_issue"): "",
+    ("P017", "possible_title_case_issue"): "",
+    ("P024", "toc_level_capitalization"): "",
+    ("P024", "list_of_tables_title_case"): "",
+    ("P024", "list_of_figures_sentence_case"): "",
+    ("P024", "unexpected_terminal_punctuation"): "",
+    ("P035", "table_caption_not_above_body"): "",
+    ("P035", "figure_caption_not_below_body"): "",
+    ("P035", "table_body_not_centered"): "",
+    ("P035", "figure_body_not_centered"): "",
+    ("P041", "dedication_top_margin_header_text"): "",
+    ("P043", "acknowledgements_first_paragraph_indented"): "",
+    ("P043", "acknowledgements_subsequent_paragraph_not_indented"): "",
+    ("P044", "abstract_first_paragraph_indented"): "",
+    ("P044", "abstract_subsequent_paragraph_not_indented"): "",
+    ("P053", "lot_entry_has_terminal_period"): "",
+    ("P054", "toc_entry_has_terminal_period"): "",
+    ("P055", "lot_entry_is_figure"): "",
+    ("P055", "lof_entry_is_table"): "",
+    ("P068", "approval_page_advisor_role_label_missing"): "",
+    ("P068", "approval_page_signature_blocks_sparse"): "",
 }
 
 _NO_ISSUE_OVERRIDE = object()
@@ -565,6 +803,16 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         or details.get("expected_roman", "")
         or "the expected sequence value"
     )
+    caption_type = details.get("caption_type", "") or "figure/table"
+    word_count = details.get("word_count", "") or "unknown"
+    limit = details.get("limit", "") or "unknown"
+    inferred_degree = details.get("inferred_degree_type", "") or "unknown"
+    degree_labels = {
+        "phd": "PhD",
+        "ms": "MS",
+        "unknown": "PhD (degree type uncertain — using PhD limit as default)",
+    }
+    degree_label = degree_labels.get(inferred_degree.lower(), inferred_degree.upper() or "unknown")
     return template.format(
         page=_safe_page_label(page),
         side=side.replace("_", " "),
@@ -583,6 +831,10 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         expected_style=expected_style,
         observed_sequence=observed_sequence,
         expected_sequence=expected_sequence,
+        caption_type=caption_type.replace("_", " "),
+        word_count=word_count,
+        limit=limit,
+        degree_label=degree_label,
     )
 
 
