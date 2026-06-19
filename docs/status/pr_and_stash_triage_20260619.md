@@ -11,11 +11,24 @@ verified directly (`gh pr view`, `gh pr diff`, `git stash show -p`, and read-onl
 
 | Item | Status | Conflicts with main? | Risk | Recommendation |
 |---|---|---|---|---|
-| PR #311 — sub-page location labels | OPEN | Yes (2 files) | Medium — real feature, needs careful rebase | Review and rebase deliberately, not in this task |
+| PR #311 — sub-page location labels | SUPERSEDED (see update below) | Yes (2 files) | Medium — real feature, needed careful rebase | Reimplemented from scratch on current main; original PR to be closed, not merged |
 | PR #305 — example thesis URL | OPEN | Yes (3 files, core UI change is clean) | Low | Rebase candidate, likely quick |
 | Stash (`fix/student-facing-comment-wording`) | Uncommitted, untouched | N/A (not a PR) | Low — mostly superseded | Inspect on a throwaway branch only; do not pop onto main |
 
 ## PR #311 — "Add sub-page location labels for PDF findings"
+
+> **Update (2026-06-19, post-stabilization):** the "sub-page location label" concept
+> described below has been **salvaged and reimplemented from scratch** against current
+> `main`, rather than rebased — see
+> `docs/planning/sub_page_location_labels_rebase_audit.md` for the full audit and design.
+> The new implementation is geometry-driven (`sub_page_location_label()` in
+> `pdf_highlight.py`, derived purely from `(bbox, page_size)` quadrant math) and does not
+> reuse any of PR #311's rule-specific text-snippet extraction (`_build_pdf_sublocation`),
+> which would have exposed raw document text (captions/headings/TOC strings) and violated
+> the no-body-text privacy invariant. PR #311 itself should be **closed without merging**
+> once the replacement lands on `main` — its branch and diff remain useful as a historical
+> reference for the original idea, but its code is not reused. The analysis below reflects
+> the state of PR #311 as it stood on 2026-06-19, before this replacement existed.
 
 - **Branch:** `feature/subpage-location-labels` → `main`
 - **Opened:** 2026-06-15

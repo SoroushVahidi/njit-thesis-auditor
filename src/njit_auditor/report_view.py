@@ -14,7 +14,11 @@ from njit_auditor.finding_explanations import (
     get_no_highlight_reason,
 )
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
-from njit_auditor.pdf_highlight import has_visible_highlight, is_drawable_bbox
+from njit_auditor.pdf_highlight import (
+    has_visible_highlight,
+    is_drawable_bbox,
+    sub_page_location_label,
+)
 from njit_auditor.polished_comments import build_polished_comment, sanitize_suggested_fix_for_web
 from njit_auditor.report_outputs import (
     _source_location_basename,
@@ -228,10 +232,20 @@ def _finding_view_from_item(
     source_file = str(item.get("source_file", "")) or _source_location_basename(details)
     source_line = str(item.get("source_line", "")) or details.get("line", "")
     location_key = (source_file, source_line) if (source_file or source_line) else None
+    bbox = _parse_bbox_from_details(details)
+    page_count = len(pdf_page_sizes) if pdf_page_sizes else None
+    page_size = (
+        pdf_page_sizes[page - 1]
+        if pdf_page_sizes and page is not None and 1 <= page <= len(pdf_page_sizes)
+        else None
+    )
+    has_highlight = has_visible_highlight(
+        bbox, page=page, page_count=page_count, page_size=page_size
+    )
     location_label = (
         format_source_location(details)
         if is_source_audit
-        else (str(page) if page is not None else "")
+        else sub_page_location_label(bbox, page_size)
     )
     issue_type = str(details.get("issue_type", ""))
     severity = str(item.get("severity", "WARNING"))
@@ -243,16 +257,6 @@ def _finding_view_from_item(
         page=page,
         details=details,
         category=category,
-    )
-    bbox = _parse_bbox_from_details(details)
-    page_count = len(pdf_page_sizes) if pdf_page_sizes else None
-    page_size = (
-        pdf_page_sizes[page - 1]
-        if pdf_page_sizes and page is not None and 1 <= page <= len(pdf_page_sizes)
-        else None
-    )
-    has_highlight = has_visible_highlight(
-        bbox, page=page, page_count=page_count, page_size=page_size
     )
     return (
         FindingView(
