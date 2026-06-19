@@ -13,6 +13,7 @@ from njit_auditor.pdf_highlight import (
     get_pdf_page_sizes,
     has_visible_highlight,
     is_drawable_bbox,
+    sub_page_location_label,
 )
 
 
@@ -216,3 +217,50 @@ def test_build_highlighted_pdf_multi_box_finding_draws_all_valid_boxes(tmp_path:
     assert result.skipped_count == 1
     with fitz.open(output) as doc:
         assert len(list(doc[0].annots() or [])) == 2
+
+
+_LETTER_PAGE = (612.0, 792.0)
+
+
+@pytest.mark.parametrize(
+    ("box", "expected"),
+    [
+        ((250.0, 20.0, 360.0, 40.0), "Header area"),
+        ((250.0, 80.0, 360.0, 100.0), "Top of page"),
+        ((250.0, 750.0, 360.0, 770.0), "Footer area"),
+        ((250.0, 650.0, 360.0, 670.0), "Bottom of page"),
+        ((20.0, 380.0, 90.0, 420.0), "Left margin area"),
+        ((545.0, 400.0, 580.0, 420.0), "Right margin area"),
+        ((20.0, 80.0, 90.0, 100.0), "Upper-left area"),
+        ((545.0, 650.0, 580.0, 670.0), "Lower-right area"),
+        ((280.0, 370.0, 332.0, 422.0), "Near page center"),
+        ((130.0, 370.0, 176.0, 422.0), "Body area"),
+    ],
+)
+def test_sub_page_location_label_quadrants(
+    box: tuple[float, float, float, float], expected: str
+) -> None:
+    assert sub_page_location_label(box, _LETTER_PAGE) == expected
+
+
+def test_sub_page_location_label_missing_bbox_is_honest() -> None:
+    assert sub_page_location_label(None, _LETTER_PAGE) == ""
+
+
+def test_sub_page_location_label_missing_page_size_is_honest() -> None:
+    assert sub_page_location_label((100.0, 100.0, 200.0, 150.0), None) == ""
+
+
+def test_sub_page_location_label_degenerate_bbox_is_honest() -> None:
+    assert sub_page_location_label((100.0, 100.0, 100.0, 100.0), _LETTER_PAGE) == ""
+
+
+def test_sub_page_location_label_off_page_bbox_is_honest() -> None:
+    assert sub_page_location_label((700.0, 700.0, 720.0, 720.0), _LETTER_PAGE) == ""
+
+
+def test_sub_page_location_label_never_returns_raw_coordinates() -> None:
+    label = sub_page_location_label((545.0, 400.0, 580.0, 420.0), _LETTER_PAGE)
+    assert "545" not in label
+    assert "400" not in label
+    assert "." not in label

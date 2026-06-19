@@ -497,6 +497,7 @@
            data-category="{{ problem.category }}"
            data-pages="{% if problem.page_tokens %}|{{ problem.page_tokens|join('|') }}|{% endif %}"
            data-locations="{% if problem.location_tokens %}|{{ problem.location_tokens|join('|') }}|{% endif %}">
+        {% set first_finding = problem.individual_findings[0] %}
         <div class="grouped-problem__header">
           <div>
             <p class="grouped-problem__title">
@@ -538,6 +539,9 @@
           <div class="grouped-problem__meta-line"><strong>Issue type:</strong> {{ problem.issue_type | humanize_detail_key }}</div>
           {% endif %}
           <div class="grouped-problem__meta-line">{{ problem.polished_comment }}</div>
+          {% if first_finding.location_label %}
+          <div class="grouped-problem__meta-line"><strong>Location:</strong> {{ first_finding.location_label }}</div>
+          {% endif %}
           {% if problem.suggested_fix %}
           <div class="grouped-problem__meta-line"><strong>Suggested fix:</strong> {{ problem.suggested_fix }}</div>
           {% endif %}
@@ -549,7 +553,6 @@
         </details>
         {% endif %}
         <div class="grouped-problem__actions">
-          {% set first_finding = problem.individual_findings[0] %}
           {% if first_finding.has_highlight %}
           <a
             href="{{ pdf_finding_url(job_id, page=first_finding.page, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type) }}"
@@ -578,7 +581,7 @@
             <tbody>
             {% for f in problem.individual_findings %}
               <tr>
-                <td>{% if f.has_highlight %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}</td>
+                <td>{% if f.has_highlight %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
                 <td class="meta-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
@@ -656,7 +659,7 @@
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if f.has_highlight %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}
+              {% if f.has_highlight %}<a href="{{ pdf_finding_url(job_id, page=f.page, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
             </td>
             <td>
               {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>

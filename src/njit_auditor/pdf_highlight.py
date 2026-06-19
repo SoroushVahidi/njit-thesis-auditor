@@ -96,6 +96,92 @@ def has_visible_highlight(
     return is_drawable_bbox(bbox)
 
 
+# Sub-page location label bands (fractions of page width/height). These
+# describe a rough visual area for student orientation only -- they are
+# independent of any rule's margin-violation thresholds (e.g. P011's allowed
+# margin box), which decide whether something is a *defect*, not where it
+# roughly sits on the page.
+_HEADER_BAND = 0.08
+_TOP_BAND = 0.22
+_FOOTER_BAND = 0.92
+_BOTTOM_BAND = 0.78
+_LEFT_BAND = 0.20
+_RIGHT_BAND = 0.80
+_CENTER_BAND = (0.35, 0.65)
+
+_QUADRANT_LABELS = {
+    ("header", "left"): "Header area",
+    ("header", "center"): "Header area",
+    ("header", "right"): "Header area",
+    ("footer", "left"): "Footer area",
+    ("footer", "center"): "Footer area",
+    ("footer", "right"): "Footer area",
+    ("top", "left"): "Upper-left area",
+    ("top", "center"): "Top of page",
+    ("top", "right"): "Upper-right area",
+    ("bottom", "left"): "Lower-left area",
+    ("bottom", "center"): "Bottom of page",
+    ("bottom", "right"): "Lower-right area",
+    ("middle", "left"): "Left margin area",
+    ("middle", "right"): "Right margin area",
+}
+
+
+def sub_page_location_label(
+    bbox: tuple[float, float, float, float] | None,
+    page_size: PageSize | None,
+) -> str:
+    """Return a rough, student-friendly description of where *bbox* sits on a page.
+
+    Returns "" whenever there is not enough reliable geometry to describe a
+    location -- callers must never fabricate a label from missing or
+    untrustworthy data. This is intentionally independent of
+    :func:`has_visible_highlight`: a finding can have a known rough area on
+    the page even when its box does not qualify for an exact PDF highlight
+    (e.g. it fails the minimum-visible-dimension check after clipping).
+    """
+    if bbox is None or page_size is None or not is_drawable_bbox(bbox):
+        return ""
+    page_width, page_height = page_size
+    if page_width <= 0 or page_height <= 0:
+        return ""
+    x0, y0, x1, y1 = bbox
+    if x1 <= 0 or x0 >= page_width or y1 <= 0 or y0 >= page_height:
+        # Box does not overlap the page at all -- likely a unit/coordinate
+        # mismatch rather than a real position; do not guess.
+        return ""
+    cx = (max(x0, 0.0) + min(x1, page_width)) / 2
+    cy = (max(y0, 0.0) + min(y1, page_height)) / 2
+    rel_x = cx / page_width
+    rel_y = cy / page_height
+
+    if rel_y < _HEADER_BAND:
+        vertical = "header"
+    elif rel_y < _TOP_BAND:
+        vertical = "top"
+    elif rel_y > _FOOTER_BAND:
+        vertical = "footer"
+    elif rel_y > _BOTTOM_BAND:
+        vertical = "bottom"
+    else:
+        vertical = "middle"
+
+    if rel_x < _LEFT_BAND:
+        horizontal = "left"
+    elif rel_x > _RIGHT_BAND:
+        horizontal = "right"
+    else:
+        horizontal = "center"
+
+    if vertical == "middle" and horizontal == "center":
+        lo, hi = _CENTER_BAND
+        if lo <= rel_x <= hi and lo <= rel_y <= hi:
+            return "Near page center"
+        return "Body area"
+
+    return _QUADRANT_LABELS[(vertical, horizontal)]
+
+
 def get_pdf_page_sizes(path: Path) -> list[PageSize]:
     """Return the (width, height) of every page in the PDF at *path*, in order."""
     with fitz.open(path) as doc:
