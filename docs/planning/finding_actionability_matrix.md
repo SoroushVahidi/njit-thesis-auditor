@@ -1,9 +1,43 @@
 # Finding Actionability Matrix
 
-Generated: 2026-06-16  
-Baseline: main at 802350d (PR #319 merged)
+> **Historical note:** This document predates later UI/actionability changes,
+> including strict highlight policy (PR #321), original-PDF-page actions and
+> problem numbering (PR #329), expanded visual highlight coverage (PR #328),
+> sub-page location labels (PR #326), and bespoke long-tail remediation
+> (PR #330). The matrix table below still describes the **2026-06-16**
+> planning snapshot (including removed `"Open PDF page"` labels). It is
+> retained as historical planning context and **must not** be treated as the
+> current behavior specification. See **Current policy** below.
 
-## Column definitions
+Generated: 2026-06-16  
+Baseline: main at 802350d (PR #319 merged)  
+Last reviewed as historical: 2026-06-19 (main @ 5434665)
+
+## Current policy (authoritative as of 2026-06-19)
+
+Every visible finding on the public web UI follows this action model:
+
+| Condition | Action label | Behavior |
+|---|---|---|
+| Real drawable highlight bbox | **Open highlighted PDF page** | Opens privacy-safe highlighted PDF route |
+| Page known, no highlight | **Open original PDF page** | Opens original PDF at the listed page with stronger no-highlight guidance |
+| No page / document-level | **Read explanation** | Explanation-only; no PDF navigation button |
+
+Additional current rules:
+
+- Every visible finding has a **stable problem number** (`Problem #N`).
+- Fake highlights and old page-only labels are **forbidden**:
+  `"Open PDF"`, `"Open PDF page"`, `"Open first example page"`.
+- JSON and Markdown exports include the same problem numbers and student-facing wording.
+- Mobile and desktop expose the same substantive actions (layout may differ).
+
+Implementation references: `finding_explanations.py`, `report_view.py`,
+`tests/test_problem_numbers_and_page_actions.py`,
+`tests/test_visual_highlight_coverage.py`.
+
+---
+
+## Column definitions (historical matrix — 2026-06-16)
 
 | Column | Meaning |
 |---|---|
@@ -83,7 +117,11 @@ These are deferred — not safe to add in a presentation-layer-only change.
 
 ---
 
-## Actionability guarantee
+## Actionability guarantee (historical — superseded)
+
+The bullets below describe the **2026-06-16** target state after PR #320.
+Several labels (`"Open PDF page"`) were later replaced; see **Current policy**
+above for the live UI.
 
 After implementing PR #320:
 

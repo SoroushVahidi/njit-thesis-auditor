@@ -31,7 +31,7 @@ python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 8000
 Verify `/` includes all of the following on both mobile and desktop:
 
 - PDF upload form
-- public PDF URL form
+- public PDF URL form with **"Try an example"** helper box (`#example-thesis-box`, `#fill-example-url`)
 - built-in sample PDF form or a clear "no built-in samples" message
 - wording that the public UI is PDF-only
 - privacy/local-processing note
@@ -57,6 +57,7 @@ Verify:
 Verify:
 
 - the form accepts a direct public PDF URL
+- the **"Try an example"** box fills the URL input when **"Use this URL"** is clicked (button becomes disabled)
 - internal/private URL targets are rejected safely
 - successful submissions reach the same result-page UI shape as local uploads
 
@@ -94,9 +95,9 @@ Responsive layout differences are acceptable only if all actions remain reachabl
 For each finding card on the result page:
 
 - Every card has an action button (never empty).
-- Cards with exact highlight coordinates (`P012` annotations) show **"Open highlighted PDF page"** and link to `/pdf/highlighted?...`.
+- Cards with exact highlight coordinates show **"Open highlighted PDF page"** and link to `/pdf/highlighted?...`.
 - Cards with page but no bbox show **"Open original PDF page"** and link to `/audits/{job_id}/pdf#page=N`.
-- Cards with no page at all show **"Open PDF"** and a note that the finding is document-level.
+- Cards with no page at all show **"Read explanation"** (document-level; no PDF navigation button).
 - Every grouped card shows a **"What does this mean?"** expandable details section.
 - Expanding "What does this mean?" shows a student-facing explanation (not internal rule jargon).
 - Abstract length findings (P021) show the observed word count, allowed maximum, and over-by amount in the explanation.
@@ -121,7 +122,7 @@ Verify on both mobile and desktop:
 - PDF links
 - back link
 - **"What does this mean?"** expandable explanation on every example card
-- Action button label matches action kind (highlighted vs. page vs. PDF)
+- Action button label matches action kind (highlighted vs. original page vs. explanation-only)
 - No-highlight note appears when relevant
 
 ## 7. PDF Routes
