@@ -20,6 +20,7 @@ for:
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.polished_comments import (
@@ -248,6 +249,163 @@ def test_p036_grouping_key_is_stable_across_entry_pairs() -> None:
         details={"entry_pair_index": "5", "gap_points": "3.0"},
     )
     assert first == second
+
+
+# ---------------------------------------------------------------------------
+# 4b. P036 — Markdown report individual-finding listings ("## Problems" /
+#     "## Findings by Rule") must also distinguish same-page occurrences.
+#     These sections list every finding individually by build_polished_comment
+#     directly, bypassing the report_view.py override exercised above, so they
+#     need their own coverage.
+# ---------------------------------------------------------------------------
+
+
+def test_markdown_report_distinguishes_p036_entry_pairs_on_same_page(tmp_path: Path) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [
+        _p036_finding(entry_pair_index="0", gap_points="4.0"),
+        _p036_finding(entry_pair_index="5", gap_points="3.0"),
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    headings = [line for line in text.splitlines() if line.startswith("### Problem")]
+    assert len(headings) == 2
+    assert headings[0] != headings[1]
+
+    problem_lines = [line for line in text.splitlines() if line.startswith("- **Problem")]
+    assert len(problem_lines) >= 2
+    assert problem_lines[0] != problem_lines[1]
+    assert "entries 1-2" in problem_lines[0]
+    assert "entries 6-7" in problem_lines[1]
+    assert "observed gap 4.0pt" in problem_lines[0]
+    assert "observed gap 3.0pt" in problem_lines[1]
+
+
+def test_markdown_report_p036_single_finding_is_not_duplicated(tmp_path: Path) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [_p036_finding(entry_pair_index="2", gap_points="5.0")]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    headings = [line for line in text.splitlines() if line.startswith("### Problem")]
+    assert len(headings) == 1
+
+
+def test_markdown_report_p036_includes_section_and_gap_metadata_when_available(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [_p036_finding(entry_pair_index="1", gap_points="2.5")]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    assert "Table of Contents" in text
+    assert "entries 2-3" in text
+    assert "observed gap 2.5pt" in text
+    assert "expected at least 9.1pt" in text
+
+
+def test_markdown_report_p036_does_not_fall_back_to_generic_wording(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [_p036_finding(entry_pair_index="4", gap_points="1.9")]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    assert "found a possible toc inter entry spacing too tight issue" not in text
+
+
+def test_markdown_report_p036_omits_gap_clause_without_measurements(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=15,
+            message="Inter-entry spacing too tight.",
+            details={
+                "issue_type": "lof_inter_entry_spacing_too_tight",
+                "section_type": "list_of_figures",
+            },
+        )
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    assert "List of Figures" in text
+    assert "two consecutive entries" in text
+    assert "observed gap" not in text
+
+
+def test_markdown_report_p036_groups_same_gap_repeats_while_listing_individually(
+    tmp_path: Path,
+) -> None:
+    """Two same-page, same-gap P036 occurrences are legitimate separate
+    findings (e.g. two distinct tight pairs sharing identical metrics by
+    coincidence), not duplicates, so both must still get their own "###
+    Problem N" entry even though they collapse into one "## Grouped
+    Problems" card.
+    """
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [
+        _p036_finding(entry_pair_index="0", gap_points="3.0"),
+        _p036_finding(entry_pair_index="1", gap_points="3.0"),
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    headings = [line for line in text.splitlines() if line.startswith("### Problem")]
+    assert len(headings) == 2
+    assert "### P036 — 2 occurrences" in text
+
+
+def test_markdown_report_p036_never_quotes_blocked_detail_text(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    forbidden = "Table of Contents Chapter 3: A Confidential Study"
+    findings = [
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=12,
+            message="Inter-entry spacing too tight.",
+            details={
+                "issue_type": "toc_inter_entry_spacing_too_tight",
+                "section_type": "table_of_contents",
+                "entry_pair_index": "0",
+                "gap_points": "3.2",
+                "required_gap_points": "9.1",
+                "entry_text": forbidden,
+                "observed_summary": forbidden,
+            },
+        )
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    assert forbidden not in text
+    assert "/home/" not in text
+    assert "Traceback" not in text
+    assert "\\begin" not in text
 
 
 # ---------------------------------------------------------------------------
