@@ -4895,8 +4895,11 @@ def _draw_p035_body_rows(
     if centered:
         for idx in range(rows):
             y0 = y_start + idx * row_height
+            # A 20pt-tall box (vs. the 14pt fontsize) keeps insert_textbox's
+            # fit check positive even at a tight row_height, so rows still
+            # render when simulating a merged, single-spaced table block.
             page.insert_textbox(
-                fitz.Rect(108, y0 - 14, 540, y0 + 4),
+                fitz.Rect(108, y0 - 15, 540, y0 + 5),
                 text,
                 fontsize=11,
                 align=fitz.TEXT_ALIGN_CENTER,
@@ -4919,6 +4922,7 @@ def _make_p035_body_page_pdf(
     body_x0: float = 180.0,
     body_y: float = 240.0,
     body_rows: int = 3,
+    body_row_height: float = 18.0,
     include_body: bool = True,
     toc_page: bool = False,
     body_centered: bool = False,
@@ -4934,6 +4938,7 @@ def _make_p035_body_page_pdf(
             x0=body_x0,
             y_start=body_y,
             rows=body_rows,
+            row_height=body_row_height,
             centered=body_centered,
         )
     page.insert_text((108, caption_y), caption_text, fontsize=11)
@@ -4978,6 +4983,66 @@ def test_p035_table_caption_below_body_warns(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
     assert any(w.details.get("issue_type") == "table_caption_not_above_body" for w in warnings)
+
+
+def test_p035_table_caption_above_merged_multiline_body_no_finding(tmp_path: Path) -> None:
+    # A tight, single-spaced row pitch (14pt) makes PyMuPDF extract the whole
+    # table as one multi-line text block rather than one block per row. That
+    # used to make the genuine table body invisible to the detector and
+    # falsely flag a correctly placed caption as not being above the body.
+    pdf_path = tmp_path / "p035_table_merged_rows_ok.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        caption_y=200.0,
+        body_y=220.0,
+        body_rows=5,
+        body_row_height=14.0,
+        body_centered=True,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_off_center_merged_multiline_table_body_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_table_merged_rows_off_center.pdf"
+    _make_p035_body_page_pdf(
+        pdf_path,
+        caption_y=200.0,
+        body_x0=180.0,
+        body_y=220.0,
+        body_rows=5,
+        body_row_height=14.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(w.details.get("issue_type") == "table_body_not_centered" for w in warnings)
+    assert not any(
+        w.details.get("issue_type") == "table_caption_not_above_body" for w in warnings
+    )
+
+
+def test_p035_intro_paragraph_above_table_caption_with_real_body_no_finding(
+    tmp_path: Path,
+) -> None:
+    # A normal introductory paragraph just above a table caption must not be
+    # mistaken for a misplaced table body when the genuine (merged,
+    # multi-line) table body is correctly positioned below the caption.
+    pdf_path = tmp_path / "p035_table_intro_paragraph.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 1 INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 130), "The following section introduces the data used in", fontsize=11)
+    page.insert_text((108, 148), "this part of the analysis for the current chapter.", fontsize=11)
+    page.insert_text((108, 200), _P035_TABLE_CAPTION, fontsize=11)
+    _draw_p035_body_rows(page, x0=180.0, y_start=220.0, rows=5, row_height=14.0, centered=True)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert not any(
+        w.details.get("issue_type") == "table_caption_not_above_body" for w in warnings
+    )
 
 
 def test_p035_centered_figure_with_caption_below_no_finding(tmp_path: Path) -> None:
