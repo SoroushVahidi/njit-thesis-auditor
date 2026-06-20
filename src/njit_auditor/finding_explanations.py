@@ -1375,6 +1375,39 @@ def _p050_left_bold_explanation(details: dict[str, str], *, page: int | None) ->
     )
 
 
+def _p042_entry_position_clause(details: dict[str, str]) -> str:
+    entry_index = details.get("entry_index", "").strip()
+    entry_count = details.get("appendix_entry_count", "").strip()
+    if entry_index.isdigit() and entry_count.isdigit():
+        position = int(entry_index) + 1
+        return f" (entry {position} of {entry_count} appendix entries listed)"
+    return ""
+
+
+def _p042_appendix_format_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    if issue_type == "single_appendix_missing_title":
+        expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <title>"
+        return (
+            "The Table of Contents lists a single appendix entry that does not "
+            "appear to include a title after 'APPENDIX'. NJIT requires a "
+            f"single-appendix entry to follow the pattern '{expected_pattern}'. "
+            "Check this Table of Contents entry and add the missing appendix "
+            "title."
+        )
+    expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <A-Z>"
+    position_clause = _p042_entry_position_clause(details)
+    return (
+        f"The Table of Contents lists multiple appendix entries, but one entry"
+        f"{position_clause} does not appear to include a letter identifier. "
+        f"NJIT requires every appendix entry to follow the pattern "
+        f"'{expected_pattern}' (e.g. 'APPENDIX A,' 'APPENDIX B') when there is "
+        "more than one appendix. Check this Table of Contents entry and add "
+        "the missing letter."
+    )
+
+
 def build_detailed_explanation(
     *,
     rule_id: str,
@@ -1491,6 +1524,11 @@ def _build_explanation_text(
         "lof_figure_header_not_bold",
     }:
         return _p050_left_bold_explanation(details, page=page)
+    if rule_id == "P042" and effective_issue_type in {
+        "single_appendix_missing_title",
+        "multiple_appendix_missing_letter",
+    }:
+        return _p042_appendix_format_explanation(effective_issue_type, details, page=page)
     template = _EXPLANATION_TEMPLATES.get((rule_id, effective_issue_type))
 
     if template is not None:
