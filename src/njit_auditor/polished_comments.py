@@ -266,18 +266,19 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
-        "Unusually large spacing was detected between lines on page {page}. "
-        "Body text should be double-spaced with consistent spacing throughout."
+        "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
+        "lines on page {page}. Body text should be double-spaced with consistent "
+        "spacing throughout."
     ),
     ("P016", "excessive_paragraph_gap"): (
-        "Unusually large spacing was detected between paragraphs on page "
-        "{page}. Paragraph spacing should be consistent with double-spaced "
-        "body text."
+        "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
+        "paragraphs on page {page}. Paragraph spacing should be consistent with "
+        "double-spaced body text."
     ),
     ("P016", "suspicious_heading_blank_gap"): (
-        "An unusually large blank gap was detected just before a heading on "
-        "page {page}. Verify this is intentional heading spacing and not an "
-        "extra blank line or page-break artifact."
+        "An unusually large blank gap (about {largest_gap_pt}pt) was detected just "
+        "before a heading on page {page}. Verify this is intentional heading "
+        "spacing and not an extra blank line or page-break artifact."
     ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
         "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "
@@ -528,14 +529,16 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P068 approval page structure ---
     ("P068", "approval_page_advisor_role_label_missing"): (
-        "Problem: The Approval Page on page {page} may be missing a recognizable "
-        "advisor role label (for example, 'Dissertation Advisor' or 'Major "
-        "Professor'). Add the required advisor role label."
+        "Problem: The Approval Page on page {page} lists {role_label_count} "
+        "committee role label(s), but none of them is a recognizable advisor role "
+        "label (for example, 'Dissertation Advisor' or 'Major Professor'). Add the "
+        "required advisor role label."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
-        "Problem: The Approval Page on page {page} appears to have too few "
-        "signature or date structural blocks for the committee entries present. "
-        "Add signature and date lines for each committee member."
+        "Problem: The Approval Page on page {page} has {signature_date_indicator_count} "
+        "signature/date line(s) for {role_label_count} committee role label(s), but "
+        "at least {required_indicator_count} are expected. Add a signature line and "
+        "a date line for each committee member."
     ),
 }
 
@@ -726,10 +729,21 @@ def _remediation_by_rule() -> dict[str, str]:
         remediation = str(item.get("remediation", "")).strip()
         if rule_id and remediation:
             remediation = _REMEDIATION_OVERRIDES.get(rule_id, remediation)
-            if len(remediation) > 200:
-                remediation = f"{remediation[:197]}..."
+            remediation = _truncate_at_word_boundary(remediation, 200)
             result[rule_id] = remediation
     return result
+
+
+def _truncate_at_word_boundary(text: str, limit: int) -> str:
+    """Truncate text to fit within limit, breaking on a word boundary, not mid-word."""
+    if len(text) <= limit:
+        return text
+    budget = limit - 3
+    truncated = text[:budget]
+    last_space = truncated.rfind(" ")
+    if last_space > 0:
+        truncated = truncated[:last_space]
+    return f"{truncated.rstrip()}..."
 
 
 def _safe_page_label(page: int | None) -> str:
@@ -813,6 +827,13 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         "unknown": "PhD (degree type uncertain — using PhD limit as default)",
     }
     degree_label = degree_labels.get(inferred_degree.lower(), inferred_degree.upper() or "unknown")
+    largest_gap_pt = details.get("largest_gap_pt", "") or "an unusually large"
+    role_label_count = details.get("role_label_count", "") or "0"
+    signature_date_indicator_count = details.get("signature_date_indicator_count", "") or "0"
+    try:
+        required_indicator_count = str(max(2, int(role_label_count)))
+    except ValueError:
+        required_indicator_count = "2"
     return template.format(
         page=_safe_page_label(page),
         side=side.replace("_", " "),
@@ -835,6 +856,10 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         word_count=word_count,
         limit=limit,
         degree_label=degree_label,
+        largest_gap_pt=largest_gap_pt,
+        role_label_count=role_label_count,
+        signature_date_indicator_count=signature_date_indicator_count,
+        required_indicator_count=required_indicator_count,
     )
 
 
@@ -1095,23 +1120,23 @@ def build_polished_comment(
 
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
-        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P020" and issue == "possible_title_capitalization_issue":
         body = _p020_title_case_comment(page=page, details=safe_details)
-        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P024" and issue == "toc_level_capitalization":
         body = _p024_toc_level_comment(page=page, details=safe_details)
-        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P024" and issue == "list_of_tables_title_case":
         body = _p024_lot_title_case_comment(page=page, details=safe_details)
-        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P011" and issue == "margin_boundary_violation":
         body = _p011_margin_comment(page=page, details=safe_details)
-        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P026" and issue in {
         "possible_body_font_family_issue",
@@ -1123,7 +1148,7 @@ def build_polished_comment(
             details=safe_details,
             raw_details=raw_details,
         )
-        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))
     if template is None:
@@ -1140,28 +1165,27 @@ def build_polished_comment(
                     f"This check ({rule_id}) found a possible {issue_label} issue "
                     f"on page {_safe_page_label(page)}."
                 )
-            return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+            return _finish_comment(body, rule_id=rule_id, issue_type=issue)
         body = _format_template(template, page=page, details=safe_details)
-    else:
-        body = _format_template(template, page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue)
 
-    return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+    body = _format_template(template, page=page, details=safe_details)
+    return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
 
 def _finish_comment(
-    body: str, *, rule_id: str, issue_type: str = "", details: dict[str, str]
+    body: str,
+    *,
+    rule_id: str,
+    issue_type: str = "",
+    specific: bool = False,
 ) -> str:
     remediation = _resolve_remediation(rule_id, issue_type)
     parts = [f"{REVIEW_PREFIX} {body}"]
     if remediation and remediation not in body:
         parts.append(remediation)
-    confidence = details.get("confidence", "")
-    triage_tier = details.get("triage_tier", "")
-    if confidence:
-        parts.append(f"Confidence: {confidence}.")
-    elif triage_tier:
-        parts.append(f"Triage tier: {triage_tier}.")
-    parts.append(VERIFY_SUFFIX)
+    if not specific:
+        parts.append(VERIFY_SUFFIX)
     return " ".join(parts)
 
 
