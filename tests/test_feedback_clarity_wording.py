@@ -24,6 +24,10 @@ Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
     gain metadata-specific polished comments, issue_type_explanations, and
     detailed_explanations instead of falling through to generic catch-all
     wording
+13. P042 — TOC appendix entry format gains metadata-specific polished
+    comments, issue_type_explanations, and detailed_explanations, kept
+    rule-scoped so P063's existing wording for the shared
+    multiple_appendix_missing_letter issue type is unaffected
 """
 
 from __future__ import annotations
@@ -1243,3 +1247,209 @@ def test_p031_p046_p048_p049_p050_wording_never_leak_unrelated_detail_text() -> 
         assert "Traceback" not in comment
         assert ".tex" not in comment
         assert "\\begin" not in comment
+
+
+# ---------------------------------------------------------------------------
+# 13. P042 — TOC appendix entry format (collision-safe with P063)
+# ---------------------------------------------------------------------------
+
+
+def test_p042_single_appendix_missing_title_comment_is_not_generic() -> None:
+    comment = build_polished_comment(
+        rule_id="P042",
+        issue_type="single_appendix_missing_title",
+        page=12,
+        details={
+            "appendix_entry_count": "1",
+            "entry_index": "0",
+            "expected_pattern": "APPENDIX <title>",
+        },
+    )
+    assert "Table of Contents" in comment
+    assert "title" in comment.lower()
+    assert "APPENDIX <title>" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p042_multiple_appendix_missing_letter_comment_is_not_generic() -> None:
+    comment = build_polished_comment(
+        rule_id="P042",
+        issue_type="multiple_appendix_missing_letter",
+        page=12,
+        details={
+            "appendix_entry_count": "3",
+            "entry_index": "1",
+            "expected_pattern": "APPENDIX <A-Z>",
+        },
+    )
+    assert "Table of Contents" in comment
+    assert "letter" in comment.lower()
+    assert "APPENDIX A" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p042_multiple_appendix_missing_letter_comment_includes_entry_position() -> None:
+    comment = build_polished_comment(
+        rule_id="P042",
+        issue_type="multiple_appendix_missing_letter",
+        page=12,
+        details={
+            "appendix_entry_count": "3",
+            "entry_index": "1",
+            "expected_pattern": "APPENDIX <A-Z>",
+        },
+    )
+    assert "entry 2 of 3 appendix entries listed" in comment
+
+
+def test_p042_multiple_appendix_missing_letter_comment_degrades_gracefully_without_position() -> (
+    None
+):
+    comment = build_polished_comment(
+        rule_id="P042",
+        issue_type="multiple_appendix_missing_letter",
+        page=12,
+        details={"expected_pattern": "APPENDIX <A-Z>"},
+    )
+    assert "Table of Contents" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+@pytest.mark.parametrize(
+    "issue_type",
+    ["single_appendix_missing_title", "multiple_appendix_missing_letter"],
+)
+def test_p042_issue_type_and_detailed_explanation_match(issue_type: str) -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P042",
+            severity=Severity.WARNING,
+            page=12,
+            message="TOC appendix entry format issue.",
+            details={
+                "issue_type": issue_type,
+                "appendix_entry_count": (
+                    "3" if issue_type == "multiple_appendix_missing_letter" else "1"
+                ),
+                "entry_index": (
+                    "1" if issue_type == "multiple_appendix_missing_letter" else "0"
+                ),
+                "expected_pattern": (
+                    "APPENDIX <A-Z>"
+                    if issue_type == "multiple_appendix_missing_letter"
+                    else "APPENDIX <title>"
+                ),
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P042")
+    assert "Table of Contents" in fv.issue_type_explanation
+    assert "Table of Contents" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p063_multiple_appendix_missing_letter_wording_unchanged_by_p042() -> None:
+    """P063 shares the multiple_appendix_missing_letter issue type with P042.
+
+    P042's TOC-entry wording (e.g. "Table of Contents lists...") must never
+    leak into P063's body-heading wording, and vice versa.
+    """
+    comment = build_polished_comment(
+        rule_id="P063",
+        issue_type="multiple_appendix_missing_letter",
+        page=40,
+        details={
+            "page": "40",
+            "appendix_count": "2",
+            "triage_tier": "medium",
+            "source_q_rule_id": "Q059",
+        },
+    )
+    assert "appendix heading" in comment.lower()
+    assert "Table of Contents lists" not in comment
+    assert "was flagged by an automated check" not in comment
+
+    issue_explanation = explain_issue_type(
+        "P063",
+        "multiple_appendix_missing_letter",
+        {"page": "40", "appendix_count": "2"},
+    )
+    assert "appendix heading" in issue_explanation.lower()
+    assert "Table of Contents lists" not in issue_explanation
+
+    findings = [
+        AuditFinding(
+            rule_id="P063",
+            severity=Severity.WARNING,
+            page=40,
+            message="Multiple-appendix body heading missing letter identifier.",
+            details={
+                "issue_type": "multiple_appendix_missing_letter",
+                "page": "40",
+                "appendix_count": "2",
+                "triage_tier": "medium",
+                "source_q_rule_id": "Q059",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P063")
+    assert "appendix heading" in fv.detailed_explanation.lower()
+    assert "Table of Contents lists" not in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p042_wording_never_leaks_unrelated_detail_text() -> None:
+    forbidden = "APPENDIX C: A Confidential Survey of Private Manuscript Results"
+    comments = [
+        build_polished_comment(
+            rule_id="P042",
+            issue_type="single_appendix_missing_title",
+            page=12,
+            details={
+                "appendix_entry_count": "1",
+                "entry_index": "0",
+                "expected_pattern": "APPENDIX <title>",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+        build_polished_comment(
+            rule_id="P042",
+            issue_type="multiple_appendix_missing_letter",
+            page=12,
+            details={
+                "appendix_entry_count": "3",
+                "entry_index": "1",
+                "expected_pattern": "APPENDIX <A-Z>",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+    ]
+    for comment in comments:
+        assert forbidden not in comment
+        assert "/home/" not in comment
+        assert "Traceback" not in comment
+        assert ".tex" not in comment
+        assert "\\begin" not in comment
+
+    for issue_type in ("single_appendix_missing_title", "multiple_appendix_missing_letter"):
+        explanation = explain_issue_type(
+            "P042",
+            issue_type,
+            {
+                "appendix_entry_count": "3",
+                "entry_index": "1",
+                "expected_pattern": "APPENDIX <A-Z>",
+                "unrelated_text_field": forbidden,
+            },
+        )
+        assert forbidden not in explanation
+        assert "/home/" not in explanation
+        assert "Traceback" not in explanation
+        assert ".tex" not in explanation
+        assert "\\begin" not in explanation

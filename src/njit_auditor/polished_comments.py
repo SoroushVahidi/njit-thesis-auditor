@@ -1428,6 +1428,42 @@ def _p050_left_bold_comment(*, page: int | None, details: dict[str, str]) -> str
     )
 
 
+def _p042_entry_position_clause(details: dict[str, str]) -> str:
+    entry_index = details.get("entry_index", "").strip()
+    entry_count = details.get("appendix_entry_count", "").strip()
+    if entry_index.isdigit() and entry_count.isdigit():
+        position = int(entry_index) + 1
+        return f" (entry {position} of {entry_count} appendix entries listed)"
+    return ""
+
+
+def _p042_appendix_format_comment(
+    issue_type: str, *, page: int | None, details: dict[str, str]
+) -> str:
+    page_label = _safe_page_label(page)
+
+    if issue_type == "single_appendix_missing_title":
+        expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <title>"
+        return (
+            f"Likely problem: The Table of Contents on page {page_label} lists a "
+            "single appendix entry that does not appear to include a title after "
+            f"'APPENDIX'. NJIT requires a single-appendix entry to follow the "
+            f"pattern '{expected_pattern}'. Check this Table of Contents entry "
+            "and add the missing appendix title."
+        )
+
+    expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <A-Z>"
+    position_clause = _p042_entry_position_clause(details)
+    return (
+        f"Likely problem: The Table of Contents on page {page_label} lists "
+        f"multiple appendix entries, but one entry{position_clause} does not "
+        "appear to include a letter identifier. NJIT requires every appendix "
+        f"entry to follow the pattern '{expected_pattern}' (e.g. 'APPENDIX A,' "
+        "'APPENDIX B') when there is more than one appendix. Check this Table of "
+        "Contents entry and add the missing letter."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -1546,6 +1582,13 @@ def build_polished_comment(
         "lof_figure_header_not_bold",
     }:
         body = _p050_left_bold_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P042" and issue in {
+        "single_appendix_missing_title",
+        "multiple_appendix_missing_letter",
+    }:
+        body = _p042_appendix_format_comment(issue, page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))

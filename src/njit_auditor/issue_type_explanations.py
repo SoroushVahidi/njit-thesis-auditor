@@ -1158,6 +1158,37 @@ def _p050_issue_type_explanation(details: Mapping[str, str]) -> str:
     )
 
 
+def _p042_entry_position_clause(details: Mapping[str, str]) -> str:
+    entry_index = details.get("entry_index", "").strip()
+    entry_count = details.get("appendix_entry_count", "").strip()
+    if entry_index.isdigit() and entry_count.isdigit():
+        position = int(entry_index) + 1
+        return f" (entry {position} of {entry_count} appendix entries listed)"
+    return ""
+
+
+def _p042_issue_type_explanation(issue_type: str, details: Mapping[str, str]) -> str:
+    if issue_type == "single_appendix_missing_title":
+        expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <title>"
+        return (
+            "This means the Table of Contents lists a single appendix entry "
+            "that does not appear to include a title after 'APPENDIX'. NJIT "
+            f"requires a single-appendix entry to follow the pattern "
+            f"'{expected_pattern}'. Add the missing appendix title to this "
+            "Table of Contents entry."
+        )
+    expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <A-Z>"
+    position_clause = _p042_entry_position_clause(details)
+    return (
+        "This means the Table of Contents lists multiple appendix entries, "
+        f"but one entry{position_clause} does not appear to include a letter "
+        f"identifier. NJIT requires every appendix entry to follow the pattern "
+        f"'{expected_pattern}' (e.g. 'APPENDIX A,' 'APPENDIX B') when there is "
+        "more than one appendix. Add the missing letter to this Table of "
+        "Contents entry."
+    )
+
+
 def explain_issue_type(
     rule_id: str, issue_type: str, details: Mapping[str, str] | None = None
 ) -> str:
@@ -1228,6 +1259,11 @@ def explain_issue_type(
         "lof_figure_header_not_bold",
     }:
         return _p050_issue_type_explanation(safe_details)
+    if rule_id == "P042" and issue_type in {
+        "single_appendix_missing_title",
+        "multiple_appendix_missing_letter",
+    }:
+        return _p042_issue_type_explanation(issue_type, safe_details)
     explicit = _RULE_ISSUE_EXPLANATIONS.get((rule_id, issue_type))
     if explicit is not None:
         return explicit
