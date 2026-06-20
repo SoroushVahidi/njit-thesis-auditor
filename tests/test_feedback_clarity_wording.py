@@ -16,6 +16,10 @@ Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
 10. P032/P056/P066/P067 — zero-coverage rules gain metadata-specific polished
     comments, issue_type_explanations, and detailed_explanations instead of
     falling through to generic catch-all wording
+11. P045/P047 — Biosketch publication/bullet spacing rules gain
+    metadata-specific polished comments, issue_type_explanations, and
+    detailed_explanations instead of falling through to generic catch-all
+    wording
 """
 
 from __future__ import annotations
@@ -604,3 +608,177 @@ def test_p067_uses_top_level_page_when_details_have_no_page_key() -> None:
     assert "1 place" in fv.issue_type_explanation
     assert "2019" in fv.detailed_explanation
     assert "2021" in fv.detailed_explanation
+
+
+# ---------------------------------------------------------------------------
+# 11. P045/P047 — Biosketch publication/bullet spacing explanations
+# ---------------------------------------------------------------------------
+
+
+def test_p045_hanging_indent_comment_includes_block_count_and_threshold() -> None:
+    comment = build_polished_comment(
+        rule_id="P045",
+        issue_type="biosketch_publication_missing_hanging_indent",
+        page=44,
+        details={
+            "multi_line_block_count": "3",
+            "hanging_indent_threshold_points": "12.0",
+        },
+    )
+    assert "hanging indentation" in comment
+    assert "3 multi-line entries checked" in comment
+    assert "12.0pt" in comment
+    assert "Biographical Sketch" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p045_entry_spacing_comment_includes_gap_measurements() -> None:
+    comment = build_polished_comment(
+        rule_id="P045",
+        issue_type="biosketch_publication_entry_spacing_not_double",
+        page=44,
+        details={
+            "observed_gap_points": "9.5",
+            "required_gap_points": "20.0",
+        },
+    )
+    assert "9.5pt" in comment
+    assert "20.0pt" in comment
+    assert "Biographical Sketch" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p047_bullet_spacing_comment_includes_gap_measurements_and_block_index() -> None:
+    comment = build_polished_comment(
+        rule_id="P047",
+        issue_type="biosketch_bullet_section_not_single_spaced",
+        page=45,
+        details={
+            "observed_gap_points": "18.0",
+            "required_max_gap_points": "12.0",
+            "block_index": "2",
+        },
+    )
+    assert "bullet block 3" in comment
+    assert "18.0pt" in comment
+    assert "12.0pt" in comment
+    assert "Biographical Sketch" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p047_bullet_spacing_comment_degrades_gracefully_without_block_index() -> None:
+    comment = build_polished_comment(
+        rule_id="P047",
+        issue_type="biosketch_bullet_section_not_single_spaced",
+        page=45,
+        details={
+            "observed_gap_points": "18.0",
+            "required_max_gap_points": "12.0",
+        },
+    )
+    assert "a bullet/list block" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p045_hanging_indent_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P045",
+            severity=Severity.WARNING,
+            page=44,
+            message="Biographical Sketch page has no publication entries with hanging indent.",
+            details={
+                "issue_type": "biosketch_publication_missing_hanging_indent",
+                "multi_line_block_count": "4",
+                "hanging_indent_threshold_points": "12.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P045")
+    assert "4 multi-line entries checked" in fv.issue_type_explanation
+    assert "12.0pt" in fv.issue_type_explanation
+    assert "hanging indentation" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p045_entry_spacing_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P045",
+            severity=Severity.WARNING,
+            page=44,
+            message="Consecutive publication entries lack the required blank line.",
+            details={
+                "issue_type": "biosketch_publication_entry_spacing_not_double",
+                "observed_gap_points": "11.0",
+                "required_gap_points": "20.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P045")
+    assert "11.0pt" in fv.issue_type_explanation
+    assert "20.0pt" in fv.issue_type_explanation
+    assert "11.0pt" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p047_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P047",
+            severity=Severity.WARNING,
+            page=45,
+            message="A bullet or list block has an unexpectedly large line gap.",
+            details={
+                "issue_type": "biosketch_bullet_section_not_single_spaced",
+                "observed_gap_points": "16.0",
+                "required_max_gap_points": "12.0",
+                "block_index": "0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P047")
+    assert "bullet block 1" in fv.issue_type_explanation
+    assert "16.0pt" in fv.issue_type_explanation
+    assert "Bullet block 1" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p045_and_p047_wording_never_leak_unrelated_detail_text() -> None:
+    forbidden = "Jane Q. Researcher, 'A Confidential Study of Private Bullet Content'"
+    p045_comment = build_polished_comment(
+        rule_id="P045",
+        issue_type="biosketch_publication_missing_hanging_indent",
+        page=44,
+        details={
+            "multi_line_block_count": "3",
+            "hanging_indent_threshold_points": "12.0",
+            "unrelated_text_field": forbidden,
+        },
+    )
+    p047_comment = build_polished_comment(
+        rule_id="P047",
+        issue_type="biosketch_bullet_section_not_single_spaced",
+        page=45,
+        details={
+            "observed_gap_points": "18.0",
+            "required_max_gap_points": "12.0",
+            "block_index": "1",
+            "unrelated_text_field": forbidden,
+        },
+    )
+    for comment in (p045_comment, p047_comment):
+        assert forbidden not in comment
+        assert "/home/" not in comment
+        assert "Traceback" not in comment
+        assert ".tex" not in comment
+        assert "\\begin" not in comment
