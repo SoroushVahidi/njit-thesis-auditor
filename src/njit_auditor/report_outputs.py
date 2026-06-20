@@ -2319,9 +2319,76 @@ def _safe_source_location(details: dict[str, str]) -> str:
     return format_source_location(details)
 
 
-def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") -> str:
-    from njit_auditor.polished_comments import build_polished_comment
+_P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(
+    {
+        "toc_inter_entry_spacing_too_tight",
+        "lot_inter_entry_spacing_too_tight",
+        "lof_inter_entry_spacing_too_tight",
+    }
+)
+_P036_SECTION_LABELS: dict[str, str] = {
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
 
+
+def _p036_entry_pair_label(details: dict[str, str]) -> str:
+    raw = details.get("entry_pair_index", "").strip()
+    try:
+        index = int(raw)
+    except ValueError:
+        return "two consecutive entries"
+    return f"entries {index + 1}-{index + 2}"
+
+
+def _individual_finding_comment(
+    rule_id: str,
+    issue_type: str,
+    *,
+    severity: str,
+    page: int | None,
+    details: dict[str, str],
+) -> str:
+    """Return the Markdown comment text for one individual finding.
+
+    build_grouped_findings() intentionally keys grouping on the generic,
+    pair-independent build_polished_comment() text so repeated same-page
+    P036 occurrences still collapse into one grouped card (see
+    test_p036_grouping_key_is_stable_across_entry_pairs). The Markdown
+    "## Problems" / "## Findings by Rule" sections, however, always list
+    every occurrence individually by its own problem number, so each one
+    needs to be distinguishable on its own rather than reusing that
+    pair-independent text verbatim.
+    """
+    from njit_auditor.polished_comments import REVIEW_PREFIX, build_polished_comment
+
+    if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
+        page_label = str(page) if page is not None else "this page"
+        section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
+        pair_label = _p036_entry_pair_label(details)
+        observed = details.get("gap_points", "").strip()
+        required = details.get("required_gap_points", "").strip()
+        gap_clause = (
+            f" (observed gap {observed}pt, expected at least {required}pt)"
+            if observed and required
+            else ""
+        )
+        return (
+            f"{REVIEW_PREFIX} The spacing between {pair_label} of the {section_label} "
+            f"on page {page_label} appears tighter than expected{gap_clause}. Add "
+            "visible double spacing or a blank line between these two entries."
+        )
+    return build_polished_comment(
+        rule_id=rule_id,
+        issue_type=issue_type,
+        severity=severity,
+        page=page,
+        details=details,
+    )
+
+
+def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
         details = {}
@@ -2335,9 +2402,9 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
     else:
         loc_text = f"p.{page}" if page is not None else "p.-"
 
-    polished = build_polished_comment(
-        rule_id=str(finding.get("rule_id", "")),
-        issue_type=issue_type,
+    polished = _individual_finding_comment(
+        str(finding.get("rule_id", "")),
+        issue_type,
         severity=str(finding.get("severity", "WARNING")),
         page=page,
         details=safe_details,
@@ -2354,17 +2421,15 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
 
 
 def _problem_heading_text(finding: dict[str, Any], *, audit_type: str) -> str:
-    from njit_auditor.polished_comments import build_polished_comment
-
     details = finding.get("details", {})
     if not isinstance(details, dict):
         details = {}
     safe_details = {str(k): str(v) for k, v in details.items()}
     page_raw = finding.get("page")
     page = int(page_raw) if page_raw is not None else None
-    polished = build_polished_comment(
-        rule_id=str(finding.get("rule_id", "")),
-        issue_type=safe_details.get("issue_type", ""),
+    polished = _individual_finding_comment(
+        str(finding.get("rule_id", "")),
+        safe_details.get("issue_type", ""),
         severity=str(finding.get("severity", "WARNING")),
         page=page,
         details=safe_details,
