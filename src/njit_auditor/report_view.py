@@ -675,6 +675,23 @@ def _page_number_detail_text(issue_type: str, *, page: int | None) -> str:
     return text
 
 
+_MAX_PLAUSIBLE_SEQUENCE_PAGE_NUMBER = 9999
+
+
+def _plausible_page_sequence_value(value: str) -> bool:
+    """Reject implausible Arabic sequence values such as a misdetected long digit run.
+
+    Roman-numeral or placeholder text values are not int-parseable and are left
+    as-is; this only guards against an absurdly large Arabic number slipping
+    through from a misdetected page-number candidate.
+    """
+    try:
+        number = int(value)
+    except ValueError:
+        return True
+    return 0 <= number <= _MAX_PLAUSIBLE_SEQUENCE_PAGE_NUMBER
+
+
 def _page_number_comment_and_fix(
     rule_id: str,
     visible_issue_type: str,
@@ -732,6 +749,15 @@ def _page_number_comment_and_fix(
         expected = details.get("expected_sequence", "").strip() or details.get(
             "expected_value", ""
         ).strip() or details.get("expected_roman", "").strip() or "the expected sequence value"
+        if not _plausible_page_sequence_value(observed) or not _plausible_page_sequence_value(
+            expected
+        ):
+            return (
+                "Review needed: Problem: "
+                f"The page-number sequence on page {page_label} looks inconsistent; "
+                "please manually check the nearby page numbers.",
+                "Manually check the page numbers near this page for a sequence error.",
+            )
         return (
             "Review needed: Problem: "
             f"The detected page number on page {page_label} does not appear to follow the "
@@ -1192,6 +1218,47 @@ def _apply_toc_alignment_presentation(
     return replace(finding, polished_comment=comment), True
 
 
+_P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
+    ("centered", "centered"),
+    ("near_top", "near the top of the page"),
+    ("bold", "bold"),
+    ("all_caps", "in all capital letters"),
+)
+
+
+def _apply_named_heading_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Name which P014 layout attribute(s) failed instead of a generic message.
+
+    The detector already records centered/near_top/bold/all_caps booleans in
+    details; this only selects which ones to mention.
+    """
+    if finding.rule_id != "P014":
+        return finding, True
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    heading = details.get("heading", "").strip()
+    heading_clause = f" ('{heading}')" if heading else ""
+    failed_labels = [
+        label
+        for key, label in _P014_ATTRIBUTE_LABELS
+        if details.get(key, "").strip().lower() == "false"
+    ]
+    if failed_labels:
+        issue_clause = ", ".join(f"not {label}" for label in failed_labels)
+        fix = f"Make this heading {', '.join(failed_labels)}."
+    else:
+        issue_clause = "not formatted to NJIT's heading style"
+        fix = "Place this heading centered near the top in bold all-caps."
+    comment = (
+        f"Problem: The front-matter heading{heading_clause} on page {page_label} is "
+        f"{issue_clause}. NJIT requires named front-matter headings to be centered "
+        "near the top of the page, in bold, and in all capital letters."
+    )
+    return replace(finding, polished_comment=comment, suggested_fix=fix), True
+
+
 def build_report_view(
     report: Mapping[str, Any],
     *,
@@ -1255,6 +1322,8 @@ def build_report_view(
             visible_view, is_problem = _apply_lof_punctuation_presentation(visible_view, details)
         elif visible_view.rule_id == "P018":
             visible_view, is_problem = _apply_toc_alignment_presentation(visible_view, details)
+        elif visible_view.rule_id == "P014":
+            visible_view, is_problem = _apply_named_heading_presentation(visible_view, details)
         if is_problem:
             visible_indexes.add(index)
             visible_view_by_index[index] = visible_view

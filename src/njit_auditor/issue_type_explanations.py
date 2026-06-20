@@ -645,6 +645,21 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means the Approval Page appears to have too few signature or date "
         "structural blocks for the committee entries present."
     ),
+    ("P036", "toc_inter_entry_spacing_too_tight"): (
+        "This means consecutive Table of Contents entries appear to have "
+        "insufficient vertical spacing between them. Add consistent spacing "
+        "between TOC entries."
+    ),
+    ("P036", "lot_inter_entry_spacing_too_tight"): (
+        "This means consecutive List of Tables entries appear to have "
+        "insufficient vertical spacing between them. Add consistent spacing "
+        "between List of Tables entries."
+    ),
+    ("P036", "lof_inter_entry_spacing_too_tight"): (
+        "This means consecutive List of Figures entries appear to have "
+        "insufficient vertical spacing between them. Add consistent spacing "
+        "between List of Figures entries."
+    ),
 }
 
 # Issue-type-only fallback explanations (no rule_id match needed)
