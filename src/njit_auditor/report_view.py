@@ -308,7 +308,7 @@ def _finding_view_from_item(
                 location_label=location_label,
             ),
             issue_type_label=humanize_issue_type(issue_type),
-            issue_type_explanation=explain_issue_type(rule_id, issue_type),
+            issue_type_explanation=explain_issue_type(rule_id, issue_type, details=details),
         ),
         location_key,
         details,

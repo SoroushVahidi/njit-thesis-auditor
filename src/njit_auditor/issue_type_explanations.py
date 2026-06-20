@@ -4,6 +4,8 @@ Presentation-layer only. Never changes detection semantics.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 # ---------------------------------------------------------------------------
 # Explicit humanized labels for known issue types
 # ---------------------------------------------------------------------------
@@ -784,12 +786,101 @@ def humanize_issue_type(issue_type: str) -> str:
     return " ".join(result)
 
 
-def explain_issue_type(rule_id: str, issue_type: str) -> str:
+_P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
+    ("centered", "centered"),
+    ("near_top", "near the top of the page"),
+    ("bold", "bold"),
+    ("all_caps", "in all capital letters"),
+)
+
+
+def _p014_issue_type_explanation(details: Mapping[str, str]) -> str:
+    """Name which P014 layout attribute(s) failed, using detector-recorded booleans."""
+    failed_labels = [
+        label
+        for key, label in _P014_ATTRIBUTE_LABELS
+        if details.get(key, "").strip().lower() == "false"
+    ]
+    if failed_labels:
+        observed = "this heading is " + ", ".join(f"not {label}" for label in failed_labels)
+    else:
+        observed = "this heading does not match NJIT's expected layout/style"
+    return (
+        f"This means {observed}. NJIT requires named front-matter headings (such as "
+        "ABSTRACT or APPROVAL PAGE) to be centered near the top of the page, in bold, "
+        "and in all capital letters. Review the heading's formatting and correct any "
+        "attributes that do not match."
+    )
+
+
+def _p016_issue_type_explanation(issue_type: str, details: Mapping[str, str]) -> str:
+    gap = details.get("largest_gap_pt", "").strip()
+    gap_clause = f" (about {gap}pt)" if gap else ""
+    if issue_type == "excessive_line_gap":
+        return (
+            f"This means unusually large spacing{gap_clause} was detected between lines "
+            "on this page. Body text should be double-spaced with consistent spacing. "
+            "Review for extra blank lines or manual spacing overrides."
+        )
+    if issue_type == "excessive_paragraph_gap":
+        return (
+            f"This means unusually large spacing{gap_clause} was detected between "
+            "paragraphs on this page. Paragraph spacing should be consistent with "
+            "double-spaced body text. Review for extra blank lines or manual "
+            "paragraph-spacing overrides."
+        )
+    return (
+        f"This means an unusually large blank gap{gap_clause} was detected just before "
+        "a heading on this page. Verify this is intentional heading spacing and not an "
+        "extra blank line or page-break artifact."
+    )
+
+
+def _p068_issue_type_explanation(issue_type: str, details: Mapping[str, str]) -> str:
+    role_label_count = details.get("role_label_count", "").strip() or "0"
+    indicator_count = details.get("signature_date_indicator_count", "").strip() or "0"
+    try:
+        required = str(max(2, int(role_label_count)))
+    except ValueError:
+        required = "2"
+    if issue_type == "approval_page_advisor_role_label_missing":
+        return (
+            f"This means the Approval Page lists {role_label_count} committee role "
+            "label(s), but none of them is a recognizable advisor role label (for "
+            "example, 'Dissertation Advisor' or 'Major Professor'). Add the required "
+            "advisor role label."
+        )
+    return (
+        f"This means the Approval Page has {indicator_count} signature/date line(s) "
+        f"for {role_label_count} committee role label(s), but at least {required} are "
+        "expected. Add a signature line and a date line for each committee member."
+    )
+
+
+def explain_issue_type(
+    rule_id: str, issue_type: str, details: Mapping[str, str] | None = None
+) -> str:
     """Return a student-facing explanation for a (rule_id, issue_type) pair.
 
     Never reproduces dissertation body text. Falls back gracefully for
-    unknown issue types.
+    unknown issue types. When *details* is supplied, P014/P016/P068 use
+    detector-recorded metadata (layout attributes, gap size, label/signature
+    counts) to make the explanation specific instead of generic.
     """
+    safe_details = details or {}
+    if rule_id == "P014":
+        return _p014_issue_type_explanation(safe_details)
+    if rule_id == "P016" and issue_type in {
+        "excessive_line_gap",
+        "excessive_paragraph_gap",
+        "suspicious_heading_blank_gap",
+    }:
+        return _p016_issue_type_explanation(issue_type, safe_details)
+    if rule_id == "P068" and issue_type in {
+        "approval_page_advisor_role_label_missing",
+        "approval_page_signature_blocks_sparse",
+    }:
+        return _p068_issue_type_explanation(issue_type, safe_details)
     explicit = _RULE_ISSUE_EXPLANATIONS.get((rule_id, issue_type))
     if explicit is not None:
         return explicit

@@ -10,6 +10,9 @@ Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
 6. P068 — role/signature count enrichment
 7. P014 — names which heading-layout attribute(s) failed
 8. P019/page-numbering — implausible sequence values get a safe fallback message
+9. P014/P016/P068 — issue_type_explanation and detailed_explanation (the "Read
+   explanation" and "More detail" boxes) now match the polished_comment's
+   metadata-specific wording instead of falling back to generic boilerplate
 """
 
 from __future__ import annotations
@@ -321,3 +324,88 @@ def test_roman_numeral_sequence_is_unaffected_by_plausibility_guard() -> None:
     fv = next(f for f in view.findings if f.rule_id == "P019")
     assert "Observed: ix" in fv.polished_comment
     assert "Expected: viii" in fv.polished_comment
+
+
+# ---------------------------------------------------------------------------
+# 9. P014/P016/P068 — issue_type_explanation and detailed_explanation now
+#    match the polished_comment's metadata-specific wording
+# ---------------------------------------------------------------------------
+
+
+def test_p014_issue_type_explanation_names_failed_attribute() -> None:
+    findings = [_p014_finding(bold="False")]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P014")
+    assert "not bold" in fv.issue_type_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+
+
+def test_p014_detailed_explanation_names_failed_attribute() -> None:
+    findings = [_p014_finding(centered="False")]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P014")
+    assert "not centered" in fv.detailed_explanation
+
+
+def test_p014_explanations_never_quote_blocked_detail_text() -> None:
+    forbidden = "a long confidential dissertation sentence nobody should see"
+    findings = [
+        _p014_finding(bold="False", line_preview=forbidden, observed_summary=forbidden)
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P014")
+    assert forbidden not in fv.issue_type_explanation
+    assert forbidden not in fv.detailed_explanation
+
+
+def test_p014_issue_type_explanation_degrades_gracefully_without_details() -> None:
+    text = explain_issue_type("P014", "")
+    assert "does not match njit's expected layout/style" in text.lower()
+
+
+def test_p016_issue_type_explanation_includes_gap_measurement() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P016",
+            severity=Severity.WARNING,
+            page=6,
+            message="Excessive line gap.",
+            details={"issue_type": "excessive_line_gap", "largest_gap_pt": "37.5"},
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P016")
+    assert "37.5pt" in fv.issue_type_explanation
+    assert "37.5pt" in fv.detailed_explanation
+
+
+def test_p068_issue_type_explanation_includes_counts() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P068",
+            severity=Severity.WARNING,
+            page=3,
+            message="Sparse signature blocks.",
+            details={
+                "issue_type": "approval_page_signature_blocks_sparse",
+                "role_label_count": "4",
+                "signature_date_indicator_count": "2",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P068")
+    assert "4 committee role label" in fv.issue_type_explanation
+    assert "2 signature/date line" in fv.detailed_explanation
+
+
+def test_explain_issue_type_details_param_is_optional_and_backward_compatible() -> None:
+    # Existing call sites across the codebase call explain_issue_type without
+    # `details`; this must keep working for non-P014/P016/P068 rule_ids.
+    text = explain_issue_type("P012", "pdf_annotation_detected")
+    assert "annotation" in text.lower()

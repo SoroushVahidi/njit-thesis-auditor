@@ -369,9 +369,6 @@
         {% else %}{{ panel.rule_id }}{% endif %}
       </span>
       <span class="badge badge-warn">{{ panel.raw_finding_count }} findings</span>
-      {% if panel.triage_tier %}
-      <span class="badge badge-muted">review priority: {{ panel.triage_tier }}</span>
-      {% endif %}
     </div>
     {% if panel.triage_note %}
     <p style="font-size:0.9rem;margin:0 0 0.5rem">{{ panel.triage_note }}</p>
@@ -515,12 +512,6 @@
               {% if problem.is_grouped %}
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
               {% endif %}
-              {% if problem.triage_tier %}
-              <span class="badge badge-muted">review priority: {{ problem.triage_tier }}</span>
-              {% endif %}
-              {% if problem.confidence %}
-              <span class="badge badge-muted">conf: {{ problem.confidence }}</span>
-              {% endif %}
             </div>
           </div>
           {% if problem.affected_compact %}
@@ -588,8 +579,6 @@
                 <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
                 <td class="meta-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
-                  {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
-                  {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
                 </td>
                 <td class="comment-cell">{{ f.polished_comment }}</td>
@@ -677,8 +666,6 @@
             <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
               {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
-              {% if f.triage_tier %}<br>review priority: {{ f.triage_tier }}{% endif %}
-              {% if f.confidence %}<br>conf: {{ f.confidence }}{% endif %}
               {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
             </td>
             <td class="comment-cell">{{ f.polished_comment }}</td>
@@ -717,7 +704,7 @@
 {% endif %}
 
 <div class="privacy-note">
-  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, confidence, review priority).
+  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, and detected layout or measurement details).
   No dissertation body text, titles, author names, committee names, or captions are shown.
   Automated findings require manual verification against NJIT guidelines. Routine page-number candidates in the inventory section are not counted as problems.
 </div>
