@@ -1003,6 +1003,161 @@ def _p047_issue_type_explanation(details: Mapping[str, str]) -> str:
     )
 
 
+_LOT_LOF_SECTION_LABELS: dict[str, str] = {
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+_LOT_LOF_ENTRY_NOUNS: dict[str, str] = {
+    "list_of_tables": "table",
+    "list_of_figures": "figure",
+}
+
+
+def _lot_lof_section_label(details: Mapping[str, str]) -> str:
+    section = details.get("section_type", "").strip()
+    return _LOT_LOF_SECTION_LABELS.get(section, "List of Tables/List of Figures")
+
+
+def _lot_lof_entry_noun(details: Mapping[str, str]) -> str:
+    section = details.get("section_type", "").strip()
+    return _LOT_LOF_ENTRY_NOUNS.get(section, "entry")
+
+
+def _format_points(value: str) -> str:
+    cleaned = value.strip()
+    return f"{cleaned}pt" if cleaned else ""
+
+
+def _font_metadata_clause(details: Mapping[str, str]) -> str:
+    available = details.get("font_metadata_available", "").strip().lower()
+    if available and available != "true":
+        return (
+            " Reliable style information could not be detected for this header, so "
+            "please verify its boldness visually."
+        )
+    return ""
+
+
+def _p031_issue_type_explanation(issue_type: str, details: Mapping[str, str]) -> str:
+    section_label = _lot_lof_section_label(details)
+    expected_left = details.get("expected_left_label", "").strip() or "Table/Figure"
+    expected_page = details.get("expected_page_label", "").strip() or "Page"
+
+    if issue_type == "missing_left_column_header":
+        return (
+            f"This means the {section_label} page appears to be missing the "
+            f"expected '{expected_left}' column header label above the entry "
+            f"numbers. Add a '{expected_left}' column header directly above the "
+            "entry numbers."
+        )
+    if issue_type == "missing_page_column_header":
+        return (
+            f"This means the {section_label} page appears to be missing the "
+            f"expected '{expected_page}' column header label above the "
+            f"page-number column. Add a '{expected_page}' column header directly "
+            "above the page numbers."
+        )
+    observed = _format_points(details.get("observed_x0_pt", ""))
+    if issue_type == "left_column_header_misaligned":
+        expected = _format_points(details.get("expected_left_x_pt", ""))
+        gap_clause = (
+            f" (about {observed} observed vs. an expected position of about "
+            f"{expected})"
+            if observed and expected
+            else ""
+        )
+        return (
+            f"This means the '{expected_left}' column header on the {section_label} "
+            f"page appears far from the entry column it labels{gap_clause}. Align "
+            f"the '{expected_left}' header with the entry numbers below it."
+        )
+    expected = _format_points(details.get("expected_page_x_pt", ""))
+    gap_clause = (
+        f" (about {observed} observed vs. an expected position of about {expected})"
+        if observed and expected
+        else ""
+    )
+    return (
+        f"This means the '{expected_page}' column header on the {section_label} "
+        f"page appears far from the page-number column it labels{gap_clause}. "
+        f"Align the '{expected_page}' header with the page numbers below it."
+    )
+
+
+def _p046_issue_type_explanation(details: Mapping[str, str]) -> str:
+    section_label = _lot_lof_section_label(details)
+    entry_noun = _lot_lof_entry_noun(details)
+    observed_range = _format_points(details.get("observed_x0_range_points", ""))
+    allowed_range = _format_points(details.get("allowed_x0_range_points", ""))
+    range_clause = (
+        f" (entry numbers vary by about {observed_range} from left to right, vs. "
+        f"an allowed variation of about {allowed_range})"
+        if observed_range and allowed_range
+        else ""
+    )
+    return (
+        f"This means {section_label} entry numbers do not appear to be aligned in "
+        f"a single consistent left column{range_clause}. Line up all {entry_noun} "
+        f"numbers in the {section_label} vertically at the same left position."
+    )
+
+
+def _p048_issue_type_explanation(details: Mapping[str, str]) -> str:
+    section_label = _lot_lof_section_label(details)
+    observed = _format_points(details.get("observed_page_number_x", ""))
+    expected = _format_points(details.get("expected_page_number_x", ""))
+    measure_clause = (
+        f" (about {observed} observed vs. an expected position of about {expected})"
+        if observed and expected
+        else ""
+    )
+    return (
+        f"This means page numbers in the {section_label} do not appear to be "
+        f"aligned in a single consistent right column{measure_clause}. Line up all "
+        f"page numbers in the {section_label} vertically at the same right-hand "
+        "position."
+    )
+
+
+def _p049_issue_type_explanation(issue_type: str, details: Mapping[str, str]) -> str:
+    section_label = _lot_lof_section_label(details)
+    if issue_type in {
+        "lot_page_header_not_right_aligned",
+        "lof_page_header_not_right_aligned",
+    }:
+        observed = _format_points(details.get("observed_x", ""))
+        expected = _format_points(details.get("expected_x", ""))
+        measure_clause = (
+            f" (about {observed} observed vs. an expected position of about "
+            f"{expected})"
+            if observed and expected
+            else ""
+        )
+        return (
+            f"This means the 'Page' column header on the {section_label} page does "
+            f"not appear to be right-aligned with the page-number column"
+            f"{measure_clause}. Right-align the 'Page' header directly over the "
+            "page numbers."
+        )
+    verify_clause = _font_metadata_clause(details)
+    return (
+        f"This means the 'Page' column header on the {section_label} page does not "
+        f"appear to be bold.{verify_clause} Format the 'Page' column header in "
+        "bold."
+    )
+
+
+def _p050_issue_type_explanation(details: Mapping[str, str]) -> str:
+    section_label = _lot_lof_section_label(details)
+    header_word = "Table" if _lot_lof_entry_noun(details) == "table" else "Figure"
+    verify_clause = _font_metadata_clause(details)
+    return (
+        f"This means the '{header_word}' column header on the {section_label} page "
+        f"does not appear to be bold.{verify_clause} Format the '{header_word}' "
+        "column header in bold."
+    )
+
+
 def explain_issue_type(
     rule_id: str, issue_type: str, details: Mapping[str, str] | None = None
 ) -> str:
@@ -1044,6 +1199,35 @@ def explain_issue_type(
         return _p045_entry_spacing_issue_type_explanation(safe_details)
     if rule_id == "P047" and issue_type == "biosketch_bullet_section_not_single_spaced":
         return _p047_issue_type_explanation(safe_details)
+    if rule_id == "P031" and issue_type in {
+        "missing_left_column_header",
+        "missing_page_column_header",
+        "left_column_header_misaligned",
+        "page_column_header_misaligned",
+    }:
+        return _p031_issue_type_explanation(issue_type, safe_details)
+    if rule_id == "P046" and issue_type in {
+        "lot_entry_number_column_misaligned",
+        "lof_entry_number_column_misaligned",
+    }:
+        return _p046_issue_type_explanation(safe_details)
+    if rule_id == "P048" and issue_type in {
+        "lot_page_number_column_misaligned",
+        "lof_page_number_column_misaligned",
+    }:
+        return _p048_issue_type_explanation(safe_details)
+    if rule_id == "P049" and issue_type in {
+        "lot_page_header_not_right_aligned",
+        "lof_page_header_not_right_aligned",
+        "lot_page_header_not_bold",
+        "lof_page_header_not_bold",
+    }:
+        return _p049_issue_type_explanation(issue_type, safe_details)
+    if rule_id == "P050" and issue_type in {
+        "lot_table_header_not_bold",
+        "lof_figure_header_not_bold",
+    }:
+        return _p050_issue_type_explanation(safe_details)
     explicit = _RULE_ISSUE_EXPLANATIONS.get((rule_id, issue_type))
     if explicit is not None:
         return explicit
