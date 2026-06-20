@@ -105,11 +105,16 @@ def test_help_contains_grouped_problems_explanation(client: tuple[TestClient, An
     assert "grouped" in body or "repeated-problem" in body
 
 
-def test_help_contains_confidence_explanation(client: tuple[TestClient, Any]) -> None:
+def test_help_omits_confidence_and_review_priority_glossary_entries(
+    client: tuple[TestClient, Any],
+) -> None:
+    """The Confidence/Review priority glossary rows were removed along with the
+    triage badges they described; the help page should not mention them."""
     c, _ = client
     resp = c.get("/help")
     body = resp.text.lower()
-    assert "confidence" in body
+    assert "confidence" not in body
+    assert "review priority" not in body
 
 
 def test_help_results_anchor(client: tuple[TestClient, Any]) -> None:

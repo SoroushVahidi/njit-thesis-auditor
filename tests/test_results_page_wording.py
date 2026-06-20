@@ -206,16 +206,18 @@ def test_tier_informational_badge_not_in_results(
     assert "tier:informational" not in body
 
 
-def test_tier_label_replaced_with_review_priority(
+def test_review_priority_badge_removed_from_results(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
+    """The raw "review priority: ..." badge was removed entirely (not just
+    reworded) since it leaked an internal triage concept students can't act on."""
     c, wa = client
     job_id = _inject_job_with_triage(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text.lower()
-    # When triage_tier is present it should now appear as "review priority: informational"
-    assert "review priority: informational" in body
+    assert "review priority:" not in body
+    assert "conf:" not in body
 
 
 # ---------------------------------------------------------------------------

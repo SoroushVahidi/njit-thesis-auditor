@@ -244,6 +244,14 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Set the paragraph line spacing to 'Double' in Word, or use the equivalent "
         "setting in your editor."
     ),
+    # --- P014 named front-matter heading style ---
+    # P014 never sets issue_type, so this is keyed on the empty string. Text here
+    # is a registry placeholder for build_group_explanation; _build_explanation_text
+    # always intercepts P014 via _p014_heading_explanation before reaching this dict.
+    ("P014", ""): (
+        "A named front-matter heading does not match NJIT's expected layout/style "
+        "(centered, near the top of the page, bold, and in all capital letters)."
+    ),
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on this page. "
@@ -973,6 +981,88 @@ def _p026_font_explanation(
     )
 
 
+_P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
+    ("centered", "centered"),
+    ("near_top", "near the top of the page"),
+    ("bold", "bold"),
+    ("all_caps", "in all capital letters"),
+)
+
+
+def _p014_heading_explanation(details: dict[str, str], *, page: int | None) -> str:
+    heading = details.get("heading", "").strip()
+    heading_clause = f" ('{heading}')" if heading else ""
+    failed_labels = [
+        label
+        for key, label in _P014_ATTRIBUTE_LABELS
+        if details.get(key, "").strip().lower() == "false"
+    ]
+    if failed_labels:
+        observed = (
+            f"This front-matter heading{heading_clause} is "
+            + ", ".join(f"not {label}" for label in failed_labels)
+        )
+    else:
+        observed = (
+            f"This front-matter heading{heading_clause} does not match NJIT's "
+            "expected layout/style"
+        )
+    return (
+        f"{observed}. NJIT requires named front-matter headings (such as ABSTRACT "
+        "or APPROVAL PAGE) to be centered near the top of the page, in bold, and in "
+        "all capital letters. Review the heading's formatting and correct any "
+        "attributes that do not match."
+    )
+
+
+def _p016_spacing_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    gap = details.get("largest_gap_pt", "").strip()
+    gap_clause = f" (about {gap}pt)" if gap else ""
+    if issue_type == "excessive_line_gap":
+        return (
+            f"Unusually large spacing{gap_clause} was detected between lines on this "
+            "page. Body text should be double-spaced with consistent spacing. "
+            "Review for extra blank lines or manual spacing overrides."
+        )
+    if issue_type == "excessive_paragraph_gap":
+        return (
+            f"Unusually large spacing{gap_clause} was detected between paragraphs on "
+            "this page. Paragraph spacing should be consistent with double-spaced "
+            "body text. Review for extra blank lines or manual paragraph-spacing "
+            "overrides."
+        )
+    return (
+        f"An unusually large blank gap{gap_clause} was detected just before a "
+        "heading on this page. Verify this is intentional heading spacing and not "
+        "an extra blank line or page-break artifact."
+    )
+
+
+def _p068_approval_page_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    role_label_count = details.get("role_label_count", "").strip() or "0"
+    indicator_count = details.get("signature_date_indicator_count", "").strip() or "0"
+    try:
+        required = str(max(2, int(role_label_count)))
+    except ValueError:
+        required = "2"
+    if issue_type == "approval_page_advisor_role_label_missing":
+        return (
+            f"The Approval Page lists {role_label_count} committee role label(s), "
+            "but none of them is a recognizable advisor role label (for example, "
+            "'Dissertation Advisor' or 'Major Professor'). Add the required advisor "
+            "role label."
+        )
+    return (
+        f"The Approval Page has {indicator_count} signature/date line(s) for "
+        f"{role_label_count} committee role label(s), but at least {required} are "
+        "expected. Add a signature line and a date line for each committee member."
+    )
+
+
 def build_detailed_explanation(
     *,
     rule_id: str,
@@ -1024,6 +1114,19 @@ def _build_explanation_text(
         "possible_body_font_size_issue",
     }:
         return _p026_font_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P014":
+        return _p014_heading_explanation(details, page=page)
+    if rule_id == "P016" and effective_issue_type in {
+        "excessive_line_gap",
+        "excessive_paragraph_gap",
+        "suspicious_heading_blank_gap",
+    }:
+        return _p016_spacing_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P068" and effective_issue_type in {
+        "approval_page_advisor_role_label_missing",
+        "approval_page_signature_blocks_sparse",
+    }:
+        return _p068_approval_page_explanation(effective_issue_type, details, page=page)
     template = _EXPLANATION_TEMPLATES.get((rule_id, effective_issue_type))
 
     if template is not None:
