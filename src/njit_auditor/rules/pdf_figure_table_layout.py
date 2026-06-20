@@ -147,7 +147,7 @@ def _find_caption_line_bbox(page: PdfPage, caption: CaptionLine) -> BBox | None:
 
 
 def _candidate_body_blocks(
-    page: PdfPage, caption_bbox: BBox
+    page: PdfPage, caption_bbox: BBox, *, allow_multiline: bool = False
 ) -> tuple[list[PdfTextBlock], list[PdfTextBlock]]:
     above: list[PdfTextBlock] = []
     below: list[PdfTextBlock] = []
@@ -158,7 +158,9 @@ def _candidate_body_blocks(
             continue
         if _block_in_margin_zone(page, block):
             continue
-        if len(block.lines) != 1 or not block.text.strip():
+        if not block.text.strip():
+            continue
+        if not allow_multiline and len(block.lines) != 1:
             continue
         gap_above = caption_bbox.y0 - block.bbox.y1
         gap_below = block.bbox.y0 - caption_bbox.y1
@@ -234,9 +236,15 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             continue
 
         float_number = _extract_float_number(caption.raw_text)
-        above, below = _candidate_body_blocks(page, caption_bbox)
 
         if caption.caption_type == "table":
+            # Real table rows are commonly extracted as one multi-line text
+            # block (tight, single-spaced row pitch), unlike loose caption-
+            # adjacent text. Only the expected (below-caption) side allows
+            # multi-line blocks so an ordinary paragraph above the caption
+            # still can't masquerade as a misplaced table body.
+            _, below = _candidate_body_blocks(page, caption_bbox, allow_multiline=True)
+            above, _ = _candidate_body_blocks(page, caption_bbox)
             primary = _select_body_cluster(below)
             wrong_side = _select_body_cluster(above)
             if primary is None and wrong_side is None:
@@ -265,6 +273,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 )
             continue
 
+        above, below = _candidate_body_blocks(page, caption_bbox)
         primary = _select_body_cluster(above)
         wrong_side = _select_body_cluster(below)
         if primary is None and wrong_side is None:
