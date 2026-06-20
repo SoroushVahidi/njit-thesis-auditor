@@ -1063,6 +1063,95 @@ def _p068_approval_page_explanation(
     )
 
 
+_P032_ENTRY_KIND_LABELS: dict[str, str] = {
+    "table_entry": "List of Tables entry",
+    "figure_entry": "List of Figures entry",
+    "toc_level_1": "Table of Contents chapter/appendix entry",
+    "toc_level_2": "Table of Contents entry",
+    "toc_level_3": "Table of Contents sub-entry",
+}
+
+
+def _p032_spacing_explanation(details: dict[str, str], *, page: int | None) -> str:
+    entry_label = _P032_ENTRY_KIND_LABELS.get(details.get("entry_kind", ""), "list entry")
+    observed_gap = details.get("observed_gap_pt", "").strip()
+    expected_gap = details.get("expected_max_gap_pt", "").strip()
+    gap_clause = (
+        f" (about {observed_gap}pt, versus an expected maximum of about "
+        f"{expected_gap}pt)"
+        if observed_gap and expected_gap
+        else ""
+    )
+    return (
+        f"A wrapped (continuation) line in a {entry_label} has an unusually large "
+        f"internal gap{gap_clause}. Continuation lines that belong to the same "
+        "entry should sit close together on the next line, not with extra blank "
+        "space. Review the entry and remove any extra spacing within it."
+    )
+
+
+def _p056_format_counts(details: dict[str, str]) -> tuple[str, str]:
+    """Parse P056's 'chapter_based:N,sequential:M' details string into (N, M)."""
+    counts: dict[str, str] = {}
+    for part in details.get("format_counts", "").split(","):
+        key, _, value = part.partition(":")
+        if key.strip():
+            counts[key.strip()] = value.strip()
+    return counts.get("chapter_based", "0"), counts.get("sequential", "0")
+
+
+def _p056_numbering_format_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    noun = "Table" if issue_type == "lot_mixed_numbering_format" else "Figure"
+    section_label = (
+        "List of Tables" if issue_type == "lot_mixed_numbering_format" else "List of Figures"
+    )
+    chapter_count, sequential_count = _p056_format_counts(details)
+    dominant = details.get("dominant_format", "").strip()
+    dominant_clause = ""
+    if dominant == "chapter_based":
+        dominant_clause = f" The more common format here is chapter-based (e.g., {noun} 1.2)."
+    elif dominant == "sequential":
+        dominant_clause = f" The more common format here is sequential (e.g., {noun} 3)."
+    return (
+        f"The {section_label} mixes {chapter_count} chapter-based (e.g., {noun} 1.2) "
+        f"and {sequential_count} sequential (e.g., {noun} 3) entry-numbering "
+        f"formats.{dominant_clause} NJIT expects one consistent numbering format "
+        "throughout this list. Choose one format and apply it to every entry."
+    )
+
+
+def _p066_degree_order_explanation(details: dict[str, str], *, page: int | None) -> str:
+    first_year = details.get("first_candidate_year", "").strip() or "an earlier year"
+    last_year = details.get("last_candidate_year", "").strip() or "a later year"
+    inversion_count = details.get("inversion_count", "").strip() or "at least one"
+    place_noun = "place" if inversion_count == "1" else "places"
+    return (
+        "Postgraduate degree entries on the Biographical Sketch page appear out of "
+        "order: the candidate years found (in listed order) run from "
+        f"{first_year} to {last_year}, with {inversion_count} {place_noun} where a "
+        "later-listed entry's year is more recent than the entry just before it. "
+        "NJIT requires postgraduate degrees to be listed from most recent to "
+        "oldest. Reorder the entries."
+    )
+
+
+def _p067_publication_order_explanation(details: dict[str, str], *, page: int | None) -> str:
+    first_year = details.get("first_entry_year", "").strip() or "an earlier year"
+    last_year = details.get("last_entry_year", "").strip() or "a later year"
+    inversion_count = details.get("inversion_count", "").strip() or "at least one"
+    place_noun = "place" if inversion_count == "1" else "places"
+    return (
+        "Publication/presentation entries on the Biographical Sketch page appear "
+        "out of order: the comparable entry years found (in listed order) run from "
+        f"{first_year} to {last_year}, with {inversion_count} {place_noun} where a "
+        "later-listed entry's year is more recent than the entry just before it. "
+        "NJIT requires publications/presentations to be listed from most recent to "
+        "oldest. Reorder the entries."
+    )
+
+
 def build_detailed_explanation(
     *,
     rule_id: str,
@@ -1127,6 +1216,17 @@ def _build_explanation_text(
         "approval_page_signature_blocks_sparse",
     }:
         return _p068_approval_page_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P032" and effective_issue_type == "wrapped_entry_internal_spacing":
+        return _p032_spacing_explanation(details, page=page)
+    if rule_id == "P056" and effective_issue_type in {
+        "lot_mixed_numbering_format",
+        "lof_mixed_numbering_format",
+    }:
+        return _p056_numbering_format_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P066" and effective_issue_type == "biosketch_degree_order_suspicious":
+        return _p066_degree_order_explanation(details, page=page)
+    if rule_id == "P067" and effective_issue_type == "biosketch_publication_order_suspicious":
+        return _p067_publication_order_explanation(details, page=page)
     template = _EXPLANATION_TEMPLATES.get((rule_id, effective_issue_type))
 
     if template is not None:
