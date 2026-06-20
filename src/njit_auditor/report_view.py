@@ -20,7 +20,12 @@ from njit_auditor.pdf_highlight import (
     is_drawable_bbox,
     sub_page_location_label,
 )
-from njit_auditor.polished_comments import build_polished_comment, sanitize_suggested_fix_for_web
+from njit_auditor.polished_comments import (
+    build_polished_comment,
+    sanitize_suggested_fix_for_web,
+    title_case_reason_short_label,
+    title_case_subject_label,
+)
 from njit_auditor.report_outputs import (
     _source_location_basename,
     format_source_location,
@@ -339,20 +344,32 @@ def _margin_side_label(side: str) -> str:
     return labels.get(side.strip().lower(), "required page margin")
 
 
-def _margin_observed_phrase(details: Mapping[str, str]) -> str:
-    side = _margin_side_label(details.get("side", ""))
+def _margin_overflow_extras(details: Mapping[str, str]) -> list[str]:
     overflow = details.get("worst_overflow_pt", "").strip()
     line_count = details.get("affected_line_count", "").strip()
-    if side == "required page margin":
-        base = "Some content appears too close to or beyond a required page margin"
-    else:
-        base = f"Content appears to cross the required {side} boundary"
     extras: list[str] = []
     if overflow:
         extras.append(f"about {overflow}pt beyond the boundary")
     if line_count:
         noun = "line" if line_count == "1" else "lines"
         extras.append(f"across {line_count} text {noun}")
+    return extras
+
+
+def _margin_overflow_detail_phrase(details: Mapping[str, str]) -> str:
+    extras = _margin_overflow_extras(details)
+    if not extras:
+        return ""
+    return f" ({'; '.join(extras)})"
+
+
+def _margin_observed_phrase(details: Mapping[str, str]) -> str:
+    side = _margin_side_label(details.get("side", ""))
+    if side == "required page margin":
+        base = "Some content appears too close to or beyond a required page margin"
+    else:
+        base = f"Content appears to cross the required {side} boundary"
+    extras = _margin_overflow_extras(details)
     if not extras:
         return base
     return f"{base} ({'; '.join(extras)})"
@@ -431,12 +448,13 @@ def _margin_comment_and_fix(
             "tables, figures, long lines, indentation, headers, and footers on this page."
         )
         return comment, fix
+    overflow_detail = _margin_overflow_detail_phrase(details)
     comment = (
         "Review needed: "
         f"{prefix}: Content on page {page_label} appears to cross the required {side} "
-        "boundary. NJIT formatting expects body content to remain inside the required "
-        "page margins. Review the highlighted area if available, or inspect tables, "
-        "figures, long lines, indentation, headers, and footers on this page."
+        f"boundary{overflow_detail}. NJIT formatting expects body content to remain inside "
+        "the required page margins. Review the highlighted area if available, or inspect "
+        "tables, figures, long lines, indentation, headers, and footers on this page."
     )
     fix = (
         f"Move the flagged content back inside the required {side} and correct any "
@@ -967,6 +985,213 @@ def _apply_font_presentation(
     )
 
 
+def _title_case_issue_label(details: Mapping[str, str]) -> str:
+    subject = title_case_subject_label(details.get("source", ""))
+    reason_label = title_case_reason_short_label(details.get("expected_or_reason", ""))
+    return f"Possible title-case issue ({subject}, {reason_label})"
+
+
+def _apply_title_case_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    if finding.rule_id != "P020" or finding.issue_type != "possible_title_capitalization_issue":
+        return finding, True
+    return replace(finding, issue_type_label=_title_case_issue_label(details)), True
+
+
+_P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(
+    {
+        "toc_inter_entry_spacing_too_tight",
+        "lot_inter_entry_spacing_too_tight",
+        "lof_inter_entry_spacing_too_tight",
+    }
+)
+_P036_SECTION_LABELS: dict[str, str] = {
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+
+
+def _p036_entry_pair_label(details: Mapping[str, str]) -> str:
+    try:
+        index = int(details.get("entry_pair_index", "").strip())
+    except ValueError:
+        return "two consecutive entries"
+    return f"entries {index + 1}-{index + 2}"
+
+
+def _p036_spacing_detail_phrase(details: Mapping[str, str]) -> str:
+    gap_points = details.get("gap_points", "").strip()
+    required_gap_points = details.get("required_gap_points", "").strip()
+    gap_ratio = details.get("gap_ratio", "").strip()
+    extras: list[str] = []
+    if gap_points:
+        extras.append(f"observed gap {gap_points}pt")
+    if required_gap_points:
+        extras.append(f"expected at least {required_gap_points}pt")
+    if gap_ratio:
+        extras.append(f"about {gap_ratio}x the expected spacing")
+    if not extras:
+        return ""
+    return f" ({'; '.join(extras)})"
+
+
+def _apply_spacing_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Distinguish same-page P036 occurrences by entry pair and gap metrics.
+
+    This only overrides the display comment after grouping has already been
+    computed upstream (on the generic, pair-independent comment), so repeated
+    same-page occurrences still collapse into one grouped card; only the
+    per-occurrence text shown when expanded differs.
+    """
+    if finding.rule_id != "P036" or finding.issue_type not in _P036_SPACING_ISSUE_TYPES:
+        return finding, True
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
+    pair_label = _p036_entry_pair_label(details)
+    detail_phrase = _p036_spacing_detail_phrase(details)
+    comment = (
+        f"Likely problem: The spacing between {pair_label} of the {section_label} on "
+        f"page {page_label} appears tighter than expected{detail_phrase}. NJIT expects "
+        "consistent, comfortably readable spacing between consecutive entries. "
+        "Increase the spacing between these entries to match the rest of the list."
+    )
+    return replace(finding, polished_comment=comment), True
+
+
+_P035_FLOAT_ISSUE_LABELS: dict[str, str] = {
+    "table_caption_not_above_body": (
+        "Likely problem: A table caption on page {page}{float_clause} does not "
+        "appear above the table body. NJIT expects table captions to appear above the table."
+    ),
+    "figure_caption_not_below_body": (
+        "Likely problem: A figure caption on page {page}{float_clause} does not "
+        "appear below the figure body. NJIT expects figure captions to appear below the figure."
+    ),
+    "table_body_not_centered": (
+        "Likely problem: A table body block on page {page}{float_clause} does not "
+        "appear centered within the text area. Center the table within the page margins."
+    ),
+    "figure_body_not_centered": (
+        "Likely problem: A figure body block on page {page}{float_clause} does not "
+        "appear centered within the text area. Center the figure within the page margins."
+    ),
+}
+_P035_TABLE_ISSUE_TYPES: frozenset[str] = frozenset(
+    {"table_caption_not_above_body", "table_body_not_centered"}
+)
+
+
+def _apply_float_layout_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Distinguish P035 occurrences by the affected table/figure number.
+
+    Overrides only the display comment after grouping has already been
+    computed upstream (on the float-number-independent comment).
+    """
+    template = _P035_FLOAT_ISSUE_LABELS.get(finding.issue_type)
+    if finding.rule_id != "P035" or template is None:
+        return finding, True
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    float_number = details.get("float_number", "").strip()
+    if float_number:
+        noun = "Table" if finding.issue_type in _P035_TABLE_ISSUE_TYPES else "Figure"
+        float_clause = f" for {noun} {float_number}"
+    else:
+        float_clause = ""
+    comment = template.format(page=page_label, float_clause=float_clause)
+    return replace(finding, polished_comment=comment), True
+
+
+def _apply_lof_punctuation_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Distinguish same-page P040 occurrences by the affected entry's index.
+
+    Overrides only the display comment after grouping has already been
+    computed upstream (on the entry-index-independent comment).
+    """
+    if finding.rule_id != "P040" or finding.issue_type != "lof_entry_missing_terminal_punctuation":
+        return finding, True
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    raw_index = details.get("entry_index", "").strip()
+    try:
+        entry_clause = f" (entry #{int(raw_index) + 1})"
+    except ValueError:
+        entry_clause = ""
+    comment = (
+        f"Problem: A List of Figures entry{entry_clause} on page {page_label} appears "
+        "to be missing terminal punctuation. Every figure description in the List of "
+        "Figures should end with a period, question mark, or exclamation point."
+    )
+    return replace(finding, polished_comment=comment), True
+
+
+_P018_ENTRY_TEMPLATES: dict[str, str] = {
+    "misaligned_page_number_column": (
+        "Likely problem: On page {page}{count_clause}, a TOC, List of Tables, or List "
+        "of Figures entry has a page-number column that does not align with the "
+        "dominant column on this list page. Align entry page numbers to the same "
+        "right-hand column throughout the list."
+    ),
+    "missing_page_number": (
+        "Likely problem: On page {page}{count_clause}, a TOC, List of Tables, or List "
+        "of Figures entry appears to be missing its trailing page number. Add the "
+        "missing page number for this entry."
+    ),
+    "inconsistent_leader_dots": (
+        "Likely problem: On page {page}{count_clause}, leader dots or spacing before "
+        "page numbers are inconsistent with the dominant style on this list page. Use "
+        "consistent leader-dot spacing between entry text and page numbers."
+    ),
+    "inconsistent_hierarchy_indent": (
+        "Likely problem: On page {page}{count_clause}, entry indentation does not "
+        "match the expected hierarchy level for this TOC or list page. Adjust "
+        "indentation so chapter, section, and subsection entries visually reflect "
+        "their level."
+    ),
+}
+
+
+def _p018_count_clause(details: Mapping[str, str]) -> str:
+    count = details.get("affected_entry_count", "").strip()
+    delta = details.get("worst_delta_pt", "").strip()
+    extras: list[str] = []
+    if count:
+        noun = "entry" if count == "1" else "entries"
+        extras.append(f"{count} {noun} affected")
+    if delta:
+        extras.append(f"worst offset about {delta}pt")
+    if not extras:
+        return ""
+    return f" ({'; '.join(extras)})"
+
+
+def _apply_toc_alignment_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Surface P018's per-page affected entry count and worst offset.
+
+    Overrides only the display comment after grouping has already been
+    computed upstream (on the count/offset-independent comment).
+    """
+    template = _P018_ENTRY_TEMPLATES.get(finding.issue_type)
+    if finding.rule_id != "P018" or template is None:
+        return finding, True
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    comment = template.format(page=page_label, count_clause=_p018_count_clause(details))
+    return replace(finding, polished_comment=comment), True
+
+
 def build_report_view(
     report: Mapping[str, Any],
     *,
@@ -1020,6 +1245,16 @@ def build_report_view(
             visible_view, is_problem = _apply_margin_presentation(visible_view, details)
         elif visible_view.rule_id == "P026":
             visible_view, is_problem = _apply_font_presentation(visible_view, details)
+        elif visible_view.rule_id == "P020":
+            visible_view, is_problem = _apply_title_case_presentation(visible_view, details)
+        elif visible_view.rule_id == "P036":
+            visible_view, is_problem = _apply_spacing_presentation(visible_view, details)
+        elif visible_view.rule_id == "P035":
+            visible_view, is_problem = _apply_float_layout_presentation(visible_view, details)
+        elif visible_view.rule_id == "P040":
+            visible_view, is_problem = _apply_lof_punctuation_presentation(visible_view, details)
+        elif visible_view.rule_id == "P018":
+            visible_view, is_problem = _apply_toc_alignment_presentation(visible_view, details)
         if is_problem:
             visible_indexes.add(index)
             visible_view_by_index[index] = visible_view
