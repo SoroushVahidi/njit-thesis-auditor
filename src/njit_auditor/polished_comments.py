@@ -1259,6 +1259,175 @@ def _p047_bullet_spacing_comment(*, page: int | None, details: dict[str, str]) -
     )
 
 
+_LOT_LOF_SECTION_LABELS: dict[str, str] = {
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+_LOT_LOF_ENTRY_NOUNS: dict[str, str] = {
+    "list_of_tables": "table",
+    "list_of_figures": "figure",
+}
+
+
+def _lot_lof_section_label(details: dict[str, str]) -> str:
+    section = details.get("section_type", "").strip()
+    return _LOT_LOF_SECTION_LABELS.get(section, "List of Tables/List of Figures")
+
+
+def _lot_lof_entry_noun(details: dict[str, str]) -> str:
+    section = details.get("section_type", "").strip()
+    return _LOT_LOF_ENTRY_NOUNS.get(section, "entry")
+
+
+def _format_points(value: str) -> str:
+    cleaned = value.strip()
+    return f"{cleaned}pt" if cleaned else ""
+
+
+def _font_metadata_clause(details: dict[str, str]) -> str:
+    available = details.get("font_metadata_available", "").strip().lower()
+    if available and available != "true":
+        return (
+            " Reliable style information could not be detected for this header, so "
+            "please verify its boldness visually."
+        )
+    return ""
+
+
+def _p031_column_header_comment(
+    issue_type: str, *, page: int | None, details: dict[str, str]
+) -> str:
+    page_label = _safe_page_label(page)
+    section_label = _lot_lof_section_label(details)
+    expected_left = details.get("expected_left_label", "").strip() or "Table/Figure"
+    expected_page = details.get("expected_page_label", "").strip() or "Page"
+
+    if issue_type == "missing_left_column_header":
+        return (
+            f"Likely problem: The {section_label} page (page {page_label}) appears "
+            f"to be missing the expected '{expected_left}' column header label. "
+            f"NJIT requires a '{expected_left}' column header directly above the "
+            "entry numbers."
+        )
+    if issue_type == "missing_page_column_header":
+        return (
+            f"Likely problem: The {section_label} page (page {page_label}) appears "
+            f"to be missing the expected '{expected_page}' column header label. "
+            f"NJIT requires a '{expected_page}' column header directly above the "
+            "page-number column."
+        )
+    observed = _format_points(details.get("observed_x0_pt", ""))
+    if issue_type == "left_column_header_misaligned":
+        expected = _format_points(details.get("expected_left_x_pt", ""))
+        gap_clause = (
+            f" (observed at about {observed} from the left margin, versus an "
+            f"expected position of about {expected})"
+            if observed and expected
+            else ""
+        )
+        return (
+            f"Likely problem: The '{expected_left}' column header on the "
+            f"{section_label} page (page {page_label}) appears far from the entry "
+            f"column it labels{gap_clause}. NJIT requires the '{expected_left}' "
+            "header to line up with the entry numbers below it."
+        )
+    expected = _format_points(details.get("expected_page_x_pt", ""))
+    gap_clause = (
+        f" (observed at about {observed} from the left margin, versus an "
+        f"expected position of about {expected})"
+        if observed and expected
+        else ""
+    )
+    return (
+        f"Likely problem: The '{expected_page}' column header on the "
+        f"{section_label} page (page {page_label}) appears far from the "
+        f"page-number column it labels{gap_clause}. NJIT requires the "
+        f"'{expected_page}' header to line up with the page numbers below it."
+    )
+
+
+def _p046_entry_alignment_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    section_label = _lot_lof_section_label(details)
+    entry_noun = _lot_lof_entry_noun(details)
+    observed_range = _format_points(details.get("observed_x0_range_points", ""))
+    allowed_range = _format_points(details.get("allowed_x0_range_points", ""))
+    range_clause = (
+        f" — entry numbers vary by about {observed_range} from left to right, "
+        f"versus an allowed variation of about {allowed_range}"
+        if observed_range and allowed_range
+        else ""
+    )
+    return (
+        f"Likely problem: {section_label} entry numbers on page {page_label} do not "
+        f"appear to be aligned in a single consistent left column{range_clause}. "
+        f"NJIT requires all {entry_noun} numbers in the {section_label} to line up "
+        "vertically at the same left position."
+    )
+
+
+def _p048_page_number_alignment_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    section_label = _lot_lof_section_label(details)
+    observed = _format_points(details.get("observed_page_number_x", ""))
+    expected = _format_points(details.get("expected_page_number_x", ""))
+    measure_clause = (
+        f" (observed at about {observed} from the left, versus an expected "
+        f"position of about {expected})"
+        if observed and expected
+        else ""
+    )
+    return (
+        f"Likely problem: Page numbers in the {section_label} (page {page_label}) "
+        f"do not appear to be aligned in a single consistent right column"
+        f"{measure_clause}. NJIT requires all page numbers in the {section_label} "
+        "to line up vertically at the same right-hand position."
+    )
+
+
+def _p049_page_header_style_comment(
+    issue_type: str, *, page: int | None, details: dict[str, str]
+) -> str:
+    page_label = _safe_page_label(page)
+    section_label = _lot_lof_section_label(details)
+    if issue_type in {
+        "lot_page_header_not_right_aligned",
+        "lof_page_header_not_right_aligned",
+    }:
+        observed = _format_points(details.get("observed_x", ""))
+        expected = _format_points(details.get("expected_x", ""))
+        measure_clause = (
+            f" (observed at about {observed} from the left, versus an expected "
+            f"position of about {expected})"
+            if observed and expected
+            else ""
+        )
+        return (
+            f"Likely problem: The 'Page' column header on the {section_label} page "
+            f"(page {page_label}) does not appear to be right-aligned with the "
+            f"page-number column{measure_clause}. NJIT requires the 'Page' header to "
+            "be right-aligned directly over the page numbers."
+        )
+    verify_clause = _font_metadata_clause(details)
+    return (
+        f"Likely problem: The 'Page' column header on the {section_label} page "
+        f"(page {page_label}) does not appear to be bold.{verify_clause} NJIT "
+        "requires the 'Page' column header to be formatted in bold."
+    )
+
+
+def _p050_left_bold_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    section_label = _lot_lof_section_label(details)
+    header_word = "Table" if _lot_lof_entry_noun(details) == "table" else "Figure"
+    verify_clause = _font_metadata_clause(details)
+    return (
+        f"Likely problem: The '{header_word}' column header on the {section_label} "
+        f"page (page {page_label}) does not appear to be bold.{verify_clause} NJIT "
+        f"requires the '{header_word}' column header to be formatted in bold."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -1338,6 +1507,45 @@ def build_polished_comment(
 
     if rule_id == "P047" and issue == "biosketch_bullet_section_not_single_spaced":
         body = _p047_bullet_spacing_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P031" and issue in {
+        "missing_left_column_header",
+        "missing_page_column_header",
+        "left_column_header_misaligned",
+        "page_column_header_misaligned",
+    }:
+        body = _p031_column_header_comment(issue, page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P046" and issue in {
+        "lot_entry_number_column_misaligned",
+        "lof_entry_number_column_misaligned",
+    }:
+        body = _p046_entry_alignment_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P048" and issue in {
+        "lot_page_number_column_misaligned",
+        "lof_page_number_column_misaligned",
+    }:
+        body = _p048_page_number_alignment_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P049" and issue in {
+        "lot_page_header_not_right_aligned",
+        "lof_page_header_not_right_aligned",
+        "lot_page_header_not_bold",
+        "lof_page_header_not_bold",
+    }:
+        body = _p049_page_header_style_comment(issue, page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P050" and issue in {
+        "lot_table_header_not_bold",
+        "lof_figure_header_not_bold",
+    }:
+        body = _p050_left_bold_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))

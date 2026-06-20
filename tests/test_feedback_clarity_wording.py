@@ -20,6 +20,10 @@ Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
     metadata-specific polished comments, issue_type_explanations, and
     detailed_explanations instead of falling through to generic catch-all
     wording
+12. P031/P046/P048/P049/P050 — LoT/LoF column-header and alignment rules
+    gain metadata-specific polished comments, issue_type_explanations, and
+    detailed_explanations instead of falling through to generic catch-all
+    wording
 """
 
 from __future__ import annotations
@@ -777,6 +781,463 @@ def test_p045_and_p047_wording_never_leak_unrelated_detail_text() -> None:
         },
     )
     for comment in (p045_comment, p047_comment):
+        assert forbidden not in comment
+        assert "/home/" not in comment
+        assert "Traceback" not in comment
+        assert ".tex" not in comment
+        assert "\\begin" not in comment
+
+
+# ---------------------------------------------------------------------------
+# 12. P031/P046/P048/P049/P050 — LoT/LoF column-header & alignment
+#     explanations
+# ---------------------------------------------------------------------------
+
+
+def test_p031_missing_left_header_comment_names_expected_label() -> None:
+    comment = build_polished_comment(
+        rule_id="P031",
+        issue_type="missing_left_column_header",
+        page=30,
+        details={
+            "expected_left_label": "Table",
+            "expected_page_label": "Page",
+            "section_type": "list_of_tables",
+            "observed_header_labels": "Page",
+            "confidence": "high",
+        },
+    )
+    assert "List of Tables" in comment
+    assert "'Table' column header" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p031_missing_page_header_comment_names_expected_label() -> None:
+    comment = build_polished_comment(
+        rule_id="P031",
+        issue_type="missing_page_column_header",
+        page=30,
+        details={
+            "expected_left_label": "Figure",
+            "expected_page_label": "Page",
+            "section_type": "list_of_figures",
+            "observed_header_labels": "Figure",
+            "confidence": "high",
+        },
+    )
+    assert "List of Figures" in comment
+    assert "'Page' column header" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p031_left_header_misaligned_comment_includes_position_metadata() -> None:
+    comment = build_polished_comment(
+        rule_id="P031",
+        issue_type="left_column_header_misaligned",
+        page=30,
+        details={
+            "expected_left_label": "Table",
+            "expected_page_label": "Page",
+            "section_type": "list_of_tables",
+            "observed_x0_pt": "210.0",
+            "expected_left_x_pt": "72.0",
+            "confidence": "medium",
+        },
+    )
+    assert "210.0pt" in comment
+    assert "72.0pt" in comment
+    assert "'Table'" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p031_page_header_misaligned_comment_includes_position_metadata() -> None:
+    comment = build_polished_comment(
+        rule_id="P031",
+        issue_type="page_column_header_misaligned",
+        page=30,
+        details={
+            "expected_left_label": "Figure",
+            "expected_page_label": "Page",
+            "section_type": "list_of_figures",
+            "observed_x0_pt": "400.0",
+            "expected_page_x_pt": "500.0",
+            "confidence": "medium",
+        },
+    )
+    assert "400.0pt" in comment
+    assert "500.0pt" in comment
+    assert "'Page'" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p046_comment_includes_observed_and_allowed_range() -> None:
+    comment = build_polished_comment(
+        rule_id="P046",
+        issue_type="lot_entry_number_column_misaligned",
+        page=31,
+        details={
+            "section_type": "list_of_tables",
+            "entry_count": "8",
+            "observed_x0_range_points": "12.5",
+            "expected_x0": "72.0",
+            "observed_x0_max": "84.5",
+            "allowed_x0_range_points": "6.0",
+        },
+    )
+    assert "List of Tables" in comment
+    assert "12.5pt" in comment
+    assert "6.0pt" in comment
+    assert "table numbers" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p048_comment_includes_observed_and_expected_position() -> None:
+    comment = build_polished_comment(
+        rule_id="P048",
+        issue_type="lof_page_number_column_misaligned",
+        page=32,
+        details={
+            "section_type": "list_of_figures",
+            "entry_index": "4",
+            "observed_page_number_x": "470.0",
+            "expected_page_number_x": "500.0",
+            "x_delta_points": "30.0",
+            "allowed_delta_points": "10.0",
+        },
+    )
+    assert "List of Figures" in comment
+    assert "470.0pt" in comment
+    assert "500.0pt" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p049_right_alignment_comment_includes_position_metadata() -> None:
+    comment = build_polished_comment(
+        rule_id="P049",
+        issue_type="lot_page_header_not_right_aligned",
+        page=33,
+        details={
+            "section_type": "list_of_tables",
+            "column_type": "page",
+            "observed_x": "470.0",
+            "expected_x": "500.0",
+            "x_delta_points": "30.0",
+            "allowed_delta_points": "25.0",
+        },
+    )
+    assert "right-aligned" in comment
+    assert "470.0pt" in comment
+    assert "500.0pt" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p049_bold_comment_does_not_require_position_metadata() -> None:
+    comment = build_polished_comment(
+        rule_id="P049",
+        issue_type="lof_page_header_not_bold",
+        page=33,
+        details={
+            "section_type": "list_of_figures",
+            "column_type": "page",
+            "entry_count": "5",
+        },
+    )
+    assert "bold" in comment
+    assert "'Page'" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p050_comment_names_left_header_word_per_section() -> None:
+    lot_comment = build_polished_comment(
+        rule_id="P050",
+        issue_type="lot_table_header_not_bold",
+        page=34,
+        details={
+            "section_type": "list_of_tables",
+            "column_type": "left",
+            "style_signal": "font_metadata",
+            "font_metadata_available": "true",
+        },
+    )
+    lof_comment = build_polished_comment(
+        rule_id="P050",
+        issue_type="lof_figure_header_not_bold",
+        page=34,
+        details={
+            "section_type": "list_of_figures",
+            "column_type": "left",
+            "style_signal": "font_metadata",
+            "font_metadata_available": "true",
+        },
+    )
+    assert "'Table'" in lot_comment
+    assert "'Figure'" in lof_comment
+    assert "was flagged by an automated check" not in lot_comment
+    assert "was flagged by an automated check" not in lof_comment
+
+
+def test_p050_comment_degrades_gracefully_without_font_metadata() -> None:
+    comment = build_polished_comment(
+        rule_id="P050",
+        issue_type="lot_table_header_not_bold",
+        page=34,
+        details={
+            "section_type": "list_of_tables",
+            "column_type": "left",
+            "style_signal": "font_metadata",
+            "font_metadata_available": "false",
+        },
+    )
+    assert "verify" in comment.lower()
+    assert "was flagged by an automated check" not in comment
+
+
+@pytest.mark.parametrize(
+    "issue_type",
+    [
+        "missing_left_column_header",
+        "missing_page_column_header",
+        "left_column_header_misaligned",
+        "page_column_header_misaligned",
+    ],
+)
+def test_p031_issue_type_and_detailed_explanation_match(issue_type: str) -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P031",
+            severity=Severity.WARNING,
+            page=30,
+            message="LoT/LoF column header issue.",
+            details={
+                "issue_type": issue_type,
+                "expected_left_label": "Table",
+                "expected_page_label": "Page",
+                "section_type": "list_of_tables",
+                "observed_header_labels": "Page",
+                "confidence": "high",
+                "observed_x0_pt": "210.0",
+                "expected_left_x_pt": "72.0",
+                "expected_page_x_pt": "500.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P031")
+    assert "List of Tables" in fv.issue_type_explanation
+    assert "List of Tables" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p046_issue_type_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P046",
+            severity=Severity.WARNING,
+            page=31,
+            message="LoT entry number alignment issue.",
+            details={
+                "issue_type": "lot_entry_number_column_misaligned",
+                "section_type": "list_of_tables",
+                "entry_count": "8",
+                "observed_x0_range_points": "12.5",
+                "expected_x0": "72.0",
+                "observed_x0_max": "84.5",
+                "allowed_x0_range_points": "6.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P046")
+    assert "12.5pt" in fv.issue_type_explanation
+    assert "6.0pt" in fv.issue_type_explanation
+    assert "12.5pt" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p048_issue_type_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P048",
+            severity=Severity.WARNING,
+            page=32,
+            message="LoF page number alignment issue.",
+            details={
+                "issue_type": "lof_page_number_column_misaligned",
+                "section_type": "list_of_figures",
+                "entry_index": "4",
+                "observed_page_number_x": "470.0",
+                "expected_page_number_x": "500.0",
+                "x_delta_points": "30.0",
+                "allowed_delta_points": "10.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P048")
+    assert "470.0pt" in fv.issue_type_explanation
+    assert "500.0pt" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+@pytest.mark.parametrize(
+    "issue_type",
+    [
+        "lot_page_header_not_right_aligned",
+        "lot_page_header_not_bold",
+    ],
+)
+def test_p049_issue_type_and_detailed_explanation_match(issue_type: str) -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P049",
+            severity=Severity.WARNING,
+            page=33,
+            message="LoT page-column header style issue.",
+            details={
+                "issue_type": issue_type,
+                "section_type": "list_of_tables",
+                "column_type": "page",
+                "observed_x": "470.0",
+                "expected_x": "500.0",
+                "x_delta_points": "30.0",
+                "allowed_delta_points": "25.0",
+                "entry_count": "5",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P049")
+    assert "'Page'" in fv.issue_type_explanation
+    assert "'Page'" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p050_issue_type_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P050",
+            severity=Severity.WARNING,
+            page=34,
+            message="LoF left-column header style issue.",
+            details={
+                "issue_type": "lof_figure_header_not_bold",
+                "section_type": "list_of_figures",
+                "column_type": "left",
+                "style_signal": "font_metadata",
+                "font_metadata_available": "true",
+                "entry_count": "6",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P050")
+    assert "'Figure'" in fv.issue_type_explanation
+    assert "'Figure'" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p050_issue_type_explanation_degrades_gracefully_without_font_metadata() -> None:
+    explanation = explain_issue_type(
+        "P050",
+        "lot_table_header_not_bold",
+        {
+            "section_type": "list_of_tables",
+            "column_type": "left",
+            "font_metadata_available": "false",
+        },
+    )
+    assert "verify" in explanation.lower()
+    assert "was flagged by an automated check" not in explanation
+
+
+def test_p050_issue_type_explanation_is_sensible_when_metadata_key_missing() -> None:
+    # P049's bold issue types never populate `font_metadata_available` at all
+    # (it's only ever set by the P050 detector), so the explanation must still
+    # read sensibly without that key present rather than assuming it is unset
+    # evidence of low confidence.
+    explanation = explain_issue_type(
+        "P050",
+        "lot_table_header_not_bold",
+        {"section_type": "list_of_tables", "column_type": "left"},
+    )
+    assert "'Table' column header" in explanation
+    assert "does not appear to be bold" in explanation
+    assert "was flagged by an automated check" not in explanation
+
+
+def test_p031_p046_p048_p049_p050_wording_never_leak_unrelated_detail_text() -> None:
+    forbidden = "Table 4.2: A Confidential Study of Private Manuscript Content"
+    comments = [
+        build_polished_comment(
+            rule_id="P031",
+            issue_type="missing_left_column_header",
+            page=30,
+            details={
+                "expected_left_label": "Table",
+                "expected_page_label": "Page",
+                "section_type": "list_of_tables",
+                "observed_header_labels": forbidden,
+                "confidence": "high",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+        build_polished_comment(
+            rule_id="P046",
+            issue_type="lot_entry_number_column_misaligned",
+            page=31,
+            details={
+                "section_type": "list_of_tables",
+                "observed_x0_range_points": "12.5",
+                "allowed_x0_range_points": "6.0",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+        build_polished_comment(
+            rule_id="P048",
+            issue_type="lot_page_number_column_misaligned",
+            page=32,
+            details={
+                "section_type": "list_of_tables",
+                "observed_page_number_x": "470.0",
+                "expected_page_number_x": "500.0",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+        build_polished_comment(
+            rule_id="P049",
+            issue_type="lot_page_header_not_right_aligned",
+            page=33,
+            details={
+                "section_type": "list_of_tables",
+                "column_type": "page",
+                "observed_x": "470.0",
+                "expected_x": "500.0",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+        build_polished_comment(
+            rule_id="P050",
+            issue_type="lot_table_header_not_bold",
+            page=34,
+            details={
+                "section_type": "list_of_tables",
+                "column_type": "left",
+                "font_metadata_available": "true",
+                "unrelated_text_field": forbidden,
+            },
+        ),
+    ]
+    for comment in comments:
         assert forbidden not in comment
         assert "/home/" not in comment
         assert "Traceback" not in comment
