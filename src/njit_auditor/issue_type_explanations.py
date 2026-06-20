@@ -945,6 +945,64 @@ def _p067_issue_type_explanation(details: Mapping[str, str]) -> str:
     )
 
 
+def _p045_hanging_indent_issue_type_explanation(details: Mapping[str, str]) -> str:
+    block_count = details.get("multi_line_block_count", "").strip()
+    threshold = details.get("hanging_indent_threshold_points", "").strip()
+    count_clause = f" out of {block_count} multi-line entries checked" if block_count else ""
+    threshold_clause = f" by at least {threshold}pt" if threshold else ""
+    return (
+        "This means none of the publication/presentation entries on the "
+        f"Biographical Sketch page use hanging indentation{count_clause}: no "
+        f"continuation line is indented{threshold_clause} relative to its entry's "
+        "first line. NJIT requires publication/presentation entries to use hanging "
+        "indentation (first line flush left, continuation lines indented). Indent "
+        "the continuation lines of each entry."
+    )
+
+
+def _p045_entry_spacing_issue_type_explanation(details: Mapping[str, str]) -> str:
+    observed = details.get("observed_gap_points", "").strip()
+    required = details.get("required_gap_points", "").strip()
+    gap_clause = (
+        f" (about {observed}pt observed vs. a required minimum of about {required}pt)"
+        if observed and required
+        else ""
+    )
+    return (
+        "This means two consecutive publication/presentation entries on the "
+        f"Biographical Sketch page appear to lack the required gap between "
+        f"them{gap_clause}. NJIT requires a blank-line gap between publication/"
+        "presentation entries. Add a blank line between these entries."
+    )
+
+
+def _p047_block_label(details: Mapping[str, str]) -> str:
+    raw = details.get("block_index", "").strip()
+    try:
+        return f"bullet block {int(raw) + 1}"
+    except ValueError:
+        return "a bullet/list block"
+
+
+def _p047_issue_type_explanation(details: Mapping[str, str]) -> str:
+    block_label = _p047_block_label(details)
+    observed = details.get("observed_gap_points", "").strip()
+    required_max = details.get("required_max_gap_points", "").strip()
+    gap_clause = (
+        f" (about {observed}pt observed vs. an expected maximum of about "
+        f"{required_max}pt)"
+        if observed and required_max
+        else ""
+    )
+    return (
+        f"This means {block_label} on the Biographical Sketch page has an internal "
+        f"line gap that looks double-spaced rather than single-spaced{gap_clause}. "
+        "NJIT requires bullet/list items in the Biographical Sketch to be "
+        "single-spaced internally. Remove the extra blank space within this bullet "
+        "item."
+    )
+
+
 def explain_issue_type(
     rule_id: str, issue_type: str, details: Mapping[str, str] | None = None
 ) -> str:
@@ -980,6 +1038,12 @@ def explain_issue_type(
         return _p066_issue_type_explanation(safe_details)
     if rule_id == "P067" and issue_type == "biosketch_publication_order_suspicious":
         return _p067_issue_type_explanation(safe_details)
+    if rule_id == "P045" and issue_type == "biosketch_publication_missing_hanging_indent":
+        return _p045_hanging_indent_issue_type_explanation(safe_details)
+    if rule_id == "P045" and issue_type == "biosketch_publication_entry_spacing_not_double":
+        return _p045_entry_spacing_issue_type_explanation(safe_details)
+    if rule_id == "P047" and issue_type == "biosketch_bullet_section_not_single_spaced":
+        return _p047_issue_type_explanation(safe_details)
     explicit = _RULE_ISSUE_EXPLANATIONS.get((rule_id, issue_type))
     if explicit is not None:
         return explicit

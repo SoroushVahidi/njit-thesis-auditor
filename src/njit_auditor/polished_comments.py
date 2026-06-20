@@ -1200,6 +1200,65 @@ def _p067_publication_order_comment(*, page: int | None, details: dict[str, str]
     )
 
 
+def _p045_hanging_indent_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    block_count = details.get("multi_line_block_count", "").strip()
+    threshold = details.get("hanging_indent_threshold_points", "").strip()
+    count_clause = f" ({block_count} multi-line entries checked)" if block_count else ""
+    threshold_clause = f" by at least {threshold}pt" if threshold else ""
+    return (
+        "Likely problem: None of the publication/presentation entries on the "
+        f"Biographical Sketch page (page {page_label}) use hanging indentation"
+        f"{count_clause}: no continuation line is indented{threshold_clause} "
+        "relative to its entry's first line. NJIT requires publication/"
+        "presentation entries to use hanging indentation (first line flush left, "
+        "continuation lines indented)."
+    )
+
+
+def _p045_entry_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    observed = details.get("observed_gap_points", "").strip()
+    required = details.get("required_gap_points", "").strip()
+    gap_clause = (
+        f" — about {observed}pt, versus the required minimum of about {required}pt"
+        if observed and required
+        else ""
+    )
+    return (
+        "Likely problem: Two consecutive publication/presentation entries on the "
+        f"Biographical Sketch page (page {page_label}) appear to lack the required "
+        f"gap between them{gap_clause}. NJIT requires a blank-line gap between "
+        "publication/presentation entries."
+    )
+
+
+def _p047_block_label(details: dict[str, str]) -> str:
+    raw = details.get("block_index", "").strip()
+    try:
+        return f"bullet block {int(raw) + 1}"
+    except ValueError:
+        return "a bullet/list block"
+
+
+def _p047_bullet_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    block_label = _p047_block_label(details)
+    observed = details.get("observed_gap_points", "").strip()
+    required_max = details.get("required_max_gap_points", "").strip()
+    gap_clause = (
+        f" — about {observed}pt, versus an expected maximum of about {required_max}pt"
+        if observed and required_max
+        else ""
+    )
+    return (
+        f"Likely problem: A {block_label} on the Biographical Sketch page (page "
+        f"{page_label}) has an internal line gap that looks double-spaced rather "
+        f"than single-spaced{gap_clause}. NJIT requires bullet/list items in the "
+        "Biographical Sketch to be single-spaced internally."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -1267,6 +1326,18 @@ def build_polished_comment(
 
     if rule_id == "P067" and issue == "biosketch_publication_order_suspicious":
         body = _p067_publication_order_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P045" and issue == "biosketch_publication_missing_hanging_indent":
+        body = _p045_hanging_indent_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P045" and issue == "biosketch_publication_entry_spacing_not_double":
+        body = _p045_entry_spacing_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P047" and issue == "biosketch_bullet_section_not_single_spaced":
+        body = _p047_bullet_spacing_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))
