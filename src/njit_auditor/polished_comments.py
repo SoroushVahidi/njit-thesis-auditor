@@ -1100,6 +1100,106 @@ def _p026_font_comment(
     )
 
 
+_P032_ENTRY_KIND_LABELS: dict[str, str] = {
+    "table_entry": "List of Tables entry",
+    "figure_entry": "List of Figures entry",
+    "toc_level_1": "Table of Contents chapter/appendix entry",
+    "toc_level_2": "Table of Contents entry",
+    "toc_level_3": "Table of Contents sub-entry",
+}
+
+
+def _p032_wrapped_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    entry_label = _P032_ENTRY_KIND_LABELS.get(details.get("entry_kind", ""), "list entry")
+    observed_gap = details.get("observed_gap_pt", "").strip()
+    expected_gap = details.get("expected_max_gap_pt", "").strip()
+    gap_clause = (
+        f" — about {observed_gap}pt, versus an expected maximum of about "
+        f"{expected_gap}pt for this entry's line height"
+        if observed_gap and expected_gap
+        else ""
+    )
+    return (
+        f"Likely problem: A wrapped (continuation) line of a {entry_label} on page "
+        f"{page_label} has an unusually large internal gap{gap_clause}. Continuation "
+        "lines that belong to the same entry should sit close together, not with "
+        "extra blank space between them."
+    )
+
+
+def _p056_format_counts(details: dict[str, str]) -> tuple[str, str]:
+    """Parse P056's 'chapter_based:N,sequential:M' details string into (N, M)."""
+    counts = {}
+    for part in details.get("format_counts", "").split(","):
+        key, _, value = part.partition(":")
+        if key.strip():
+            counts[key.strip()] = value.strip()
+    return counts.get("chapter_based", "0"), counts.get("sequential", "0")
+
+
+_P056_SECTION_LABELS: dict[str, str] = {
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+_P056_SECTION_NOUNS: dict[str, str] = {
+    "list_of_tables": "Table",
+    "list_of_figures": "Figure",
+}
+
+
+def _p056_mixed_numbering_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    section = details.get("section_type", "")
+    section_label = _P056_SECTION_LABELS.get(section, "list")
+    noun = _P056_SECTION_NOUNS.get(section, "entry")
+    chapter_count, sequential_count = _p056_format_counts(details)
+    dominant = details.get("dominant_format", "")
+    dominant_clause = ""
+    if dominant == "chapter_based":
+        dominant_clause = f" The more common format here is chapter-based (e.g., {noun} 1.2)."
+    elif dominant == "sequential":
+        dominant_clause = f" The more common format here is sequential (e.g., {noun} 3)."
+    return (
+        f"Likely problem: The {section_label} on page {page_label} mixes two entry-"
+        f"numbering formats: {chapter_count} chapter-based (e.g., {noun} 1.2) and "
+        f"{sequential_count} sequential (e.g., {noun} 3) entries.{dominant_clause} "
+        "NJIT expects one consistent numbering format throughout this list."
+    )
+
+
+def _p066_degree_order_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    first_year = details.get("first_candidate_year", "").strip() or "an earlier year"
+    last_year = details.get("last_candidate_year", "").strip() or "a later year"
+    inversion_count = details.get("inversion_count", "").strip() or "at least one"
+    place_noun = "place" if inversion_count == "1" else "places"
+    return (
+        f"Likely problem: Biographical Sketch degree entries on page {page_label} may "
+        "not be listed most-recent-first: the candidate years found (in listed order) "
+        f"run from {first_year} to {last_year}, with {inversion_count} {place_noun} "
+        "where a later-listed entry's year is more recent than the entry just before "
+        "it. NJIT requires postgraduate degrees to be listed from most recent to "
+        "oldest."
+    )
+
+
+def _p067_publication_order_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    first_year = details.get("first_entry_year", "").strip() or "an earlier year"
+    last_year = details.get("last_entry_year", "").strip() or "a later year"
+    inversion_count = details.get("inversion_count", "").strip() or "at least one"
+    place_noun = "place" if inversion_count == "1" else "places"
+    return (
+        "Likely problem: Biographical Sketch publication/presentation entries on page "
+        f"{page_label} may not be listed most-recent-first: the comparable entry years "
+        f"found (in listed order) run from {first_year} to {last_year}, with "
+        f"{inversion_count} {place_noun} where a later-listed entry's year is more "
+        "recent than the entry just before it. NJIT requires publications/"
+        "presentations to be listed from most recent to oldest."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -1148,6 +1248,25 @@ def build_polished_comment(
             details=safe_details,
             raw_details=raw_details,
         )
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P032" and issue == "wrapped_entry_internal_spacing":
+        body = _p032_wrapped_spacing_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P056" and issue in {
+        "lot_mixed_numbering_format",
+        "lof_mixed_numbering_format",
+    }:
+        body = _p056_mixed_numbering_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P066" and issue == "biosketch_degree_order_suspicious":
+        body = _p066_degree_order_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P067" and issue == "biosketch_publication_order_suspicious":
+        body = _p067_publication_order_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))

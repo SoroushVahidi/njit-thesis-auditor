@@ -13,9 +13,14 @@ Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
 9. P014/P016/P068 — issue_type_explanation and detailed_explanation (the "Read
    explanation" and "More detail" boxes) now match the polished_comment's
    metadata-specific wording instead of falling back to generic boilerplate
+10. P032/P056/P066/P067 — zero-coverage rules gain metadata-specific polished
+    comments, issue_type_explanations, and detailed_explanations instead of
+    falling through to generic catch-all wording
 """
 
 from __future__ import annotations
+
+import pytest
 
 from njit_auditor.issue_type_explanations import explain_issue_type
 from njit_auditor.models import AuditFinding, Severity
@@ -409,3 +414,193 @@ def test_explain_issue_type_details_param_is_optional_and_backward_compatible() 
     # `details`; this must keep working for non-P014/P016/P068 rule_ids.
     text = explain_issue_type("P012", "pdf_annotation_detected")
     assert "annotation" in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# 10. P032/P056/P066/P067 — zero-coverage quick-win explanations
+# ---------------------------------------------------------------------------
+
+
+def test_p032_comment_includes_entry_kind_and_gap_measurements() -> None:
+    comment = build_polished_comment(
+        rule_id="P032",
+        issue_type="wrapped_entry_internal_spacing",
+        page=12,
+        details={
+            "entry_kind": "toc_level_2",
+            "observed_gap_pt": "24.5",
+            "expected_max_gap_pt": "20.4",
+        },
+    )
+    assert "Table of Contents entry" in comment
+    assert "24.5pt" in comment
+    assert "20.4pt" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p032_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P032",
+            severity=Severity.WARNING,
+            page=12,
+            message="Wrapped entry spacing issue.",
+            details={
+                "issue_type": "wrapped_entry_internal_spacing",
+                "entry_kind": "table_entry",
+                "observed_gap_pt": "30.0",
+                "expected_max_gap_pt": "18.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P032")
+    assert "List of Tables entry" in fv.issue_type_explanation
+    assert "30.0pt" in fv.issue_type_explanation
+    assert "List of Tables entry" in fv.detailed_explanation
+    assert "30.0pt" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+
+
+@pytest.mark.parametrize(
+    ("issue_type", "section_type", "list_label", "entry_noun"),
+    [
+        ("lot_mixed_numbering_format", "list_of_tables", "List of Tables", "Table"),
+        ("lof_mixed_numbering_format", "list_of_figures", "List of Figures", "Figure"),
+    ],
+)
+def test_p056_comment_includes_format_counts_and_dominant_format(
+    issue_type: str, section_type: str, list_label: str, entry_noun: str
+) -> None:
+    comment = build_polished_comment(
+        rule_id="P056",
+        issue_type=issue_type,
+        page=14,
+        details={
+            "section_type": section_type,
+            "format_counts": "chapter_based:3,sequential:2",
+            "dominant_format": "chapter_based",
+        },
+    )
+    assert list_label in comment
+    assert "3 chapter-based" in comment
+    assert "2 sequential" in comment
+    assert f"{entry_noun} 1.2" in comment
+    assert f"{entry_noun} 3" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p056_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P056",
+            severity=Severity.WARNING,
+            page=16,
+            message="Mixed LoF numbering format.",
+            details={
+                "issue_type": "lof_mixed_numbering_format",
+                "section_type": "list_of_figures",
+                "format_counts": "chapter_based:2,sequential:2",
+                "dominant_format": "sequential",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P056")
+    assert "List of Figures" in fv.issue_type_explanation
+    assert "2 chapter-based" in fv.issue_type_explanation
+    assert "2 sequential" in fv.issue_type_explanation
+    assert "List of Figures" in fv.detailed_explanation
+
+
+def test_p066_comment_describes_year_inversion_direction() -> None:
+    comment = build_polished_comment(
+        rule_id="P066",
+        issue_type="biosketch_degree_order_suspicious",
+        page=180,
+        details={
+            "first_candidate_year": "2015",
+            "last_candidate_year": "2020",
+            "inversion_count": "1",
+        },
+    )
+    assert "2015" in comment
+    assert "2020" in comment
+    assert "1 place" in comment
+    assert "most recent to oldest" in comment
+    # Direction matters: a later-listed entry being *more recent* is the
+    # violation, since NJIT requires descending (most-recent-first) order.
+    assert "later-listed entry's year is more recent" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p066_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P066",
+            severity=Severity.WARNING,
+            page=180,
+            message="Biosketch degree order suspicious.",
+            details={
+                "issue_type": "biosketch_degree_order_suspicious",
+                "first_candidate_year": "2010",
+                "last_candidate_year": "2022",
+                "inversion_count": "2",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P066")
+    assert "2 places" in fv.issue_type_explanation
+    assert "2010" in fv.issue_type_explanation
+    assert "2022" in fv.detailed_explanation
+
+
+def test_p067_comment_describes_year_inversion_direction() -> None:
+    comment = build_polished_comment(
+        rule_id="P067",
+        issue_type="biosketch_publication_order_suspicious",
+        page=182,
+        details={
+            "first_entry_year": "2018",
+            "last_entry_year": "2023",
+            "inversion_count": "2",
+        },
+    )
+    assert "2018" in comment
+    assert "2023" in comment
+    assert "2 places" in comment
+    assert "most recent to oldest" in comment
+    assert "later-listed entry's year is more recent" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p067_uses_top_level_page_when_details_have_no_page_key() -> None:
+    # P067's details dict never has a "page"/"page_number" key (unlike most
+    # other detectors); the page must still come through via the finding's
+    # top-level `page` field, not from details.
+    findings = [
+        AuditFinding(
+            rule_id="P067",
+            severity=Severity.WARNING,
+            page=182,
+            message="Biosketch publication order suspicious.",
+            details={
+                "issue_type": "biosketch_publication_order_suspicious",
+                "first_entry_year": "2019",
+                "last_entry_year": "2021",
+                "inversion_count": "1",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P067")
+    assert fv.page == 182
+    assert "page 182" in fv.polished_comment
+    assert "1 place" in fv.issue_type_explanation
+    assert "2019" in fv.detailed_explanation
+    assert "2021" in fv.detailed_explanation
