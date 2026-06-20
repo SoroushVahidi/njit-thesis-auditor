@@ -892,6 +892,30 @@ _TITLE_CASE_REASON_TEXT: dict[str, str] = {
     "major_word_requires_capital": "a major word (4+ letters) is not capitalized",
 }
 
+_TITLE_CASE_REASON_SHORT: dict[str, str] = {
+    "first_word_requires_capital": "first word",
+    "word_after_separator_requires_capital": "word after separator",
+    "major_word_requires_capital": "major word",
+}
+
+
+def title_case_subject_label(source: str) -> str:
+    """Short subject label for a P020 finding's `source` field.
+
+    Used to distinguish result cards (table titles vs headings) without
+    ever quoting document text.
+    """
+    return "table title" if source == "caption" else "heading"
+
+
+def title_case_reason_short_label(reason: str) -> str:
+    """Short label for a P020 `expected_or_reason` code.
+
+    Used only to distinguish result cards that would otherwise look like
+    duplicates; never reveals the flagged word.
+    """
+    return _TITLE_CASE_REASON_SHORT.get(reason, "capitalization")
+
 
 def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> str:
     """Build the P020 possible_title_capitalization_issue comment body.
@@ -916,6 +940,49 @@ def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> st
         f"Possible title-case issue in a {subject} on page {page_label}: "
         f"{reason_text}. {rule_text} (capitalize the first word, last word, "
         "and all major words of 4+ letters)."
+    )
+
+
+def _p024_toc_level_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P024 toc_level_capitalization comment body.
+
+    Level 1 and Level 2 TOC entries are checked against different
+    capitalization rules (ALL CAPS vs. Title Case); branching on the
+    recorded `entry_level` keeps each finding's comment scoped to the rule
+    that actually applies, instead of describing both rules generically.
+    The flagged word itself is never quoted here.
+    """
+    page_label = _safe_page_label(page)
+    level = details.get("entry_level", "") or ""
+    if level == "1":
+        return (
+            f"Likely problem: A Level 1 Table of Contents entry on page {page_label} "
+            "may not follow NJIT capitalization rules: Level 1 entries are expected "
+            "to use ALL CAPS. Correct the entry to ALL CAPS."
+        )
+    reason = details.get("expected_or_reason", "") or ""
+    reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
+    return (
+        f"Likely problem: A Level 2 Table of Contents entry on page {page_label} may "
+        f"not follow NJIT capitalization rules for Title Case: {reason_text}. Correct "
+        "the entry capitalization (Level 2 entries use Title Case)."
+    )
+
+
+def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P024 list_of_tables_title_case comment body.
+
+    Reuses the same `expected_or_reason` violation-category vocabulary as
+    P020/TOC Level 2 entries, since List of Tables titles are checked with
+    the same Title Case rule. The flagged word itself is never quoted here.
+    """
+    page_label = _safe_page_label(page)
+    reason = details.get("expected_or_reason", "") or ""
+    reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
+    return (
+        f"Likely problem: A List of Tables entry on page {page_label} may not use "
+        f"Title Case: {reason_text}. Table titles in the List of Tables should use "
+        "Title Case with no ending period."
     )
 
 
@@ -1032,6 +1099,14 @@ def build_polished_comment(
 
     if rule_id == "P020" and issue == "possible_title_capitalization_issue":
         body = _p020_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P024" and issue == "toc_level_capitalization":
+        body = _p024_toc_level_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
+
+    if rule_id == "P024" and issue == "list_of_tables_title_case":
+        body = _p024_lot_title_case_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, details=safe_details)
 
     if rule_id == "P011" and issue == "margin_boundary_violation":
