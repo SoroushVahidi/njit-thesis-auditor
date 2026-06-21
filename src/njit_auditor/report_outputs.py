@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from njit_auditor.evaluation import map_finding_rule_to_category
+from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.models import AuditFinding, Severity
 
 MAX_DETAIL_TEXT_LEN = 120
@@ -1596,15 +1597,13 @@ def _format_grouped_findings_section(
     for entry in repeated_groups:
         rule_id = str(entry.get("rule_id", ""))
         severity = str(entry.get("severity", ""))
-        category = str(entry.get("category", ""))
         issue_type = str(entry.get("issue_type", ""))
         occurrence_count = int(entry.get("occurrence_count", 0) or 0)
         affected_label = str(entry.get("affected_label", "Occurrences"))
         affected_compact = str(entry.get("affected_compact", "")).strip()
         problem = str(entry.get("problem", "")).strip()
         suggested_fix = str(entry.get("suggested_fix", "")).strip()
-        confidence = str(entry.get("confidence", "")).strip()
-        triage_tier = str(entry.get("triage_tier", "")).strip()
+        confidence = str(entry.get("confidence", "")).strip().lower()
 
         heading = f"### {rule_id} — {occurrence_count} occurrence"
         if occurrence_count != 1:
@@ -1612,19 +1611,23 @@ def _format_grouped_findings_section(
         lines.append(heading)
         lines.append("")
         lines.append(f"- Severity: `{severity}`")
-        lines.append(f"- Category: `{category}`")
         if issue_type:
-            lines.append(f"- Issue type: `{issue_type}`")
-        if confidence:
-            lines.append(f"- Confidence: `{confidence}`")
-        if triage_tier:
-            lines.append(f"- Triage tier: `{triage_tier}`")
+            lines.append(f"- Issue type: {humanize_issue_type(issue_type)}")
         if affected_compact:
             lines.append(f"- {affected_label}: {affected_compact}")
         if problem:
             lines.append(f"- Problem: {problem}")
         if suggested_fix:
             lines.append(f"- Suggested fix: {suggested_fix}")
+        # Internal confidence/triage labels are not student-facing; surface
+        # only a plain-language manual-check hint for non-high-confidence
+        # groups instead (see _problem_prefix in report_view.py for the
+        # same high vs. non-high distinction used on the web cards).
+        if confidence and confidence != "high":
+            lines.append(
+                "- This appears to need manual checking — verify this item "
+                "against the NJIT format requirements."
+            )
         lines.append("")
 
     return lines
