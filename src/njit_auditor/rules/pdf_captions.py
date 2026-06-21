@@ -36,6 +36,8 @@ EMBEDDED_SENTENCE_RE = re.compile(r"[.!?]\s+[A-Z]")
 MIN_CAPTION_BODY_LEN = 14
 MIN_WORDS_FOR_CASE_CHECK = 6
 MAX_PREVIEW_LEN = 80
+SAME_MARGIN_TOLERANCE_PT = 2.0
+MAX_PARAGRAPH_GAP_RATIO = 1.2
 
 
 class CaptionLine:
@@ -73,6 +75,10 @@ def _collect_page_lines(page: PdfPage) -> list[PdfTextLine]:
     for block in page.text_blocks:
         lines.extend(block.lines)
     return lines
+
+
+def _reading_order_page_lines(page: PdfPage) -> list[PdfTextLine]:
+    return sorted(_collect_page_lines(page), key=lambda line: line.bbox.y0)
 
 
 def _page_context(page: PdfPage) -> str:
@@ -114,6 +120,49 @@ def _reads_as_prose_sentence(caption_body: str) -> bool:
     return bool(EMBEDDED_SENTENCE_RE.search(caption_body))
 
 
+def _starts_with_lowercase_word(text: str) -> bool:
+    for char in text:
+        if char.isalpha():
+            return char.islower()
+    return False
+
+
+def _next_line_is_paragraph_continuation(
+    caption_body: str,
+    lines: list[PdfTextLine],
+    index: int,
+) -> bool:
+    """True when the next line on the page reads as the same flowing sentence.
+
+    A real caption is a standalone element: what follows it is either the
+    actual figure/table body (a different left edge, often a much larger
+    gap than ordinary single-line spacing) or a clear structural break, not
+    an unbroken, same-margin, lowercase-starting continuation of the
+    candidate line itself. A body sentence that merely opens by referencing
+    a figure or table number, by contrast, wraps onto the next line exactly
+    like any other sentence in the surrounding paragraph. Because a genuine
+    caption still ordinarily starts its own title/sentence with a capitalized
+    word after the number, treat this as paragraph flow only when the
+    candidate's own body already looks like ordinary running prose.
+    """
+
+    if index + 1 >= len(lines):
+        return False
+    if not _starts_with_lowercase_word(caption_body):
+        return False
+    current = lines[index]
+    following = lines[index + 1]
+    next_text = normalize_caption_text(following.text)
+    if not next_text or not _starts_with_lowercase_word(next_text):
+        return False
+    same_left_edge = abs(following.bbox.x0 - current.bbox.x0) < SAME_MARGIN_TOLERANCE_PT
+    line_height = current.bbox.y1 - current.bbox.y0
+    if not same_left_edge or line_height <= 0:
+        return False
+    gap_below = following.bbox.y0 - current.bbox.y1
+    return gap_below <= line_height * MAX_PARAGRAPH_GAP_RATIO
+
+
 def _likely_title_case_issue(caption_body: str) -> bool:
     words = WORD_RE.findall(caption_body)
     if len(words) < MIN_WORDS_FOR_CASE_CHECK:
@@ -142,7 +191,8 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
     candidates: list[CaptionLine] = []
     for page in pdf_document.pages:
         context = _page_context(page)
-        for line in _collect_page_lines(page):
+        page_lines = _reading_order_page_lines(page)
+        for index, line in enumerate(page_lines):
             clean = normalize_caption_text(line.text)
             if not clean or _is_page_number_line(clean):
                 continue
@@ -153,6 +203,8 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
             if len(body) < MIN_CAPTION_BODY_LEN:
                 continue
             if _reads_as_prose_sentence(body):
+                continue
+            if _next_line_is_paragraph_continuation(body, page_lines, index):
                 continue
             label = match.group("label").lower()
             caption_type = "table" if label == "table" else "figure"
