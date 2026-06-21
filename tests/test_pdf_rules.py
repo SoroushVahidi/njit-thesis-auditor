@@ -865,6 +865,77 @@ def test_ambiguous_short_caption_is_ignored_p017(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P017" for f in findings)
 
 
+def test_prose_figure_reference_not_treated_as_caption_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_figure_prose_reference.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Figure 3.2 shows the synthetic pattern across each group clearly. It",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_prose_table_reference_not_treated_as_caption_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_table_prose_reference.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 4 presents the synthetic values for each group below. Each row",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_caption_with_prose_restatement_flags_only_caption_p017(tmp_path: Path) -> None:
+    # A real caption that restates its own figure number in the very next
+    # paragraph (a common writing convention) must not produce a second,
+    # spurious finding for that follow-up sentence.
+    pdf_path = tmp_path / "caption_figure_restated_bad.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 6.1 Distribution of synthetic sample values")
+    page.insert_text(
+        (108, 160),
+        "Figure 6.1 shows the synthetic distribution clearly. The pattern",
+    )
+    page.insert_text((108, 178), "continues downward across each remaining group.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_captions(model) if f.rule_id == "P017"]
+    assert len(findings) == 1
+    assert findings[0].details.get("caption_type") == "figure"
+    assert findings[0].details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_caption_with_prose_restatement_no_finding_when_well_formed_p017(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "caption_figure_restated_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 5.2 Distribution of synthetic sample values.")
+    page.insert_text(
+        (108, 160),
+        "Figure 5.2 shows the synthetic distribution clearly. The pattern",
+    )
+    page.insert_text((108, 178), "continues downward across each remaining group.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_captions(model) if f.rule_id == "P017"]
+    assert findings == []
+
+
 def test_pdf_cli_command_runs_with_p017(tmp_path: Path) -> None:
     pdf_path = tmp_path / "cli_caption.pdf"
     doc = fitz.open()
@@ -5149,6 +5220,35 @@ def test_p035_finding_details_privacy_safe(tmp_path: Path) -> None:
     assert "Example table caption" not in blob
     assert "Row 1 column alpha" not in blob
     assert "line_preview" not in blob
+
+
+def test_p035_prose_restating_figure_number_is_not_mistaken_for_caption(
+    tmp_path: Path,
+) -> None:
+    # A body paragraph that opens by restating a figure's number (a common
+    # academic-writing convention) must not be mistaken for a second caption
+    # candidate, which would otherwise produce a spurious layout finding even
+    # though the real caption is correctly placed below its real body.
+    pdf_path = tmp_path / "p035_figure_prose_restate.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 2 RESULTS", fontsize=14, fontname="Times-Bold")
+    _draw_p035_body_rows(page, x0=180.0, y_start=180.0, rows=3, row_height=18.0, centered=True)
+    page.insert_text((108, 260), _P035_FIGURE_CAPTION, fontsize=11)
+    page.insert_text(
+        (108, 280),
+        "Figure 2.1 shows the synthetic pattern clearly. The values continue",
+        fontsize=11,
+    )
+    page.insert_text((108, 298), "to trend in the same direction across each group.", fontsize=11)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert not any(
+        w.details.get("issue_type") == "figure_caption_not_below_body" for w in warnings
+    )
 
 
 def test_p035_cli_pdf_command_includes_rule(tmp_path: Path) -> None:
