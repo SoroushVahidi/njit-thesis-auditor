@@ -120,7 +120,18 @@ def _reads_as_prose_sentence(caption_body: str) -> bool:
     return bool(EMBEDDED_SENTENCE_RE.search(caption_body))
 
 
-def _next_line_is_paragraph_continuation(lines: list[PdfTextLine], index: int) -> bool:
+def _starts_with_lowercase_word(text: str) -> bool:
+    for char in text:
+        if char.isalpha():
+            return char.islower()
+    return False
+
+
+def _next_line_is_paragraph_continuation(
+    caption_body: str,
+    lines: list[PdfTextLine],
+    index: int,
+) -> bool:
     """True when the next line on the page reads as the same flowing sentence.
 
     A real caption is a standalone element: what follows it is either the
@@ -129,15 +140,20 @@ def _next_line_is_paragraph_continuation(lines: list[PdfTextLine], index: int) -
     an unbroken, same-margin, lowercase-starting continuation of the
     candidate line itself. A body sentence that merely opens by referencing
     a figure or table number, by contrast, wraps onto the next line exactly
-    like any other sentence in the surrounding paragraph.
+    like any other sentence in the surrounding paragraph. Because a genuine
+    caption still ordinarily starts its own title/sentence with a capitalized
+    word after the number, treat this as paragraph flow only when the
+    candidate's own body already looks like ordinary running prose.
     """
 
     if index + 1 >= len(lines):
         return False
+    if not _starts_with_lowercase_word(caption_body):
+        return False
     current = lines[index]
     following = lines[index + 1]
     next_text = normalize_caption_text(following.text)
-    if not next_text or not next_text[0].islower():
+    if not next_text or not _starts_with_lowercase_word(next_text):
         return False
     same_left_edge = abs(following.bbox.x0 - current.bbox.x0) < SAME_MARGIN_TOLERANCE_PT
     line_height = current.bbox.y1 - current.bbox.y0
@@ -188,7 +204,7 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
                 continue
             if _reads_as_prose_sentence(body):
                 continue
-            if _next_line_is_paragraph_continuation(page_lines, index):
+            if _next_line_is_paragraph_continuation(body, page_lines, index):
                 continue
             label = match.group("label").lower()
             caption_type = "table" if label == "table" else "figure"

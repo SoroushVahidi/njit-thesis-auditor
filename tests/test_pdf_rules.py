@@ -20,7 +20,7 @@ from njit_auditor.rules.pdf_biosketch_publication_layout import (
     check_pdf_biosketch_publication_layout,
 )
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
-from njit_auditor.rules.pdf_captions import check_pdf_captions
+from njit_auditor.rules.pdf_captions import check_pdf_captions, detect_caption_lines
 from njit_auditor.rules.pdf_copyright_page import (
     check_pdf_copyright_author_format,
     check_pdf_copyright_page,
@@ -949,6 +949,50 @@ def test_caption_followed_by_body_at_different_margin_still_detected_p017(
     warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
     assert warning.details.get("caption_type") == "figure"
     assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_caption_followed_by_same_margin_lowercase_body_still_detected_p017(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "caption_figure_followed_by_same_margin_body.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 7 Summary of synthetic group outcomes")
+    page.insert_text((108, 158), "synthetic row alpha value here")
+    page.insert_text((108, 176), "synthetic row beta value here")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    captions = [
+        caption for caption in detect_caption_lines(model) if caption.caption_type == "figure"
+    ]
+    assert any(
+        caption.raw_text == "Figure 7 Summary of synthetic group outcomes"
+        for caption in captions
+    )
+
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_legitimate_short_caption_with_same_margin_lowercase_body_is_retained(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "caption_short_legitimate_with_body.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 8 Brief synthetic overview.")
+    page.insert_text((108, 158), "synthetic row alpha value here")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    captions = [
+        caption for caption in detect_caption_lines(model) if caption.caption_type == "figure"
+    ]
+    assert any(caption.raw_text == "Figure 8 Brief synthetic overview." for caption in captions)
 
 
 def test_caption_with_prose_restatement_flags_only_caption_p017(tmp_path: Path) -> None:
@@ -5350,6 +5394,27 @@ def test_p035_shortened_table_reference_does_not_mask_real_caption_no_finding(
 
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_same_margin_lowercase_body_below_real_caption_still_uses_caption(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p035_same_margin_lowercase_body.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 3 RESULTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 140), "Figure 7 Summary of synthetic group outcomes", fontsize=11)
+    page.insert_text((108, 158), "synthetic row alpha value here", fontsize=11)
+    page.insert_text((108, 176), "synthetic row beta value here", fontsize=11)
+    page.insert_text((108, 194), "synthetic row gamma value here", fontsize=11)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(
+        w.details.get("issue_type") == "figure_caption_not_below_body" for w in warnings
+    )
 
 
 def test_p035_cli_pdf_command_includes_rule(tmp_path: Path) -> None:
