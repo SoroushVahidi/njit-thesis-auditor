@@ -1017,13 +1017,45 @@ def _title_case_issue_label(details: Mapping[str, str]) -> str:
     return f"Possible title-case issue ({subject}, {reason_label})"
 
 
+def _title_case_subject_and_rule_clause(details: Mapping[str, str]) -> tuple[str, str]:
+    if details.get("source", "") == "caption":
+        return "table title", "NJIT requires table titles to use Title Case"
+    return (
+        "Level 2 heading",
+        "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case",
+    )
+
+
 def _apply_title_case_presentation(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[FindingView, bool]:
+    """Distinguish same-page P020 occurrences by the offending word.
+
+    Overrides only the display comment after grouping has already been
+    computed upstream (on the word-independent comment), so repeated
+    same-page occurrences with the same source/reason still collapse into
+    one grouped card; only the per-occurrence text shown when expanded
+    differs. The flagged word and its corrected capitalization come from
+    this student's own uploaded PDF, so showing them here (unlike the
+    generic build_polished_comment() text) is safe.
+    """
     if finding.rule_id != "P020" or finding.issue_type != "possible_title_capitalization_issue":
         return finding, True
-    return replace(finding, issue_type_label=_title_case_issue_label(details)), True
+    finding = replace(finding, issue_type_label=_title_case_issue_label(details))
+    flagged_word = details.get("flagged_word", "").strip()
+    corrected_word = details.get("corrected_word", "").strip()
+    if not flagged_word or not corrected_word:
+        return finding, True
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    subject, rule_clause = _title_case_subject_and_rule_clause(details)
+    comment = (
+        f"Likely problem: In a {subject} on page {page_label}, the word "
+        f"'{flagged_word}' should be capitalized as '{corrected_word}'. "
+        f"{rule_clause} (capitalize the first word, last word, and all "
+        "major words of 4+ letters)."
+    )
+    return replace(finding, polished_comment=comment), True
 
 
 _P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(

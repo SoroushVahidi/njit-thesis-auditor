@@ -1327,6 +1327,26 @@ def test_p020_lowercase_major_word_in_bold_heading_warns(tmp_path: Path) -> None
     assert warning.details.get("expected_or_reason") == "major_word_requires_capital"
 
 
+def test_p020_finding_includes_flagged_and_corrected_word(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_word_metadata.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Machine learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("flagged_word") == "learning"
+    assert warning.details.get("corrected_word") == "Learning"
+
+
 def test_p020_lowercase_minor_word_in_middle_no_warning(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p020_minor_ok.pdf"
     doc = fitz.open()

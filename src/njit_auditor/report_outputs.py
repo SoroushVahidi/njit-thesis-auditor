@@ -2342,6 +2342,40 @@ def _p036_entry_pair_label(details: dict[str, str]) -> str:
     return f"entries {index + 1}-{index + 2}"
 
 
+_P020_TITLE_CASE_SUBJECT_AND_RULE: dict[str, tuple[str, str]] = {
+    "caption": ("table title", "NJIT requires table titles to use Title Case"),
+}
+_P020_TITLE_CASE_DEFAULT_SUBJECT_AND_RULE = (
+    "Level 2 heading",
+    "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case",
+)
+
+
+def _p020_title_case_individual_comment(
+    *, page: int | None, details: dict[str, str]
+) -> str | None:
+    """Return word-specific P020 Markdown text, or None when unavailable.
+
+    The flagged word and its corrected capitalization come from this
+    student's own uploaded PDF, so showing them in their own report
+    (unlike the generic build_polished_comment() text used for grouping)
+    is safe.
+    """
+    flagged_word = details.get("flagged_word", "").strip()
+    corrected_word = details.get("corrected_word", "").strip()
+    if not flagged_word or not corrected_word:
+        return None
+    page_label = str(page) if page is not None else "this page"
+    subject, rule_clause = _P020_TITLE_CASE_SUBJECT_AND_RULE.get(
+        details.get("source", ""), _P020_TITLE_CASE_DEFAULT_SUBJECT_AND_RULE
+    )
+    return (
+        f"In a {subject} on page {page_label}, the word '{flagged_word}' should be "
+        f"capitalized as '{corrected_word}'. {rule_clause} (capitalize the first "
+        "word, last word, and all major words of 4+ letters)."
+    )
+
+
 def _individual_finding_comment(
     rule_id: str,
     issue_type: str,
@@ -2354,7 +2388,7 @@ def _individual_finding_comment(
 
     build_grouped_findings() intentionally keys grouping on the generic,
     pair-independent build_polished_comment() text so repeated same-page
-    P036 occurrences still collapse into one grouped card (see
+    P036/P020 occurrences still collapse into one grouped card (see
     test_p036_grouping_key_is_stable_across_entry_pairs). The Markdown
     "## Problems" / "## Findings by Rule" sections, however, always list
     every occurrence individually by its own problem number, so each one
@@ -2379,6 +2413,10 @@ def _individual_finding_comment(
             f"on page {page_label} appears tighter than expected{gap_clause}. Add "
             "visible double spacing or a blank line between these two entries."
         )
+    if rule_id == "P020" and issue_type == "possible_title_capitalization_issue":
+        body = _p020_title_case_individual_comment(page=page, details=details)
+        if body is not None:
+            return f"{REVIEW_PREFIX} {body}"
     return build_polished_comment(
         rule_id=rule_id,
         issue_type=issue_type,
