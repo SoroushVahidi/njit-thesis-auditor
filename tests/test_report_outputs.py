@@ -979,6 +979,160 @@ def test_markdown_report_low_volume_repeats_skip_high_volume_summary_only(tmp_pa
     assert "Grouped Problems" in text
 
 
+# ---- "## Grouped Problems" student-facing wording (no raw confidence/triage labels) ----
+
+
+def _repeated_synthetic_findings(
+    *, confidence: str = "medium", count: int = 2
+) -> list[AuditFinding]:
+    """Two+ findings sharing a grouping key, using a rule id with no curated
+    explanation so build_polished_comment() exercises its generic fallback.
+    """
+    return [
+        AuditFinding(
+            rule_id="P099",
+            severity=Severity.WARNING,
+            page=page,
+            message="Synthetic formatting issue.",
+            details={
+                "issue_type": "possible_synthetic_marker_issue",
+                "suggested_fix": "Re-check this item against the NJIT format requirements.",
+                "confidence": confidence,
+                "triage_tier": "check",
+            },
+        )
+        for page in range(1, count + 1)
+    ]
+
+
+def test_markdown_grouped_section_never_shows_raw_confidence_or_triage_labels(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "report.md"
+    write_markdown_report(_repeated_synthetic_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "Confidence:" not in text
+    assert "Triage tier:" not in text
+    assert "Triage Tier:" not in text
+    assert "conf:" not in text
+    assert "review priority:" not in text.lower()
+
+
+def test_markdown_grouped_section_keeps_useful_problem_info(tmp_path: Path) -> None:
+    output_path = tmp_path / "report.md"
+    write_markdown_report(_repeated_synthetic_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "### P099" in text
+    assert "2 occurrences" in text
+    assert "Issue type: Possible synthetic marker issue" in text
+    assert "Suggested fix: Re-check this item against the NJIT format requirements." in text
+
+
+def test_markdown_grouped_section_adds_manual_check_hint_for_non_high_confidence(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "report.md"
+    write_markdown_report(
+        _repeated_synthetic_findings(confidence="medium"), _metadata(), output_path
+    )
+    text = output_path.read_text(encoding="utf-8")
+    assert "manual checking" in text
+    assert "verify this item against the NJIT format requirements" in text
+
+
+def test_markdown_grouped_section_omits_manual_check_hint_for_high_confidence(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "report.md"
+    write_markdown_report(
+        _repeated_synthetic_findings(confidence="high"), _metadata(), output_path
+    )
+    text = output_path.read_text(encoding="utf-8")
+    assert "manual checking" not in text
+
+
+def test_grouped_findings_key_unaffected_by_wording_change(tmp_path: Path) -> None:
+    """The Markdown wording fix must not change which findings collapse together."""
+    findings = _repeated_synthetic_findings(count=3)
+    grouped = build_grouped_findings(findings, "pdf")
+    assert len(grouped) == 1
+    assert grouped[0]["occurrence_count"] == 3
+
+
+def test_markdown_grouped_section_does_not_expose_blocked_detail_text(tmp_path: Path) -> None:
+    forbidden = "an unforgettable confidential dissertation phrase"
+    findings = [
+        AuditFinding(
+            rule_id="P099",
+            severity=Severity.WARNING,
+            page=page,
+            message="Synthetic formatting issue.",
+            details={
+                "issue_type": "possible_synthetic_marker_issue",
+                "suggested_fix": "Re-check this item against the NJIT format requirements.",
+                "confidence": "medium",
+                "triage_tier": "check",
+                "heading_text": forbidden,
+                "observed_summary": forbidden,
+            },
+        )
+        for page in (1, 2)
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert forbidden not in text
+    assert "/home/" not in text
+    assert "Traceback" not in text
+    assert "\\begin" not in text
+
+
+def test_markdown_report_p020_and_p036_individual_clarity_unaffected_by_grouped_wording_fix(
+    tmp_path: Path,
+) -> None:
+    """Per-occurrence P020/P036 word-level clarity (added separately) must keep working
+    alongside the reworded "## Grouped Problems" section."""
+    findings = [
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=7,
+            message="Title case issue.",
+            details={
+                "issue_type": "possible_title_capitalization_issue",
+                "source": "heading",
+                "expected_or_reason": "major_word_requires_capital",
+                "confidence": "medium",
+                "flagged_word": "example",
+                "corrected_word": "Example",
+            },
+        ),
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=7,
+            message="Title case issue.",
+            details={
+                "issue_type": "possible_title_capitalization_issue",
+                "source": "heading",
+                "expected_or_reason": "major_word_requires_capital",
+                "confidence": "medium",
+                "flagged_word": "another",
+                "corrected_word": "Another",
+            },
+        ),
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "Confidence:" not in text
+    assert "Triage tier:" not in text
+    problem_lines = [line for line in text.splitlines() if line.startswith("- **Problem")]
+    assert len(problem_lines) >= 2
+    assert "'example'" in problem_lines[0]
+    assert "'another'" in problem_lines[1]
+
+
 # ---- P019 triage helpers ----
 
 
