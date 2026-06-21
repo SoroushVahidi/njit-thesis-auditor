@@ -31,6 +31,7 @@ CAPTION_START_RE = re.compile(
 )
 TERMINAL_PUNCT_RE = re.compile(r"[.!?]$")
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z\-']*")
+EMBEDDED_SENTENCE_RE = re.compile(r"[.!?]\s+[A-Z]")
 
 MIN_CAPTION_BODY_LEN = 14
 MIN_WORDS_FOR_CASE_CHECK = 6
@@ -99,6 +100,20 @@ def _terminal_punctuation(text: str) -> bool:
     return bool(TERMINAL_PUNCT_RE.search(text))
 
 
+def _reads_as_prose_sentence(caption_body: str) -> bool:
+    """True when the body already contains a full sentence followed by another.
+
+    A real figure/table caption is a single descriptive title, not a
+    multi-sentence narrative. A body paragraph that merely opens by
+    referencing a figure or table number (e.g. "Figure 4.1 displays the
+    relationship... The points cluster...") matches the same caption-start
+    pattern but reads as flowing prose once a sentence boundary appears
+    before the end of the line.
+    """
+
+    return bool(EMBEDDED_SENTENCE_RE.search(caption_body))
+
+
 def _likely_title_case_issue(caption_body: str) -> bool:
     words = WORD_RE.findall(caption_body)
     if len(words) < MIN_WORDS_FOR_CASE_CHECK:
@@ -136,6 +151,8 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
                 continue
             body = normalize_caption_text(match.group("body"))
             if len(body) < MIN_CAPTION_BODY_LEN:
+                continue
+            if _reads_as_prose_sentence(body):
                 continue
             label = match.group("label").lower()
             caption_type = "table" if label == "table" else "figure"
