@@ -21,7 +21,11 @@ from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
-from njit_auditor.rules.pdf_captions import CAPTION_START_RE, detect_caption_lines
+from njit_auditor.rules.pdf_captions import (
+    CAPTION_START_RE,
+    detect_caption_lines,
+    normalize_caption_candidate_text,
+)
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -349,7 +353,7 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                     continue
                 if len(clean) > MAX_HEADING_LINE_LEN:
                     continue
-                if CAPTION_START_RE.match(clean):
+                if CAPTION_START_RE.match(normalize_caption_candidate_text(clean)):
                     continue  # already covered by caption detection above
 
                 detection_reason = _spans_bold_reason(line)

@@ -995,6 +995,48 @@ def test_legitimate_short_caption_with_same_margin_lowercase_body_is_retained(
     assert any(caption.raw_text == "Figure 8 Brief synthetic overview." for caption in captions)
 
 
+def test_merged_number_text_figure_caption_detected_and_flagged_p017(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "caption_figure_merged_number_text.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 4.1Brief synthetic overview")
+    page.insert_text((108, 158), "synthetic row alpha value here")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    captions = [
+        caption for caption in detect_caption_lines(model) if caption.caption_type == "figure"
+    ]
+    assert any(caption.raw_text == "Figure 4.1Brief synthetic overview" for caption in captions)
+    assert any(caption.caption_body == "Brief synthetic overview" for caption in captions)
+
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_merged_number_text_table_caption_detected(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_table_merged_number_text.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Table 4.2Summary of values across groups")
+    page.insert_text((108, 158), "synthetic row alpha value here")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    captions = [
+        caption for caption in detect_caption_lines(model) if caption.caption_type == "table"
+    ]
+    assert any(
+        caption.raw_text == "Table 4.2Summary of values across groups" for caption in captions
+    )
+    assert any(caption.caption_body == "Summary of values across groups" for caption in captions)
+
+
 def test_caption_with_prose_restatement_flags_only_caption_p017(tmp_path: Path) -> None:
     # A real caption that restates its own figure number in the very next
     # paragraph (a common writing convention) must not produce a second,
@@ -5404,6 +5446,25 @@ def test_p035_same_margin_lowercase_body_below_real_caption_still_uses_caption(
     page = doc.new_page(width=612, height=792)
     page.insert_text((108, 80), "CHAPTER 3 RESULTS", fontsize=14, fontname="Times-Bold")
     page.insert_text((108, 140), "Figure 7 Summary of synthetic group outcomes", fontsize=11)
+    page.insert_text((108, 158), "synthetic row alpha value here", fontsize=11)
+    page.insert_text((108, 176), "synthetic row beta value here", fontsize=11)
+    page.insert_text((108, 194), "synthetic row gamma value here", fontsize=11)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert any(
+        w.details.get("issue_type") == "figure_caption_not_below_body" for w in warnings
+    )
+
+
+def test_p035_merged_number_text_figure_caption_still_used(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_merged_number_text_figure_caption.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 3 RESULTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 140), "Figure 4.1Brief synthetic overview", fontsize=11)
     page.insert_text((108, 158), "synthetic row alpha value here", fontsize=11)
     page.insert_text((108, 176), "synthetic row beta value here", fontsize=11)
     page.insert_text((108, 194), "synthetic row gamma value here", fontsize=11)

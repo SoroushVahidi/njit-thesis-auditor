@@ -10,6 +10,7 @@ from njit_auditor.rules.pdf_captions import (
     CAPTION_START_RE,
     CaptionLine,
     detect_caption_lines,
+    normalize_caption_candidate_text,
     normalize_caption_text,
 )
 from njit_auditor.rules.pdf_margins import (
@@ -58,7 +59,7 @@ def _bbox_center_x(bbox: BBox) -> float:
 
 
 def _is_caption_line_text(text: str) -> bool:
-    clean = normalize_caption_text(text)
+    clean = normalize_caption_candidate_text(text)
     if not clean or PAGE_NUM_RE.match(clean):
         return False
     match = CAPTION_START_RE.match(clean)
@@ -137,9 +138,10 @@ def _extract_float_number(raw_text: str) -> str:
 def _find_caption_line_bbox(page: PdfPage, caption: CaptionLine) -> BBox | None:
     target_number = _extract_float_number(caption.raw_text)
     for line in _collect_page_lines(page):
-        clean = normalize_caption_text(line.text)
-        if clean == caption.raw_text:
+        raw_clean = normalize_caption_text(line.text)
+        if raw_clean == caption.raw_text:
             return line.bbox
+        clean = normalize_caption_candidate_text(raw_clean)
         match = CAPTION_START_RE.match(clean)
         if match and _extract_float_number(clean) == target_number:
             return line.bbox

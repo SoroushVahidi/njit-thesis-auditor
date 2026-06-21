@@ -29,6 +29,11 @@ CAPTION_START_RE = re.compile(
     r"(?:[.)])?\s+(?P<body>.+)$",
     re.IGNORECASE,
 )
+CAPTION_NUMBER_PREFIX_RE = re.compile(
+    r"^\s*(?P<label>figure|fig\.|table)\s+(?P<number>[0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)"
+    r"(?:[.)])?",
+    re.IGNORECASE,
+)
 TERMINAL_PUNCT_RE = re.compile(r"[.!?]$")
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z\-']*")
 EMBEDDED_SENTENCE_RE = re.compile(r"[.!?]\s+[A-Z]")
@@ -64,6 +69,32 @@ def normalize_caption_text(text: str) -> str:
     """Collapse whitespace and trim caption-like text."""
 
     return " ".join(text.strip().split())
+
+
+def normalize_caption_candidate_text(text: str) -> str:
+    """Normalize a candidate line for caption-start parsing only.
+
+    Some PDFs extract a real caption start without the visual space between the
+    figure/table number and the first caption word, e.g. ``Figure 4.1Caption``.
+    Insert that missing boundary only when the line already looks like a
+    caption-number prefix and the immediately following character starts an
+    uppercase word, so ordinary prose references such as ``Figure 4.1 shows``
+    or ``Figure 4.1shows`` do not broaden into caption matches.
+    """
+
+    clean = normalize_caption_text(text)
+    if CAPTION_START_RE.match(clean):
+        return clean
+    prefix = CAPTION_NUMBER_PREFIX_RE.match(clean)
+    if prefix is None:
+        return clean
+    end = prefix.end()
+    if end >= len(clean):
+        return clean
+    next_char = clean[end]
+    if not next_char.isalpha() or not next_char.isupper():
+        return clean
+    return f"{clean[:end]} {clean[end:]}"
 
 
 def _normalized_heading(line: PdfTextLine) -> str:
@@ -196,7 +227,8 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
             clean = normalize_caption_text(line.text)
             if not clean or _is_page_number_line(clean):
                 continue
-            match = CAPTION_START_RE.match(clean)
+            candidate_text = normalize_caption_candidate_text(clean)
+            match = CAPTION_START_RE.match(candidate_text)
             if not match:
                 continue
             body = normalize_caption_text(match.group("body"))
