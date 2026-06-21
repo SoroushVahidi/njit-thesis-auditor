@@ -26,6 +26,77 @@
   .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.15rem 0; }
   .issue-type-help summary:hover { text-decoration: underline; }
   .issue-type-help p { margin: 0.3rem 0 0; color: var(--color-text-muted, #555); font-size: 0.88rem; }
+  .confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.2;
+  }
+  .confidence-badge--high {
+    background: #fde8e7;
+    border-color: #e7a4a0;
+    color: #922b21;
+  }
+  .confidence-badge--medium {
+    background: #fff4d6;
+    border-color: #e5c36b;
+    color: #7a5200;
+  }
+  .confidence-badge--low {
+    background: #eaf1fb;
+    border-color: #b4c9e6;
+    color: #244d7a;
+  }
+  .confidence-badge--mixed {
+    background: #eef1f5;
+    border-color: #c8d1dc;
+    color: #334155;
+  }
+  .confidence-badge--unknown {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #4b5563;
+  }
+  .confidence-filter {
+    display: grid;
+    gap: 0.45rem;
+  }
+  .confidence-filter__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .confidence-filter__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .confidence-filter__chip {
+    background: #fff;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .confidence-filter__chip[aria-pressed="true"] {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .confidence-filter__chip:hover {
+    background: #eef4fb;
+  }
+  .confidence-filter__chip[aria-pressed="true"]:hover {
+    background: var(--color-primary-dark);
+  }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -51,12 +122,29 @@
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     var currentMode = "grouped";
+    var currentConfidenceFilter = "";
 
     function matchesTokenList(value, selected) {
       return !selected || value.indexOf("|" + selected + "|") !== -1;
     }
 
-    function applyFiltersToGrouped(rule, severity, category, pageVal, locationVal) {
+    function setConfidenceButtons(value) {
+      document.querySelectorAll("[data-confidence-filter]").forEach(function(button) {
+        var isActive = (button.dataset.confidenceFilter || "") === value;
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+    }
+
+    function applyConfidenceFilterToOccurrences(card, confidenceVal) {
+      var rows = card.querySelectorAll(".grouped-occurrence");
+      rows.forEach(function(row) {
+        var rowConfidence = row.dataset.confidence || "";
+        var show = !confidenceVal || rowConfidence === confidenceVal;
+        row.hidden = !show;
+      });
+    }
+
+    function applyFiltersToGrouped(rule, severity, category, pageVal, locationVal, confidenceVal) {
       var cards = document.querySelectorAll(".grouped-problem");
       var visible = 0;
       cards.forEach(function(card) {
@@ -66,13 +154,17 @@
         if (category && card.dataset.category !== category) show = false;
         if (pageVal && !matchesTokenList(card.dataset.pages || "", pageVal)) show = false;
         if (locationVal && !matchesTokenList(card.dataset.locations || "", locationVal)) show = false;
+        if (confidenceVal && !matchesTokenList(card.dataset.confidenceLevels || "", confidenceVal)) {
+          show = false;
+        }
+        applyConfidenceFilterToOccurrences(card, confidenceVal);
         card.classList.toggle("grouped-problem-card--hidden", !show);
         if (show) visible += 1;
       });
       return { visible: visible, total: cards.length };
     }
 
-    function applyFiltersToRaw(rule, severity, category, pageVal, locationVal) {
+    function applyFiltersToRaw(rule, severity, category, pageVal, locationVal, confidenceVal) {
       var rows = document.querySelectorAll(".finding-row");
       var visible = 0;
       rows.forEach(function(row) {
@@ -82,6 +174,7 @@
         if (category && row.dataset.category !== category) show = false;
         if (pageVal && row.dataset.page !== pageVal) show = false;
         if (locationVal && row.dataset.location !== locationVal) show = false;
+        if (confidenceVal && row.dataset.confidence !== confidenceVal) show = false;
         row.classList.toggle("finding-row--hidden", !show);
         if (show) visible += 1;
       });
@@ -114,8 +207,22 @@
       var category = categoryEl.value;
       var pageVal = page ? page.value : "";
       var locationVal = location ? location.value : "";
-      var groupedState = applyFiltersToGrouped(rule, severity, category, pageVal, locationVal);
-      var rawState = applyFiltersToRaw(rule, severity, category, pageVal, locationVal);
+      var groupedState = applyFiltersToGrouped(
+        rule,
+        severity,
+        category,
+        pageVal,
+        locationVal,
+        currentConfidenceFilter
+      );
+      var rawState = applyFiltersToRaw(
+        rule,
+        severity,
+        category,
+        pageVal,
+        locationVal,
+        currentConfidenceFilter
+      );
       updateCounter(groupedState, rawState);
     }
 
@@ -147,9 +254,18 @@
           var el = document.getElementById(id);
           if (el) el.value = "";
         });
+        currentConfidenceFilter = "";
+        setConfidenceButtons(currentConfidenceFilter);
         applyFilters();
       });
     }
+    document.querySelectorAll("[data-confidence-filter]").forEach(function(button) {
+      button.addEventListener("click", function() {
+        currentConfidenceFilter = button.dataset.confidenceFilter || "";
+        setConfidenceButtons(currentConfidenceFilter);
+        applyFilters();
+      });
+    });
     document.querySelectorAll("[data-results-mode]").forEach(function(button) {
       button.addEventListener("click", function() {
         setMode(button.dataset.resultsMode || "grouped");
@@ -177,11 +293,35 @@
         window.location.href = href;
       });
     });
+    setConfidenceButtons(currentConfidenceFilter);
     setMode("grouped");
   });
 </script>
 {% endif %}
 {% endblock %}
+
+{% macro confidence_badge(level, label="", css_class="") -%}
+  {% set normalized = (level or "") | lower %}
+  {% if label %}
+    {% set badge_label = label %}
+  {% elif normalized == "high" %}
+    {% set badge_label = "High confidence" %}
+  {% elif normalized == "medium" %}
+    {% set badge_label = "Medium confidence" %}
+  {% elif normalized == "low" %}
+    {% set badge_label = "Low confidence" %}
+  {% else %}
+    {% set badge_label = "Confidence to review" %}
+  {% endif %}
+  {% if css_class %}
+    {% set badge_class = css_class %}
+  {% elif normalized in ("high", "medium", "low") %}
+    {% set badge_class = "confidence-badge--" ~ normalized %}
+  {% else %}
+    {% set badge_class = "confidence-badge--unknown" %}
+  {% endif %}
+  <span class="confidence-badge {{ badge_class }}">{{ badge_label }}</span>
+{%- endmacro %}
 
 {% block content %}
 
@@ -480,6 +620,15 @@
         {% endfor %}
       </select>
     </div>
+    <div class="confidence-filter">
+      <span class="confidence-filter__label">Confidence</span>
+      <div class="confidence-filter__chips" role="group" aria-label="Filter findings by confidence">
+        <button type="button" class="confidence-filter__chip" data-confidence-filter="" aria-pressed="true">All</button>
+        <button type="button" class="confidence-filter__chip" data-confidence-filter="high" aria-pressed="false">High</button>
+        <button type="button" class="confidence-filter__chip" data-confidence-filter="medium" aria-pressed="false">Medium</button>
+        <button type="button" class="confidence-filter__chip" data-confidence-filter="low" aria-pressed="false">Low</button>
+      </div>
+    </div>
     <div class="filter-actions">
       <button type="button" id="filter-reset" class="btn btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.85rem">Reset filters</button>
     </div>
@@ -493,7 +642,8 @@
            data-severity="{{ problem.severity }}"
            data-category="{{ problem.category }}"
            data-pages="{% if problem.page_tokens %}|{{ problem.page_tokens|join('|') }}|{% endif %}"
-           data-locations="{% if problem.location_tokens %}|{{ problem.location_tokens|join('|') }}|{% endif %}">
+           data-locations="{% if problem.location_tokens %}|{{ problem.location_tokens|join('|') }}|{% endif %}"
+           data-confidence-levels="{% if problem.confidence_levels %}|{{ problem.confidence_levels|join('|') }}|{% endif %}">
         {% set first_finding = problem.individual_findings[0] %}
         <div class="grouped-problem__header">
           <div>
@@ -508,6 +658,7 @@
               {% if problem.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
               {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
               {% else %}<span class="badge badge-pass">Information</span>{% endif %}
+              {{ confidence_badge(problem.confidence_level, problem.confidence_label, problem.confidence_css_class) }}
               <span class="badge badge-info">{{ problem.category | humanize_cat }}</span>
               {% if problem.is_grouped %}
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
@@ -567,6 +718,7 @@
               <tr>
                 <th>Problem</th>
                 <th>Page</th>
+                <th>Confidence</th>
                 <th>Details</th>
                 <th>Comment</th>
                 <th>Action</th>
@@ -574,9 +726,10 @@
             </thead>
             <tbody>
             {% for f in problem.individual_findings %}
-              <tr>
+              <tr class="grouped-occurrence" data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
                 <td><a href="#{{ f.problem_anchor }}">{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</a></td>
                 <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
+                <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
                 <td class="meta-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
@@ -636,6 +789,7 @@
             <th>Rule</th>
             <th>Page</th>
             <th>Priority</th>
+            <th>Confidence</th>
             <th>Category</th>
             <th>Details</th>
             <th>Polished comment</th>
@@ -648,7 +802,8 @@
               data-rule="{{ f.rule_id }}"
               data-severity="{{ f.severity }}"
               data-category="{{ f.category }}"
-              data-page="{{ f.page if f.page is not none else '' }}">
+              data-page="{{ f.page if f.page is not none else '' }}"
+              data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
             <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
             <td><strong>
               {% if is_p_rule_id(f.rule_id) %}
@@ -663,6 +818,7 @@
               {% elif f.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
               {% else %}<span class="badge badge-pass">Information</span>{% endif %}
             </td>
+            <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
             <td>{{ f.category | humanize_cat }}</td>
             <td class="meta-cell">
               {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}

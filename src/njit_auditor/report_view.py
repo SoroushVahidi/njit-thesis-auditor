@@ -37,6 +37,13 @@ _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
     ("p026_font_triage", "P026", "Body font summary"),
 )
 
+_CONFIDENCE_ORDER: tuple[str, ...] = ("high", "medium", "low")
+_CONFIDENCE_LABELS: dict[str, str] = {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+}
+
 
 @dataclass(frozen=True)
 class SummaryCard:
@@ -64,6 +71,9 @@ class FindingView:
     suggested_fix: str = ""
     triage_tier: str = ""
     confidence: str = ""
+    confidence_level: str = ""
+    confidence_label: str = ""
+    confidence_css_class: str = ""
     source_file: str = ""
     source_line: str = ""
     location_label: str = ""
@@ -106,6 +116,10 @@ class GroupedProblemView:
     problem_anchor: str = ""
     triage_tier: str = ""
     confidence: str = ""
+    confidence_level: str = ""
+    confidence_label: str = ""
+    confidence_css_class: str = ""
+    confidence_levels: list[str] = field(default_factory=list)
     is_grouped: bool = False
     page_tokens: list[str] = field(default_factory=list)
     location_tokens: list[str] = field(default_factory=list)
@@ -225,6 +239,47 @@ def _parse_bbox_from_details(
     return None
 
 
+def _normalize_confidence(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized in _CONFIDENCE_LABELS:
+        return normalized
+    return ""
+
+
+def _ordered_confidence_levels(values: Sequence[str]) -> list[str]:
+    normalized = {_normalize_confidence(value) for value in values}
+    normalized.discard("")
+    return [level for level in _CONFIDENCE_ORDER if level in normalized]
+
+
+def _confidence_level(levels: Sequence[str]) -> str:
+    ordered = _ordered_confidence_levels(levels)
+    if len(ordered) == 1:
+        return ordered[0]
+    if ordered:
+        return "mixed"
+    return ""
+
+
+def _confidence_label(levels: Sequence[str]) -> str:
+    ordered = _ordered_confidence_levels(levels)
+    if len(ordered) == 1:
+        return f"{_CONFIDENCE_LABELS[ordered[0]]} confidence"
+    if ordered:
+        joined = ", ".join(_CONFIDENCE_LABELS[level] for level in ordered)
+        return f"Mixed confidence: {joined}"
+    return "Confidence to review"
+
+
+def _confidence_css_class(levels: Sequence[str]) -> str:
+    ordered = _ordered_confidence_levels(levels)
+    if len(ordered) == 1:
+        return f"confidence-badge--{ordered[0]}"
+    if ordered:
+        return "confidence-badge--mixed"
+    return "confidence-badge--unknown"
+
+
 def _finding_view_from_item(
     item: Mapping[str, Any],
     *,
@@ -261,6 +316,7 @@ def _finding_view_from_item(
     issue_type = str(details.get("issue_type", ""))
     severity = str(item.get("severity", "WARNING"))
     category = map_finding_rule_to_category(rule_id, details)
+    confidence = _normalize_confidence(str(details.get("confidence", "")))
     polished = build_polished_comment(
         rule_id=rule_id,
         issue_type=issue_type,
@@ -283,7 +339,10 @@ def _finding_view_from_item(
                 rule_id, str(details.get("suggested_fix", ""))
             ),
             triage_tier=str(details.get("triage_tier", "")),
-            confidence=str(details.get("confidence", "")),
+            confidence=confidence,
+            confidence_level=confidence,
+            confidence_label=_confidence_label([confidence]),
+            confidence_css_class=_confidence_css_class([confidence]),
             source_file=source_file,
             source_line=source_line,
             location_label=location_label,
@@ -1432,6 +1491,9 @@ def build_report_view(
             group_rule_id = str(entry.get("rule_id", first.rule_id))
             group_issue_type = first.issue_type
             has_any_highlight = any(f.has_highlight for f in individual_views)
+            confidence_levels = _ordered_confidence_levels(
+                [finding.confidence_level for finding in individual_views]
+            )
             problem_numbers = [f.problem_number for f in individual_views if f.problem_number > 0]
             page_values = sorted({f.page for f in individual_views if f.page is not None})
             location_values = sorted(
@@ -1458,6 +1520,10 @@ def build_report_view(
                     affected_compact=affected_compact,
                     triage_tier=first.triage_tier,
                     confidence=first.confidence,
+                    confidence_level=_confidence_level(confidence_levels),
+                    confidence_label=_confidence_label(confidence_levels),
+                    confidence_css_class=_confidence_css_class(confidence_levels),
+                    confidence_levels=confidence_levels,
                     is_grouped=len(individual_views) > 1,
                     page_tokens=sorted(
                         {str(f.page) for f in individual_views if f.page is not None},
@@ -1496,6 +1562,10 @@ def build_report_view(
                 ),
                 triage_tier=finding.triage_tier,
                 confidence=finding.confidence,
+                confidence_level=finding.confidence_level,
+                confidence_label=finding.confidence_label,
+                confidence_css_class=finding.confidence_css_class,
+                confidence_levels=_ordered_confidence_levels([finding.confidence_level]),
                 is_grouped=False,
                 page_tokens=[str(finding.page)] if finding.page is not None else [],
                 location_tokens=[finding.location_label] if finding.location_label else [],

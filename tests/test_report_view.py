@@ -160,6 +160,66 @@ def test_grouped_problem_views_keep_single_findings_simple() -> None:
     assert len(p030.individual_findings) == 1
 
 
+def test_report_view_adds_confidence_display_metadata() -> None:
+    view = build_report_view(_sample_report())
+
+    finding = next(f for f in view.findings if f.rule_id == "P011")
+    assert finding.confidence == "medium"
+    assert finding.confidence_level == "medium"
+    assert finding.confidence_label == "Medium confidence"
+    assert finding.confidence_css_class == "confidence-badge--medium"
+
+    group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
+    assert group.confidence_levels == ["medium"]
+    assert group.confidence_level == "medium"
+    assert group.confidence_label == "Medium confidence"
+    assert group.confidence_css_class == "confidence-badge--medium"
+
+
+def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "low",
+            },
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    report["grouped_findings"] = [
+        {
+            "rule_id": "P011",
+            "issue_type": "margin_boundary_violation",
+            "individual_indexes": [0, 1],
+        }
+    ]
+
+    view = build_report_view(report)
+
+    group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
+    assert group.is_grouped is True
+    assert group.confidence_levels == ["high", "low"]
+    assert group.confidence_level == "mixed"
+    assert group.confidence_label == "Mixed confidence: High, Low"
+    assert group.confidence_css_class == "confidence-badge--mixed"
+
+
 def test_routine_p013_candidates_move_to_inventory() -> None:
     view = build_report_view(_sample_report())
 
