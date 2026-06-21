@@ -95,6 +95,186 @@ def test_p020_card_title_never_quotes_flagged_word() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 1b. P020 — word-level differentiation (web + Markdown)
+#
+#     check_pdf_title_capitalization() records the single offending word and
+#     its corrected capitalization (flagged_word/corrected_word). Showing
+#     these in a student's own report/web view is safe -- it is always a
+#     single short word from that student's own uploaded PDF, never a full
+#     heading, sentence, or body text. build_polished_comment() itself stays
+#     word-independent (see test_p020_comment_never_quotes_flagged_word in
+#     test_finding_actionability.py) so the grouping key is unaffected;
+#     report_view.py/report_outputs.py overrides add the word after
+#     grouping has already been computed, mirroring the P036/P035/P040
+#     pattern.
+# ---------------------------------------------------------------------------
+
+
+def _p020_finding(
+    *, page: int = 7, source: str = "heading", flagged_word: str = "", corrected_word: str = ""
+) -> AuditFinding:
+    details: dict[str, str] = {
+        "issue_type": "possible_title_capitalization_issue",
+        "source": source,
+        "expected_or_reason": "major_word_requires_capital",
+        "confidence": "medium",
+    }
+    if flagged_word:
+        details["flagged_word"] = flagged_word
+    if corrected_word:
+        details["corrected_word"] = corrected_word
+    return AuditFinding(
+        rule_id="P020",
+        severity=Severity.WARNING,
+        page=page,
+        message="Title case issue.",
+        details=details,
+    )
+
+
+def test_p020_polished_comment_includes_flagged_and_corrected_word() -> None:
+    findings = [_p020_finding(flagged_word="example", corrected_word="Example")]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P020")
+    assert "'example'" in fv.polished_comment
+    assert "'Example'" in fv.polished_comment
+
+
+def test_p020_polished_comment_distinguishes_heading_from_table_title() -> None:
+    findings = [
+        _p020_finding(source="heading", flagged_word="example", corrected_word="Example"),
+        _p020_finding(source="caption", flagged_word="example", corrected_word="Example"),
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    comments = [f.polished_comment for f in view.findings if f.rule_id == "P020"]
+    assert any("Level 2 heading" in c for c in comments)
+    assert any("table title" in c for c in comments)
+
+
+def test_p020_comment_falls_back_safely_without_word_metadata() -> None:
+    """Older report data without flagged_word/corrected_word must still
+    render the existing safe, word-independent comment -- no crash, no
+    stray quotes or empty-word text.
+    """
+    findings = [_p020_finding()]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P020")
+    assert "''" not in fv.polished_comment
+    assert "a major word (4+ letters) is not capitalized" in fv.polished_comment
+
+
+def test_p020_individual_findings_distinguishable_on_same_page() -> None:
+    findings = [
+        _p020_finding(flagged_word="example", corrected_word="Example"),
+        _p020_finding(flagged_word="another", corrected_word="Another"),
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    gp = next(g for g in view.grouped_problems if g.rule_id == "P020")
+    assert gp.is_grouped
+    comments = [f.polished_comment for f in gp.individual_findings]
+    assert len(comments) == len(set(comments)) == 2
+
+
+def test_p020_polished_comment_never_quotes_full_heading_text() -> None:
+    """flagged_word/corrected_word are single words and safe to show, but the
+    full heading/caption line text (line_preview) must still never appear,
+    even when word metadata is also present.
+    """
+    forbidden = "an unforgettable confidential dissertation phrase"
+    findings = [
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=7,
+            message="Title case issue.",
+            details={
+                "issue_type": "possible_title_capitalization_issue",
+                "source": "heading",
+                "expected_or_reason": "major_word_requires_capital",
+                "line_preview": forbidden,
+                "observed_summary": forbidden,
+                "flagged_word": "example",
+                "corrected_word": "Example",
+                "confidence": "medium",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P020")
+    assert forbidden not in fv.polished_comment
+    assert forbidden not in fv.issue_type_label
+
+
+def test_markdown_report_distinguishes_p020_words_on_same_page(tmp_path: Path) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [
+        _p020_finding(flagged_word="example", corrected_word="Example"),
+        _p020_finding(flagged_word="another", corrected_word="Another"),
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    problem_lines = [line for line in text.splitlines() if line.startswith("- **Problem")]
+    assert len(problem_lines) >= 2
+    assert problem_lines[0] != problem_lines[1]
+    assert "'example'" in problem_lines[0]
+    assert "'Example'" in problem_lines[0]
+    assert "'another'" in problem_lines[1]
+    assert "'Another'" in problem_lines[1]
+
+
+def test_markdown_report_p020_falls_back_safely_without_word_metadata(tmp_path: Path) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    findings = [_p020_finding()]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    assert "''" not in text
+    assert "a major word (4+ letters) is not capitalized" in text
+
+
+def test_markdown_report_p020_never_quotes_blocked_detail_text(tmp_path: Path) -> None:
+    from njit_auditor.report_outputs import write_markdown_report
+
+    forbidden = "an unforgettable confidential dissertation phrase"
+    findings = [
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=9,
+            message="Title case issue.",
+            details={
+                "issue_type": "possible_title_capitalization_issue",
+                "source": "heading",
+                "expected_or_reason": "major_word_requires_capital",
+                "line_preview": forbidden,
+                "observed_summary": forbidden,
+                "flagged_word": "example",
+                "corrected_word": "Example",
+                "confidence": "medium",
+            },
+        )
+    ]
+    output_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    assert forbidden not in text
+    assert "/home/" not in text
+    assert "Traceback" not in text
+    assert "\\begin" not in text
+
+
+# ---------------------------------------------------------------------------
 # 2. P024 — entry_level/reason metadata
 # ---------------------------------------------------------------------------
 

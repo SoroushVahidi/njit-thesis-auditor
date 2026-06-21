@@ -399,6 +399,11 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
             "confidence": first_issue["confidence"],
             "source": title_line.source,
             "detection_reason": title_line.detection_reason,
+            # Single offending word and its corrected capitalization, so the
+            # student's own report can show exactly what to fix instead of
+            # only a violation category (see check_apa_title_case_phrase).
+            "flagged_word": first_issue["word"],
+            "corrected_word": first_issue["expected"],
         }
         if title_line.bbox is not None:
             details["bbox"] = format_bbox_detail(title_line.bbox)
