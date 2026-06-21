@@ -895,6 +895,62 @@ def test_prose_table_reference_not_treated_as_caption_p017(tmp_path: Path) -> No
     assert not any(f.rule_id == "P017" for f in findings)
 
 
+def test_shortened_table_reference_not_treated_as_caption_p017(tmp_path: Path) -> None:
+    # A body sentence that opens with a shortened table number wraps onto
+    # the next line just like ordinary prose: the sentence boundary lands on
+    # a later line rather than within the matched line's own body, so the
+    # embedded-sentence check above cannot catch it on its own.
+    pdf_path = tmp_path / "caption_table_shortened_reference.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 9 presents the synthetic coefficients for each remaining",
+    )
+    page.insert_text((108, 158), "predictor across every model examined in this section.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_shortened_figure_reference_not_treated_as_caption_p017(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "caption_figure_shortened_reference.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Figure 5 illustrates the synthetic trend across each remaining",
+    )
+    page.insert_text((108, 158), "group examined later in this same chapter.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_captions(model)
+    assert not any(f.rule_id == "P017" for f in findings)
+
+
+def test_caption_followed_by_body_at_different_margin_still_detected_p017(
+    tmp_path: Path,
+) -> None:
+    # A genuine caption can sit directly above body content that happens to
+    # start with a lowercase word (e.g. a table's first data row). Because
+    # that body text starts at a different left margin than the caption, it
+    # must not be mistaken for a paragraph continuation of the caption line.
+    pdf_path = tmp_path / "caption_figure_followed_by_body.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "Figure 7 Summary of synthetic group outcomes")
+    page.insert_text((180, 158), "synthetic row alpha value here")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
 def test_caption_with_prose_restatement_flags_only_caption_p017(tmp_path: Path) -> None:
     # A real caption that restates its own figure number in the very next
     # paragraph (a common writing convention) must not produce a second,
@@ -5249,6 +5305,51 @@ def test_p035_prose_restating_figure_number_is_not_mistaken_for_caption(
     assert not any(
         w.details.get("issue_type") == "figure_caption_not_below_body" for w in warnings
     )
+
+
+def test_p035_shortened_table_reference_does_not_mask_real_caption_no_finding(
+    tmp_path: Path,
+) -> None:
+    # A body sentence elsewhere on the page that opens with a shortened
+    # table number (no sub-number, wrapping onto the next line like ordinary
+    # prose) must not be mistaken for a second caption candidate. That would
+    # otherwise interfere with the layout check for the real, fuller-numbered
+    # caption and its real body.
+    pdf_path = tmp_path / "p035_table_shortened_reference.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 3 RESULTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text(
+        (108, 130),
+        "The first part of this chapter introduces the overall sample",
+        fontsize=11,
+    )
+    page.insert_text(
+        (108, 148),
+        "and outlines the variables used in the analysis below.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (108, 180),
+        "Table 9 presents the synthetic coefficients for each remaining",
+        fontsize=11,
+    )
+    page.insert_text(
+        (108, 198),
+        "predictor across every model examined in this section.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (108, 240),
+        "Table 9.2 Summary of synthetic regression coefficients for testing.",
+        fontsize=11,
+    )
+    _draw_p035_body_rows(page, x0=108.0, y_start=260.0, rows=2, row_height=14.0, centered=True)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
 
 
 def test_p035_cli_pdf_command_includes_rule(tmp_path: Path) -> None:
