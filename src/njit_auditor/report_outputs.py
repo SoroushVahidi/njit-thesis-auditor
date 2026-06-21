@@ -1987,15 +1987,16 @@ def _format_p019_triage_section(grouped: dict[str, Any]) -> list[str]:
     lines.append("")
     lines.append(
         "P019 reports heuristic page-numbering sequence and style issues for manual NJIT "
-        "verification. Raw findings are preserved; this section summarizes by triage priority."
+        "verification. Raw findings are preserved; this section summarizes the most common "
+        "page-numbering patterns to review."
     )
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|---|---:|")
     lines.append(f"| Total P019 findings | {triage['total_findings']} |")
-    lines.append(f"| High-priority | {triage['high_priority_count']} |")
-    lines.append(f"| Medium-priority | {triage['medium_priority_count']} |")
-    lines.append(f"| Low-priority | {triage['low_priority_count']} |")
+    lines.append(f"| Check first | {triage['high_priority_count']} |")
+    lines.append(f"| Review carefully | {triage['medium_priority_count']} |")
+    lines.append(f"| Spot check | {triage['low_priority_count']} |")
     lines.append("")
 
     issue_counts = triage.get("by_issue_type", {})
@@ -2006,22 +2007,20 @@ def _format_p019_triage_section(grouped: dict[str, Any]) -> list[str]:
             lines.append(f"- `{issue_type}`: {count}")
         lines.append("")
 
-    tier_counts = triage.get("by_triage_tier", {})
-    if tier_counts:
-        lines.append("### Triage tier counts")
-        lines.append("")
-        for tier, count in sorted(tier_counts.items()):
-            lines.append(f"- `{tier}`: {count}")
-        lines.append("")
-
     guidance = triage.get("review_guidance", "")
     if guidance:
         lines.append("### Reviewer guidance")
         lines.append("")
-        for part in guidance.split(". "):
-            part = part.strip()
-            if part:
-                lines.append(f"- {part}.")
+        lines.append(
+            "- Check first: sequence gaps and missing page numbers usually need the "
+            "closest manual review."
+        )
+        lines.append(
+            "- Review carefully: boundary and multiple-candidate cases may need manual judgment."
+        )
+        lines.append(
+            "- Spot check: artifact-heavy cases may only need a quick confirmation."
+        )
         lines.append("")
 
     affected_compact = triage.get("affected_pages_compact", "")
@@ -2074,14 +2073,6 @@ def _format_p036_triage_section(grouped: dict[str, Any]) -> list[str]:
         lines.append("")
         for section_type, count in sorted(section_counts.items()):
             lines.append(f"- `{section_type}`: {count}")
-        lines.append("")
-
-    tier_counts = triage.get("triage_tier_counts", {})
-    if tier_counts:
-        lines.append("### Triage tier counts")
-        lines.append("")
-        for tier, count in sorted(tier_counts.items()):
-            lines.append(f"- `{tier}`: {count}")
         lines.append("")
 
     bucket_counts = triage.get("spacing_gap_bucket_counts", {})
@@ -2158,14 +2149,6 @@ def _format_p038_triage_section(grouped: dict[str, Any]) -> list[str]:
             lines.append(f"- `{heading}`: {count}")
         lines.append("")
 
-    tier_counts = triage.get("triage_tier_counts", {})
-    if tier_counts:
-        lines.append("### Triage tier counts")
-        lines.append("")
-        for tier, count in sorted(tier_counts.items()):
-            lines.append(f"- `{tier}`: {count}")
-        lines.append("")
-
     confidence_counts = triage.get("confidence_counts", {})
     if confidence_counts:
         lines.append("### Confidence counts")
@@ -2230,14 +2213,6 @@ def _format_p044_triage_section(grouped: dict[str, Any]) -> list[str]:
         lines.append("")
         for para_idx, count in sorted(para_counts.items()):
             lines.append(f"- paragraph {para_idx}: {count}")
-        lines.append("")
-
-    tier_counts = triage.get("triage_tier_counts", {})
-    if tier_counts:
-        lines.append("### Triage tier counts")
-        lines.append("")
-        for tier, count in sorted(tier_counts.items()):
-            lines.append(f"- `{tier}`: {count}")
         lines.append("")
 
     affected_compact = triage.get("affected_pages_compact", "")

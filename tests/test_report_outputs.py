@@ -1418,9 +1418,14 @@ def test_markdown_report_includes_p019_triage_section(tmp_path: Path) -> None:
     write_markdown_report(_p019_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "P019 Page-Numbering Triage Summary" in text
-    assert "High-priority" in text
-    assert "Medium-priority" in text
-    assert "Low-priority" in text
+    assert "Check first" in text
+    assert "Review carefully" in text
+    assert "Spot check" in text
+    assert "High-priority" not in text
+    assert "Medium-priority" not in text
+    assert "Low-priority" not in text
+    assert "Triage tier counts" not in text
+    assert "review priority" not in text.lower()
     assert "Findings by Rule" in text
 
 
@@ -1505,6 +1510,7 @@ def test_markdown_report_includes_p036_triage_section(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "P036 TOC/List Spacing Triage" in text
     assert "Spacing gap bucket counts" in text
+    assert "Triage tier counts" not in text
     assert "Raw per-page P036 findings are listed under **Findings by Rule → P036** below." in text
     triage_pos = text.index("P036 TOC/List Spacing Triage")
     findings_pos = text.index("Findings by Rule")
@@ -1607,6 +1613,7 @@ def test_markdown_report_includes_p038_triage_section(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "P038 Front-Matter Heading Triage" in text
     assert "Missing heading counts" in text
+    assert "Triage tier counts" not in text
     assert (
         "Raw per-page P038 findings are listed under **Findings by Rule → P038** below."
         in text
@@ -1744,6 +1751,7 @@ def test_markdown_report_includes_p044_triage_section(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "## P044 Abstract Indentation Triage" in text
     assert "Source Q-rule counts" in text
+    assert "Triage tier counts" not in text
     assert (
         "Raw per-page P044 findings are listed under **Findings by Rule → P044** below."
         in text
