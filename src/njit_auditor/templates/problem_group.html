@@ -21,6 +21,14 @@
     gap: 0.5rem;
     margin-top: 0.85rem;
   }
+  .problem-group-pattern-note {
+    margin: 0.7rem 0 0;
+    padding: 0.55rem 0.75rem;
+    background: #f0f6fc;
+    border-left: 3px solid var(--color-primary);
+    border-radius: 4px;
+    font-size: 0.89rem;
+  }
   .problem-group-actions {
     display: flex;
     flex-wrap: wrap;
@@ -94,6 +102,9 @@
     <h1>{{ group_title }}</h1>
     <p class="subtitle" style="margin-bottom:0.9rem;">Audit file: <strong>{{ file_name }}</strong></p>
     <p style="margin:0;">{{ group_explanation }}</p>
+    {% if pattern_note %}
+    <p class="problem-group-pattern-note">{{ pattern_note }}</p>
+    {% endif %}
     <div class="problem-group-meta">
       {% if group_kind == "rule" %}
       <span class="badge badge-info">{{ group_key }}</span>

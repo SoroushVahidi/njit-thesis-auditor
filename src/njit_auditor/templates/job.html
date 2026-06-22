@@ -17,6 +17,15 @@
   .triage-panel__actions .btn { min-height: 2.6rem; display: inline-flex; align-items: center; }
   .grouped-problem__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.8rem; }
   .grouped-problem__actions .btn { min-height: 2.5rem; display: inline-flex; align-items: center; }
+  .grouped-problem__pattern-note {
+    margin: 0.6rem 0 0;
+    padding: 0.55rem 0.75rem;
+    background: #f0f6fc;
+    border-left: 3px solid var(--color-primary);
+    border-radius: 4px;
+    font-size: 0.89rem;
+    color: var(--color-text);
+  }
   .finding-explanation { margin: 0.5rem 0 0.4rem; font-size: 0.91rem; }
   .finding-explanation summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.2rem 0; }
   .finding-explanation summary:hover { text-decoration: underline; }
@@ -676,6 +685,9 @@
           <div class="meta-cell"><strong>{{ problem.affected_label }}:</strong> {{ problem.affected_compact }}</div>
           {% endif %}
         </div>
+        {% if problem.pattern_note %}
+        <p class="grouped-problem__pattern-note">{{ problem.pattern_note }}</p>
+        {% endif %}
         <div class="grouped-problem__meta">
           {% if problem.issue_type_label %}
           <details class="issue-type-help">

@@ -41,6 +41,7 @@ from njit_auditor.pdf_highlight import (
     is_drawable_bbox,
 )
 from njit_auditor.report_outputs import (
+    _high_volume_pattern_note,
     build_audit_report,
     compact_page_list,
     sanitize_report_for_web_export,
@@ -1038,6 +1039,33 @@ _GROUP_KIND_HEADINGS: dict[str, str] = {
 }
 
 
+def _group_pattern_note(examples: list[dict[str, Any]], pages: list[int]) -> str:
+    """Explain why a problem-group page lists many examples, when safe.
+
+    Mirrors the main results page's high-volume framing: only fires when every
+    example on this drill-down page shares the same (rule_id, issue_type) pair,
+    so the note never claims a single pattern for a page that actually mixes
+    several distinct issues.
+    """
+    if len(examples) <= 1:
+        return ""
+    rule_ids = {str(example.get("rule_id", "")).strip() for example in examples}
+    issue_types = {str(example.get("issue_type", "")).strip() for example in examples}
+    if len(rule_ids) != 1 or len(issue_types) != 1:
+        return ""
+    rule_id = next(iter(rule_ids))
+    issue_type = next(iter(issue_types))
+    if not rule_id or not issue_type:
+        return ""
+    return _high_volume_pattern_note(
+        rule_id,
+        issue_type,
+        len(examples),
+        "Pages",
+        compact_page_list(pages) if pages else "",
+    )
+
+
 def _problem_group_context(
     *,
     job: JobState,
@@ -1088,6 +1116,7 @@ def _problem_group_context(
         "group_kind": group_kind,
         "group_key": group_key,
         "group_explanation": group_explanation,
+        "pattern_note": _group_pattern_note(examples, pages),
         "group_kicker": _GROUP_KIND_KICKERS.get(group_kind, "Examples of this problem"),
         "group_examples_heading": _GROUP_KIND_HEADINGS.get(group_kind, "Examples of this problem"),
         "example_count": len(examples),
