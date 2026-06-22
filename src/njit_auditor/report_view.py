@@ -29,6 +29,7 @@ from njit_auditor.polished_comments import (
     title_case_subject_label,
 )
 from njit_auditor.report_outputs import (
+    _high_volume_pattern_note,
     _source_location_basename,
     format_source_location,
 )
@@ -37,6 +38,8 @@ _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
     ("p011_margin_triage", "P011", "Margin / overflow summary"),
     ("p013_triage", "P013", "Page-number candidates summary"),
     ("p026_font_triage", "P026", "Body font summary"),
+    ("p019_page_numbering_triage", "P019", "Page-numbering summary"),
+    ("p036_toc_list_spacing_triage", "P036", "Table of Contents/List spacing summary"),
 )
 
 _PAGE_TYPE_SECTION_LABELS: dict[str, str] = {
@@ -142,6 +145,8 @@ class GroupedProblemView:
     # Issue-type display fields
     issue_type_label: str = ""        # readable label for the grouped issue type
     issue_type_explanation: str = ""  # student-facing explanation of what the issue means
+    # Why a high-volume card repeats, shown up front (not buried in a details element)
+    pattern_note: str = ""
 
 
 @dataclass(frozen=True)
@@ -192,6 +197,28 @@ def _build_triage_highlights(rule_id: str, triage: Mapping[str, Any]) -> list[tu
                 f"{k.replace('_', ' ')}: {v}" for k, v in sorted(issue_counts.items())[:4]
             )
             highlights.append(("Issue types", top))
+    elif rule_id == "P019":
+        by_category = triage.get("by_category", {})
+        if isinstance(by_category, dict) and by_category:
+            top = ", ".join(
+                f"{k.replace('_', ' ')}: {v}" for k, v in sorted(by_category.items())[:4]
+            )
+            highlights.append(("Pattern types", top))
+        high = int(triage.get("high_priority_count", 0) or 0)
+        medium = int(triage.get("medium_priority_count", 0) or 0)
+        low = int(triage.get("low_priority_count", 0) or 0)
+        if high or medium or low:
+            highlights.append(
+                ("Review priority", f"high: {high}, medium: {medium}, low: {low}")
+            )
+    elif rule_id == "P036":
+        section_counts = triage.get("section_type_counts", {})
+        if isinstance(section_counts, dict) and section_counts:
+            top = ", ".join(
+                f"{_P036_SECTION_LABELS.get(k, k.replace('_', ' '))}: {v}"
+                for k, v in sorted(section_counts.items())[:4]
+            )
+            highlights.append(("Affected sections", top))
 
     return highlights
 
@@ -202,13 +229,19 @@ def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
         triage = grouped.get(key)
         if not isinstance(triage, Mapping):
             continue
+        raw_finding_count = int(
+            triage.get("raw_finding_count", triage.get("total_findings", 0)) or 0
+        )
+        triage_note = str(
+            triage.get("triage_note") or triage.get("review_guidance") or ""
+        ).strip()
         panels.append(
             TriagePanelView(
                 rule_id=rule_id,
                 title=title,
-                triage_note=str(triage.get("triage_note", "")).strip(),
+                triage_note=triage_note,
                 triage_tier=str(triage.get("triage_tier", "")).strip(),
-                raw_finding_count=int(triage.get("raw_finding_count", 0) or 0),
+                raw_finding_count=raw_finding_count,
                 affected_pages_compact=str(triage.get("affected_pages_compact", "")).strip(),
                 highlights=_build_triage_highlights(rule_id, triage),
             )
@@ -1644,6 +1677,13 @@ def build_report_view(
                     has_any_highlight=has_any_highlight,
                     issue_type_label=first.issue_type_label,
                     issue_type_explanation=first.issue_type_explanation,
+                    pattern_note=_high_volume_pattern_note(
+                        group_rule_id,
+                        group_issue_type,
+                        len(individual_views),
+                        "Pages" if page_values else "Locations",
+                        affected_compact,
+                    ),
                 )
             )
 

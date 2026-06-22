@@ -566,6 +566,96 @@ def build_grouped_findings(
     return ordered_groups
 
 
+_P036_HIGH_VOLUME_SECTION_LABELS: dict[str, str] = {
+    "toc_inter_entry_spacing_too_tight": "Table of Contents",
+    "lot_inter_entry_spacing_too_tight": "List of Tables",
+    "lof_inter_entry_spacing_too_tight": "List of Figures",
+}
+_P019_DOCUMENT_PATTERN_ISSUE_TYPES: frozenset[str] = frozenset(
+    {
+        # Raw rule-internal issue_type values (used when grouping/Markdown read
+        # straight from AuditFinding.details, before any display remapping).
+        "sequence_gap",
+        "missing_page_number",
+        "multiple_page_numbers",
+        "inconsistent_position",
+        "mixed_numbering_style",
+        # Student-facing "visible issue type" values that report_view.py maps
+        # raw P019 issue types onto for HTML display (see
+        # _classify_visible_page_number_issue); a grouped HTML card's
+        # issue_type is already this remapped value, not the raw one above.
+        "duplicate_or_ambiguous_page_number",
+        "wrong_page_number_location",
+        "wrong_page_numbering_style",
+        "wrong_page_number_sequence",
+    }
+)
+
+
+def _high_volume_pattern_note(
+    rule_id: str,
+    issue_type: str,
+    occurrence_count: int,
+    affected_label: str,
+    affected_compact: str,
+) -> str:
+    """Explain, for a grouped card, why it has many occurrences.
+
+    Presentation only: never changes detection, grouping, counts, or
+    thresholds. Returns "" when the group has one occurrence or the
+    rule/issue type has no high-volume framing defined here.
+    """
+    if occurrence_count <= 1:
+        return ""
+    where = f" across {affected_label.lower()} {affected_compact}" if affected_compact else ""
+
+    if rule_id == "P036" and issue_type in _P036_HIGH_VOLUME_SECTION_LABELS:
+        section = _P036_HIGH_VOLUME_SECTION_LABELS[issue_type]
+        return (
+            f"This spacing pattern appears {occurrence_count} times, all in the "
+            f"{section}. It is the same formatting issue repeated rather than "
+            f"{occurrence_count} unrelated problems. Review one entry below, fix "
+            "the spacing, then apply the same correction to the remaining "
+            'entries under "Show individual occurrences".'
+        )
+
+    if rule_id == "P020" and issue_type == "possible_title_capitalization_issue":
+        return (
+            f"This title-case pattern appears {occurrence_count} times{where}. "
+            "Each occurrence flags a different word that should follow Title "
+            'Case; open "Show individual occurrences" below for the exact word '
+            "and expected capitalization in each case."
+        )
+
+    if rule_id == "P026" and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE):
+        return (
+            f"This issue appears {occurrence_count} times because the auditor "
+            f"checked multiple body-text spans{where}. Review the affected pages "
+            "and confirm the main body font against NJIT requirements -- font "
+            "acceptability may need confirmation from your editor or committee "
+            "beyond this automated check."
+        )
+
+    if rule_id == "P012" and issue_type == "pdf_annotation_detected":
+        return (
+            f"This issue appears {occurrence_count} times because the uploaded "
+            "PDF contains multiple annotations. Remove reviewer comments, "
+            "highlights, or other markup from the source PDF, then upload a "
+            "clean copy before submission."
+        )
+
+    if rule_id == "P019" and issue_type in _P019_DOCUMENT_PATTERN_ISSUE_TYPES:
+        return (
+            f"This page-numbering issue appears {occurrence_count} times{where}. "
+            "Repeats like this are usually one document-level numbering pattern "
+            f"rather than {occurrence_count} separate problems. Review the "
+            "page-numbering scheme used across the document, then apply one "
+            "consistent fix."
+        )
+
+    return ""
+
+
 def _share_pct(count: int, total: int) -> float:
     """Return a compact percentage for report summaries."""
     if total <= 0:
@@ -1650,6 +1740,11 @@ def _format_grouped_findings_section(
             lines.append(f"- Problem: {problem}")
         if suggested_fix:
             lines.append(f"- Suggested fix: {suggested_fix}")
+        pattern_note = _high_volume_pattern_note(
+            rule_id, issue_type, occurrence_count, affected_label, affected_compact
+        )
+        if pattern_note:
+            lines.append(f"- Why this repeats: {pattern_note}")
         lines.append("")
 
     return lines
