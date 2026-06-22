@@ -21,8 +21,10 @@ from njit_auditor.pdf_highlight import (
     sub_page_location_label,
 )
 from njit_auditor.polished_comments import (
+    P032_ENTRY_KIND_LABELS,
     build_polished_comment,
-    sanitize_suggested_fix_for_web,
+    finalize_student_facing_comment_and_fix,
+    resolve_suggested_fix_for_display,
     title_case_reason_short_label,
     title_case_subject_label,
 )
@@ -35,6 +37,16 @@ _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
     ("p011_margin_triage", "P011", "Margin / overflow summary"),
     ("p013_triage", "P013", "Page-number candidates summary"),
     ("p026_font_triage", "P026", "Body font summary"),
+)
+
+_PAGE_TYPE_SECTION_LABELS: dict[str, str] = {
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+
+_LIST_LOCATION_RULE_IDS = frozenset(
+    {"P018", "P024", "P032", "P036", "P040", "P046", "P053"}
 )
 
 _CONFIDENCE_ORDER: tuple[str, ...] = ("high", "medium", "low")
@@ -258,6 +270,71 @@ def _p015_location_label(rule_id: str, issue_type: str, details: Mapping[str, st
     return ""
 
 
+def _section_label_from_details(details: Mapping[str, str]) -> str:
+    page_type = details.get("page_type", "").strip()
+    if page_type:
+        return _PAGE_TYPE_SECTION_LABELS.get(page_type, "")
+    section_type = details.get("section_type", "").strip()
+    return _P036_SECTION_LABELS.get(section_type, "")
+
+
+def enriched_pdf_location_label(
+    rule_id: str,
+    issue_type: str,
+    details: Mapping[str, str],
+    page: int | None,
+    *,
+    bbox_label: str = "",
+) -> str:
+    """Return a privacy-safe location label using list/caption metadata when available."""
+    page_prefix = f"Page {page}" if page is not None else ""
+    section_label = _section_label_from_details(details)
+    entry_kind_label = P032_ENTRY_KIND_LABELS.get(details.get("entry_kind", "").strip(), "")
+    entry_index = details.get("entry_index", "").strip()
+    pair_index = details.get("entry_pair_index", "").strip()
+    float_number = details.get("float_number", "").strip()
+
+    if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
+        try:
+            pair_start = int(pair_index) + 1
+            pair_clause = f"spacing between entries {pair_start}-{pair_start + 1}"
+        except ValueError:
+            pair_clause = "spacing between consecutive entries"
+        if page_prefix and section_label:
+            return f"{page_prefix} — {section_label}, {pair_clause}"
+        if page_prefix:
+            return f"{page_prefix} — {pair_clause}"
+
+    if entry_index.isdigit():
+        entry_num = int(entry_index) + 1
+        kind_label = entry_kind_label or section_label or "list"
+        if page_prefix:
+            return f"{page_prefix} — {kind_label} entry {entry_num}"
+        return f"{kind_label} entry {entry_num}"
+
+    if float_number and rule_id == "P035":
+        noun = "Table" if "table" in issue_type else "Figure"
+        if page_prefix:
+            return f"{page_prefix} — {noun} {float_number}"
+
+    if section_label and page_prefix and rule_id in _LIST_LOCATION_RULE_IDS:
+        return f"{page_prefix} — {section_label}"
+
+    if bbox_label:
+        return bbox_label
+    return ""
+
+
+def _finalize_finding_display(finding: FindingView) -> FindingView:
+    comment, fix = finalize_student_facing_comment_and_fix(
+        finding.rule_id,
+        finding.issue_type,
+        finding.polished_comment,
+        finding.suggested_fix,
+    )
+    return replace(finding, polished_comment=comment, suggested_fix=fix)
+
+
 def _normalize_confidence(value: str) -> str:
     normalized = value.strip().lower()
     if normalized in _CONFIDENCE_LABELS:
@@ -328,12 +405,19 @@ def _finding_view_from_item(
         bbox, page=page, page_count=page_count, page_size=page_size
     )
     issue_type = str(details.get("issue_type", ""))
+    bbox_label = sub_page_location_label(bbox, page_size)
     location_label = (
         format_source_location(details)
         if is_source_audit
         else (
             _p015_location_label(rule_id, issue_type, details)
-            or sub_page_location_label(bbox, page_size)
+            or enriched_pdf_location_label(
+                rule_id,
+                issue_type,
+                details,
+                page,
+                bbox_label=bbox_label,
+            )
         )
     )
     severity = str(item.get("severity", "WARNING"))
@@ -357,8 +441,10 @@ def _finding_view_from_item(
             severity=severity,
             issue_type=issue_type,
             polished_comment=polished,
-            suggested_fix=sanitize_suggested_fix_for_web(
-                rule_id, str(details.get("suggested_fix", ""))
+            suggested_fix=resolve_suggested_fix_for_display(
+                rule_id,
+                issue_type,
+                existing=str(details.get("suggested_fix", "")),
             ),
             triage_tier=str(details.get("triage_tier", "")),
             confidence=confidence,
@@ -1438,6 +1524,7 @@ def build_report_view(
         elif visible_view.rule_id == "P014":
             visible_view, is_problem = _apply_named_heading_presentation(visible_view, details)
         if is_problem:
+            visible_view = _finalize_finding_display(visible_view)
             visible_indexes.add(index)
             visible_view_by_index[index] = visible_view
             finding_views.append(visible_view)

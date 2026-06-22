@@ -411,7 +411,11 @@ def build_grouped_findings(
     The raw ``findings`` list is preserved unchanged elsewhere. This structure is
     additive and intended for compact web/Markdown display.
     """
-    from njit_auditor.polished_comments import build_polished_comment
+    from njit_auditor.polished_comments import (
+        build_polished_comment,
+        finalize_student_facing_comment_and_fix,
+        resolve_suggested_fix_for_display,
+    )
 
     grouped: dict[
         tuple[Any, ...],
@@ -433,7 +437,17 @@ def build_grouped_findings(
             details=details,
             category=category,
         )
-        suggested_fix = details.get("suggested_fix", "").strip()
+        suggested_fix = resolve_suggested_fix_for_display(
+            rule_id,
+            issue_type,
+            existing=details.get("suggested_fix", "").strip(),
+        )
+        polished_comment, suggested_fix = finalize_student_facing_comment_and_fix(
+            rule_id,
+            issue_type,
+            polished_comment,
+            suggested_fix,
+        )
         confidence = details.get("confidence", "").strip()
         triage_tier = details.get("triage_tier", "").strip()
         normalized_problem = _normalize_grouping_text(
@@ -1621,7 +1635,6 @@ def _format_grouped_findings_section(
         affected_compact = str(entry.get("affected_compact", "")).strip()
         problem = str(entry.get("problem", "")).strip()
         suggested_fix = str(entry.get("suggested_fix", "")).strip()
-        confidence = str(entry.get("confidence", "")).strip().lower()
 
         heading = f"### {rule_id} — {occurrence_count} occurrence"
         if occurrence_count != 1:
@@ -1637,15 +1650,6 @@ def _format_grouped_findings_section(
             lines.append(f"- Problem: {problem}")
         if suggested_fix:
             lines.append(f"- Suggested fix: {suggested_fix}")
-        # Internal confidence/triage labels are not student-facing; surface
-        # only a plain-language manual-check hint for non-high-confidence
-        # groups instead (see _problem_prefix in report_view.py for the
-        # same high vs. non-high distinction used on the web cards).
-        if confidence and confidence != "high":
-            lines.append(
-                "- This appears to need manual checking — verify this item "
-                "against the NJIT format requirements."
-            )
         lines.append("")
 
     return lines
@@ -2423,6 +2427,11 @@ def _individual_finding_comment(
 
 
 def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") -> str:
+    from njit_auditor.polished_comments import (
+        finalize_student_facing_comment_and_fix,
+        resolve_suggested_fix_for_display,
+    )
+
     details = finding.get("details", {})
     if not isinstance(details, dict):
         details = {}
@@ -2434,7 +2443,14 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
     if audit_type == "tex":
         loc_text = _safe_source_location(safe_details)
     else:
-        loc_text = f"p.{page}" if page is not None else "p.-"
+        from njit_auditor.report_view import enriched_pdf_location_label
+
+        loc_text = enriched_pdf_location_label(
+            str(finding.get("rule_id", "")),
+            issue_type,
+            safe_details,
+            page,
+        ) or (f"p.{page}" if page is not None else "p.-")
 
     polished = _individual_finding_comment(
         str(finding.get("rule_id", "")),
@@ -2443,12 +2459,22 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
         page=page,
         details=safe_details,
     )
+    suggested_fix = resolve_suggested_fix_for_display(
+        str(finding.get("rule_id", "")),
+        issue_type,
+        existing=str(safe_details.get("suggested_fix", "")),
+    )
+    polished, suggested_fix = finalize_student_facing_comment_and_fix(
+        str(finding.get("rule_id", "")),
+        issue_type,
+        polished,
+        suggested_fix,
+    )
     problem_number = finding.get("problem_number")
     problem_prefix = ""
     if isinstance(problem_number, int) and problem_number > 0:
         problem_prefix = f"Problem {problem_number} · "
     line = f"- **{problem_prefix}{loc_text}** [{finding['severity']}] {polished}"
-    suggested_fix = safe_details.get("suggested_fix")
     if suggested_fix:
         line += f" | Suggested fix: {suggested_fix}"
     return line
@@ -2480,6 +2506,13 @@ def _problem_location_text(finding: dict[str, Any], *, audit_type: str) -> str:
     page = int(page_raw) if page_raw is not None else None
     if audit_type == "tex":
         return _safe_source_location(safe_details)
+    from njit_auditor.report_view import enriched_pdf_location_label
+
+    rule_id = str(finding.get("rule_id", ""))
+    issue_type = safe_details.get("issue_type", "")
+    label = enriched_pdf_location_label(rule_id, issue_type, safe_details, page)
+    if label:
+        return label
     return f"Page {page}" if page is not None else "Document-wide overview"
 
 
@@ -2487,6 +2520,7 @@ def write_markdown_report(
     findings: list[AuditFinding], metadata: dict[str, str], output_path: Path
 ) -> None:
     """Write student/office-friendly markdown audit report."""
+    from njit_auditor.polished_comments import GLOBAL_AUTOMATED_REVIEW_NOTE
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     audit_type = metadata.get("audit_type", "pdf")
@@ -2504,6 +2538,9 @@ def write_markdown_report(
     )
     lines.append(title)
     lines.append("")
+    if audit_type != "tex":
+        lines.append(f"> {GLOBAL_AUTOMATED_REVIEW_NOTE}")
+        lines.append("")
     lines.append(f"- Input file: `{meta.get('input_file_name', '-')}`")
     lines.append(f"- Input path: `{meta.get('input_file_path', '-')}`")
     lines.append(f"- Audit type: `{meta.get('audit_type', 'pdf')}`")
