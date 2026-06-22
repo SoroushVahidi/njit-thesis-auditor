@@ -438,3 +438,175 @@ def test_no_highlight_actions_and_no_500_routes_for_page_number_findings(
     for link in all_links:
         resp = c.get(link, headers=_DESKTOP_HEADERS)
         assert resp.status_code != 500, f"{link} returned 500"
+
+
+# ---------------------------------------------------------------------------
+# 14. Duplicate-card reduction: P013 candidates that restate a P019 defect
+# ---------------------------------------------------------------------------
+
+
+def test_p013_duplicate_candidate_is_folded_into_matching_p019_defect(
+    app: tuple[TestClient, Any],
+) -> None:
+    """P013 and P019 both fire on the same page for the same duplicate-number defect.
+
+    The student should see exactly one top-level problem for it, not two
+    indistinguishable cards.
+    """
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=4,
+            message="Page number candidate.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "candidate_count_on_page": "2",
+            },
+        ),
+        AuditFinding(
+            rule_id="P019",
+            severity=Severity.WARNING,
+            page=4,
+            message="Multiple page numbers.",
+            details={"issue_type": "multiple_page_numbers"},
+        ),
+    ]
+    job_id, view = _inject_job(wa, findings)
+    text = _get_html(c, f"/audits/{job_id}")
+
+    duplicate_cards = [
+        f for f in view.findings if f.issue_type == "duplicate_or_ambiguous_page_number"
+    ]
+    assert len(duplicate_cards) == 1
+    assert duplicate_cards[0].rule_id == "P019"
+    assert view.total_findings == 1
+    assert _summary_value(text, "Problems found") == "1"
+
+    assert len(view.inventory_findings) == 1
+    redundant = view.inventory_findings[0]
+    assert redundant.rule_id == "P013"
+    assert redundant.page == 4
+    assert "already reported above" in redundant.polished_comment
+
+
+def test_p013_wrong_location_candidate_is_folded_into_matching_p019_defect(
+    app: tuple[TestClient, Any],
+) -> None:
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=3,
+            message="Page number candidate.",
+            details={"issue_type": "page_number_candidate", "position_type": "top_center"},
+        ),
+        AuditFinding(
+            rule_id="P019",
+            severity=Severity.WARNING,
+            page=3,
+            message="Inconsistent position.",
+            details={"issue_type": "inconsistent_position"},
+        ),
+    ]
+    job_id, view = _inject_job(wa, findings)
+    _get_html(c, f"/audits/{job_id}")
+
+    location_cards = [f for f in view.findings if f.issue_type == "wrong_page_number_location"]
+    assert len(location_cards) == 1
+    assert location_cards[0].rule_id == "P019"
+    assert view.total_findings == 1
+
+    assert len(view.inventory_findings) == 1
+    assert view.inventory_findings[0].rule_id == "P013"
+    assert "already reported above" in view.inventory_findings[0].polished_comment
+
+
+def test_p013_and_p019_on_different_pages_both_stay_visible(
+    app: tuple[TestClient, Any],
+) -> None:
+    """Suppression only applies on a shared page; unrelated findings stay separate."""
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=4,
+            message="Page number candidate.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "candidate_count_on_page": "2",
+            },
+        ),
+        AuditFinding(
+            rule_id="P019",
+            severity=Severity.WARNING,
+            page=9,
+            message="Multiple page numbers.",
+            details={"issue_type": "multiple_page_numbers"},
+        ),
+    ]
+    job_id, view = _inject_job(wa, findings)
+    _get_html(c, f"/audits/{job_id}")
+
+    duplicate_cards = [
+        f for f in view.findings if f.issue_type == "duplicate_or_ambiguous_page_number"
+    ]
+    assert len(duplicate_cards) == 2
+    assert {f.rule_id for f in duplicate_cards} == {"P013", "P019"}
+    assert view.total_findings == 2
+    assert len(view.inventory_findings) == 0
+
+
+# ---------------------------------------------------------------------------
+# 15. P019/P028 wrong-style overlap: differentiated, not duplicated, wording
+# ---------------------------------------------------------------------------
+
+
+def test_p019_and_p028_wrong_style_overlap_is_clearly_differentiated(
+    app: tuple[TestClient, Any],
+) -> None:
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P019",
+            severity=Severity.WARNING,
+            page=None,
+            message="Mixed numbering style.",
+            details={
+                "issue_type": "mixed_numbering_style",
+                "observed_style": "Arabic and Roman numerals",
+                "expected_style": "one consistent page-numbering style per numbering section",
+            },
+        ),
+        AuditFinding(
+            rule_id="P028",
+            severity=Severity.WARNING,
+            page=8,
+            message="Wrong style.",
+            details={
+                "issue_type": "arabic_number_on_frontmatter_page",
+                "observed_style": "Arabic numerals",
+                "expected_style": "lowercase Roman numerals",
+                "page_region": "front_matter",
+            },
+        ),
+    ]
+    job_id, view = _inject_job(wa, findings)
+    _get_html(c, f"/audits/{job_id}")
+
+    style_cards = {
+        f.rule_id: f.polished_comment
+        for f in view.findings
+        if f.issue_type == "wrong_page_numbering_style"
+    }
+    assert set(style_cards) == {"P019", "P028"}
+    assert style_cards["P019"] != style_cards["P028"]
+    assert "across the document" in style_cards["P019"]
+    assert "broader consistency check" in style_cards["P019"]
+    assert "front matter section" in style_cards["P028"]
+    assert "expected to use lowercase Roman numerals" in style_cards["P028"]

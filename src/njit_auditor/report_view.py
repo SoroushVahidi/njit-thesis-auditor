@@ -815,6 +815,30 @@ def _page_number_comment_and_fix(
         expected_style = details.get("expected_style", "").strip() or (
             "the numbering style required for this section"
         )
+        if rule_id == "P028":
+            region_label = {"front_matter": "front matter", "body": "body"}.get(
+                details.get("page_region", "").strip(), ""
+            )
+            section_phrase = f"the {region_label} section" if region_label else "this section"
+            return (
+                "Review needed: Problem: "
+                f"The page number on page {page_label} appears to use {observed_style}, "
+                f"but pages in {section_phrase} are expected to use {expected_style}. "
+                "Update the page-numbering style for this section.",
+                "Update the page-numbering style for this section.",
+            )
+        if rule_id == "P019":
+            where = f"on page {page_label}" if page is not None else "across the document"
+            return (
+                "Review needed: Problem: "
+                f"More than one page-numbering style was found {where} "
+                f"({observed_style}), but NJIT requires one consistent style per section "
+                f"(expected: {expected_style}). This is a broader consistency check; if a "
+                "more specific front-matter/body style problem is also reported above for "
+                "this page, fix that one first and re-check this warning afterward.",
+                "Verify the numbering-style boundary between front matter and body, then "
+                "correct any inconsistent pages.",
+            )
         return (
             "Review needed: Problem: "
             f"The page number on page {page_label} appears to use {observed_style}, "
@@ -932,13 +956,102 @@ def _classify_visible_page_number_issue(
     return None, True
 
 
+_VISIBLE_PAGE_NUMBER_PROBLEM_PHRASES: dict[str, str] = {
+    "missing_page_number": "the missing-page-number problem already reported above for this page",
+    "duplicate_or_ambiguous_page_number": (
+        "the duplicate-or-ambiguous page-number problem already reported above for this page"
+    ),
+    "wrong_page_number_location": (
+        "the wrong page-number location problem already reported above for this page"
+    ),
+    "wrong_page_numbering_style": (
+        "the wrong page-numbering style problem already reported above for this page"
+    ),
+    "wrong_page_number_sequence": (
+        "the page-number sequence problem already reported above for this page"
+    ),
+}
+
+
+def _redundant_candidate_comment_and_explanation(
+    visible_issue_type: str, *, page: int
+) -> tuple[str, str]:
+    """Explain a P013 candidate that restates a problem another rule already reported.
+
+    Used only when another page-numbering rule (today, P019) reports a confirmed
+    defect for the same page and the same synthetic problem type that P013's raw
+    candidate detection would otherwise also show — see _collect_claimed_page_number_keys.
+    """
+    phrase = _VISIBLE_PAGE_NUMBER_PROBLEM_PHRASES.get(
+        visible_issue_type, "the page-numbering problem already reported above for this page"
+    )
+    comment = (
+        "Review needed: "
+        f"A page-number-like token was detected on page {page}. This matches {phrase}, "
+        "so it is not counted as a second, separate problem."
+    )
+    explanation = (
+        f"This page-number signal is the same underlying issue as {phrase}. It is listed "
+        "here only as supporting detail and does not add a new problem to fix."
+    )
+    return comment, explanation
+
+
+def _collect_claimed_page_number_keys(
+    all_finding_views: Sequence[FindingView],
+    finding_details_by_index: Mapping[int, dict[str, str]],
+) -> frozenset[tuple[str, int]]:
+    """Find (visible_issue_type, page) pairs already reported by a non-P013 rule.
+
+    P013 only detects page-number *candidates*. When another page-numbering rule
+    (today, P019) reports a confirmed problem at the same synthetic issue type and
+    page, P013's matching candidate finding restates the same defect and should not
+    be shown as a second, indistinguishable top-level card.
+    """
+    claimed: set[tuple[str, int]] = set()
+    for index, view in enumerate(all_finding_views):
+        if view.category != "page_numbering" or view.rule_id == "P013":
+            continue
+        details = finding_details_by_index.get(index, {})
+        visible_issue_type, is_problem = _classify_visible_page_number_issue(view, details)
+        if is_problem and visible_issue_type is not None and view.page is not None:
+            claimed.add((visible_issue_type, view.page))
+    return frozenset(claimed)
+
+
 def _apply_page_number_presentation(
     finding: FindingView,
     details: Mapping[str, str],
+    *,
+    claimed_keys: frozenset[tuple[str, int]] = frozenset(),
 ) -> tuple[FindingView, bool]:
     if finding.rule_id == "P013" and finding.issue_type == "p013_document_overview":
         return finding, False
     visible_issue_type, is_problem = _classify_visible_page_number_issue(finding, details)
+    if (
+        finding.rule_id == "P013"
+        and visible_issue_type is not None
+        and finding.page is not None
+        and (visible_issue_type, finding.page) in claimed_keys
+    ):
+        comment, explanation = _redundant_candidate_comment_and_explanation(
+            visible_issue_type, page=finding.page
+        )
+        return (
+            replace(
+                finding,
+                issue_type="detected_page_number_candidate",
+                issue_type_label=humanize_issue_type("detected_page_number_candidate"),
+                issue_type_explanation=explain_issue_type("", "detected_page_number_candidate"),
+                polished_comment=comment,
+                suggested_fix="",
+                action_kind="",
+                action_label="",
+                no_highlight_reason="",
+                detailed_explanation=explanation,
+            ),
+            False,
+        )
     if visible_issue_type is None:
         if finding.rule_id == "P013":
             return (
@@ -1411,6 +1524,10 @@ def build_report_view(
             finding_details_by_index[index] = details
             all_finding_views.append(finding_view)
 
+    claimed_page_number_keys = _collect_claimed_page_number_keys(
+        all_finding_views, finding_details_by_index
+    )
+
     finding_views: list[FindingView] = []
     inventory_findings: list[FindingView] = []
     visible_view_by_index: dict[int, FindingView] = {}
@@ -1420,7 +1537,9 @@ def build_report_view(
         visible_view = finding_view
         is_problem = True
         if visible_view.category == "page_numbering":
-            visible_view, is_problem = _apply_page_number_presentation(visible_view, details)
+            visible_view, is_problem = _apply_page_number_presentation(
+                visible_view, details, claimed_keys=claimed_page_number_keys
+            )
         elif visible_view.rule_id == "P011":
             visible_view, is_problem = _apply_margin_presentation(visible_view, details)
         elif visible_view.rule_id == "P026":
