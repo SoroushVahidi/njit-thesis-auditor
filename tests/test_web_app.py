@@ -564,6 +564,173 @@ def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     assert b'id="individual-findings-panel"' in resp.content
 
 
+def test_results_page_renders_confidence_badges_and_filters(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=5,
+            message="Font issue.",
+            details={
+                "issue_type": "possible_body_font_family_issue",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=7,
+            message="Missing continued heading.",
+            details={
+                "issue_type": "missing_continued_heading",
+                "confidence": "low",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    body = resp.text
+    assert 'data-confidence-filter=""' in body
+    assert 'data-confidence-filter="high"' in body
+    assert 'data-confidence-filter="medium"' in body
+    assert 'data-confidence-filter="low"' in body
+    assert "High confidence" in body
+    assert "Medium confidence" in body
+    assert "Low confidence" in body
+    assert 'data-confidence="high"' in body
+    assert 'data-confidence="medium"' in body
+    assert 'data-confidence="low"' in body
+    assert "Confidence: high" not in body
+    assert "Confidence: medium" not in body
+    assert "Confidence: low" not in body
+
+
+def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    import secrets
+    from datetime import datetime, timezone
+
+    from njit_auditor.models import AuditFinding, Severity
+    from njit_auditor.pdf_highlight import get_pdf_page_sizes
+    from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_view import build_report_view, report_view_to_dict
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "low",
+            },
+        ),
+    ]
+    job_id = secrets.token_urlsafe(16)
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    jdir.mkdir(parents=True, exist_ok=True)
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+    metadata = {"input_file_name": "thesis.pdf", "audit_type": "pdf", "job_id": job_id}
+    payload = audit_findings_to_json_dict(findings, metadata)
+    payload["grouped_findings"] = [
+        {
+            "rule_id": "P011",
+            "issue_type": "margin_boundary_violation",
+            "individual_indexes": [0, 1],
+        }
+    ]
+    (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    write_markdown_report(findings, metadata, jdir / "report.md")
+    pdf_page_sizes = get_pdf_page_sizes(jdir / "upload.pdf")
+    view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
+
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+        pdf_page_count=len(pdf_page_sizes),
+        pdf_page_sizes=pdf_page_sizes,
+        finding_count=view.total_findings,
+        warn_count=sum(1 for fv in view.findings if fv.severity == "WARNING"),
+        fail_count=sum(1 for fv in view.findings if fv.severity == "FAIL"),
+        findings=[
+            {
+                "rule_id": fv.rule_id,
+                "severity": fv.severity,
+                "page": fv.page,
+                "issue_type": fv.issue_type,
+                "category": fv.category,
+                "polished_comment": fv.polished_comment,
+                "suggested_fix": fv.suggested_fix,
+                "triage_tier": fv.triage_tier,
+                "confidence": fv.confidence,
+                "source_file": fv.source_file,
+                "source_line": fv.source_line,
+                "location_label": fv.location_label,
+            }
+            for fv in view.findings
+        ],
+        grouped_summary=[
+            {"rule_id": rs.rule_id, "count": rs.count, "category": rs.category}
+            for rs in view.rule_summaries
+        ],
+        report_view=report_view_to_dict(view),
+        md_preview="# Audit Report\n",
+    )
+    wa._set_job(job)
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Mixed confidence: High, Low" in body
+    assert 'data-confidence-levels="|high|low|"' in body
+    assert 'class="grouped-occurrence" data-confidence="high"' in body
+    assert 'class="grouped-occurrence" data-confidence="low"' in body
+
+
 def test_results_page_groups_source_locations_compactly(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
