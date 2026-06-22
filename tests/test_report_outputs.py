@@ -1111,6 +1111,76 @@ def test_grouped_findings_key_unaffected_by_wording_change(tmp_path: Path) -> No
     assert grouped[0]["occurrence_count"] == 3
 
 
+def _two_repeated_synthetic_groups() -> list[AuditFinding]:
+    """Two distinct repeated-problem groups, each with its own suggested fix.
+
+    Regression coverage for a bug where the Markdown grouped-findings loop
+    only emitted ``Suggested fix`` for the last group in the list.
+    """
+    return [
+        AuditFinding(
+            rule_id="P099",
+            severity=Severity.WARNING,
+            page=page,
+            message="Synthetic formatting issue A.",
+            details={
+                "issue_type": "synthetic_first_issue",
+                "suggested_fix": "Fix the first synthetic issue.",
+                "confidence": "medium",
+                "triage_tier": "check",
+            },
+        )
+        for page in (1, 2)
+    ] + [
+        AuditFinding(
+            rule_id="P098",
+            severity=Severity.WARNING,
+            page=page,
+            message="Synthetic formatting issue B.",
+            details={
+                "issue_type": "synthetic_second_issue",
+                "suggested_fix": "Fix the second synthetic issue.",
+                "confidence": "medium",
+                "triage_tier": "check",
+            },
+        )
+        for page in (3, 4)
+    ]
+
+
+def test_markdown_grouped_section_shows_suggested_fix_for_every_group(
+    tmp_path: Path,
+) -> None:
+    """Every repeated-problem group must keep its own Suggested fix line.
+
+    Previously, an indentation bug moved the ``Suggested fix`` append outside
+    the per-group loop, so only the last group in ``repeated_groups`` ever
+    showed a fix and earlier groups silently lost theirs.
+    """
+    output_path = tmp_path / "report.md"
+    write_markdown_report(_two_repeated_synthetic_groups(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    section_start = text.index("## Grouped Problems")
+    section_end = text.index("\n## ", section_start + len("## Grouped Problems"))
+    grouped_section = text[section_start:section_end]
+
+    first_heading = grouped_section.index("### P099")
+    second_heading = grouped_section.index("### P098")
+    assert first_heading < second_heading
+
+    first_block = grouped_section[first_heading:second_heading]
+    second_block = grouped_section[second_heading:]
+
+    assert "Suggested fix: Fix the first synthetic issue." in first_block
+    assert "Suggested fix: Fix the second synthetic issue." in second_block
+    # Each group's fix must stay scoped to its own heading, not bleed into
+    # the other group's block.
+    assert "Suggested fix: Fix the second synthetic issue." not in first_block
+    assert "Suggested fix: Fix the first synthetic issue." not in second_block
+    # Headings must be separated by a blank line, not run together.
+    assert "\n\n### P098" in grouped_section
+
+
 def test_markdown_grouped_section_does_not_expose_blocked_detail_text(tmp_path: Path) -> None:
     forbidden = "an unforgettable confidential dissertation phrase"
     findings = [

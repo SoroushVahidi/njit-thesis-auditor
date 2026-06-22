@@ -1648,8 +1648,8 @@ def _format_grouped_findings_section(
             lines.append(f"- {affected_label}: {affected_compact}")
         if problem:
             lines.append(f"- Problem: {problem}")
-    if suggested_fix:
-        lines.append(f"- Suggested fix: {suggested_fix}")
+        if suggested_fix:
+            lines.append(f"- Suggested fix: {suggested_fix}")
         lines.append("")
 
     return lines
