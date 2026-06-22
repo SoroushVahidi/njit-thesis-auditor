@@ -610,3 +610,97 @@ def test_p019_and_p028_wrong_style_overlap_is_clearly_differentiated(
     assert "broader consistency check" in style_cards["P019"]
     assert "front matter section" in style_cards["P028"]
     assert "expected to use lowercase Roman numerals" in style_cards["P028"]
+
+
+# ---------------------------------------------------------------------------
+# 16. P019/P029/P037 wrong-sequence overlap: differentiated, not duplicated
+# ---------------------------------------------------------------------------
+
+
+def test_p019_and_p029_sequence_overlap_is_clearly_differentiated(
+    app: tuple[TestClient, Any],
+) -> None:
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P019",
+            severity=Severity.WARNING,
+            page=7,
+            message="Roman page-number candidate sequence shows an obvious gap/break.",
+            details={
+                "issue_type": "sequence_gap",
+                "observed_sequence": "viii",
+                "expected_sequence": "vii",
+            },
+        ),
+        AuditFinding(
+            rule_id="P029",
+            severity=Severity.WARNING,
+            page=7,
+            message="Roman numeral decreased on a front-matter page.",
+            details={
+                "issue_type": "roman_sequence_decrease",
+                "observed_sequence": "viii",
+                "expected_sequence": "vii",
+                "page_region": "front_matter",
+            },
+        ),
+    ]
+    job_id, view = _inject_job(wa, findings)
+    _get_html(c, f"/audits/{job_id}")
+
+    sequence_cards = {
+        f.rule_id: f.polished_comment
+        for f in view.findings
+        if f.issue_type == "wrong_page_number_sequence"
+    }
+    assert set(sequence_cards) == {"P019", "P029"}
+    assert sequence_cards["P019"] != sequence_cards["P029"]
+    assert "whole-document sequence check" in sequence_cards["P019"]
+    assert "front-matter sequence" in sequence_cards["P029"]
+    assert "Roman numeral page number" in sequence_cards["P029"]
+
+
+def test_p029_and_p037_sequence_overlap_is_clearly_differentiated(
+    app: tuple[TestClient, Any],
+) -> None:
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P029",
+            severity=Severity.WARNING,
+            page=11,
+            message="Roman numeral sequence gap on a front-matter page.",
+            details={
+                "issue_type": "roman_sequence_gap",
+                "observed_sequence": "vi",
+                "expected_sequence": "v",
+                "page_region": "front_matter",
+            },
+        ),
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=11,
+            message="Section Roman numeral does not match the NJIT template value.",
+            details={
+                "issue_type": "roman_section_wrong_value",
+                "section_key": "dedication",
+                "observed_sequence": "vi",
+                "expected_sequence": "v",
+            },
+        ),
+    ]
+    job_id, view = _inject_job(wa, findings)
+    _get_html(c, f"/audits/{job_id}")
+
+    sequence_cards = {
+        f.rule_id: f.polished_comment
+        for f in view.findings
+        if f.issue_type == "wrong_page_number_sequence"
+    }
+    assert set(sequence_cards) == {"P029", "P037"}
+    assert sequence_cards["P029"] != sequence_cards["P037"]
+    assert "front-matter sequence" in sequence_cards["P029"]
+    assert "NJIT front-matter template" in sequence_cards["P037"]
+    assert "fixed template position" in sequence_cards["P037"]

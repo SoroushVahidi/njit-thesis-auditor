@@ -863,6 +863,38 @@ def _page_number_comment_and_fix(
                 "please manually check the nearby page numbers.",
                 "Manually check the page numbers near this page for a sequence error.",
             )
+        if rule_id == "P029":
+            return (
+                "Review needed: Problem: "
+                f"The Roman numeral page number on page {page_label} breaks the expected "
+                f"front-matter sequence (observed: {observed}; expected: {expected}). This "
+                "checks the page-to-page front-matter sequence specifically; if a broader "
+                "document-wide sequence warning is also reported above for this page, fix "
+                "this front-matter sequence issue first and re-check that warning afterward.",
+                "Correct this page's Roman numeral so it continues the front-matter sequence.",
+            )
+        if rule_id == "P037":
+            return (
+                "Review needed: Problem: "
+                f"The Roman numeral page number on page {page_label} does not match the "
+                "value required by the NJIT front-matter template for this section "
+                f"(observed: {observed}; expected: {expected}). This checks a specific "
+                "section against its fixed template position, which is different from the "
+                "general sequence check; if a broader sequence warning is also reported "
+                "above for this page, fix this template-position issue first.",
+                "Set this section's page number to the NJIT template's required Roman numeral.",
+            )
+        if rule_id == "P019":
+            return (
+                "Review needed: Problem: "
+                f"The detected page number on page {page_label} does not appear to follow "
+                f"the expected numbering sequence. Observed: {observed}. Expected: "
+                f"{expected}. This is a broader, whole-document sequence check; if a more "
+                "specific front-matter Roman-numeral sequence or section-template problem "
+                "is also reported above for this page, fix that one first and re-check "
+                "this warning afterward.",
+                "Renumber the affected pages so the sequence is correct.",
+            )
         return (
             "Review needed: Problem: "
             f"The detected page number on page {page_label} does not appear to follow the "
