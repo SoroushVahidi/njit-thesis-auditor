@@ -4,7 +4,7 @@ Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
 
 1. P063 — remediation truncation breaks on a word boundary, not mid-word
 2. Confidence:/Triage tier: labels no longer appear in polished comments
-3. VERIFY_SUFFIX is dropped for bespoke/specific comments, kept for generic ones
+3. VERIFY_SUFFIX is not appended to polished comments (global report caveat instead)
 4. P036 — missing issue_type_explanations entries are filled in
 5. P016 — gap-measurement (largest_gap_pt) enrichment
 6. P068 — role/signature count enrichment
@@ -41,6 +41,7 @@ from njit_auditor.polished_comments import (
     _truncate_at_word_boundary,
     build_polished_comment,
     contains_blocked_detail_text,
+    resolve_suggested_fix_for_display,
 )
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import (
@@ -76,14 +77,13 @@ def test_truncate_at_word_boundary_leaves_short_text_untouched() -> None:
 
 
 def test_p063_remediation_does_not_end_mid_word() -> None:
-    comment = build_polished_comment(
-        rule_id="P063",
-        issue_type="appendix_numbering_inconsistent",
-        page=40,
-        details={},
+    fix = resolve_suggested_fix_for_display(
+        "P063",
+        "appendix_numbering_inconsistent",
     )
-    assert "alphabetical..." not in comment
-    assert "consecutive..." in comment
+    assert fix
+    assert "alphabetical..." not in fix
+    assert "consecutive" in fix
 
 
 # ---------------------------------------------------------------------------
@@ -112,14 +112,14 @@ def test_verify_suffix_dropped_for_bespoke_issue_template() -> None:
     assert VERIFY_SUFFIX not in comment
 
 
-def test_verify_suffix_kept_for_generic_catch_all_fallback() -> None:
+def test_verify_suffix_not_appended_to_generic_fallback() -> None:
     comment = build_polished_comment(
         rule_id="P999",
         issue_type="totally_unmapped_issue_type",
         page=1,
         details={},
     )
-    assert VERIFY_SUFFIX in comment
+    assert VERIFY_SUFFIX not in comment
 
 
 # ---------------------------------------------------------------------------

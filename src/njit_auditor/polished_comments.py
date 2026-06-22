@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from njit_auditor.report_outputs import derive_source_issue_type
 
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
+GLOBAL_AUTOMATED_REVIEW_NOTE = (
+    "Automated findings require manual verification against NJIT guidelines."
+)
 
 # Detail keys that may contain dissertation text and must never appear in comments.
 _BLOCKED_DETAIL_KEYS: frozenset[str] = frozenset(
@@ -689,7 +693,9 @@ def _resolve_remediation(rule_id: str, issue_type: str) -> str:
     """Return the remediation text to append, preferring an issue-specific override."""
     override = _ISSUE_REMEDIATION_OVERRIDES.get((rule_id, issue_type), _NO_ISSUE_OVERRIDE)
     if override is not _NO_ISSUE_OVERRIDE:
-        return str(override)
+        text = str(override).strip()
+        if text:
+            return text
     return _remediation_by_rule().get(rule_id, "")
 
 
@@ -1152,6 +1158,7 @@ _P032_ENTRY_KIND_LABELS: dict[str, str] = {
     "toc_level_2": "Table of Contents entry",
     "toc_level_3": "Table of Contents sub-entry",
 }
+P032_ENTRY_KIND_LABELS = _P032_ENTRY_KIND_LABELS
 
 
 def _p032_wrapped_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
@@ -1752,6 +1759,37 @@ def build_polished_comment(
     return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
 
+def resolve_suggested_fix_for_display(
+    rule_id: str,
+    issue_type: str = "",
+    *,
+    existing: str = "",
+) -> str:
+    """Return a student-facing suggested fix, preferring detector text then rule remediation."""
+    cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
+    if cleaned:
+        return cleaned
+    return sanitize_suggested_fix_for_web(rule_id, _resolve_remediation(rule_id, issue_type))
+
+
+def finalize_student_facing_comment_and_fix(
+    rule_id: str,
+    issue_type: str,
+    comment: str,
+    suggested_fix: str,
+) -> tuple[str, str]:
+    """Prepare comment/fix for display without repeated boilerplate or duplicate fix prose."""
+    fix = resolve_suggested_fix_for_display(rule_id, issue_type, existing=suggested_fix)
+    cleaned = comment.replace(VERIFY_SUFFIX, "").strip()
+    remediation = _resolve_remediation(rule_id, issue_type)
+    if remediation and remediation in cleaned and remediation != cleaned:
+        cleaned = cleaned.replace(remediation, "").strip()
+    if fix and fix in cleaned and fix != cleaned:
+        cleaned = cleaned.replace(fix, "").strip()
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" .")
+    return cleaned, fix
+
+
 def _finish_comment(
     body: str,
     *,
@@ -1759,13 +1797,12 @@ def _finish_comment(
     issue_type: str = "",
     specific: bool = False,
 ) -> str:
-    remediation = _resolve_remediation(rule_id, issue_type)
-    parts = [f"{REVIEW_PREFIX} {body}"]
-    if remediation and remediation not in body:
-        parts.append(remediation)
-    if not specific:
-        parts.append(VERIFY_SUFFIX)
-    return " ".join(parts)
+    # Remediation is shown on its own Suggested fix line; VERIFY_SUFFIX is omitted
+    # here because reports surface one global automated-review caveat instead.
+    _ = specific
+    _ = issue_type
+    _ = rule_id
+    return f"{REVIEW_PREFIX} {body}".strip()
 
 
 def contains_blocked_detail_text(comment: str, details: dict[str, str]) -> bool:

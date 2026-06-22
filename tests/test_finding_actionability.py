@@ -1965,27 +1965,24 @@ def test_p020_comment_never_quotes_flagged_word() -> None:
 
 
 def test_p025_missing_abstract_body_remediation_matches_only_that_issue() -> None:
-    comment = build_polished_comment(
-        rule_id="P025", issue_type="missing_abstract_body", page=2, details={}
-    )
-    assert "Add the abstract body text directly below the ABSTRACT heading" in comment
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
+    fix = resolve_suggested_fix_for_display("P025", "missing_abstract_body")
+    assert "Add the abstract body text directly below the ABSTRACT heading" in fix
     for unrelated in ("degree phrase", "institution", "Approval Page", "Table of Contents"):
-        assert unrelated not in comment
-    assert _OLD_COMBINED_P025_REMEDIATION not in comment
+        assert unrelated not in fix
+    assert _OLD_COMBINED_P025_REMEDIATION not in fix
 
 
 def test_p025_frontmatter_order_remediation_matches_only_that_issue() -> None:
-    comment = build_polished_comment(
-        rule_id="P025",
-        issue_type="possible_frontmatter_order_issue",
-        page=4,
-        details={"toc_page": "6"},
-    )
-    assert "before the Table of Contents" in comment
-    assert "Move the Abstract" in comment
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
+    fix = resolve_suggested_fix_for_display("P025", "possible_frontmatter_order_issue")
+    assert "before the Table of Contents" in fix
+    assert "Move the Abstract" in fix
     for unrelated in ("degree phrase", "institution name", "Approval Page", "abstract body text"):
-        assert unrelated not in comment
-    assert _OLD_COMBINED_P025_REMEDIATION not in comment
+        assert unrelated not in fix
+    assert _OLD_COMBINED_P025_REMEDIATION not in fix
 
 
 def test_p025_all_issue_types_avoid_old_combined_remediation() -> None:
@@ -2028,18 +2025,21 @@ def test_p038_required_heading_missing_explanation_distinct_from_phrase_not_exac
 
 
 def test_unhandled_issue_type_fallback_has_no_banned_phrase_but_keeps_rule_remediation() -> None:
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
     # P029 (Roman-numeral sequence) has no bespoke polished_comments template,
     # so it exercises the absolute generic fallback branch. Known issue types
     # must never fall through to the old "Formatting check PXXX flagged issue
-    # type ..." phrase, and the rule's catalog remediation must still be the
-    # appended fix, not just a bare verify-manually instruction.
+    # type ..." phrase, and the rule's catalog remediation must still be
+    # available as the suggested fix, not just a bare verify-manually instruction.
     comment = build_polished_comment(
         rule_id="P029", issue_type="roman_sequence_gap", page=5, details={}
     )
+    fix = resolve_suggested_fix_for_display("P029", "roman_sequence_gap")
     assert _OLD_BANNED_FALLBACK_PHRASE not in comment
     assert "Formatting check" not in comment
-    assert "expected numbering sequence" in comment.lower()
-    assert "ascending sequence" in comment
+    assert "roman numeral ordering" in fix.lower()
+    assert "ascending sequence" in fix.lower()
 
 
 def test_unhandled_issue_type_fallback_document_level_has_no_banned_phrase() -> None:
