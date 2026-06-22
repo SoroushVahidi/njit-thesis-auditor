@@ -82,6 +82,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     # Title / Copyright
     "title_page_mismatch": "Title page mismatch",
     "title_consistency_mismatch": "Title consistency mismatch",
+    "frontmatter_title_mismatch": "Front-matter title mismatch",
     "copyright_year_mismatch": "Copyright year mismatch",
     "copyright_author_not_found": "Copyright author not found",
     "copyright_year_not_found": "Copyright year not found",
@@ -420,17 +421,27 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "Verify that the title is identical wherever it appears: title page, "
         "abstract, and table of contents."
     ),
+    ("P033", "frontmatter_title_mismatch"): (
+        "The dissertation title text differs between two or more front-matter "
+        "pages — the Title Page, Abstract, and/or Approval Page — based on a "
+        "normalized comparison, not an exact match. NJIT requires the title to be "
+        "worded identically everywhere it appears in the front matter. Compare the "
+        "title wording on the flagged pages and correct whichever one does not "
+        "match the others."
+    ),
     ("P034", "copyright_year_mismatch"): (
         "The copyright year on the copyright page may not match the expected format "
         "or year. Confirm the copyright block includes the correct year."
     ),
-    ("P034", "copyright_author_not_found"): (
+    ("P052", "copyright_author_not_found"): (
         "A copyright page was detected but the author name could not be verified. "
         "Confirm the copyright block includes the required author name."
     ),
-    ("P034", "copyright_year_not_found"): (
-        "A copyright page was detected but no year token was found. "
-        "Confirm the copyright block includes the required year."
+    ("P051", "copyright_year_not_found"): (
+        "A copyright page was detected, but the auditor could not confidently read "
+        "a four-digit copyright year on it. Check the copyright page and confirm "
+        "the year is present, clearly next to the copyright notice, and matches "
+        "the year the degree is conferred."
     ),
     ("P038", "required_heading_missing"): (
         "This means a required front-matter section heading was not found "

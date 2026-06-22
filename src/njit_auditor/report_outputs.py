@@ -448,6 +448,11 @@ def build_grouped_findings(
             page=page,
             details=details,
         )
+        # Confidence is deliberately excluded from the grouping key: the same
+        # problem type should stay on one card even when individual occurrences
+        # were detected with different confidence levels (see _CONFIDENCE_ORDER
+        # in report_view.py, which aggregates per-occurrence confidence for
+        # display rather than relying on a single value here).
         key = (
             rule_id,
             issue_type,
@@ -455,7 +460,6 @@ def build_grouped_findings(
             category,
             normalized_problem,
             normalized_fix,
-            confidence,
             triage_tier,
             _grouping_context_signature(rule_id, details),
         )
@@ -471,7 +475,6 @@ def build_grouped_findings(
                 "category": category,
                 "problem": polished_comment,
                 "suggested_fix": suggested_fix,
-                "confidence": confidence,
                 "triage_tier": triage_tier,
                 "occurrence_count": 0,
                 "pages": [],
@@ -481,11 +484,14 @@ def build_grouped_findings(
                 "locations": [],
                 "locations_compact": "",
                 "individual_indexes": [],
+                "_confidence_values": [],
             }
 
         entry = grouped[key]
         entry["occurrence_count"] += 1
         entry["individual_indexes"].append(index)
+        if confidence:
+            entry["_confidence_values"].append(confidence)
         if page is not None:
             entry["pages"].append(int(page))
         if page_label:
@@ -499,6 +505,18 @@ def build_grouped_findings(
         key=lambda entry: (entry["individual_indexes"][0], entry["rule_id"], entry["issue_type"]),
     )
     for entry in ordered_groups:
+        raw_confidences = set(entry.pop("_confidence_values", []))
+        confidence_levels = [
+            level for level in ("high", "medium", "low") if level in raw_confidences
+        ]
+        entry["confidence_levels"] = confidence_levels
+        if len(confidence_levels) == 1:
+            entry["confidence"] = confidence_levels[0]
+        elif confidence_levels:
+            entry["confidence"] = "mixed"
+        else:
+            entry["confidence"] = ""
+
         page_values = sorted(set(int(page) for page in entry["pages"]))
         page_ranges = _compact_numeric_ranges(page_values)
         page_labels = sorted(set(str(label) for label in entry["page_labels"]))

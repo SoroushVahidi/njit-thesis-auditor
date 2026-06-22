@@ -287,7 +287,7 @@ def _confidence_label(levels: Sequence[str]) -> str:
     if ordered:
         joined = ", ".join(_CONFIDENCE_LABELS[level] for level in ordered)
         return f"Mixed confidence: {joined}"
-    return "Confidence to review"
+    return "Needs review"
 
 
 def _confidence_css_class(levels: Sequence[str]) -> str:

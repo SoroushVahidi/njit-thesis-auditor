@@ -176,6 +176,21 @@ def test_report_view_adds_confidence_display_metadata() -> None:
     assert group.confidence_css_class == "confidence-badge--medium"
 
 
+def test_finding_with_missing_confidence_shows_needs_review_badge() -> None:
+    """Missing confidence must render a neutral 'Needs review' badge, never blank,
+    and must not be confused with a low-severity or low-confidence judgement."""
+    view = build_report_view(_sample_report())
+
+    finding = next(f for f in view.findings if f.rule_id == "P030")
+    assert finding.confidence == ""
+    assert finding.confidence_label == "Needs review"
+    assert finding.confidence_css_class == "confidence-badge--unknown"
+
+    group = next(problem for problem in view.grouped_problems if problem.rule_id == "P030")
+    assert group.confidence_label == "Needs review"
+    assert group.confidence_css_class == "confidence-badge--unknown"
+
+
 def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
     findings = [
         AuditFinding(
@@ -218,6 +233,39 @@ def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
     assert group.confidence_level == "mixed"
     assert group.confidence_label == "Mixed confidence: High, Low"
     assert group.confidence_css_class == "confidence-badge--mixed"
+
+
+def test_same_problem_with_different_confidence_stays_on_one_card_by_default() -> None:
+    """End-to-end: the default (non-overridden) grouping pipeline must not split
+    an identical problem into separate cards just because confidence differs —
+    see build_grouped_findings() in report_outputs.py, which excludes confidence
+    from its grouping key for this reason."""
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=page,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": confidence,
+            },
+        )
+        for page, confidence in ((1, "high"), (2, "high"), (3, "low"))
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+
+    view = build_report_view(report)
+
+    p011_groups = [problem for problem in view.grouped_problems if problem.rule_id == "P011"]
+    assert len(p011_groups) == 1
+    group = p011_groups[0]
+    assert group.occurrence_count == 3
+    assert group.confidence_levels == ["high", "low"]
+    assert group.confidence_level == "mixed"
+    assert len(group.individual_findings) == 3
+    assert {f.confidence for f in group.individual_findings} == {"high", "low"}
 
 
 def test_routine_p013_candidates_move_to_inventory() -> None:

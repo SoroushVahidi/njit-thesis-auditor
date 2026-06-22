@@ -1453,3 +1453,95 @@ def test_p042_wording_never_leaks_unrelated_detail_text() -> None:
         assert "Traceback" not in explanation
         assert ".tex" not in explanation
         assert "\\begin" not in explanation
+
+
+# ---------------------------------------------------------------------------
+# 14. P033/P051/P052 — front-matter title mismatch and copyright-page
+#     generic-boilerplate findings gain metadata-specific polished comments,
+#     issue_type_explanations, and detailed_explanations instead of falling
+#     through to generic catch-all wording. Never quotes the title or
+#     copyright text itself — only page roles, hashes, and similarity scores.
+# ---------------------------------------------------------------------------
+
+
+def test_p033_frontmatter_title_mismatch_is_specific_not_generic() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P033",
+            severity=Severity.WARNING,
+            page=5,
+            message="Title may not match across front-matter pages.",
+            details={
+                "issue_type": "frontmatter_title_mismatch",
+                "reference_page_role": "title",
+                "mismatch_pages": "5",
+                "comparison_basis": "normalized_text_hash_and_sequence_similarity",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P033")
+
+    assert "Title Page" in fv.polished_comment
+    assert "Title Page" in fv.detailed_explanation
+    assert "Title Page" in fv.issue_type_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+    assert "This check (P033) found a possible" not in fv.polished_comment
+
+
+def test_p051_copyright_year_not_found_names_the_right_gap() -> None:
+    marker_present = AuditFinding(
+        rule_id="P051",
+        severity=Severity.WARNING,
+        page=4,
+        message="Copyright year not found.",
+        details={
+            "issue_type": "copyright_year_not_found",
+            "copyright_marker_detected": "true",
+        },
+    )
+    marker_absent = AuditFinding(
+        rule_id="P051",
+        severity=Severity.WARNING,
+        page=4,
+        message="Copyright year not found.",
+        details={
+            "issue_type": "copyright_year_not_found",
+            "copyright_marker_detected": "false",
+        },
+    )
+
+    for finding, expected_phrase in (
+        (marker_present, "could not confidently read a four-digit year"),
+        (marker_absent, "did not find recognizable copyright-notice wording"),
+    ):
+        payload = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+        view = build_report_view(payload)
+        fv = next(f for f in view.findings if f.rule_id == "P051")
+        assert expected_phrase in fv.polished_comment
+        assert "Copyright Page" in fv.polished_comment
+        assert "was flagged by an automated check" not in fv.issue_type_explanation
+        assert "automated formatting check" not in fv.detailed_explanation
+        assert "This check (P051) found a possible" not in fv.polished_comment
+
+
+def test_p052_copyright_author_not_found_is_specific_not_generic() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P052",
+            severity=Severity.WARNING,
+            page=4,
+            message="Copyright author not found.",
+            details={"issue_type": "copyright_author_not_found"},
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P052")
+
+    assert "author" in fv.polished_comment.lower()
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+    assert "This check (P052) found a possible" not in fv.polished_comment

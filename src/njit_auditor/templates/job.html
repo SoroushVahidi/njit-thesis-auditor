@@ -38,20 +38,23 @@
     letter-spacing: 0;
     line-height: 1.2;
   }
+  /* Confidence badges use a cool blue/purple/gray palette, deliberately distinct
+     from the warm red/yellow/green severity badges in base.html (.badge-fail/
+     .badge-warn/.badge-pass), so confidence is never mistaken for severity. */
   .confidence-badge--high {
-    background: #fde8e7;
-    border-color: #e7a4a0;
-    color: #922b21;
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e3a8a;
   }
   .confidence-badge--medium {
-    background: #fff4d6;
-    border-color: #e5c36b;
-    color: #7a5200;
+    background: #ede9fe;
+    border-color: #c4b5fd;
+    color: #5b21b6;
   }
   .confidence-badge--low {
-    background: #eaf1fb;
-    border-color: #b4c9e6;
-    color: #244d7a;
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #334155;
   }
   .confidence-badge--mixed {
     background: #eef1f5;
@@ -311,7 +314,7 @@
   {% elif normalized == "low" %}
     {% set badge_label = "Low confidence" %}
   {% else %}
-    {% set badge_label = "Confidence to review" %}
+    {% set badge_label = "Needs review" %}
   {% endif %}
   {% if css_class %}
     {% set badge_class = css_class %}
@@ -471,6 +474,7 @@
     <span class="section-note">Click a problem type or View all to see every matching finding</span>
   </div>
   <div class="card" style="padding:0.5rem 0.75rem">
+    <div class="table-scroll">
     <table>
       <thead>
         <tr><th>Problem type</th><th>Findings</th><th></th></tr>
@@ -485,6 +489,7 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 </section>
 {% endif %}
@@ -524,7 +529,7 @@
     </ul>
     {% endif %}
     <div class="triage-panel__actions">
-      <a href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
+      <a href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}" class="btn btn-secondary">Examples for this rule</a>
     </div>
   </div>
   {% endfor %}
@@ -538,6 +543,7 @@
     <span class="section-note">Click a rule ID for rule reference, or View all to see every finding for that rule.</span>
   </div>
   <div class="card" style="padding:0.5rem 0.75rem">
+    <div class="table-scroll">
     <table>
       <thead>
         <tr><th>Rule</th><th>Count</th><th>Category</th><th></th></tr>
@@ -557,6 +563,7 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 </section>
 {% endif %}
@@ -708,11 +715,16 @@
           {% else %}
           <span class="file-hint no-highlight-note" style="align-self:center;">{{ first_finding.no_highlight_reason }}</span>
           {% endif %}
-          <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples of this problem</a>
+          {% if problem.issue_type %}
+          <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}/issue-type/{{ problem.issue_type | issue_type_slug }}" class="btn btn-secondary">Examples of this exact problem</a>
+          {% else %}
+          <a href="/audits/{{ job_id }}/problems/rule/{{ problem.rule_id }}" class="btn btn-secondary">Examples for this rule</a>
+          {% endif %}
         </div>
         {% if problem.is_grouped %}
         <details class="grouped-problem__details collapsible">
           <summary>Show individual occurrences</summary>
+          <div class="table-scroll">
           <table class="occurrence-table">
             <thead>
               <tr>
@@ -740,6 +752,7 @@
             {% endfor %}
             </tbody>
           </table>
+          </div>
         </details>
         {% endif %}
       </div>
@@ -758,6 +771,7 @@
       <p class="file-hint" style="margin-top:0.75rem;">
         These are page-number-like tokens detected for internal verification. They are not formatting problems unless another rule reports a specific defect such as missing, misplaced, duplicate, wrong-style, or wrong-sequence numbering.
       </p>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -776,12 +790,14 @@
         {% endfor %}
         </tbody>
       </table>
+      </div>
     </details>
   </section>
   {% endif %}
 
   <div id="individual-findings-panel" class="results-panel--hidden">
     <div class="card" style="padding:0.5rem 0.75rem">
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -830,6 +846,7 @@
         {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
   </div>
   {% else %}
