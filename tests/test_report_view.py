@@ -249,6 +249,103 @@ def test_grouped_problem_views_group_source_locations_compactly() -> None:
     )
 
 
+def test_p015_missing_later_indent_gets_precise_location_and_highlight() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P015",
+            severity=Severity.WARNING,
+            page=32,
+            message="Later paragraph appears to be missing expected first-line indentation.",
+            details={
+                "issue_type": "missing_later_indent",
+                "indent_pt": "0.0",
+                "expected": "first_line_indent_approx_36pt",
+                "paragraph_line_count": "4",
+                "paragraph_index": "2",
+                "bbox": "100.0,300.0,500.0,312.0",
+                "confidence": "high",
+                "suggested_fix": (
+                    "Apply consistent first-line indentation for non-opening paragraphs."
+                ),
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report, pdf_page_sizes=[(612.0, 792.0)] * 32)
+
+    finding = next(f for f in view.findings if f.rule_id == "P015")
+    assert finding.location_label == "First line of body paragraph 2"
+    assert finding.has_highlight is True
+    assert finding.action_kind == "highlight"
+    assert finding.action_label == "Open highlighted PDF page"
+    assert "Observed" in finding.detailed_explanation
+    assert "Expected" in finding.detailed_explanation
+    assert "body paragraph 2" in finding.detailed_explanation
+    assert "100.0" not in finding.detailed_explanation
+    assert "300.0" not in finding.detailed_explanation
+
+
+def test_p015_unexpected_opening_indent_gets_precise_location_and_highlight() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P015",
+            severity=Severity.WARNING,
+            page=4,
+            message="Opening paragraph appears unexpectedly indented.",
+            details={
+                "issue_type": "unexpected_opening_indent",
+                "indent_pt": "82.0",
+                "expected": "flush_left",
+                "paragraph_line_count": "3",
+                "paragraph_index": "1",
+                "bbox": "190.0,140.0,540.0,152.0",
+                "confidence": "high",
+                "suggested_fix": "Remove first-line indent for opening front-matter paragraph.",
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report, pdf_page_sizes=[(612.0, 792.0)] * 4)
+
+    finding = next(f for f in view.findings if f.rule_id == "P015")
+    assert finding.location_label == "First line of the opening paragraph"
+    assert finding.has_highlight is True
+    assert finding.action_kind == "highlight"
+    assert finding.action_label == "Open highlighted PDF page"
+    assert "flush-left" in finding.polished_comment.lower()
+    assert "190.0" not in finding.detailed_explanation
+
+
+def test_p015_without_bbox_falls_back_to_specific_inspection_guidance() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P015",
+            severity=Severity.WARNING,
+            page=10,
+            message="Later paragraph appears to be missing expected first-line indentation.",
+            details={
+                "issue_type": "missing_later_indent",
+                "indent_pt": "0.0",
+                "expected": "first_line_indent_approx_36pt",
+                "paragraph_line_count": "4",
+                "paragraph_index": "3",
+                "confidence": "high",
+                "suggested_fix": (
+                    "Apply consistent first-line indentation for non-opening paragraphs."
+                ),
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P015")
+    assert finding.has_highlight is False
+    assert finding.action_kind == "original_page"
+    assert finding.action_label == "Open original PDF page"
+    assert "body paragraph 3" in finding.no_highlight_reason
+
+
 @pytest.mark.parametrize(
     ("rule_id", "issue_type", "forbidden"),
     [

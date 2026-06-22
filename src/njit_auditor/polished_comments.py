@@ -328,19 +328,6 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "lacheck linter warning at {location}. "
         "Review the flagged source pattern against NJIT formatting rules."
     ),
-    # --- P015 paragraph indentation ---
-    ("P015", "unexpected_opening_indent"): (
-        "Likely problem: A paragraph on page {page} appears to have an "
-        "unintended first-line indent where NJIT expects a flush-left opening "
-        "paragraph. Remove the extra indent or confirm this is a permitted "
-        "exception such as a block quote or list item."
-    ),
-    ("P015", "missing_later_indent"): (
-        "Likely problem: A paragraph on page {page} appears to start flush-left "
-        "where NJIT expects a first-line indent for a non-opening paragraph. "
-        "Add the required first-line indent or confirm this paragraph is meant "
-        "to begin a new block."
-    ),
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
         "Likely problem: A {caption_type} caption on page {page} appears to end "
@@ -1011,6 +998,35 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
     )
 
 
+def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
+    if issue_type == "unexpected_opening_indent":
+        return "the opening paragraph"
+    paragraph_index = details.get("paragraph_index", "").strip()
+    if paragraph_index:
+        return f"body paragraph {paragraph_index}"
+    return "a later body paragraph"
+
+
+def _p015_indentation_comment(
+    issue_type: str, *, page: int | None, details: dict[str, str]
+) -> str:
+    page_label = _safe_page_label(page)
+    descriptor = _p015_paragraph_descriptor(issue_type, details)
+    if issue_type == "unexpected_opening_indent":
+        return (
+            f"Likely problem: {descriptor.capitalize()} on page {page_label} appears "
+            "to have an unintended first-line indent where NJIT expects a flush-left "
+            "opening paragraph. Remove the extra indent or confirm this is a permitted "
+            "exception such as a block quote or list item."
+        )
+    return (
+        f"Likely problem: {descriptor.capitalize()} on page {page_label} appears to "
+        "start flush-left where NJIT expects a first-line indent for a non-opening "
+        "paragraph. Add the required first-line indent or confirm this paragraph is "
+        "meant to begin a new block."
+    )
+
+
 def _margin_side_label(details: dict[str, str]) -> str:
     side = details.get("side", "").strip().lower()
     labels = {
@@ -1500,6 +1516,13 @@ def build_polished_comment(
 
     if rule_id == "P011" and issue == "margin_boundary_violation":
         body = _p011_margin_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P015" and issue in {
+        "unexpected_opening_indent",
+        "missing_later_indent",
+    }:
+        body = _p015_indentation_comment(issue, page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P026" and issue in {

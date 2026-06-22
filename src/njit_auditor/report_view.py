@@ -239,6 +239,25 @@ def _parse_bbox_from_details(
     return None
 
 
+def _p015_location_label(rule_id: str, issue_type: str, details: Mapping[str, str]) -> str:
+    """Return a paragraph-specific location label for P015 indentation findings.
+
+    P015 always knows which paragraph on the page it flagged, so this is more
+    precise than the generic page-quadrant label other rules fall back to.
+    Returns "" for every other rule, which leaves their location_label
+    computation unchanged.
+    """
+    if rule_id != "P015":
+        return ""
+    if issue_type == "unexpected_opening_indent":
+        return "First line of the opening paragraph"
+    if issue_type == "missing_later_indent":
+        paragraph_index = str(details.get("paragraph_index", "")).strip()
+        if paragraph_index:
+            return f"First line of body paragraph {paragraph_index}"
+    return ""
+
+
 def _normalize_confidence(value: str) -> str:
     normalized = value.strip().lower()
     if normalized in _CONFIDENCE_LABELS:
@@ -308,12 +327,15 @@ def _finding_view_from_item(
     has_highlight = has_visible_highlight(
         bbox, page=page, page_count=page_count, page_size=page_size
     )
+    issue_type = str(details.get("issue_type", ""))
     location_label = (
         format_source_location(details)
         if is_source_audit
-        else sub_page_location_label(bbox, page_size)
+        else (
+            _p015_location_label(rule_id, issue_type, details)
+            or sub_page_location_label(bbox, page_size)
+        )
     )
-    issue_type = str(details.get("issue_type", ""))
     severity = str(item.get("severity", "WARNING"))
     category = map_finding_rule_to_category(rule_id, details)
     confidence = _normalize_confidence(str(details.get("confidence", "")))
