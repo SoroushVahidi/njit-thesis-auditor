@@ -706,6 +706,149 @@ def test_annotation_page_out_of_pdf_range_falls_back(app: tuple[TestClient, Any]
 
 
 # ---------------------------------------------------------------------------
+# 7b. P012 wording distinguishes uploaded-PDF annotations from auditor highlights
+# ---------------------------------------------------------------------------
+
+
+def test_annotation_comment_mentions_uploaded_pdf_and_disclaims_auditor_highlight() -> None:
+    comment = build_polished_comment(
+        rule_id="P012",
+        issue_type="pdf_annotation_detected",
+        page=4,
+        details={"annotation_type": "Highlight", "rect": "10.0,20.0,30.0,40.0"},
+    )
+    assert "uploaded PDF" in comment
+    assert "highlight annotation" in comment
+    assert "not a highlight added by this auditor" in comment
+    # Raw bbox coordinates must never leak into student-facing text.
+    for raw in ("10.0", "20.0", "30.0", "40.0"):
+        assert raw not in comment
+
+
+def test_annotation_comment_safely_labels_known_annotation_types() -> None:
+    cases = {
+        "Text": "sticky note",
+        "FreeText": "comment annotation",
+        "Popup": "comment annotation",
+        "Highlight": "highlight annotation",
+        "Square": "markup annotation",
+        "Unknown": "PDF annotation",
+        "": "PDF annotation",
+    }
+    for annotation_type, expected_label in cases.items():
+        comment = build_polished_comment(
+            rule_id="P012",
+            issue_type="pdf_annotation_detected",
+            page=2,
+            details={"annotation_type": annotation_type},
+        )
+        assert expected_label in comment, (annotation_type, comment)
+
+
+def test_annotation_comment_never_exposes_raw_annotation_content() -> None:
+    private_text = "Please rewrite this paragraph before your defense"
+    comment = build_polished_comment(
+        rule_id="P012",
+        issue_type="pdf_annotation_detected",
+        page=4,
+        details={"annotation_type": "FreeText", "content": private_text},
+    )
+    assert private_text not in comment
+
+
+def test_annotation_explanation_distinguishes_from_auditor_highlight() -> None:
+    explanation = build_detailed_explanation(
+        rule_id="P012",
+        issue_type="pdf_annotation_detected",
+        details={"annotation_type": "Text"},
+        page=5,
+        has_highlight=True,
+    )
+    assert "uploaded PDF" in explanation
+    assert "not a highlight added by this auditor" in explanation
+    assert "sticky note" in explanation
+
+
+def test_annotation_explanation_never_exposes_raw_annotation_content() -> None:
+    private_text = "Reviewer wrote a private note about this section"
+    explanation = build_detailed_explanation(
+        rule_id="P012",
+        issue_type="pdf_annotation_detected",
+        details={"annotation_type": "Popup", "content": private_text},
+        page=2,
+        has_highlight=True,
+    )
+    assert private_text not in explanation
+    assert "comment annotation" in explanation
+
+
+def test_annotation_no_highlight_fallback_names_annotation_area() -> None:
+    explanation = build_detailed_explanation(
+        rule_id="P012",
+        issue_type="pdf_annotation_detected",
+        details={"annotation_type": "Highlight"},
+        page=5,
+        has_highlight=False,
+    )
+    assert "the annotation area" in explanation
+
+
+def test_annotation_issue_type_help_distinguishes_from_auditor_highlight() -> None:
+    expl = explain_issue_type("P012", "pdf_annotation_detected")
+    assert "uploaded PDF" in expl
+    assert "not a highlight added by this auditor" in expl
+
+
+def test_annotation_highlight_action_label_unchanged_with_bbox(
+    app: tuple[TestClient, Any],
+) -> None:
+    """Real bbox data must still yield the standard, rule-agnostic highlight action."""
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=3,
+            message="PDF annotation detected.",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Highlight",
+                "rect": "100.0,200.0,300.0,260.0",
+            },
+        )
+    ]
+    job_id = _inject_job(wa, findings)
+    text = _get_html(c, f"/audits/{job_id}")
+    assert "Open highlighted PDF page" in text
+    assert "uploaded PDF" in text
+
+
+def test_annotation_fallback_guidance_honest_without_bbox(
+    app: tuple[TestClient, Any],
+) -> None:
+    """No parseable bbox must still fall back to the honest original-page guidance."""
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P012",
+            severity=Severity.WARNING,
+            page=3,
+            message="PDF annotation detected.",
+            details={
+                "issue_type": "pdf_annotation_detected",
+                "annotation_type": "Highlight",
+            },
+        )
+    ]
+    job_id = _inject_job(wa, findings)
+    text = _get_html(c, f"/audits/{job_id}")
+    assert "Open original PDF page" in text
+    assert "Open highlighted PDF page" not in text
+    assert "No exact highlight is available" in text
+    assert "the annotation area" in text
+
+
+# ---------------------------------------------------------------------------
 # 8. Main/category/rule parity
 # ---------------------------------------------------------------------------
 

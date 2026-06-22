@@ -86,6 +86,8 @@ def _inspection_target(rule_id: str, issue_type: str, details: dict[str, str]) -
     if rule_id == "P011":
         side = _humanize_safe_label(details.get("side", ""))
         return f"the {side} area" if side else "the page-margin area"
+    if rule_id == "P012":
+        return "the annotation area"
     if rule_id == "P015":
         if issue_type == "unexpected_opening_indent":
             return "the first line of the opening paragraph"
@@ -161,14 +163,6 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "top and bottom margins 1 inch. "
         "Review the highlighted area or the listed page and adjust layout, "
         "indentation, tables, figures, or long lines."
-    ),
-    # --- P012 annotations ---
-    ("P012", "pdf_annotation_detected"): (
-        "This PDF contains an annotation, comment, sticky note, markup, or "
-        "similar review object ({annotation_type_label}). "
-        "These should usually be resolved or removed before final submission. "
-        "Open the PDF in your editor and accept, reject, or delete all reviewer "
-        "comments before resubmitting."
     ),
     # --- P013 page number candidates ---
     # P013 only records a candidate's observed position/style — it has no
@@ -733,11 +727,12 @@ _RULE_FALLBACKS: dict[str, str] = {
         "indentation, tables, figures, or long lines."
     ),
     "P012": (
-        "This PDF contains an annotation, comment, sticky note, markup, or "
-        "similar review object. "
+        "This finding refers to an annotation, comment, sticky note, markup, or "
+        "similar review object that was already present in the uploaded PDF -- not "
+        "a highlight added by this auditor. "
         "These should usually be resolved or removed before final submission. "
-        "Open the PDF in your editor and accept, reject, or delete all reviewer "
-        "comments before resubmitting."
+        "Open the original PDF in your editor and accept, reject, or delete all "
+        "reviewer comments before resubmitting."
     ),
     "P013": (
         "This finding concerns page-numbering style, placement, sequence, or "
@@ -915,6 +910,38 @@ def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> st
         "Why this is suspicious: layout content appears outside the printable body area. "
         "What to check or fix: inspect tables, figures, long lines, indentation, headers, "
         "and footers on this page."
+    )
+
+
+_P012_ANNOTATION_LABELS: dict[str, str] = {
+    "highlight": "highlight annotation",
+    "text": "sticky note",
+    "freetext": "comment annotation",
+    "popup": "comment annotation",
+}
+
+
+def _p012_annotation_label(details: dict[str, str]) -> str:
+    raw = details.get("annotation_type", "").strip()
+    if not raw or raw.lower() == "unknown":
+        return "PDF annotation"
+    return _P012_ANNOTATION_LABELS.get(raw.lower(), "markup annotation")
+
+
+def _p012_annotation_explanation(details: dict[str, str], *, page: int | None) -> str:
+    annotation_label = _p012_annotation_label(details)
+    location = f" on page {page}" if page is not None else ""
+    return (
+        f"Observed: The uploaded PDF appears to already contain a {annotation_label}"
+        f"{location}. "
+        "Expected: Before final submission, the PDF should be free of reviewer "
+        "annotations, comments, sticky notes, and markup. "
+        "Why this is suspicious: this finding refers to an annotation that was "
+        "already present in the original file you uploaded -- it is not a highlight "
+        "added by this auditor to show you where to look. "
+        "What to check or fix: open the original PDF in your editor, accept or "
+        "reject all reviewer changes, delete remaining comments, highlights, or "
+        "markup, and upload a clean copy before final submission."
     )
 
 
@@ -1491,6 +1518,8 @@ def _build_explanation_text(
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
     if rule_id == "P011" and effective_issue_type == "margin_boundary_violation":
         return _p011_margin_explanation(details, page=page)
+    if rule_id == "P012" and effective_issue_type == "pdf_annotation_detected":
+        return _p012_annotation_explanation(details, page=page)
     if rule_id == "P015" and effective_issue_type in {
         "unexpected_opening_indent",
         "missing_later_indent",
@@ -1575,12 +1604,6 @@ def _build_explanation_text(
 
     if template is not None:
         # Substitute known safe details into the template.
-        annotation_type = details.get("annotation_type", "annotation")
-        annotation_type_label = (
-            annotation_type
-            if annotation_type and annotation_type != "Unknown"
-            else "annotation"
-        )
         side = details.get("side", "")
         side_label = side.replace("_", " ") if side else "page margin"
 
@@ -1614,7 +1637,6 @@ def _build_explanation_text(
 
         try:
             result = template.format(
-                annotation_type_label=annotation_type_label,
                 side_label=side_label,
                 position_type_label=position_type_label,
                 page_type_label=page_type_label,

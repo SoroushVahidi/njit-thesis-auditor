@@ -842,6 +842,26 @@ def test_markdown_report_includes_p012_triage_section(tmp_path: Path) -> None:
     assert "secret comment" not in triage_section
 
 
+def test_p012_triage_note_distinguishes_from_auditor_highlight() -> None:
+    triage = build_p012_annotation_triage_summary(_p012_mixed_findings())
+    assert triage is not None
+    assert "uploaded PDF" in triage["triage_note"]
+    assert "not highlights added by this auditor" in triage["triage_note"]
+
+
+def test_markdown_p012_triage_section_distinguishes_from_auditor_highlight(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "report_p012_wording.md"
+    write_markdown_report(_p012_mixed_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    triage_pos = text.index("P012 Annotation/Comment Triage")
+    findings_pos = text.index("Findings by Rule")
+    triage_section = text[triage_pos:findings_pos]
+    assert "uploaded PDF" in triage_section
+    assert "not highlights added by this auditor" in triage_section
+
+
 def test_all_four_triage_rollups_coexist() -> None:
     findings = (
         _p011_mixed_findings()
