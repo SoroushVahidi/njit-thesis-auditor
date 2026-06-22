@@ -903,10 +903,10 @@ def build_p012_annotation_triage_summary(
         "dominant_annotation_type": dominant_type,
         "triage_tier": "informational",
         "triage_note": (
-            "P012 reports embedded PDF annotations and reviewer comments for manual "
-            "cleanup before final submission. This is an informational triage category; "
-            "resolve or remove comments rather than treating each warning as a "
-            "formatting defect."
+            "P012 reports annotations, comments, and markup that were already present "
+            "in the uploaded PDF -- not highlights added by this auditor. This is an "
+            "informational triage category; resolve or remove comments rather than "
+            "treating each warning as a formatting defect."
         ),
         "recommended_action": (
             "Review affected pages, resolve feedback, and remove or flatten annotations "

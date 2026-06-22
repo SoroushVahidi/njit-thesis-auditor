@@ -196,10 +196,12 @@ def has_curated_issue_type_title(rule_id: str, issue_type: str) -> bool:
 
 _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P012", "pdf_annotation_detected"): (
-        "This means the PDF contains an annotation, comment, sticky note, markup, "
-        "or similar review object. These should usually be resolved or removed before "
-        "final submission. Open the PDF in your editor and accept, reject, or delete "
-        "all reviewer comments before resubmitting."
+        "This means the uploaded PDF already contains an annotation, comment, "
+        "sticky note, markup, or similar review object -- something left in the "
+        "original file you uploaded, not a highlight added by this auditor. These "
+        "should usually be resolved or removed before final submission. Open the "
+        "original PDF in your editor and accept, reject, or delete all reviewer "
+        "comments before resubmitting."
     ),
     ("P026", "possible_body_font_family_issue"): (
         "This means sampled body-text-like spans appear to use a font family other "

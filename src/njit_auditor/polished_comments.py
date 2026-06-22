@@ -29,6 +29,7 @@ _BLOCKED_DETAIL_KEYS: frozenset[str] = frozenset(
         "extracted_text",
         "annotation_text",
         "comment_text",
+        "content",
         "label",
         "ref",
     }
@@ -39,10 +40,6 @@ _SOURCE_RULE_IDS = frozenset(
 )
 
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
-    ("P012", "pdf_annotation_detected"): (
-        "A PDF annotation or comment was detected on page {page}. "
-        "Resolve or remove annotations before final submission."
-    ),
     ("P011", "margin_boundary_violation"): (
         "Possible text crossing the {side} margin on page {page}. "
         "Check that body text and headings respect NJIT margin requirements."
@@ -1065,6 +1062,34 @@ def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
     )
 
 
+_P012_ANNOTATION_LABELS: dict[str, str] = {
+    "highlight": "highlight annotation",
+    "text": "sticky note",
+    "freetext": "comment annotation",
+    "popup": "comment annotation",
+}
+
+
+def _p012_annotation_label(details: dict[str, str]) -> str:
+    raw = details.get("annotation_type", "").strip()
+    if not raw or raw.lower() == "unknown":
+        return "PDF annotation"
+    return _P012_ANNOTATION_LABELS.get(raw.lower(), "markup annotation")
+
+
+def _p012_annotation_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    annotation_label = _p012_annotation_label(details)
+    return (
+        f"Likely problem: The uploaded PDF appears to already contain a "
+        f"{annotation_label} on page {page_label}. This refers to something left in "
+        "the original file you uploaded, not a highlight added by this auditor to "
+        "show where a problem is located. Before final submission, accept or reject "
+        "any reviewer changes, remove comments, highlights, or markup from the PDF, "
+        "and upload a clean copy."
+    )
+
+
 def _p026_font_comment(
     *,
     issue_type: str,
@@ -1594,6 +1619,10 @@ def build_polished_comment(
 
     if rule_id == "P011" and issue == "margin_boundary_violation":
         body = _p011_margin_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P012" and issue == "pdf_annotation_detected":
+        body = _p012_annotation_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P015" and issue in {

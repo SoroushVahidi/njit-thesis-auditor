@@ -184,7 +184,9 @@ def test_location_label_from_valid_bbox_top_of_page(app: tuple[TestClient, Any])
     )
     text = _get_html(client, f"/audits/{job_id}")
     assert "Top of page" in text
-    assert "A PDF annotation or comment was detected on page 2" in text
+    assert "uploaded PDF" in text
+    assert "page 2" in text
+    assert "not a highlight added by this auditor" in text
     # No raw bbox coordinates leak into the student-facing page.
     for raw in ("250.0", "80.0", "360.0", "100.0"):
         assert raw not in text
