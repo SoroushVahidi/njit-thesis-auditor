@@ -798,6 +798,102 @@ def test_results_page_triage_cards_link_to_rule_problem_pages(
     assert b"Examples for this rule" in resp.content
 
 
+def test_results_page_p013_triage_panel_shows_when_all_candidates_routine(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """When every P013 candidate is routine (no visible problems), the panel must
+    show 0 problems / N informational candidates and link to the inventory section
+    instead of the (otherwise 404-ing) rule examples page."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=page,
+            message="Page has one page-number-like candidate.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "number_style": "arabic",
+                "confidence": "medium",
+            },
+        )
+        for page in range(1, 4)
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Page-number candidates summary" in html
+    assert "3 informational candidate" in html
+    assert "See detected candidates" in html
+    assert f'/audits/{job_id}/problems/rule/P013"' not in html
+
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P013")
+    assert rule_resp.status_code == 404
+
+
+def test_results_page_p013_triage_panel_splits_problems_from_candidates(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A real P013 problem (multiple candidates on one page) must show an
+    "Examples for this rule" link and a problem-count badge alongside the
+    informational-candidate badge, while routine pages stay informational."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=page,
+            message="Page has one page-number-like candidate.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "number_style": "arabic",
+                "confidence": "medium",
+            },
+        )
+        for page in range(1, 4)
+    ] + [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=9,
+            message="Multiple page-number-like tokens detected.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "candidate_count_on_page": "2",
+                "confidence": "medium",
+            },
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "1 problem" in html
+    assert "3 informational candidate" in html
+    assert f'/audits/{job_id}/problems/rule/P013' in html
+    assert "Examples for this rule" in html
+
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P013")
+    assert rule_resp.status_code == 200
+    assert b"Multiple page-number-like tokens" in rule_resp.content
+
+
 def test_results_page_renders_polished_comments(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:

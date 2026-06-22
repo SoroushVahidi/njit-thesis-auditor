@@ -792,8 +792,10 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
         ),
         "triage_tier": "informational",
         "triage_note": (
-            "P013 reports automated page-number candidates for manual NJIT verification. "
-            "Page-level warnings are triage signals, not confirmed formatting defects."
+            "Most P013 entries are routine page-number candidates that help verify "
+            "page-number location and style. They are informational and are not "
+            "counted as formatting problems unless another finding reports a "
+            "specific defect on that page."
         ),
     }
 
@@ -2521,6 +2523,61 @@ def _individual_finding_comment(
     )
 
 
+def _format_p013_informational_candidates_block(
+    findings: list[dict[str, Any]],
+) -> list[str]:
+    """Summarize routine P013 page-number candidates instead of listing each one.
+
+    Mirrors the web UI's "Detected page-number candidates" inventory section:
+    these entries are informational signals the auditor uses to verify
+    page-number location and style, not confirmed formatting problems.
+    """
+    count = len(findings)
+    pages = sorted({int(f["page"]) for f in findings if f.get("page") is not None})
+    position_counts: Counter[str] = Counter()
+    style_counts: Counter[str] = Counter()
+    for finding in findings:
+        details = finding.get("details", {})
+        if not isinstance(details, dict):
+            continue
+        position_type = str(details.get("position_type", "")).strip()
+        if position_type:
+            position_counts[position_type] += 1
+        number_style = str(details.get("number_style", "")).strip()
+        if number_style:
+            style_counts[number_style] += 1
+
+    lines = [
+        f"**{count} additional detected page-number candidate"
+        f"{'s' if count != 1 else ''} (informational — not counted as problems).**",
+        "",
+        "These are detected page-number candidates used by the auditor and are "
+        "not counted as formatting problems unless another finding reports a "
+        "specific defect.",
+        "",
+    ]
+    if pages:
+        lines.append(f"- Pages: {compact_page_list(pages)}")
+    if position_counts:
+        position_summary = ", ".join(
+            f"{key.replace('_', ' ')}: {value}"
+            for key, value in sorted(position_counts.items())
+        )
+        lines.append(f"- Position: {position_summary}")
+    if style_counts:
+        style_summary = ", ".join(
+            f"{key.replace('_', ' ')}: {value}"
+            for key, value in sorted(style_counts.items())
+        )
+        lines.append(f"- Number style: {style_summary}")
+    lines.append(
+        "- See **P013 Page-Number Candidate Triage** earlier in this report "
+        "for a fuller breakdown."
+    )
+    lines.append("")
+    return lines
+
+
 def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") -> str:
     from njit_auditor.polished_comments import (
         finalize_student_facing_comment_and_fix,
@@ -2737,8 +2794,48 @@ def write_markdown_report(
                 item["message"],
             )
         sorted_findings = sorted(rule_findings, key=sort_key)
+        visible_findings = []
+        informational_findings = []
         for finding in sorted_findings:
+            finding_problem_number = finding.get("problem_number")
+            if isinstance(finding_problem_number, int) and finding_problem_number > 0:
+                visible_findings.append(finding)
+            else:
+                informational_findings.append(finding)
+        for finding in visible_findings:
             lines.append(_finding_markdown_line(finding, audit_type=audit_type))
+        if informational_findings:
+            if visible_findings:
+                lines.append("")
+            if rule_id == "P013":
+                # Page-level candidates are routine and summarized together (the
+                # web inventory shows them the same way); the document-overview
+                # entry is a one-off summary note, not a per-page candidate, so
+                # it still gets its own line rather than being folded into the
+                # "N additional candidates" tally.
+                page_level_informational = [
+                    finding
+                    for finding in informational_findings
+                    if str((finding.get("details") or {}).get("issue_type", ""))
+                    == P013_PAGE_ISSUE_TYPE
+                ]
+                other_informational = [
+                    finding
+                    for finding in informational_findings
+                    if str((finding.get("details") or {}).get("issue_type", ""))
+                    != P013_PAGE_ISSUE_TYPE
+                ]
+                for finding in other_informational:
+                    lines.append(_finding_markdown_line(finding, audit_type=audit_type))
+                if page_level_informational:
+                    if other_informational:
+                        lines.append("")
+                    lines.extend(
+                        _format_p013_informational_candidates_block(page_level_informational)
+                    )
+            else:
+                for finding in informational_findings:
+                    lines.append(_finding_markdown_line(finding, audit_type=audit_type))
         lines.append("")
 
     lines.append("## Notes")

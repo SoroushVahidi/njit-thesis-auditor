@@ -510,11 +510,14 @@
     <span class="section-note">Repeated patterns — one root cause often explains many findings</span>
   </div>
   {% for panel in report_view.triage_panels %}
-  <div class="card triage-panel triage-panel--clickable js-card-link"
+  {% set has_examples = panel.problem_count > 0 %}
+  <div class="card triage-panel{% if has_examples %} triage-panel--clickable js-card-link{% endif %}"
+       {% if has_examples %}
        data-href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}"
        tabindex="0"
        role="link"
-       aria-label="Open examples for {{ panel.title }}">
+       aria-label="Open examples for {{ panel.title }}"
+       {% endif %}>
     <div class="triage-panel__header">
       <span class="triage-panel__title">{{ panel.title }}</span>
       <span class="badge badge-info">
@@ -522,7 +525,14 @@
         <a href="/rules#{{ panel.rule_id }}" class="rule-link" style="color:inherit;" aria-label="{{ panel.rule_id }}: see rule reference">{{ panel.rule_id }}</a>
         {% else %}{{ panel.rule_id }}{% endif %}
       </span>
+      {% if panel.informational_count > 0 %}
+      {% if panel.problem_count > 0 %}
+      <span class="badge badge-warn">{{ panel.problem_count }} problem{{ "" if panel.problem_count == 1 else "s" }}</span>
+      {% endif %}
+      <span class="badge badge-muted">{{ panel.informational_count }} informational candidate{{ "" if panel.informational_count == 1 else "s" }}</span>
+      {% else %}
       <span class="badge badge-warn">{{ panel.raw_finding_count }} findings</span>
+      {% endif %}
     </div>
     {% if panel.triage_note %}
     <p style="font-size:0.9rem;margin:0 0 0.5rem">{{ panel.triage_note }}</p>
@@ -537,9 +547,15 @@
       {% endfor %}
     </ul>
     {% endif %}
+    {% if has_examples %}
     <div class="triage-panel__actions">
       <a href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}" class="btn btn-secondary">Examples for this rule</a>
     </div>
+    {% elif report_view.inventory_findings %}
+    <div class="triage-panel__actions">
+      <a href="#section-inventory" class="btn btn-secondary">See detected candidates</a>
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
 </section>

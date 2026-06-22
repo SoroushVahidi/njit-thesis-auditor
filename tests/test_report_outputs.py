@@ -25,6 +25,7 @@ from njit_auditor.report_outputs import (
     write_json_report,
     write_markdown_report,
 )
+from njit_auditor.report_view import build_report_view
 
 
 def _sample_findings() -> list[AuditFinding]:
@@ -617,6 +618,106 @@ def test_markdown_report_includes_p013_triage_section(tmp_path: Path) -> None:
     triage_pos = text.index("P013 Page-Number Candidate Triage")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
+
+
+def _extract_findings_by_rule_subsection(text: str, rule_id: str) -> str:
+    """Return the text of one rule's "### {rule_id}" block under "## Findings by Rule"."""
+    findings_by_rule_idx = text.index("## Findings by Rule")
+    section = text[findings_by_rule_idx:]
+    heading = f"### {rule_id}"
+    start = section.index(heading) + len(heading)
+    rest = section[start:]
+    next_heading_idx = rest.find("\n### ")
+    end_idx = next_heading_idx if next_heading_idx != -1 else rest.find("\n## ")
+    return rest[: end_idx if end_idx != -1 else None]
+
+
+def test_markdown_findings_by_rule_summarizes_p013_informational_candidates(
+    tmp_path: Path,
+) -> None:
+    """Routine P013 candidates must be summarized, not listed flat, like the web UI."""
+    output_path = tmp_path / "report_p013.md"
+    write_markdown_report(_p013_findings(8), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    section = _extract_findings_by_rule_subsection(text, "P013")
+
+    assert section.count("- **Problem") == 1
+    assert "7 additional detected page-number candidates" in section
+    assert (
+        "These are detected page-number candidates used by the auditor and are "
+        "not counted as formatting problems unless another finding reports a "
+        "specific defect."
+    ) in section
+    assert "informational" in section.lower()
+
+
+def test_markdown_findings_by_rule_keeps_real_p013_problem_individually_listed(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "report_p013.md"
+    write_markdown_report(_p013_findings(8), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    section = _extract_findings_by_rule_subsection(text, "P013")
+
+    assert "Multiple page-number-like tokens" in section
+    assert "Problem 1" in section
+
+
+def test_markdown_p013_informational_summary_breaks_down_by_page_position_style(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "report_p013.md"
+    write_markdown_report(_p013_findings(8), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    section = _extract_findings_by_rule_subsection(text, "P013")
+
+    assert "Pages:" in section
+    assert "Position:" in section
+    assert "Number style:" in section
+    assert "P013 Page-Number Candidate Triage" in section
+
+
+def test_markdown_findings_by_rule_unaffected_for_non_p013_rules(tmp_path: Path) -> None:
+    """A rule with no problem/informational split still lists every finding."""
+    output_path = tmp_path / "report_p026.md"
+    write_markdown_report(_p026_findings(6), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    section = _extract_findings_by_rule_subsection(text, "P026")
+
+    assert section.count("- **") == 6
+    assert "informational" not in section.lower()
+
+
+def test_p013_view_and_markdown_agree_on_visible_problem_count() -> None:
+    """report_view.py (web) and report_outputs.py (Markdown) must draw the same line
+    between real P013 problems and informational candidates for identical findings.
+
+    The document-overview entry is excluded from both: the web inventory never
+    displays it, and Markdown's informational summary only counts per-page
+    candidates (the overview is already reflected in the triage section).
+    """
+    findings = _p013_findings(8)
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    view = build_report_view(payload)
+
+    p013_serialized = [f for f in payload["findings"] if f["rule_id"] == "P013"]
+    markdown_visible_count = sum(
+        1
+        for f in p013_serialized
+        if isinstance(f.get("problem_number"), int) and f["problem_number"] > 0
+    )
+    markdown_page_level_informational_count = sum(
+        1
+        for f in p013_serialized
+        if not (isinstance(f.get("problem_number"), int) and f["problem_number"] > 0)
+        and (f.get("details") or {}).get("issue_type") == P013_PAGE_ISSUE_TYPE
+    )
+
+    view_visible_count = sum(1 for f in view.findings if f.rule_id == "P013")
+    view_informational_count = sum(1 for f in view.inventory_findings if f.rule_id == "P013")
+
+    assert markdown_visible_count == view_visible_count == 1
+    assert markdown_page_level_informational_count == view_informational_count == 7
 
 
 def test_non_p013_grouped_summary_unchanged_for_p026() -> None:
