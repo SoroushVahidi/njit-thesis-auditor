@@ -564,6 +564,9 @@ def test_indented_first_abstract_paragraph_warns(tmp_path: Path) -> None:
     warning = next(f for f in findings if f.rule_id == "P015")
     assert warning.details.get("issue_type") == "unexpected_opening_indent"
     assert warning.details.get("expected") == "flush_left"
+    assert warning.details.get("paragraph_index") == "1"
+    bbox = warning.details.get("bbox", "")
+    assert len(bbox.split(",")) == 4
 
 
 def test_later_paragraph_with_expected_indent_does_not_warn(tmp_path: Path) -> None:
@@ -593,6 +596,9 @@ def test_later_paragraph_missing_indent_warns(tmp_path: Path) -> None:
     warning = next(f for f in findings if f.rule_id == "P015")
     assert warning.details.get("issue_type") == "missing_later_indent"
     assert warning.details.get("expected") == "first_line_indent_approx_36pt"
+    assert warning.details.get("paragraph_index") == "3"
+    bbox = warning.details.get("bbox", "")
+    assert len(bbox.split(",")) == 4
 
 
 def test_headings_and_page_numbers_are_ignored_for_p015(tmp_path: Path) -> None:

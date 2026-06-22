@@ -86,6 +86,13 @@ def _inspection_target(rule_id: str, issue_type: str, details: dict[str, str]) -
     if rule_id == "P011":
         side = _humanize_safe_label(details.get("side", ""))
         return f"the {side} area" if side else "the page-margin area"
+    if rule_id == "P015":
+        if issue_type == "unexpected_opening_indent":
+            return "the first line of the opening paragraph"
+        paragraph_index = details.get("paragraph_index", "").strip()
+        if paragraph_index:
+            return f"the first line of body paragraph {paragraph_index}"
+        return "the first line of the flagged later paragraph"
     if rule_id in {"P020", "P027", "P038", "P063"}:
         return "the heading area"
     if caption_type:
@@ -554,16 +561,6 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "NJIT abstracts should typically be written in third person. "
         "Review the abstract and revise any first-person phrasing."
     ),
-    # --- P015 paragraph indentation ---
-    ("P015", "unexpected_opening_indent"): (
-        "A paragraph on this page appears to have an unintended first-line indent "
-        "where NJIT expects a flush-left opening paragraph. Remove the extra indent "
-        "or confirm this is a permitted exception."
-    ),
-    ("P015", "missing_later_indent"): (
-        "A paragraph on this page appears to start flush-left where NJIT expects "
-        "a first-line indent for a non-opening paragraph. Add the required indent."
-    ),
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
         "A figure or table caption on this page appears to end with a terminal "
@@ -918,6 +915,46 @@ def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> st
         "Why this is suspicious: layout content appears outside the printable body area. "
         "What to check or fix: inspect tables, figures, long lines, indentation, headers, "
         "and footers on this page."
+    )
+
+
+def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
+    if issue_type == "unexpected_opening_indent":
+        return "the opening paragraph"
+    paragraph_index = details.get("paragraph_index", "").strip()
+    if paragraph_index:
+        return f"body paragraph {paragraph_index}"
+    return "a later body paragraph"
+
+
+def _p015_indentation_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    descriptor = _p015_paragraph_descriptor(issue_type, details)
+    indent_pt = details.get("indent_pt", "").strip()
+
+    if issue_type == "unexpected_opening_indent":
+        observed = f"{descriptor.capitalize()} starts with an indented first line"
+        if indent_pt:
+            observed = f"{observed} (about {indent_pt}pt from the left margin)"
+        expected = f"{descriptor.capitalize()} should start flush with the left margin"
+    else:
+        observed = f"{descriptor.capitalize()} starts flush with the left margin"
+        if indent_pt:
+            observed = f"{observed} (about {indent_pt}pt first-line offset observed)"
+        expected = (
+            "Later body paragraphs should have a first-line indent of about 36pt "
+            "(approximately half an inch)"
+        )
+
+    return (
+        f"Observed: {observed}. "
+        f"Expected: {expected}. "
+        f"Why this is suspicious: the first line of {descriptor} does not match "
+        "NJIT's expected paragraph-indentation pattern for this part of the document. "
+        "What to check or fix: open the highlighted line and adjust the first-line "
+        "indent, unless this paragraph intentionally starts a new block such as a "
+        "heading, block quote, or list."
     )
 
 
@@ -1454,6 +1491,11 @@ def _build_explanation_text(
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
     if rule_id == "P011" and effective_issue_type == "margin_boundary_violation":
         return _p011_margin_explanation(details, page=page)
+    if rule_id == "P015" and effective_issue_type in {
+        "unexpected_opening_indent",
+        "missing_later_indent",
+    }:
+        return _p015_indentation_explanation(effective_issue_type, details, page=page)
     if rule_id == "P026" and effective_issue_type in {
         "possible_body_font_family_issue",
         "possible_body_font_size_issue",

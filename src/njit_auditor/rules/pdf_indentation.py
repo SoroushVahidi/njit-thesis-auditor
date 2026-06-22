@@ -6,7 +6,7 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -220,6 +220,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "indent_pt": f"{indent_pt:.1f}",
                             "expected": "flush_left",
                             "paragraph_line_count": str(len(paragraph)),
+                            "paragraph_index": str(idx + 1),
+                            "bbox": format_bbox_detail(paragraph[0].bbox),
                             "confidence": "high",
                             "suggested_fix": (
                                 "Remove first-line indent for opening front-matter paragraph."
@@ -256,6 +258,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "indent_pt": f"{indent_pt:.1f}",
                             "expected": "first_line_indent_approx_36pt",
                             "paragraph_line_count": str(len(paragraph)),
+                            "paragraph_index": str(idx + 1),
+                            "bbox": format_bbox_detail(paragraph[0].bbox),
                             "confidence": "high",
                             "suggested_fix": (
                                 "Apply consistent first-line indentation "
