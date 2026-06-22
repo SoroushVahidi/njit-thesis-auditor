@@ -1026,6 +1026,18 @@ def _problem_group_examples(
     )
 
 
+_GROUP_KIND_KICKERS: dict[str, str] = {
+    "issue_type": "Examples of this exact problem",
+    "rule": "Examples for this rule",
+    "category": "Problems in this category",
+}
+_GROUP_KIND_HEADINGS: dict[str, str] = {
+    "issue_type": "Examples of this exact problem",
+    "rule": "All examples for this rule",
+    "category": "All examples in this category",
+}
+
+
 def _problem_group_context(
     *,
     job: JobState,
@@ -1035,7 +1047,12 @@ def _problem_group_context(
     group_explanation: str,
     examples: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Build template context for a category- or rule-specific problem page."""
+    """Build template context for a category-, rule-, or issue-type-specific problem page.
+
+    ``group_kind`` controls how broad the page's scope actually is — "rule" and
+    "category" pages can span multiple distinct issue types, so their kicker/heading
+    text must not claim to show the exact same problem (only "issue_type" pages do).
+    """
     pages = sorted(
         {
             page
@@ -1071,6 +1088,8 @@ def _problem_group_context(
         "group_kind": group_kind,
         "group_key": group_key,
         "group_explanation": group_explanation,
+        "group_kicker": _GROUP_KIND_KICKERS.get(group_kind, "Examples of this problem"),
+        "group_examples_heading": _GROUP_KIND_HEADINGS.get(group_kind, "Examples of this problem"),
         "example_count": len(examples),
         "pages_to_review": compact_page_list(pages) if pages else "",
         "examples": examples,

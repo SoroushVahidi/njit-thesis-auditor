@@ -357,6 +357,36 @@ def test_build_grouped_findings_keeps_meaningful_pdf_differences_separate() -> N
     assert {entry["severity"] for entry in grouped} == {"WARNING", "FAIL"}
 
 
+def test_build_grouped_findings_merges_same_problem_across_confidence_levels() -> None:
+    """Confidence must not split an otherwise-identical problem into separate cards.
+
+    Per-occurrence confidence is preserved via confidence_levels for display layers
+    (report_view.py) to aggregate; only the grouping key itself ignores confidence.
+    """
+    findings = _repeated_margin_findings([3, 4], confidence="high") + _repeated_margin_findings(
+        [5], confidence="low"
+    )
+
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert len(grouped) == 1
+    entry = grouped[0]
+    assert entry["occurrence_count"] == 3
+    assert entry["confidence_levels"] == ["high", "low"]
+    assert entry["confidence"] == "mixed"
+
+
+def test_build_grouped_findings_keeps_single_confidence_value_when_uniform() -> None:
+    findings = _repeated_margin_findings([3, 4, 5], confidence="medium")
+
+    grouped = build_grouped_findings(findings, "pdf")
+
+    assert len(grouped) == 1
+    entry = grouped[0]
+    assert entry["confidence_levels"] == ["medium"]
+    assert entry["confidence"] == "medium"
+
+
 def test_build_grouped_findings_keeps_distinct_issue_types_separate() -> None:
     findings = [
         AuditFinding(

@@ -795,7 +795,7 @@ def test_results_page_triage_cards_link_to_rule_problem_pages(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert f'/audits/{job_id}/problems/rule/P011'.encode() in resp.content
-    assert b"Examples of this problem" in resp.content
+    assert b"Examples for this rule" in resp.content
 
 
 def test_results_page_renders_polished_comments(
@@ -807,6 +807,24 @@ def test_results_page_renders_polished_comments(
     assert resp.status_code == 200
     assert b"Polished comment" in resp.content
     assert b"Review needed" in resp.content
+
+
+def test_results_page_wraps_tables_for_mobile_horizontal_scroll(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Summary/rule/occurrence tables must sit in a horizontally-scrollable
+    wrapper so narrow screens get a scrollbar instead of squeezed or
+    overflowing columns — desktop and mobile render the same table markup."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Show individual occurrences" in html
+    # One wrapper each for: problem-type summary, rule summary, and the
+    # grouped occurrence table (the individual-findings table also renders
+    # server-side even though it starts hidden behind a client-side toggle).
+    assert html.count('class="table-scroll"') >= 4
 
 
 def test_results_page_has_client_side_filters(
@@ -960,7 +978,7 @@ def test_category_problem_page_route_returns_200(
     resp = c.get(f"/audits/{job_id}/problems/category/margin-or-overflow")
 
     assert resp.status_code == 200
-    assert b"Examples of this problem" in resp.content
+    assert b"Problems in this category" in resp.content
     # Both matching findings share one issue type, so the page title narrows
     # to that issue type rather than staying at the broad category label.
     assert b"Margin boundary violation (P011)" in resp.content

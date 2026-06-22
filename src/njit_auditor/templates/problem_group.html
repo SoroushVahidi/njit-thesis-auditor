@@ -90,7 +90,7 @@
 {% block content %}
 <section class="section">
   <div class="card problem-group-hero">
-    <p class="problem-group-kicker">Examples of this problem</p>
+    <p class="problem-group-kicker">{{ group_kicker if group_kicker else "Examples of this problem" }}</p>
     <h1>{{ group_title }}</h1>
     <p class="subtitle" style="margin-bottom:0.9rem;">Audit file: <strong>{{ file_name }}</strong></p>
     <p style="margin:0;">{{ group_explanation }}</p>
@@ -118,7 +118,7 @@
 
 <section class="section" aria-label="Problem examples" id="examples">
   <div class="section-header">
-    <h2>Examples of this problem</h2>
+    <h2>{{ group_examples_heading if group_examples_heading else "Examples of this problem" }}</h2>
     {% if pages_to_review %}
     <span class="section-note">Pages to review: {{ pages_to_review }}</span>
     {% endif %}

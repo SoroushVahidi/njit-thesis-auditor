@@ -158,13 +158,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Copyright page year format on page {page} may need review. "
         "Confirm the copyright block includes the required year format."
     ),
-    ("P034", "copyright_author_not_found"): (
+    ("P052", "copyright_author_not_found"): (
         "A copyright page was detected on page {page} but author metadata could not be verified. "
         "Confirm the copyright block includes the required author format."
-    ),
-    ("P034", "copyright_year_not_found"): (
-        "A copyright page was detected on page {page} but no year token was found. "
-        "Confirm the copyright block includes the required year."
     ),
     ("P063", "single_appendix_uses_letter_label"): (
         "The single appendix heading on page {page} is labeled 'APPENDIX "
@@ -567,6 +563,14 @@ _RULE_FALLBACKS: dict[str, str] = {
     "P034": (
         "Copyright page issue on page {page}. "
         "Review copyright block format manually."
+    ),
+    "P051": (
+        "Copyright page year issue on page {page}. "
+        "Review the copyright block and confirm the copyright year is present."
+    ),
+    "P052": (
+        "Copyright page author issue on page {page}. "
+        "Review the copyright block and confirm the author name is present."
     ),
     "P061": (
         "LoT/LoF cross-page entry ordering on pages {page_range}. "
@@ -1480,6 +1484,80 @@ def _p042_appendix_format_comment(
     )
 
 
+_P033_ROLE_LABELS: dict[str, str] = {
+    "title": "Title Page",
+    "abstract": "Abstract",
+    "approval_page": "Approval Page",
+}
+
+
+def _p033_role_label(role: str) -> str:
+    return _P033_ROLE_LABELS.get(role, "another front-matter page")
+
+
+def _p033_frontmatter_title_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P033 frontmatter_title_mismatch comment body.
+
+    The detector compares normalized title text across the Title Page,
+    Abstract, and Approval Page and never records the title text itself —
+    only page roles, hashes, and similarity scores — so this comment names
+    the flagged pages and the compared role without ever quoting a title.
+    """
+    page_label = _safe_page_label(page)
+    reference_role = _p033_role_label(details.get("reference_page_role", ""))
+    mismatch_pages = details.get("mismatch_pages", "").strip()
+    if mismatch_pages and "," in mismatch_pages:
+        pages_clause = f"pages {mismatch_pages}"
+    elif mismatch_pages:
+        pages_clause = f"page {mismatch_pages}"
+    else:
+        pages_clause = f"page {page_label}"
+    return (
+        f"Problem: The dissertation title on {pages_clause} does not closely match "
+        f"the title on the {reference_role}, based on a normalized text comparison "
+        "(not an exact match check). NJIT requires the dissertation title to be "
+        "worded identically everywhere it appears in the front matter — Title Page, "
+        f"Abstract, and Approval Page. Compare the title as printed on {pages_clause} "
+        f"against the {reference_role} and correct whichever one does not match. "
+        "Minor line-wrap or spacing differences are not flagged, so a flagged "
+        "difference is likely a real wording mismatch — verify by reading both "
+        "pages before editing."
+    )
+
+
+def _p051_copyright_year_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P051 copyright_year_not_found comment body.
+
+    This advisory fires when a copyright page is found but no four-digit
+    year could be confidently extracted from it; ``copyright_marker_detected``
+    distinguishes "marker present, year missing" from "no recognizable
+    copyright wording at all" so the comment names the right gap.
+    """
+    page_label = _safe_page_label(page)
+    marker_detected = details.get("copyright_marker_detected", "").strip().lower() == "true"
+    if marker_detected:
+        observed = (
+            "copyright-notice wording was found on this page, but the auditor could "
+            "not confidently read a four-digit year next to it"
+        )
+    else:
+        observed = (
+            "this page was identified as the Copyright Page, but the auditor did not "
+            "find recognizable copyright-notice wording or a four-digit year on it"
+        )
+    return (
+        f"Problem: On the Copyright Page (page {page_label}), {observed}. NJIT "
+        "requires the Copyright Page to state the copyright year clearly next to "
+        "the copyright notice (for example, 'Copyright © 2025 by [Author "
+        "Name]. All Rights Reserved.'), matching the year the degree is conferred. "
+        "Check this page for the year: add it if missing, or move it next to the "
+        "copyright notice in the standard format if it is present but in an unusual "
+        "spot or format. This is an automated, approximate check — the year may "
+        "be present but hard to detect automatically, so always verify by reading "
+        "the page directly."
+    )
+
+
 def build_polished_comment(
     *,
     rule_id: str,
@@ -1612,6 +1690,14 @@ def build_polished_comment(
         "multiple_appendix_missing_letter",
     }:
         body = _p042_appendix_format_comment(issue, page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P033" and issue == "frontmatter_title_mismatch":
+        body = _p033_frontmatter_title_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P051" and issue == "copyright_year_not_found":
+        body = _p051_copyright_year_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     template = _ISSUE_TEMPLATES.get((rule_id, issue))

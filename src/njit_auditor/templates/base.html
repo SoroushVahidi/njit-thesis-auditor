@@ -313,6 +313,13 @@
       margin-top: 0.7rem;
       font-size: 0.84rem;
     }
+    /* Lets wide tables scroll horizontally on narrow screens instead of
+       squeezing columns illegible or overflowing the page layout — content
+       stays identical on mobile and desktop, only the scroll affordance differs. */
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     th {
       text-align: left;

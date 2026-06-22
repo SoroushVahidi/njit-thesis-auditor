@@ -431,7 +431,7 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
     rule_desktop = _get_html(c, f"/audits/{job_id}/problems/rule/P012", _DESKTOP_HEADERS)
 
     category_tokens = [
-        "Examples of this problem",
+        "Problems in this category",
         "Page numbering",
         "Back to all results",
         "Open original PDF page",
@@ -441,7 +441,7 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Issue type:",
     ]
     rule_tokens = [
-        "Examples of this problem",
+        "Examples for this rule",
         "Back to all results",
         "Open highlighted PDF page",
         "Page 3",

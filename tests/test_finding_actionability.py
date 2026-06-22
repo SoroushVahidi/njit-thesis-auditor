@@ -1568,7 +1568,7 @@ def test_document_level_structure_finding_no_pdf_button_explanation_only(
     # elsewhere (#open-pdf-btn), which is not the misleading per-finding
     # button this policy targets.
     card_start = main_html.index('data-rule="P025"')
-    actions_end = main_html.index("Examples of this problem", card_start)
+    actions_end = main_html.index("Examples of this exact problem", card_start)
     card_section = main_html[card_start:actions_end]
     assert f'href="/audits/{job_id}/pdf"' not in card_section
     assert "/pdf/highlighted" not in card_section

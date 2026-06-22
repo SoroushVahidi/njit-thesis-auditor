@@ -436,8 +436,15 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "header) are identical."
     ),
     ("P033", "frontmatter_title_mismatch"): (
-        "Title-page metadata may be inconsistent with front-matter content. "
-        "Review the title page fields and ensure they match throughout the document."
+        "The dissertation title appears to differ between two or more front-matter "
+        "pages — the Title Page, Abstract, and/or Approval Page — based on a "
+        "normalized text comparison rather than an exact match. NJIT requires the "
+        "title to be worded identically everywhere it appears in the front matter. "
+        "Common causes include an abbreviated or reworded title on one page, a "
+        "typo introduced when retyping the title, or a title that was updated on "
+        "one page but not the others. Open the flagged pages, compare the title "
+        "wording word-for-word, and correct whichever page does not match; this is "
+        "a similarity heuristic, so always verify by reading the pages directly."
     ),
     # --- P034 copyright page ---
     ("P034", "copyright_year_mismatch"): (
@@ -446,16 +453,22 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "(e.g., Copyright © 2025 First Last). "
         "Review the copyright page and confirm the year is present and correct."
     ),
-    ("P034", "copyright_author_not_found"): (
+    ("P052", "copyright_author_not_found"): (
         "A copyright page was detected but the author name could not be verified. "
         "The copyright page must include the student's full legal name. "
         "Review the copyright page and ensure the author name is present and "
         "correct."
     ),
-    ("P034", "copyright_year_not_found"): (
-        "A copyright page was detected but no year token was found. "
-        "The copyright page must include the current year in the required format. "
-        "Review the copyright page and add the required year."
+    ("P051", "copyright_year_not_found"): (
+        "A copyright page was detected, but the auditor could not confidently read "
+        "a four-digit copyright year on it. NJIT requires the copyright page to "
+        "state the copyright year clearly next to the copyright notice (for "
+        "example, 'Copyright © 2025 by [Author Name]. All Rights Reserved.'), "
+        "matching the year the degree is conferred. This often happens when the "
+        "year is split across two lines, uses an unusual symbol or spacing next "
+        "to the copyright mark, or is genuinely missing. Review the copyright "
+        "page and add or reposition the year if needed. This is an automated, "
+        "approximate check, so verify by reading the page directly before editing."
     ),
     ("P034", "copyright_author_mismatch"): (
         "The author name on the copyright page may not match the author name "
@@ -816,6 +829,16 @@ _RULE_FALLBACKS: dict[str, str] = {
         "The copyright page may have a formatting issue. "
         "Review the copyright page and confirm that the year and author name are "
         "in the required format."
+    ),
+    "P051": (
+        "The copyright page may be missing a clearly readable copyright year. "
+        "Review the copyright page and confirm the year is present next to the "
+        "copyright notice."
+    ),
+    "P052": (
+        "The copyright page may be missing a clearly readable author name. "
+        "Review the copyright page and confirm the author's name is present next "
+        "to the copyright notice."
     ),
     "P038": (
         "A required front-matter section heading may be missing or not recognized. "
