@@ -182,6 +182,50 @@ def test_enriched_location_uses_section_type_for_p018() -> None:
     assert label == "Page 14 — List of Tables"
 
 
+def test_enriched_location_uses_worst_entry_index_for_p018() -> None:
+    label = enriched_pdf_location_label(
+        "P018",
+        "misaligned_page_number_column",
+        {
+            "page_type": "table_of_contents",
+            "worst_entry_index": "3",
+            "affected_entry_count": "2",
+        },
+        12,
+    )
+    assert label == "Page 12 — Table of Contents, worst affected entry 4"
+
+
+def test_enriched_location_uses_affected_count_for_p018_without_worst_entry() -> None:
+    label = enriched_pdf_location_label(
+        "P018",
+        "missing_page_number",
+        {"page_type": "list_of_tables", "affected_entry_count": "3"},
+        14,
+    )
+    assert label == "Page 14 — List of Tables, 3 affected entries"
+
+
+def test_enriched_location_uses_entry_index_for_p046() -> None:
+    label = enriched_pdf_location_label(
+        "P046",
+        "lot_entry_number_column_misaligned",
+        {"section_type": "list_of_tables", "entry_index": "1"},
+        15,
+    )
+    assert label == "Page 15 — List of Tables entry 2"
+
+
+def test_enriched_location_uses_affected_count_for_p046_without_entry_index() -> None:
+    label = enriched_pdf_location_label(
+        "P046",
+        "lof_entry_number_column_misaligned",
+        {"section_type": "list_of_figures", "affected_entry_count": "1"},
+        20,
+    )
+    assert label == "Page 20 — List of Figures, 1 affected entry"
+
+
 def test_enriched_location_uses_pair_index_for_p036() -> None:
     label = enriched_pdf_location_label(
         "P036",
