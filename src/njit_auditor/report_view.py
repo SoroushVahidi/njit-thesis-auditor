@@ -113,6 +113,8 @@ class TriagePanelView:
     raw_finding_count: int
     affected_pages_compact: str
     highlights: list[tuple[str, str]] = field(default_factory=list)
+    problem_count: int = 0
+    informational_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -223,7 +225,11 @@ def _build_triage_highlights(rule_id: str, triage: Mapping[str, Any]) -> list[tu
     return highlights
 
 
-def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
+def _build_triage_panels(
+    grouped: Mapping[str, Any],
+    counts_by_rule: Mapping[str, int],
+    inventory_counts_by_rule: Mapping[str, int],
+) -> list[TriagePanelView]:
     panels: list[TriagePanelView] = []
     for key, rule_id, title in _TRIAGE_KEYS:
         triage = grouped.get(key)
@@ -235,6 +241,14 @@ def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
         triage_note = str(
             triage.get("triage_note") or triage.get("review_guidance") or ""
         ).strip()
+        problem_count = int(counts_by_rule.get(rule_id, 0))
+        # Use the same per-rule inventory tally the "Detected candidates"
+        # section and the Markdown export are built from, rather than
+        # raw_finding_count - problem_count: raw_finding_count can include
+        # findings (e.g. P013's document-overview entry) that are neither a
+        # visible problem nor an inventory candidate, which would otherwise
+        # make this badge disagree with the list it links to.
+        informational_count = int(inventory_counts_by_rule.get(rule_id, 0))
         panels.append(
             TriagePanelView(
                 rule_id=rule_id,
@@ -244,6 +258,8 @@ def _build_triage_panels(grouped: Mapping[str, Any]) -> list[TriagePanelView]:
                 raw_finding_count=raw_finding_count,
                 affected_pages_compact=str(triage.get("affected_pages_compact", "")).strip(),
                 highlights=_build_triage_highlights(rule_id, triage),
+                problem_count=problem_count,
+                informational_count=informational_count,
             )
         )
     return panels
@@ -1599,6 +1615,12 @@ def build_report_view(
     counts_by_rule = dict(sorted(counts_by_rule.items()))
     total = len(finding_views)
 
+    inventory_counts_by_rule: dict[str, int] = {}
+    for inventory_finding in inventory_findings:
+        inventory_counts_by_rule[inventory_finding.rule_id] = (
+            inventory_counts_by_rule.get(inventory_finding.rule_id, 0) + 1
+        )
+
     rule_summaries: list[RuleSummaryView] = [
         RuleSummaryView(
             rule_id=rule_id,
@@ -1757,8 +1779,9 @@ def build_report_view(
         rule_summaries=sorted(rule_summaries, key=lambda r: (-r.count, r.rule_id)),
         triage_panels=[
             panel
-            for panel in _build_triage_panels(grouped)
-            if panel.rule_id in counts_by_rule and panel.rule_id != "P013"
+            for panel in _build_triage_panels(grouped, counts_by_rule, inventory_counts_by_rule)
+            if panel.rule_id in counts_by_rule
+            or (panel.rule_id == "P013" and panel.raw_finding_count > 0)
         ],
         grouped_problems=grouped_problem_views,
         findings=finding_views,

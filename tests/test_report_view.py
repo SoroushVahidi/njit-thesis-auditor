@@ -125,9 +125,75 @@ def test_build_report_view_triage_panels() -> None:
     rule_ids = {p.rule_id for p in view.triage_panels}
     assert "P011" in rule_ids
     assert "P026" in rule_ids
+    assert "P013" in rule_ids
     p011 = next(p for p in view.triage_panels if p.rule_id == "P011")
     assert p011.raw_finding_count >= 2
     assert "triage" in p011.triage_note.lower() or "heuristic" in p011.triage_note.lower()
+
+
+def test_p013_triage_panel_all_informational_when_no_visible_problems() -> None:
+    """The sample's 2 P013 candidates are routine (bottom_center, single, medium) —
+    none are visible problems, so the panel should show 0 problems / 2 informational,
+    mirroring web's inventory split with no "Examples for this rule" affordance."""
+    report = _sample_report()
+    view = build_report_view(report)
+    p013 = next(p for p in view.triage_panels if p.rule_id == "P013")
+    assert p013.raw_finding_count == 2
+    assert p013.problem_count == 0
+    assert p013.informational_count == 2
+    assert len(view.inventory_findings) == 2
+    assert not any(f.rule_id == "P013" for f in view.findings)
+
+
+def test_p013_triage_panel_splits_real_problems_from_candidates() -> None:
+    """A P013 finding with candidate_count_on_page > 1 is a real visible problem;
+    the triage panel must count it separately from the routine candidates."""
+    findings = _p013_findings(4) + [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=9,
+            message="Multiple page-number-like tokens detected.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "candidate_count_on_page": "2",
+                "confidence": "medium",
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    p013 = next(p for p in view.triage_panels if p.rule_id == "P013")
+    assert p013.raw_finding_count == 5
+    assert p013.problem_count == 1
+    assert p013.informational_count == 4
+    assert sum(1 for f in view.findings if f.rule_id == "P013") == 1
+    assert sum(1 for f in view.inventory_findings if f.rule_id == "P013") == 4
+
+
+def test_p013_triage_panel_informational_count_excludes_document_overview() -> None:
+    """The document-overview entry is a per-document summary note, not a per-page
+    candidate; it must not inflate the triage panel's informational-candidate
+    badge beyond what the "Detected candidates" inventory section actually lists
+    (this previously diverged: the badge counted it, the inventory list did not)."""
+    findings = _p013_findings(4) + [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=None,
+            message="Page-number candidate overview.",
+            details={"issue_type": "p013_document_overview"},
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    p013 = next(p for p in view.triage_panels if p.rule_id == "P013")
+    assert p013.raw_finding_count == 5
+    assert p013.problem_count == 0
+    assert p013.informational_count == 4
+    assert len(view.inventory_findings) == p013.informational_count
+    assert not any(f.rule_id == "P013" for f in view.findings)
 
 
 def test_finding_views_include_polished_comments() -> None:
