@@ -743,6 +743,45 @@ def test_p018_grouping_key_is_stable_across_entry_counts() -> None:
     assert first == second
 
 
+def test_p046_includes_affected_entry_count() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P046",
+            severity=Severity.WARNING,
+            page=31,
+            message="LoT entry number alignment issue.",
+            details={
+                "issue_type": "lot_entry_number_column_misaligned",
+                "section_type": "list_of_tables",
+                "observed_x0_range_points": "12.5",
+                "allowed_x0_range_points": "6.0",
+                "affected_entry_count": "2",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P046")
+    assert "2 entries affected" in fv.polished_comment
+    assert "List of Tables" in fv.polished_comment
+
+
+def test_p046_grouping_key_is_stable_across_entry_counts() -> None:
+    first = build_polished_comment(
+        rule_id="P046",
+        issue_type="lot_entry_number_column_misaligned",
+        page=31,
+        details={"section_type": "list_of_tables", "affected_entry_count": "1"},
+    )
+    second = build_polished_comment(
+        rule_id="P046",
+        issue_type="lot_entry_number_column_misaligned",
+        page=31,
+        details={"section_type": "list_of_tables", "affected_entry_count": "9"},
+    )
+    assert first == second
+
+
 # ---------------------------------------------------------------------------
 # 8. Privacy invariants for every newly bespoke rule/issue_type
 # ---------------------------------------------------------------------------
@@ -755,6 +794,11 @@ _NEW_BESPOKE_CASES: tuple[tuple[str, str, dict[str, str]], ...] = (
     ("P035", "table_caption_not_above_body", {"float_number": "2.1"}),
     ("P040", "lof_entry_missing_terminal_punctuation", {"entry_index": "4"}),
     ("P018", "inconsistent_hierarchy_indent", {"affected_entry_count": "2"}),
+    (
+        "P046",
+        "lot_entry_number_column_misaligned",
+        {"entry_index": "1", "affected_entry_count": "1"},
+    ),
 )
 
 
@@ -778,7 +822,7 @@ def test_new_bespoke_comments_never_quote_blocked_detail_text() -> None:
 
 
 def test_new_display_overrides_never_quote_blocked_detail_text() -> None:
-    """P036/P035/P040/P018 enrichment lives in report_view.py post-grouping
+    """P036/P035/P040/P018/P046 enrichment lives in report_view.py post-grouping
     overrides rather than build_polished_comment; check the same privacy
     invariant holds for the actual rendered FindingView.polished_comment.
     """
@@ -788,6 +832,11 @@ def test_new_display_overrides_never_quote_blocked_detail_text() -> None:
         ("P035", "table_caption_not_above_body", {"float_number": "2.1"}),
         ("P040", "lof_entry_missing_terminal_punctuation", {"entry_index": "4"}),
         ("P018", "inconsistent_hierarchy_indent", {"affected_entry_count": "2"}),
+        (
+            "P046",
+            "lot_entry_number_column_misaligned",
+            {"section_type": "list_of_tables", "affected_entry_count": "2"},
+        ),
     )
     for rule_id, issue_type, extra_details in cases:
         details: dict[str, str] = {
@@ -887,6 +936,29 @@ def test_grouped_p018_individual_findings_are_distinguishable() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     gp = next(g for g in view.grouped_problems if g.rule_id == "P018")
+    assert gp.is_grouped
+    comments = [f.polished_comment for f in gp.individual_findings]
+    assert len(comments) == len(set(comments)) == 2
+
+
+def test_grouped_p046_individual_findings_are_distinguishable() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P046",
+            severity=Severity.WARNING,
+            page=31,
+            message="LoT entry number alignment issue.",
+            details={
+                "issue_type": "lot_entry_number_column_misaligned",
+                "section_type": "list_of_tables",
+                "affected_entry_count": count,
+            },
+        )
+        for count in ("1", "4")
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    gp = next(g for g in view.grouped_problems if g.rule_id == "P046")
     assert gp.is_grouped
     comments = [f.polished_comment for f in gp.individual_findings]
     assert len(comments) == len(set(comments)) == 2

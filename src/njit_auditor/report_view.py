@@ -361,6 +361,18 @@ def enriched_pdf_location_label(
             return f"{page_prefix} — {kind_label} entry {entry_num}"
         return f"{kind_label} entry {entry_num}"
 
+    if rule_id == "P018" and page_prefix and section_label:
+        worst_entry_index = details.get("worst_entry_index", "").strip()
+        if worst_entry_index.isdigit():
+            worst_entry_num = int(worst_entry_index) + 1
+            return f"{page_prefix} — {section_label}, worst affected entry {worst_entry_num}"
+
+    if rule_id in ("P018", "P046") and page_prefix and section_label:
+        affected_count = details.get("affected_entry_count", "").strip()
+        if affected_count.isdigit() and int(affected_count) > 0:
+            noun = "entry" if affected_count == "1" else "entries"
+            return f"{page_prefix} — {section_label}, {affected_count} affected {noun}"
+
     if float_number and rule_id == "P035":
         noun = "Table" if "table" in issue_type else "Figure"
         if page_prefix:
@@ -1466,6 +1478,36 @@ def _apply_toc_alignment_presentation(
     return replace(finding, polished_comment=comment), True
 
 
+def _p046_count_clause(details: Mapping[str, str]) -> str:
+    count = details.get("affected_entry_count", "").strip()
+    if not count.isdigit() or int(count) <= 0:
+        return ""
+    noun = "entry" if count == "1" else "entries"
+    return f" ({count} {noun} affected)"
+
+
+def _apply_lot_lof_alignment_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Surface P046's affected-entry count without changing the grouping key.
+
+    Overrides only the display comment after grouping has already been
+    computed upstream (on the count-independent comment).
+    """
+    if finding.rule_id != "P046":
+        return finding, True
+    count_clause = _p046_count_clause(details)
+    if not count_clause:
+        return finding, True
+    comment = finding.polished_comment.rstrip()
+    if comment.endswith("."):
+        comment = f"{comment[:-1]}{count_clause}."
+    else:
+        comment = f"{comment}{count_clause}"
+    return replace(finding, polished_comment=comment), True
+
+
 _P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
     ("centered", "centered"),
     ("near_top", "near the top of the page"),
@@ -1570,6 +1612,8 @@ def build_report_view(
             visible_view, is_problem = _apply_lof_punctuation_presentation(visible_view, details)
         elif visible_view.rule_id == "P018":
             visible_view, is_problem = _apply_toc_alignment_presentation(visible_view, details)
+        elif visible_view.rule_id == "P046":
+            visible_view, is_problem = _apply_lot_lof_alignment_presentation(visible_view, details)
         elif visible_view.rule_id == "P014":
             visible_view, is_problem = _apply_named_heading_presentation(visible_view, details)
         if is_problem:

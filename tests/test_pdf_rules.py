@@ -1125,7 +1125,10 @@ def test_misaligned_toc_page_number_warns_p018(tmp_path: Path) -> None:
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
-    assert any(f.details.get("issue_type") == "misaligned_page_number_column" for f in warnings)
+    finding = next(
+        f for f in warnings if f.details.get("issue_type") == "misaligned_page_number_column"
+    )
+    assert finding.details.get("worst_entry_index") == "2"
 
 
 def test_missing_page_number_warns_p018(tmp_path: Path) -> None:
@@ -1141,7 +1144,8 @@ def test_missing_page_number_warns_p018(tmp_path: Path) -> None:
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
-    assert any(f.details.get("issue_type") == "missing_page_number" for f in warnings)
+    finding = next(f for f in warnings if f.details.get("issue_type") == "missing_page_number")
+    assert finding.details.get("worst_entry_index") == "2"
 
 
 def test_inconsistent_leader_dots_warns_p018(tmp_path: Path) -> None:
@@ -1158,7 +1162,8 @@ def test_inconsistent_leader_dots_warns_p018(tmp_path: Path) -> None:
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
-    assert any(f.details.get("issue_type") == "inconsistent_leader_dots" for f in warnings)
+    finding = next(f for f in warnings if f.details.get("issue_type") == "inconsistent_leader_dots")
+    assert finding.details.get("worst_entry_index") == "3"
 
 
 def test_hierarchy_indent_outlier_warns_p018(tmp_path: Path) -> None:
@@ -1176,7 +1181,10 @@ def test_hierarchy_indent_outlier_warns_p018(tmp_path: Path) -> None:
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
-    assert any(f.details.get("issue_type") == "inconsistent_hierarchy_indent" for f in warnings)
+    finding = next(
+        f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"
+    )
+    assert finding.details.get("worst_entry_index") == "5"
 
 
 def test_non_toc_page_is_ignored_for_p018(tmp_path: Path) -> None:
@@ -7604,6 +7612,11 @@ def test_p046_lot_misaligned_warns(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
     issue_types = [f.details.get("issue_type") for f in findings]
     assert "lot_entry_number_column_misaligned" in issue_types
+    finding = next(
+        f for f in findings if f.details.get("issue_type") == "lot_entry_number_column_misaligned"
+    )
+    assert finding.details.get("affected_entry_count") == "1"
+    assert finding.details.get("entry_index") == "1"
 
 
 def test_p046_lof_aligned_no_findings(tmp_path: Path) -> None:
@@ -7623,6 +7636,11 @@ def test_p046_lof_misaligned_warns(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
     issue_types = [f.details.get("issue_type") for f in findings]
     assert "lof_entry_number_column_misaligned" in issue_types
+    finding = next(
+        f for f in findings if f.details.get("issue_type") == "lof_entry_number_column_misaligned"
+    )
+    assert finding.details.get("affected_entry_count") == "1"
+    assert finding.details.get("entry_index") == "1"
 
 
 def test_p046_too_few_entries_no_findings(tmp_path: Path) -> None:
@@ -7636,6 +7654,38 @@ def test_p046_too_few_entries_no_findings(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_lot_lof_entry_number_alignment(model)
     assert not any(f.rule_id == "P046" for f in findings)
+
+
+def test_p046_entry_index_omitted_when_worst_entry_on_later_page(tmp_path: Path) -> None:
+    """Entry index must only be set when the worst offender is on the reported page."""
+    pdf_path = tmp_path / "p046_multi_page.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page1.insert_text((108, 115), "Table")
+    page1.insert_text((500, 115), "Page")
+    page1.insert_text((108, 140), "Table 1 Synthetic experimental setup overview entry.")
+    page1.insert_text((500, 140), "12")
+    page1.insert_text((108, 160), "Table 2 Synthetic model performance comparison entry.")
+    page1.insert_text((500, 160), "12")
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((190, 90), "LIST OF TABLES (continued)", fontsize=16, fontname="Times-Bold")
+    page2.insert_text((108, 115), "Table")
+    page2.insert_text((500, 115), "Page")
+    page2.insert_text((108, 140), "Table 3 Synthetic regression coefficients overview entry.")
+    page2.insert_text((500, 140), "12")
+    page2.insert_text((130, 160), "Table 4 Synthetic sample distribution overview entry text.")
+    page2.insert_text((500, 160), "12")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    finding = next(
+        f for f in findings if f.details.get("issue_type") == "lot_entry_number_column_misaligned"
+    )
+    assert finding.details.get("page_number") == "1"
+    assert finding.details.get("affected_entry_count") == "1"
+    assert "entry_index" not in finding.details
 
 
 def test_p046_finding_metadata_no_private_content(tmp_path: Path) -> None:

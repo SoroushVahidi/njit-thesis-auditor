@@ -418,6 +418,9 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
             continue
 
         page_issue_findings: dict[str, AuditFinding] = {}
+        entry_positions: dict[TocEntryLine, int] = {
+            entry: idx for idx, entry in enumerate(entries)
+        }
 
         entries_with_page_num = [
             entry for entry in entries if entry.page_number_right_x is not None
@@ -436,6 +439,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
             deltas = [abs(edge - median_right_edge) for edge in right_edges]
             misaligned_count = sum(1 for delta in deltas if delta > RIGHT_EDGE_TOLERANCE_PT)
             if misaligned_count > 0:
+                worst_entry = entries_with_page_num[deltas.index(max(deltas))]
                 page_issue_findings["misaligned_page_number_column"] = AuditFinding(
                     rule_id="P018",
                     severity=Severity.WARNING,
@@ -448,12 +452,14 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                         "page_type": context.page_type,
                         "issue_type": "misaligned_page_number_column",
                         "affected_entry_count": str(misaligned_count),
+                        "worst_entry_index": str(entry_positions[worst_entry]),
                         "worst_delta_pt": f"{max(deltas):.1f}",
                         "confidence": "high",
                     },
                 )
 
         if entries_missing_page_num:
+            worst_entry = entries_missing_page_num[0]
             page_issue_findings["missing_page_number"] = AuditFinding(
                 rule_id="P018",
                 severity=Severity.WARNING,
@@ -464,6 +470,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "page_type": context.page_type,
                     "issue_type": "missing_page_number",
                     "affected_entry_count": str(len(entries_missing_page_num)),
+                    "worst_entry_index": str(entry_positions[worst_entry]),
                     "confidence": "medium",
                 },
             )
@@ -471,12 +478,13 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
         dotted_count = sum(1 for entry in entries if entry.has_leader_dots)
         dot_majority = dotted_count >= max(3, int(len(entries) * 0.6))
         if dot_majority and len(entries) >= MIN_ENTRIES_FOR_DOT_STYLE:
-            missing_dots_count = sum(
-                1
+            missing_dots_entries = [
+                entry
                 for entry in entries
                 if entry.page_number_right_x is not None and not entry.has_leader_dots
-            )
-            if missing_dots_count > 0:
+            ]
+            if missing_dots_entries:
+                worst_entry = missing_dots_entries[0]
                 page_issue_findings["inconsistent_leader_dots"] = AuditFinding(
                     rule_id="P018",
                     severity=Severity.WARNING,
@@ -486,15 +494,26 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                         "page_number": str(context.page.page_number),
                         "page_type": context.page_type,
                         "issue_type": "inconsistent_leader_dots",
-                        "affected_entry_count": str(missing_dots_count),
+                        "affected_entry_count": str(len(missing_dots_entries)),
+                        "worst_entry_index": str(entry_positions[worst_entry]),
                         "confidence": "medium",
                     },
                 )
 
-        indents = [entry.indent_x for entry in entries if entry.page_number_right_x is not None]
+        entries_with_indent = [
+            entry for entry in entries if entry.page_number_right_x is not None
+        ]
+        indents = [entry.indent_x for entry in entries_with_indent]
         indent_outliers = _find_indent_outliers(indents)
         if indent_outliers:
+            outlier_value_set = set(indent_outliers)
+            outlier_entries = [
+                entry for entry in entries_with_indent if entry.indent_x in outlier_value_set
+            ]
             worst_delta = max(abs(indent - min(indents)) for indent in indent_outliers)
+            worst_entry = max(
+                outlier_entries, key=lambda entry: abs(entry.indent_x - min(indents))
+            )
             page_issue_findings["inconsistent_hierarchy_indent"] = AuditFinding(
                 rule_id="P018",
                 severity=Severity.WARNING,
@@ -508,6 +527,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "page_type": context.page_type,
                     "issue_type": "inconsistent_hierarchy_indent",
                     "affected_entry_count": str(len(indent_outliers)),
+                    "worst_entry_index": str(entry_positions[worst_entry]),
                     "worst_delta_pt": f"{worst_delta:.1f}",
                     "confidence": "medium",
                 },
