@@ -162,7 +162,7 @@ def _check_toc_page(
     if len(entries) < 3:
         return findings
     indent_clusters = _build_indent_clusters(entries)
-    for entry in entries:
+    for entry_index, entry in enumerate(entries):
         entry_text = _clean_entry_text(entry)
         if not entry_text or len(entry_text) < 8:
             continue
@@ -187,6 +187,7 @@ def _check_toc_page(
                             "page_type": "table_of_contents",
                             "issue_type": "toc_level_capitalization",
                             "entry_level": "1",
+                            "entry_index": str(entry_index),
                             "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
                             "expected_or_reason": "Level 1 TOC entries expected ALL CAPS",
                             "confidence": "medium",
@@ -213,6 +214,7 @@ def _check_toc_page(
                             "page_type": "table_of_contents",
                             "issue_type": "toc_level_capitalization",
                             "entry_level": "2",
+                            "entry_index": str(entry_index),
                             "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
                             "expected_or_reason": first["reason"],
                             "confidence": first["confidence"],
@@ -229,7 +231,7 @@ def _check_lot_page(
     entries: list[TocEntryLine],
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
-    for entry in entries:
+    for entry_index, entry in enumerate(entries):
         raw = _clean_entry_text(entry)
         entry_text = _strip_list_prefix(raw)
         if not entry_text or len(entry_text) < 10:
@@ -253,6 +255,7 @@ def _check_lot_page(
                         "page_number": str(context.page.page_number),
                         "page_type": "list_of_tables",
                         "issue_type": "list_of_tables_title_case",
+                        "entry_index": str(entry_index),
                         "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
                         "expected_or_reason": first["reason"],
                         "confidence": first["confidence"],
@@ -270,6 +273,7 @@ def _check_lot_page(
                         "page_number": str(context.page.page_number),
                         "page_type": "list_of_tables",
                         "issue_type": "unexpected_terminal_punctuation",
+                        "entry_index": str(entry_index),
                         "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
                         "expected_or_reason": "Table titles in LoT should not end with a period",
                         "confidence": "high",
@@ -284,7 +288,7 @@ def _check_lof_page(
     entries: list[TocEntryLine],
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
-    for entry in entries:
+    for entry_index, entry in enumerate(entries):
         raw = _clean_entry_text(entry)
         entry_text = _strip_list_prefix(raw)
         if not entry_text or len(entry_text) < 10:
@@ -305,6 +309,7 @@ def _check_lof_page(
                         "page_number": str(context.page.page_number),
                         "page_type": "list_of_figures",
                         "issue_type": "list_of_figures_sentence_case",
+                        "entry_index": str(entry_index),
                         "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
                         "expected_or_reason": (
                             "Figure descriptions in LoF expected in sentence case"

@@ -460,6 +460,133 @@ def test_p015_without_bbox_falls_back_to_specific_inspection_guidance() -> None:
     assert "body paragraph 3" in finding.no_highlight_reason
 
 
+def _p024_finding(
+    *, page: int, issue_type: str, entry_index: str | None, **extra: str
+) -> AuditFinding:
+    details: dict[str, str] = {
+        "page_type": "table_of_contents",
+        "issue_type": issue_type,
+        "confidence": "medium",
+        # Synthetic stand-in for real TOC text — must never reach rendered output.
+        "line_preview": "Synthetic Sample Toc Entry Text Marker XYZ123",
+        **extra,
+    }
+    if entry_index is not None:
+        details["entry_index"] = entry_index
+    return AuditFinding(
+        rule_id="P024",
+        severity=Severity.WARNING,
+        page=page,
+        message="TOC Level 2 entry may have a title-case issue.",
+        details=details,
+    )
+
+
+def test_p024_location_label_uses_entry_index_for_toc() -> None:
+    findings = [
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index="0",
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P024")
+    assert finding.location_label == "Page 12 — Table of Contents entry 1"
+
+
+def test_p024_location_label_falls_back_without_entry_index() -> None:
+    """Without entry_index metadata, the label stays honest (section only, no index)."""
+    findings = [
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index=None,
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P024")
+    assert finding.location_label == "Page 12 — Table of Contents"
+    assert "entry" not in finding.location_label.lower()
+
+
+def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
+    findings = [
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index="0",
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        ),
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index="2",
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    p024_findings = [f for f in view.findings if f.rule_id == "P024"]
+    assert len(p024_findings) == 2
+    labels = {f.location_label for f in p024_findings}
+    assert labels == {
+        "Page 12 — Table of Contents entry 1",
+        "Page 12 — Table of Contents entry 3",
+    }
+
+
+def test_p024_line_preview_never_rendered_in_comment_or_explanation() -> None:
+    """A synthetic line_preview value must never surface in student-facing text."""
+    secret = "Synthetic Sample Toc Entry Text Marker XYZ123"
+    findings = [
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index="0",
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        ),
+        _p024_finding(
+            page=8,
+            issue_type="list_of_tables_title_case",
+            entry_index="1",
+            expected_or_reason="first_word_requires_capital",
+        ),
+        _p024_finding(
+            page=9,
+            issue_type="list_of_figures_sentence_case",
+            entry_index="0",
+        ),
+        _p024_finding(
+            page=8,
+            issue_type="unexpected_terminal_punctuation",
+            entry_index="1",
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    p024_findings = [f for f in view.findings if f.rule_id == "P024"]
+    assert len(p024_findings) == 4
+    for finding in p024_findings:
+        assert secret not in finding.polished_comment
+        assert secret not in finding.detailed_explanation
+        assert secret not in finding.location_label
+        assert secret not in finding.suggested_fix
+
+
 @pytest.mark.parametrize(
     ("rule_id", "issue_type", "forbidden"),
     [
@@ -470,6 +597,7 @@ def test_p015_without_bbox_falls_back_to_specific_inspection_guidance() -> None:
         ("P033", "title_page_mismatch", "Yin Haotian"),
         ("P034", "copyright_author_not_found", "Committee Chair Name"),
         ("P061", "lof_cross_page_entry_numbers_not_nondecreasing", "Figure 2.4 Caption text"),
+        ("P024", "toc_level_capitalization", "Background Of The Study And Its Implications"),
     ],
 )
 def test_polished_comments_are_privacy_safe(
@@ -496,6 +624,41 @@ def test_polished_comments_are_privacy_safe(
     assert forbidden not in comment
     assert contains_blocked_detail_text(comment, details) is False
     assert "Review needed" in comment or "review" in comment.lower()
+
+
+@pytest.mark.parametrize(
+    ("issue_type", "extra_details"),
+    [
+        ("toc_level_capitalization", {"entry_level": "1"}),
+        (
+            "toc_level_capitalization",
+            {"entry_level": "2", "expected_or_reason": "major_word_requires_capital"},
+        ),
+        ("list_of_tables_title_case", {"expected_or_reason": "first_word_requires_capital"}),
+        ("list_of_figures_sentence_case", {}),
+        ("unexpected_terminal_punctuation", {}),
+    ],
+)
+def test_p024_build_polished_comment_never_quotes_line_preview(
+    issue_type: str, extra_details: dict[str, str]
+) -> None:
+    """P024 line_preview may hold real document text; it must never reach the comment."""
+    secret = "Synthetic Sample Toc Entry Text Marker XYZ123"
+    details = {
+        "page_type": "table_of_contents",
+        "issue_type": issue_type,
+        "line_preview": secret,
+        "confidence": "medium",
+        **extra_details,
+    }
+    comment = build_polished_comment(
+        rule_id="P024",
+        issue_type=issue_type,
+        page=12,
+        details=details,
+    )
+    assert secret not in comment
+    assert contains_blocked_detail_text(comment, details) is False
 
 
 def test_polished_comment_templates_for_key_rules() -> None:

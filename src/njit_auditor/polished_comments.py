@@ -29,6 +29,7 @@ _BLOCKED_DETAIL_KEYS: frozenset[str] = frozenset(
         "committee",
         "heading_text",
         "line_text",
+        "line_preview",
         "body_text",
         "extracted_text",
         "annotation_text",

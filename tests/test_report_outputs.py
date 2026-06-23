@@ -2013,3 +2013,98 @@ def test_all_eight_triage_rollups_coexist() -> None:
     assert "p036_toc_list_spacing_triage" in summary
     assert "p038_frontmatter_heading_triage" in summary
     assert "p044_abstract_indentation_triage" in summary
+
+
+# ---------------------------------------------------------------------------
+# P024: TOC/List entry location clarity (entry_index-based location labels)
+# ---------------------------------------------------------------------------
+
+_P024_LINE_PREVIEW_SECRET = "Synthetic Sample Toc Entry Text Marker XYZ123"
+
+
+def _p024_finding(
+    *, page: int, issue_type: str, entry_index: str | None, **extra: str
+) -> AuditFinding:
+    details: dict[str, str] = {
+        "page_type": "table_of_contents",
+        "issue_type": issue_type,
+        "confidence": "medium",
+        "line_preview": _P024_LINE_PREVIEW_SECRET,
+        **extra,
+    }
+    if entry_index is not None:
+        details["entry_index"] = entry_index
+    return AuditFinding(
+        rule_id="P024",
+        severity=Severity.WARNING,
+        page=page,
+        message="TOC Level 2 entry may have a title-case issue.",
+        details=details,
+    )
+
+
+def _p024_same_page_findings() -> list[AuditFinding]:
+    return [
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index="0",
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        ),
+        _p024_finding(
+            page=12,
+            issue_type="toc_level_capitalization",
+            entry_index="2",
+            entry_level="2",
+            expected_or_reason="major_word_requires_capital",
+        ),
+    ]
+
+
+def test_markdown_p024_same_page_findings_get_distinct_entry_locations(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "p024_report.md"
+    write_markdown_report(_p024_same_page_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "Page 12 — Table of Contents entry 1" in text
+    assert "Page 12 — Table of Contents entry 3" in text
+
+
+def test_markdown_p024_never_renders_raw_line_preview(tmp_path: Path) -> None:
+    output_path = tmp_path / "p024_report.md"
+    write_markdown_report(_p024_same_page_findings(), _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert _P024_LINE_PREVIEW_SECRET not in text
+
+
+def test_markdown_p024_without_entry_index_falls_back_honestly(tmp_path: Path) -> None:
+    """Findings without entry_index metadata must not claim a false entry number."""
+    finding = _p024_finding(
+        page=20,
+        issue_type="list_of_tables_title_case",
+        entry_index=None,
+        page_type="list_of_tables",
+        expected_or_reason="first_word_requires_capital",
+    )
+    output_path = tmp_path / "p024_report.md"
+    write_markdown_report([finding], _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    assert "Location: `Page 20 — List of Tables`" in text
+    assert "List of Tables entry 1" not in text
+    assert _P024_LINE_PREVIEW_SECRET not in text
+
+
+def test_p024_suggested_fix_and_confidence_remain_visible_with_entry_index(
+    tmp_path: Path,
+) -> None:
+    """Adding entry_index must not remove the suggested-fix line or confidence info."""
+    findings = _p024_same_page_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    view = build_report_view(payload)
+    p024_findings = [f for f in view.findings if f.rule_id == "P024"]
+    assert len(p024_findings) == 2
+    for f in p024_findings:
+        assert f.suggested_fix
+        assert f.confidence_level in {"medium"}
