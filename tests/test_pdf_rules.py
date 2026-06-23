@@ -2334,6 +2334,90 @@ def test_p024_json_report_includes_p024_when_triggered(tmp_path: Path) -> None:
     assert "P024" in json_out.read_text(encoding="utf-8")
 
 
+def test_p024_entry_index_distinguishes_same_page_toc_violations(tmp_path: Path) -> None:
+    """Two flagged Level 2 entries on the same TOC page must record distinct entry_index."""
+    pdf_path = tmp_path / "toc_l2_two_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        [
+            ("1.1 background of the study and motivation ....", 140),
+            ("1.2 Statement of the Problem and Research Gap ....", 140),
+            ("1.3 review of related literature and prior work ....", 140),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    p024_level2 = [
+        f
+        for f in findings
+        if f.details.get("issue_type") == "toc_level_capitalization"
+        and f.details.get("entry_level") == "2"
+    ]
+    assert len(p024_level2) == 2
+    entry_indexes = {f.details.get("entry_index") for f in p024_level2}
+    assert entry_indexes == {"0", "2"}
+
+
+def test_p024_entry_index_distinguishes_same_page_lot_violations(tmp_path: Path) -> None:
+    """Two flagged List of Tables entries on the same page must record distinct entry_index."""
+    pdf_path = tmp_path / "lot_two_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 descriptive statistics for participant demographics ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 comparison of algorithm performance metrics here ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    p024_lot = [
+        f for f in findings if f.details.get("issue_type") == "list_of_tables_title_case"
+    ]
+    assert len(p024_lot) == 2
+    entry_indexes = {f.details.get("entry_index") for f in p024_lot}
+    assert entry_indexes == {"0", "2"}
+
+
+def test_p024_entry_index_present_for_lof_and_terminal_punctuation(tmp_path: Path) -> None:
+    """LoF sentence-case and LoT terminal-punctuation findings must also carry entry_index."""
+    lof_path = tmp_path / "lof_bad.pdf"
+    _make_toc_pdf(
+        lof_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(lof_path))
+    findings = check_pdf_toc_list_formatting(model)
+    lof_finding = next(
+        f for f in findings if f.details.get("issue_type") == "list_of_figures_sentence_case"
+    )
+    assert lof_finding.details.get("entry_index") == "0"
+
+    lot_path = tmp_path / "lot_period.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((210, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 130), "Table 1. Descriptive Statistics for Participants.")
+    page.insert_text((500, 130), "12")
+    page.insert_text((108, 150), "Table 2. Summary of Regression Coefficients Here.")
+    page.insert_text((500, 150), "24")
+    doc.save(lot_path)
+    doc.close()
+    model = load_pdf_layout(str(lot_path))
+    findings = check_pdf_toc_list_formatting(model)
+    period_findings = [
+        f for f in findings if f.details.get("issue_type") == "unexpected_terminal_punctuation"
+    ]
+    assert len(period_findings) == 2
+    entry_indexes = {f.details.get("entry_index") for f in period_findings}
+    assert entry_indexes == {"0", "1"}
+
+
 # ---------------------------------------------------------------------------
 # P025: Front-matter structure and required-elements checks
 # ---------------------------------------------------------------------------
