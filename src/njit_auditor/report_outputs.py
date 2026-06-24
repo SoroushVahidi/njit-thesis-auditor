@@ -2371,7 +2371,12 @@ def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[di
     return dict(sorted(grouped.items()))
 
 
-def _serialized_finding_is_visible_problem(finding: dict[str, Any]) -> bool:
+def _serialized_finding_is_visible_problem(
+    finding: dict[str, Any],
+    *,
+    p020_display_seen: set[tuple] | None = None,
+    consume_p020_display_slot: Any = None,
+) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
     details = (
@@ -2381,6 +2386,16 @@ def _serialized_finding_is_visible_problem(finding: dict[str, Any]) -> bool:
     )
     issue_type = details.get("issue_type", "").strip()
     category = map_finding_rule_to_category(rule_id, details)
+
+    if (
+        rule_id == "P020"
+        and issue_type == "possible_title_capitalization_issue"
+        and p020_display_seen is not None
+        and consume_p020_display_slot is not None
+    ):
+        page_raw = finding.get("page")
+        page = int(page_raw) if page_raw is not None else None
+        return consume_p020_display_slot(details, p020_display_seen, page=page)
 
     if category != "page_numbering":
         return True
@@ -2404,10 +2419,17 @@ def _serialized_finding_is_visible_problem(finding: dict[str, Any]) -> bool:
 def _problem_number_map(
     serialized_findings: list[dict[str, Any]],
 ) -> dict[int, int]:
+    from njit_auditor.title_case_student_preview import consume_p020_display_slot
+
     mapping: dict[int, int] = {}
     next_problem_number = 1
+    p020_display_seen: set[tuple] = set()
     for index, finding in enumerate(serialized_findings):
-        if not _serialized_finding_is_visible_problem(finding):
+        if not _serialized_finding_is_visible_problem(
+            finding,
+            p020_display_seen=p020_display_seen,
+            consume_p020_display_slot=consume_p020_display_slot,
+        ):
             continue
         mapping[index] = next_problem_number
         next_problem_number += 1
@@ -2479,8 +2501,12 @@ def _p020_title_case_individual_comment(
     subject, rule_clause = _P020_TITLE_CASE_SUBJECT_AND_RULE.get(
         details.get("source", ""), _P020_TITLE_CASE_DEFAULT_SUBJECT_AND_RULE
     )
+    from njit_auditor.title_case_student_preview import sanitize_title_case_line_preview
+
+    preview = sanitize_title_case_line_preview(details.get("line_preview", ""))
+    heading_clause = f" '{preview}'" if preview else ""
     return (
-        f"In a {subject} on page {page_label}, the word '{flagged_word}' should be "
+        f"In a {subject}{heading_clause} on page {page_label}, the word '{flagged_word}' should be "
         f"capitalized as '{corrected_word}'. {rule_clause} (capitalize the first "
         "word, last word, and all major words of 4+ letters)."
     )
