@@ -183,7 +183,7 @@ def test_location_label_from_valid_bbox_top_of_page(app: tuple[TestClient, Any])
         ],
     )
     text = _get_html(client, f"/audits/{job_id}")
-    assert "Top of page" in text
+    assert "Page 2 — top of page" in text
     assert "uploaded PDF" in text
     assert "page 2" in text
     assert "not a highlight added by this auditor" in text
@@ -219,7 +219,7 @@ def test_location_label_for_margin_side_finding(app: tuple[TestClient, Any]) -> 
     )
     text = _get_html(client, f"/audits/{job_id}")
     assert "cross the required right margin boundary" in text
-    assert "Right margin area" in text
+    assert "Page 4 — right margin" in text
     # The highlight is geometrically valid here, so the strict policy must
     # allow the highlight action -- but no forbidden page-only phrasing.
     assert "Open highlighted PDF page" in text
@@ -251,6 +251,7 @@ def test_missing_bbox_shows_no_misleading_location_label(app: tuple[TestClient, 
     resp = client.get(f"/audits/{job_id}", headers=_DESKTOP_HEADERS)
     assert resp.status_code == 200
     text = html.unescape(resp.text)
+    assert "Page 2 — left margin" in text
     for forbidden in (
         "Top of page",
         "Bottom of page",
@@ -260,7 +261,6 @@ def test_missing_bbox_shows_no_misleading_location_label(app: tuple[TestClient, 
         "Footer area",
         "Near page center",
         "Body area",
-        "<strong>Location:</strong>",
     ):
         assert forbidden not in text
     assert "Open highlighted PDF page" not in text
@@ -290,7 +290,14 @@ def test_invalid_degenerate_bbox_shows_no_misleading_location_label(
     resp = client.get(f"/audits/{job_id}", headers=_DESKTOP_HEADERS)
     assert resp.status_code == 200
     text = html.unescape(resp.text)
-    assert "<strong>Location:</strong>" not in text
+    assert "Page 3" in text
+    for forbidden in (
+        "Top of page",
+        "Bottom of page",
+        "Body area",
+        "Near page center",
+    ):
+        assert forbidden not in text
     assert "Open highlighted PDF page" not in text
 
 
@@ -340,7 +347,7 @@ def test_highlight_policy_unaffected_by_location_labels(app: tuple[TestClient, A
     )
     highlighted_text = _get_html(client, f"/audits/{highlight_job}")
     assert "Open highlighted PDF page" in highlighted_text
-    assert "Left margin area" in highlighted_text
+    assert "Page 2 — left margin" in highlighted_text
     links = _pdf_links(highlighted_text)
     assert links
     for link in links:
@@ -435,7 +442,8 @@ def test_margin_and_font_wording_not_replaced_by_location_label_alone(
     )
     text = _get_html(client, f"/audits/{job_id}")
     assert "cross the required right margin boundary" in text
-    assert "Right margin area" in text
+    assert "Page 2 — right margin" in text
+    assert "Page 3 — body text, possible font family issue" in text
     assert "font family CMR12" in text
     assert "Times New Roman" in text
 
@@ -472,7 +480,7 @@ def test_location_label_consistent_across_drilldown_pages(app: tuple[TestClient,
         f"/audits/{job_id}/problems/rule/P011/issue-type/margin-boundary-violation",
     ):
         text = _get_html(client, path)
-        assert "Right margin area" in text, f"missing location label on {path}"
+        assert "Page 4 — right margin" in text, f"missing location label on {path}"
 
 
 # ---------------------------------------------------------------------------
@@ -510,7 +518,7 @@ def test_location_label_mobile_desktop_parity(app: tuple[TestClient, Any]) -> No
     mobile = _get_html(client, f"/audits/{job_id}", headers=_MOBILE_HEADERS)
     desktop = _get_html(client, f"/audits/{job_id}", headers=_DESKTOP_HEADERS)
     for fragment in (
-        "Right margin area",
+        "Page 4 — right margin",
         "cross the required right margin boundary",
         "Open highlighted PDF page",
     ):

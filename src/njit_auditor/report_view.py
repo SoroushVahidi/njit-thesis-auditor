@@ -14,10 +14,18 @@ from njit_auditor.finding_explanations import (
     get_action_label,
     get_no_highlight_reason,
 )
+from njit_auditor.high_volume_student_preview import (
+    abstract_indent_location_label,
+    consume_grouped_finding_display_slot,
+    font_location_label,
+    margin_location_label,
+    normalize_area_phrase,
+)
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
 from njit_auditor.page_number_student_preview import (
     classify_visible_page_number_issue,
     consume_page_number_display_slot,
+    is_page_number_rule,
     page_number_location_label,
 )
 from njit_auditor.pdf_highlight import (
@@ -367,6 +375,23 @@ def enriched_pdf_location_label(
         if page_prefix and title_phrase:
             return f"{page_prefix} — {title_phrase}"
 
+    if rule_id == "P011" and issue_type == "margin_boundary_violation":
+        return margin_location_label(details, page, bbox_label=bbox_label)
+
+    if rule_id == "P026" and issue_type in {
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue",
+    }:
+        return font_location_label(issue_type, details, page, bbox_label=bbox_label)
+
+    if rule_id == "P044" and issue_type in {
+        "abstract_first_paragraph_indented",
+        "abstract_subsequent_paragraph_not_indented",
+    }:
+        return abstract_indent_location_label(
+            issue_type, details, page, bbox_label=bbox_label
+        )
+
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         between = between_entries_phrase(
             details.get("previous_entry_preview", ""),
@@ -421,6 +446,10 @@ def enriched_pdf_location_label(
     if section_label and page_prefix and rule_id in _LIST_LOCATION_RULE_IDS:
         return f"{page_prefix} — {section_label}"
 
+    if page_prefix and bbox_label:
+        return f"{page_prefix} — {normalize_area_phrase(bbox_label)}"
+    if page_prefix and not is_page_number_rule(rule_id):
+        return page_prefix
     if bbox_label:
         return bbox_label
     return ""
@@ -1324,6 +1353,26 @@ def _apply_page_number_presentation(
     )
 
 
+def _apply_abstract_indent_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> FindingView:
+    if finding.rule_id != "P044":
+        return finding
+    bbox_only = (
+        finding.location_label
+        if finding.location_label and not finding.location_label.startswith("Page ")
+        else ""
+    )
+    location_label = abstract_indent_location_label(
+        finding.issue_type,
+        details,
+        finding.page,
+        bbox_label=bbox_only,
+    )
+    return replace(finding, location_label=location_label)
+
+
 def _apply_margin_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -1335,11 +1384,20 @@ def _apply_margin_presentation(
         details=details,
         confidence=finding.confidence,
     )
+    bbox_only = (
+        finding.location_label
+        if finding.location_label and not finding.location_label.startswith("Page ")
+        else ""
+    )
+    location_label = margin_location_label(
+        details, finding.page, bbox_label=bbox_only
+    )
     return (
         replace(
             finding,
             polished_comment=comment,
             suggested_fix=suggested_fix,
+            location_label=location_label,
             no_highlight_reason=(
                 finding.no_highlight_reason
                 if finding.has_highlight
@@ -1348,14 +1406,14 @@ def _apply_margin_presentation(
                     issue_type=finding.issue_type,
                     details=dict(details),
                     page=finding.page,
-                    location_label=finding.location_label,
+                    location_label=location_label,
                 )
             ),
             detailed_explanation=_margin_detailed_explanation(
                 details,
                 page=finding.page,
                 has_highlight=finding.has_highlight,
-                location_label=finding.location_label,
+                location_label=location_label,
             ),
             issue_type_explanation=_margin_issue_type_explanation(details, page=finding.page),
         ),
@@ -1380,11 +1438,20 @@ def _apply_font_presentation(
         details=details,
         confidence=finding.confidence,
     )
+    bbox_only = (
+        finding.location_label
+        if finding.location_label and not finding.location_label.startswith("Page ")
+        else ""
+    )
+    location_label = font_location_label(
+        finding.issue_type, details, finding.page, bbox_label=bbox_only
+    )
     return (
         replace(
             finding,
             polished_comment=comment,
             suggested_fix=suggested_fix,
+            location_label=location_label,
             no_highlight_reason=(
                 finding.no_highlight_reason
                 if finding.has_highlight
@@ -1393,7 +1460,7 @@ def _apply_font_presentation(
                     issue_type=finding.issue_type,
                     details=dict(details),
                     page=finding.page,
-                    location_label=finding.location_label,
+                    location_label=location_label,
                 )
             ),
             detailed_explanation=_font_detailed_explanation(
@@ -1401,7 +1468,7 @@ def _apply_font_presentation(
                 issue_type=finding.issue_type,
                 page=finding.page,
                 has_highlight=finding.has_highlight,
-                location_label=finding.location_label,
+                location_label=location_label,
             ),
             issue_type_explanation=_font_issue_type_explanation(
                 details,
@@ -1814,6 +1881,7 @@ def build_report_view(
     visible_indexes: set[int] = set()
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
+    grouped_display_seen: set[tuple] = set()
     for index, finding_view in enumerate(all_finding_views):
         details = finding_details_by_index.get(index, {})
         visible_view = finding_view
@@ -1858,6 +1926,21 @@ def build_report_view(
             visible_view, is_problem = _apply_lot_lof_alignment_presentation(visible_view, details)
         elif visible_view.rule_id == "P014":
             visible_view, is_problem = _apply_named_heading_presentation(visible_view, details)
+        elif visible_view.rule_id == "P044":
+            visible_view = _apply_abstract_indent_presentation(visible_view, details)
+
+        if (
+            is_problem
+            and visible_view.rule_id in {"P011", "P024", "P026", "P036", "P044", "P046"}
+            and not consume_grouped_finding_display_slot(
+                visible_view.rule_id,
+                visible_view.issue_type,
+                details,
+                grouped_display_seen,
+                page=visible_view.page,
+            )
+        ):
+            is_problem = False
         if is_problem:
             visible_view = _finalize_finding_display(visible_view)
             visible_indexes.add(index)
