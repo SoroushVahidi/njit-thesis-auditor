@@ -14,7 +14,12 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import (
+    PdfDocument,
+    PdfPage,
+    PdfTextLine,
+    format_bbox_detail,
+)
 from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_heading_page_and_y
 
 INDENT_THRESHOLD_PT = 18.0
@@ -110,6 +115,7 @@ def check_pdf_abstract_indentation(
                     "required_indent_points": "0.0",
                     "triage_tier": "medium",
                     "source_q_rule_id": "Q002",
+                    "bbox": format_bbox_detail(paragraphs[0][0].bbox),
                 },
             )
         )
@@ -140,6 +146,7 @@ def check_pdf_abstract_indentation(
                         "required_indent_points": f"{INDENT_THRESHOLD_PT:.1f}",
                         "triage_tier": "medium",
                         "source_q_rule_id": "Q003",
+                        "bbox": format_bbox_detail(para[0].bbox),
                     },
                 )
             )

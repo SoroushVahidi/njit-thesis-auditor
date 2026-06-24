@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_page_numbering_regime import (
     _classify_pages,
     _find_no_number_pages,
@@ -125,6 +125,8 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 "page_region": "front_matter",
                 "confidence": confidence,
             }
+            if cand.bbox is not None:
+                details["bbox"] = format_bbox_detail(cand.bbox)
             findings.append(
                 AuditFinding(
                     rule_id="P029",
