@@ -157,6 +157,7 @@ def find_frontmatter_headings_for_gates(
                         near_top=line.bbox.y0 <= 2.0 * 72.0,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized.upper()),
+                        bbox=line.bbox,
                         match_path=match_path,
                         match_confidence=match_confidence,
                     )

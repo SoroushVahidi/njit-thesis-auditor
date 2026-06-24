@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
 
 INCH_TO_PT = 72.0
@@ -34,6 +34,7 @@ class HeadingMatch:
     near_top: bool
     bold: bool
     all_caps: bool
+    bbox: BBox
 
 
 def normalize_heading_text(text: str) -> str:
@@ -79,6 +80,7 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                         near_top=line.bbox.y0 <= TOP_ZONE_PT,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized_upper),
+                        bbox=line.bbox,
                     )
                 )
 
@@ -119,6 +121,7 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
                     "near_top": str(match.near_top),
                     "bold": str(match.bold),
                     "all_caps": str(match.all_caps),
+                    "bbox": format_bbox_detail(match.bbox),
                     "suggested_fix": (
                         "Place named front-matter headings centered near the top in bold all-caps."
                     ),

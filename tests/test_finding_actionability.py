@@ -57,8 +57,14 @@ from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markd
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
 from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
+from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
+from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
+    check_pdf_lot_lof_entry_number_alignment,
+)
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
+from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
+from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 # ---------------------------------------------------------------------------
 # Headers
@@ -2235,3 +2241,191 @@ def test_p037_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
     assert fv.action_kind == "highlight"
     assert fv.action_label == "Open highlighted PDF page"
     assert fv.bbox is not None
+
+
+# ---------------------------------------------------------------------------
+# 25. Batch 2 geometry passthrough: bbox added for P014, P024, P036, P046
+# ---------------------------------------------------------------------------
+
+
+def _make_batch2_p014_pdf(path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((120, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    doc.save(path)
+    doc.close()
+
+
+def test_p014_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p014_batch2_off_center.pdf"
+    _make_batch2_p014_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_named_frontmatter_headings(model) if f.rule_id == "P014"]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details.get("centered") == "False"
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+    comment = build_polished_comment(
+        rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+        page=finding.page,
+        details=finding.details,
+    )
+    assert bbox_str not in comment
+    assert "ABSTRACT" not in comment
+
+
+def _make_batch2_p024_pdf(path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    entries = [
+        "1.1 background of the study and motivation ....",
+        "1.2 Statement of the Problem and Research Gap ....",
+        "1.3 Review of Related Literature and Prior Work ....",
+    ]
+    for idx, label in enumerate(entries):
+        page.insert_text((108, 130 + idx * 20), label)
+        page.insert_text((500, 130 + idx * 20), "12")
+    doc.save(path)
+    doc.close()
+
+
+def test_p024_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p024_batch2_toc_level2.pdf"
+    _make_batch2_p024_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_toc_list_formatting(model)
+        if f.rule_id == "P024" and f.details.get("issue_type") == "toc_level_capitalization"
+    ]
+    assert findings
+    finding = findings[0]
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+    line_preview = finding.details.get("line_preview", "")
+    comment = build_polished_comment(
+        rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+        page=finding.page,
+        details=finding.details,
+    )
+    assert bbox_str not in comment
+    if line_preview:
+        assert line_preview not in comment
+
+
+def _make_batch2_p036_pdf(path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 140), "Chapter 3 Literature Review and Background ....", fontsize=12)
+    page.insert_text((500, 140), "10", fontsize=12)
+    page.insert_text((108, 170), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
+    page.insert_text((500, 170), "12", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p036_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p036_batch2_tight_spacing.pdf"
+    _make_batch2_p036_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details.get("issue_type") == "toc_inter_entry_spacing_too_tight"
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+    comment = build_polished_comment(
+        rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+        page=finding.page,
+        details=finding.details,
+    )
+    assert bbox_str not in comment
+    assert "Chapter 4 Extended Dissertation Topic Title" not in comment
+
+
+_P046_BATCH2_LOT_MISALIGNED = [
+    ("Table 1 Synthetic experimental setup overview entry text here.", 108.0),
+    ("Table 2 Synthetic model performance comparison entry text here.", 130.0),
+    ("Table 3 Synthetic regression coefficients overview entry text.", 108.0),
+]
+
+
+def _make_batch2_p046_pdf(path: Path, entries: list[tuple[str, float]]) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Table")
+    page.insert_text((500, 115), "Page")
+    for idx, (label, indent_x) in enumerate(entries):
+        y = 140 + idx * 20
+        page.insert_text((indent_x, y), label)
+        page.insert_text((500, y), "12")
+    doc.save(path)
+    doc.close()
+
+
+def test_p046_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p046_batch2_lot_misaligned.pdf"
+    _make_batch2_p046_pdf(pdf_path, _P046_BATCH2_LOT_MISALIGNED)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_lot_lof_entry_number_alignment(model)
+        if f.rule_id == "P046"
+        and f.details.get("issue_type") == "lot_entry_number_column_misaligned"
+    ]
+    assert len(findings) == 1
+    finding = findings[0]
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+    comment = build_polished_comment(
+        rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+        page=finding.page,
+        details=finding.details,
+    )
+    assert bbox_str not in comment
+    for label, _ in _P046_BATCH2_LOT_MISALIGNED:
+        assert label not in comment
