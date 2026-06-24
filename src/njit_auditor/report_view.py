@@ -15,6 +15,11 @@ from njit_auditor.finding_explanations import (
     get_no_highlight_reason,
 )
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
+from njit_auditor.page_number_student_preview import (
+    classify_visible_page_number_issue,
+    consume_page_number_display_slot,
+    page_number_location_label,
+)
 from njit_auditor.pdf_highlight import (
     has_visible_highlight,
     is_drawable_bbox,
@@ -1126,60 +1131,9 @@ def _classify_visible_page_number_issue(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[str | None, bool]:
-    if finding.rule_id == "P013":
-        if finding.issue_type == "p013_document_overview":
-            return None, False
-        synthetic_mapping = {
-            "missing_page_number": "missing_page_number",
-            "multiple_page_numbers": "duplicate_or_ambiguous_page_number",
-            "inconsistent_position": "wrong_page_number_location",
-            "mixed_numbering_style": "wrong_page_numbering_style",
-            "sequence_gap": "wrong_page_number_sequence",
-            "page_number_sequence_error": "wrong_page_number_sequence",
-        }
-        if finding.issue_type != "page_number_candidate":
-            return synthetic_mapping.get(finding.issue_type), True
-        try:
-            candidate_count = int(details.get("candidate_count_on_page", "1") or "1")
-        except ValueError:
-            candidate_count = 1
-        if candidate_count > 1:
-            return "duplicate_or_ambiguous_page_number", True
-        if details.get("position_type", "").strip() in {"top_center", "top_right", "other"}:
-            return "wrong_page_number_location", True
-        return None, False
-
-    if finding.rule_id == "P019":
-        mapping = {
-            "missing_page_number": "missing_page_number",
-            "multiple_page_numbers": "duplicate_or_ambiguous_page_number",
-            "inconsistent_position": "wrong_page_number_location",
-            "mixed_numbering_style": "wrong_page_numbering_style",
-            "sequence_gap": "wrong_page_number_sequence",
-            "page_number_sequence_error": "wrong_page_number_sequence",
-        }
-        return mapping.get(finding.issue_type), True
-
-    if finding.rule_id == "P022":
-        if finding.issue_type == "visible_page_number_on_no_number_page":
-            return "page_number_should_be_suppressed", True
-        return None, True
-
-    if finding.rule_id == "P028":
-        mapping = {
-            "frontmatter_page_number_style_issue": "wrong_page_numbering_style",
-            "body_page_roman_number": "wrong_page_numbering_style",
-            "frontmatter_arabic_number": "wrong_page_numbering_style",
-            "arabic_number_on_frontmatter_page": "wrong_page_numbering_style",
-            "uppercase_roman_on_frontmatter_page": "wrong_page_numbering_style",
-            "roman_number_on_body_page": "wrong_page_numbering_style",
-        }
-        return mapping.get(finding.issue_type), True
-
-    if finding.rule_id in {"P029", "P037"}:
-        return "wrong_page_number_sequence", True
-
-    return None, True
+    return classify_visible_page_number_issue(
+        finding.rule_id, finding.issue_type, details
+    )
 
 
 _VISIBLE_PAGE_NUMBER_PROBLEM_PHRASES: dict[str, str] = {
@@ -1313,6 +1267,18 @@ def _apply_page_number_presentation(
         page=finding.page,
         details=details,
     )
+    location_label = page_number_location_label(
+        finding.rule_id,
+        visible_issue_type,
+        details,
+        finding.page,
+        bbox_label=(
+            finding.location_label
+            if finding.location_label
+            and not finding.location_label.startswith("Page ")
+            else ""
+        ),
+    )
     raw_issue_type = str(details.get("issue_type", "")).strip()
     if finding.rule_id in {"P029", "P037"} and raw_issue_type:
         issue_type_explanation = explain_issue_type(
@@ -1324,7 +1290,7 @@ def _apply_page_number_presentation(
             details=dict(details),
             page=finding.page,
             has_highlight=finding.has_highlight,
-            location_label=finding.location_label,
+            location_label=location_label,
         )
     else:
         issue_type_explanation = explain_issue_type("", visible_issue_type)
@@ -1337,7 +1303,7 @@ def _apply_page_number_presentation(
             issue_type=visible_issue_type,
             details=dict(details),
             page=finding.page,
-            location_label=finding.location_label,
+            location_label=location_label,
         )
         detailed_explanation = (
             f"{detailed_explanation} "
@@ -1352,6 +1318,7 @@ def _apply_page_number_presentation(
             polished_comment=comment,
             suggested_fix=suggested_fix,
             detailed_explanation=detailed_explanation,
+            location_label=location_label,
         ),
         is_problem,
     )
@@ -1846,6 +1813,7 @@ def build_report_view(
     visible_view_by_index: dict[int, FindingView] = {}
     visible_indexes: set[int] = set()
     p020_display_seen: set[tuple] = set()
+    page_number_display_seen: set[tuple] = set()
     for index, finding_view in enumerate(all_finding_views):
         details = finding_details_by_index.get(index, {})
         visible_view = finding_view
@@ -1854,6 +1822,18 @@ def build_report_view(
             visible_view, is_problem = _apply_page_number_presentation(
                 visible_view, details, claimed_keys=claimed_page_number_keys
             )
+            if (
+                is_problem
+                and visible_view.issue_type
+                and not consume_page_number_display_slot(
+                    visible_view.rule_id,
+                    visible_view.issue_type,
+                    details,
+                    page_number_display_seen,
+                    page=visible_view.page,
+                )
+            ):
+                is_problem = False
         elif visible_view.rule_id == "P011":
             visible_view, is_problem = _apply_margin_presentation(visible_view, details)
         elif visible_view.rule_id == "P026":

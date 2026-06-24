@@ -289,6 +289,18 @@ def test_enriched_location_falls_back_when_no_metadata() -> None:
     assert label == ""
 
 
+def test_page_number_location_label_names_observed_and_expected_on_page() -> None:
+    from njit_auditor.page_number_student_preview import page_number_location_label
+
+    label = page_number_location_label(
+        "P029",
+        "wrong_page_number_sequence",
+        {"observed_sequence": "vii", "expected_sequence": "viii"},
+        9,
+    )
+    assert label == 'Page 9 — printed page number "vii" (expected "viii")'
+
+
 @pytest.fixture()
 def web_client(tmp_path: Path) -> tuple[TestClient, Any]:
     import importlib

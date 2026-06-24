@@ -2376,6 +2376,9 @@ def _serialized_finding_is_visible_problem(
     *,
     p020_display_seen: set[tuple] | None = None,
     consume_p020_display_slot: Any = None,
+    page_number_display_seen: set[tuple] | None = None,
+    consume_page_number_display_slot: Any = None,
+    classify_visible_page_number_issue: Any = None,
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
@@ -2399,6 +2402,26 @@ def _serialized_finding_is_visible_problem(
 
     if category != "page_numbering":
         return True
+    if (
+        page_number_display_seen is not None
+        and consume_page_number_display_slot is not None
+        and classify_visible_page_number_issue is not None
+    ):
+        page_raw = finding.get("page")
+        page = int(page_raw) if page_raw is not None else None
+        visible_issue_type, is_visible = classify_visible_page_number_issue(
+            rule_id, issue_type, details
+        )
+        if not is_visible:
+            return False
+        if visible_issue_type is not None:
+            return consume_page_number_display_slot(
+                rule_id,
+                visible_issue_type,
+                details,
+                page_number_display_seen,
+                page=page,
+            )
     if rule_id == "P013":
         if issue_type == P013_DOC_ISSUE_TYPE:
             return False
@@ -2419,16 +2442,24 @@ def _serialized_finding_is_visible_problem(
 def _problem_number_map(
     serialized_findings: list[dict[str, Any]],
 ) -> dict[int, int]:
+    from njit_auditor.page_number_student_preview import (
+        classify_visible_page_number_issue,
+        consume_page_number_display_slot,
+    )
     from njit_auditor.title_case_student_preview import consume_p020_display_slot
 
     mapping: dict[int, int] = {}
     next_problem_number = 1
     p020_display_seen: set[tuple] = set()
+    page_number_display_seen: set[tuple] = set()
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
             p020_display_seen=p020_display_seen,
             consume_p020_display_slot=consume_p020_display_slot,
+            page_number_display_seen=page_number_display_seen,
+            consume_page_number_display_slot=consume_page_number_display_slot,
+            classify_visible_page_number_issue=classify_visible_page_number_issue,
         ):
             continue
         mapping[index] = next_problem_number
