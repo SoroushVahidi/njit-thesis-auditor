@@ -14,6 +14,7 @@ from __future__ import annotations
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages, extract_toc_entry_lines
+from njit_auditor.toc_list_student_preview import sanitize_toc_list_entry_preview
 
 MIN_ENTRIES = 3
 X0_RANGE_THRESHOLD_PT = 6.0
@@ -37,9 +38,9 @@ def check_pdf_lot_lof_entry_number_alignment(
 ) -> list[AuditFinding]:
     """Emit P046 warnings when LoT/LoF entry number x0 positions vary beyond tolerance."""
 
-    # Each tuple is (page_number, per_page_entry_index, x0, bbox) so the worst offender
-    # can be traced back to a safe, position-only location without storing entry text.
-    entries_by_section: dict[str, list[tuple[int, int, float, BBox]]] = {
+    # Each tuple is (page_number, per_page_entry_index, x0, bbox, preview) so the worst
+    # offender can be traced back safely without storing full entry text.
+    entries_by_section: dict[str, list[tuple[int, int, float, BBox, str]]] = {
         "list_of_tables": [],
         "list_of_figures": [],
     }
@@ -57,8 +58,15 @@ def check_pdf_lot_lof_entry_number_alignment(
             complete = entries
 
         for per_page_index, entry in enumerate(complete):
+            preview = sanitize_toc_list_entry_preview(entry.cleaned_text)
             entries_by_section[section].append(
-                (context.page.page_number, per_page_index, entry.indent_x, entry.line.bbox)
+                (
+                    context.page.page_number,
+                    per_page_index,
+                    entry.indent_x,
+                    entry.line.bbox,
+                    preview,
+                )
             )
 
         if section not in first_page_by_section and complete:
@@ -70,7 +78,7 @@ def check_pdf_lot_lof_entry_number_alignment(
         if len(located_entries) < MIN_ENTRIES:
             continue
 
-        x0s = [x0 for _, _, x0, _ in located_entries]
+        x0s = [x0 for _, _, x0, _, _ in located_entries]
         x0_min = min(x0s)
         x0_max = max(x0s)
         x0_range = x0_max - x0_min
@@ -82,8 +90,8 @@ def check_pdf_lot_lof_entry_number_alignment(
         label = _SECTION_LABELS[section]
 
         affected = [
-            (page_number, per_page_index, x0, bbox)
-            for page_number, per_page_index, x0, bbox in located_entries
+            (page_number, per_page_index, x0, bbox, preview)
+            for page_number, per_page_index, x0, bbox, preview in located_entries
             if abs(x0 - x0_min) > X0_RANGE_THRESHOLD_PT
         ]
         details = {
@@ -100,7 +108,7 @@ def check_pdf_lot_lof_entry_number_alignment(
         }
         if affected:
             details["affected_entry_count"] = str(len(affected))
-            worst_page, worst_index, _, worst_bbox = max(
+            worst_page, worst_index, _, worst_bbox, worst_preview = max(
                 affected, key=lambda item: abs(item[2] - x0_min)
             )
             # Only attribute an entry index when the worst offender is on the page this
@@ -109,6 +117,8 @@ def check_pdf_lot_lof_entry_number_alignment(
             if worst_page == page_num:
                 details["entry_index"] = str(worst_index)
                 details["bbox"] = format_bbox_detail(worst_bbox)
+                if worst_preview:
+                    details["affected_entry_preview"] = worst_preview
 
         findings.append(
             AuditFinding(

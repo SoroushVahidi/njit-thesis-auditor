@@ -33,6 +33,12 @@ from njit_auditor.report_outputs import (
     _source_location_basename,
     format_source_location,
 )
+from njit_auditor.toc_list_student_preview import (
+    affected_entry_phrase,
+    between_entries_phrase,
+    sanitize_toc_list_entry_preview,
+    spacing_entries_phrase,
+)
 
 _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
     ("p011_margin_triage", "P011", "Margin / overflow summary"),
@@ -344,6 +350,12 @@ def enriched_pdf_location_label(
     float_number = details.get("float_number", "").strip()
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
+        between = between_entries_phrase(
+            details.get("previous_entry_preview", ""),
+            details.get("next_entry_preview", ""),
+        )
+        if page_prefix and section_label and between:
+            return f"{page_prefix} — {section_label}, {between}"
         try:
             pair_start = int(pair_index) + 1
             pair_clause = f"spacing between entries {pair_start}-{pair_start + 1}"
@@ -354,6 +366,16 @@ def enriched_pdf_location_label(
         if page_prefix:
             return f"{page_prefix} — {pair_clause}"
 
+    preview = details.get("affected_entry_preview", "").strip()
+    if preview and page_prefix and section_label and rule_id in {"P018", "P046"}:
+        return f"{page_prefix} — {section_label}, {affected_entry_phrase(preview)}"
+
+    if rule_id == "P024" and entry_index.isdigit() and page_prefix:
+        line_preview = sanitize_toc_list_entry_preview(details.get("line_preview", ""))
+        kind_label = entry_kind_label or section_label or "list"
+        if line_preview:
+            return f"{page_prefix} — {kind_label}, {affected_entry_phrase(line_preview)}"
+
     if entry_index.isdigit():
         entry_num = int(entry_index) + 1
         kind_label = entry_kind_label or section_label or "list"
@@ -363,7 +385,7 @@ def enriched_pdf_location_label(
 
     if rule_id == "P018" and page_prefix and section_label:
         worst_entry_index = details.get("worst_entry_index", "").strip()
-        if worst_entry_index.isdigit():
+        if worst_entry_index.isdigit() and not preview:
             worst_entry_num = int(worst_entry_index) + 1
             return f"{page_prefix} — {section_label}, worst affected entry {worst_entry_num}"
 
@@ -1511,15 +1533,23 @@ def _apply_spacing_presentation(
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
     section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
-    pair_label = _p036_entry_pair_label(details)
+    entries_phrase = spacing_entries_phrase(
+        details.get("previous_entry_preview", ""),
+        details.get("next_entry_preview", ""),
+    )
     detail_phrase = _p036_spacing_detail_phrase(details)
     comment = (
-        f"Likely problem: The spacing between {pair_label} of the {section_label} on "
+        f"Likely problem: The space between {entries_phrase} of the {section_label} on "
         f"page {page_label} appears tighter than expected{detail_phrase}. NJIT expects "
-        "consistent, comfortably readable spacing between consecutive entries. "
-        "Increase the spacing between these entries to match the rest of the list."
+        "consistent, comfortably readable spacing between consecutive entries. Add a blank "
+        "line or increase paragraph spacing between these entries, then compare with "
+        "nearby entries in the same list."
     )
-    return replace(finding, polished_comment=comment), True
+    suggested_fix = (
+        "Add a blank line or increase paragraph spacing between the affected entries, "
+        "then compare the spacing with nearby entries in the same list."
+    )
+    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 
 _P035_FLOAT_ISSUE_LABELS: dict[str, str] = {
@@ -1633,6 +1663,25 @@ def _p018_count_clause(details: Mapping[str, str]) -> str:
     return f" ({'; '.join(extras)})"
 
 
+_P018_SUGGESTED_FIXES: dict[str, str] = {
+    "misaligned_page_number_column": (
+        "Align the affected entry's page number with the dominant right-hand column "
+        "used by nearby entries on this list page."
+    ),
+    "missing_page_number": (
+        "Add the missing trailing page number to the affected entry."
+    ),
+    "inconsistent_leader_dots": (
+        "Make the leader-dot spacing before the page number match the style used by "
+        "nearby entries on this list page."
+    ),
+    "inconsistent_hierarchy_indent": (
+        "Align the affected entry's left indent with other entries at the same "
+        "hierarchy level on this list page."
+    ),
+}
+
+
 def _apply_toc_alignment_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -1647,7 +1696,13 @@ def _apply_toc_alignment_presentation(
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
     comment = template.format(page=page_label, count_clause=_p018_count_clause(details))
-    return replace(finding, polished_comment=comment), True
+    preview = details.get("affected_entry_preview", "").strip()
+    if preview:
+        comment = f"{comment.rstrip('.')}. Affected entry: '{preview}'."
+    suggested_fix = _P018_SUGGESTED_FIXES.get(
+        finding.issue_type, finding.suggested_fix
+    )
+    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 
 def _p046_count_clause(details: Mapping[str, str]) -> str:
@@ -1677,7 +1732,14 @@ def _apply_lot_lof_alignment_presentation(
         comment = f"{comment[:-1]}{count_clause}."
     else:
         comment = f"{comment}{count_clause}"
-    return replace(finding, polished_comment=comment), True
+    preview = details.get("affected_entry_preview", "").strip()
+    if preview:
+        comment = f"{comment.rstrip('.')}. Affected entry: '{preview}'."
+    suggested_fix = (
+        "Align the affected entry's left indent with the dominant entry-number "
+        "column used by nearby entries on this list page."
+    )
+    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 
 _P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (

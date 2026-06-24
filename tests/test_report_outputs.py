@@ -2051,6 +2051,7 @@ def _p024_same_page_findings() -> list[AuditFinding]:
             entry_index="0",
             entry_level="2",
             expected_or_reason="major_word_requires_capital",
+            line_preview="Synthetic first toc entry marker ABC",
         ),
         _p024_finding(
             page=12,
@@ -2058,6 +2059,7 @@ def _p024_same_page_findings() -> list[AuditFinding]:
             entry_index="2",
             entry_level="2",
             expected_or_reason="major_word_requires_capital",
+            line_preview="Synthetic third toc entry marker DEF",
         ),
     ]
 
@@ -2068,15 +2070,26 @@ def test_markdown_p024_same_page_findings_get_distinct_entry_locations(
     output_path = tmp_path / "p024_report.md"
     write_markdown_report(_p024_same_page_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "Page 12 — Table of Contents entry 1" in text
-    assert "Page 12 — Table of Contents entry 3" in text
+    assert (
+        "Page 12 — Table of Contents, affected entry: "
+        "'Synthetic first toc entry marker ABC'"
+    ) in text
+    assert (
+        "Page 12 — Table of Contents, affected entry: "
+        "'Synthetic third toc entry marker DEF'"
+    ) in text
 
 
-def test_markdown_p024_never_renders_raw_line_preview(tmp_path: Path) -> None:
+def test_markdown_p024_never_renders_raw_line_preview_in_problem_text(tmp_path: Path) -> None:
     output_path = tmp_path / "p024_report.md"
     write_markdown_report(_p024_same_page_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert _P024_LINE_PREVIEW_SECRET not in text
+    problem_lines = [
+        line for line in text.splitlines() if line.startswith("- **Problem")
+    ]
+    assert problem_lines
+    for line in problem_lines:
+        assert _P024_LINE_PREVIEW_SECRET not in line
 
 
 def test_markdown_p024_without_entry_index_falls_back_honestly(tmp_path: Path) -> None:

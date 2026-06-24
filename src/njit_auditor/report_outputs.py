@@ -2510,7 +2510,12 @@ def _individual_finding_comment(
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         page_label = str(page) if page is not None else "this page"
         section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
-        pair_label = _p036_entry_pair_label(details)
+        from njit_auditor.toc_list_student_preview import spacing_entries_phrase
+
+        entries_phrase = spacing_entries_phrase(
+            details.get("previous_entry_preview", ""),
+            details.get("next_entry_preview", ""),
+        )
         observed = details.get("gap_points", "").strip()
         required = details.get("required_gap_points", "").strip()
         gap_clause = (
@@ -2519,9 +2524,10 @@ def _individual_finding_comment(
             else ""
         )
         return (
-            f"{REVIEW_PREFIX} The spacing between {pair_label} of the {section_label} "
+            f"The space between {entries_phrase} of the {section_label} "
             f"on page {page_label} appears tighter than expected{gap_clause}. Add "
-            "visible double spacing or a blank line between these two entries."
+            "a blank line or increase paragraph spacing between these entries, then "
+            "compare with nearby entries in the same list."
         )
     if rule_id == "P020" and issue_type == "possible_title_capitalization_issue":
         body = _p020_title_case_individual_comment(page=page, details=details)

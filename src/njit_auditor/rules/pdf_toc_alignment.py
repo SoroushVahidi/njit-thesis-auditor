@@ -8,6 +8,7 @@ from statistics import median
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
 from njit_auditor.rules.pdf_headings import normalize_heading_text
+from njit_auditor.toc_list_student_preview import sanitize_toc_list_entry_preview
 
 TOC_HEADING_MAP = {
     "TABLE OF CONTENTS": "table_of_contents",
@@ -57,6 +58,16 @@ class TocEntryLine:
         self.indent_x = indent_x
         self.has_leader_dots = has_leader_dots
         self.is_wrapped = is_wrapped
+
+
+def _details_with_affected_entry_preview(
+    details: dict[str, str],
+    entry: TocEntryLine,
+) -> dict[str, str]:
+    preview = sanitize_toc_list_entry_preview(entry.cleaned_text)
+    if not preview:
+        return details
+    return {**details, "affected_entry_preview": preview}
 
 
 class TocPageContext:
@@ -447,15 +458,18 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                     message=(
                         "TOC/List page-number column appears misaligned across multiple entries."
                     ),
-                    details={
-                        "page_number": str(context.page.page_number),
-                        "page_type": context.page_type,
-                        "issue_type": "misaligned_page_number_column",
-                        "affected_entry_count": str(misaligned_count),
-                        "worst_entry_index": str(entry_positions[worst_entry]),
-                        "worst_delta_pt": f"{max(deltas):.1f}",
-                        "confidence": "high",
-                    },
+                    details=_details_with_affected_entry_preview(
+                        {
+                            "page_number": str(context.page.page_number),
+                            "page_type": context.page_type,
+                            "issue_type": "misaligned_page_number_column",
+                            "affected_entry_count": str(misaligned_count),
+                            "worst_entry_index": str(entry_positions[worst_entry]),
+                            "worst_delta_pt": f"{max(deltas):.1f}",
+                            "confidence": "high",
+                        },
+                        worst_entry,
+                    ),
                 )
 
         if entries_missing_page_num:
@@ -465,14 +479,17 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                 severity=Severity.WARNING,
                 page=context.page.page_number,
                 message="TOC/List contains likely entries with missing page numbers.",
-                details={
-                    "page_number": str(context.page.page_number),
-                    "page_type": context.page_type,
-                    "issue_type": "missing_page_number",
-                    "affected_entry_count": str(len(entries_missing_page_num)),
-                    "worst_entry_index": str(entry_positions[worst_entry]),
-                    "confidence": "medium",
-                },
+                details=_details_with_affected_entry_preview(
+                    {
+                        "page_number": str(context.page.page_number),
+                        "page_type": context.page_type,
+                        "issue_type": "missing_page_number",
+                        "affected_entry_count": str(len(entries_missing_page_num)),
+                        "worst_entry_index": str(entry_positions[worst_entry]),
+                        "confidence": "medium",
+                    },
+                    worst_entry,
+                ),
             )
 
         dotted_count = sum(1 for entry in entries if entry.has_leader_dots)
@@ -490,14 +507,17 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                     severity=Severity.WARNING,
                     page=context.page.page_number,
                     message="TOC/List entries show inconsistent visible leader-dot usage.",
-                    details={
-                        "page_number": str(context.page.page_number),
-                        "page_type": context.page_type,
-                        "issue_type": "inconsistent_leader_dots",
-                        "affected_entry_count": str(len(missing_dots_entries)),
-                        "worst_entry_index": str(entry_positions[worst_entry]),
-                        "confidence": "medium",
-                    },
+                    details=_details_with_affected_entry_preview(
+                        {
+                            "page_number": str(context.page.page_number),
+                            "page_type": context.page_type,
+                            "issue_type": "inconsistent_leader_dots",
+                            "affected_entry_count": str(len(missing_dots_entries)),
+                            "worst_entry_index": str(entry_positions[worst_entry]),
+                            "confidence": "medium",
+                        },
+                        worst_entry,
+                    ),
                 )
 
         entries_with_indent = [
@@ -522,15 +542,18 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "TOC/List entries show an indentation outlier likely inconsistent "
                     "with hierarchy."
                 ),
-                details={
-                    "page_number": str(context.page.page_number),
-                    "page_type": context.page_type,
-                    "issue_type": "inconsistent_hierarchy_indent",
-                    "affected_entry_count": str(len(indent_outliers)),
-                    "worst_entry_index": str(entry_positions[worst_entry]),
-                    "worst_delta_pt": f"{worst_delta:.1f}",
-                    "confidence": "medium",
-                },
+                details=_details_with_affected_entry_preview(
+                    {
+                        "page_number": str(context.page.page_number),
+                        "page_type": context.page_type,
+                        "issue_type": "inconsistent_hierarchy_indent",
+                        "affected_entry_count": str(len(indent_outliers)),
+                        "worst_entry_index": str(entry_positions[worst_entry]),
+                        "worst_delta_pt": f"{worst_delta:.1f}",
+                        "confidence": "medium",
+                    },
+                    worst_entry,
+                ),
             )
 
         for issue_type in (
