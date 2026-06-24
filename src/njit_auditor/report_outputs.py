@@ -648,6 +648,15 @@ def _high_volume_pattern_note(
             "clean copy before submission."
         )
 
+    if rule_id == "P011" and issue_type == P011_ISSUE_TYPE:
+        return (
+            f"This margin issue appears {occurrence_count} times{where} because "
+            "text crosses the same margin boundary on more than one page. It is "
+            f"the same formatting issue repeated rather than {occurrence_count} "
+            "unrelated problems. Review the page margins (or the text frame) for "
+            "the affected pages and apply one consistent fix."
+        )
+
     if rule_id == "P019" and issue_type in _P019_DOCUMENT_PATTERN_ISSUE_TYPES:
         return (
             f"This page-numbering issue appears {occurrence_count} times{where}. "

@@ -118,6 +118,26 @@ def _p019_missing_number_findings(count: int) -> list[AuditFinding]:
     ]
 
 
+def _p011_margin_findings(count: int) -> list[AuditFinding]:
+    return [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=40 + i,
+            message="Possible text crossing right margin.",
+            details={
+                "side": "right",
+                "issue_type": "margin_boundary_violation",
+                "worst_overflow_pt": "6.0",
+                "affected_line_count": "2",
+                "confidence": "medium",
+                "triage_tier": "informational",
+            },
+        )
+        for i in range(count)
+    ]
+
+
 _FORBIDDEN_INTERNAL_WORDS = (
     "detector",
     "grouping key",
@@ -245,6 +265,25 @@ def test_p019_grouped_card_pattern_note_fires_for_remapped_visible_issue_type() 
     assert "5 times" in card.pattern_note
     assert "one document-level numbering pattern" in card.pattern_note
     _assert_no_internal_jargon(card.pattern_note)
+
+
+def test_p011_grouped_card_pattern_note_explains_repeated_margin_violations() -> None:
+    findings = _p011_margin_findings(5)
+    view = build_report_view(_payload(findings))
+    card = view.grouped_problems[0]
+    assert card.occurrence_count == 5
+    assert "5 times" in card.pattern_note
+    assert "same formatting issue repeated" in card.pattern_note
+    assert "page margins" in card.pattern_note
+    _assert_no_internal_jargon(card.pattern_note)
+
+
+def test_p011_single_occurrence_has_no_pattern_note() -> None:
+    findings = _p011_margin_findings(1)
+    view = build_report_view(_payload(findings))
+    card = view.grouped_problems[0]
+    assert card.occurrence_count == 1
+    assert card.pattern_note == ""
 
 
 # ---- Markdown "Why this repeats" line ----
