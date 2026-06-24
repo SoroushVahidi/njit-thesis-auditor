@@ -902,7 +902,7 @@ def test_results_page_renders_polished_comments(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"Polished comment" in resp.content
-    assert b"Review needed" in resp.content
+    assert b"Likely problem" in resp.content or b"Problem:" in resp.content
 
 
 def test_results_page_wraps_tables_for_mobile_horizontal_scroll(
@@ -987,7 +987,7 @@ def test_results_page_does_not_leak_raw_latex_in_comments_or_fixes(
 
     assert resp.status_code == 200
     assert b"Polished comment" in resp.content
-    assert b"Review needed" in resp.content
+    assert b"Likely problem" in resp.content or b"Problem:" in resp.content
     assert b"Double" in resp.content
     assert b"Times New Roman" in resp.content
     assert b"Roman numerals" in resp.content

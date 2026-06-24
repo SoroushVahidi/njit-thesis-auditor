@@ -1880,10 +1880,14 @@ def _finish_comment(
 ) -> str:
     # Remediation is shown on its own Suggested fix line; VERIFY_SUFFIX is omitted
     # here because reports surface one global automated-review caveat instead.
-    _ = specific
-    _ = issue_type
+    body = body.strip()
+    if specific:
+        return body
+    # Generic/heuristic fallbacks only: keep the review prefix when the comment
+    # does not already carry a concrete Problem/Likely problem instruction.
     _ = rule_id
-    return f"{REVIEW_PREFIX} {body}".strip()
+    _ = issue_type
+    return f"{REVIEW_PREFIX} {body}"
 
 
 def contains_blocked_detail_text(comment: str, details: dict[str, str]) -> bool:

@@ -664,7 +664,6 @@ def _margin_comment_and_fix(
     side = _margin_side_label(details.get("side", ""))
     if side == "required page margin":
         comment = (
-            "Review needed: "
             f"{prefix}: Some content on page {page_label} appears too close to or beyond "
             "a required page margin. The auditor could not determine the exact margin "
             "side from the available metadata. NJIT formatting expects body content to "
@@ -678,7 +677,6 @@ def _margin_comment_and_fix(
         return comment, fix
     overflow_detail = _margin_overflow_detail_phrase(details)
     comment = (
-        "Review needed: "
         f"{prefix}: Content on page {page_label} appears to cross the required {side} "
         f"boundary{overflow_detail}. NJIT formatting expects body content to remain inside "
         "the required page margins. Review the highlighted area if available, or inspect "
@@ -837,7 +835,6 @@ def _font_comment_and_fix(
         expected = _font_expected_size(details)
         if observed:
             comment = (
-                "Review needed: "
                 f"{prefix}: {role} on page {page_label} appears to use font size {observed}. "
                 f"NJIT expects {role_fix} to use {expected}. Update the source document's "
                 f"{role_fix} style or verify whether the flagged text is a permitted exception "
@@ -845,7 +842,6 @@ def _font_comment_and_fix(
             )
         else:
             comment = (
-                "Review needed: "
                 f"{prefix}: Some {role_fix}-like spans on page {page_label} appear not to "
                 f"match NJIT's expected font size. The auditor could not extract a precise "
                 f"observed size value for this card. NJIT expects {role_fix} to use {expected}. "
@@ -861,7 +857,6 @@ def _font_comment_and_fix(
     expected = _font_expected_family(details)
     if observed:
         comment = (
-            "Review needed: "
             f"{prefix}: {role} on page {page_label} appears to use font family {observed}. "
             "NJIT expects "
             f"{role_fix} to use {expected}. Update the source document's {role_fix} style if "
@@ -869,7 +864,6 @@ def _font_comment_and_fix(
         )
     else:
         comment = (
-            "Review needed: "
             f"{prefix}: Some {role_fix}-like spans on page {page_label} appear not to match "
             "NJIT's expected font family. The auditor could not extract a precise observed "
             f"font value for this card. NJIT expects {role_fix} to use {expected}. Review "
@@ -940,7 +934,7 @@ def _page_number_comment_and_fix(
     page_label = str(page) if page is not None else "this document"
     if visible_issue_type == "missing_page_number":
         return (
-            "Review needed: Problem: "
+            "Problem: "
             f"The auditor did not find a clear page number on page {page_label}. "
             "NJIT requires page numbers on this type of page unless numbering is "
             "intentionally suppressed for that page type. "
@@ -955,7 +949,7 @@ def _page_number_comment_and_fix(
             or _page_number_position_label(details.get("position_type", "").strip())
         )
         return (
-            "Review needed: Problem: "
+            "Problem: "
             f"The page number on page {page_label} appears at {observed_location}, "
             "but NJIT expects the page number in the required bottom position. "
             "Move the page number to the required bottom position.",
@@ -978,7 +972,7 @@ def _page_number_comment_and_fix(
             )
             section_phrase = f"the {region_label} section" if region_label else "this section"
             return (
-                "Review needed: Problem: "
+                "Problem: "
                 f"The page number on page {page_label} appears to use {observed_style}, "
                 f"but pages in {section_phrase} are expected to use {expected_style}. "
                 "Update the page-numbering style for this section.",
@@ -987,7 +981,7 @@ def _page_number_comment_and_fix(
         if rule_id == "P019":
             where = f"on page {page_label}" if page is not None else "across the document"
             return (
-                "Review needed: Problem: "
+                "Problem: "
                 f"More than one page-numbering style was found {where} "
                 f"({observed_style}), but NJIT requires one consistent style per section "
                 f"(expected: {expected_style}). This is a broader consistency check; if a "
@@ -997,7 +991,7 @@ def _page_number_comment_and_fix(
                 "correct any inconsistent pages.",
             )
         return (
-            "Review needed: Problem: "
+            "Problem: "
             f"The page number on page {page_label} appears to use {observed_style}, "
             f"but this section is expected to use {expected_style}. "
             "Update the page-numbering style for this section.",
@@ -1015,14 +1009,14 @@ def _page_number_comment_and_fix(
             expected
         ):
             return (
-                "Review needed: Problem: "
+                "Problem: "
                 f"The page-number sequence on page {page_label} looks inconsistent; "
                 "please manually check the nearby page numbers.",
                 "Manually check the page numbers near this page for a sequence error.",
             )
         if rule_id == "P029":
             return (
-                "Review needed: Problem: "
+                "Problem: "
                 f"The Roman numeral page number on page {page_label} breaks the expected "
                 f"front-matter sequence (observed: {observed}; expected: {expected}). This "
                 "checks the page-to-page front-matter sequence specifically; if a broader "
@@ -1032,7 +1026,7 @@ def _page_number_comment_and_fix(
             )
         if rule_id == "P037":
             return (
-                "Review needed: Problem: "
+                "Problem: "
                 f"The Roman numeral page number on page {page_label} does not match the "
                 "value required by the NJIT front-matter template for this section "
                 f"(observed: {observed}; expected: {expected}). This checks a specific "
@@ -1043,7 +1037,7 @@ def _page_number_comment_and_fix(
             )
         if rule_id == "P019":
             return (
-                "Review needed: Problem: "
+                "Problem: "
                 f"The page number on page {page_label} is '{observed}', but the "
                 f"document-wide numbering sequence expected '{expected}' at this position. "
                 "This is a broader, whole-document sequence check; if a more specific "
@@ -1054,7 +1048,7 @@ def _page_number_comment_and_fix(
                 "sequence is consecutive.",
             )
         return (
-            "Review needed: Problem: "
+            "Problem: "
             f"The page number on page {page_label} is '{observed}', but the numbering "
             f"sequence expected '{expected}' at this position. Change this page to "
             f"'{expected}' or renumber nearby pages so the sequence is consecutive.",
@@ -1064,7 +1058,7 @@ def _page_number_comment_and_fix(
 
     if visible_issue_type == "duplicate_or_ambiguous_page_number":
         return (
-            "Review needed: Problem: "
+            "Problem: "
             f"Multiple page-number-like tokens were detected on page {page_label}. "
             "This may indicate duplicate page numbering or footer/header text being "
             "mistaken for a page number. Verify which token is the actual page number "
@@ -1074,7 +1068,7 @@ def _page_number_comment_and_fix(
 
     if visible_issue_type == "page_number_should_be_suppressed":
         return (
-            "Review needed: Problem: "
+            "Problem: "
             f"A page number appears on page {page_label}, but this page type may require "
             "the page number to be suppressed or hidden. Remove the page number unless "
             "this page type is intentionally numbered.",
@@ -1082,7 +1076,7 @@ def _page_number_comment_and_fix(
         )
 
     return (
-        "Review needed: Problem: Page numbering may need review.",
+        "Please check whether page numbering on this page follows NJIT requirements.",
         "",
     )
 
@@ -1177,7 +1171,6 @@ def _redundant_candidate_comment_and_explanation(
         visible_issue_type, "the page-numbering problem already reported above for this page"
     )
     comment = (
-        "Review needed: "
         f"A page-number-like token was detected on page {page}. This matches {phrase}, "
         "so it is not counted as a second, separate problem."
     )
@@ -1254,7 +1247,7 @@ def _apply_page_number_presentation(
                         "", "detected_page_number_candidate"
                     ),
                     polished_comment=(
-                        "Review needed: A page-number-like token was detected in the bottom "
+                        "Please confirm: A page-number-like token was detected in the bottom "
                         "area on page "
                         f"{finding.page if finding.page is not None else 'this page'}. "
                         "This is an internal verification signal and is not counted as a "

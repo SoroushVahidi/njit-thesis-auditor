@@ -2505,7 +2505,7 @@ def _individual_finding_comment(
     needs to be distinguishable on its own rather than reusing that
     pair-independent text verbatim.
     """
-    from njit_auditor.polished_comments import REVIEW_PREFIX, build_polished_comment
+    from njit_auditor.polished_comments import build_polished_comment
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         page_label = str(page) if page is not None else "this page"
@@ -2519,14 +2519,14 @@ def _individual_finding_comment(
             else ""
         )
         return (
-            f"{REVIEW_PREFIX} The spacing between {pair_label} of the {section_label} "
+            f"The spacing between {pair_label} of the {section_label} "
             f"on page {page_label} appears tighter than expected{gap_clause}. Add "
             "visible double spacing or a blank line between these two entries."
         )
     if rule_id == "P020" and issue_type == "possible_title_capitalization_issue":
         body = _p020_title_case_individual_comment(page=page, details=details)
         if body is not None:
-            return f"{REVIEW_PREFIX} {body}"
+            return body
     return build_polished_comment(
         rule_id=rule_id,
         issue_type=issue_type,

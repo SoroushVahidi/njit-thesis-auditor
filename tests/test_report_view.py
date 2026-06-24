@@ -199,7 +199,7 @@ def test_p013_triage_panel_informational_count_excludes_document_overview() -> N
 def test_finding_views_include_polished_comments() -> None:
     view = build_report_view(_sample_report())
     assert all(fv.polished_comment for fv in view.findings)
-    assert all(fv.polished_comment.startswith(REVIEW_PREFIX) for fv in view.findings)
+    assert not any(fv.polished_comment.startswith(REVIEW_PREFIX) for fv in view.findings)
 
 
 def test_grouped_problem_views_default_to_grouped_problems_for_repeats() -> None:
@@ -623,7 +623,7 @@ def test_polished_comments_are_privacy_safe(
     )
     assert forbidden not in comment
     assert contains_blocked_detail_text(comment, details) is False
-    assert "Review needed" in comment or "review" in comment.lower()
+    assert len(comment.strip()) > 20
 
 
 @pytest.mark.parametrize(
@@ -742,7 +742,7 @@ def test_web_results_render_polished_comments(tmp_path: Path) -> None:
     resp = client.get("/audits/rv1")
     assert resp.status_code == 200
     assert b"Polished comment" in resp.content
-    assert b"Review needed" in resp.content
+    assert b"Likely problem" in resp.content or b"Problem:" in resp.content
     assert b"Most common issues" in resp.content
 
 
