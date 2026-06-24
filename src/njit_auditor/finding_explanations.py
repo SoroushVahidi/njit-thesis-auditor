@@ -1068,6 +1068,179 @@ def _p026_font_explanation(
     )
 
 
+def _p029_roman_sequence_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    page_phrase = f"page {page}" if page is not None else "a front-matter page"
+    observed = (
+        details.get("observed_sequence", "").strip()
+        or details.get("candidate_text", "").strip()
+        or "the detected value"
+    )
+    expected = details.get("expected_sequence", "").strip() or "the expected value"
+    if issue_type == "roman_sequence_repeat":
+        return (
+            f"Observed: {page_phrase.capitalize()} repeats the Roman numeral "
+            f"'{observed}', the same value already used on the previous front-matter "
+            "page. "
+            "Expected: each front-matter page should have its own, increasing Roman "
+            f"numeral (expected next: '{expected}'). "
+            "Why this is suspicious: NJIT front-matter pages must be numbered "
+            "consecutively with no repeats, so a repeated numeral usually means a "
+            "page was duplicated or mislabeled. "
+            "What to check or fix: renumber this page so it continues the sequence "
+            "instead of repeating the previous page's number."
+        )
+    if issue_type == "roman_sequence_gap":
+        return (
+            f"Observed: {page_phrase.capitalize()} is numbered '{observed}', but the "
+            f"next expected Roman numeral after the previous numbered front-matter page "
+            f"was '{expected}' — one or more numerals were skipped. "
+            "Expected: front-matter Roman numerals must increase by exactly one on "
+            "every numbered page with no gaps. "
+            "Why this is suspicious: a skipped numeral usually means a front-matter "
+            "page was removed, left unnumbered, or mislabeled. "
+            f"What to check or fix: change this page to '{expected}' or restore and "
+            "renumber the missing front-matter pages so the sequence is consecutive."
+        )
+    if issue_type == "roman_sequence_decrease":
+        return (
+            f"Observed: The Roman numeral on {page_phrase} is '{observed}', lower than "
+            "the numeral used on the previous front-matter page. "
+            "Expected: front-matter Roman numerals should increase by one on every "
+            f"numbered page (expected: '{expected}'). "
+            "Why this is suspicious: a decreasing page number usually means a page was "
+            "inserted, removed, or mislabeled. "
+            "What to check or fix: renumber this page so the sequence keeps increasing "
+            "instead of going backward."
+        )
+    return _GENERIC_FALLBACK
+
+
+_P037_SECTION_KEY_LABELS: dict[str, str] = {
+    "biographical_sketch": "Biographical Sketch",
+    "dedication": "Dedication",
+    "acknowledgements": "Acknowledgements",
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+}
+
+
+def _p037_roman_section_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    page_phrase = f"page {page}" if page is not None else "this front-matter page"
+    observed = (
+        details.get("observed_roman", "").strip()
+        or details.get("observed_sequence", "").strip()
+        or "the detected value"
+    )
+    expected = (
+        details.get("expected_roman", "").strip()
+        or details.get("expected_sequence", "").strip()
+        or "the expected value"
+    )
+    if issue_type == "roman_bio_sketch_not_iv":
+        section_name = "Biographical Sketch"
+    else:
+        section_name = _P037_SECTION_KEY_LABELS.get(
+            details.get("section_key", "").strip(), "front-matter section"
+        )
+    return (
+        f"Observed: The {section_name} page ({page_phrase}) is numbered '{observed}'. "
+        f"Expected: NJIT's front-matter template assigns the {section_name} a fixed "
+        f"Roman numeral of '{expected}'. "
+        "Why this is suspicious: this is a fixed template position, not a relative "
+        "sequence count, so it does not shift even if earlier optional sections are "
+        "missing or reordered -- this check is independent of the page-to-page "
+        "sequence check. "
+        f"What to check or fix: change this page's Roman numeral to '{expected}'."
+    )
+
+
+_P020_TITLE_CASE_REASON_TEXT: dict[str, str] = {
+    "first_word_requires_capital": "the first word is not capitalized",
+    "word_after_separator_requires_capital": (
+        "a word after a colon, dash, or similar separator is not capitalized"
+    ),
+    "major_word_requires_capital": "a major word (4+ letters) is not capitalized",
+}
+
+
+def _p020_title_case_explanation(details: dict[str, str], *, page: int | None) -> str:
+    page_phrase = f"page {page}" if page is not None else "this document"
+    source = details.get("source", "").strip() or "heading"
+    reason = details.get("expected_or_reason", "").strip()
+    reason_text = _P020_TITLE_CASE_REASON_TEXT.get(
+        reason, "a word is not capitalized as expected"
+    )
+    if source == "caption":
+        subject = "table title"
+        rule_text = "NJIT requires table titles to use Title Case"
+    else:
+        subject = "Level 2 heading"
+        rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
+    return (
+        f"Observed: A {subject} on {page_phrase} appears to have a capitalization "
+        f"problem: {reason_text}. "
+        f"Expected: {rule_text} (capitalize the first word, last word, and all "
+        "major words of 4+ letters). "
+        "Why this is suspicious: the detector compares each word against NJIT's "
+        "Title Case rule for this text role, so short connector words (a, of, the, "
+        "and similar) are correctly left lowercase and not flagged. "
+        "What to check or fix: open the flagged page and capitalize the specific "
+        "word the finding identifies as missing a capital letter."
+    )
+
+
+_P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(
+    {
+        "toc_inter_entry_spacing_too_tight",
+        "lot_inter_entry_spacing_too_tight",
+        "lof_inter_entry_spacing_too_tight",
+    }
+)
+_P036_SECTION_LABELS: dict[str, str] = {
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+
+
+def _p036_entry_pair_label(details: dict[str, str]) -> str:
+    try:
+        index = int(details.get("entry_pair_index", "").strip())
+    except ValueError:
+        return "two consecutive entries"
+    return f"entries {index + 1}-{index + 2}"
+
+
+def _p036_spacing_explanation(details: dict[str, str], *, page: int | None) -> str:
+    page_phrase = f"page {page}" if page is not None else "this page"
+    section_label = _P036_SECTION_LABELS.get(
+        details.get("section_type", "").strip(), "TOC/list"
+    )
+    pair_label = _p036_entry_pair_label(details)
+    gap_points = details.get("gap_points", "").strip()
+    required_gap_points = details.get("required_gap_points", "").strip()
+    extras: list[str] = []
+    if gap_points:
+        extras.append(f"observed gap {gap_points}pt")
+    if required_gap_points:
+        extras.append(f"expected at least {required_gap_points}pt")
+    detail_phrase = f" ({'; '.join(extras)})" if extras else ""
+    return (
+        f"Observed: The spacing between {pair_label} of the {section_label} on "
+        f"{page_phrase} appears tighter than expected{detail_phrase}. "
+        "Expected: NJIT expects consistent, comfortably readable spacing between "
+        "consecutive entries. "
+        "Why this is suspicious: the gap between these two entries is noticeably "
+        "smaller than the gap NJIT's spacing rule requires. "
+        "What to check or fix: increase the spacing between these entries (a "
+        "blank line or extra paragraph spacing) to match the rest of the list."
+    )
+
+
 _P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
     ("centered", "centered"),
     ("near_top", "near the top of the page"),
@@ -1553,6 +1726,21 @@ def _build_explanation_text(
         "possible_body_font_size_issue",
     }:
         return _p026_font_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P029" and effective_issue_type in {
+        "roman_sequence_repeat",
+        "roman_sequence_decrease",
+        "roman_sequence_gap",
+    }:
+        return _p029_roman_sequence_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P037" and effective_issue_type in {
+        "roman_bio_sketch_not_iv",
+        "roman_section_wrong_value",
+    }:
+        return _p037_roman_section_explanation(effective_issue_type, details, page=page)
+    if rule_id == "P020" and effective_issue_type == "possible_title_capitalization_issue":
+        return _p020_title_case_explanation(details, page=page)
+    if rule_id == "P036" and effective_issue_type in _P036_SPACING_ISSUE_TYPES:
+        return _p036_spacing_explanation(details, page=page)
     if rule_id == "P014":
         return _p014_heading_explanation(details, page=page)
     if rule_id == "P016" and effective_issue_type in {

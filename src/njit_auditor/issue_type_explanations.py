@@ -399,9 +399,32 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "numerals (1, 2, 3). Only front-matter pages use Roman numerals."
     ),
     ("P029", "roman_sequence_gap"): (
-        "There is a gap in the Roman numeral page number sequence for front-matter "
-        "pages. Roman numeral numbers must be consecutive with no skipped values. "
-        "Verify no front-matter pages were accidentally removed or misnumbered."
+        "A front-matter page skips one or more Roman numerals in the sequence "
+        "(for example, jumping from 'ii' to 'iv'). Each numbered front-matter page "
+        "must use the next consecutive Roman numeral with no gaps. Renumber the "
+        "affected page or restore any missing front-matter pages."
+    ),
+    ("P029", "roman_sequence_repeat"): (
+        "A front-matter page repeats the same Roman numeral as the page before it. "
+        "Each front-matter page must have its own, increasing Roman numeral. "
+        "Verify no front-matter page was duplicated or mislabeled."
+    ),
+    ("P029", "roman_sequence_decrease"): (
+        "A front-matter page's Roman numeral is lower than the page before it. "
+        "Front-matter Roman numerals must increase by one on every numbered page. "
+        "Verify no front-matter page was inserted, removed, or mislabeled out of order."
+    ),
+    ("P037", "roman_bio_sketch_not_iv"): (
+        "The Biographical Sketch page is not numbered 'iv'. NJIT's front-matter "
+        "template assigns the Biographical Sketch a fixed Roman numeral of 'iv', "
+        "regardless of how other front-matter pages are numbered. "
+        "Change this page's Roman numeral to 'iv'."
+    ),
+    ("P037", "roman_section_wrong_value"): (
+        "A front-matter section is not numbered with its expected, fixed Roman "
+        "numeral. NJIT's front-matter template assigns specific sections a fixed "
+        "page number that does not shift even if earlier optional sections are "
+        "missing or reordered. Change this page's Roman numeral to the expected value."
     ),
     ("P030", "missing_continued_heading"): (
         "A multi-page list (such as a List of Tables or List of Figures) may be "
@@ -723,9 +746,12 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
         "numerals and body pages should use Arabic numerals."
     ),
     "wrong_page_number_sequence": (
-        "This means the detected page number does not appear to follow the "
-        "expected numbering sequence. Review the affected pages and correct the "
-        "numbering order."
+        "This means the page number printed on this page does not match what NJIT's "
+        "front-matter numbering rules expect at this position -- for example, it may "
+        "repeat, skip, or go backward relative to nearby pages, or it may not match a "
+        "section that has a fixed, required numeral. Compare this page's number with "
+        "the pages immediately before and after it, and correct the numbering so it "
+        "follows the required sequence."
     ),
     "duplicate_or_ambiguous_page_number": (
         "This means multiple page-number-like tokens were detected on the same "

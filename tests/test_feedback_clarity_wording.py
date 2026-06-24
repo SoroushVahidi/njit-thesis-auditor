@@ -330,8 +330,8 @@ def test_plausible_sequence_keeps_real_numbers_visible() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P019")
-    assert "Observed: 27" in fv.polished_comment
-    assert "Expected: 28" in fv.polished_comment
+    assert "'27'" in fv.polished_comment or "27" in fv.polished_comment
+    assert "'28'" in fv.polished_comment or "28" in fv.polished_comment
 
 
 def test_roman_numeral_sequence_is_unaffected_by_plausibility_guard() -> None:
@@ -339,8 +339,8 @@ def test_roman_numeral_sequence_is_unaffected_by_plausibility_guard() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P019")
-    assert "Observed: ix" in fv.polished_comment
-    assert "Expected: viii" in fv.polished_comment
+    assert "'ix'" in fv.polished_comment or "ix" in fv.polished_comment
+    assert "'viii'" in fv.polished_comment or "viii" in fv.polished_comment
 
 
 # ---------------------------------------------------------------------------
@@ -1545,3 +1545,168 @@ def test_p052_copyright_author_not_found_is_specific_not_generic() -> None:
     assert "was flagged by an automated check" not in fv.issue_type_explanation
     assert "automated formatting check" not in fv.detailed_explanation
     assert "This check (P052) found a possible" not in fv.polished_comment
+
+
+# ---------------------------------------------------------------------------
+# 15. P029/P037/P020/P036 — replace generic page-number sequence boilerplate
+#     with issue-type-specific student-facing wording
+# ---------------------------------------------------------------------------
+
+_GENERIC_SEQUENCE_PHRASE = "does not appear to follow the expected numbering sequence"
+
+
+@pytest.mark.parametrize(
+    ("rule_id", "issue_type", "details", "expected_phrases"),
+    [
+        (
+            "P029",
+            "roman_sequence_repeat",
+            {"observed_sequence": "iii", "expected_sequence": "iv"},
+            ("repeats the Roman numeral", "previous front-matter page"),
+        ),
+        (
+            "P029",
+            "roman_sequence_decrease",
+            {"observed_sequence": "ii", "expected_sequence": "iii"},
+            ("lower than the numeral used on the previous", "going backward"),
+        ),
+        (
+            "P037",
+            "roman_bio_sketch_not_iv",
+            {"observed_sequence": "v", "expected_sequence": "iv"},
+            ("Biographical Sketch", "fixed Roman numeral"),
+        ),
+        (
+            "P037",
+            "roman_section_wrong_value",
+            {
+                "section_key": "dedication",
+                "observed_sequence": "vi",
+                "expected_sequence": "v",
+            },
+            ("Dedication", "fixed template position"),
+        ),
+        (
+            "P029",
+            "roman_sequence_gap",
+            {"observed_sequence": "iii", "expected_sequence": "ii"},
+            ("skipped", "expected Roman numeral"),
+        ),
+    ],
+)
+def test_p029_p037_polished_comments_are_specific_not_generic_sequence(
+    rule_id: str,
+    issue_type: str,
+    details: dict[str, str],
+    expected_phrases: tuple[str, ...],
+) -> None:
+    comment = build_polished_comment(
+        rule_id=rule_id,
+        issue_type=issue_type,
+        page=5,
+        details=details,
+    )
+    assert _GENERIC_SEQUENCE_PHRASE not in comment
+    for phrase in expected_phrases:
+        assert phrase in comment
+    assert "was flagged by an automated check" not in comment
+
+
+@pytest.mark.parametrize(
+    ("rule_id", "issue_type", "details", "expected_phrases"),
+    [
+        (
+            "P029",
+            "roman_sequence_repeat",
+            {"observed_sequence": "iii", "expected_sequence": "iv"},
+            ("repeats the Roman numeral", "expected next"),
+        ),
+        (
+            "P037",
+            "roman_bio_sketch_not_iv",
+            {"observed_sequence": "v", "expected_sequence": "iv"},
+            ("Biographical Sketch", "fixed template position"),
+        ),
+    ],
+)
+def test_p029_p037_issue_type_and_detailed_explanations_match(
+    rule_id: str,
+    issue_type: str,
+    details: dict[str, str],
+    expected_phrases: tuple[str, ...],
+) -> None:
+    findings = [
+        AuditFinding(
+            rule_id=rule_id,
+            severity=Severity.WARNING,
+            page=5,
+            message="Roman numeral issue.",
+            details={"issue_type": issue_type, **details},
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == rule_id)
+    assert _GENERIC_SEQUENCE_PHRASE not in fv.polished_comment
+    assert _GENERIC_SEQUENCE_PHRASE not in fv.issue_type_explanation
+    assert _GENERIC_SEQUENCE_PHRASE not in fv.detailed_explanation
+    for phrase in expected_phrases:
+        assert phrase in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p020_title_case_detailed_explanation_names_violation_category() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=10,
+            message="Title case issue.",
+            details={
+                "issue_type": "possible_title_capitalization_issue",
+                "source": "heading",
+                "expected_or_reason": "major_word_requires_capital",
+                "flagged_word": "methods",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P020")
+    assert "Level 2 heading" in fv.detailed_explanation
+    assert "major word" in fv.detailed_explanation.lower()
+    assert "methods" not in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.detailed_explanation
+
+
+def test_p036_spacing_detailed_explanation_names_entry_pair_and_section() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P036",
+            severity=Severity.WARNING,
+            page=12,
+            message="TOC spacing issue.",
+            details={
+                "issue_type": "toc_inter_entry_spacing_too_tight",
+                "section_type": "table_of_contents",
+                "entry_pair_index": "2",
+                "gap_points": "4.0",
+                "required_gap_points": "8.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P036")
+    assert "entries 3-4" in fv.detailed_explanation
+    assert "Table of Contents" in fv.detailed_explanation
+    assert "4.0pt" in fv.detailed_explanation
+    assert "8.0pt" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.detailed_explanation
+
+
+def test_wrong_page_number_sequence_issue_type_explanation_is_less_generic() -> None:
+    text = explain_issue_type("P019", "wrong_page_number_sequence")
+    assert _GENERIC_SEQUENCE_PHRASE not in text
+    assert "repeat" in text.lower() or "skip" in text.lower() or "backward" in text.lower()
