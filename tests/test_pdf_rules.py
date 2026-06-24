@@ -7689,16 +7689,20 @@ def test_p046_entry_index_omitted_when_worst_entry_on_later_page(tmp_path: Path)
 
 
 def test_p046_finding_metadata_no_private_content(tmp_path: Path) -> None:
-    """Finding details must contain geometry metadata only — no entry text."""
+    """Finding details may include short entry previews but not full entry text."""
     pdf_path = tmp_path / "p046_privacy.pdf"
     _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", _P046_LOT_MISALIGNED)
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
     assert findings
     for f in findings:
-        for value in f.details.values():
-            assert "synthetic" not in str(value).lower()
-            assert "entry text" not in str(value).lower()
+        preview = f.details.get("affected_entry_preview", "")
+        if preview:
+            assert len(preview) <= 72
+        for key, value in f.details.items():
+            if key in {"affected_entry_preview", "bbox"}:
+                continue
+            assert "entry text here" not in str(value).lower()
         assert "issue_type" in f.details
         assert "page_number" in f.details
         assert "source_q_rule_id" in f.details

@@ -6,6 +6,8 @@ semantics, thresholds, rule IDs, or stored finding data.
 
 from __future__ import annotations
 
+from njit_auditor.toc_list_student_preview import spacing_entries_phrase
+
 # ---------------------------------------------------------------------------
 # Action kind / label helpers
 # ---------------------------------------------------------------------------
@@ -1220,7 +1222,10 @@ def _p036_spacing_explanation(details: dict[str, str], *, page: int | None) -> s
     section_label = _P036_SECTION_LABELS.get(
         details.get("section_type", "").strip(), "TOC/list"
     )
-    pair_label = _p036_entry_pair_label(details)
+    entries_phrase = spacing_entries_phrase(
+        details.get("previous_entry_preview", ""),
+        details.get("next_entry_preview", ""),
+    )
     gap_points = details.get("gap_points", "").strip()
     required_gap_points = details.get("required_gap_points", "").strip()
     extras: list[str] = []
@@ -1230,14 +1235,14 @@ def _p036_spacing_explanation(details: dict[str, str], *, page: int | None) -> s
         extras.append(f"expected at least {required_gap_points}pt")
     detail_phrase = f" ({'; '.join(extras)})" if extras else ""
     return (
-        f"Observed: The spacing between {pair_label} of the {section_label} on "
+        f"Observed: The space between {entries_phrase} of the {section_label} on "
         f"{page_phrase} appears tighter than expected{detail_phrase}. "
         "Expected: NJIT expects consistent, comfortably readable spacing between "
         "consecutive entries. "
         "Why this is suspicious: the gap between these two entries is noticeably "
         "smaller than the gap NJIT's spacing rule requires. "
-        "What to check or fix: increase the spacing between these entries (a "
-        "blank line or extra paragraph spacing) to match the rest of the list."
+        "What to check or fix: add a blank line or increase paragraph spacing "
+        "between these entries, then compare with nearby entries in the same list."
     )
 
 

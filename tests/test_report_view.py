@@ -496,7 +496,11 @@ def test_p024_location_label_uses_entry_index_for_toc() -> None:
     view = build_report_view(report)
 
     finding = next(f for f in view.findings if f.rule_id == "P024")
-    assert finding.location_label == "Page 12 — Table of Contents entry 1"
+    expected = (
+        "Page 12 — Table of Contents, affected entry: "
+        "'Synthetic Sample Toc Entry Text Marker XYZ123'"
+    )
+    assert finding.location_label == expected
 
 
 def test_p024_location_label_falls_back_without_entry_index() -> None:
@@ -526,6 +530,7 @@ def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
             entry_index="0",
             entry_level="2",
             expected_or_reason="major_word_requires_capital",
+            line_preview="Synthetic first toc entry marker ABC",
         ),
         _p024_finding(
             page=12,
@@ -533,6 +538,7 @@ def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
             entry_index="2",
             entry_level="2",
             expected_or_reason="major_word_requires_capital",
+            line_preview="Synthetic third toc entry marker DEF",
         ),
     ]
     report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
@@ -542,13 +548,13 @@ def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
     assert len(p024_findings) == 2
     labels = {f.location_label for f in p024_findings}
     assert labels == {
-        "Page 12 — Table of Contents entry 1",
-        "Page 12 — Table of Contents entry 3",
+        "Page 12 — Table of Contents, affected entry: 'Synthetic first toc entry marker ABC'",
+        "Page 12 — Table of Contents, affected entry: 'Synthetic third toc entry marker DEF'",
     }
 
 
 def test_p024_line_preview_never_rendered_in_comment_or_explanation() -> None:
-    """A synthetic line_preview value must never surface in student-facing text."""
+    """line_preview may appear in the location label but not in comments or fixes."""
     secret = "Synthetic Sample Toc Entry Text Marker XYZ123"
     findings = [
         _p024_finding(
@@ -583,7 +589,7 @@ def test_p024_line_preview_never_rendered_in_comment_or_explanation() -> None:
     for finding in p024_findings:
         assert secret not in finding.polished_comment
         assert secret not in finding.detailed_explanation
-        assert secret not in finding.location_label
+        assert secret in finding.location_label
         assert secret not in finding.suggested_fix
 
 
