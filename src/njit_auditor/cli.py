@@ -39,7 +39,11 @@ console = Console()
 
 @app.command()
 def audit(pdf_path: str) -> None:
-    """Audit a thesis/dissertation PDF using local checks only."""
+    """[Legacy] Run only the original page-number/abstract/title-month checks.
+
+    Kept for backward compatibility. For the full PDF layout audit
+    (all implemented P011+ rules, JSON/Markdown export), use `njit-audit pdf` instead.
+    """
     input_path = Path(pdf_path)
     if not input_path.exists():
         console.print(f"[red]File not found:[/red] {input_path}")
