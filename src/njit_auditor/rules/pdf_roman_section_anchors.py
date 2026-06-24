@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_page_numbering_regime import (
     _classify_pages,
@@ -137,6 +137,22 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
             else "roman_section_wrong_value"
         )
 
+        details = {
+            "issue_type": issue_type,
+            "section_key": section_key,
+            "page_number": str(section_page),
+            "expected_roman": expected_roman,
+            "expected_value": str(expected_value),
+            "observed_roman": cand.text,
+            "observed_value": str(cand.value),
+            "observed_sequence": cand.text,
+            "expected_sequence": expected_roman,
+            "triage_tier": "check",
+            "confidence": "medium",
+        }
+        if cand.bbox is not None:
+            details["bbox"] = format_bbox_detail(cand.bbox)
+
         findings.append(
             AuditFinding(
                 rule_id="P037",
@@ -147,19 +163,7 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     f"'{cand.text}' (value={cand.value}); "
                     f"NJIT template expects {expected_roman} ({expected_value})."
                 ),
-                details={
-                    "issue_type": issue_type,
-                    "section_key": section_key,
-                    "page_number": str(section_page),
-                    "expected_roman": expected_roman,
-                    "expected_value": str(expected_value),
-                    "observed_roman": cand.text,
-                    "observed_value": str(cand.value),
-                    "observed_sequence": cand.text,
-                    "expected_sequence": expected_roman,
-                    "triage_tier": "check",
-                    "confidence": "medium",
-                },
+                details=details,
             )
         )
 

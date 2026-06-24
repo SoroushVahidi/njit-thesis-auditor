@@ -5,7 +5,14 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextLine
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    format_bbox_detail,
+)
 from njit_auditor.rules.pdf_captions import (
     CAPTION_START_RE,
     CaptionLine,
@@ -186,6 +193,7 @@ def _append_finding(
     page_number: int,
     float_number: str,
     center_delta: float | None = None,
+    bbox: BBox | None = None,
 ) -> None:
     details: dict[str, str] = {
         "issue_type": issue_type,
@@ -198,6 +206,8 @@ def _append_finding(
     }
     if center_delta is not None:
         details["center_delta_points"] = f"{center_delta:.1f}"
+    if bbox is not None:
+        details["bbox"] = format_bbox_detail(bbox)
 
     if issue_type == "table_body_not_centered":
         message = "Inferred table body block may not be centered within the text area."
@@ -258,6 +268,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     float_type="table",
                     page_number=caption.page_number,
                     float_number=float_number,
+                    bbox=caption_bbox,
                 )
                 continue
             if primary is None:
@@ -272,6 +283,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     page_number=caption.page_number,
                     float_number=float_number,
                     center_delta=center_delta,
+                    bbox=body_bbox,
                 )
             continue
 
@@ -287,6 +299,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 float_type="figure",
                 page_number=caption.page_number,
                 float_number=float_number,
+                bbox=caption_bbox,
             )
             continue
         if primary is None:
@@ -301,6 +314,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 page_number=caption.page_number,
                 float_number=float_number,
                 center_delta=center_delta,
+                bbox=body_bbox,
             )
 
     return findings

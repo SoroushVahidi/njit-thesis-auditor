@@ -51,9 +51,14 @@ from njit_auditor.finding_explanations import (
 from njit_auditor.issue_type_explanations import explain_issue_type
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_highlight import get_pdf_page_sizes
+from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.polished_comments import build_polished_comment
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
 from njit_auditor.report_view import build_report_view, report_view_to_dict
+from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
+from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
+from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
+from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
 
 # ---------------------------------------------------------------------------
 # Headers
@@ -2048,3 +2053,185 @@ def test_unhandled_issue_type_fallback_document_level_has_no_banned_phrase() -> 
     )
     assert _OLD_BANNED_FALLBACK_PHRASE not in comment
     assert "document level" in comment
+
+
+# ---------------------------------------------------------------------------
+# 24. Batch 1 geometry passthrough: bbox added for P029, P035, P037, P044
+#
+# Each of these rules already computes the correct bbox locally for its
+# detection logic; this batch only threads that existing geometry into
+# details["bbox"] so the highlight pipeline can use it. These tests confirm,
+# per rule: the bbox string is present and well-formed, the resulting
+# FindingView is highlight-eligible, and the underlying detector still fires
+# the same finding it always did (detection logic itself is unchanged).
+# ---------------------------------------------------------------------------
+
+_BBOX_STRING_RE = re.compile(r"^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$")
+
+
+def _assert_valid_bbox_string(bbox_str: str) -> None:
+    assert _BBOX_STRING_RE.match(bbox_str), f"not a valid 'x0,y0,x1,y1' bbox string: {bbox_str!r}"
+
+
+def _findingview_for(finding: AuditFinding) -> Any:
+    payload = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    return view.findings[0]
+
+
+def _make_batch1_p035_pdf(path: Path) -> None:
+    """Off-center table body below a table caption -> table_body_not_centered."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 1 INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    for idx in range(3):
+        page.insert_text(
+            (108.0, 240.0 + idx * 18.0),
+            f"Row {idx + 1} column alpha and column beta values",
+            fontsize=11,
+        )
+    page.insert_text(
+        (108, 200.0), "Table 3.1 Example table caption title for layout testing here.", fontsize=11
+    )
+    doc.save(path)
+    doc.close()
+
+
+def test_p035_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p035_batch1_offcenter.pdf"
+    _make_batch1_p035_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details.get("issue_type") == "table_body_not_centered"
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+
+def _make_batch1_p044_pdf(path: Path, *, para1_x: float, para2_x: float) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    page.insert_text((para1_x, 130), "Synthetic abstract body paragraph first line text here.")
+    page.insert_text((108.0, 144), "Continuation abstract first paragraph body text line here.")
+    page.insert_text((108.0, 158), "Another line in first abstract paragraph body text here.")
+    page.insert_text((para2_x, 240), "Synthetic abstract body paragraph second line here.")
+    page.insert_text((108.0, 254), "Continuation abstract second paragraph body text line.")
+    page.insert_text((108.0, 268), "Another line in second abstract paragraph body text.")
+    doc.save(path)
+    doc.close()
+
+
+def test_p044_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p044_batch1_second_flush.pdf"
+    _make_batch1_p044_pdf(pdf_path, para1_x=108.0, para2_x=108.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "abstract_subsequent_paragraph_not_indented" in issue_types
+    finding = next(
+        f
+        for f in findings
+        if f.details.get("issue_type") == "abstract_subsequent_paragraph_not_indented"
+    )
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+
+def _make_batch1_p029_pdf(path: Path) -> None:
+    """Front-matter Roman sequence i, <skip>, iii -> roman_sequence_gap."""
+    doc = fitz.open()
+    texts: list[str | None] = ["i", None, "iii"]
+    for idx, txt in enumerate(texts):
+        page = doc.new_page(width=612, height=792)
+        if txt is not None:
+            page.insert_text((300, 770), txt, fontsize=12)
+        if idx == 0:
+            page.insert_textbox(
+                fitz.Rect(0, 70, 612, 110),
+                "TABLE OF CONTENTS",
+                fontsize=16,
+                fontname="Times-Bold",
+                align=1,
+            )
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((100, 100), "CHAPTER 1 INTRODUCTION", fontsize=16)
+    doc.save(path)
+    doc.close()
+
+
+def test_p029_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p029_batch1_gap.pdf"
+    _make_batch1_p029_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_sequence(model) if f.rule_id == "P029"]
+    assert any(f.details.get("issue_type") == "roman_sequence_gap" for f in findings)
+    finding = next(f for f in findings if f.details.get("issue_type") == "roman_sequence_gap")
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
+
+
+def _make_batch1_p037_pdf(
+    path: Path, pages: list[tuple[str | None, str | None, str | None]]
+) -> None:
+    doc = fitz.open()
+    for heading, chapter, page_num in pages:
+        page = doc.new_page(width=612, height=792)
+        if heading:
+            page.insert_text((180, 90), heading, fontsize=14, fontname="Times-Bold")
+        if chapter:
+            page.insert_text((108, 200), chapter, fontsize=14)
+        if page_num:
+            page.insert_text((300, 760), page_num, fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p037_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p037_batch1_bio_wrong.pdf"
+    _make_batch1_p037_pdf(
+        pdf_path,
+        [
+            ("BIOGRAPHICAL SKETCH", None, "v"),
+            (None, "CHAPTER 1 INTRODUCTION", "1"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert any(f.details.get("issue_type") == "roman_bio_sketch_not_iv" for f in findings)
+    finding = next(f for f in findings if f.details.get("issue_type") == "roman_bio_sketch_not_iv")
+
+    bbox_str = finding.details.get("bbox")
+    assert bbox_str is not None
+    _assert_valid_bbox_string(bbox_str)
+
+    fv = _findingview_for(finding)
+    assert fv.has_highlight is True
+    assert fv.action_kind == "highlight"
+    assert fv.action_label == "Open highlighted PDF page"
+    assert fv.bbox is not None
