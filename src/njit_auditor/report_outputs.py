@@ -2379,6 +2379,8 @@ def _serialized_finding_is_visible_problem(
     page_number_display_seen: set[tuple] | None = None,
     consume_page_number_display_slot: Any = None,
     classify_visible_page_number_issue: Any = None,
+    grouped_display_seen: set[tuple] | None = None,
+    consume_grouped_finding_display_slot: Any = None,
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
@@ -2399,6 +2401,21 @@ def _serialized_finding_is_visible_problem(
         page_raw = finding.get("page")
         page = int(page_raw) if page_raw is not None else None
         return consume_p020_display_slot(details, p020_display_seen, page=page)
+
+    if (
+        grouped_display_seen is not None
+        and consume_grouped_finding_display_slot is not None
+        and rule_id in {"P011", "P024", "P026", "P036", "P044", "P046"}
+    ):
+        page_raw = finding.get("page")
+        page = int(page_raw) if page_raw is not None else None
+        return consume_grouped_finding_display_slot(
+            rule_id,
+            issue_type,
+            details,
+            grouped_display_seen,
+            page=page,
+        )
 
     if category != "page_numbering":
         return True
@@ -2442,6 +2459,7 @@ def _serialized_finding_is_visible_problem(
 def _problem_number_map(
     serialized_findings: list[dict[str, Any]],
 ) -> dict[int, int]:
+    from njit_auditor.high_volume_student_preview import consume_grouped_finding_display_slot
     from njit_auditor.page_number_student_preview import (
         classify_visible_page_number_issue,
         consume_page_number_display_slot,
@@ -2452,6 +2470,7 @@ def _problem_number_map(
     next_problem_number = 1
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
+    grouped_display_seen: set[tuple] = set()
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
@@ -2460,6 +2479,8 @@ def _problem_number_map(
             page_number_display_seen=page_number_display_seen,
             consume_page_number_display_slot=consume_page_number_display_slot,
             classify_visible_page_number_issue=classify_visible_page_number_issue,
+            grouped_display_seen=grouped_display_seen,
+            consume_grouped_finding_display_slot=consume_grouped_finding_display_slot,
         ):
             continue
         mapping[index] = next_problem_number
