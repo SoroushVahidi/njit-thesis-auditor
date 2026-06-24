@@ -44,6 +44,16 @@ _SOURCE_RULE_IDS = frozenset(
     {"P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009", "P010"}
 )
 
+# P037 checks specific front-matter sections against a fixed NJIT template
+# value; this maps the detector's internal section_key to a display name.
+_P037_SECTION_KEY_LABELS: dict[str, str] = {
+    "biographical_sketch": "Biographical Sketch",
+    "dedication": "Dedication",
+    "acknowledgements": "Acknowledgements",
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+}
+
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ("P011", "margin_boundary_violation"): (
         "Possible text crossing the {side} margin on page {page}. "
@@ -103,34 +113,40 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "page-numbering style for this section."
     ),
     ("P029", "roman_sequence_gap"): (
-        "Problem: The detected page number on page {page} does not appear to "
-        "follow the expected numbering sequence. Observed: {observed_sequence}. "
-        "Expected: {expected_sequence}. Renumber the affected pages so the "
-        "sequence is correct."
+        "Problem: Page {page} is numbered '{observed_sequence}', but the previous "
+        "numbered front-matter page was followed by '{expected_sequence}' as the "
+        "next expected Roman numeral — one or more numerals were skipped. NJIT "
+        "expects every front-matter Roman numeral to increase by exactly one with "
+        "no gaps. Change this page to '{expected_sequence}' or renumber the "
+        "skipped pages so the sequence is consecutive."
     ),
     ("P029", "roman_sequence_repeat"): (
-        "Problem: The detected page number on page {page} does not appear to "
-        "follow the expected numbering sequence. Observed: {observed_sequence}. "
-        "Expected: {expected_sequence}. Renumber the affected pages so the "
-        "sequence is correct."
+        "Problem: Page {page} repeats the Roman numeral '{observed_sequence}', the "
+        "same value already used on the previous front-matter page. NJIT expects "
+        "each front-matter page to have its own, increasing Roman numeral "
+        "(expected next: '{expected_sequence}'). Renumber this page so it "
+        "continues the sequence instead of repeating the previous page's number."
     ),
     ("P029", "roman_sequence_decrease"): (
-        "Problem: The detected page number on page {page} does not appear to "
-        "follow the expected numbering sequence. Observed: {observed_sequence}. "
-        "Expected: {expected_sequence}. Renumber the affected pages so the "
-        "sequence is correct."
+        "Problem: The Roman numeral on page {page} is '{observed_sequence}', "
+        "which is lower than the numeral used on the previous front-matter page. "
+        "NJIT expects front-matter Roman numerals to increase by one on every "
+        "numbered page (expected: '{expected_sequence}'). Renumber this page so "
+        "the sequence keeps increasing instead of going backward."
     ),
     ("P037", "roman_bio_sketch_not_iv"): (
-        "Problem: The detected page number on page {page} does not appear to "
-        "follow the expected numbering sequence. Observed: {observed_sequence}. "
-        "Expected: {expected_sequence}. Renumber the affected pages so the "
-        "sequence is correct."
+        "Problem: The Biographical Sketch page is numbered '{observed_sequence}', "
+        "but NJIT's front-matter template always assigns the Biographical Sketch "
+        "page the fixed Roman numeral '{expected_sequence}', regardless of what "
+        "comes before it. Change this page's Roman numeral to '{expected_sequence}'."
     ),
     ("P037", "roman_section_wrong_value"): (
-        "Problem: The detected page number on page {page} does not appear to "
-        "follow the expected numbering sequence. Observed: {observed_sequence}. "
-        "Expected: {expected_sequence}. Renumber the affected pages so the "
-        "sequence is correct."
+        "Problem: The {section_label} page is numbered '{observed_sequence}', but "
+        "NJIT's front-matter template assigns this section the fixed Roman "
+        "numeral '{expected_sequence}'. This is a fixed template position, not a "
+        "relative sequence count, so it does not shift even if earlier optional "
+        "sections are missing. Change this page's Roman numeral to "
+        "'{expected_sequence}'."
     ),
     ("P026", "possible_body_font_family_issue"): (
         "Body text on page {page} may not use the expected font family. "
@@ -812,6 +828,9 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         or details.get("expected_roman", "")
         or "the expected sequence value"
     )
+    section_label = _P037_SECTION_KEY_LABELS.get(
+        details.get("section_key", ""), "this front-matter section"
+    )
     caption_type = details.get("caption_type", "") or "figure/table"
     word_count = details.get("word_count", "") or "unknown"
     limit = details.get("limit", "") or "unknown"
@@ -847,6 +866,7 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         expected_style=expected_style,
         observed_sequence=observed_sequence,
         expected_sequence=expected_sequence,
+        section_label=section_label,
         caption_type=caption_type.replace("_", " "),
         word_count=word_count,
         limit=limit,
@@ -1003,6 +1023,62 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
         f"Likely problem: A List of Tables entry on page {page_label} may not use "
         f"Title Case: {reason_text}. Table titles in the List of Tables should use "
         "Title Case with no ending period."
+    )
+
+
+_P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(
+    {
+        "toc_inter_entry_spacing_too_tight",
+        "lot_inter_entry_spacing_too_tight",
+        "lof_inter_entry_spacing_too_tight",
+    }
+)
+_P036_SECTION_LABELS: dict[str, str] = {
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
+}
+
+
+def _p036_entry_pair_label(details: dict[str, str]) -> str:
+    try:
+        index = int(details.get("entry_pair_index", "").strip())
+    except ValueError:
+        return "two consecutive entries"
+    return f"entries {index + 1}-{index + 2}"
+
+
+def _p036_spacing_detail_phrase(details: dict[str, str]) -> str:
+    gap_points = details.get("gap_points", "").strip()
+    required_gap_points = details.get("required_gap_points", "").strip()
+    extras: list[str] = []
+    if gap_points:
+        extras.append(f"observed gap {gap_points}pt")
+    if required_gap_points:
+        extras.append(f"expected at least {required_gap_points}pt")
+    if not extras:
+        return ""
+    return f" ({'; '.join(extras)})"
+
+
+def _p036_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P036 inter-entry-spacing comment body.
+
+    Deliberately omits entry_pair_index/gap_points so the text stays identical
+    across same-page/same-section occurrences: build_grouped_findings() keys
+    grouping on this comment text (see report_outputs.py), and per-occurrence
+    detail (pair index, exact gap) is added only by the post-grouping display
+    override in report_view.py's _apply_spacing_presentation, which mirrors
+    this wording. Changing this text without updating that override would
+    desync the JSON report's polished_comment from the web/Markdown display.
+    """
+    page_label = _safe_page_label(page)
+    section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
+    return (
+        f"Problem: Two consecutive entries of the {section_label} on page "
+        f"{page_label} appear to have insufficient spacing between them. NJIT "
+        "expects consistent, comfortably readable spacing between consecutive "
+        "entries. Add spacing between these entries to match the rest of the list."
     )
 
 
@@ -1623,6 +1699,10 @@ def build_polished_comment(
 
     if rule_id == "P024" and issue == "list_of_tables_title_case":
         body = _p024_lot_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P036" and issue in _P036_SPACING_ISSUE_TYPES:
+        body = _p036_spacing_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P011" and issue == "margin_boundary_violation":

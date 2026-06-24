@@ -722,9 +722,19 @@ def _font_expected_size(details: Mapping[str, str]) -> str:
 
 
 def _font_observed_value(details: Mapping[str, str]) -> str:
-    return details.get("observed_font", "").strip() or details.get("observed_size", "").strip() or (
-        details.get("observed_summary", "").strip()
-    )
+    observed_font = details.get("observed_font", "").strip()
+    if observed_font:
+        return observed_font
+    observed_size = details.get("observed_size", "").strip()
+    if observed_size:
+        return observed_size
+    summary = details.get("observed_summary", "").strip()
+    # Font detectors store short technical labels here (e.g. CMR12). Reject
+    # sentence-like values that could be mis-ingested dissertation text.
+    if summary and len(summary) <= 40 and "\n" not in summary:
+        if " " not in summary or summary.endswith("pt"):
+            return summary
+    return ""
 
 
 def _font_issue_type_explanation(
@@ -1034,20 +1044,22 @@ def _page_number_comment_and_fix(
         if rule_id == "P019":
             return (
                 "Review needed: Problem: "
-                f"The detected page number on page {page_label} does not appear to follow "
-                f"the expected numbering sequence. Observed: {observed}. Expected: "
-                f"{expected}. This is a broader, whole-document sequence check; if a more "
-                "specific front-matter Roman-numeral sequence or section-template problem "
-                "is also reported above for this page, fix that one first and re-check "
-                "this warning afterward.",
-                "Renumber the affected pages so the sequence is correct.",
+                f"The page number on page {page_label} is '{observed}', but the "
+                f"document-wide numbering sequence expected '{expected}' at this position. "
+                "This is a broader, whole-document sequence check; if a more specific "
+                "front-matter Roman-numeral sequence or section-template problem is also "
+                "reported above for this page, fix that one first and re-check this "
+                "warning afterward.",
+                f"Change this page to '{expected}' or renumber nearby pages so the "
+                "sequence is consecutive.",
             )
         return (
             "Review needed: Problem: "
-            f"The detected page number on page {page_label} does not appear to follow the "
-            f"expected numbering sequence. Observed: {observed}. Expected: {expected}. "
-            "Renumber the affected pages so the sequence is correct.",
-            "Renumber the affected pages so the sequence is correct.",
+            f"The page number on page {page_label} is '{observed}', but the numbering "
+            f"sequence expected '{expected}' at this position. Change this page to "
+            f"'{expected}' or renumber nearby pages so the sequence is consecutive.",
+            f"Change this page to '{expected}' or renumber nearby pages so the sequence "
+            "is consecutive.",
         )
 
     if visible_issue_type == "duplicate_or_ambiguous_page_number":
@@ -1266,9 +1278,24 @@ def _apply_page_number_presentation(
         page=finding.page,
         details=details,
     )
-    detailed_explanation = _page_number_detail_text(
-        visible_issue_type, page=finding.page
-    )
+    raw_issue_type = str(details.get("issue_type", "")).strip()
+    if finding.rule_id in {"P029", "P037"} and raw_issue_type:
+        issue_type_explanation = explain_issue_type(
+            finding.rule_id, raw_issue_type, details=dict(details)
+        )
+        detailed_explanation = build_detailed_explanation(
+            rule_id=finding.rule_id,
+            issue_type=raw_issue_type,
+            details=dict(details),
+            page=finding.page,
+            has_highlight=finding.has_highlight,
+            location_label=finding.location_label,
+        )
+    else:
+        issue_type_explanation = explain_issue_type("", visible_issue_type)
+        detailed_explanation = _page_number_detail_text(
+            visible_issue_type, page=finding.page
+        )
     if not finding.has_highlight and finding.page is not None:
         guidance = build_no_highlight_guidance(
             rule_id=finding.rule_id,
@@ -1286,7 +1313,7 @@ def _apply_page_number_presentation(
             finding,
             issue_type=visible_issue_type,
             issue_type_label=humanize_issue_type(visible_issue_type),
-            issue_type_explanation=explain_issue_type("", visible_issue_type),
+            issue_type_explanation=issue_type_explanation,
             polished_comment=comment,
             suggested_fix=suggested_fix,
             detailed_explanation=detailed_explanation,
