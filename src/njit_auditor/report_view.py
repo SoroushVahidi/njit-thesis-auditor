@@ -23,8 +23,16 @@ from njit_auditor.high_volume_student_preview import (
 )
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
 from njit_auditor.p012_student_preview import (
-    consume_p012_display_slot,
+    P012PresentationStats,
+    consume_p012_finding_visibility,
+    find_p012_summary_anchor_index,
+    init_p012_display_state,
     is_p012_finding,
+    p012_document_location_label,
+    p012_document_no_highlight_reason,
+    p012_document_rolled_up_comment,
+    p012_document_rolled_up_explanation,
+    p012_document_suggested_fix,
     p012_location_label,
     p012_rolled_up_comment,
     p012_rolled_up_explanation,
@@ -1435,6 +1443,34 @@ def _apply_p012_presentation(
     )
 
 
+def _apply_p012_document_presentation(
+    finding: FindingView,
+    stats: P012PresentationStats,
+) -> tuple[FindingView, bool]:
+    if not is_p012_finding(finding.rule_id, finding.issue_type):
+        return finding, True
+    representative_page = stats.representative_page
+    location_label = p012_document_location_label(stats)
+    comment = p012_document_rolled_up_comment(stats)
+    suggested_fix = p012_document_suggested_fix()
+    return (
+        replace(
+            finding,
+            page=representative_page,
+            polished_comment=comment,
+            suggested_fix=suggested_fix,
+            location_label=location_label,
+            bbox=None,
+            has_highlight=False,
+            action_kind=get_action_kind(has_highlight=False, page=representative_page),
+            action_label=get_action_label(has_highlight=False, page=representative_page),
+            no_highlight_reason=p012_document_no_highlight_reason(stats),
+            detailed_explanation=p012_document_rolled_up_explanation(stats),
+        ),
+        True,
+    )
+
+
 def _apply_margin_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -1967,6 +2003,10 @@ def build_report_view(
                 p012_rep_bbox_by_page[page] = bbox
 
     page_count = len(pdf_page_sizes) if pdf_page_sizes else None
+    p012_display_state = init_p012_display_state(
+        p012_count_by_page,
+        find_p012_summary_anchor_index(all_finding_views, p012_count_by_page),
+    )
 
     finding_views: list[FindingView] = []
     inventory_findings: list[FindingView] = []
@@ -1975,7 +2015,6 @@ def build_report_view(
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
     grouped_display_seen: set[tuple] = set()
-    p012_display_seen: set[str] = set()
     for index, finding_view in enumerate(all_finding_views):
         details = finding_details_by_index.get(index, {})
         visible_view = finding_view
@@ -2023,31 +2062,43 @@ def build_report_view(
         elif visible_view.rule_id == "P044":
             visible_view = _apply_abstract_indent_presentation(visible_view, details)
         elif is_p012_finding(visible_view.rule_id, visible_view.issue_type):
-            page_size = (
-                pdf_page_sizes[visible_view.page - 1]
-                if pdf_page_sizes
-                and visible_view.page is not None
-                and 1 <= visible_view.page <= len(pdf_page_sizes)
-                else None
-            )
-            annotation_count = (
-                p012_count_by_page.get(visible_view.page, 1)
-                if visible_view.page is not None
-                else 1
-            )
-            representative_bbox = (
-                p012_rep_bbox_by_page.get(visible_view.page)
-                if visible_view.page is not None
-                else None
-            )
-            visible_view, is_problem = _apply_p012_presentation(
-                visible_view,
-                details,
-                annotation_count=annotation_count,
-                representative_bbox=representative_bbox,
-                page_count=page_count,
-                page_size=page_size,
-            )
+            if (
+                p012_display_state.document_summary_mode
+                and p012_display_state.stats is not None
+            ):
+                if index != p012_display_state.summary_anchor_index:
+                    is_problem = False
+                else:
+                    visible_view, is_problem = _apply_p012_document_presentation(
+                        visible_view,
+                        p012_display_state.stats,
+                    )
+            else:
+                page_size = (
+                    pdf_page_sizes[visible_view.page - 1]
+                    if pdf_page_sizes
+                    and visible_view.page is not None
+                    and 1 <= visible_view.page <= len(pdf_page_sizes)
+                    else None
+                )
+                annotation_count = (
+                    p012_count_by_page.get(visible_view.page, 1)
+                    if visible_view.page is not None
+                    else 1
+                )
+                representative_bbox = (
+                    p012_rep_bbox_by_page.get(visible_view.page)
+                    if visible_view.page is not None
+                    else None
+                )
+                visible_view, is_problem = _apply_p012_presentation(
+                    visible_view,
+                    details,
+                    annotation_count=annotation_count,
+                    representative_bbox=representative_bbox,
+                    page_count=page_count,
+                    page_size=page_size,
+                )
 
         if (
             is_problem
@@ -2064,7 +2115,11 @@ def build_report_view(
         if (
             is_problem
             and is_p012_finding(visible_view.rule_id, visible_view.issue_type)
-            and not consume_p012_display_slot(visible_view.page, p012_display_seen)
+            and not consume_p012_finding_visibility(
+                page=visible_view.page,
+                finding_index=index,
+                state=p012_display_state,
+            )
         ):
             is_problem = False
         if is_problem:

@@ -2371,6 +2371,26 @@ def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[di
     return dict(sorted(grouped.items()))
 
 
+def _p012_document_stats_for_markdown(
+    p012_count_by_page: dict[int, int] | None,
+) -> Any:
+    """Return document-level P012 stats when presentation summary mode applies."""
+    if not p012_count_by_page:
+        return None
+    from njit_auditor.p012_student_preview import (
+        build_p012_presentation_stats,
+        should_use_p012_document_summary,
+    )
+
+    stats = build_p012_presentation_stats(p012_count_by_page)
+    if should_use_p012_document_summary(
+        stats.affected_page_count,
+        stats.raw_finding_count,
+    ):
+        return stats
+    return None
+
+
 def _serialized_finding_is_visible_problem(
     finding: dict[str, Any],
     *,
@@ -2381,8 +2401,8 @@ def _serialized_finding_is_visible_problem(
     classify_visible_page_number_issue: Any = None,
     grouped_display_seen: set[tuple] | None = None,
     consume_grouped_finding_display_slot: Any = None,
-    p012_display_seen: set[str] | None = None,
-    consume_p012_display_slot: Any = None,
+    p012_display_state: Any = None,
+    finding_index: int | None = None,
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
@@ -2420,14 +2440,20 @@ def _serialized_finding_is_visible_problem(
         )
 
     if (
-        p012_display_seen is not None
-        and consume_p012_display_slot is not None
+        p012_display_state is not None
+        and finding_index is not None
         and rule_id == P012_RULE_ID
         and issue_type == P012_ISSUE_TYPE
     ):
+        from njit_auditor.p012_student_preview import consume_p012_finding_visibility
+
         page_raw = finding.get("page")
         page = int(page_raw) if page_raw is not None else None
-        return consume_p012_display_slot(page, p012_display_seen)
+        return consume_p012_finding_visibility(
+            page=page,
+            finding_index=finding_index,
+            state=p012_display_state,
+        )
 
     if category != "page_numbering":
         return True
@@ -2472,7 +2498,11 @@ def _problem_number_map(
     serialized_findings: list[dict[str, Any]],
 ) -> dict[int, int]:
     from njit_auditor.high_volume_student_preview import consume_grouped_finding_display_slot
-    from njit_auditor.p012_student_preview import consume_p012_display_slot
+    from njit_auditor.p012_student_preview import (
+        count_p012_annotations_by_page,
+        find_p012_summary_anchor_index_from_serialized,
+        init_p012_display_state,
+    )
     from njit_auditor.page_number_student_preview import (
         classify_visible_page_number_issue,
         consume_page_number_display_slot,
@@ -2484,7 +2514,14 @@ def _problem_number_map(
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
     grouped_display_seen: set[tuple] = set()
-    p012_display_seen: set[str] = set()
+    p012_count_by_page = count_p012_annotations_by_page(serialized_findings)
+    p012_display_state = init_p012_display_state(
+        p012_count_by_page,
+        find_p012_summary_anchor_index_from_serialized(
+            serialized_findings,
+            p012_count_by_page,
+        ),
+    )
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
@@ -2495,8 +2532,8 @@ def _problem_number_map(
             classify_visible_page_number_issue=classify_visible_page_number_issue,
             grouped_display_seen=grouped_display_seen,
             consume_grouped_finding_display_slot=consume_grouped_finding_display_slot,
-            p012_display_seen=p012_display_seen,
-            consume_p012_display_slot=consume_p012_display_slot,
+            p012_display_state=p012_display_state,
+            finding_index=index,
         ):
             continue
         mapping[index] = next_problem_number
@@ -2603,8 +2640,14 @@ def _individual_finding_comment(
     from njit_auditor.polished_comments import REVIEW_PREFIX, build_polished_comment
 
     if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
-        from njit_auditor.p012_student_preview import p012_rolled_up_comment
+        from njit_auditor.p012_student_preview import (
+            p012_document_rolled_up_comment,
+            p012_rolled_up_comment,
+        )
 
+        doc_stats = _p012_document_stats_for_markdown(p012_count_by_page)
+        if doc_stats is not None:
+            return p012_document_rolled_up_comment(doc_stats)
         annotation_count = 1
         if p012_count_by_page is not None and page is not None:
             annotation_count = p012_count_by_page.get(page, 1)
@@ -2721,6 +2764,15 @@ def _finding_markdown_line(
 
     if audit_type == "tex":
         loc_text = _safe_source_location(safe_details)
+    elif (
+        str(finding.get("rule_id", "")) == P012_RULE_ID
+        and issue_type == P012_ISSUE_TYPE
+    ):
+        loc_text = _problem_location_text(
+            finding,
+            audit_type=audit_type,
+            p012_count_by_page=p012_count_by_page,
+        )
     else:
         from njit_auditor.report_view import enriched_pdf_location_label
 
@@ -2739,11 +2791,24 @@ def _finding_markdown_line(
         details=safe_details,
         p012_count_by_page=p012_count_by_page,
     )
-    suggested_fix = resolve_suggested_fix_for_display(
-        str(finding.get("rule_id", "")),
-        issue_type,
-        existing=str(safe_details.get("suggested_fix", "")),
-    )
+    rule_id = str(finding.get("rule_id", ""))
+    if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
+        from njit_auditor.p012_student_preview import p012_document_suggested_fix
+
+        if _p012_document_stats_for_markdown(p012_count_by_page) is not None:
+            suggested_fix = p012_document_suggested_fix()
+        else:
+            suggested_fix = resolve_suggested_fix_for_display(
+                rule_id,
+                issue_type,
+                existing=str(safe_details.get("suggested_fix", "")),
+            )
+    else:
+        suggested_fix = resolve_suggested_fix_for_display(
+            rule_id,
+            issue_type,
+            existing=str(safe_details.get("suggested_fix", "")),
+        )
     polished, suggested_fix = finalize_student_facing_comment_and_fix(
         str(finding.get("rule_id", "")),
         issue_type,
@@ -2802,8 +2867,14 @@ def _problem_location_text(
     rule_id = str(finding.get("rule_id", ""))
     issue_type = safe_details.get("issue_type", "")
     if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
-        from njit_auditor.p012_student_preview import p012_location_label
+        from njit_auditor.p012_student_preview import (
+            p012_document_location_label,
+            p012_location_label,
+        )
 
+        doc_stats = _p012_document_stats_for_markdown(p012_count_by_page)
+        if doc_stats is not None:
+            return p012_document_location_label(doc_stats)
         annotation_count = 1
         if p012_count_by_page is not None and page is not None:
             annotation_count = p012_count_by_page.get(page, 1)
