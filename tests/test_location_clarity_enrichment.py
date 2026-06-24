@@ -179,12 +179,14 @@ def test_p020_individual_findings_distinguishable_on_same_page() -> None:
     assert len(comments) == len(set(comments)) == 2
 
 
-def test_p020_polished_comment_never_quotes_full_heading_text() -> None:
-    """flagged_word/corrected_word are single words and safe to show, but the
-    full heading/caption line text (line_preview) must still never appear,
-    even when word metadata is also present.
+def test_p020_polished_comment_uses_truncated_heading_snippet_not_blocked_summary() -> None:
+    """Short sanitized heading snippets are allowed; long line text is truncated
+    and blocked detail keys such as observed_summary must never appear.
     """
-    forbidden = "an unforgettable confidential dissertation phrase"
+    forbidden = (
+        "an unforgettable confidential dissertation phrase that must never appear "
+        "verbatim in student-facing reports because it is far too long"
+    )
     findings = [
         AuditFinding(
             rule_id="P020",
@@ -208,6 +210,7 @@ def test_p020_polished_comment_never_quotes_full_heading_text() -> None:
     fv = next(f for f in view.findings if f.rule_id == "P020")
     assert forbidden not in fv.polished_comment
     assert forbidden not in fv.issue_type_label
+    assert "..." in fv.polished_comment
 
 
 def test_markdown_report_distinguishes_p020_words_on_same_page(tmp_path: Path) -> None:
@@ -245,7 +248,10 @@ def test_markdown_report_p020_falls_back_safely_without_word_metadata(tmp_path: 
 def test_markdown_report_p020_never_quotes_blocked_detail_text(tmp_path: Path) -> None:
     from njit_auditor.report_outputs import write_markdown_report
 
-    forbidden = "an unforgettable confidential dissertation phrase"
+    forbidden = (
+        "an unforgettable confidential dissertation phrase that must never appear "
+        "verbatim in student-facing reports because it is far too long"
+    )
     findings = [
         AuditFinding(
             rule_id="P020",
@@ -269,6 +275,7 @@ def test_markdown_report_p020_never_quotes_blocked_detail_text(tmp_path: Path) -
     text = output_path.read_text(encoding="utf-8")
 
     assert forbidden not in text
+    assert "..." in text
     assert "/home/" not in text
     assert "Traceback" not in text
     assert "\\begin" not in text

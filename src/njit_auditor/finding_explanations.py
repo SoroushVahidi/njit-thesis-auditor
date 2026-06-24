@@ -6,6 +6,11 @@ semantics, thresholds, rule IDs, or stored finding data.
 
 from __future__ import annotations
 
+from njit_auditor.title_case_student_preview import (
+    affected_title_phrase,
+    sanitize_title_case_line_preview,
+    title_case_subject_kind,
+)
 from njit_auditor.toc_list_student_preview import spacing_entries_phrase
 
 # ---------------------------------------------------------------------------
@@ -1176,15 +1181,27 @@ def _p020_title_case_explanation(details: dict[str, str], *, page: int | None) -
     reason_text = _P020_TITLE_CASE_REASON_TEXT.get(
         reason, "a word is not capitalized as expected"
     )
+    subject = title_case_subject_kind(source)
+    preview = sanitize_title_case_line_preview(details.get("line_preview", ""))
+    title_phrase = affected_title_phrase(preview, source=source)
+    if title_phrase:
+        location_phrase = f"the {title_phrase} on {page_phrase}"
+    else:
+        location_phrase = f"a {subject} on {page_phrase}"
     if source == "caption":
-        subject = "table title"
         rule_text = "NJIT requires table titles to use Title Case"
     else:
-        subject = "Level 2 heading"
         rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
+    flagged_word = details.get("flagged_word", "").strip()
+    corrected_word = details.get("corrected_word", "").strip()
+    word_clause = ""
+    if flagged_word and corrected_word:
+        word_clause = (
+            f" Flagged word: '{flagged_word}' should be '{corrected_word}'."
+        )
     return (
-        f"Observed: A {subject} on {page_phrase} appears to have a capitalization "
-        f"problem: {reason_text}. "
+        f"Observed: {location_phrase.capitalize()} appears to have a capitalization "
+        f"problem: {reason_text}.{word_clause} "
         f"Expected: {rule_text} (capitalize the first word, last word, and all "
         "major words of 4+ letters). "
         "Why this is suspicious: the detector compares each word against NJIT's "

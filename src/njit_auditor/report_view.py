@@ -33,6 +33,11 @@ from njit_auditor.report_outputs import (
     _source_location_basename,
     format_source_location,
 )
+from njit_auditor.title_case_student_preview import (
+    affected_title_phrase,
+    consume_p020_display_slot,
+    sanitize_title_case_line_preview,
+)
 from njit_auditor.toc_list_student_preview import (
     affected_entry_phrase,
     between_entries_phrase,
@@ -348,6 +353,14 @@ def enriched_pdf_location_label(
     entry_index = details.get("entry_index", "").strip()
     pair_index = details.get("entry_pair_index", "").strip()
     float_number = details.get("float_number", "").strip()
+
+    if rule_id == "P020" and issue_type == "possible_title_capitalization_issue":
+        title_phrase = affected_title_phrase(
+            sanitize_title_case_line_preview(details.get("line_preview", "")),
+            source=details.get("source", ""),
+        )
+        if page_prefix and title_phrase:
+            return f"{page_prefix} — {title_phrase}"
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         between = between_entries_phrase(
@@ -1471,8 +1484,10 @@ def _apply_title_case_presentation(
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
     subject, rule_clause = _title_case_subject_and_rule_clause(details)
+    preview = sanitize_title_case_line_preview(details.get("line_preview", ""))
+    heading_clause = f" '{preview}'" if preview else ""
     comment = (
-        f"Likely problem: In a {subject} on page {page_label}, the word "
+        f"Likely problem: In a {subject}{heading_clause} on page {page_label}, the word "
         f"'{flagged_word}' should be capitalized as '{corrected_word}'. "
         f"{rule_clause} (capitalize the first word, last word, and all "
         "major words of 4+ letters)."
@@ -1830,6 +1845,7 @@ def build_report_view(
     inventory_findings: list[FindingView] = []
     visible_view_by_index: dict[int, FindingView] = {}
     visible_indexes: set[int] = set()
+    p020_display_seen: set[tuple] = set()
     for index, finding_view in enumerate(all_finding_views):
         details = finding_details_by_index.get(index, {})
         visible_view = finding_view
@@ -1844,6 +1860,12 @@ def build_report_view(
             visible_view, is_problem = _apply_font_presentation(visible_view, details)
         elif visible_view.rule_id == "P020":
             visible_view, is_problem = _apply_title_case_presentation(visible_view, details)
+            if is_problem and not consume_p020_display_slot(
+                details,
+                p020_display_seen,
+                page=visible_view.page,
+            ):
+                is_problem = False
         elif visible_view.rule_id == "P036":
             visible_view, is_problem = _apply_spacing_presentation(visible_view, details)
         elif visible_view.rule_id == "P035":
