@@ -183,7 +183,7 @@ def test_location_label_from_valid_bbox_top_of_page(app: tuple[TestClient, Any])
         ],
     )
     text = _get_html(client, f"/audits/{job_id}")
-    assert "Page 2 — top of page" in text
+    assert "Page 2 — PDF annotations/comments detected" in text
     assert "uploaded PDF" in text
     assert "page 2" in text
     assert "not a highlight added by this auditor" in text

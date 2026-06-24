@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import threading
 import urllib.parse
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -1768,6 +1769,68 @@ def _coerce_bbox(raw: Any) -> tuple[float, float, float, float] | None:
     return box if is_drawable_bbox(box) else None
 
 
+def _bbox_from_finding_entry(
+    finding: Mapping[str, Any],
+) -> tuple[float, float, float, float] | None:
+    """Return a drawable bbox from a serialized finding's bbox or details rect."""
+    bbox = _coerce_bbox(finding.get("bbox"))
+    if bbox is not None:
+        return bbox
+    details = finding.get("details", {})
+    if not isinstance(details, Mapping):
+        return None
+    for key in ("bbox", "rect"):
+        raw = str(details.get(key, "")).strip()
+        if not raw:
+            continue
+        parts = [part.strip() for part in raw.split(",")]
+        if len(parts) != 4:
+            continue
+        try:
+            box = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]))
+        except ValueError:
+            continue
+        if is_drawable_bbox(box):
+            return box
+    return None
+
+
+def _finding_issue_type(finding: Mapping[str, Any]) -> str:
+    issue_type = str(finding.get("issue_type", "")).strip()
+    if issue_type:
+        return issue_type
+    details = finding.get("details", {})
+    if isinstance(details, Mapping):
+        return str(details.get("issue_type", "")).strip()
+    return ""
+
+
+def _report_json_findings_for_highlight(job: JobState) -> list[dict[str, Any]]:
+    """Load raw audit findings for highlight box extraction."""
+    jdir = _job_dir(job.job_id)
+    json_path = jdir / "report.json"
+    if not json_path.exists():
+        return job.findings
+    try:
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return job.findings
+    raw_findings = payload.get("findings", [])
+    if not isinstance(raw_findings, list):
+        return job.findings
+    enriched: list[dict[str, Any]] = []
+    for finding in raw_findings:
+        if not isinstance(finding, Mapping):
+            continue
+        entry = dict(finding)
+        bbox = _bbox_from_finding_entry(entry)
+        if bbox is not None:
+            entry["bbox"] = bbox
+        entry["issue_type"] = _finding_issue_type(entry)
+        enriched.append(entry)
+    return enriched or job.findings
+
+
 def _matching_findings_for_highlight(
     job: JobState,
     *,
@@ -1777,16 +1840,28 @@ def _matching_findings_for_highlight(
     finding_index: int | None,
 ) -> list[dict[str, Any]]:
     """Return job findings matching the highlight request's filters."""
+    source_findings = _report_json_findings_for_highlight(job)
     if finding_index is not None and 0 <= finding_index < len(job.findings):
-        return [job.findings[finding_index]]
+        visible = job.findings[finding_index]
+        page_no = _coerce_page_number(visible.get("page"))
+        rule = str(visible.get("rule_id", "")).strip()
+        issue = str(visible.get("issue_type", "")).strip()
+        matches = source_findings
+        if page_no is not None:
+            matches = [f for f in matches if _coerce_page_number(f.get("page")) == page_no]
+        if rule:
+            matches = [f for f in matches if str(f.get("rule_id", "")) == rule]
+        if issue:
+            matches = [f for f in matches if _finding_issue_type(f) == issue]
+        return matches
 
-    matches = job.findings
+    matches = source_findings
     if page is not None:
         matches = [f for f in matches if _coerce_page_number(f.get("page")) == page]
     if rule_id:
         matches = [f for f in matches if str(f.get("rule_id", "")) == rule_id]
     if issue_type:
-        matches = [f for f in matches if str(f.get("issue_type", "")) == issue_type]
+        matches = [f for f in matches if _finding_issue_type(f) == issue_type]
     return matches
 
 
@@ -1797,7 +1872,7 @@ def _highlight_boxes_by_page(
     boxes_by_page: dict[int, list[tuple[float, float, float, float]]] = {}
     for finding in findings:
         page = _coerce_page_number(finding.get("page"))
-        bbox = _coerce_bbox(finding.get("bbox"))
+        bbox = _bbox_from_finding_entry(finding)
         if page is None or bbox is None:
             continue
         boxes_by_page.setdefault(page, []).append(bbox)

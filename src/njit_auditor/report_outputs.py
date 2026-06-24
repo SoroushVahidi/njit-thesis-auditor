@@ -2381,6 +2381,8 @@ def _serialized_finding_is_visible_problem(
     classify_visible_page_number_issue: Any = None,
     grouped_display_seen: set[tuple] | None = None,
     consume_grouped_finding_display_slot: Any = None,
+    p012_display_seen: set[str] | None = None,
+    consume_p012_display_slot: Any = None,
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
@@ -2416,6 +2418,16 @@ def _serialized_finding_is_visible_problem(
             grouped_display_seen,
             page=page,
         )
+
+    if (
+        p012_display_seen is not None
+        and consume_p012_display_slot is not None
+        and rule_id == P012_RULE_ID
+        and issue_type == P012_ISSUE_TYPE
+    ):
+        page_raw = finding.get("page")
+        page = int(page_raw) if page_raw is not None else None
+        return consume_p012_display_slot(page, p012_display_seen)
 
     if category != "page_numbering":
         return True
@@ -2460,6 +2472,7 @@ def _problem_number_map(
     serialized_findings: list[dict[str, Any]],
 ) -> dict[int, int]:
     from njit_auditor.high_volume_student_preview import consume_grouped_finding_display_slot
+    from njit_auditor.p012_student_preview import consume_p012_display_slot
     from njit_auditor.page_number_student_preview import (
         classify_visible_page_number_issue,
         consume_page_number_display_slot,
@@ -2471,6 +2484,7 @@ def _problem_number_map(
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
     grouped_display_seen: set[tuple] = set()
+    p012_display_seen: set[str] = set()
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
@@ -2481,6 +2495,8 @@ def _problem_number_map(
             classify_visible_page_number_issue=classify_visible_page_number_issue,
             grouped_display_seen=grouped_display_seen,
             consume_grouped_finding_display_slot=consume_grouped_finding_display_slot,
+            p012_display_seen=p012_display_seen,
+            consume_p012_display_slot=consume_p012_display_slot,
         ):
             continue
         mapping[index] = next_problem_number
@@ -2571,6 +2587,7 @@ def _individual_finding_comment(
     severity: str,
     page: int | None,
     details: dict[str, str],
+    p012_count_by_page: dict[int, int] | None = None,
 ) -> str:
     """Return the Markdown comment text for one individual finding.
 
@@ -2584,6 +2601,14 @@ def _individual_finding_comment(
     pair-independent text verbatim.
     """
     from njit_auditor.polished_comments import REVIEW_PREFIX, build_polished_comment
+
+    if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
+        from njit_auditor.p012_student_preview import p012_rolled_up_comment
+
+        annotation_count = 1
+        if p012_count_by_page is not None and page is not None:
+            annotation_count = p012_count_by_page.get(page, 1)
+        return p012_rolled_up_comment(page=page, annotation_count=annotation_count)
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         page_label = str(page) if page is not None else "this page"
@@ -2675,7 +2700,12 @@ def _format_p013_informational_candidates_block(
     return lines
 
 
-def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") -> str:
+def _finding_markdown_line(
+    finding: dict[str, Any],
+    *,
+    audit_type: str = "pdf",
+    p012_count_by_page: dict[int, int] | None = None,
+) -> str:
     from njit_auditor.polished_comments import (
         finalize_student_facing_comment_and_fix,
         resolve_suggested_fix_for_display,
@@ -2707,6 +2737,7 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
         severity=str(finding.get("severity", "WARNING")),
         page=page,
         details=safe_details,
+        p012_count_by_page=p012_count_by_page,
     )
     suggested_fix = resolve_suggested_fix_for_display(
         str(finding.get("rule_id", "")),
@@ -2729,7 +2760,12 @@ def _finding_markdown_line(finding: dict[str, Any], *, audit_type: str = "pdf") 
     return line
 
 
-def _problem_heading_text(finding: dict[str, Any], *, audit_type: str) -> str:
+def _problem_heading_text(
+    finding: dict[str, Any],
+    *,
+    audit_type: str,
+    p012_count_by_page: dict[int, int] | None = None,
+) -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
         details = {}
@@ -2742,11 +2778,17 @@ def _problem_heading_text(finding: dict[str, Any], *, audit_type: str) -> str:
         severity=str(finding.get("severity", "WARNING")),
         page=page,
         details=safe_details,
+        p012_count_by_page=p012_count_by_page,
     )
     return _truncate(polished, 96)
 
 
-def _problem_location_text(finding: dict[str, Any], *, audit_type: str) -> str:
+def _problem_location_text(
+    finding: dict[str, Any],
+    *,
+    audit_type: str,
+    p012_count_by_page: dict[int, int] | None = None,
+) -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
         details = {}
@@ -2759,6 +2801,13 @@ def _problem_location_text(finding: dict[str, Any], *, audit_type: str) -> str:
 
     rule_id = str(finding.get("rule_id", ""))
     issue_type = safe_details.get("issue_type", "")
+    if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
+        from njit_auditor.p012_student_preview import p012_location_label
+
+        annotation_count = 1
+        if p012_count_by_page is not None and page is not None:
+            annotation_count = p012_count_by_page.get(page, 1)
+        return p012_location_label(page, annotation_count)
     label = enriched_pdf_location_label(rule_id, issue_type, safe_details, page)
     if label:
         return label
@@ -2855,22 +2904,36 @@ def write_markdown_report(
         for finding in serialized_findings
         if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
     ]
+    from njit_auditor.p012_student_preview import count_p012_annotations_by_page
+
+    p012_count_by_page = count_p012_annotations_by_page(serialized_findings)
     if visible_problem_findings:
         lines.append("## Problems")
         lines.append("")
         for finding in visible_problem_findings:
             problem_number = int(finding["problem_number"])
-            heading_text = _problem_heading_text(finding, audit_type=audit_type)
+            heading_text = _problem_heading_text(
+                finding, audit_type=audit_type, p012_count_by_page=p012_count_by_page
+            )
             lines.append(
                 f"### Problem {problem_number} — {heading_text}"
             )
             lines.append("")
             lines.append(f"- Rule: `{finding['rule_id']}`")
             lines.append(f"- Severity: `{finding['severity']}`")
-            lines.append(
-                f"- Location: `{_problem_location_text(finding, audit_type=audit_type)}`"
+            location_text = _problem_location_text(
+                finding,
+                audit_type=audit_type,
+                p012_count_by_page=p012_count_by_page,
             )
-            lines.append(_finding_markdown_line(finding, audit_type=audit_type))
+            lines.append(f"- Location: `{location_text}`")
+            lines.append(
+                _finding_markdown_line(
+                    finding,
+                    audit_type=audit_type,
+                    p012_count_by_page=p012_count_by_page,
+                )
+            )
             lines.append("")
 
     lines.append("## Findings by Rule")
