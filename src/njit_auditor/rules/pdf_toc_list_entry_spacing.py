@@ -6,7 +6,7 @@ Partial heuristic PDF coverage for Q057, Q067, and Q077.
 from __future__ import annotations
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
     _collect_entry_region_lines,
@@ -110,6 +110,7 @@ def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFin
                         "required_gap_points": f"{required_gap_pt:.1f}",
                         "local_line_height_points": f"{line_height:.1f}",
                         "gap_ratio": f"{gap_ratio:.2f}",
+                        "bbox": format_bbox_detail(first_line.bbox),
                         "triage_tier": triage_tier,
                         "source_q_rule_ids": SOURCE_Q_RULE_IDS_BY_SECTION[context.page_type],
                     },
