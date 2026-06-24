@@ -171,6 +171,15 @@ def test_p020_grouped_card_pattern_note_explains_repeated_words() -> None:
     _assert_no_internal_jargon(card.pattern_note)
 
 
+def test_p020_grouped_card_pattern_note_explains_confidence_band_split() -> None:
+    findings = _p020_title_case_findings(5)
+    view = build_report_view(_payload(findings))
+    card = view.grouped_problems[0]
+    assert "same capitalization reason and confidence" in card.pattern_note
+    assert "not a duplicate" in card.pattern_note
+    _assert_no_internal_jargon(card.pattern_note)
+
+
 def test_p026_grouped_card_pattern_note_does_not_overstate_certainty() -> None:
     findings = _p026_family_findings(4)
     view = build_report_view(_payload(findings))

@@ -624,7 +624,11 @@ def _high_volume_pattern_note(
             f"This title-case pattern appears {occurrence_count} times{where}. "
             "Each occurrence flags a different word that should follow Title "
             'Case; open "Show individual occurrences" below for the exact word '
-            "and expected capitalization in each case."
+            "and expected capitalization in each case. This card only groups "
+            "findings that share the same capitalization reason and confidence "
+            "level -- a separate P020 card covering a different reason (for "
+            "example, a missing first-word capital vs. a missing major-word "
+            "capital) is not a duplicate."
         )
 
     if rule_id == "P026" and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE):
