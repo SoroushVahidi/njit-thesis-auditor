@@ -264,6 +264,16 @@ njit-audit pdf-comments clean input.pdf --out clean.pdf
 Extracts PDF annotation objects (highlights, text notes) to JSON/Markdown, or
 creates a clean copy with annotation objects removed.
 
+### Legacy `audit` command
+
+```bash
+njit-audit audit path/to/thesis.pdf
+```
+
+Kept for backward compatibility; runs only the original page-number, abstract, and
+title-month checks with no export flags. Use `njit-audit pdf` (above) for the full
+implemented PDF layout audit.
+
 ## Demo examples
 
 Try the synthetic TeX fixtures:

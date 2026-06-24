@@ -27,3 +27,38 @@ For normal implementation, documentation, testing, PR creation, and squash mergi
 Do not modify raw guideline/data files unless explicitly requested.
 Do not quote dissertation body text in docs or reports.
 Do not commit generated reports unless explicitly requested.
+Do not start P084 unless explicitly requested.
+Do not change detector thresholds or rule IDs unless explicitly requested.
+Do not pop or apply a git stash unless explicitly requested.
+
+## Autonomous decision policy
+
+When a task presents multiple possible implementation paths, choose the
+recommended or safest path automatically instead of stopping for user
+confirmation.
+
+Default decision rule:
+1. If one option is clearly recommended, choose it and continue.
+2. If several options are possible, choose the smallest safe change that
+   satisfies the task.
+3. If a choice can be reversed later and does not affect user data,
+   secrets, deployments, rule IDs, detector thresholds, or canonical
+   guideline files, proceed without asking.
+4. Record the decision and rationale in the final report.
+
+Only ask the user before proceeding when the choice would:
+- delete or overwrite user data
+- apply or drop a stash
+- close/delete branches or PRs
+- change detector thresholds
+- change rule IDs
+- modify canonical rule JSON or raw guideline files
+- expose private dissertation content or raw LaTeX
+- deploy or restart services when not already authorized by the task
+- require legal, policy, security, or personal judgment
+- expand the task beyond the user's requested scope
+- conflict with an explicit instruction from the user
+
+Do not present options and wait for the user when you already know which
+option you would recommend. Pick that option, proceed, and report what you
+chose.
