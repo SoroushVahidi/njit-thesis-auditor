@@ -1,5 +1,10 @@
 # Full Repository Status Audit
 
+> **Historical/superseded.** Despite the filename, this is a dated point-in-time
+> snapshot (2026-06-16, baseline `802350d`/PR #319), not the current status. For the
+> current status, see `docs/status/current_project_state_and_next_steps.md`
+> (the "Current Status" section at the top).
+
 - **Date:** 2026-06-16
 - **Auditor:** Claude Code (automated)
 - **Baseline:** `main` at `802350d` (PR #319 — Stabilize web UI docs and release notes)
