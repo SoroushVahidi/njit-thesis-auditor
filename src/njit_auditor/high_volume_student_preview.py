@@ -20,7 +20,7 @@ _MARGIN_SIDE_LABELS: dict[str, str] = {
 _P026_FAMILY_ISSUE = "possible_body_font_family_issue"
 _P026_SIZE_ISSUE = "possible_body_font_size_issue"
 
-_GROUPED_DEDUP_RULES = frozenset({"P011", "P024", "P036", "P044", "P046"})
+_GROUPED_DEDUP_RULES = frozenset({"P024", "P036", "P044", "P046"})
 
 
 def is_grouped_dedup_rule(rule_id: str) -> bool:

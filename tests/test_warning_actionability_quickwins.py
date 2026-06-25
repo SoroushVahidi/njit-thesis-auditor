@@ -193,7 +193,7 @@ def test_enriched_location_uses_worst_entry_index_for_p018() -> None:
         },
         12,
     )
-    assert label == "Page 12 — Table of Contents, worst affected entry 4"
+    assert label == "Page 12 — Table of Contents, entry 4 alignment issue"
 
 
 def test_enriched_location_uses_affected_entry_preview_for_p018() -> None:

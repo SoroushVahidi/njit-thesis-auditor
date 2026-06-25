@@ -633,28 +633,26 @@ def _high_volume_pattern_note(
 
     if rule_id == "P026" and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE):
         return (
-            f"This issue appears {occurrence_count} times because the auditor "
-            f"checked multiple body-text spans{where}. Review the affected pages "
-            "and confirm the main body font against NJIT requirements -- font "
-            "acceptability may need confirmation from your editor or committee "
-            "beyond this automated check."
+            f"This issue appears {occurrence_count} times because the auditor found the "
+            f"same body-text font pattern{where}. Student-facing problem cards may "
+            "summarize repeated patterns document-wide; review the affected pages listed "
+            "in each summary and set Times New Roman 12pt consistently before re-export."
         )
 
     if rule_id == "P012" and issue_type == "pdf_annotation_detected":
         return (
-            f"This issue appears {occurrence_count} times because the uploaded "
-            "PDF contains multiple annotations. Remove reviewer comments, "
-            "highlights, or other markup from the source PDF, then upload a "
-            "clean copy before submission."
+            f"This issue appears {occurrence_count} times because the uploaded PDF "
+            f"contains embedded annotations or comments{where}. Student-facing cards "
+            "may summarize high-volume annotation warnings document-wide. Remove or "
+            "flatten reviewer markup, then upload a clean PDF before submission."
         )
 
     if rule_id == "P011" and issue_type == P011_ISSUE_TYPE:
         return (
-            f"This margin issue appears {occurrence_count} times{where} because "
-            "text crosses the same margin boundary on more than one page. It is "
-            f"the same formatting issue repeated rather than {occurrence_count} "
-            "unrelated problems. Review the page margins (or the text frame) for "
-            "the affected pages and apply one consistent fix."
+            f"This margin issue appears {occurrence_count} times{where}. When multiple "
+            "margin sides fail on the same page, the student-facing report may show one "
+            "combined page-level card listing every affected side. Review page margins "
+            "and text frames on the listed pages."
         )
 
     if rule_id == "P019" and issue_type in _P019_DOCUMENT_PATTERN_ISSUE_TYPES:
@@ -1877,6 +1875,12 @@ def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
     lines.append("")
     lines.append(triage.get("triage_note", ""))
     lines.append("")
+    lines.append(
+        "Student-facing problem cards may summarize repeated font patterns "
+        "document-wide using human-readable font wording. This triage section lists "
+        "pattern counts and page ranges only."
+    )
+    lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|---|---:|")
     lines.append(f"| Raw P026 findings | {triage['raw_finding_count']} |")
@@ -1897,10 +1901,13 @@ def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
 
     font_labels = triage.get("font_label_counts", {})
     if font_labels:
+        from njit_auditor.p026_student_preview import student_facing_observed_font_phrase
+
         lines.append("### Dominant non-compliant font labels (family issues)")
         lines.append("")
         for label, count in font_labels.items():
-            lines.append(f"- `{label}`: {count} page(s)")
+            readable = student_facing_observed_font_phrase(label)
+            lines.append(f"- {readable}: {count} page(s)")
         lines.append("")
 
     size_labels = triage.get("size_observed_label_counts", {})
@@ -1913,10 +1920,15 @@ def _format_p026_triage_section(grouped: dict[str, Any]) -> list[str]:
 
     pattern_ranges = triage.get("pattern_page_ranges", {})
     if pattern_ranges:
+        from njit_auditor.p026_student_preview import student_facing_observed_font_phrase
+
         lines.append("### Issue/font pattern page ranges")
         lines.append("")
         for pattern, page_range in pattern_ranges.items():
-            lines.append(f"- `{pattern}`: pages {page_range}")
+            issue_type, _, observed = pattern.partition("/")
+            readable = student_facing_observed_font_phrase(observed) if observed else observed
+            label = f"{issue_type} — {readable}" if readable else pattern
+            lines.append(f"- {label}: pages {page_range}")
         lines.append("")
 
     dominant_pattern = triage.get("dominant_pattern", "")
@@ -1977,6 +1989,12 @@ def _format_p012_triage_section(grouped: dict[str, Any]) -> list[str]:
     lines.append("## P012 Annotation/Comment Triage")
     lines.append("")
     lines.append(triage.get("triage_note", ""))
+    lines.append("")
+    lines.append(
+        "Student-facing problem cards may summarize high-volume annotation warnings "
+        "as one document-wide card with affected-page ranges. This triage section "
+        "never repeats annotation text or reviewer comments."
+    )
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|---|---:|")
@@ -2427,6 +2445,7 @@ def _serialized_finding_is_visible_problem(
     consume_grouped_finding_display_slot: Any = None,
     p012_display_state: Any = None,
     p026_display_state: Any = None,
+    p011_display_state: Any = None,
     finding_index: int | None = None,
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
@@ -2452,7 +2471,7 @@ def _serialized_finding_is_visible_problem(
     if (
         grouped_display_seen is not None
         and consume_grouped_finding_display_slot is not None
-        and rule_id in {"P011", "P024", "P036", "P044", "P046"}
+        and rule_id in {"P024", "P036", "P044", "P046"}
     ):
         page_raw = finding.get("page")
         page = int(page_raw) if page_raw is not None else None
@@ -2500,6 +2519,23 @@ def _serialized_finding_is_visible_problem(
             state=p026_display_state,
         )
 
+    if (
+        p011_display_state is not None
+        and finding_index is not None
+        and rule_id == P011_RULE_ID
+        and issue_type == P011_ISSUE_TYPE
+    ):
+        from njit_auditor.p011_student_preview import consume_p011_finding_visibility
+
+        page_raw = finding.get("page")
+        page = int(page_raw) if page_raw is not None else None
+        return consume_p011_finding_visibility(
+            page=page,
+            side=details.get("side", ""),
+            finding_index=finding_index,
+            state=p011_display_state,
+        )
+
     if category != "page_numbering":
         return True
     if (
@@ -2543,6 +2579,10 @@ def _problem_number_map(
     serialized_findings: list[dict[str, Any]],
 ) -> dict[int, int]:
     from njit_auditor.high_volume_student_preview import consume_grouped_finding_display_slot
+    from njit_auditor.p011_student_preview import (
+        collect_p011_margin_pages_from_serialized,
+        init_p011_display_state,
+    )
     from njit_auditor.p012_student_preview import (
         count_p012_annotations_by_page,
         find_p012_summary_anchor_index_from_serialized,
@@ -2574,6 +2614,9 @@ def _problem_number_map(
     p026_display_state = init_p026_display_state(
         collect_p026_pattern_pages_from_serialized(serialized_findings),
     )
+    p011_display_state = init_p011_display_state(
+        collect_p011_margin_pages_from_serialized(serialized_findings),
+    )
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
@@ -2586,6 +2629,7 @@ def _problem_number_map(
             consume_grouped_finding_display_slot=consume_grouped_finding_display_slot,
             p012_display_state=p012_display_state,
             p026_display_state=p026_display_state,
+            p011_display_state=p011_display_state,
             finding_index=index,
         ):
             continue
@@ -2679,6 +2723,7 @@ def _individual_finding_comment(
     details: dict[str, str],
     p012_count_by_page: dict[int, int] | None = None,
     p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
+    p011_page_stats: dict[int, Any] | None = None,
 ) -> str:
     """Return the Markdown comment text for one individual finding.
 
@@ -2713,6 +2758,13 @@ def _individual_finding_comment(
         doc_stats = _p026_document_stats_for_markdown(details, p026_pattern_stats)
         if doc_stats is not None:
             return p026_document_rolled_up_comment(doc_stats)
+
+    if rule_id == P011_RULE_ID and issue_type == P011_ISSUE_TYPE:
+        from njit_auditor.p011_student_preview import p011_combined_rolled_up_comment
+
+        page_stats = p011_page_stats.get(page) if p011_page_stats is not None and page else None
+        if page_stats is not None and page_stats.raw_finding_count > 1:
+            return p011_combined_rolled_up_comment(page_stats)
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         page_label = str(page) if page is not None else "this page"
@@ -2810,6 +2862,7 @@ def _finding_markdown_line(
     audit_type: str = "pdf",
     p012_count_by_page: dict[int, int] | None = None,
     p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
+    p011_page_stats: dict[int, Any] | None = None,
 ) -> str:
     from njit_auditor.polished_comments import (
         finalize_student_facing_comment_and_fix,
@@ -2826,6 +2879,15 @@ def _finding_markdown_line(
 
     if audit_type == "tex":
         loc_text = _safe_source_location(safe_details)
+    elif (
+        str(finding.get("rule_id", "")) == P011_RULE_ID
+        and issue_type == P011_ISSUE_TYPE
+    ):
+        loc_text = _problem_location_text(
+            finding,
+            audit_type=audit_type,
+            p011_page_stats=p011_page_stats,
+        )
     elif (
         str(finding.get("rule_id", "")) == P026_RULE_ID
         and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE)
@@ -2862,6 +2924,7 @@ def _finding_markdown_line(
         details=safe_details,
         p012_count_by_page=p012_count_by_page,
         p026_pattern_stats=p026_pattern_stats,
+        p011_page_stats=p011_page_stats,
     )
     rule_id = str(finding.get("rule_id", ""))
     if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
@@ -2884,6 +2947,18 @@ def _finding_markdown_line(
         doc_stats = _p026_document_stats_for_markdown(safe_details, p026_pattern_stats)
         if doc_stats is not None:
             suggested_fix = p026_document_suggested_fix(doc_stats)
+        else:
+            suggested_fix = resolve_suggested_fix_for_display(
+                rule_id,
+                issue_type,
+                existing=str(safe_details.get("suggested_fix", "")),
+            )
+    elif rule_id == P011_RULE_ID and issue_type == P011_ISSUE_TYPE:
+        from njit_auditor.p011_student_preview import p011_combined_suggested_fix
+
+        page_stats = p011_page_stats.get(page) if p011_page_stats is not None and page else None
+        if page_stats is not None and page_stats.raw_finding_count > 1:
+            suggested_fix = p011_combined_suggested_fix(page_stats)
         else:
             suggested_fix = resolve_suggested_fix_for_display(
                 rule_id,
@@ -2918,6 +2993,7 @@ def _problem_heading_text(
     audit_type: str,
     p012_count_by_page: dict[int, int] | None = None,
     p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
+    p011_page_stats: dict[int, Any] | None = None,
 ) -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
@@ -2933,6 +3009,7 @@ def _problem_heading_text(
         details=safe_details,
         p012_count_by_page=p012_count_by_page,
         p026_pattern_stats=p026_pattern_stats,
+        p011_page_stats=p011_page_stats,
     )
     return _truncate(polished, 96)
 
@@ -2943,6 +3020,7 @@ def _problem_location_text(
     audit_type: str,
     p012_count_by_page: dict[int, int] | None = None,
     p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
+    p011_page_stats: dict[int, Any] | None = None,
 ) -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
@@ -2969,6 +3047,14 @@ def _problem_location_text(
         if p012_count_by_page is not None and page is not None:
             annotation_count = p012_count_by_page.get(page, 1)
         return p012_location_label(page, annotation_count)
+    if rule_id == P011_RULE_ID and issue_type == P011_ISSUE_TYPE:
+        from njit_auditor.high_volume_student_preview import margin_location_label
+        from njit_auditor.p011_student_preview import p011_page_location_label
+
+        page_stats = p011_page_stats.get(page) if p011_page_stats is not None and page else None
+        if page_stats is not None and page_stats.raw_finding_count > 1 and page is not None:
+            return p011_page_location_label(page, page_stats.sides)
+        return margin_location_label(safe_details, page)
     if rule_id == P026_RULE_ID and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE):
         from njit_auditor.p026_student_preview import (
             p026_document_location_label,
@@ -3080,6 +3166,10 @@ def write_markdown_report(
         for finding in serialized_findings
         if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
     ]
+    from njit_auditor.p011_student_preview import (
+        collect_p011_margin_pages_from_serialized,
+        init_p011_display_state,
+    )
     from njit_auditor.p012_student_preview import count_p012_annotations_by_page
     from njit_auditor.p026_student_preview import (
         collect_p026_pattern_pages_from_serialized,
@@ -3090,6 +3180,9 @@ def write_markdown_report(
     p026_pattern_stats = init_p026_display_state(
         collect_p026_pattern_pages_from_serialized(serialized_findings),
     ).pattern_stats
+    p011_page_stats = init_p011_display_state(
+        collect_p011_margin_pages_from_serialized(serialized_findings),
+    ).page_stats
     if visible_problem_findings:
         lines.append("## Problems")
         lines.append("")
@@ -3100,6 +3193,7 @@ def write_markdown_report(
                 audit_type=audit_type,
                 p012_count_by_page=p012_count_by_page,
                 p026_pattern_stats=p026_pattern_stats,
+                p011_page_stats=p011_page_stats,
             )
             lines.append(
                 f"### Problem {problem_number} — {heading_text}"
@@ -3112,6 +3206,7 @@ def write_markdown_report(
                 audit_type=audit_type,
                 p012_count_by_page=p012_count_by_page,
                 p026_pattern_stats=p026_pattern_stats,
+                p011_page_stats=p011_page_stats,
             )
             lines.append(f"- Location: `{location_text}`")
             lines.append(
@@ -3120,6 +3215,7 @@ def write_markdown_report(
                     audit_type=audit_type,
                     p012_count_by_page=p012_count_by_page,
                     p026_pattern_stats=p026_pattern_stats,
+                    p011_page_stats=p011_page_stats,
                 )
             )
             lines.append("")

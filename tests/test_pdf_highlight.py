@@ -229,12 +229,12 @@ _LETTER_PAGE = (612.0, 792.0)
         ((250.0, 80.0, 360.0, 100.0), "Top of page"),
         ((250.0, 750.0, 360.0, 770.0), "Footer area"),
         ((250.0, 650.0, 360.0, 670.0), "Bottom of page"),
-        ((20.0, 380.0, 90.0, 420.0), "Left margin area"),
-        ((545.0, 400.0, 580.0, 420.0), "Right margin area"),
+        ((20.0, 380.0, 90.0, 420.0), "Left margin"),
+        ((545.0, 400.0, 580.0, 420.0), "Right margin"),
         ((20.0, 80.0, 90.0, 100.0), "Upper-left area"),
         ((545.0, 650.0, 580.0, 670.0), "Lower-right area"),
         ((280.0, 370.0, 332.0, 422.0), "Near page center"),
-        ((130.0, 370.0, 176.0, 422.0), "Body area"),
+        ((130.0, 370.0, 176.0, 422.0), "body text"),
     ],
 )
 def test_sub_page_location_label_quadrants(

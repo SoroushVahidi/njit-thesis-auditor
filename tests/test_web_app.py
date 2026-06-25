@@ -1156,7 +1156,7 @@ def test_problem_group_page_page_less_finding_has_no_generic_pdf_link(
     resp = c.get(f"/audits/{job_id}/problems/rule/P038")
 
     assert resp.status_code == 200
-    assert b"Document-wide overview" in resp.content
+    assert b"Front matter \xe2\x80\x94 required heading missing" in resp.content
     assert f'href="/audits/{job_id}/pdf"'.encode() not in resp.content
     assert b"Open PDF" not in resp.content
     assert b"document-level" in resp.content.lower()

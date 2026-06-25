@@ -168,14 +168,14 @@ def test_grouped_dedup_key_distinguishes_paragraph_index() -> None:
 def test_consume_grouped_display_slot_suppresses_second_exact_duplicate() -> None:
     seen: set[tuple] = set()
     details = {
-        "issue_type": "margin_boundary_violation",
-        "side": "right_margin",
+        "issue_type": "abstract_subsequent_paragraph_not_indented",
+        "paragraph_index": "1",
         "bbox": "151.7,717.2,175.7,729.2",
     }
     assert (
         consume_grouped_finding_display_slot(
-            "P011",
-            "margin_boundary_violation",
+            "P044",
+            "abstract_subsequent_paragraph_not_indented",
             details,
             seen,
             page=11,
@@ -184,8 +184,8 @@ def test_consume_grouped_display_slot_suppresses_second_exact_duplicate() -> Non
     )
     assert (
         consume_grouped_finding_display_slot(
-            "P011",
-            "margin_boundary_violation",
+            "P044",
+            "abstract_subsequent_paragraph_not_indented",
             details,
             seen,
             page=11,

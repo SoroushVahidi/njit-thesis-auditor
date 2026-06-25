@@ -122,8 +122,8 @@ _QUADRANT_LABELS = {
     ("bottom", "left"): "Lower-left area",
     ("bottom", "center"): "Bottom of page",
     ("bottom", "right"): "Lower-right area",
-    ("middle", "left"): "Left margin area",
-    ("middle", "right"): "Right margin area",
+    ("middle", "left"): "Left margin",
+    ("middle", "right"): "Right margin",
 }
 
 
@@ -177,9 +177,12 @@ def sub_page_location_label(
         lo, hi = _CENTER_BAND
         if lo <= rel_x <= hi and lo <= rel_y <= hi:
             return "Near page center"
-        return "Body area"
+        return "body text"
 
-    return _QUADRANT_LABELS[(vertical, horizontal)]
+    label = _QUADRANT_LABELS.get((vertical, horizontal), "")
+    if label.lower().endswith(" margin area"):
+        return label.replace(" margin area", " margin")
+    return label
 
 
 def get_pdf_page_sizes(path: Path) -> list[PageSize]:
