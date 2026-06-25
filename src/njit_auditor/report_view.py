@@ -38,6 +38,20 @@ from njit_auditor.p012_student_preview import (
     p012_rolled_up_explanation,
     p012_rolled_up_suggested_fix,
 )
+from njit_auditor.p026_student_preview import (
+    P026PatternPresentationStats,
+    collect_p026_pattern_pages_from_serialized,
+    consume_p026_finding_visibility,
+    init_p026_display_state,
+    is_p026_finding,
+    p026_document_location_label,
+    p026_document_no_highlight_reason,
+    p026_document_rolled_up_comment,
+    p026_document_rolled_up_explanation,
+    p026_document_suggested_fix,
+    p026_page_location_label,
+    p026_pattern_key,
+)
 from njit_auditor.page_number_student_preview import (
     classify_visible_page_number_issue,
     consume_page_number_display_slot,
@@ -1471,6 +1485,34 @@ def _apply_p012_document_presentation(
     )
 
 
+def _apply_p026_document_presentation(
+    finding: FindingView,
+    stats: P026PatternPresentationStats,
+) -> tuple[FindingView, bool]:
+    if not is_p026_finding(finding.rule_id, finding.issue_type):
+        return finding, True
+    representative_page = stats.representative_page
+    location_label = p026_document_location_label(stats)
+    comment = p026_document_rolled_up_comment(stats)
+    suggested_fix = p026_document_suggested_fix(stats)
+    return (
+        replace(
+            finding,
+            page=representative_page,
+            polished_comment=comment,
+            suggested_fix=suggested_fix,
+            location_label=location_label,
+            bbox=None,
+            has_highlight=False,
+            action_kind=get_action_kind(has_highlight=False, page=representative_page),
+            action_label=get_action_label(has_highlight=False, page=representative_page),
+            no_highlight_reason=p026_document_no_highlight_reason(stats),
+            detailed_explanation=p026_document_rolled_up_explanation(stats),
+        ),
+        True,
+    )
+
+
 def _apply_margin_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -1536,13 +1578,11 @@ def _apply_font_presentation(
         details=details,
         confidence=finding.confidence,
     )
-    bbox_only = (
-        finding.location_label
-        if finding.location_label and not finding.location_label.startswith("Page ")
-        else ""
-    )
-    location_label = font_location_label(
-        finding.issue_type, details, finding.page, bbox_label=bbox_only
+    location_label = p026_page_location_label(
+        page=finding.page,
+        issue_type=finding.issue_type,
+        observed_summary=details.get("observed_summary", ""),
+        expected=details.get("expected", ""),
     )
     return (
         replace(
@@ -2007,6 +2047,13 @@ def build_report_view(
         p012_count_by_page,
         find_p012_summary_anchor_index(all_finding_views, p012_count_by_page),
     )
+    p026_display_state = init_p026_display_state(
+        collect_p026_pattern_pages_from_serialized(
+            [item for item in raw_findings if isinstance(item, Mapping)]
+        )
+        if isinstance(raw_findings, list)
+        else {},
+    )
 
     finding_views: list[FindingView] = []
     inventory_findings: list[FindingView] = []
@@ -2038,7 +2085,21 @@ def build_report_view(
         elif visible_view.rule_id == "P011":
             visible_view, is_problem = _apply_margin_presentation(visible_view, details)
         elif visible_view.rule_id == "P026":
-            visible_view, is_problem = _apply_font_presentation(visible_view, details)
+            pattern_key = p026_pattern_key(visible_view.issue_type, details)
+            pattern_stats = p026_display_state.pattern_stats.get(pattern_key)
+            if (
+                pattern_key in p026_display_state.document_mode_patterns
+                and pattern_stats is not None
+            ):
+                if index != p026_display_state.pattern_anchors.get(pattern_key):
+                    is_problem = False
+                else:
+                    visible_view, is_problem = _apply_p026_document_presentation(
+                        visible_view,
+                        pattern_stats,
+                    )
+            else:
+                visible_view, is_problem = _apply_font_presentation(visible_view, details)
         elif visible_view.rule_id == "P020":
             visible_view, is_problem = _apply_title_case_presentation(visible_view, details)
             if is_problem and not consume_p020_display_slot(
@@ -2102,7 +2163,7 @@ def build_report_view(
 
         if (
             is_problem
-            and visible_view.rule_id in {"P011", "P024", "P026", "P036", "P044", "P046"}
+            and visible_view.rule_id in {"P011", "P024", "P036", "P044", "P046"}
             and not consume_grouped_finding_display_slot(
                 visible_view.rule_id,
                 visible_view.issue_type,
@@ -2119,6 +2180,17 @@ def build_report_view(
                 page=visible_view.page,
                 finding_index=index,
                 state=p012_display_state,
+            )
+        ):
+            is_problem = False
+        if (
+            is_problem
+            and is_p026_finding(visible_view.rule_id, visible_view.issue_type)
+            and not consume_p026_finding_visibility(
+                pattern_key=p026_pattern_key(visible_view.issue_type, details),
+                page=visible_view.page,
+                finding_index=index,
+                state=p026_display_state,
             )
         ):
             is_problem = False

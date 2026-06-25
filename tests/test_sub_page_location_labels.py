@@ -443,7 +443,10 @@ def test_margin_and_font_wording_not_replaced_by_location_label_alone(
     text = _get_html(client, f"/audits/{job_id}")
     assert "cross the required right margin boundary" in text
     assert "Page 2 — right margin" in text
-    assert "Page 3 — body text, possible font family issue" in text
+    assert (
+        "Page 3 — body text uses Computer Modern / LaTeX font (pattern \"CMR12\") where "
+        "Times New Roman or an accepted equivalent is expected"
+    ) in text
     assert "font family CMR12" in text
     assert "Times New Roman" in text
 
