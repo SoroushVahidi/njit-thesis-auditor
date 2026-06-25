@@ -9,6 +9,7 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.toc_list_student_preview import (
+    is_toc_export_metadata_line,
     is_toc_structural_column_label,
     sanitize_toc_list_entry_preview,
 )
@@ -189,6 +190,8 @@ def _has_leader_dot_pattern(cleaned_text: str) -> bool:
 
 
 def _likely_entry_line(cleaned_text: str, *, has_page_number_signal: bool = False) -> bool:
+    if is_toc_export_metadata_line(cleaned_text):
+        return False
     if NUMERIC_ONLY_RE.match(cleaned_text):
         return False
     has_prefix = _has_prefix_entry_shape(cleaned_text)
