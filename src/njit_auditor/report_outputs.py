@@ -2391,6 +2391,30 @@ def _p012_document_stats_for_markdown(
     return None
 
 
+def _p026_document_stats_for_markdown(
+    details: dict[str, str],
+    p026_pattern_stats: dict[tuple[str, str, str], Any] | None,
+) -> Any:
+    if not p026_pattern_stats:
+        return None
+    from njit_auditor.p026_student_preview import (
+        p026_pattern_key,
+        should_use_p026_document_summary,
+    )
+
+    issue_type = details.get("issue_type", "").strip()
+    key = p026_pattern_key(issue_type, details)
+    stats = p026_pattern_stats.get(key)
+    if stats is None:
+        return None
+    if should_use_p026_document_summary(
+        stats.affected_page_count,
+        stats.raw_finding_count,
+    ):
+        return stats
+    return None
+
+
 def _serialized_finding_is_visible_problem(
     finding: dict[str, Any],
     *,
@@ -2402,6 +2426,7 @@ def _serialized_finding_is_visible_problem(
     grouped_display_seen: set[tuple] | None = None,
     consume_grouped_finding_display_slot: Any = None,
     p012_display_state: Any = None,
+    p026_display_state: Any = None,
     finding_index: int | None = None,
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
@@ -2427,7 +2452,7 @@ def _serialized_finding_is_visible_problem(
     if (
         grouped_display_seen is not None
         and consume_grouped_finding_display_slot is not None
-        and rule_id in {"P011", "P024", "P026", "P036", "P044", "P046"}
+        and rule_id in {"P011", "P024", "P036", "P044", "P046"}
     ):
         page_raw = finding.get("page")
         page = int(page_raw) if page_raw is not None else None
@@ -2453,6 +2478,26 @@ def _serialized_finding_is_visible_problem(
             page=page,
             finding_index=finding_index,
             state=p012_display_state,
+        )
+
+    if (
+        p026_display_state is not None
+        and finding_index is not None
+        and rule_id == P026_RULE_ID
+        and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE)
+    ):
+        from njit_auditor.p026_student_preview import (
+            consume_p026_finding_visibility,
+            p026_pattern_key,
+        )
+
+        page_raw = finding.get("page")
+        page = int(page_raw) if page_raw is not None else None
+        return consume_p026_finding_visibility(
+            pattern_key=p026_pattern_key(issue_type, details),
+            page=page,
+            finding_index=finding_index,
+            state=p026_display_state,
         )
 
     if category != "page_numbering":
@@ -2503,6 +2548,10 @@ def _problem_number_map(
         find_p012_summary_anchor_index_from_serialized,
         init_p012_display_state,
     )
+    from njit_auditor.p026_student_preview import (
+        collect_p026_pattern_pages_from_serialized,
+        init_p026_display_state,
+    )
     from njit_auditor.page_number_student_preview import (
         classify_visible_page_number_issue,
         consume_page_number_display_slot,
@@ -2522,6 +2571,9 @@ def _problem_number_map(
             p012_count_by_page,
         ),
     )
+    p026_display_state = init_p026_display_state(
+        collect_p026_pattern_pages_from_serialized(serialized_findings),
+    )
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
@@ -2533,6 +2585,7 @@ def _problem_number_map(
             grouped_display_seen=grouped_display_seen,
             consume_grouped_finding_display_slot=consume_grouped_finding_display_slot,
             p012_display_state=p012_display_state,
+            p026_display_state=p026_display_state,
             finding_index=index,
         ):
             continue
@@ -2625,6 +2678,7 @@ def _individual_finding_comment(
     page: int | None,
     details: dict[str, str],
     p012_count_by_page: dict[int, int] | None = None,
+    p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
 ) -> str:
     """Return the Markdown comment text for one individual finding.
 
@@ -2652,6 +2706,13 @@ def _individual_finding_comment(
         if p012_count_by_page is not None and page is not None:
             annotation_count = p012_count_by_page.get(page, 1)
         return p012_rolled_up_comment(page=page, annotation_count=annotation_count)
+
+    if rule_id == P026_RULE_ID and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE):
+        from njit_auditor.p026_student_preview import p026_document_rolled_up_comment
+
+        doc_stats = _p026_document_stats_for_markdown(details, p026_pattern_stats)
+        if doc_stats is not None:
+            return p026_document_rolled_up_comment(doc_stats)
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
         page_label = str(page) if page is not None else "this page"
@@ -2748,6 +2809,7 @@ def _finding_markdown_line(
     *,
     audit_type: str = "pdf",
     p012_count_by_page: dict[int, int] | None = None,
+    p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
 ) -> str:
     from njit_auditor.polished_comments import (
         finalize_student_facing_comment_and_fix,
@@ -2764,6 +2826,15 @@ def _finding_markdown_line(
 
     if audit_type == "tex":
         loc_text = _safe_source_location(safe_details)
+    elif (
+        str(finding.get("rule_id", "")) == P026_RULE_ID
+        and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE)
+    ):
+        loc_text = _problem_location_text(
+            finding,
+            audit_type=audit_type,
+            p026_pattern_stats=p026_pattern_stats,
+        )
     elif (
         str(finding.get("rule_id", "")) == P012_RULE_ID
         and issue_type == P012_ISSUE_TYPE
@@ -2790,6 +2861,7 @@ def _finding_markdown_line(
         page=page,
         details=safe_details,
         p012_count_by_page=p012_count_by_page,
+        p026_pattern_stats=p026_pattern_stats,
     )
     rule_id = str(finding.get("rule_id", ""))
     if rule_id == P012_RULE_ID and issue_type == P012_ISSUE_TYPE:
@@ -2797,6 +2869,21 @@ def _finding_markdown_line(
 
         if _p012_document_stats_for_markdown(p012_count_by_page) is not None:
             suggested_fix = p012_document_suggested_fix()
+        else:
+            suggested_fix = resolve_suggested_fix_for_display(
+                rule_id,
+                issue_type,
+                existing=str(safe_details.get("suggested_fix", "")),
+            )
+    elif rule_id == P026_RULE_ID and issue_type in (
+        P026_FAMILY_ISSUE_TYPE,
+        P026_SIZE_ISSUE_TYPE,
+    ):
+        from njit_auditor.p026_student_preview import p026_document_suggested_fix
+
+        doc_stats = _p026_document_stats_for_markdown(safe_details, p026_pattern_stats)
+        if doc_stats is not None:
+            suggested_fix = p026_document_suggested_fix(doc_stats)
         else:
             suggested_fix = resolve_suggested_fix_for_display(
                 rule_id,
@@ -2830,6 +2917,7 @@ def _problem_heading_text(
     *,
     audit_type: str,
     p012_count_by_page: dict[int, int] | None = None,
+    p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
 ) -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
@@ -2844,6 +2932,7 @@ def _problem_heading_text(
         page=page,
         details=safe_details,
         p012_count_by_page=p012_count_by_page,
+        p026_pattern_stats=p026_pattern_stats,
     )
     return _truncate(polished, 96)
 
@@ -2853,6 +2942,7 @@ def _problem_location_text(
     *,
     audit_type: str,
     p012_count_by_page: dict[int, int] | None = None,
+    p026_pattern_stats: dict[tuple[str, str, str], Any] | None = None,
 ) -> str:
     details = finding.get("details", {})
     if not isinstance(details, dict):
@@ -2879,6 +2969,21 @@ def _problem_location_text(
         if p012_count_by_page is not None and page is not None:
             annotation_count = p012_count_by_page.get(page, 1)
         return p012_location_label(page, annotation_count)
+    if rule_id == P026_RULE_ID and issue_type in (P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE):
+        from njit_auditor.p026_student_preview import (
+            p026_document_location_label,
+            p026_page_location_label,
+        )
+
+        doc_stats = _p026_document_stats_for_markdown(safe_details, p026_pattern_stats)
+        if doc_stats is not None:
+            return p026_document_location_label(doc_stats)
+        return p026_page_location_label(
+            page=page,
+            issue_type=issue_type,
+            observed_summary=safe_details.get("observed_summary", ""),
+            expected=safe_details.get("expected", ""),
+        )
     label = enriched_pdf_location_label(rule_id, issue_type, safe_details, page)
     if label:
         return label
@@ -2976,15 +3081,25 @@ def write_markdown_report(
         if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
     ]
     from njit_auditor.p012_student_preview import count_p012_annotations_by_page
+    from njit_auditor.p026_student_preview import (
+        collect_p026_pattern_pages_from_serialized,
+        init_p026_display_state,
+    )
 
     p012_count_by_page = count_p012_annotations_by_page(serialized_findings)
+    p026_pattern_stats = init_p026_display_state(
+        collect_p026_pattern_pages_from_serialized(serialized_findings),
+    ).pattern_stats
     if visible_problem_findings:
         lines.append("## Problems")
         lines.append("")
         for finding in visible_problem_findings:
             problem_number = int(finding["problem_number"])
             heading_text = _problem_heading_text(
-                finding, audit_type=audit_type, p012_count_by_page=p012_count_by_page
+                finding,
+                audit_type=audit_type,
+                p012_count_by_page=p012_count_by_page,
+                p026_pattern_stats=p026_pattern_stats,
             )
             lines.append(
                 f"### Problem {problem_number} — {heading_text}"
@@ -2996,6 +3111,7 @@ def write_markdown_report(
                 finding,
                 audit_type=audit_type,
                 p012_count_by_page=p012_count_by_page,
+                p026_pattern_stats=p026_pattern_stats,
             )
             lines.append(f"- Location: `{location_text}`")
             lines.append(
@@ -3003,6 +3119,7 @@ def write_markdown_report(
                     finding,
                     audit_type=audit_type,
                     p012_count_by_page=p012_count_by_page,
+                    p026_pattern_stats=p026_pattern_stats,
                 )
             )
             lines.append("")
