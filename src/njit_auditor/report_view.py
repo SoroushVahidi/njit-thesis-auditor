@@ -22,6 +22,18 @@ from njit_auditor.high_volume_student_preview import (
     normalize_area_phrase,
 )
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
+from njit_auditor.p011_student_preview import (
+    P011PagePresentationStats,
+    collect_p011_margin_pages_from_serialized,
+    consume_p011_finding_visibility,
+    init_p011_display_state,
+    is_p011_margin_finding,
+    p011_combined_no_highlight_reason,
+    p011_combined_rolled_up_comment,
+    p011_combined_rolled_up_explanation,
+    p011_combined_suggested_fix,
+    p011_page_location_label,
+)
 from njit_auditor.p012_student_preview import (
     P012PresentationStats,
     consume_p012_finding_visibility,
@@ -408,6 +420,17 @@ def enriched_pdf_location_label(
     if rule_id == "P011" and issue_type == "margin_boundary_violation":
         return margin_location_label(details, page, bbox_label=bbox_label)
 
+    if rule_id == "P038":
+        if issue_type == "required_heading_missing":
+            expected_heading = details.get("expected_heading", "").strip()
+            if expected_heading:
+                return f"Front matter — required heading missing: {expected_heading}"
+            return "Front matter — required heading missing"
+        if issue_type == "heading_phrase_not_exact" and page_prefix:
+            expected_heading = details.get("expected_heading", "").strip()
+            if expected_heading:
+                return f"{page_prefix} — {expected_heading} heading phrase"
+
     if rule_id == "P026" and issue_type in {
         "possible_body_font_family_issue",
         "possible_body_font_size_issue",
@@ -460,7 +483,7 @@ def enriched_pdf_location_label(
         worst_entry_index = details.get("worst_entry_index", "").strip()
         if worst_entry_index.isdigit() and not preview:
             worst_entry_num = int(worst_entry_index) + 1
-            return f"{page_prefix} — {section_label}, worst affected entry {worst_entry_num}"
+            return f"{page_prefix} — {section_label}, entry {worst_entry_num} alignment issue"
 
     if rule_id in ("P018", "P046") and page_prefix and section_label:
         affected_count = details.get("affected_entry_count", "").strip()
@@ -1485,6 +1508,32 @@ def _apply_p012_document_presentation(
     )
 
 
+def _apply_p011_combined_presentation(
+    finding: FindingView,
+    stats: P011PagePresentationStats,
+) -> tuple[FindingView, bool]:
+    if not is_p011_margin_finding(finding.rule_id, finding.issue_type):
+        return finding, True
+    location_label = p011_page_location_label(stats.page, stats.sides)
+    comment = p011_combined_rolled_up_comment(stats)
+    suggested_fix = p011_combined_suggested_fix(stats)
+    return (
+        replace(
+            finding,
+            polished_comment=comment,
+            suggested_fix=suggested_fix,
+            location_label=location_label,
+            has_highlight=False,
+            bbox=None,
+            action_kind=get_action_kind(has_highlight=False, page=stats.page),
+            action_label=get_action_label(has_highlight=False, page=stats.page),
+            no_highlight_reason=p011_combined_no_highlight_reason(stats),
+            detailed_explanation=p011_combined_rolled_up_explanation(stats),
+        ),
+        True,
+    )
+
+
 def _apply_p026_document_presentation(
     finding: FindingView,
     stats: P026PatternPresentationStats,
@@ -2054,6 +2103,13 @@ def build_report_view(
         if isinstance(raw_findings, list)
         else {},
     )
+    p011_display_state = init_p011_display_state(
+        collect_p011_margin_pages_from_serialized(
+            [item for item in raw_findings if isinstance(item, Mapping)]
+        )
+        if isinstance(raw_findings, list)
+        else {},
+    )
 
     finding_views: list[FindingView] = []
     inventory_findings: list[FindingView] = []
@@ -2083,7 +2139,25 @@ def build_report_view(
             ):
                 is_problem = False
         elif visible_view.rule_id == "P011":
-            visible_view, is_problem = _apply_margin_presentation(visible_view, details)
+            page_stats = (
+                p011_display_state.page_stats.get(visible_view.page)
+                if visible_view.page is not None
+                else None
+            )
+            if (
+                visible_view.page is not None
+                and visible_view.page in p011_display_state.multi_side_pages
+                and page_stats is not None
+            ):
+                if index != p011_display_state.page_anchors.get(visible_view.page):
+                    is_problem = False
+                else:
+                    visible_view, is_problem = _apply_p011_combined_presentation(
+                        visible_view,
+                        page_stats,
+                    )
+            else:
+                visible_view, is_problem = _apply_margin_presentation(visible_view, details)
         elif visible_view.rule_id == "P026":
             pattern_key = p026_pattern_key(visible_view.issue_type, details)
             pattern_stats = p026_display_state.pattern_stats.get(pattern_key)
@@ -2163,13 +2237,24 @@ def build_report_view(
 
         if (
             is_problem
-            and visible_view.rule_id in {"P011", "P024", "P036", "P044", "P046"}
+            and visible_view.rule_id in {"P024", "P036", "P044", "P046"}
             and not consume_grouped_finding_display_slot(
                 visible_view.rule_id,
                 visible_view.issue_type,
                 details,
                 grouped_display_seen,
                 page=visible_view.page,
+            )
+        ):
+            is_problem = False
+        if (
+            is_problem
+            and is_p011_margin_finding(visible_view.rule_id, visible_view.issue_type)
+            and not consume_p011_finding_visibility(
+                page=visible_view.page,
+                side=details.get("side", ""),
+                finding_index=index,
+                state=p011_display_state,
             )
         ):
             is_problem = False

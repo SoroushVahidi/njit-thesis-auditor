@@ -206,8 +206,8 @@ def test_p026_grouped_card_pattern_note_does_not_overstate_certainty() -> None:
     card = view.grouped_problems[0]
     assert card.occurrence_count == 4
     assert "4 times" in card.pattern_note
-    assert "may need confirmation" in card.pattern_note
-    assert "editor or committee" in card.pattern_note
+    assert "body-text font pattern" in card.pattern_note
+    assert "Times New Roman 12pt" in card.pattern_note
     _assert_no_internal_jargon(card.pattern_note)
 
 
@@ -217,7 +217,8 @@ def test_p012_grouped_card_pattern_note_does_not_expose_annotation_contents() ->
     card = view.grouped_problems[0]
     assert card.occurrence_count == 7
     assert "7 times" in card.pattern_note
-    assert "Remove reviewer comments" in card.pattern_note
+    assert "embedded annotations or comments" in card.pattern_note
+    assert "Remove or flatten reviewer markup" in card.pattern_note
     # Only the generic remediation wording is present, never an annotation's
     # actual text/author/content.
     assert "wrote" not in card.pattern_note.lower()
@@ -273,7 +274,7 @@ def test_p011_grouped_card_pattern_note_explains_repeated_margin_violations() ->
     card = view.grouped_problems[0]
     assert card.occurrence_count == 5
     assert "5 times" in card.pattern_note
-    assert "same formatting issue repeated" in card.pattern_note
+    assert "combined page-level card" in card.pattern_note
     assert "page margins" in card.pattern_note
     _assert_no_internal_jargon(card.pattern_note)
 
@@ -398,7 +399,8 @@ def test_issue_type_problem_page_shows_pattern_note_for_high_volume_p012(
     html = c.get(
         f"/audits/{job_id}/problems/rule/P012/issue-type/pdf-annotation-detected"
     ).text
-    assert "Remove reviewer comments" in html
+    assert "embedded annotations or comments" in html
+    assert "Remove or flatten reviewer markup" in html
 
 
 def test_rule_problem_page_omits_pattern_note_when_mixed_issue_types(
