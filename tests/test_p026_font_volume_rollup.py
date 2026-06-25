@@ -9,6 +9,7 @@ from njit_auditor.p026_student_preview import (
     P026_DOCUMENT_SUMMARY_MIN_AFFECTED_PAGES,
     P026_FAMILY_ISSUE_TYPE,
     should_use_p026_document_summary,
+    student_facing_observed_font_phrase,
 )
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
 from njit_auditor.report_view import build_report_view
@@ -45,13 +46,20 @@ def test_should_use_p026_document_summary_thresholds() -> None:
     assert should_use_p026_document_summary(5, 21) is True
 
 
+def test_student_facing_font_phrase_explains_computer_modern_codes() -> None:
+    phrase = student_facing_observed_font_phrase("CMR12")
+    assert "Computer Modern / LaTeX" in phrase
+    assert '"CMR12"' in phrase
+
+
 def test_low_volume_p026_keeps_page_level_cards() -> None:
     findings = [_p026_family_finding(page=i) for i in range(1, 6)]
     view = build_report_view(_payload(findings))
     cards = [f for f in view.findings if f.rule_id == "P026"]
     assert len(cards) == 5
     assert all("Document-wide" not in card.location_label for card in cards)
-    assert "Page 1 — body text uses CMR12" in cards[0].location_label
+    assert "Computer Modern / LaTeX" in cards[0].location_label
+    assert '"CMR12"' in cards[0].location_label
 
 
 def test_high_volume_same_pattern_collapses_to_one_document_card() -> None:
@@ -63,7 +71,8 @@ def test_high_volume_same_pattern_collapses_to_one_document_card() -> None:
     cards = [f for f in view.findings if f.rule_id == "P026"]
     assert len(cards) == 1
     assert cards[0].location_label.startswith("Document-wide —")
-    assert "CMR12" in cards[0].location_label
+    assert "Computer Modern / LaTeX" in cards[0].location_label
+    assert '"CMR12"' in cards[0].location_label
     assert f"on {P026_DOCUMENT_SUMMARY_MIN_AFFECTED_PAGES} pages" in cards[0].location_label
     assert "Affected pages include:" in cards[0].polished_comment
     assert cards[0].has_highlight is False
@@ -78,8 +87,8 @@ def test_distinct_font_patterns_remain_separate() -> None:
     cards = [f for f in view.findings if f.rule_id == "P026"]
     assert len(cards) == 2
     labels = {card.location_label for card in cards}
-    assert any("CMR12" in label for label in labels)
-    assert any("ArialMT" in label for label in labels)
+    assert any("Computer Modern / LaTeX" in label and '"CMR12"' in label for label in labels)
+    assert any("Arial" in label for label in labels)
 
 
 def test_p026_rollup_has_no_private_leaks() -> None:

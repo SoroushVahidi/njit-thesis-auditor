@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Mapping, MutableSet, Sequence
 from dataclasses import dataclass, field
@@ -16,6 +17,64 @@ P026_ISSUE_TYPES = frozenset({P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE})
 # Presentation-only thresholds (not detector thresholds).
 P026_DOCUMENT_SUMMARY_MIN_AFFECTED_PAGES = 11
 P026_DOCUMENT_SUMMARY_MIN_RAW_FINDINGS = 21
+
+_CM_FONT_BASES: frozenset[str] = frozenset(
+    {
+        "cmr",
+        "cmbx",
+        "cmti",
+        "cmsl",
+        "cmb",
+        "cmex",
+        "cmsy",
+        "cmmi",
+        "lmroman",
+        "lmbx",
+        "lmtti",
+        "lmss",
+        "lmtt",
+    }
+)
+
+
+def _font_token_base(token: str) -> str:
+    norm = token.strip().lower().replace("-", "").replace(" ", "").replace("_", "")
+    return re.sub(r"\d+$", "", norm)
+
+
+def _is_computer_modern_token(token: str) -> bool:
+    base = _font_token_base(token)
+    return any(base.startswith(prefix) for prefix in _CM_FONT_BASES)
+
+
+def student_facing_observed_font_phrase(observed_summary: str) -> str:
+    """Translate PDF/LaTeX font codes into student-understandable wording."""
+    observed = observed_summary.strip()
+    if not observed:
+        return ""
+    if len(observed) > 60:
+        observed = f"{observed[:57]}..."
+    tokens = [token.strip() for token in observed.split(",") if token.strip()]
+    if not tokens:
+        return observed
+    if all(_is_computer_modern_token(token) for token in tokens):
+        if len(tokens) == 1:
+            return f'Computer Modern / LaTeX font (pattern "{tokens[0]}")'
+        quoted = ", ".join(f'"{token}"' for token in tokens[:4])
+        suffix = ", ..." if len(tokens) > 4 else ""
+        return f"Computer Modern / LaTeX fonts ({quoted}{suffix})"
+    readable_tokens: list[str] = []
+    for token in tokens[:4]:
+        if _is_computer_modern_token(token):
+            readable_tokens.append(f'Computer Modern / LaTeX "{token}"')
+        elif token.endswith("MT") and token[:-2].replace("-", "").isalpha():
+            readable_tokens.append(token[:-2])
+        else:
+            readable_tokens.append(token.replace("-Bold", " Bold"))
+    phrase = ", ".join(readable_tokens)
+    if len(tokens) > 4:
+        phrase += ", ..."
+    return phrase
 
 
 def is_p026_finding(rule_id: str, issue_type: str) -> bool:
@@ -210,6 +269,12 @@ def consume_p026_finding_visibility(
     return True
 
 
+def _student_facing_observed_phrase(issue_type: str, observed_summary: str) -> str:
+    if issue_type == P026_SIZE_ISSUE_TYPE:
+        return _safe_observed_phrase(observed_summary)
+    return student_facing_observed_font_phrase(observed_summary)
+
+
 def p026_page_location_label(
     *,
     page: int | None,
@@ -217,7 +282,7 @@ def p026_page_location_label(
     observed_summary: str,
     expected: str,
 ) -> str:
-    observed = _safe_observed_phrase(observed_summary)
+    observed = _student_facing_observed_phrase(issue_type, observed_summary)
     if issue_type == P026_SIZE_ISSUE_TYPE:
         expected_phrase = _expected_size_phrase(expected)
         if page is None:
@@ -238,7 +303,7 @@ def p026_page_location_label(
 
 
 def p026_document_location_label(stats: P026PatternPresentationStats) -> str:
-    observed = _safe_observed_phrase(stats.observed_summary)
+    observed = _student_facing_observed_phrase(stats.issue_type, stats.observed_summary)
     if stats.issue_type == P026_SIZE_ISSUE_TYPE:
         expected_phrase = _expected_size_phrase(stats.expected)
         if observed:
@@ -265,7 +330,7 @@ def p026_document_location_label(stats: P026PatternPresentationStats) -> str:
 
 
 def p026_document_rolled_up_comment(stats: P026PatternPresentationStats) -> str:
-    observed = _safe_observed_phrase(stats.observed_summary)
+    observed = _student_facing_observed_phrase(stats.issue_type, stats.observed_summary)
     pages_clause = f"Affected pages include: {stats.pages_compact}."
     if stats.issue_type == P026_SIZE_ISSUE_TYPE:
         expected_phrase = _expected_size_phrase(stats.expected)
@@ -314,7 +379,7 @@ def p026_document_suggested_fix(stats: P026PatternPresentationStats) -> str:
 
 
 def p026_document_rolled_up_explanation(stats: P026PatternPresentationStats) -> str:
-    observed = _safe_observed_phrase(stats.observed_summary)
+    observed = _student_facing_observed_phrase(stats.issue_type, stats.observed_summary)
     if stats.issue_type == P026_SIZE_ISSUE_TYPE:
         expected_phrase = _expected_size_phrase(stats.expected)
         observed_text = (
