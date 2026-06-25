@@ -12,6 +12,11 @@ _LEADER_STRIP_RE = re.compile(r"\s*(?:\.\s*){2,}$")
 _TRAILING_PAGE_NUM_RE = re.compile(r"\s+\d{1,4}\s*$")
 _MIN_GAP_HIGHLIGHT_HEIGHT_PT = 2.0
 
+_TOC_EXPORT_DATETIME_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?$"
+)
+_TOC_EXPORT_DATE_ONLY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 _TOC_STRUCTURAL_COLUMN_LABELS = frozenset(
     {
         "CHAPTER",
@@ -30,6 +35,16 @@ def is_toc_structural_column_label(text: str) -> bool:
     """Return True when text looks like a TOC/list column header, not a real entry."""
     normalized = " ".join(text.strip().split()).upper().rstrip(".:")
     return normalized in _TOC_STRUCTURAL_COLUMN_LABELS
+
+
+def is_toc_export_metadata_line(text: str) -> bool:
+    """Return True when text looks like export/log timestamp metadata, not a real entry."""
+    normalized = " ".join(text.strip().split())
+    if not normalized:
+        return False
+    if _TOC_EXPORT_DATETIME_RE.match(normalized):
+        return True
+    return bool(_TOC_EXPORT_DATE_ONLY_RE.match(normalized))
 
 
 def sanitize_toc_list_entry_preview(text: str, *, max_len: int = _ENTRY_PREVIEW_MAX) -> str:
