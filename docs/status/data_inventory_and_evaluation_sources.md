@@ -2,8 +2,8 @@
 
 - Date: 2026-06-11 (release-engineering/status consistency refresh)
 - Historical baseline note: PR #47 (`8afdcad165ab`)
-- Baseline main for this status snapshot: `67c31b9` (PR #296 — Fix post-P083 live status doc references)
-- Status snapshot validation: repository progress P001–P083; web UI present on the baseline snapshot commit above; project-added rule inventory spans P001–P074 plus P076–P083 (82 entries, with P075 documented separately as non-inventory); **1138 pytest passed** when this snapshot was generated (data-inventory contents below are still current; for current test counts and main SHA see the "Current Status" section at the top of `docs/status/current_project_state_and_next_steps.md`)
+- Baseline main for this status snapshot: `2a7f216` (PR #372 — Suppress timestamp-like TOC false positives)
+- Status snapshot validation: repository progress P001–P083; web UI present on the baseline snapshot commit above; project-added rule inventory spans P001–P074 plus P076–P083 (82 entries, with P075 documented separately as non-inventory); next inventory ID P084; **2147 pytest passed** when this snapshot was generated (data-inventory contents below are still current; for current test counts and main SHA see the "Current Status — 2026-06-25" section at the top of `docs/status/current_project_state_and_next_steps.md`)
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary

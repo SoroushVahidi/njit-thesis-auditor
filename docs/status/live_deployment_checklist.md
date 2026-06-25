@@ -1,23 +1,22 @@
 # Live Deployment Checklist
 
 Use this checklist whenever the live web UI needs to be (re)started from a freshly merged
-`main`. It assumes the persistent `tmux` session convention already used on this host
-(session name `web`; README's documented convention is `thesis-auditor-web`, but the
-session actually running on this machine is named `web` — use whichever session already
-exists rather than creating a duplicate). Confirmed against this host's actual state on
-2026-06-19: the `web` tmux session exists but its `uvicorn` process had been terminated
-(no process listening on port 8000, `curl http://localhost:8000/` returns no response).
+`main`. On this host the persistent tmux session is named **`web`** (README also documents
+`thesis-auditor-web` as an alternate convention — use whichever session already exists;
+do not create a duplicate listener on port 8000).
+
+**Last verified against host state:** 2026-06-25 (`main` at `2a7f216`).
 
 ## 1. Confirm the commit being deployed
 
 ```bash
+cd /home/soroush/njit-thesis-auditor
 git checkout main
 git pull --ff-only origin main
 git rev-parse HEAD
 ```
 
-Record this SHA — it is what `/version` must report after restart, and what the final
-report's "live commit matches main" field is checked against.
+Record this SHA — it is what `/version` must report after restart.
 
 ## 2. Confirm validation is green on this exact commit
 
@@ -29,91 +28,93 @@ python -m pytest -q
 
 Do not restart the live server on a commit that has not passed all three gates.
 
-## 3. Stop any existing server process
+## 3. Inspect the existing server process
 
 ```bash
-tmux capture-pane -t web -p | tail -20   # see what's currently running, if anything
+pgrep -af 'python -m uvicorn njit_auditor.web_app'
+curl -s http://10.196.93.210:8000/version
+readlink -f /proc/$(pgrep -f 'python -m uvicorn njit_auditor.web_app' | head -1)/cwd
 ```
 
-If a `uvicorn` process is running in the session, stop it from inside the session
-(`tmux send-keys -t web C-c`) rather than killing it externally by PID, so the session's
-shell stays usable for the next start command.
+Expect:
 
-## 4. Clear stale runtime artifacts
+- command: `python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000`
+- working directory: `/home/soroush/njit-thesis-auditor`
+- `commit` in `/version` equal to step 1 SHA when already current
+
+If already serving the target SHA, **skip restart**.
+
+## 4. Stop the existing server (only the app process)
 
 ```bash
-rm -rf .runtime/web_audits/*
+tmux capture-pane -t web -p | tail -20   # see what's currently running
 ```
 
-This removes completed/expired job directories and uploaded-file temp data from prior
-runs. Do not remove `.runtime/` itself (other tooling, e.g. `web_demo_smoke.sh`, expects
-the directory to exist) — only its contents.
+Stop uvicorn from inside the session (`tmux send-keys -t web C-c`) rather than killing
+unrelated processes by PID.
+
+**Do not** delete user audit history:
+
+- **Preserve** `.runtime/web_audits/` job directories unless an operator explicitly
+  requests cleanup.
+- Completed jobs also expire via `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24 h).
 
 ## 5. Start the server in the existing tmux session
 
 ```bash
-tmux send-keys -t web "cd $(pwd) && python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000 2>&1 | tee -a .runtime/uvicorn-8000.log" Enter
+tmux send-keys -t web "cd /home/soroush/njit-thesis-auditor && export PYTHONPATH=/home/soroush/njit-thesis-auditor/src NJIT_AUDITOR_WEB_RUNTIME_DIR=/home/soroush/njit-thesis-auditor/.runtime/web_audits && python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000 2>&1 | tee -a .runtime/uvicorn-8000.log" Enter
 ```
 
-Using `tmux send-keys` (not a new detached session) preserves the existing persistent
-session that other tooling/operators already expect to find.
+`PYTHONPATH` must point at this checkout's `src/` so code changes take effect without a
+stale editable-install worktree.
 
 ## 6. Confirm the process came up
 
 ```bash
 sleep 2
 tmux capture-pane -t web -p | tail -10
-ps aux | grep -i uvicorn | grep -v grep
+pgrep -af 'python -m uvicorn njit_auditor.web_app'
 ```
 
-Expect `INFO: Uvicorn running on http://0.0.0.0:8000` in the pane and a live PID in the
-process list. Record the PID and the wall-clock start time for the final report.
+Expect `INFO: Uvicorn running on http://0.0.0.0:8000` and a live PID.
 
-## 7. Verify `/healthz`
+## 7. Verify `/healthz` and `/version`
 
 ```bash
-curl -s http://localhost:8000/healthz
+curl -s http://10.196.93.210:8000/healthz
+curl -s http://10.196.93.210:8000/version
 ```
 
-Expect HTTP 200 and `{"ok": true, "app": "njit-thesis-auditor", "status": "healthy"}`
-(field order may vary). This must succeed even with zero audit jobs in the runtime
-directory.
+Expect HTTP 200; `commit` must equal the SHA from step 1. If `commit` is `"unknown"`,
+the process was likely started outside the git checkout — treat as a deployment failure.
 
-## 8. Verify `/version` matches the deployed commit
+## 8. Verify core routes
 
-```bash
-curl -s http://localhost:8000/version
-```
+- `GET /` — upload page (200)
+- `GET /help`, `GET /rules` — load (200)
+- `POST /audits/sample` with `sample_id=ester_sample_d` — redirects to a job page
 
-Expect HTTP 200 with `commit` equal to the SHA recorded in step 1, plus `branch`,
-`process_start_time`, `python_version`, and `environment` fields. If `commit` is
-`"unknown"`, treat that as a deployment-verification failure, not a pass — it usually
-means the process was started from a working directory without `.git`, not that git
-metadata is genuinely unavailable.
+Manual check URL: **http://10.196.93.210:8000/**
 
-## 9. Verify core routes and behavior
+Runtime directory: `/home/soroush/njit-thesis-auditor/.runtime/web_audits`
 
-- `GET /` — upload page loads (200).
-- `GET /help` — loads (200).
-- `GET /rules` — loads; "What it checks" is collapsed by default behind a `<details>`
-  toggle; "How to correct it" is visible without expanding anything.
-- `POST /audits/sample` — submits a built-in sample PDF; follow the redirect to the job
-  page.
-- Job/result page — status banner, summary cards, grouped problems, and individual
-  findings render with no 500s.
-- A category page, a rule page, and an issue-type page each load for the same job.
-- `GET /audits/{id}/report.json` and `GET /audits/{id}/report.md` — both return 200.
-- `GET /audits/{id}/pdf` (and the page-anchored variant) — serves inline where possible.
-- For at least one finding with a drawable bounding box, confirm a real visible highlight
-  renders on the PDF page (not just a page jump). For at least one finding without a
-  drawable bbox, confirm it renders as explanation-only — no page-only action button.
-- Spot-check that mobile and desktop viewports show the same substantive result
-  content/actions for the same job (mobile/desktop parity).
+## 9. Post-restart sample-audit verification
 
-## 10. Record results for the final report
+After warning-clarity deploys (#371–#372), spot-check `ester_sample_d`:
 
-Capture: final `main` SHA, PID, process start time, `/healthz` response, `/version`
-response (and whether `commit` matches the SHA from step 1), and a pass/fail note for
-each route checked in step 9. Any failure here should be fixed and re-verified before the
-deployment is considered complete — do not report success with an unresolved 500 or a
-`commit` mismatch.
+| Check | Expected |
+|---|---|
+| HTTP 200 on `/` and job page | Pass |
+| `/version.commit` equals `main` | Pass |
+| No P018 cards for `2026-04-30 12:45:08` timestamps | Gone (#372) |
+| No P018 CHAPTER structural-label missing-page cards | Gone (#371) |
+| P036 main cards short (no gap measurements in main comment) | Yes (#371) |
+| P018 entry cards highlight when bbox exists | Yes (#371) |
+| Legitimate P018/P036 TOC warnings on real entries | Still present |
+
+Job JSON is at `.runtime/web_audits/{job_id}/report.json` (gitignored; not committed).
+
+## 10. Record results
+
+Capture: deployed SHA, PID, `/version` response, sample-audit pass/fail notes, and any
+route failures. Fix and re-verify before reporting deployment complete.

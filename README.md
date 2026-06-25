@@ -73,6 +73,8 @@ tmux new -d -s thesis-auditor-web \
 
 See [docs/web_gui_mvp.md](docs/web_gui_mvp.md) for full setup, environment variables, firewall notes,
 reverse proxy configuration (nginx/Caddy), and operations commands (check logs, restart, stop).
+See [docs/status/live_deployment_checklist.md](docs/status/live_deployment_checklist.md) for the
+live-server restart and post-deploy verification checklist (served commit, tmux session, sample audit).
 See [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md) for the manual browser
 QA checklist (upload flows, download verification, privacy checks, known limitations).
 See [docs/web_ui_demo_guide.md](docs/web_ui_demo_guide.md) for the end-to-end demo guide using
@@ -193,9 +195,14 @@ All findings are heuristic warnings and require manual review.
 
 ### Current Live Status and Canonical Artifacts (post-P083)
 
+Repository progress: **P001–P083** implemented (82 project-added inventory entries; **P075** is a documented non-inventory project task). Next project-added rule ID: **P084** (not started).
+
 | Artifact | Path |
 |---|---|
 | Current live status summary | `docs/status/current_project_state_and_next_steps.md` |
+| Live deployment checklist | `docs/status/live_deployment_checklist.md` |
+| Open PR triage (do not auto-close) | `docs/status/open_pr_triage.md` |
+| Student warning preview helpers | `docs/architecture/student_warning_preview_helpers.md` |
 | Current live manifest index | `docs/status/evaluation_data_manifest.md` |
 | Current live data inventory index | `docs/status/data_inventory_and_evaluation_sources.md` |
 | Historical P082 closeout snapshot | `docs/status/project_closeout.md` |
@@ -213,7 +220,7 @@ All findings are heuristic warnings and require manual review.
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Status snapshot validation | Repository progress: P001–P083 (82 inventory rules spanning P001–P083, with P075 documented as a non-inventory project task); **1138 pytest passed** for the live status snapshot |
+| Status snapshot validation | **2147 pytest passed** at `2a7f216` (2026-06-25); see `docs/status/current_project_state_and_next_steps.md` |
 
 P075 is a documented non-inventory project task, not a `project_added_rules.json` entry. The
 inventory guard allows only explicitly documented skipped P-IDs, currently `P075`, so the next
