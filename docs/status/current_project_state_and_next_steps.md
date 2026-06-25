@@ -1,5 +1,60 @@
 # Current Project State and Next Steps
 
+## Current Status — 2026-06-25 (warning-clarity completion through PR #372)
+
+This section is the authoritative current snapshot. Everything below it (including the
+2026-06-23 and earlier dated bullets) is preserved as historical context and should not
+be read as current.
+
+- **Baseline main:** `2a7f216d2d01cbc0268661d30f4a385287506805` (PR #372 — Suppress timestamp-like TOC false positives).
+- **Baseline main for this status snapshot:** `2a7f216` (short SHA for manifest alignment).
+- **Status snapshot validation:** `ruff check .` clean; `mypy src` clean (100 source files); `python -m pytest` → **2147 pytest passed**, 1 warning (pre-existing duplicate-zip-member `UserWarning` in upload tests).
+- **Live website:** `http://10.196.93.210:8000/` serves current `main` (`2a7f216`) via tmux session `web`, uvicorn on port 8000, repo checkout `/home/soroush/njit-thesis-auditor`. Confirm with `GET /version`.
+- **Sample audit regression:** built-in `ester_sample_d` (`POST /audits/sample`) — timestamp-like TOC false positives (e.g. `2026-04-30 12:45:08`) **gone** after #372; #371 live-review card fixes **still pass** on fresh audits.
+- **Rule inventory:** P001–P083 implemented (82 inventory entries; P075 documented non-inventory project task); **P084** not started (per standing instruction).
+- **CI:** GitHub Actions may still fail on billing/spending limits; local validation is green at `2a7f216`.
+
+### Recently merged warning-clarity work (#367–#372)
+
+| PR | Summary |
+|---|---|
+| [#367](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/367) | P012 annotation page rollup for dense warnings |
+| [#368](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/368) | P012 document-level summary for high-volume annotation warnings |
+| [#369](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/369) | P026 font warning rollups |
+| [#370](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/370) | Final warning clarity sweep (P011/P024/P026/P036/P044/P046 grouped locations) |
+| [#371](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/371) | P018/P020/P036 live-review fixes: shorter main cards, P020 dedup, P036 leader-dot cleanup, P018 highlights, CHAPTER structural-label suppression |
+| [#372](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/372) | Skip export timestamp metadata lines in TOC/list entry parsing (e.g. `YYYY-MM-DD HH:MM:SS`) |
+
+### Student-facing warning behavior now live
+
+- P012: page rollup + document summary for high-volume annotation warnings.
+- P026: font warning rollups with clearer student labels.
+- P011 / P024 / P026 / P036 / P044 / P046: grouped warning location clarity (#370).
+- P018 / P020 / P036: shorter main cards; no repeated suggested-fix text in P036 main card (#371).
+- P020: duplicate suppression for same-heading/same-word cards (#371).
+- P036: leader-dot stripping in snippets; gap metrics only in detailed explanations (#371).
+- P018: affected-entry highlights when bbox exists; CHAPTER/PAGE/TITLE structural labels suppressed (#371).
+- P018: timestamp/export metadata lines not treated as TOC entries (#372).
+
+### Open PR triage
+
+See `docs/status/open_pr_triage.md`. **Do not** close/merge/rebase #311, #349, or #362 during cleanup unless explicitly requested.
+
+### Maintainer docs added/updated in this era
+
+- Live deployment: `docs/status/live_deployment_checklist.md`
+- Student-preview architecture: `docs/architecture/student_warning_preview_helpers.md`
+- Open PR triage: `docs/status/open_pr_triage.md`
+
+### Next recommended work (post-#372)
+
+1. Resolve GitHub Actions billing if CI should gate merges again.
+2. Review open PRs #362, #349, #311 per `docs/status/open_pr_triage.md`.
+3. Optional Query 3: stale branch/worktree inventory and safe log rotation (not user audit history).
+4. P084 remains out of scope unless explicitly requested.
+
+---
+
 ## Current Status — 2026-06-23 (repo audit, doc cleanup, and PR triage)
 
 This section is the authoritative current snapshot. Everything below it (including the
