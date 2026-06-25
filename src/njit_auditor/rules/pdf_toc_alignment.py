@@ -6,9 +6,12 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import normalize_heading_text
-from njit_auditor.toc_list_student_preview import sanitize_toc_list_entry_preview
+from njit_auditor.toc_list_student_preview import (
+    is_toc_structural_column_label,
+    sanitize_toc_list_entry_preview,
+)
 
 TOC_HEADING_MAP = {
     "TABLE OF CONTENTS": "table_of_contents",
@@ -65,9 +68,10 @@ def _details_with_affected_entry_preview(
     entry: TocEntryLine,
 ) -> dict[str, str]:
     preview = sanitize_toc_list_entry_preview(entry.cleaned_text)
-    if not preview:
-        return details
-    return {**details, "affected_entry_preview": preview}
+    enriched = {**details, "bbox": format_bbox_detail(entry.line.bbox)}
+    if preview:
+        enriched["affected_entry_preview"] = preview
+    return enriched
 
 
 class TocPageContext:
@@ -436,7 +440,12 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
         entries_with_page_num = [
             entry for entry in entries if entry.page_number_right_x is not None
         ]
-        entries_missing_page_num = [entry for entry in entries if entry.page_number_right_x is None]
+        entries_missing_page_num = [
+            entry
+            for entry in entries
+            if entry.page_number_right_x is None
+            and not is_toc_structural_column_label(entry.cleaned_text)
+        ]
 
         if len(entries_with_page_num) >= 3:
             right_edges = [

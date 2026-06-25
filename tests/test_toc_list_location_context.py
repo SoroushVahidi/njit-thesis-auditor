@@ -94,9 +94,10 @@ def test_p036_finding_view_highlights_gap_with_entry_snippets(tmp_path: Path) ->
     assert "Chapter 4" in fv.location_label
     assert "entries 1-2" not in fv.location_label.lower()
 
-    assert "Chapter 3" in fv.polished_comment
-    assert "Chapter 4" in fv.polished_comment
-    assert "blank line" in fv.polished_comment.lower()
+    assert "Chapter 3" in fv.location_label
+    assert "Chapter 4" in fv.location_label
+    assert "too tight" in fv.polished_comment.lower()
+    assert "Add spacing" in fv.suggested_fix
     assert "entries 1-2" not in fv.polished_comment.lower()
 
     comment = build_polished_comment(
@@ -125,7 +126,7 @@ def test_p036_fallback_wording_without_previews() -> None:
     )
     view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
     fv = view.findings[0]
-    assert "two consecutive entries" in fv.polished_comment.lower()
+    assert "too tight" in fv.polished_comment.lower()
     assert fv.location_label == "Page 12 — Table of Contents, spacing between entries 5-6"
 
 
@@ -145,9 +146,9 @@ def test_p018_location_uses_affected_entry_preview() -> None:
     )
     view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
     fv = view.findings[0]
-    assert "affected entry:" in fv.location_label.lower()
+    assert 'entry "chapter 3 methodology overview"' in fv.location_label.lower()
     assert "Chapter 3 Methodology Overview" in fv.location_label
-    assert "hierarchy level" in fv.suggested_fix.lower()
+    assert "same level" in fv.suggested_fix.lower()
 
 
 def test_p046_location_uses_affected_entry_preview(tmp_path: Path) -> None:

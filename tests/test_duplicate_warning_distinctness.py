@@ -112,18 +112,19 @@ def test_p020_comment_names_heading_and_flagged_word() -> None:
         )
     )
     card = view.findings[0]
-    assert "Synthetic Exoskeleton Study Marker ABC" in card.polished_comment
+    assert "Synthetic Exoskeleton Study Marker ABC" in card.location_label
     assert "'study'" in card.polished_comment
     assert "'Study'" in card.polished_comment
 
 
-def test_p020_dedup_key_uses_rounded_bbox() -> None:
+def test_p020_dedup_key_uses_heading_preview_not_bbox() -> None:
     details = {
         "issue_type": "possible_title_capitalization_issue",
         "flagged_word": "study",
         "corrected_word": "Study",
         "expected_or_reason": "major_word_requires_capital",
         "source": "heading",
+        "line_preview": "Synthetic Exoskeleton Study Marker ABC",
         "bbox": "108.04,100.02,500.01,120.08",
     }
     key_a = p020_display_dedup_key(details, page=1)
@@ -131,7 +132,7 @@ def test_p020_dedup_key_uses_rounded_bbox() -> None:
     key_b = p020_display_dedup_key(details, page=1)
     assert key_a == key_b
 
-    details["bbox"] = "108.0,100.0,500.0,220.0"
+    details["line_preview"] = "Different heading line"
     key_other = p020_display_dedup_key(details, page=1)
     assert key_a != key_other
 

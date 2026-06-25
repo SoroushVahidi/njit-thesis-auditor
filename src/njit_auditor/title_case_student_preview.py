@@ -52,15 +52,41 @@ def _bbox_fingerprint(bbox_text: str) -> tuple[float, ...] | None:
 def p020_display_dedup_key(details: Mapping[str, str], *, page: int | None = None) -> tuple:
     """Build a presentation-layer key for exact duplicate P020 cards."""
     page_token = str(page) if page is not None else details.get("page_number", "").strip()
+    preview = sanitize_title_case_line_preview(details.get("line_preview", "")).casefold()
     return (
         details.get("issue_type", "").strip(),
         page_token,
+        preview,
         details.get("flagged_word", "").strip(),
         details.get("corrected_word", "").strip(),
         details.get("expected_or_reason", "").strip(),
         details.get("source", "").strip(),
-        _bbox_fingerprint(details.get("bbox", "").strip() or ""),
     )
+
+
+def p020_short_suggested_fix(
+    flagged_word: str,
+    corrected_word: str,
+    line_preview: str,
+) -> str:
+    preview = sanitize_title_case_line_preview(line_preview)
+    if preview and flagged_word:
+        pattern = re.compile(re.escape(flagged_word), re.IGNORECASE)
+        if pattern.search(preview):
+            updated = pattern.sub(corrected_word, preview, count=1)
+            return f'Change "{preview}" to "{updated}".'
+    if flagged_word and corrected_word:
+        return f'Change "{flagged_word}" to "{corrected_word}" in this heading.'
+    return "Correct the flagged word capitalization in this heading."
+
+
+def p020_short_likely_problem(flagged_word: str, corrected_word: str) -> str:
+    if flagged_word and corrected_word:
+        return (
+            f"Likely problem: In this heading, '{flagged_word}' should be "
+            f"capitalized as '{corrected_word}'."
+        )
+    return "Likely problem: A word in this heading may not follow Title Case."
 
 
 def consume_p020_display_slot(

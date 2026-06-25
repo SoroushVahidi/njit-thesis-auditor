@@ -11,7 +11,10 @@ from njit_auditor.title_case_student_preview import (
     sanitize_title_case_line_preview,
     title_case_subject_kind,
 )
-from njit_auditor.toc_list_student_preview import spacing_entries_phrase
+from njit_auditor.toc_list_student_preview import (
+    sanitize_toc_list_entry_preview,
+    spacing_entries_phrase,
+)
 
 # ---------------------------------------------------------------------------
 # Action kind / label helpers
@@ -1226,7 +1229,33 @@ _P036_SECTION_LABELS: dict[str, str] = {
 }
 
 
-def _p036_entry_pair_label(details: dict[str, str]) -> str:
+def _p018_alignment_explanation(
+    issue_type: str, details: dict[str, str], *, page: int | None
+) -> str:
+    page_phrase = f"page {page}" if page is not None else "this page"
+    section_label = _P036_SECTION_LABELS.get(
+        details.get("page_type", details.get("section_type", "")).strip(),
+        "TOC/list",
+    )
+    preview = sanitize_toc_list_entry_preview(details.get("affected_entry_preview", ""))
+    entry_clause = f' Entry: "{preview}".' if preview else ""
+    count = details.get("affected_entry_count", "").strip()
+    delta = details.get("worst_delta_pt", "").strip()
+    extras: list[str] = []
+    if count:
+        noun = "entry" if count == "1" else "entries"
+        extras.append(f"{count} {noun} affected on this page")
+    if delta:
+        extras.append(f"worst offset about {delta}pt")
+    metrics = f" ({'; '.join(extras)})" if extras else ""
+    return (
+        f"Observed: A {section_label} alignment issue on {page_phrase}{metrics}."
+        f"{entry_clause} Expected: list entries should keep consistent page numbers, "
+        "leader dots, and hierarchy indentation. What to check or fix: open the "
+        "flagged list page and compare the affected entry with nearby entries at "
+        "the same level."
+    )
+
     try:
         index = int(details.get("entry_pair_index", "").strip())
     except ValueError:
@@ -1250,6 +1279,9 @@ def _p036_spacing_explanation(details: dict[str, str], *, page: int | None) -> s
         extras.append(f"observed gap {gap_points}pt")
     if required_gap_points:
         extras.append(f"expected at least {required_gap_points}pt")
+    gap_ratio = details.get("gap_ratio", "").strip()
+    if gap_ratio:
+        extras.append(f"about {gap_ratio}x the expected spacing")
     detail_phrase = f" ({'; '.join(extras)})" if extras else ""
     return (
         f"Observed: The space between {entries_phrase} of the {section_label} on "
@@ -1763,6 +1795,13 @@ def _build_explanation_text(
         return _p020_title_case_explanation(details, page=page)
     if rule_id == "P036" and effective_issue_type in _P036_SPACING_ISSUE_TYPES:
         return _p036_spacing_explanation(details, page=page)
+    if rule_id == "P018" and effective_issue_type in {
+        "misaligned_page_number_column",
+        "missing_page_number",
+        "inconsistent_leader_dots",
+        "inconsistent_hierarchy_indent",
+    }:
+        return _p018_alignment_explanation(effective_issue_type, details, page=page)
     if rule_id == "P014":
         return _p014_heading_explanation(details, page=page)
     if rule_id == "P016" and effective_issue_type in {

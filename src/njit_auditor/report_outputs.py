@@ -2458,6 +2458,16 @@ def _serialized_finding_is_visible_problem(
     issue_type = details.get("issue_type", "").strip()
     category = map_finding_rule_to_category(rule_id, details)
 
+    if rule_id == "P018" and issue_type == "missing_page_number":
+        from njit_auditor.toc_list_student_preview import (
+            is_toc_structural_column_label,
+            sanitize_toc_list_entry_preview,
+        )
+
+        preview = sanitize_toc_list_entry_preview(details.get("affected_entry_preview", ""))
+        if preview and is_toc_structural_column_label(preview):
+            return False
+
     if (
         rule_id == "P020"
         and issue_type == "possible_title_capitalization_issue"
@@ -2688,30 +2698,23 @@ _P020_TITLE_CASE_DEFAULT_SUBJECT_AND_RULE = (
 def _p020_title_case_individual_comment(
     *, page: int | None, details: dict[str, str]
 ) -> str | None:
-    """Return word-specific P020 Markdown text, or None when unavailable.
-
-    The flagged word and its corrected capitalization come from this
-    student's own uploaded PDF, so showing them in their own report
-    (unlike the generic build_polished_comment() text used for grouping)
-    is safe.
-    """
+    """Return word-specific P020 Markdown text, or None when unavailable."""
     flagged_word = details.get("flagged_word", "").strip()
     corrected_word = details.get("corrected_word", "").strip()
     if not flagged_word or not corrected_word:
         return None
-    page_label = str(page) if page is not None else "this page"
-    subject, rule_clause = _P020_TITLE_CASE_SUBJECT_AND_RULE.get(
-        details.get("source", ""), _P020_TITLE_CASE_DEFAULT_SUBJECT_AND_RULE
+    from njit_auditor.title_case_student_preview import (
+        p020_short_likely_problem,
+        p020_short_suggested_fix,
     )
-    from njit_auditor.title_case_student_preview import sanitize_title_case_line_preview
 
-    preview = sanitize_title_case_line_preview(details.get("line_preview", ""))
-    heading_clause = f" '{preview}'" if preview else ""
-    return (
-        f"In a {subject}{heading_clause} on page {page_label}, the word '{flagged_word}' should be "
-        f"capitalized as '{corrected_word}'. {rule_clause} (capitalize the first "
-        "word, last word, and all major words of 4+ letters)."
+    comment = p020_short_likely_problem(flagged_word, corrected_word)
+    fix = p020_short_suggested_fix(
+        flagged_word,
+        corrected_word,
+        details.get("line_preview", ""),
     )
+    return f"{comment} Suggested fix: {fix}"
 
 
 def _individual_finding_comment(
@@ -2767,27 +2770,16 @@ def _individual_finding_comment(
             return p011_combined_rolled_up_comment(page_stats)
 
     if rule_id == "P036" and issue_type in _P036_SPACING_ISSUE_TYPES:
-        page_label = str(page) if page is not None else "this page"
-        section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
-        from njit_auditor.toc_list_student_preview import spacing_entries_phrase
+        from njit_auditor.toc_list_student_preview import (
+            p036_short_likely_problem,
+            p036_short_suggested_fix,
+        )
 
-        entries_phrase = spacing_entries_phrase(
+        comment = p036_short_likely_problem(
             details.get("previous_entry_preview", ""),
             details.get("next_entry_preview", ""),
         )
-        observed = details.get("gap_points", "").strip()
-        required = details.get("required_gap_points", "").strip()
-        gap_clause = (
-            f" (observed gap {observed}pt, expected at least {required}pt)"
-            if observed and required
-            else ""
-        )
-        return (
-            f"The space between {entries_phrase} of the {section_label} "
-            f"on page {page_label} appears tighter than expected{gap_clause}. Add "
-            "a blank line or increase paragraph spacing between these entries, then "
-            "compare with nearby entries in the same list."
-        )
+        return f"{comment} Suggested fix: {p036_short_suggested_fix()}."
     if rule_id == "P020" and issue_type == "possible_title_capitalization_issue":
         body = _p020_title_case_individual_comment(page=page, details=details)
         if body is not None:

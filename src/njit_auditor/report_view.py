@@ -91,13 +91,20 @@ from njit_auditor.report_outputs import (
 from njit_auditor.title_case_student_preview import (
     affected_title_phrase,
     consume_p020_display_slot,
+    p020_short_likely_problem,
+    p020_short_suggested_fix,
     sanitize_title_case_line_preview,
 )
 from njit_auditor.toc_list_student_preview import (
     affected_entry_phrase,
     between_entries_phrase,
+    is_toc_structural_column_label,
+    p018_entry_location_suffix,
+    p018_short_likely_problem,
+    p018_short_suggested_fix,
+    p036_short_likely_problem,
+    p036_short_suggested_fix,
     sanitize_toc_list_entry_preview,
-    spacing_entries_phrase,
 )
 
 _TRIAGE_KEYS: tuple[tuple[str, str, str], ...] = (
@@ -462,8 +469,13 @@ def enriched_pdf_location_label(
         if page_prefix:
             return f"{page_prefix} — {pair_clause}"
 
-    preview = details.get("affected_entry_preview", "").strip()
-    if preview and page_prefix and section_label and rule_id in {"P018", "P046"}:
+    preview = sanitize_toc_list_entry_preview(details.get("affected_entry_preview", ""))
+    if preview and page_prefix and section_label and rule_id == "P018":
+        suffix = p018_entry_location_suffix(preview)
+        if suffix:
+            return f"{page_prefix} — {section_label} {suffix}"
+
+    if preview and page_prefix and section_label and rule_id in {"P046"}:
         return f"{page_prefix} — {section_label}, {affected_entry_phrase(preview)}"
 
     if rule_id == "P024" and entry_index.isdigit() and page_prefix:
@@ -1686,16 +1698,7 @@ def _apply_title_case_presentation(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[FindingView, bool]:
-    """Distinguish same-page P020 occurrences by the offending word.
-
-    Overrides only the display comment after grouping has already been
-    computed upstream (on the word-independent comment), so repeated
-    same-page occurrences with the same source/reason still collapse into
-    one grouped card; only the per-occurrence text shown when expanded
-    differs. The flagged word and its corrected capitalization come from
-    this student's own uploaded PDF, so showing them here (unlike the
-    generic build_polished_comment() text) is safe.
-    """
+    """Short main-card wording for P020 title-case findings."""
     if finding.rule_id != "P020" or finding.issue_type != "possible_title_capitalization_issue":
         return finding, True
     finding = replace(finding, issue_type_label=_title_case_issue_label(details))
@@ -1703,17 +1706,13 @@ def _apply_title_case_presentation(
     corrected_word = details.get("corrected_word", "").strip()
     if not flagged_word or not corrected_word:
         return finding, True
-    page_label = str(finding.page) if finding.page is not None else "this page"
-    subject, rule_clause = _title_case_subject_and_rule_clause(details)
-    preview = sanitize_title_case_line_preview(details.get("line_preview", ""))
-    heading_clause = f" '{preview}'" if preview else ""
-    comment = (
-        f"Likely problem: In a {subject}{heading_clause} on page {page_label}, the word "
-        f"'{flagged_word}' should be capitalized as '{corrected_word}'. "
-        f"{rule_clause} (capitalize the first word, last word, and all "
-        "major words of 4+ letters)."
+    comment = p020_short_likely_problem(flagged_word, corrected_word)
+    suggested_fix = p020_short_suggested_fix(
+        flagged_word,
+        corrected_word,
+        details.get("line_preview", ""),
     )
-    return replace(finding, polished_comment=comment), True
+    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 
 _P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(
@@ -1758,33 +1757,14 @@ def _apply_spacing_presentation(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[FindingView, bool]:
-    """Distinguish same-page P036 occurrences by entry pair and gap metrics.
-
-    This only overrides the display comment after grouping has already been
-    computed upstream (on the generic, pair-independent comment), so repeated
-    same-page occurrences still collapse into one grouped card; only the
-    per-occurrence text shown when expanded differs.
-    """
+    """Short main-card wording for P036 inter-entry spacing findings."""
     if finding.rule_id != "P036" or finding.issue_type not in _P036_SPACING_ISSUE_TYPES:
         return finding, True
-    page_label = str(finding.page) if finding.page is not None else "this page"
-    section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
-    entries_phrase = spacing_entries_phrase(
+    comment = p036_short_likely_problem(
         details.get("previous_entry_preview", ""),
         details.get("next_entry_preview", ""),
     )
-    detail_phrase = _p036_spacing_detail_phrase(details)
-    comment = (
-        f"Likely problem: The space between {entries_phrase} of the {section_label} on "
-        f"page {page_label} appears tighter than expected{detail_phrase}. NJIT expects "
-        "consistent, comfortably readable spacing between consecutive entries. Add a blank "
-        "line or increase paragraph spacing between these entries, then compare with "
-        "nearby entries in the same list."
-    )
-    suggested_fix = (
-        "Add a blank line or increase paragraph spacing between the affected entries, "
-        "then compare the spacing with nearby entries in the same list."
-    )
+    suggested_fix = p036_short_suggested_fix()
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 
@@ -1922,23 +1902,31 @@ def _apply_toc_alignment_presentation(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[FindingView, bool]:
-    """Surface P018's per-page affected entry count and worst offset.
-
-    Overrides only the display comment after grouping has already been
-    computed upstream (on the count/offset-independent comment).
-    """
-    template = _P018_ENTRY_TEMPLATES.get(finding.issue_type)
-    if finding.rule_id != "P018" or template is None:
+    """Short main-card wording for P018 TOC/list alignment findings."""
+    if finding.rule_id != "P018":
         return finding, True
-    page_label = str(finding.page) if finding.page is not None else "this page"
-    comment = template.format(page=page_label, count_clause=_p018_count_clause(details))
-    preview = details.get("affected_entry_preview", "").strip()
-    if preview:
-        comment = f"{comment.rstrip('.')}. Affected entry: '{preview}'."
-    suggested_fix = _P018_SUGGESTED_FIXES.get(
-        finding.issue_type, finding.suggested_fix
-    )
-    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
+    preview = sanitize_toc_list_entry_preview(details.get("affected_entry_preview", ""))
+    if (
+        finding.issue_type == "missing_page_number"
+        and preview
+        and is_toc_structural_column_label(preview)
+    ):
+        return finding, False
+    comment = p018_short_likely_problem(finding.issue_type)
+    suggested_fix = p018_short_suggested_fix(finding.issue_type, finding.suggested_fix)
+    page_label = str(finding.page) if finding.page is not None else None
+    section_label = _section_label_from_details(details) or "Table of Contents"
+    location_label = finding.location_label
+    if preview and page_label is not None:
+        location_label = (
+            f"Page {page_label} — {section_label} {p018_entry_location_suffix(preview)}"
+        )
+    return replace(
+        finding,
+        polished_comment=comment,
+        suggested_fix=suggested_fix,
+        location_label=location_label,
+    ), True
 
 
 def _p046_count_clause(details: Mapping[str, str]) -> str:

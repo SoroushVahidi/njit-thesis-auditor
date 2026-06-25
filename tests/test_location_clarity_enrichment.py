@@ -148,9 +148,9 @@ def test_p020_polished_comment_distinguishes_heading_from_table_title() -> None:
     ]
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
-    comments = [f.polished_comment for f in view.findings if f.rule_id == "P020"]
-    assert any("Level 2 heading" in c for c in comments)
-    assert any("table title" in c for c in comments)
+    labels = [f.issue_type_label for f in view.findings if f.rule_id == "P020"]
+    assert any("heading" in label for label in labels)
+    assert any("table title" in label for label in labels)
 
 
 def test_p020_comment_falls_back_safely_without_word_metadata() -> None:
@@ -210,7 +210,8 @@ def test_p020_polished_comment_uses_truncated_heading_snippet_not_blocked_summar
     fv = next(f for f in view.findings if f.rule_id == "P020")
     assert forbidden not in fv.polished_comment
     assert forbidden not in fv.issue_type_label
-    assert "..." in fv.polished_comment
+    assert forbidden not in fv.location_label
+    assert "..." in fv.location_label
 
 
 def test_markdown_report_distinguishes_p020_words_on_same_page(tmp_path: Path) -> None:
@@ -386,13 +387,12 @@ def test_p036_distinguishes_entry_pairs_on_same_page() -> None:
     ]
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
-    comments = [fv.polished_comment for fv in view.findings if fv.rule_id == "P036"]
-    assert len(comments) == 2
-    assert comments[0] != comments[1]
-    assert "Chapter" in comments[0] or "entries" in comments[0]
-    assert "observed gap 3.2pt" in comments[0]
-    assert "observed gap 2.1pt" in comments[1]
-    assert "about 0.35x the expected spacing" in comments[0]
+    cards = [fv for fv in view.findings if fv.rule_id == "P036"]
+    assert len(cards) == 2
+    assert cards[0].location_label != cards[1].location_label
+    assert "too tight" in cards[0].polished_comment
+    assert "observed gap 3.2pt" in cards[0].detailed_explanation
+    assert "observed gap 2.1pt" in cards[1].detailed_explanation
 
 
 def test_p036_avoids_generic_fallback_comment() -> None:
@@ -412,8 +412,7 @@ def test_p036_avoids_generic_fallback_comment() -> None:
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P036")
     assert "found a possible" not in fv.polished_comment.lower()
-    assert "List of Figures" in fv.polished_comment
-    assert "two consecutive entries" in fv.polished_comment
+    assert "too tight" in fv.polished_comment.lower()
 
 
 def test_p036_grouping_key_is_stable_across_entry_pairs() -> None:
@@ -466,8 +465,8 @@ def test_markdown_report_distinguishes_p036_entry_pairs_on_same_page(tmp_path: P
     assert problem_lines[0] != problem_lines[1]
     assert "entries 1-2" in problem_lines[0]
     assert "entries 6-7" in problem_lines[1]
-    assert "observed gap 4.0pt" in problem_lines[0]
-    assert "observed gap 3.0pt" in problem_lines[1]
+    assert "too tight" in problem_lines[0]
+    assert "too tight" in problem_lines[1]
 
 
 def test_markdown_report_p036_single_finding_is_not_duplicated(tmp_path: Path) -> None:
@@ -494,8 +493,7 @@ def test_markdown_report_p036_includes_section_and_gap_metadata_when_available(
 
     assert "Table of Contents" in text
     assert "entries 2-3" in text
-    assert "observed gap 2.5pt" in text
-    assert "expected at least 9.1pt" in text
+    assert "too tight" in text
 
 
 def test_markdown_report_p036_does_not_fall_back_to_generic_wording(
@@ -532,8 +530,7 @@ def test_markdown_report_p036_omits_gap_clause_without_measurements(
     write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
     text = output_path.read_text(encoding="utf-8")
 
-    assert "List of Figures" in text
-    assert "two consecutive entries" in text
+    assert "too tight" in text
     assert "observed gap" not in text
 
 
@@ -710,9 +707,9 @@ def test_p018_includes_affected_entry_count_and_offset() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P018")
-    assert "3 entries affected" in fv.polished_comment
-    assert "worst offset about 4.2pt" in fv.polished_comment
-    assert "page-number column" in fv.polished_comment
+    assert "3 entries affected" in fv.detailed_explanation
+    assert "worst offset about 4.2pt" in fv.detailed_explanation
+    assert "does not align" in fv.polished_comment.lower()
 
 
 def test_p018_missing_page_number_includes_count() -> None:
@@ -728,7 +725,7 @@ def test_p018_missing_page_number_includes_count() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P018")
-    assert "1 entry affected" in fv.polished_comment
+    assert "1 entry affected" in fv.detailed_explanation
     assert "missing" in fv.polished_comment.lower()
     assert "page number" in fv.polished_comment.lower()
 
@@ -884,7 +881,9 @@ def test_grouped_p036_individual_findings_are_distinguishable() -> None:
     gp = next(g for g in view.grouped_problems if g.rule_id == "P036")
     assert gp.is_grouped
     comments = [f.polished_comment for f in gp.individual_findings]
-    assert len(comments) == len(set(comments)) == 3
+    locations = [f.location_label for f in gp.individual_findings]
+    assert len(locations) == len(set(locations)) == 3
+    assert all("too tight" in comment for comment in comments)
 
 
 def test_grouped_p035_individual_findings_are_distinguishable() -> None:
@@ -944,7 +943,9 @@ def test_grouped_p018_individual_findings_are_distinguishable() -> None:
     gp = next(g for g in view.grouped_problems if g.rule_id == "P018")
     assert gp.is_grouped
     comments = [f.polished_comment for f in gp.individual_findings]
-    assert len(comments) == len(set(comments)) == 2
+    explanations = [f.detailed_explanation for f in gp.individual_findings]
+    assert len(explanations) == len(set(explanations)) == 2
+    assert all("does not align" in comment.lower() for comment in comments)
 
 
 def test_grouped_p046_individual_findings_are_distinguishable() -> None:
