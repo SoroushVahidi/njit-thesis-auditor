@@ -7,9 +7,29 @@ import re
 from njit_auditor.pdf_models import BBox
 
 _ENTRY_PREVIEW_MAX = 72
+_LEADER_DOTS_RE = re.compile(r"\.{2,}")
 _LEADER_STRIP_RE = re.compile(r"\s*(?:\.\s*){2,}$")
 _TRAILING_PAGE_NUM_RE = re.compile(r"\s+\d{1,4}\s*$")
 _MIN_GAP_HIGHLIGHT_HEIGHT_PT = 2.0
+
+_TOC_STRUCTURAL_COLUMN_LABELS = frozenset(
+    {
+        "CHAPTER",
+        "CHAPTERS",
+        "PAGE",
+        "PAGES",
+        "TITLE",
+        "TABLE",
+        "FIGURE",
+        "FIGURES",
+    }
+)
+
+
+def is_toc_structural_column_label(text: str) -> bool:
+    """Return True when text looks like a TOC/list column header, not a real entry."""
+    normalized = " ".join(text.strip().split()).upper().rstrip(".:")
+    return normalized in _TOC_STRUCTURAL_COLUMN_LABELS
 
 
 def sanitize_toc_list_entry_preview(text: str, *, max_len: int = _ENTRY_PREVIEW_MAX) -> str:
@@ -17,6 +37,7 @@ def sanitize_toc_list_entry_preview(text: str, *, max_len: int = _ENTRY_PREVIEW_
     cleaned = " ".join(text.strip().split())
     if not cleaned:
         return ""
+    cleaned = _LEADER_DOTS_RE.sub(" ", cleaned).strip()
     cleaned = _LEADER_STRIP_RE.sub("", cleaned).strip()
     cleaned = _TRAILING_PAGE_NUM_RE.sub("", cleaned).strip()
     if not cleaned:
@@ -50,10 +71,18 @@ def gap_bbox_between_boxes(
     return BBox(x0=x0, y0=gap_y0, x1=x1, y1=gap_y1)
 
 
+def p018_entry_location_suffix(preview: str) -> str:
+    """Format a P018 location suffix for one affected list entry."""
+    cleaned = sanitize_toc_list_entry_preview(preview)
+    if not cleaned:
+        return ""
+    return f'entry "{cleaned}"'
+
+
 def between_entries_phrase(before_preview: str, after_preview: str) -> str:
     """Format a location phrase for the gap between two entries."""
-    before = before_preview.strip()
-    after = after_preview.strip()
+    before = sanitize_toc_list_entry_preview(before_preview)
+    after = sanitize_toc_list_entry_preview(after_preview)
     if before and after:
         return f"between '{before}' and '{after}'"
     if before:
@@ -73,11 +102,70 @@ def affected_entry_phrase(preview: str) -> str:
 
 def spacing_entries_phrase(before_preview: str, after_preview: str) -> str:
     """Format comment wording for the two entries in a tight-spacing pair."""
-    before = before_preview.strip()
-    after = after_preview.strip()
+    before = sanitize_toc_list_entry_preview(before_preview)
+    after = sanitize_toc_list_entry_preview(after_preview)
     if before and after:
         return f"the entries '{before}' and '{after}'"
     if before or after:
         single = before or after
         return f"the entry '{single}' and the next consecutive entry"
     return "two consecutive entries"
+
+
+def p036_short_likely_problem(before_preview: str, after_preview: str) -> str:
+    before = sanitize_toc_list_entry_preview(before_preview)
+    after = sanitize_toc_list_entry_preview(after_preview)
+    if before and after:
+        return (
+            f"Likely problem: The space between '{before}' and '{after}' is too tight."
+        )
+    return "Likely problem: The space between these two TOC entries is too tight."
+
+
+def p036_short_suggested_fix() -> str:
+    return "Add spacing between these entries so it matches nearby TOC entries."
+
+
+_P018_SHORT_LIKELY: dict[str, str] = {
+    "misaligned_page_number_column": (
+        "Likely problem: This entry's page number does not align with the dominant "
+        "column on this list page."
+    ),
+    "missing_page_number": (
+        "Likely problem: This entry appears to be missing its trailing page number."
+    ),
+    "inconsistent_leader_dots": (
+        "Likely problem: Leader-dot spacing before this entry's page number is "
+        "inconsistent with nearby entries."
+    ),
+    "inconsistent_hierarchy_indent": (
+        "Likely problem: This entry is indented differently from other entries at "
+        "the same hierarchy level."
+    ),
+}
+
+_P018_SHORT_FIX: dict[str, str] = {
+    "misaligned_page_number_column": (
+        "Align this entry's page number with the dominant right-hand column on this "
+        "list page."
+    ),
+    "missing_page_number": "Add the missing trailing page number to this entry.",
+    "inconsistent_leader_dots": (
+        "Make the leader-dot spacing before this entry's page number match nearby "
+        "entries."
+    ),
+    "inconsistent_hierarchy_indent": (
+        "Align this entry's left indent with the other TOC entries at the same level."
+    ),
+}
+
+
+def p018_short_likely_problem(issue_type: str) -> str:
+    return _P018_SHORT_LIKELY.get(
+        issue_type,
+        "Likely problem: This TOC or list entry may not match NJIT formatting on this page.",
+    )
+
+
+def p018_short_suggested_fix(issue_type: str, fallback: str = "") -> str:
+    return _P018_SHORT_FIX.get(issue_type, fallback)

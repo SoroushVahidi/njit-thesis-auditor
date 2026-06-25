@@ -208,7 +208,7 @@ def test_enriched_location_uses_affected_entry_preview_for_p018() -> None:
         },
         12,
     )
-    assert label == "Page 12 — Table of Contents, affected entry: 'Chapter 3 Methodology Overview'"
+    assert label == 'Page 12 — Table of Contents entry "Chapter 3 Methodology Overview"'
 
 
 def test_enriched_location_uses_affected_count_for_p018_without_worst_entry() -> None:
