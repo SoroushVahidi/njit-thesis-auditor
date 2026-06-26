@@ -648,9 +648,14 @@ def _confidence_css_class(levels: Sequence[str]) -> str:
     ordered = _ordered_confidence_levels(levels)
     if len(ordered) == 1:
         return f"confidence-badge--{ordered[0]}"
-    if ordered:
-        return "confidence-badge--mixed"
-    return "confidence-badge--unknown"
+    if not ordered:
+        return "confidence-badge--unknown"
+    level_set = set(ordered)
+    if "high" in level_set:
+        return "confidence-badge--mixed-orange"
+    if "medium" in level_set:
+        return "confidence-badge--medium"
+    return "confidence-badge--low"
 
 
 def _finding_view_from_item(

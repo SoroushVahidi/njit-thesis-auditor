@@ -46,29 +46,31 @@
     text-transform: none;
     letter-spacing: 0;
     line-height: 1.2;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
   }
-  /* Confidence badges use a cool blue/purple/gray palette, deliberately distinct
-     from the warm red/yellow/green severity badges in base.html (.badge-fail/
-     .badge-warn/.badge-pass), so confidence is never mistaken for severity. */
-  .confidence-badge--high {
+  /* Confidence palette is separate from category tags (.badge-info) and severity
+     labels. Low=blue, medium=yellow, high=red, mixed high states=orange. */
+  .confidence-badge--low {
     background: #dbeafe;
-    border-color: #93c5fd;
+    border-color: #60a5fa;
     color: #1e3a8a;
   }
   .confidence-badge--medium {
-    background: #ede9fe;
-    border-color: #c4b5fd;
-    color: #5b21b6;
+    background: #fef3c7;
+    border-color: #fbbf24;
+    color: #92400e;
   }
-  .confidence-badge--low {
-    background: #e2e8f0;
-    border-color: #94a3b8;
-    color: #334155;
+  .confidence-badge--high {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #991b1b;
   }
-  .confidence-badge--mixed {
-    background: #eef1f5;
-    border-color: #c8d1dc;
-    color: #334155;
+  .confidence-badge--mixed-orange {
+    background: #ffedd5;
+    border-color: #fb923c;
+    color: #9a3412;
   }
   .confidence-badge--unknown {
     background: #f3f4f6;
@@ -108,6 +110,15 @@
   }
   .confidence-filter__chip[aria-pressed="true"]:hover {
     background: var(--color-primary-dark);
+  }
+  @media (max-width: 640px) {
+    .grouped-problem__summary {
+      gap: 0.35rem;
+    }
+    .confidence-badge {
+      font-size: 0.74rem;
+      padding: 0.18rem 0.55rem;
+    }
   }
 </style>
 {% if state in ("pending", "running") %}
@@ -333,6 +344,18 @@
     {% set badge_class = "confidence-badge--unknown" %}
   {% endif %}
   <span class="confidence-badge {{ badge_class }}">{{ badge_label }}</span>
+{%- endmacro %}
+
+{% macro severity_status_badge(severity, triage_tier="") -%}
+  {% if severity == "PASS" %}
+  <span class="badge badge-pass">Info</span>
+  {% elif triage_tier == "informational" %}
+  <span class="badge badge-muted">Info</span>
+  {% elif triage_tier == "review" %}
+  <span class="badge badge-info">Review</span>
+  {% elif severity == "FAIL" %}
+  <span class="badge badge-fail">Fail</span>
+  {% endif %}
 {%- endmacro %}
 
 {% block content %}
@@ -687,9 +710,7 @@
             {% if problem.issue_type_label %} · {{ problem.issue_type_label }}{% elif problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
             <div class="grouped-problem__summary">
-              {% if problem.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
-              {% elif problem.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
-              {% else %}<span class="badge badge-pass">Information</span>{% endif %}
+              {{ severity_status_badge(problem.severity, problem.triage_tier) }}
               {{ confidence_badge(problem.confidence_level, problem.confidence_label, problem.confidence_css_class) }}
               <span class="badge badge-info">{{ problem.category | humanize_cat }}</span>
               {% if problem.is_grouped %}
@@ -858,9 +879,7 @@
               {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
             </td>
             <td>
-              {% if f.severity == "WARNING" %}<span class="badge badge-warn">Problem</span>
-              {% elif f.severity == "FAIL" %}<span class="badge badge-fail">Problem</span>
-              {% else %}<span class="badge badge-pass">Information</span>{% endif %}
+              {{ severity_status_badge(f.severity, f.triage_tier) }}
             </td>
             <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
             <td>{{ f.category | humanize_cat }}</td>

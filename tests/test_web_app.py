@@ -328,6 +328,7 @@ def _inject_complete_job_with_findings(
     file_name: str,
     audit_type: str,
     page_count: int = 5,
+    grouped_findings: list[dict[str, Any]] | None = None,
 ) -> str:
     """Create a complete job from an explicit findings list."""
     import secrets
@@ -346,6 +347,8 @@ def _inject_complete_job_with_findings(
         (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
     metadata = {"input_file_name": file_name, "audit_type": audit_type, "job_id": job_id}
     payload = audit_findings_to_json_dict(findings, metadata)
+    if grouped_findings is not None:
+        payload["grouped_findings"] = grouped_findings
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
     pdf_page_sizes = (
@@ -628,6 +631,73 @@ def test_results_page_renders_confidence_badges_and_filters(
     assert "Confidence: high" not in body
     assert "Confidence: medium" not in body
     assert "Confidence: low" not in body
+
+
+def test_results_page_omits_redundant_problem_badge_and_uses_confidence_palette(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=3,
+            message="Page number issue.",
+            details={
+                "issue_type": "wrong_page_number_sequence",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=5,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=6,
+            message="Right margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "right_margin",
+                "confidence": "low",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+        grouped_findings=[
+            {
+                "rule_id": "P011",
+                "issue_type": "margin_boundary_violation",
+                "individual_indexes": [1, 2],
+            }
+        ],
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    body = resp.text
+
+    assert resp.status_code == 200
+    assert 'badge-warn">Problem</span>' not in body
+    assert "confidence-badge--medium" in body
+    assert "confidence-badge--high" in body
+    assert "confidence-badge--low" in body
+    assert "confidence-badge--mixed-orange" in body
+    assert "Mixed confidence: High, Low" in body
 
 
 def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
