@@ -12,9 +12,10 @@ from dataclasses import dataclass
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
 from njit_auditor.rules.pdf_headings import (
     BOLD_FONT_HINT_RE,
-    CENTER_TOLERANCE_PT,
     EXPECTED_HEADINGS,
     HeadingMatch,
+    _line_centering,
+    _visible_text_bbox,
     normalize_heading_text,
 )
 from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
@@ -48,12 +49,6 @@ def _is_bold_line(line: PdfTextLine) -> bool:
     if any(span.bold for span in line.spans):
         return True
     return any(BOLD_FONT_HINT_RE.search(span.font or "") for span in line.spans)
-
-
-def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
-    line_center = (line.bbox.x0 + line.bbox.x1) / 2.0
-    text_area_center = (text_area_x0 + text_area_x1) / 2.0
-    return abs(line_center - text_area_center) <= CENTER_TOLERANCE_PT
 
 
 def passes_standalone_line_gate(text: str) -> bool:
@@ -149,15 +144,22 @@ def find_frontmatter_headings_for_gates(
                     continue
                 canonical, match_path, match_confidence = resolved
                 normalized = normalize_heading_text(line.text)
+                centered, center_offset, centering_confidence = _line_centering(
+                    line, text_area_x0, text_area_x1
+                )
+                text_area_center = (text_area_x0 + text_area_x1) / 2.0
                 matches.append(
                     GateHeadingMatch(
                         heading=canonical,
                         page_number=page.page_number,
-                        centered=_line_centered(line, text_area_x0, text_area_x1),
+                        centered=centered,
                         near_top=line.bbox.y0 <= 2.0 * 72.0,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized.upper()),
-                        bbox=line.bbox,
+                        bbox=_visible_text_bbox(line),
+                        center_offset_pt=center_offset,
+                        centering_confidence=centering_confidence,
+                        text_area_center_pt=text_area_center,
                         match_path=match_path,
                         match_confidence=match_confidence,
                     )
