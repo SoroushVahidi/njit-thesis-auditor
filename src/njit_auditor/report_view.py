@@ -1261,14 +1261,32 @@ def _page_number_comment_and_fix(
                 "Set this section's page number to the NJIT template's required Roman numeral.",
             )
         if rule_id == "P019":
+            previous_value = details.get("previous_sequence_value", "").strip()
+            next_value = details.get("next_sequence_value", "").strip()
+            neighbor_parts: list[str] = []
+            if previous_value:
+                neighbor_parts.append(f"previous detected page number: {previous_value}")
+            if next_value:
+                neighbor_parts.append(f"next detected page number: {next_value}")
+            neighbor_clause = (
+                f" Nearby detected numbers: {'; '.join(neighbor_parts)}."
+                if neighbor_parts
+                else ""
+            )
+            sequence_confidence = details.get("sequence_confidence", "").strip() or details.get(
+                "confidence", ""
+            ).strip()
+            confidence_clause = (
+                f" Detection confidence: {sequence_confidence}."
+                if sequence_confidence
+                else ""
+            )
             return (
-                "Review needed: Problem: "
-                f"The page number on page {page_label} is '{observed}', but the "
-                f"document-wide numbering sequence expected '{expected}' at this position. "
-                "This is a broader, whole-document sequence check; if a more specific "
-                "front-matter Roman-numeral sequence or section-template problem is also "
-                "reported above for this page, fix that one first and re-check this "
-                "warning afterward.",
+                f"The printed page number on page {page_label} is '{observed}', but the "
+                f"document-wide numbering sequence expected '{expected}' at this position."
+                f"{neighbor_clause}{confidence_clause} If a more specific front-matter "
+                "Roman-numeral sequence or section-template problem is also reported above "
+                "for this page, fix that one first and re-check this warning afterward.",
                 f"Change this page to '{expected}' or renumber nearby pages so the "
                 "sequence is consecutive.",
             )
@@ -1282,13 +1300,18 @@ def _page_number_comment_and_fix(
         )
 
     if visible_issue_type == "duplicate_or_ambiguous_page_number":
+        candidate_tokens = details.get("candidate_tokens", "").strip()
+        if candidate_tokens:
+            return (
+                f"Multiple plausible page-number tokens were detected on page {page_label}: "
+                f"{candidate_tokens}. Verify which token is the printed page number and "
+                "remove or correct any duplicates.",
+                "Verify which token is the printed page number and remove or correct duplicates.",
+            )
         return (
-            "Review needed: Problem: "
             f"Multiple page-number-like tokens were detected on page {page_label}. "
-            "This may indicate duplicate page numbering or footer/header text being "
-            "mistaken for a page number. Verify which token is the actual page number "
-            "and remove or correct duplicates.",
-            "Verify which token is the actual page number and remove or correct duplicates.",
+            "Verify which token is the printed page number and remove or correct duplicates.",
+            "Verify which token is the printed page number and remove or correct duplicates.",
         )
 
     if visible_issue_type == "page_number_should_be_suppressed":
@@ -2142,37 +2165,114 @@ _P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
 )
 
 
+_P014_HEADING_DISPLAY_NAMES: dict[str, str] = {
+    "ABSTRACT": "Abstract",
+    "APPROVAL PAGE": "Approval Page",
+    "BIOGRAPHICAL SKETCH": "Biographical Sketch",
+    "ACKNOWLEDGEMENTS": "Acknowledgements",
+    "TABLE OF CONTENTS": "Table of Contents",
+    "LIST OF TABLES": "List of Tables",
+    "LIST OF FIGURES": "List of Figures",
+}
+
+
+def _p014_heading_display_name(heading: str) -> str:
+    normalized = heading.strip().upper()
+    return _P014_HEADING_DISPLAY_NAMES.get(normalized, heading.strip().title())
+
+
+def _p014_issue_type_label(heading: str, failed_labels: list[str]) -> str:
+    display_name = _p014_heading_display_name(heading) if heading else ""
+    if failed_labels == ["centered"]:
+        return "Front-matter heading may not be centered"
+    if display_name:
+        return f"{display_name} heading alignment issue"
+    return "Front-matter heading alignment issue"
+
+
 def _apply_named_heading_presentation(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[FindingView, bool]:
-    """Name which P014 layout attribute(s) failed instead of a generic message.
-
-    The detector already records centered/near_top/bold/all_caps booleans in
-    details; this only selects which ones to mention.
-    """
+    """Rewrite P014 findings with student-facing titles and attribute-specific wording."""
     if finding.rule_id != "P014":
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
     heading = details.get("heading", "").strip()
-    heading_clause = f" ('{heading}')" if heading else ""
+    heading_clause = f' "{heading}"' if heading else ""
     failed_labels = [
         label
         for key, label in _P014_ATTRIBUTE_LABELS
         if details.get(key, "").strip().lower() == "false"
     ]
+    centering_confidence = details.get("centering_confidence", "").strip().lower()
+    only_centering_failed = failed_labels == ["centered"]
+
     if failed_labels:
-        issue_clause = ", ".join(f"not {label}" for label in failed_labels)
-        fix = f"Make this heading {', '.join(failed_labels)}."
+        if only_centering_failed and centering_confidence == "borderline":
+            comment = (
+                f'The auditor detected the heading{heading_clause} as possibly off-center. '
+                f'Please check whether "{heading}" is centered within the required text area. '
+                "NJIT expects named front-matter headings to be centered near the top of the "
+                "page, in bold, and in all capital letters."
+            )
+            fix = (
+                f'Center the "{heading}" heading within the text area. '
+                "Keep it bold and in all capital letters."
+            )
+        elif only_centering_failed:
+            comment = (
+                f'The front-matter heading{heading_clause} appears off-center. '
+                "NJIT expects named front-matter headings to be centered near the top of the "
+                "page, in bold, and in all capital letters."
+            )
+            fix = (
+                f'Center the "{heading}" heading within the text area. '
+                "Keep it bold and in all capital letters."
+            )
+        else:
+            issue_clause = ", ".join(f"not {label}" for label in failed_labels)
+            comment = (
+                f"The front-matter heading{heading_clause} on page {page_label} is "
+                f"{issue_clause}. NJIT requires named front-matter headings to be centered "
+                "near the top of the page, in bold, and in all capital letters."
+            )
+            fix = f"Make this heading {', '.join(failed_labels)}."
     else:
-        issue_clause = "not formatted to NJIT's heading style"
+        comment = (
+            f"The front-matter heading{heading_clause} on page {page_label} does not match "
+            "NJIT's expected heading style. NJIT requires named front-matter headings to be "
+            "centered near the top of the page, in bold, and in all capital letters."
+        )
         fix = "Place this heading centered near the top in bold all-caps."
-    comment = (
-        f"Problem: The front-matter heading{heading_clause} on page {page_label} is "
-        f"{issue_clause}. NJIT requires named front-matter headings to be centered "
-        "near the top of the page, in bold, and in all capital letters."
+
+    issue_type_label = _p014_issue_type_label(heading, failed_labels)
+    issue_type = details.get("issue_type", "").strip() or "frontmatter_heading_layout_issue"
+    no_highlight_reason = finding.no_highlight_reason
+    if not finding.has_highlight and finding.page is not None:
+        no_highlight_reason = (
+            "This is a page-level alignment review. Compare the heading position against "
+            "the center of the required text area on the opened PDF page."
+        )
+    detailed_explanation = finding.detailed_explanation
+    if only_centering_failed and not finding.has_highlight:
+        detailed_explanation = (
+            f"{detailed_explanation} "
+            "Compare the heading against the horizontal center of the required text area."
+        ).strip()
+
+    return (
+        replace(
+            finding,
+            issue_type=issue_type,
+            issue_type_label=issue_type_label,
+            polished_comment=comment,
+            suggested_fix=fix,
+            no_highlight_reason=no_highlight_reason,
+            detailed_explanation=detailed_explanation,
+        ),
+        True,
     )
-    return replace(finding, polished_comment=comment, suggested_fix=fix), True
 
 
 def build_report_view(

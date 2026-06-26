@@ -11,10 +11,14 @@ from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 
 PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
 ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
+DECIMAL_SECTION_NUMBER_RE = re.compile(r"\d+\.\d+")
+LONG_NUMERIC_ID_RE = re.compile(r"^\d{5,}$")
 TOP_BOTTOM_ZONE_RATIO = 0.15
 POSITION_CENTER_TOLERANCE_PT = 24.0
 POSITION_RIGHT_TOLERANCE_PT = 72.0
 POSITION_DOMINANT_MISMATCH_THRESHOLD = 2
+MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER = 9999
+MAX_ARABIC_PAGE_NUMBER_DIGITS = 4
 _POSITION_SCORE = {
     "bottom_center": 4,
     "bottom_right": 3,
@@ -176,6 +180,78 @@ def _candidate_rank(candidate: PageNumberCandidate) -> tuple[int, int, int]:
     )
 
 
+def _looks_like_decimal_section_number(text: str) -> bool:
+    normalized = _normalize_candidate_text(text)
+    return bool(DECIMAL_SECTION_NUMBER_RE.search(normalized))
+
+
+def is_plausible_page_number_candidate(candidate: PageNumberCandidate) -> bool:
+    """Return True when a margin-zone token looks like a printed page number."""
+    normalized = _normalize_candidate_text(candidate.text)
+    if _looks_like_decimal_section_number(candidate.text):
+        return False
+    if candidate.number_style == "other":
+        return False
+    if candidate.position_type == "other":
+        return False
+    if candidate.number_style == "arabic" and candidate.value is not None:
+        if candidate.value > MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER:
+            return False
+        if len(normalized) > MAX_ARABIC_PAGE_NUMBER_DIGITS:
+            return False
+        if LONG_NUMERIC_ID_RE.match(normalized):
+            return False
+    return candidate.number_style in {"arabic", "roman_lower", "roman_upper"}
+
+
+def _plausible_candidates(candidates: list[PageNumberCandidate]) -> list[PageNumberCandidate]:
+    return [candidate for candidate in candidates if is_plausible_page_number_candidate(candidate)]
+
+
+def _primary_plausible_candidate(
+    candidates: list[PageNumberCandidate],
+) -> PageNumberCandidate | None:
+    plausible = _plausible_candidates(candidates)
+    if not plausible:
+        return None
+    return max(plausible, key=_candidate_rank)
+
+
+def _format_candidate_tokens(candidates: list[PageNumberCandidate]) -> str:
+    return "; ".join(f"{_position_label(c.position_type)}: {c.text}" for c in candidates)
+
+
+def _primary_sequence_values(
+    by_page: dict[int, list[PageNumberCandidate]],
+    *,
+    number_style: str,
+) -> list[tuple[int, int]]:
+    values: list[tuple[int, int]] = []
+    for page in sorted(by_page):
+        primary = _primary_plausible_candidate(by_page[page])
+        if primary is None or primary.number_style != number_style or primary.value is None:
+            continue
+        values.append((page, primary.value))
+    return values
+
+
+def _sequence_neighbor_values(
+    values_by_page: list[tuple[int, int]], page: int
+) -> tuple[str, str]:
+    sorted_items = sorted(values_by_page, key=lambda item: item[0])
+    previous_value = ""
+    next_value = ""
+    for index, (current_page, value) in enumerate(sorted_items):
+        if current_page != page:
+            continue
+        if index > 0:
+            previous_value = str(sorted_items[index - 1][1])
+        if index + 1 < len(sorted_items):
+            next_value = str(sorted_items[index + 1][1])
+        break
+    return previous_value, next_value
+
+
 def _candidate_confidence(candidate: PageNumberCandidate) -> str:
     if candidate.position_type in {"bottom_center", "bottom_right"} and candidate.number_style in {
         "arabic",
@@ -314,12 +390,18 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     for candidate in candidates:
         by_page.setdefault(candidate.page_number, []).append(candidate)
 
-    # Missing page number where neighboring pages both have candidates.
-    pages_with_candidates = set(by_page.keys())
+    pages_with_plausible_primary: set[int] = set()
+    for page, page_candidates in by_page.items():
+        if _primary_plausible_candidate(page_candidates) is not None:
+            pages_with_plausible_primary.add(page)
+
+    # Missing page number where neighboring pages both have plausible candidates.
     for page in range(2, len(pdf_doc.pages)):
-        if page in pages_with_candidates:
+        if page in pages_with_plausible_primary:
             continue
-        if (page - 1) in pages_with_candidates and (page + 1) in pages_with_candidates:
+        if (page - 1) in pages_with_plausible_primary and (
+            page + 1
+        ) in pages_with_plausible_primary:
             findings.append(
                 AuditFinding(
                     rule_id="P019",
@@ -329,39 +411,50 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     details={
                         "page_number": str(page),
                         "issue_type": "missing_page_number",
-                        "expected_or_context": "neighbors_have_candidates",
+                        "expected_or_context": "neighbors_have_plausible_candidates",
                         "confidence": "medium",
                     },
                 )
             )
 
-    # Multiple candidate numbers on a single page.
+    # Multiple plausible page-number candidates on a single page.
     for page, page_candidates in by_page.items():
-        if len(page_candidates) <= 1:
+        plausible = _plausible_candidates(page_candidates)
+        if len(plausible) <= 1:
             continue
+        candidate_tokens = _format_candidate_tokens(plausible)
+        multiple_details: dict[str, str] = {
+            "page_number": str(page),
+            "issue_type": "multiple_page_numbers",
+            "candidate_text": ", ".join(c.text for c in plausible[:3]),
+            "candidate_tokens": candidate_tokens,
+            "candidate_sample": ", ".join(c.text for c in plausible[:3]),
+            "plausible_candidate_count": str(len(plausible)),
+            "confidence": "medium",
+        }
+        primary_bbox = plausible[0].bbox
+        if primary_bbox is not None:
+            multiple_details["bbox"] = format_bbox_detail(primary_bbox)
         findings.append(
             AuditFinding(
                 rule_id="P019",
                 severity=Severity.WARNING,
                 page=page,
-                message="Multiple page-number candidates detected on one page.",
-                details={
-                    "page_number": str(page),
-                    "issue_type": "multiple_page_numbers",
-                    "candidate_text": ", ".join(c.text for c in page_candidates[:3]),
-                    "confidence": "medium",
-                },
+                message="Multiple plausible page-number candidates detected on one page.",
+                details=multiple_details,
             )
         )
 
+    plausible_candidates = [c for c in candidates if is_plausible_page_number_candidate(c)]
     dominant_position = Counter(
-        c.position_type for c in candidates if c.position_type != "other"
+        c.position_type for c in plausible_candidates if c.position_type != "other"
     ).most_common(1)
     if dominant_position:
         dominant_position_type = dominant_position[0][0]
         for page, page_candidates in by_page.items():
+            plausible = _plausible_candidates(page_candidates)
             mismatched_candidates = [
-                c for c in page_candidates if c.position_type != dominant_position_type
+                c for c in plausible if c.position_type != dominant_position_type
             ]
             mismatch_count = len(mismatched_candidates)
             observed_positions = sorted(
@@ -393,9 +486,10 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     )
                 )
 
-    # Mixed style on same page.
+    # Mixed style on same page (plausible candidates only).
     for page, page_candidates in by_page.items():
-        styles = {c.number_style for c in page_candidates if c.number_style != "other"}
+        plausible = _plausible_candidates(page_candidates)
+        styles = {c.number_style for c in plausible if c.number_style != "other"}
         if len(styles) > 1:
             observed_style_labels = sorted(_style_label(style) for style in styles)
             findings.append(
@@ -415,8 +509,10 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Mixed dominant style across document.
-    style_counts = Counter(c.number_style for c in candidates if c.number_style != "other")
+    # Mixed dominant style across document (plausible candidates only).
+    style_counts = Counter(
+        c.number_style for c in plausible_candidates if c.number_style != "other"
+    )
     if len([s for s in style_counts if style_counts[s] > 0]) > 1:
         observed_style_labels = sorted(_style_label(style) for style in style_counts)
         findings.append(
@@ -437,43 +533,44 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             )
         )
 
-    arabic_values = [
-        (c.page_number, c.value)
-        for c in candidates
-        if c.number_style == "arabic" and c.value is not None
-    ]
-    arabic_gap = _find_sequence_gap(
-        [(page, value) for page, value in arabic_values if value is not None]
-    )
+    arabic_values = _primary_sequence_values(by_page, number_style="arabic")
+    arabic_gap = _find_sequence_gap(arabic_values)
     if arabic_gap:
         page, expected, actual = arabic_gap
-        findings.append(
-            AuditFinding(
-                rule_id="P019",
-                severity=Severity.WARNING,
-                page=page,
-                message="Arabic page-number candidate sequence shows an obvious gap/break.",
-                details={
-                    "page_number": str(page),
-                    "issue_type": "sequence_gap",
-                    "expected_or_context": f"expected={expected},actual={actual},style=arabic",
-                    "observed_sequence": str(actual),
-                    "expected_sequence": str(expected),
-                    "confidence": "medium",
-                },
+        if (
+            expected <= MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER
+            and actual <= MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER
+        ):
+            previous_value, next_value = _sequence_neighbor_values(arabic_values, page)
+            sequence_details: dict[str, str] = {
+                "page_number": str(page),
+                "issue_type": "sequence_gap",
+                "expected_or_context": f"expected={expected},actual={actual},style=arabic",
+                "observed_sequence": str(actual),
+                "expected_sequence": str(expected),
+                "previous_sequence_value": previous_value,
+                "next_sequence_value": next_value,
+                "sequence_confidence": "medium",
+                "confidence": "medium",
+            }
+            primary = _primary_plausible_candidate(by_page.get(page, []))
+            if primary is not None and primary.bbox is not None:
+                sequence_details["bbox"] = format_bbox_detail(primary.bbox)
+            findings.append(
+                AuditFinding(
+                    rule_id="P019",
+                    severity=Severity.WARNING,
+                    page=page,
+                    message="Arabic page-number candidate sequence shows an obvious gap/break.",
+                    details=sequence_details,
+                )
             )
-        )
 
-    roman_values = [
-        (c.page_number, c.value)
-        for c in candidates
-        if c.number_style == "roman_lower" and c.value is not None
-    ]
-    roman_gap = _find_sequence_gap(
-        [(page, value) for page, value in roman_values if value is not None]
-    )
+    roman_values = _primary_sequence_values(by_page, number_style="roman_lower")
+    roman_gap = _find_sequence_gap(roman_values)
     if roman_gap:
         page, expected, actual = roman_gap
+        previous_value, next_value = _sequence_neighbor_values(roman_values, page)
         findings.append(
             AuditFinding(
                 rule_id="P019",
@@ -486,6 +583,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "expected_or_context": f"expected={expected},actual={actual},style=roman_lower",
                     "observed_sequence": str(actual),
                     "expected_sequence": str(expected),
+                    "previous_sequence_value": previous_value,
+                    "next_sequence_value": next_value,
+                    "sequence_confidence": "medium",
                     "confidence": "medium",
                 },
             )
