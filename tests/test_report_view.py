@@ -301,7 +301,79 @@ def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
     assert group.confidence_levels == ["high", "low"]
     assert group.confidence_level == "mixed"
     assert group.confidence_label == "Mixed confidence: High, Low"
-    assert group.confidence_css_class == "confidence-badge--mixed"
+    assert group.confidence_css_class == "confidence-badge--mixed-orange"
+
+
+def test_mixed_high_medium_confidence_uses_orange_badge() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "medium",
+            },
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    report["grouped_findings"] = [
+        {
+            "rule_id": "P011",
+            "issue_type": "margin_boundary_violation",
+            "individual_indexes": [0, 1],
+        }
+    ]
+
+    view = build_report_view(report)
+    group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
+    assert group.confidence_label == "Mixed confidence: High, Medium"
+    assert group.confidence_css_class == "confidence-badge--mixed-orange"
+
+
+def test_mixed_medium_low_confidence_uses_yellow_badge() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=1,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "medium"},
+        ),
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=2,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    report["grouped_findings"] = [
+        {
+            "rule_id": "P037",
+            "issue_type": "wrong_page_number_sequence",
+            "individual_indexes": [0, 1],
+        }
+    ]
+
+    view = build_report_view(report)
+    group = next(problem for problem in view.grouped_problems if problem.rule_id == "P037")
+    assert group.confidence_label == "Mixed confidence: Medium, Low"
+    assert group.confidence_css_class == "confidence-badge--medium"
 
 
 def test_same_problem_with_different_confidence_stays_on_one_card_by_default() -> None:
