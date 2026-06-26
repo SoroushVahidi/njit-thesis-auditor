@@ -8,6 +8,14 @@ import fitz
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    PdfTextSpan,
+)
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
@@ -136,6 +144,73 @@ def test_centered_biographical_sketch_passes_p014(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_named_frontmatter_headings(model)
     assert not any(f.rule_id == "P014" for f in findings)
+
+
+def _biographical_sketch_line_at_bbox(x0: float, x1: float) -> PdfTextLine:
+    span = PdfTextSpan(
+        text="BIOGRAPHICAL SKETCH",
+        bbox=BBox(x0=x0, y0=70.5, x1=x1, y1=87.2),
+        font="TimesNewRomanPS-BoldMT",
+        size=16.0,
+        bold=True,
+        italic=False,
+    )
+    return PdfTextLine(
+        spans=[span],
+        bbox=BBox(x0=x0, y0=70.5, x1=x1, y1=87.2),
+        text="BIOGRAPHICAL SKETCH",
+    )
+
+
+def test_page_centered_biographical_sketch_geometry_passes_p014() -> None:
+    """Page-centered heading from the live audit sample should not warn."""
+    line = _biographical_sketch_line_at_bbox(216.0, 367.3)
+    page = PdfPage(
+        page_number=9,
+        width=612.0,
+        height=792.0,
+        text_blocks=[PdfTextBlock(lines=[line], bbox=line.bbox, text=line.text)],
+    )
+    doc = PdfDocument(path="synthetic", pages=[page])
+    findings = check_named_frontmatter_headings(doc)
+    biosketch = [
+        f
+        for f in findings
+        if f.rule_id == "P014" and f.details.get("heading") == "BIOGRAPHICAL SKETCH"
+    ]
+    assert not biosketch
+
+
+def test_flush_left_biographical_sketch_still_warns_p014(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "biosketch_off_center.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "BIOGRAPHICAL SKETCH", fontsize=16, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_named_frontmatter_headings(model)
+    warning = next(
+        f
+        for f in findings
+        if f.rule_id == "P014" and f.details.get("heading") == "BIOGRAPHICAL SKETCH"
+    )
+    assert warning.details.get("issue_type") == "frontmatter_heading_not_centered"
+    assert warning.details.get("centered") == "False"
+
+
+def test_live_audit_sample_biographical_sketch_passes_p014() -> None:
+    sample = Path(".runtime/web_audits/GS9ku2OrHLL6dXKPjhu2hg/upload.pdf")
+    if not sample.is_file():
+        return
+    model = load_pdf_layout(str(sample))
+    biosketch = [
+        f
+        for f in check_named_frontmatter_headings(model)
+        if f.rule_id == "P014" and f.details.get("heading") == "BIOGRAPHICAL SKETCH"
+    ]
+    assert not biosketch
 
 
 def test_p014_student_facing_title_not_internal_checklist_question() -> None:

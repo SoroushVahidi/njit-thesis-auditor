@@ -94,12 +94,27 @@ def _visible_text_bbox(line: PdfTextLine) -> BBox:
 
 
 def _line_centering(
-    line: PdfTextLine, text_area_x0: float, text_area_x1: float
+    line: PdfTextLine,
+    text_area_x0: float,
+    text_area_x1: float,
+    *,
+    page_width: float | None = None,
 ) -> tuple[bool, float, str]:
+    """Return whether *line* is centered within tolerance of a reference midpoint.
+
+  NJIT body margins are asymmetric (1.5" left, 1" right), so the text-area
+  midpoint and physical page midpoint differ by 18pt on letter paper. Named
+  front-matter headings are often centered on the page face rather than the
+  asymmetric text-area box; accept either reference when within tolerance.
+    """
+
     bbox = _visible_text_bbox(line)
     line_center = (bbox.x0 + bbox.x1) / 2.0
     text_area_center = (text_area_x0 + text_area_x1) / 2.0
-    offset = abs(line_center - text_area_center)
+    offsets = [abs(line_center - text_area_center)]
+    if page_width is not None:
+        offsets.append(abs(line_center - (page_width / 2.0)))
+    offset = min(offsets)
     if offset <= CENTER_TOLERANCE_PT:
         return True, offset, "high"
     if offset <= BORDERLINE_CENTER_TOLERANCE_PT:
@@ -107,8 +122,16 @@ def _line_centering(
     return False, offset, "high"
 
 
-def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
-    centered, _, _ = _line_centering(line, text_area_x0, text_area_x1)
+def _line_centered(
+    line: PdfTextLine,
+    text_area_x0: float,
+    text_area_x1: float,
+    *,
+    page_width: float | None = None,
+) -> bool:
+    centered, _, _ = _line_centering(
+        line, text_area_x0, text_area_x1, page_width=page_width
+    )
     return centered
 
 
@@ -169,7 +192,7 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                     continue
 
                 centered, center_offset, centering_confidence = _line_centering(
-                    line, text_area_x0, text_area_x1
+                    line, text_area_x0, text_area_x1, page_width=page.width
                 )
                 text_area_center = (text_area_x0 + text_area_x1) / 2.0
                 matches.append(
