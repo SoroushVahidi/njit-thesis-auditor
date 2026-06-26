@@ -30,6 +30,7 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.issue_type_explanations import (
     explain_issue_type,
     has_curated_issue_type_title,
@@ -1872,10 +1873,27 @@ def _highlight_boxes_by_page(
     boxes_by_page: dict[int, list[tuple[float, float, float, float]]] = {}
     for finding in findings:
         page = _coerce_page_number(finding.get("page"))
-        bbox = _bbox_from_finding_entry(finding)
-        if page is None or bbox is None:
+        if page is None:
             continue
-        boxes_by_page.setdefault(page, []).append(bbox)
+        details_raw = finding.get("details", {})
+        details = (
+            {str(k): str(v) for k, v in details_raw.items()}
+            if isinstance(details_raw, Mapping)
+            else {}
+        )
+        rule_id = str(finding.get("rule_id", ""))
+        issue_type = _finding_issue_type(finding)
+        boxes = parse_highlight_bboxes_from_details(
+            details,
+            rule_id=rule_id,
+            issue_type=issue_type,
+        )
+        if not boxes:
+            bbox = _bbox_from_finding_entry(finding)
+            if bbox is not None:
+                boxes = [bbox]
+        for bbox in boxes:
+            boxes_by_page.setdefault(page, []).append(bbox)
     return boxes_by_page
 
 

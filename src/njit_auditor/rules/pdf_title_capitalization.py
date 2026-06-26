@@ -19,6 +19,11 @@ import re
 from dataclasses import dataclass, field
 from statistics import median
 
+from njit_auditor.highlight_targeting import (
+    estimate_word_bbox_in_line_bbox,
+    format_optional_bbox_detail,
+    word_bbox_in_line,
+)
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_captions import (
@@ -95,6 +100,7 @@ class TitleLikeLine:
     source: str        # "caption" | "heading"
     detection_reason: str = field(default="bold_heading")
     bbox: BBox | None = None
+    source_line: PdfTextLine | None = None
     # detection_reason values: "bold_heading" | "cmbx_bold_heading" | "font_size_heading_fallback"
 
 
@@ -372,6 +378,7 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                             source="heading",
                             detection_reason=detection_reason,
                             bbox=line.bbox,
+                            source_line=line,
                         )
                     )
 
@@ -411,6 +418,30 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
         }
         if title_line.bbox is not None:
             details["bbox"] = format_bbox_detail(title_line.bbox)
+        token_bbox: BBox | None = None
+        if title_line.source_line is not None:
+            token_bbox = word_bbox_in_line(title_line.source_line, first_issue["word"])
+        if token_bbox is None and title_line.bbox is not None:
+            estimated = estimate_word_bbox_in_line_bbox(
+                (
+                    title_line.bbox.x0,
+                    title_line.bbox.y0,
+                    title_line.bbox.x1,
+                    title_line.bbox.y1,
+                ),
+                title_line.line_preview,
+                first_issue["word"],
+            )
+            if estimated is not None:
+                token_bbox = BBox(
+                    x0=estimated[0],
+                    y0=estimated[1],
+                    x1=estimated[2],
+                    y1=estimated[3],
+                )
+        token_detail = format_optional_bbox_detail(token_bbox)
+        if token_detail:
+            details["token_bbox"] = token_detail
         findings.append(
             AuditFinding(
                 rule_id="P020",

@@ -11,7 +11,8 @@ from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
 
 INCH_TO_PT = 72.0
 TOP_ZONE_PT = 2.0 * INCH_TO_PT
-CENTER_TOLERANCE_PT = 12.0
+CENTER_TOLERANCE_PT = 18.0
+BORDERLINE_CENTER_TOLERANCE_PT = 26.0
 
 EXPECTED_HEADINGS: tuple[str, ...] = (
     "ABSTRACT",
@@ -35,6 +36,9 @@ class HeadingMatch:
     bold: bool
     all_caps: bool
     bbox: BBox
+    center_offset_pt: float
+    centering_confidence: str
+    text_area_center_pt: float
 
 
 def normalize_heading_text(text: str) -> str:
@@ -49,10 +53,34 @@ def _is_bold_line(line: PdfTextLine) -> bool:
     return any(BOLD_FONT_HINT_RE.search(span.font or "") for span in line.spans)
 
 
-def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
-    line_center = (line.bbox.x0 + line.bbox.x1) / 2.0
+def _visible_text_bbox(line: PdfTextLine) -> BBox:
+    if not line.spans:
+        return line.bbox
+    return BBox(
+        x0=min(span.bbox.x0 for span in line.spans),
+        y0=min(span.bbox.y0 for span in line.spans),
+        x1=max(span.bbox.x1 for span in line.spans),
+        y1=max(span.bbox.y1 for span in line.spans),
+    )
+
+
+def _line_centering(
+    line: PdfTextLine, text_area_x0: float, text_area_x1: float
+) -> tuple[bool, float, str]:
+    bbox = _visible_text_bbox(line)
+    line_center = (bbox.x0 + bbox.x1) / 2.0
     text_area_center = (text_area_x0 + text_area_x1) / 2.0
-    return abs(line_center - text_area_center) <= CENTER_TOLERANCE_PT
+    offset = abs(line_center - text_area_center)
+    if offset <= CENTER_TOLERANCE_PT:
+        return True, offset, "high"
+    if offset <= BORDERLINE_CENTER_TOLERANCE_PT:
+        return False, offset, "borderline"
+    return False, offset, "high"
+
+
+def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
+    centered, _, _ = _line_centering(line, text_area_x0, text_area_x1)
+    return centered
 
 
 def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMatch]:
@@ -72,15 +100,22 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                 if normalized_upper not in expected_set:
                     continue
 
+                centered, center_offset, centering_confidence = _line_centering(
+                    line, text_area_x0, text_area_x1
+                )
+                text_area_center = (text_area_x0 + text_area_x1) / 2.0
                 matches.append(
                     HeadingMatch(
                         heading=normalized_upper,
                         page_number=page.page_number,
-                        centered=_line_centered(line, text_area_x0, text_area_x1),
+                        centered=centered,
                         near_top=line.bbox.y0 <= TOP_ZONE_PT,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized_upper),
-                        bbox=line.bbox,
+                        bbox=_visible_text_bbox(line),
+                        center_offset_pt=center_offset,
+                        centering_confidence=centering_confidence,
+                        text_area_center_pt=text_area_center,
                     )
                 )
 
@@ -105,6 +140,10 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
         if not match.all_caps:
             failures.append("not all caps")
 
+        issue_type = "frontmatter_heading_layout_issue"
+        if not match.centered and match.near_top and match.bold and match.all_caps:
+            issue_type = "frontmatter_heading_not_centered"
+
         findings.append(
             AuditFinding(
                 rule_id="P014",
@@ -117,10 +156,14 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
                 details={
                     "heading": match.heading,
                     "page_number": str(match.page_number),
+                    "issue_type": issue_type,
                     "centered": str(match.centered),
                     "near_top": str(match.near_top),
                     "bold": str(match.bold),
                     "all_caps": str(match.all_caps),
+                    "center_offset_pt": f"{match.center_offset_pt:.1f}",
+                    "centering_confidence": match.centering_confidence,
+                    "text_area_center_pt": f"{match.text_area_center_pt:.1f}",
                     "bbox": format_bbox_detail(match.bbox),
                     "suggested_fix": (
                         "Place named front-matter headings centered near the top in bold all-caps."

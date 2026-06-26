@@ -167,6 +167,9 @@ def page_number_location_label(
         return f"{page_prefix} — {section_clause}page number at {observed_location}"
 
     if visible_issue_type == "duplicate_or_ambiguous_page_number":
+        candidate_tokens = details.get("candidate_tokens", "").strip()
+        if candidate_tokens:
+            return f"{page_prefix} — multiple page-number candidates ({candidate_tokens})"
         sample = details.get("candidate_sample", "").strip()
         if sample:
             return (
@@ -191,10 +194,18 @@ def page_number_location_label(
     if visible_issue_type == "wrong_page_number_sequence":
         observed = _observed_printed_page_number(details)
         expected = _expected_printed_page_number(details)
+        previous_value = details.get("previous_sequence_value", "").strip()
+        next_value = details.get("next_sequence_value", "").strip()
+        neighbor_bits: list[str] = []
+        if previous_value:
+            neighbor_bits.append(f"prev {previous_value}")
+        if next_value:
+            neighbor_bits.append(f"next {next_value}")
+        neighbor_clause = f"; {'; '.join(neighbor_bits)}" if neighbor_bits else ""
         if observed and expected:
             return (
                 f'{page_prefix} — {section_clause}printed page number "{observed}" '
-                f'(expected "{expected}")'
+                f'(expected "{expected}"{neighbor_clause})'
             )
         if observed:
             return f'{page_prefix} — {section_clause}printed page number "{observed}"'

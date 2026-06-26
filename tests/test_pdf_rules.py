@@ -1285,7 +1285,7 @@ def test_multiple_page_numbers_on_same_page_warns_p019(tmp_path: Path) -> None:
     _make_pdf_with_page_numbers(
         pdf_path,
         ["1", "2", "3"],
-        add_second_numbers={1: ("99", 520)},
+        add_second_numbers={1: ("99", 560)},
     )
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_page_number_sequence(model)

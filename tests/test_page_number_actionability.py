@@ -656,7 +656,7 @@ def test_p019_and_p029_sequence_overlap_is_clearly_differentiated(
     }
     assert set(sequence_cards) == {"P019", "P029"}
     assert sequence_cards["P019"] != sequence_cards["P029"]
-    assert "whole-document sequence check" in sequence_cards["P019"]
+    assert "document-wide numbering sequence" in sequence_cards["P019"]
     assert "front-matter sequence" in sequence_cards["P029"]
     assert "Roman numeral page number" in sequence_cards["P029"]
 

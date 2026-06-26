@@ -6,6 +6,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
+from njit_auditor.digital_commons_student_preview import (
+    digital_commons_advisory_comment,
+    digital_commons_advisory_location_label,
+    digital_commons_advisory_suggested_fix,
+)
+from njit_auditor.digital_commons_wrapper import is_layout_warning_suppressed_on_wrapper_page
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.finding_explanations import (
     build_detailed_explanation,
@@ -21,6 +27,7 @@ from njit_auditor.high_volume_student_preview import (
     margin_location_label,
     normalize_area_phrase,
 )
+from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
 from njit_auditor.p011_student_preview import (
     P011PagePresentationStats,
@@ -338,6 +345,81 @@ def _build_triage_panels(
     return panels
 
 
+def _parse_wrapper_pages(metadata: Mapping[str, Any]) -> set[int]:
+    raw = str(metadata.get("digital_commons_wrapper_pages", "")).strip()
+    if not raw:
+        return set()
+    pages: set[int] = set()
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            pages.add(int(token))
+        except ValueError:
+            continue
+    return pages
+
+
+def _build_digital_commons_advisory_view(
+    metadata: Mapping[str, Any],
+) -> FindingView | None:
+    wrapper_pages = sorted(_parse_wrapper_pages(metadata))
+    if not wrapper_pages:
+        return None
+    page_count = int(
+        str(metadata.get("digital_commons_wrapper_page_count", len(wrapper_pages)))
+    )
+    pages_compact = str(metadata.get("digital_commons_wrapper_pages_compact", "")).strip()
+    first_page = wrapper_pages[0]
+    location_label = digital_commons_advisory_location_label(
+        first_page=first_page,
+        page_count=page_count,
+    )
+    return FindingView(
+        rule_id="P025",
+        category="frontmatter_structure",
+        page=first_page,
+        problem_number=0,
+        problem_anchor="",
+        severity="WARNING",
+        issue_type="digital_commons_wrapper_pages_detected",
+        polished_comment=digital_commons_advisory_comment(
+            page_count=page_count,
+            pages_compact=pages_compact,
+        ),
+        suggested_fix=digital_commons_advisory_suggested_fix(),
+        triage_tier="review",
+        confidence="high",
+        confidence_level="high",
+        confidence_label="High confidence",
+        confidence_css_class="confidence-badge--high",
+        source_file="",
+        source_line="",
+        location_label=location_label,
+        bbox=None,
+        action_kind=get_action_kind(has_highlight=False, page=first_page),
+        action_label=get_action_label(has_highlight=False, page=first_page),
+        has_highlight=False,
+        no_highlight_reason=(
+            "Open the original PDF on the listed wrapper page(s) and remove the "
+            "repository-generated cover or metadata pages before resubmitting."
+        ),
+        detailed_explanation=(
+            "Observed: the PDF includes Digital Commons repository wrapper content before "
+            "the thesis manuscript. Expected: submit only the thesis manuscript pages for "
+            "formatting review. What to check or fix: remove repository cover, copyright, "
+            "and citation pages so margin and layout warnings reflect your thesis rather "
+            "than the download wrapper."
+        ),
+        issue_type_label="Digital Commons wrapper pages detected",
+        issue_type_explanation=(
+            "This means the PDF still includes NJIT Digital Commons repository pages that "
+            "are not part of your thesis manuscript."
+        ),
+    )
+
+
 _BBOX_DETAIL_KEYS: tuple[str, ...] = ("bbox", "rect")
 
 
@@ -586,10 +668,15 @@ def _finding_view_from_item(
     )
     page_raw = item.get("page")
     page = int(page_raw) if page_raw is not None else None
+    issue_type = str(details.get("issue_type", ""))
     source_file = str(item.get("source_file", "")) or _source_location_basename(details)
     source_line = str(item.get("source_line", "")) or details.get("line", "")
     location_key = (source_file, source_line) if (source_file or source_line) else None
-    bbox = _parse_bbox_from_details(details)
+    bbox = resolve_primary_highlight_bbox(
+        details,
+        rule_id=rule_id,
+        issue_type=issue_type,
+    )
     page_count = len(pdf_page_sizes) if pdf_page_sizes else None
     page_size = (
         pdf_page_sizes[page - 1]
@@ -599,7 +686,6 @@ def _finding_view_from_item(
     has_highlight = has_visible_highlight(
         bbox, page=page, page_count=page_count, page_size=page_size
     )
-    issue_type = str(details.get("issue_type", ""))
     bbox_label = sub_page_location_label(bbox, page_size)
     location_label = (
         format_source_location(details)
@@ -798,7 +884,6 @@ def _margin_comment_and_fix(
     side = _margin_side_label(details.get("side", ""))
     if side == "required page margin":
         comment = (
-            "Review needed: "
             f"{prefix}: Some content on page {page_label} appears too close to or beyond "
             "a required page margin. The auditor could not determine the exact margin "
             "side from the available metadata. NJIT formatting expects body content to "
@@ -806,13 +891,13 @@ def _margin_comment_and_fix(
             "lines, indentation, headers, and footers on this page."
         )
         fix = (
-            "Move the flagged content back inside the required page margins and inspect "
-            "tables, figures, long lines, indentation, headers, and footers on this page."
+            f"Check the page header, page number, tables, figures, captions, and any long "
+            f"lines on page {page_label}. Move any content that crosses a required margin "
+            "back inside the allowed page area."
         )
         return comment, fix
     overflow_detail = _margin_overflow_detail_phrase(details)
     comment = (
-        "Review needed: "
         f"{prefix}: Content on page {page_label} appears to cross the required {side} "
         f"boundary{overflow_detail}. NJIT formatting expects body content to remain inside "
         "the required page margins. Review the highlighted area if available, or inspect "
@@ -1176,14 +1261,32 @@ def _page_number_comment_and_fix(
                 "Set this section's page number to the NJIT template's required Roman numeral.",
             )
         if rule_id == "P019":
+            previous_value = details.get("previous_sequence_value", "").strip()
+            next_value = details.get("next_sequence_value", "").strip()
+            neighbor_parts: list[str] = []
+            if previous_value:
+                neighbor_parts.append(f"previous detected page number: {previous_value}")
+            if next_value:
+                neighbor_parts.append(f"next detected page number: {next_value}")
+            neighbor_clause = (
+                f" Nearby detected numbers: {'; '.join(neighbor_parts)}."
+                if neighbor_parts
+                else ""
+            )
+            sequence_confidence = details.get("sequence_confidence", "").strip() or details.get(
+                "confidence", ""
+            ).strip()
+            confidence_clause = (
+                f" Detection confidence: {sequence_confidence}."
+                if sequence_confidence
+                else ""
+            )
             return (
-                "Review needed: Problem: "
-                f"The page number on page {page_label} is '{observed}', but the "
-                f"document-wide numbering sequence expected '{expected}' at this position. "
-                "This is a broader, whole-document sequence check; if a more specific "
-                "front-matter Roman-numeral sequence or section-template problem is also "
-                "reported above for this page, fix that one first and re-check this "
-                "warning afterward.",
+                f"The printed page number on page {page_label} is '{observed}', but the "
+                f"document-wide numbering sequence expected '{expected}' at this position."
+                f"{neighbor_clause}{confidence_clause} If a more specific front-matter "
+                "Roman-numeral sequence or section-template problem is also reported above "
+                "for this page, fix that one first and re-check this warning afterward.",
                 f"Change this page to '{expected}' or renumber nearby pages so the "
                 "sequence is consecutive.",
             )
@@ -1197,13 +1300,18 @@ def _page_number_comment_and_fix(
         )
 
     if visible_issue_type == "duplicate_or_ambiguous_page_number":
+        candidate_tokens = details.get("candidate_tokens", "").strip()
+        if candidate_tokens:
+            return (
+                f"Multiple plausible page-number tokens were detected on page {page_label}: "
+                f"{candidate_tokens}. Verify which token is the printed page number and "
+                "remove or correct any duplicates.",
+                "Verify which token is the printed page number and remove or correct duplicates.",
+            )
         return (
-            "Review needed: Problem: "
             f"Multiple page-number-like tokens were detected on page {page_label}. "
-            "This may indicate duplicate page numbering or footer/header text being "
-            "mistaken for a page number. Verify which token is the actual page number "
-            "and remove or correct duplicates.",
-            "Verify which token is the actual page number and remove or correct duplicates.",
+            "Verify which token is the printed page number and remove or correct duplicates.",
+            "Verify which token is the printed page number and remove or correct duplicates.",
         )
 
     if visible_issue_type == "page_number_should_be_suppressed":
@@ -1523,23 +1631,53 @@ def _apply_p012_document_presentation(
 def _apply_p011_combined_presentation(
     finding: FindingView,
     stats: P011PagePresentationStats,
+    *,
+    pdf_page_sizes: Sequence[tuple[float, float]] | None = None,
 ) -> tuple[FindingView, bool]:
     if not is_p011_margin_finding(finding.rule_id, finding.issue_type):
         return finding, True
     location_label = p011_page_location_label(stats.page, stats.sides)
     comment = p011_combined_rolled_up_comment(stats)
     suggested_fix = p011_combined_suggested_fix(stats)
+    bbox = None
+    if stats.highlight_bboxes:
+        if len(stats.highlight_bboxes) == 1:
+            bbox = stats.highlight_bboxes[0]
+        else:
+            bbox = (
+                min(box[0] for box in stats.highlight_bboxes),
+                min(box[1] for box in stats.highlight_bboxes),
+                max(box[2] for box in stats.highlight_bboxes),
+                max(box[3] for box in stats.highlight_bboxes),
+            )
+    page_count = len(pdf_page_sizes) if pdf_page_sizes else None
+    page_size = (
+        pdf_page_sizes[stats.page - 1]
+        if pdf_page_sizes and 1 <= stats.page <= len(pdf_page_sizes)
+        else None
+    )
+    has_highlight = has_visible_highlight(
+        bbox,
+        page=stats.page,
+        page_count=page_count,
+        page_size=page_size,
+    )
+    no_highlight_reason = (
+        ""
+        if has_highlight
+        else p011_combined_no_highlight_reason(stats)
+    )
     return (
         replace(
             finding,
             polished_comment=comment,
             suggested_fix=suggested_fix,
             location_label=location_label,
-            has_highlight=False,
-            bbox=None,
-            action_kind=get_action_kind(has_highlight=False, page=stats.page),
-            action_label=get_action_label(has_highlight=False, page=stats.page),
-            no_highlight_reason=p011_combined_no_highlight_reason(stats),
+            bbox=bbox if has_highlight else None,
+            has_highlight=has_highlight,
+            action_kind=get_action_kind(has_highlight=has_highlight, page=stats.page),
+            action_label=get_action_label(has_highlight=has_highlight, page=stats.page),
+            no_highlight_reason=no_highlight_reason,
             detailed_explanation=p011_combined_rolled_up_explanation(stats),
         ),
         True,
@@ -1811,7 +1949,60 @@ def _apply_float_layout_presentation(
     else:
         float_clause = ""
     comment = template.format(page=page_label, float_clause=float_clause)
-    return replace(finding, polished_comment=comment), True
+    suggested_fix = finding.suggested_fix
+    if finding.issue_type == "figure_caption_not_below_body":
+        if float_number:
+            suggested_fix = (
+                f"Place the Figure {float_number} caption below the figure body. "
+                "Keep the figure image and its caption together within the text area."
+            )
+        else:
+            suggested_fix = (
+                "Place the figure caption below the figure body. Keep the figure image "
+                "and its caption together within the text area."
+            )
+    elif finding.issue_type == "table_caption_not_above_body" and float_number:
+        suggested_fix = (
+            f"Place the Table {float_number} caption above the table body. "
+            "Keep the caption and table rows together within the text area."
+        )
+    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
+
+
+def _apply_digital_commons_wrapper_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+    metadata: Mapping[str, Any],
+) -> FindingView:
+    wrapper_pages = sorted(_parse_wrapper_pages(metadata) or _parse_wrapper_pages(details))
+    if not wrapper_pages:
+        return finding
+    page_count = int(
+        str(
+            details.get("digital_commons_wrapper_page_count")
+            or metadata.get("digital_commons_wrapper_page_count")
+            or len(wrapper_pages)
+        )
+    )
+    pages_compact = str(
+        details.get("digital_commons_wrapper_pages_compact")
+        or metadata.get("digital_commons_wrapper_pages_compact")
+        or ""
+    ).strip()
+    first_page = wrapper_pages[0]
+    return replace(
+        finding,
+        polished_comment=digital_commons_advisory_comment(
+            page_count=page_count,
+            pages_compact=pages_compact,
+        ),
+        suggested_fix=digital_commons_advisory_suggested_fix(),
+        location_label=digital_commons_advisory_location_label(
+            first_page=first_page,
+            page_count=page_count,
+        ),
+        issue_type_label="Digital Commons wrapper pages detected",
+    )
 
 
 def _apply_lof_punctuation_presentation(
@@ -1974,37 +2165,114 @@ _P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
 )
 
 
+_P014_HEADING_DISPLAY_NAMES: dict[str, str] = {
+    "ABSTRACT": "Abstract",
+    "APPROVAL PAGE": "Approval Page",
+    "BIOGRAPHICAL SKETCH": "Biographical Sketch",
+    "ACKNOWLEDGEMENTS": "Acknowledgements",
+    "TABLE OF CONTENTS": "Table of Contents",
+    "LIST OF TABLES": "List of Tables",
+    "LIST OF FIGURES": "List of Figures",
+}
+
+
+def _p014_heading_display_name(heading: str) -> str:
+    normalized = heading.strip().upper()
+    return _P014_HEADING_DISPLAY_NAMES.get(normalized, heading.strip().title())
+
+
+def _p014_issue_type_label(heading: str, failed_labels: list[str]) -> str:
+    display_name = _p014_heading_display_name(heading) if heading else ""
+    if failed_labels == ["centered"]:
+        return "Front-matter heading may not be centered"
+    if display_name:
+        return f"{display_name} heading alignment issue"
+    return "Front-matter heading alignment issue"
+
+
 def _apply_named_heading_presentation(
     finding: FindingView,
     details: Mapping[str, str],
 ) -> tuple[FindingView, bool]:
-    """Name which P014 layout attribute(s) failed instead of a generic message.
-
-    The detector already records centered/near_top/bold/all_caps booleans in
-    details; this only selects which ones to mention.
-    """
+    """Rewrite P014 findings with student-facing titles and attribute-specific wording."""
     if finding.rule_id != "P014":
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
     heading = details.get("heading", "").strip()
-    heading_clause = f" ('{heading}')" if heading else ""
+    heading_clause = f' "{heading}"' if heading else ""
     failed_labels = [
         label
         for key, label in _P014_ATTRIBUTE_LABELS
         if details.get(key, "").strip().lower() == "false"
     ]
+    centering_confidence = details.get("centering_confidence", "").strip().lower()
+    only_centering_failed = failed_labels == ["centered"]
+
     if failed_labels:
-        issue_clause = ", ".join(f"not {label}" for label in failed_labels)
-        fix = f"Make this heading {', '.join(failed_labels)}."
+        if only_centering_failed and centering_confidence == "borderline":
+            comment = (
+                f'The auditor detected the heading{heading_clause} as possibly off-center. '
+                f'Please check whether "{heading}" is centered within the required text area. '
+                "NJIT expects named front-matter headings to be centered near the top of the "
+                "page, in bold, and in all capital letters."
+            )
+            fix = (
+                f'Center the "{heading}" heading within the text area. '
+                "Keep it bold and in all capital letters."
+            )
+        elif only_centering_failed:
+            comment = (
+                f'The front-matter heading{heading_clause} appears off-center. '
+                "NJIT expects named front-matter headings to be centered near the top of the "
+                "page, in bold, and in all capital letters."
+            )
+            fix = (
+                f'Center the "{heading}" heading within the text area. '
+                "Keep it bold and in all capital letters."
+            )
+        else:
+            issue_clause = ", ".join(f"not {label}" for label in failed_labels)
+            comment = (
+                f"The front-matter heading{heading_clause} on page {page_label} is "
+                f"{issue_clause}. NJIT requires named front-matter headings to be centered "
+                "near the top of the page, in bold, and in all capital letters."
+            )
+            fix = f"Make this heading {', '.join(failed_labels)}."
     else:
-        issue_clause = "not formatted to NJIT's heading style"
+        comment = (
+            f"The front-matter heading{heading_clause} on page {page_label} does not match "
+            "NJIT's expected heading style. NJIT requires named front-matter headings to be "
+            "centered near the top of the page, in bold, and in all capital letters."
+        )
         fix = "Place this heading centered near the top in bold all-caps."
-    comment = (
-        f"Problem: The front-matter heading{heading_clause} on page {page_label} is "
-        f"{issue_clause}. NJIT requires named front-matter headings to be centered "
-        "near the top of the page, in bold, and in all capital letters."
+
+    issue_type_label = _p014_issue_type_label(heading, failed_labels)
+    issue_type = details.get("issue_type", "").strip() or "frontmatter_heading_layout_issue"
+    no_highlight_reason = finding.no_highlight_reason
+    if not finding.has_highlight and finding.page is not None:
+        no_highlight_reason = (
+            "This is a page-level alignment review. Compare the heading position against "
+            "the center of the required text area on the opened PDF page."
+        )
+    detailed_explanation = finding.detailed_explanation
+    if only_centering_failed and not finding.has_highlight:
+        detailed_explanation = (
+            f"{detailed_explanation} "
+            "Compare the heading against the horizontal center of the required text area."
+        ).strip()
+
+    return (
+        replace(
+            finding,
+            issue_type=issue_type,
+            issue_type_label=issue_type_label,
+            polished_comment=comment,
+            suggested_fix=fix,
+            no_highlight_reason=no_highlight_reason,
+            detailed_explanation=detailed_explanation,
+        ),
+        True,
     )
-    return replace(finding, polished_comment=comment, suggested_fix=fix), True
 
 
 def build_report_view(
@@ -2106,11 +2374,18 @@ def build_report_view(
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
     grouped_display_seen: set[tuple] = set()
+    wrapper_pages = _parse_wrapper_pages(metadata)
     for index, finding_view in enumerate(all_finding_views):
         details = finding_details_by_index.get(index, {})
         visible_view = finding_view
         is_problem = True
-        if visible_view.category == "page_numbering":
+        if is_layout_warning_suppressed_on_wrapper_page(
+            visible_view.rule_id,
+            visible_view.page,
+            wrapper_pages,
+        ):
+            is_problem = False
+        elif visible_view.category == "page_numbering":
             visible_view, is_problem = _apply_page_number_presentation(
                 visible_view, details, claimed_keys=claimed_page_number_keys
             )
@@ -2143,6 +2418,7 @@ def build_report_view(
                     visible_view, is_problem = _apply_p011_combined_presentation(
                         visible_view,
                         page_stats,
+                        pdf_page_sizes=pdf_page_sizes,
                     )
             else:
                 visible_view, is_problem = _apply_margin_presentation(visible_view, details)
@@ -2162,6 +2438,15 @@ def build_report_view(
                     )
             else:
                 visible_view, is_problem = _apply_font_presentation(visible_view, details)
+        elif (
+            visible_view.rule_id == "P025"
+            and visible_view.issue_type == "digital_commons_wrapper_pages_detected"
+        ):
+            visible_view = _apply_digital_commons_wrapper_presentation(
+                visible_view,
+                details,
+                metadata,
+            )
         elif visible_view.rule_id == "P020":
             visible_view, is_problem = _apply_title_case_presentation(visible_view, details)
             if is_problem and not consume_p020_display_slot(

@@ -469,8 +469,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "to begin flush with the left margin."
     ),
     ("P043", "acknowledgements_subsequent_paragraph_not_indented"): (
-        "Problem: A later paragraph on the Acknowledgements page (page {page}) "
-        "appears flush-left where NJIT expects a first-line indent. Indent "
+        "Problem: A paragraph after the first on the Acknowledgements page (page "
+        "{page}) appears flush-left where NJIT expects a first-line indent. Indent "
         "each paragraph after the first."
     ),
     # --- P044 abstract indentation ---
@@ -480,9 +480,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "to begin flush with the left margin."
     ),
     ("P044", "abstract_subsequent_paragraph_not_indented"): (
-        "Problem: A later paragraph on the Abstract page (page {page}) appears "
-        "flush-left where NJIT expects a first-line indent. Indent each "
-        "abstract paragraph after the first."
+        "Likely problem: An Abstract paragraph after the first (page {page}) appears "
+        "flush-left where NJIT expects a first-line indent. Indent each Abstract "
+        "paragraph after the first."
     ),
     # --- P053/P054 list terminal periods ---
     ("P053", "lot_entry_has_terminal_period"): (
@@ -1091,7 +1091,7 @@ def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
     paragraph_index = details.get("paragraph_index", "").strip()
     if paragraph_index:
         return f"body paragraph {paragraph_index}"
-    return "a later body paragraph"
+    return "a paragraph after the first"
 
 
 def _p015_indentation_comment(
@@ -1108,8 +1108,8 @@ def _p015_indentation_comment(
         )
     return (
         f"Likely problem: {descriptor.capitalize()} on page {page_label} appears to "
-        "start flush-left where NJIT expects a first-line indent for a non-opening "
-        "paragraph. Add the required first-line indent or confirm this paragraph is "
+        "start flush-left where NJIT expects a first-line indent for a paragraph after "
+        "the first. Add the required first-line indent or confirm this paragraph is "
         "meant to begin a new block."
     )
 

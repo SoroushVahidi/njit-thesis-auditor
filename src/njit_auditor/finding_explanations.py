@@ -104,7 +104,7 @@ def _inspection_target(rule_id: str, issue_type: str, details: dict[str, str]) -
         paragraph_index = details.get("paragraph_index", "").strip()
         if paragraph_index:
             return f"the first line of body paragraph {paragraph_index}"
-        return "the first line of the flagged later paragraph"
+        return "the first line of a paragraph after the first"
     if rule_id in {"P020", "P027", "P038", "P063"}:
         return "the heading area"
     if caption_type:

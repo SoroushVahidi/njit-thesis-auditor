@@ -120,10 +120,11 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
     "acknowledgements_first_paragraph_indented": "Acknowledgements first paragraph indented",
     "acknowledgements_subsequent_paragraph_not_indented": (
-        "Acknowledgements later paragraph not indented"
+        "Acknowledgements paragraph after the first not indented"
     ),
+    "digital_commons_wrapper_pages_detected": "Digital Commons wrapper pages detected",
     "abstract_first_paragraph_indented": "Abstract first paragraph indented",
-    "abstract_subsequent_paragraph_not_indented": "Abstract later paragraph not indented",
+    "abstract_subsequent_paragraph_not_indented": "Abstract paragraph after the first not indented",
     "biosketch_publication_missing_hanging_indent": (
         "Biographical Sketch publication missing hanging indent"
     ),
@@ -136,7 +137,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "biosketch_degree_order_suspicious": "Biographical Sketch degree order suspicious",
     "biosketch_publication_order_suspicious": "Biographical Sketch publication order suspicious",
     "unexpected_opening_indent": "Unexpected opening paragraph indent",
-    "missing_later_indent": "Missing later-paragraph indent",
+    "missing_later_indent": "Missing paragraph-after-first indent",
     "wrapped_entry_internal_spacing": "Wrapped list entry internal spacing",
     "single_appendix_missing_title": "Single appendix missing title",
     "lot_mixed_numbering_format": "List of Tables mixed numbering format",
@@ -537,8 +538,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "indent or confirm this is a permitted exception."
     ),
     ("P015", "missing_later_indent"): (
-        "This means a paragraph appears to start flush-left where NJIT expects "
-        "a first-line indent for a non-opening paragraph. Add the required indent."
+        "This means a paragraph after the first appears to start flush-left where NJIT "
+        "expects a first-line indent. Add the required indent."
     ),
     ("P017", "unexpected_terminal_period"): (
         "This means a figure or table caption ends with a terminal period where "
@@ -637,7 +638,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "NJIT requires the first abstract paragraph to begin flush-left."
     ),
     ("P044", "abstract_subsequent_paragraph_not_indented"): (
-        "This means a later Abstract paragraph appears flush-left where NJIT "
+        "This means an Abstract paragraph after the first appears flush-left where NJIT "
         "expects a first-line indent."
     ),
     ("P053", "lot_entry_has_terminal_period"): (
