@@ -7,13 +7,20 @@ import fitz
 from njit_auditor.models import AuditFinding, Severity
 
 
-def run_pdf_annotation_rule(pdf_path: str) -> list[AuditFinding]:
+def run_pdf_annotation_rule(
+    pdf_path: str,
+    *,
+    skip_pages: set[int] | None = None,
+) -> list[AuditFinding]:
     """Extract annotations/comments and emit P012 findings."""
 
     findings: list[AuditFinding] = []
+    skipped = skip_pages or set()
     try:
         with fitz.open(pdf_path) as doc:
             for page_number, page in enumerate(doc, start=1):
+                if page_number in skipped:
+                    continue
                 for annot in page.annots() or []:
                     content = (annot.info or {}).get("content") or ""
                     subtype = annot.type[1] if annot.type else "Unknown"

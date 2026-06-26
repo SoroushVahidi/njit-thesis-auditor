@@ -185,6 +185,32 @@ def _centering_issue(page: PdfPage, body_bbox: BBox) -> tuple[bool, float]:
     return center_delta > CENTER_TOLERANCE_PT, center_delta
 
 
+def _cluster_looks_like_body_paragraph(
+    cluster: list[PdfTextBlock],
+) -> bool:
+    """Return True when a below-caption cluster looks like ordinary body prose."""
+    lines = [
+        line.text.strip()
+        for block in cluster
+        for line in block.lines
+        if line.text.strip()
+    ]
+    if not lines:
+        return False
+    first_line = lines[0]
+    if re.match(
+        r"^(The|This|In|When|As|Results|Additional|However|These|While|Because)\b",
+        first_line,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    avg_len = sum(len(line) for line in lines) / len(lines)
+    union = _union_bbox(cluster)
+    if union.x0 <= LEFT_MARGIN_PT + 18.0 and len(lines) >= 2 and avg_len >= 40.0:
+        return True
+    return False
+
+
 def _append_finding(
     findings: list[AuditFinding],
     *,
@@ -194,6 +220,8 @@ def _append_finding(
     float_number: str,
     center_delta: float | None = None,
     bbox: BBox | None = None,
+    body_bbox: BBox | None = None,
+    caption_bbox: BBox | None = None,
 ) -> None:
     details: dict[str, str] = {
         "issue_type": issue_type,
@@ -208,6 +236,10 @@ def _append_finding(
         details["center_delta_points"] = f"{center_delta:.1f}"
     if bbox is not None:
         details["bbox"] = format_bbox_detail(bbox)
+    if body_bbox is not None:
+        details["body_bbox"] = format_bbox_detail(body_bbox)
+    if caption_bbox is not None:
+        details["caption_bbox"] = format_bbox_detail(caption_bbox)
 
     if issue_type == "table_body_not_centered":
         message = "Inferred table body block may not be centered within the text area."
@@ -269,6 +301,8 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     page_number=caption.page_number,
                     float_number=float_number,
                     bbox=caption_bbox,
+                    body_bbox=_union_bbox(wrong_side),
+                    caption_bbox=caption_bbox,
                 )
                 continue
             if primary is None:
@@ -293,6 +327,8 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
         if primary is None and wrong_side is None:
             continue
         if primary is None and wrong_side is not None:
+            if _cluster_looks_like_body_paragraph(wrong_side):
+                continue
             _append_finding(
                 findings,
                 issue_type="figure_caption_not_below_body",
@@ -300,6 +336,8 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 page_number=caption.page_number,
                 float_number=float_number,
                 bbox=caption_bbox,
+                body_bbox=_union_bbox(wrong_side),
+                caption_bbox=caption_bbox,
             )
             continue
         if primary is None:

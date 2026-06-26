@@ -12,9 +12,13 @@ import pymupdf
 from pymupdf import FileDataError
 
 from njit_auditor.audit_options import DEFAULT_AUDIT_OPTIONS, AuditOptions
+from njit_auditor.digital_commons_wrapper import (
+    detect_digital_commons_wrapper_pages,
+    digital_commons_wrapper_metadata,
+)
 from njit_auditor.latex_linters import run_optional_latex_linters
 from njit_auditor.latex_loader import load_tex_project
-from njit_auditor.models import AuditFinding
+from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import PdfDocument
 from njit_auditor.rules.latex_abstract import (
@@ -229,8 +233,11 @@ def collect_pdf_layout_findings(
     """
     path_str = str(pdf_path)
     audit_options = options or DEFAULT_AUDIT_OPTIONS
+    wrapper_pages = detect_digital_commons_wrapper_pages(pdf_doc)
     findings: list[AuditFinding] = []
-    findings.extend(run_pdf_page_number_candidates_rule(pdf_doc))
+    findings.extend(
+        run_pdf_page_number_candidates_rule(pdf_doc, skip_pages=wrapper_pages)
+    )
     findings.extend(check_pdf_page_number_sequence(pdf_doc))
     findings.extend(
         check_pdf_landscape_page_number_orientation(
@@ -242,7 +249,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_roman_sequence(pdf_doc))
     findings.extend(check_pdf_roman_section_anchors(pdf_doc))
     findings.extend(check_pdf_frontmatter_no_page_number(pdf_doc))
-    findings.extend(run_pdf_margin_rule(pdf_doc))
+    findings.extend(run_pdf_margin_rule(pdf_doc, skip_pages=wrapper_pages))
     findings.extend(check_named_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_frontmatter_headings(pdf_doc))
     findings.extend(check_pdf_frontmatter_structure(pdf_doc))
@@ -295,7 +302,31 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_biosketch_publication_ordering(pdf_doc))
     findings.extend(check_pdf_approval_page_committee_blocks(pdf_doc))
     findings.extend(check_pdf_title_capitalization(pdf_doc))
-    findings.extend(run_pdf_annotation_rule(path_str))
+    findings.extend(run_pdf_annotation_rule(path_str, skip_pages=wrapper_pages))
+    if wrapper_pages:
+        wrapper_meta = digital_commons_wrapper_metadata(sorted(wrapper_pages))
+        first_page = min(wrapper_pages)
+        findings.append(
+            AuditFinding(
+                rule_id="P025",
+                severity=Severity.WARNING,
+                page=first_page,
+                message=(
+                    "Repository-generated Digital Commons wrapper pages were detected "
+                    "before the thesis manuscript."
+                ),
+                details={
+                    "issue_type": "digital_commons_wrapper_pages_detected",
+                    **wrapper_meta,
+                    "triage_tier": "review",
+                    "confidence": "high",
+                    "suggested_fix": (
+                        "Remove repository-generated Digital Commons cover, copyright, and "
+                        "metadata pages from the PDF before submitting your thesis manuscript."
+                    ),
+                },
+            )
+        )
     return findings
 
 

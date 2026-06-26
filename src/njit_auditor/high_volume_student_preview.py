@@ -96,7 +96,7 @@ def abstract_indent_location_label(
         if paragraph_index.isdigit():
             paragraph_phrase = f"paragraph {int(paragraph_index) + 1}"
         else:
-            paragraph_phrase = "later paragraph"
+            paragraph_phrase = "paragraph after the first"
     prefix = _page_prefix(page)
     if prefix:
         return f"{prefix} — Abstract, {paragraph_phrase}"

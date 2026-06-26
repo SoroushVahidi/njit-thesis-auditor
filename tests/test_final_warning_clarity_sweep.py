@@ -38,7 +38,7 @@ def test_p011_same_page_multiple_sides_roll_up_to_one_card() -> None:
     cards = [f for f in view.findings if f.rule_id == "P011"]
     assert len(cards) == 1
     assert cards[0].location_label == "Page 11 — bottom and right margins"
-    assert "2 margin-boundary issues" in cards[0].polished_comment
+    assert "2 separate margin-boundary warnings" in cards[0].polished_comment
 
 
 def test_p011_single_side_page_keeps_side_specific_label() -> None:

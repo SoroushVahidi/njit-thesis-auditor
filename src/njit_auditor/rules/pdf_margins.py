@@ -87,11 +87,18 @@ def _group_confidence(worst_overflow_pt: float, count: int) -> str:
     return "low"
 
 
-def run_pdf_margin_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
+def run_pdf_margin_rule(
+    pdf_doc: PdfDocument,
+    *,
+    skip_pages: set[int] | None = None,
+) -> list[AuditFinding]:
     """Detect possible text lines outside expected margin rectangle."""
 
     findings: list[AuditFinding] = []
+    skipped = skip_pages or set()
     for page in pdf_doc.pages:
+        if page.page_number in skipped:
+            continue
         allowed_x0 = LEFT_MARGIN_PT
         allowed_y0 = TOP_MARGIN_PT
         allowed_x1 = page.width - RIGHT_MARGIN_PT

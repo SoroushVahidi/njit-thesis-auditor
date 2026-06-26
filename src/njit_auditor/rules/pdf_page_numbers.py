@@ -213,10 +213,19 @@ def _style_label(number_style: str) -> str:
     return labels.get(number_style, "an unexpected style")
 
 
-def run_pdf_page_number_candidates_rule(pdf_doc: PdfDocument) -> list[AuditFinding]:
+def run_pdf_page_number_candidates_rule(
+    pdf_doc: PdfDocument,
+    *,
+    skip_pages: set[int] | None = None,
+) -> list[AuditFinding]:
     """Emit P013 findings for candidate page numbers."""
 
-    candidates = detect_page_number_candidates(pdf_doc)
+    skipped = skip_pages or set()
+    candidates = [
+        candidate
+        for candidate in detect_page_number_candidates(pdf_doc)
+        if candidate.page_number not in skipped
+    ]
     if not candidates:
         return [
             AuditFinding(
