@@ -20,6 +20,9 @@ from fastapi.testclient import TestClient
 
 FIXTURES = Path(__file__).parent / "fixtures" / "web_demo"
 
+# Current audit output for clean_minimal.pdf on main (docs/tests must stay aligned).
+_CLEAN_MINIMAL_EXPECTED_RULE_IDS = frozenset({"P011", "P013", "P027"})
+
 # Strings that must never appear in committed fixture files (privacy check).
 # Real personal or private-content strings are blocked; these are the canonical
 # synthetic names used throughout the test suite to verify sanitization.
@@ -142,6 +145,25 @@ def test_clean_minimal_pdf_upload_creates_job_redirect(
     resp = _upload_file(c, "clean_minimal.pdf", "application/pdf")
     assert resp.status_code == 303
     assert resp.headers["location"].startswith("/audits/")
+
+
+def test_clean_minimal_pdf_produces_expected_residual_findings() -> None:
+    """clean_minimal.pdf is a minimal demo fixture with known residual audit outputs."""
+    from njit_auditor.audit_runner import run_pdf_audit_full
+
+    findings = run_pdf_audit_full(FIXTURES / "clean_minimal.pdf")
+    rule_ids = {finding.rule_id for finding in findings}
+    assert rule_ids == _CLEAN_MINIMAL_EXPECTED_RULE_IDS, (
+        f"Expected {_CLEAN_MINIMAL_EXPECTED_RULE_IDS}; got {rule_ids}"
+    )
+    warnings = {
+        finding.rule_id
+        for finding in findings
+        if finding.severity.value == "WARNING"
+    }
+    assert warnings == {"P011", "P027"}
+    p013 = next(finding for finding in findings if finding.rule_id == "P013")
+    assert p013.severity.value == "PASS"
 
 
 # ---------------------------------------------------------------------------
