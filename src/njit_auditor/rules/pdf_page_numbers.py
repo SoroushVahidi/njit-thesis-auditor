@@ -208,6 +208,35 @@ def _plausible_candidates(candidates: list[PageNumberCandidate]) -> list[PageNum
     return [candidate for candidate in candidates if is_plausible_page_number_candidate(candidate)]
 
 
+def _filter_toc_column_candidates(
+    plausible: list[PageNumberCandidate],
+    *,
+    page_is_front_matter: bool,
+) -> list[PageNumberCandidate]:
+    """Remove arabic bottom-right candidates on front-matter pages that already have
+    a roman bottom-center candidate.
+
+    On front-matter pages, the correct printed page number is a roman numeral at
+    bottom-center. Arabic numbers at bottom-right on those pages are almost always
+    TOC/list destination page references (the right-aligned page-number column of
+    the TOC), not a second printed page number. This guard is conservative: it only
+    fires when a roman bottom-center IS present, so it cannot suppress a real arabic
+    front-matter page number that appears without a competing roman candidate.
+    """
+    if not page_is_front_matter:
+        return plausible
+    has_roman_bottom_center = any(
+        c.number_style in ("roman_lower", "roman_upper") and c.position_type == "bottom_center"
+        for c in plausible
+    )
+    if not has_roman_bottom_center:
+        return plausible
+    return [
+        c for c in plausible
+        if not (c.number_style == "arabic" and c.position_type == "bottom_right")
+    ]
+
+
 def _primary_plausible_candidate(
     candidates: list[PageNumberCandidate],
 ) -> PageNumberCandidate | None:
@@ -390,6 +419,28 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     for candidate in candidates:
         by_page.setdefault(candidate.page_number, []).append(candidate)
 
+    # Determine front-matter pages so that TOC/list destination numbers at bottom-right
+    # are not confused with the real printed page number (roman, bottom-center).
+    # Imported here to avoid a circular import:
+    # pdf_page_numbers → pdf_headings → pdf_margins → pdf_page_numbers.
+    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
+
+    body_start = find_body_start_page(pdf_doc)
+    front_matter_pages: set[int] = set()
+    if body_start is not None:
+        for pg in pdf_doc.pages:
+            if pg.page_number < body_start:
+                front_matter_pages.add(pg.page_number)
+
+    # Per-page filtered plausible candidates (TOC column noise suppressed in front matter).
+    filtered_by_page: dict[int, list[PageNumberCandidate]] = {
+        pg: _filter_toc_column_candidates(
+            _plausible_candidates(pc),
+            page_is_front_matter=(pg in front_matter_pages),
+        )
+        for pg, pc in by_page.items()
+    }
+
     pages_with_plausible_primary: set[int] = set()
     for page, page_candidates in by_page.items():
         if _primary_plausible_candidate(page_candidates) is not None:
@@ -417,9 +468,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Multiple plausible page-number candidates on a single page.
-    for page, page_candidates in by_page.items():
-        plausible = _plausible_candidates(page_candidates)
+    # Multiple plausible page-number candidates on a single page (TOC noise filtered).
+    for page, plausible in filtered_by_page.items():
         if len(plausible) <= 1:
             continue
         candidate_tokens = _format_candidate_tokens(plausible)
@@ -445,14 +495,14 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             )
         )
 
-    plausible_candidates = [c for c in candidates if is_plausible_page_number_candidate(c)]
+    # Compute dominant position and per-page inconsistency using filtered candidates.
+    all_filtered_plausible = [c for cs in filtered_by_page.values() for c in cs]
     dominant_position = Counter(
-        c.position_type for c in plausible_candidates if c.position_type != "other"
+        c.position_type for c in all_filtered_plausible if c.position_type != "other"
     ).most_common(1)
     if dominant_position:
         dominant_position_type = dominant_position[0][0]
-        for page, page_candidates in by_page.items():
-            plausible = _plausible_candidates(page_candidates)
+        for page, plausible in filtered_by_page.items():
             mismatched_candidates = [
                 c for c in plausible if c.position_type != dominant_position_type
             ]
@@ -486,9 +536,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     )
                 )
 
-    # Mixed style on same page (plausible candidates only).
-    for page, page_candidates in by_page.items():
-        plausible = _plausible_candidates(page_candidates)
+    # Mixed style on same page (TOC noise filtered).
+    for page, plausible in filtered_by_page.items():
         styles = {c.number_style for c in plausible if c.number_style != "other"}
         if len(styles) > 1:
             observed_style_labels = sorted(_style_label(style) for style in styles)
@@ -509,9 +558,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Mixed dominant style across document (plausible candidates only).
+    # Mixed dominant style across document (TOC noise filtered).
     style_counts = Counter(
-        c.number_style for c in plausible_candidates if c.number_style != "other"
+        c.number_style for c in all_filtered_plausible if c.number_style != "other"
     )
     if len([s for s in style_counts if style_counts[s] > 0]) > 1:
         observed_style_labels = sorted(_style_label(style) for style in style_counts)

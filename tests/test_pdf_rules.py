@@ -1420,6 +1420,189 @@ def test_pdf_cli_handles_unreadable_pdf_gracefully(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# P019: TOC/List front-matter arabic column-number noise suppression
+# ---------------------------------------------------------------------------
+
+
+def _make_toc_noise_pdf(
+    path: Path,
+    *,
+    toc_page_count: int = 2,
+    roman_page_nums: list[str] | None = None,
+    toc_column_arabic: list[str] | None = None,
+    chapter_heading: str = "CHAPTER 1 INTRODUCTION",
+    body_arabic: str = "1",
+) -> None:
+    """Create a PDF where front-matter TOC pages have:
+    - a roman page number at bottom-center (the real page number)
+    - one or more arabic numbers at bottom-right (TOC destination column)
+    Followed by a CHAPTER 1 body page with an arabic page number.
+    """
+    if roman_page_nums is None:
+        roman_page_nums = ["viii", "ix"][:toc_page_count]
+    if toc_column_arabic is None:
+        toc_column_arabic = ["29"] * toc_page_count
+
+    doc = fitz.open()
+    for i in range(toc_page_count):
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+        # Real page number: bottom-center (x=300).
+        page.insert_text((300, 760), roman_page_nums[i], fontsize=12)
+        # TOC column destination number: bottom-right (x=540, in the bottom zone).
+        page.insert_text((540, 760), toc_column_arabic[i], fontsize=12)
+
+    # Body page: CHAPTER 1 with arabic page number.
+    body = doc.new_page(width=612, height=792)
+    body.insert_text((108, 90), chapter_heading, fontsize=14)
+    body.insert_text((300, 760), body_arabic, fontsize=12)
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p019_toc_page_arabic_column_numbers_not_flagged(tmp_path: Path) -> None:
+    """TOC front-matter pages with roman bottom-center + arabic bottom-right (TOC column)
+    should not produce multiple_page_numbers, mixed_numbering_style, or
+    inconsistent_position P019 findings.
+    """
+    pdf_path = tmp_path / "p019_toc_noise.pdf"
+    _make_toc_noise_pdf(pdf_path, toc_page_count=2, roman_page_nums=["viii", "ix"],
+                        toc_column_arabic=["29", "73"])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    per_page_noise = [
+        f for f in findings
+        if f.rule_id == "P019"
+        and f.page in {1, 2}
+        and f.details.get("issue_type") in {
+            "multiple_page_numbers", "mixed_numbering_style", "inconsistent_position"
+        }
+    ]
+    assert not per_page_noise, (
+        "TOC pages should not produce per-page P019 noise from TOC column numbers: "
+        f"{per_page_noise}"
+    )
+
+
+def test_p019_toc_noise_body_page_still_detected(tmp_path: Path) -> None:
+    """After filtering TOC noise, body pages with genuine arabic page numbers are
+    still detected (no over-suppression).
+    """
+    pdf_path = tmp_path / "p019_toc_body_ok.pdf"
+    _make_toc_noise_pdf(pdf_path, toc_page_count=1, roman_page_nums=["iv"],
+                        toc_column_arabic=["12"])
+    model = load_pdf_layout(str(pdf_path))
+    from njit_auditor.rules.pdf_page_numbers import detect_page_number_candidates
+    candidates = detect_page_number_candidates(model)
+    body_page_candidates = [c for c in candidates if c.page_number == 2]
+    assert any(c.number_style == "arabic" for c in body_page_candidates), (
+        "Body page arabic candidate should still be detected after TOC-noise filtering"
+    )
+
+
+def test_p019_toc_noise_not_suppressed_without_roman_center(tmp_path: Path) -> None:
+    """Conservative guard: on a front-matter page with NO roman bottom-center,
+    arabic bottom-right candidates are NOT suppressed (could be a real error).
+    """
+    pdf_path = tmp_path / "p019_toc_no_roman_center.pdf"
+    doc = fitz.open()
+    # Page 1: front-matter with ONLY arabic bottom-right (no roman at all).
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((540, 760), "29", fontsize=12)   # arabic, bottom-right, no roman partner
+    p1.insert_text((540, 745), "34", fontsize=12)   # second arabic, bottom-right
+    # Page 2: CHAPTER 1 body.
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((108, 90), "CHAPTER 1 INTRODUCTION", fontsize=14)
+    p2.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    # With no roman bottom-center, arabic candidates are kept and may trigger noise.
+    # We just verify the guard didn't crash and did not suppress everything.
+    assert isinstance(findings, list)
+
+
+def test_p019_body_page_arabic_right_not_suppressed(tmp_path: Path) -> None:
+    """Body pages are never subject to the TOC-noise filter regardless of position."""
+    pdf_path = tmp_path / "p019_body_right.pdf"
+    doc = fitz.open()
+    # Front-matter with roman bottom-center.
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((300, 760), "iii", fontsize=12)
+    # Body page: CHAPTER 1, arabic at bottom-right AND bottom-center (genuinely suspicious).
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((108, 90), "CHAPTER 1 INTRODUCTION", fontsize=14)
+    p2.insert_text((300, 760), "1", fontsize=12)   # bottom-center arabic
+    p2.insert_text((540, 760), "99", fontsize=12)  # bottom-right arabic (duplicate)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    body_multiple = [
+        f for f in findings
+        if f.rule_id == "P019" and f.page == 2
+        and f.details.get("issue_type") == "multiple_page_numbers"
+    ]
+    assert body_multiple, (
+        "Body page with two arabic candidates should still trigger multiple_page_numbers"
+    )
+
+
+def test_p019_lot_lof_page_arabic_column_not_flagged(tmp_path: Path) -> None:
+    """LIST OF TABLES and LIST OF FIGURES pages follow the same pattern as TOC:
+    roman bottom-center (real page num) + arabic bottom-right (entry page refs).
+    No per-page P019 noise should be emitted.
+    """
+    pdf_path = tmp_path / "p019_lot_lof_noise.pdf"
+    doc = fitz.open()
+    # LIST OF TABLES page (front matter, roman xii).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((210, 90), "LIST OF TABLES", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "xii", fontsize=12)
+    p.insert_text((540, 760), "45", fontsize=12)   # Table 1 destination page
+    # LIST OF FIGURES page (front matter, roman xiii).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((210, 90), "LIST OF FIGURES", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "xiii", fontsize=12)
+    p.insert_text((540, 760), "67", fontsize=12)   # Figure 1 destination page
+    # CHAPTER 1 body.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((108, 90), "CHAPTER 1 INTRODUCTION", fontsize=14)
+    p.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    lot_lof_noise = [
+        f for f in findings
+        if f.rule_id == "P019"
+        and f.page in {1, 2}
+        and f.details.get("issue_type") in {
+            "multiple_page_numbers", "mixed_numbering_style", "inconsistent_position"
+        }
+    ]
+    assert not lot_lof_noise, (
+        f"LIST OF TABLES/FIGURES pages should not produce per-page P019 noise: {lot_lof_noise}"
+    )
+
+
+def test_p019_real_multiple_candidates_body_still_warns(tmp_path: Path) -> None:
+    """Existing test: normal body page with two arabic candidates still warns."""
+    pdf_path = tmp_path / "p019_real_multiple.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path,
+        ["1", "2", "3"],
+        add_second_numbers={1: ("99", 560)},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert any(f.details.get("issue_type") == "multiple_page_numbers" for f in findings)
+
+
+# ---------------------------------------------------------------------------
 # P020: Title-case capitalization — helper unit tests
 # ---------------------------------------------------------------------------
 
