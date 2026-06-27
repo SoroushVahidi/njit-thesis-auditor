@@ -26,6 +26,11 @@ EXPECTED_HEADINGS: tuple[str, ...] = (
 
 BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold)", re.IGNORECASE)
 
+# Chapter/appendix heading patterns used to locate the start of the body region.
+_CHAPTER_HEADING_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+", re.IGNORECASE)
+# Fallback: "CHAPTER" or "APPENDIX" alone on its own line (split-heading layout).
+_CHAPTER_STANDALONE_RE = re.compile(r"^(CHAPTER|APPENDIX)\s*$", re.IGNORECASE)
+
 
 @dataclass(frozen=True)
 class HeadingMatch:
@@ -81,6 +86,23 @@ def _line_centering(
 def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
     centered, _, _ = _line_centering(line, text_area_x0, text_area_x1)
     return centered
+
+
+def find_body_start_page(pdf_doc: PdfDocument) -> int | None:
+    """Return the page number of the first CHAPTER/APPENDIX heading, or None.
+
+    Handles two layouts:
+    * "CHAPTER 1 INTRODUCTION" on a single line — matched by _CHAPTER_HEADING_RE.
+    * "CHAPTER" alone on one line with the number on the next — matched by
+      _CHAPTER_STANDALONE_RE (split-heading layout common in some templates).
+    """
+    for page in pdf_doc.pages:
+        for block in page.text_blocks:
+            for line in block.lines:
+                clean = " ".join(line.text.strip().split())
+                if _CHAPTER_HEADING_RE.match(clean) or _CHAPTER_STANDALONE_RE.match(clean):
+                    return page.page_number
+    return None
 
 
 def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMatch]:

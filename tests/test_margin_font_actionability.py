@@ -495,6 +495,70 @@ def test_margin_font_mobile_desktop_parity(app: tuple[TestClient, Any]) -> None:
     assert _pdf_links(mobile) == _pdf_links(desktop)
 
 
+def test_margin_bottom_affected_line_texts_in_comment(app: tuple[TestClient, Any]) -> None:
+    """affected_line_texts stored by the detector appear in the student-facing comment."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    client, wa = app
+    job_id = _inject_job(
+        wa,
+        [
+            AuditFinding(
+                rule_id="P011",
+                severity=Severity.WARNING,
+                page=11,
+                message="Bottom margin overflow.",
+                details={
+                    "issue_type": "margin_boundary_violation",
+                    "side": "bottom_margin",
+                    "worst_overflow_pt": "9.2",
+                    "affected_line_count": "2",
+                    "confidence": "medium",
+                    "affected_line_texts": (
+                        "4.5 Numerical Simulations ... 73"
+                        " | 4.5.1 Experimental setup ... 73"
+                    ),
+                    "bbox": "108.0,715.0,504.0,730.0",
+                },
+            )
+        ],
+    )
+    text = _get_html(client, f"/audits/{job_id}")
+    assert "page 11 appears to cross the required bottom margin boundary" in text
+    assert "9.2pt beyond the boundary" in text
+    assert "2 text lines affected" in text
+    assert "4.5 Numerical Simulations" in text
+    assert "4.5.1 Experimental setup" in text
+
+
+def test_margin_line_count_student_friendly_wording(app: tuple[TestClient, Any]) -> None:
+    """The line-count phrase uses 'N text lines affected', not the old 'across N text lines'."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    client, wa = app
+    job_id = _inject_job(
+        wa,
+        [
+            AuditFinding(
+                rule_id="P011",
+                severity=Severity.WARNING,
+                page=5,
+                message="Right margin overflow.",
+                details={
+                    "issue_type": "margin_boundary_violation",
+                    "side": "right_margin",
+                    "worst_overflow_pt": "4.5",
+                    "affected_line_count": "3",
+                    "confidence": "medium",
+                },
+            )
+        ],
+    )
+    text = _get_html(client, f"/audits/{job_id}")
+    assert "3 text lines affected" in text
+    assert "across 3 text lines" not in text
+
+
 def test_margin_font_route_crawl_has_no_500s(app: tuple[TestClient, Any]) -> None:
     from njit_auditor.models import AuditFinding, Severity
 

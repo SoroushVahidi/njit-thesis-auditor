@@ -805,8 +805,23 @@ def _margin_overflow_extras(details: Mapping[str, str]) -> list[str]:
         extras.append(f"about {overflow}pt beyond the boundary")
     if line_count:
         noun = "line" if line_count == "1" else "lines"
-        extras.append(f"across {line_count} text {noun}")
+        extras.append(f"{line_count} text {noun} affected")
     return extras
+
+
+def _margin_affected_lines_clause(details: Mapping[str, str]) -> str:
+    """Format a student-readable clause listing affected line text previews, if stored."""
+    texts_raw = details.get("affected_line_texts", "").strip()
+    if not texts_raw:
+        return ""
+    parts = [t.strip() for t in texts_raw.split("|") if t.strip()]
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return f' Affected text: "{parts[0]}".'
+    previews = " and ".join(f'"{p}"' for p in parts[:3])
+    suffix = " (and more)" if len(parts) > 3 else ""
+    return f" Affected text lines include: {previews}{suffix}."
 
 
 def _margin_overflow_detail_phrase(details: Mapping[str, str]) -> str:
@@ -902,11 +917,13 @@ def _margin_comment_and_fix(
         )
         return comment, fix
     overflow_detail = _margin_overflow_detail_phrase(details)
+    lines_clause = _margin_affected_lines_clause(details)
     comment = (
         f"{prefix}: Content on page {page_label} appears to cross the required {side} "
         f"boundary{overflow_detail}. NJIT formatting expects body content to remain inside "
         "the required page margins. Review the highlighted area if available, or inspect "
-        "tables, figures, long lines, indentation, headers, and footers on this page."
+        f"tables, figures, long lines, indentation, headers, and footers on this page."
+        f"{lines_clause}"
     )
     fix = (
         f"Move the flagged content back inside the required {side} and correct any "
@@ -1201,10 +1218,23 @@ def _page_number_comment_and_fix(
                 details.get("page_region", "").strip(), ""
             )
             section_phrase = f"the {region_label} section" if region_label else "this section"
+            if region_label == "front matter":
+                convention = (
+                    " NJIT requires preliminary pages (before Chapter 1) to use lowercase "
+                    "Roman numerals such as i, ii, iii, iv."
+                )
+            elif region_label == "body":
+                convention = (
+                    " NJIT requires the main body (starting at Chapter 1) to use Arabic "
+                    "numerals starting at 1."
+                )
+            else:
+                convention = ""
             return (
                 "Review needed: Problem: "
                 f"The page number on page {page_label} appears to use {observed_style}, "
-                f"but pages in {section_phrase} are expected to use {expected_style}. "
+                f"but pages in {section_phrase} are expected to use {expected_style}."
+                f"{convention} "
                 "Update the page-numbering style for this section.",
                 "Update the page-numbering style for this section.",
             )
@@ -1611,21 +1641,20 @@ def _apply_p012_document_presentation(
 ) -> tuple[FindingView, bool]:
     if not is_p012_finding(finding.rule_id, finding.issue_type):
         return finding, True
-    representative_page = stats.representative_page
     location_label = p012_document_location_label(stats)
     comment = p012_document_rolled_up_comment(stats)
     suggested_fix = p012_document_suggested_fix()
     return (
         replace(
             finding,
-            page=representative_page,
+            page=None,
             polished_comment=comment,
             suggested_fix=suggested_fix,
             location_label=location_label,
             bbox=None,
             has_highlight=False,
-            action_kind=get_action_kind(has_highlight=False, page=representative_page),
-            action_label=get_action_label(has_highlight=False, page=representative_page),
+            action_kind=get_action_kind(has_highlight=False, page=None),
+            action_label=get_action_label(has_highlight=False, page=None),
             no_highlight_reason=p012_document_no_highlight_reason(stats),
             detailed_explanation=p012_document_rolled_up_explanation(stats),
         ),

@@ -155,6 +155,8 @@
         </div>
         {% if example.page is not none %}
         <span class="badge badge-info">Page {{ example.page }}</span>
+        {% elif example.location_text and example.location_text.startswith("Document-wide") %}
+        <span class="badge badge-muted">Document-wide</span>
         {% else %}
         <span class="badge badge-muted">No page number</span>
         {% endif %}

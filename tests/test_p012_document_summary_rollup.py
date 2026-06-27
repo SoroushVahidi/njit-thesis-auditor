@@ -158,6 +158,42 @@ def test_document_summary_representative_page_action_wording() -> None:
     findings = _high_volume_findings()
     view = build_report_view(_payload(findings))
     card = [f for f in view.findings if f.rule_id == "P012"][0]
-    assert card.page == 1
+    # Document-wide summary has no single representative page in the card.
+    assert card.page is None
     assert "representative" in (card.no_highlight_reason or "").lower()
     assert card.action_label is not None
+
+
+def test_document_summary_page_is_none_not_representative_page() -> None:
+    """Document-wide P012 card must have page=None, not the first affected page."""
+    findings = _high_volume_findings()
+    view = build_report_view(_payload(findings))
+    card = [f for f in view.findings if f.rule_id == "P012"][0]
+    assert card.page is None, (
+        "Expected page=None for document-wide P012 summary; "
+        f"got page={card.page!r}. Badge should say 'Document-wide', not 'Page N'."
+    )
+
+
+def test_document_summary_comment_mentions_annotation_types() -> None:
+    """Document-wide P012 comment should mention annotation types like sticky notes."""
+    findings = _high_volume_findings()
+    view = build_report_view(_payload(findings))
+    card = [f for f in view.findings if f.rule_id == "P012"][0]
+    comment = card.polished_comment or ""
+    assert any(
+        term in comment.lower()
+        for term in ("sticky note", "highlight", "comment", "markup")
+    ), f"Expected annotation type examples in comment; got: {comment!r}"
+
+
+def test_document_summary_explanation_mentions_annotation_types() -> None:
+    """Document-wide P012 explanation should list annotation sub-types."""
+    findings = _high_volume_findings()
+    view = build_report_view(_payload(findings))
+    card = [f for f in view.findings if f.rule_id == "P012"][0]
+    explanation = card.detailed_explanation or ""
+    assert any(
+        term in explanation.lower()
+        for term in ("sticky note", "comment balloon", "highlight", "freehand")
+    ), f"Expected annotation sub-types in explanation; got: {explanation!r}"
