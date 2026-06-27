@@ -45,7 +45,7 @@ from njit_auditor.rules.pdf_heading_levels import (
     _looks_like_title_case_violation,
     check_pdf_heading_level_styles,
 )
-from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings
+from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings, find_body_start_page
 from njit_auditor.rules.pdf_indentation import check_pdf_indentation
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
@@ -3696,6 +3696,283 @@ def test_p028_body_arabic_not_flagged_when_chapter_on_same_page(tmp_path: Path) 
         and f.details.get("page_region") == "body"
     ]
     assert not false_positives
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: body-start detection must not match TOC column header
+# (PR #378 regression — _CHAPTER_STANDALONE_RE was case-insensitive, matching
+# the title-case "Chapter" column header on TABLE OF CONTENTS pages)
+# ---------------------------------------------------------------------------
+
+
+def test_find_body_start_page_toc_chapter_column_header_not_matched(tmp_path: Path) -> None:
+    """Title-case 'Chapter' TOC column header must NOT trigger body-start detection.
+
+    The TABLE OF CONTENTS page uses 'Chapter' and 'Page' as column headers.
+    With re.IGNORECASE removed from _CHAPTER_STANDALONE_RE, 'Chapter' (title
+    case) no longer matches, so body_start stays None until a real all-caps
+    CHAPTER heading is found.
+    """
+    pdf_path = tmp_path / "toc_chapter_header.pdf"
+    doc = fitz.open()
+    # Page 1: TABLE OF CONTENTS with title-case "Chapter" column header.
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((108, 140), "Chapter", fontsize=12)   # column header, title case
+    p1.insert_text((400, 140), "Page", fontsize=12)       # column header
+    p1.insert_text((108, 165), "1", fontsize=12)
+    p1.insert_text((108, 185), "INTRODUCTION", fontsize=12)
+    p1.insert_text((400, 185), "5", fontsize=12)
+    p1.insert_text((300, 760), "iv", fontsize=12)         # Roman page number
+    # Page 2: Real CHAPTER 1 body start.
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p2.insert_text((220, 120), "INTRODUCTION", fontsize=14)
+    p2.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    body_start = find_body_start_page(model)
+    assert body_start == 2, (
+        f"body_start should be page 2 (CHAPTER 1), not {body_start!r}; "
+        "title-case 'Chapter' TOC column header must not match"
+    )
+
+
+def test_find_body_start_page_all_caps_standalone_still_matches(tmp_path: Path) -> None:
+    """ALL-CAPS 'CHAPTER' alone on a line (split-heading layout) must still match.
+
+    This verifies the original split-heading fix still works after removing
+    re.IGNORECASE from _CHAPTER_STANDALONE_RE.
+    """
+    pdf_path = tmp_path / "split_chapter_caps.pdf"
+    doc = fitz.open()
+    # Page 1: front-matter.
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((300, 760), "iv", fontsize=12)
+    # Page 2: split chapter heading — "CHAPTER" on one line, "1" on the next.
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((220, 90), "CHAPTER", fontsize=16, fontname="Times-Bold")
+    p2.insert_text((250, 120), "1", fontsize=16, fontname="Times-Bold")
+    p2.insert_text((220, 155), "INTRODUCTION", fontsize=14)
+    p2.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    body_start = find_body_start_page(model)
+    assert body_start == 2, (
+        f"body_start should be page 2 (split CHAPTER heading), got {body_start!r}"
+    )
+
+
+def test_p028_toc_chapter_column_header_roman_pages_not_flagged(tmp_path: Path) -> None:
+    """Regression: TOC pages with Roman page numbers must not be flagged as body pages.
+
+    Before the fix, 'Chapter' (title case) in the TOC column header triggered
+    body_start at the TOC page, causing TOC/List pages with Roman numerals to
+    be wrongly classified as body pages and flagged by P028.
+
+    Structure mirrors the real dissertation that triggered the bug:
+    - Pages 1-4:  front matter (roman i-iv)
+    - Pages 5-7:  TABLE OF CONTENTS continuation, LIST OF TABLES, LIST OF FIGURES
+                  (roman v-vii) — these must remain front matter
+    - Page 8:     CHAPTER 1 body start (arabic 1)
+    """
+    pdf_path = tmp_path / "toc_regression.pdf"
+    doc = fitz.open()
+
+    # Front-matter page 1 (roman i).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "BIOGRAPHICAL SKETCH", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "i", fontsize=12)
+
+    # Front-matter page 2 (roman ii).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((215, 90), "ACKNOWLEDGEMENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "ii", fontsize=12)
+
+    # TOC page with title-case "Chapter" column header (roman iii).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "Chapter", fontsize=12)   # title-case column header
+    p.insert_text((108, 165), "1", fontsize=12)
+    p.insert_text((108, 185), "INTRODUCTION", fontsize=12)
+    p.insert_text((300, 760), "iii", fontsize=12)
+
+    # TOC continuation (roman iv).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "(Continued)", fontsize=12)
+    p.insert_text((300, 760), "iv", fontsize=12)
+
+    # LIST OF TABLES (roman v).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((210, 90), "LIST OF TABLES", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "Table", fontsize=12)     # title-case column header
+    p.insert_text((300, 760), "v", fontsize=12)
+
+    # LIST OF FIGURES (roman vi).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((210, 90), "LIST OF FIGURES", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "Figure", fontsize=12)
+    p.insert_text((300, 760), "vi", fontsize=12)
+
+    # Front-matter page (roman vii).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((300, 760), "vii", fontsize=12)
+
+    # CHAPTER 1 body start (arabic 1).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+
+    # Body start must be page 8 (CHAPTER 1), not pages 3-7 (TOC/list pages).
+    body_start = find_body_start_page(model)
+    assert body_start == 8, (
+        f"body_start should be page 8 (CHAPTER 1), got {body_start!r}; "
+        "TOC 'Chapter' column header must not trigger body-start detection"
+    )
+
+    # P028: TOC/list pages (3-7) with Roman numerals must NOT be flagged.
+    p028 = check_pdf_page_numbering_regime(model)
+    toc_list_false_positives = [
+        f for f in p028
+        if f.rule_id == "P028" and f.page in {3, 4, 5, 6, 7}
+    ]
+    assert not toc_list_false_positives, (
+        f"TOC/list pages wrongly flagged by P028 as body: {toc_list_false_positives}"
+    )
+
+    # The body page (8) with Arabic '1' must not be flagged.
+    body_page_findings = [f for f in p028 if f.rule_id == "P028" and f.page == 8]
+    assert not body_page_findings, (
+        f"CHAPTER 1 page wrongly flagged by P028: {body_page_findings}"
+    )
+
+
+def test_p038_toc_heading_in_front_matter_when_chapter_in_toc_column(tmp_path: Path) -> None:
+    """Regression: TABLE OF CONTENTS should be detected in front matter even when
+    the TOC page contains a title-case 'Chapter' column header.
+
+    Before the fix, body_start was set to the TOC page (because 'Chapter' matched
+    the standalone regex), placing the TOC heading in the body region and causing
+    P038 to falsely report it as missing from front matter.
+    """
+    pdf_path = tmp_path / "p038_toc_front_matter.pdf"
+    doc = fitz.open()
+    # Front-matter pages.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((240, 90), "APPROVAL PAGE", fontsize=14, fontname="Times-Bold")
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((200, 90), "BIOGRAPHICAL SKETCH", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "iv", fontsize=12)
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((205, 90), "ACKNOWLEDGEMENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "v", fontsize=12)
+    # TABLE OF CONTENTS with title-case column header.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "Chapter", fontsize=12)   # title-case: must not shift body_start
+    p.insert_text((300, 760), "vi", fontsize=12)
+    # CHAPTER 1 body.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    toc_missing = [
+        f for f in findings
+        if f.details.get("section_key") == "table_of_contents"
+        and f.details.get("issue_type") == "required_heading_missing"
+    ]
+    assert not toc_missing, (
+        "TABLE OF CONTENTS wrongly reported as missing from front matter; "
+        "likely caused by body_start being set too early from TOC column header"
+    )
+
+
+def test_find_body_start_page_mashed_chapter_number_matches() -> None:
+    """Mashed 'CHAPTER1' (no space) must still trigger body-start detection.
+
+    pdf_layout.py skips whitespace-only spans (line 83), so when the space
+    between 'CHAPTER' and '1' is its own span (common in LaTeX PDFs), the
+    model sees line.text='CHAPTER1'.  _CHAPTER_HEADING_MASHED_RE must catch it.
+    """
+    from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextSpan
+
+    zero_bbox = BBox(x0=0, y0=0, x1=100, y1=14)
+
+    def _line(text: str) -> PdfTextLine:
+        return PdfTextLine(
+            text=text,
+            bbox=zero_bbox,
+            spans=[PdfTextSpan(text=text, bbox=zero_bbox, font="Times-Bold", size=16, bold=True)],
+        )
+
+    front_matter_block = PdfTextBlock(
+        bbox=zero_bbox,
+        text="iii",
+        lines=[_line("iii")],
+    )
+    chapter_block = PdfTextBlock(
+        bbox=zero_bbox,
+        text="CHAPTER1",
+        lines=[_line("CHAPTER1")],
+    )
+    doc = PdfDocument(
+        path="synthetic.pdf",
+        pages=[
+            PdfPage(page_number=1, width=612, height=792, text_blocks=[front_matter_block]),
+            PdfPage(page_number=2, width=612, height=792, text_blocks=[chapter_block]),
+        ],
+    )
+    result = find_body_start_page(doc)
+    assert result == 2, (
+        f"body_start should be page 2 for mashed 'CHAPTER1', got {result!r}; "
+        "_CHAPTER_HEADING_MASHED_RE must match all-caps CHAPTER followed by digits with no space"
+    )
+
+
+def test_find_body_start_page_body_sentence_not_matched(tmp_path: Path) -> None:
+    """Title-case 'Chapter N' in a body-text forward reference must NOT trigger body-start.
+
+    In the real dissertation, page 21 contains 'Chapter 3 is dedicated to the
+    development and evaluation of...'.  With re.IGNORECASE removed from
+    _CHAPTER_HEADING_RE, this sentence no longer matches, so body_start must
+    advance to the actual CHAPTER 3 ALL-CAPS heading page.
+    """
+    pdf_path = tmp_path / "body_sentence_chapter.pdf"
+    doc = fitz.open()
+    # Page 1: front matter.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((300, 760), "iv", fontsize=12)
+    # Page 2: body paragraph with title-case forward reference ("Chapter 3 is dedicated...").
+    p = doc.new_page(width=612, height=792)
+    p.insert_text(
+        (108, 120),
+        "Chapter 3 is dedicated to the development and evaluation of an advanced system.",
+        fontsize=12,
+    )
+    p.insert_text((300, 760), "1", fontsize=12)
+    # Page 3: real ALL-CAPS chapter heading.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 3", fontsize=16, fontname="Times-Bold")
+    p.insert_text((300, 760), "3", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    body_start = find_body_start_page(model)
+    assert body_start == 3, (
+        f"body_start should be page 3 (ALL-CAPS CHAPTER 3), got {body_start!r}; "
+        "title-case 'Chapter N' in body sentences must not match _CHAPTER_HEADING_RE"
+    )
 
 
 # ---------------------------------------------------------------------------
