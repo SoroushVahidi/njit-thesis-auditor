@@ -123,24 +123,40 @@ def run_pdf_margin_rule(
             if count >= ARTIFACT_GUARD_MIN_COUNT and worst < ARTIFACT_GUARD_MAX_OVERFLOW_PT:
                 continue
             confidence = _group_confidence(worst, count)
+
+            # Collect truncated text previews of all violating lines for student-facing wording.
+            _MAX_PREVIEW_LEN = 60
+            _MAX_PREVIEW_LINES = 5
+            line_previews: list[str] = []
+            for v in violations[:_MAX_PREVIEW_LINES]:
+                txt = v.line.text.strip()
+                if txt:
+                    line_previews.append(
+                        (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
+                    )
+
+            finding_details: dict[str, str] = {
+                "side": side.value,
+                "issue_type": "margin_boundary_violation",
+                "worst_overflow_pt": f"{worst:.1f}",
+                "affected_line_count": str(count),
+                "confidence": confidence,
+                "triage_tier": "informational",
+                "bbox": format_bbox_detail(worst_violation.line.bbox),
+                "suggested_fix": (
+                    "Review margin settings and move content inside required layout bounds."
+                ),
+            }
+            if line_previews:
+                finding_details["affected_line_texts"] = " | ".join(line_previews)
+
             findings.append(
                 AuditFinding(
                     rule_id="P011",
                     severity=Severity.WARNING,
                     page=page.page_number,
                     message=f"Possible text crossing {side.value}.",
-                    details={
-                        "side": side.value,
-                        "issue_type": "margin_boundary_violation",
-                        "worst_overflow_pt": f"{worst:.1f}",
-                        "affected_line_count": str(count),
-                        "confidence": confidence,
-                        "triage_tier": "informational",
-                        "bbox": format_bbox_detail(worst_violation.line.bbox),
-                        "suggested_fix": (
-                            "Review margin settings and move content inside required layout bounds."
-                        ),
-                    },
+                    details=finding_details,
                 )
             )
 

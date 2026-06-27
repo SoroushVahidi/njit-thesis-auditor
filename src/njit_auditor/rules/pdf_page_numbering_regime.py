@@ -20,15 +20,13 @@ Does NOT duplicate:
 
 from __future__ import annotations
 
-import re
-
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
-from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings
-from njit_auditor.rules.pdf_page_numbers import detect_page_number_candidates
-
-# Body chapter / appendix heading pattern — marks start of body region.
-_CHAPTER_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+", re.IGNORECASE)
+from njit_auditor.rules.pdf_headings import find_body_start_page, find_named_frontmatter_headings
+from njit_auditor.rules.pdf_page_numbers import (
+    detect_page_number_candidates,
+    is_plausible_page_number_candidate,
+)
 
 # Named headings that define no-number pages (P022 territory — skip in P028).
 _NO_NUMBER_HEADINGS: frozenset[str] = frozenset(["ABSTRACT", "APPROVAL PAGE"])
@@ -44,17 +42,6 @@ def _style_label(number_style: str) -> str:
         "roman_upper": "uppercase Roman numerals",
     }
     return labels.get(number_style, "an unexpected numbering style")
-
-
-def _find_body_start_page(pdf_doc: PdfDocument) -> int | None:
-    """Return the page number of the first body chapter/appendix heading, or None."""
-    for page in pdf_doc.pages:
-        for block in page.text_blocks:
-            for line in block.lines:
-                clean = " ".join(line.text.strip().split())
-                if _CHAPTER_RE.match(clean):
-                    return page.page_number
-    return None
 
 
 def _find_no_number_pages(pdf_doc: PdfDocument) -> set[int]:
@@ -85,7 +72,7 @@ def _classify_pages(
             fm_heading_pages[match.page_number] = match.heading
     has_front_matter = bool(fm_heading_pages)
 
-    body_start = _find_body_start_page(pdf_doc)
+    body_start = find_body_start_page(pdf_doc)
 
     regions: dict[int, str] = {}
     for page in pdf_doc.pages:
@@ -121,7 +108,10 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
         return []
 
     no_number_pages = _find_no_number_pages(pdf_doc)
-    candidates = detect_page_number_candidates(pdf_doc)
+    # Only consider plausible page-number candidates (bottom/top-positioned tokens, not
+    # section headings or other non-page-number matches in the margin zone).
+    raw_candidates = detect_page_number_candidates(pdf_doc)
+    candidates = [c for c in raw_candidates if is_plausible_page_number_candidate(c)]
 
     # Deduplicate: one finding per (page, issue_type).
     seen: set[tuple[int, str]] = set()

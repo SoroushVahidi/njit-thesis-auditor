@@ -48,7 +48,11 @@ from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
-from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
+from njit_auditor.rules.pdf_headings import (
+    EXPECTED_HEADINGS,
+    find_body_start_page,
+    normalize_heading_text,
+)
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, TOP_BOTTOM_ZONE_RATIO
 
 DOUBLE_SPACING_RATIO_THRESHOLD = 1.55
@@ -150,7 +154,14 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """
     findings: list[AuditFinding] = []
 
+    # Skip all pages that precede the first CHAPTER/APPENDIX heading. These are
+    # front-matter pages (biographical sketch, publication lists, TOC continuation
+    # pages, etc.) that are legitimately single-spaced or tightly formatted.
+    body_start = find_body_start_page(pdf_doc)
+
     for page in pdf_doc.pages:
+        if body_start is not None and page.page_number < body_start:
+            continue
         if _page_has_heading_in(page, TOC_LIKE_HEADINGS):
             continue
         if _page_has_heading_in(page, REFERENCES_LIKE_HEADINGS):

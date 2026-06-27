@@ -2049,6 +2049,66 @@ def test_p023_json_report_includes_rule_when_triggered(tmp_path: Path) -> None:
     assert "P023" in json_out.read_text(encoding="utf-8")
 
 
+def test_p023_front_matter_continuation_page_not_flagged(tmp_path: Path) -> None:
+    """Front-matter continuation pages (before Chapter 1) must not trigger P023.
+
+    The biographical-sketch publication list and other front-matter content is
+    legitimately single-spaced. P023 should only apply to body pages (at or after
+    the first CHAPTER/APPENDIX heading).  This two-page PDF has a single-spaced
+    front-matter page followed by a CHAPTER 1 body page; only the body page
+    would be eligible (but the body page has double-spaced text, so no P023).
+    """
+    pdf_path = tmp_path / "frontmatter_continuation_p023.pdf"
+    doc = fitz.open()
+
+    # Page 1: single-spaced front-matter continuation (no named heading).
+    page1 = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page1.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+
+    # Page 2: body page starting with CHAPTER 1 heading, double-spaced text.
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_DOUBLE_SPACED_Y):
+        page2.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings), (
+        "P023 must not fire on front-matter pages that precede Chapter 1"
+    )
+
+
+def test_p023_body_single_spaced_still_flagged_after_chapter(tmp_path: Path) -> None:
+    """Body pages (at or after CHAPTER 1) with single-spaced text must still warn.
+
+    Ensures the body-start suppression does not accidentally suppress body findings.
+    """
+    pdf_path = tmp_path / "body_after_chapter_p023.pdf"
+    doc = fitz.open()
+
+    # Page 1: single-spaced front-matter continuation (should be skipped).
+    page1 = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page1.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+
+    # Page 2: body page with CHAPTER 1 heading but single-spaced content.
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page2.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    p023 = [f for f in findings if f.rule_id == "P023"]
+    assert len(p023) == 1
+    assert p023[0].page == 2, "P023 should fire on page 2 (body), not page 1 (front matter)"
+
+
 # ---------------------------------------------------------------------------
 # P024: TOC/List entry capitalization and punctuation
 # ---------------------------------------------------------------------------
@@ -3561,6 +3621,81 @@ def test_p028_json_report_includes_p028_when_triggered(tmp_path: Path) -> None:
     data = _json.loads(json_path.read_text())
     rule_ids = [f.get("rule_id") for f in data.get("findings", [])]
     assert "P028" in rule_ids
+
+
+def test_p028_chapter_heading_split_across_lines_no_false_positive(tmp_path: Path) -> None:
+    """When CHAPTER and the chapter number appear on separate text lines, body start is
+    still detected, so the chapter page is NOT flagged as front-matter."""
+    pdf_path = tmp_path / "p028_split_chapter.pdf"
+    doc = fitz.open()
+    # Front-matter page: TOC with correct Roman numeral.
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((300, 760), "iv", fontsize=12)
+    # Body page: "CHAPTER" and "1" as separate text elements (split layout).
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((108, 180), "CHAPTER", fontsize=18, fontname="Times-Bold")
+    p2.insert_text((108, 210), "1", fontsize=18, fontname="Times-Bold")
+    p2.insert_text((108, 250), "INTRODUCTION", fontsize=14)
+    p2.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    # The chapter page (page 2) must NOT be flagged as arabic_number_on_frontmatter_page.
+    chapter_false_positives = [
+        f for f in findings
+        if f.page == 2 and f.details.get("issue_type") == "arabic_number_on_frontmatter_page"
+    ]
+    assert not chapter_false_positives, (
+        f"Chapter 1 page incorrectly flagged as front-matter: {chapter_false_positives}"
+    )
+
+
+def test_p028_section_heading_number_not_used_as_page_number_candidate(tmp_path: Path) -> None:
+    """A left-aligned '1' from a chapter heading section is not used as the page-number
+    candidate for P028; the bottom-positioned '1' is used instead."""
+    pdf_path = tmp_path / "p028_section_heading.pdf"
+    doc = fitz.open()
+    # Front-matter page.
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((300, 760), "iv", fontsize=12)
+    # Chapter page: chapter heading at top, then "1.1 Background", page number at bottom.
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((108, 80), "CHAPTER 1 INTRODUCTION", fontsize=14)
+    # Section heading — its left-aligned "1" fragment should NOT be a page-number candidate.
+    p2.insert_text((108, 130), "1.1 Background", fontsize=12)
+    # Actual bottom page number.
+    p2.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    # Page 2 is body (chapter page) — no warning expected.
+    page2_findings = [f for f in findings if f.page == 2]
+    assert not page2_findings, (
+        f"Chapter page should not produce P028 findings; got: {page2_findings}"
+    )
+
+
+def test_p028_body_arabic_not_flagged_when_chapter_on_same_page(tmp_path: Path) -> None:
+    """A chapter page with Arabic page number 1 should never receive a
+    'arabic_number_on_frontmatter_page' warning."""
+    pdf_path = tmp_path / "p028_body_no_false_pos.pdf"
+    _make_regime_pdf(pdf_path, [
+        ("TABLE OF CONTENTS", None, "v"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    false_positives = [
+        f for f in findings
+        if f.details.get("issue_type") == "arabic_number_on_frontmatter_page"
+        and f.details.get("page_region") == "body"
+    ]
+    assert not false_positives
 
 
 # ---------------------------------------------------------------------------

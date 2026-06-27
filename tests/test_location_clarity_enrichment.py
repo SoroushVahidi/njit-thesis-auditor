@@ -343,7 +343,7 @@ def test_p011_comment_includes_overflow_and_line_count() -> None:
     fv = next(f for f in view.findings if f.rule_id == "P011")
     assert "page 2 appears to cross the required left margin boundary" in fv.polished_comment
     assert "67.3pt beyond the boundary" in fv.polished_comment
-    assert "across 4 text lines" in fv.polished_comment
+    assert "4 text lines affected" in fv.polished_comment
 
 
 def test_p011_comment_without_overflow_metadata_is_unchanged_shape() -> None:

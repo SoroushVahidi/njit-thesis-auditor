@@ -202,11 +202,13 @@ def p012_document_rolled_up_comment(stats: P012PresentationStats) -> str:
     top_clause = f" {stats.top_pages_phrase}." if stats.top_pages_phrase else ""
     body = (
         "Likely problem: The uploaded PDF appears to contain "
-        f"{stats.raw_finding_count} annotations or comments across "
-        f"{stats.affected_page_count} pages. These refer to markup left in the "
-        "original file you uploaded, not highlights added by this auditor. "
-        f"{pages_clause}{top_clause} Before final submission, resolve annotations on "
-        "every affected page, export a clean PDF, and re-run the auditor."
+        f"{stats.raw_finding_count} annotations or comments (such as sticky notes, "
+        f"highlights, or reviewer comments) across {stats.affected_page_count} pages. "
+        "These refer to markup already present in the original file you uploaded, not "
+        "highlights added by this auditor. "
+        f"{pages_clause}{top_clause} Before final submission, open the PDF in your "
+        "editor, accept or reject all reviewer changes, remove any remaining comments "
+        "or markup, export a clean PDF, and re-run the auditor."
     )
     return f"{REVIEW_PREFIX} {body}".strip()
 
@@ -278,15 +280,18 @@ def p012_rolled_up_explanation(
 def p012_document_rolled_up_explanation(stats: P012PresentationStats) -> str:
     text = (
         "Observed: The uploaded PDF appears to contain "
-        f"{stats.raw_finding_count} annotations or comments across "
-        f"{stats.affected_page_count} pages. "
-        "Expected: Before final submission, the PDF should be free of reviewer "
-        "annotations, comments, sticky notes, and markup. "
+        f"{stats.raw_finding_count} PDF annotations across "
+        f"{stats.affected_page_count} pages. These may include sticky notes, "
+        "text highlights, comment balloons, freehand drawings, or other reviewer "
+        "markup embedded in the file. "
+        "Expected: Before final submission, the PDF should be completely free of "
+        "embedded annotations, reviewer comments, and markup. "
         "Why this is suspicious: these findings refer to markup that was already "
         "present in the original file you uploaded -- they are not highlights added "
         "by this auditor to show you where to look. "
-        f"What to check or fix: review every affected page. Affected pages include: "
-        f"{stats.pages_compact}."
+        "What to check or fix: open the original PDF in your editor, accept or "
+        "reject all reviewer changes, delete remaining comments, highlights, and "
+        f"markup, then export a clean copy. Affected pages include: {stats.pages_compact}."
     )
     if stats.top_pages_phrase:
         text += f" {stats.top_pages_phrase}."
