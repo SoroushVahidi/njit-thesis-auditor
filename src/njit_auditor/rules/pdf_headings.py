@@ -27,9 +27,18 @@ EXPECTED_HEADINGS: tuple[str, ...] = (
 BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold)", re.IGNORECASE)
 
 # Chapter/appendix heading patterns used to locate the start of the body region.
-_CHAPTER_HEADING_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+", re.IGNORECASE)
+# All three patterns are intentionally case-SENSITIVE: NJIT requires ALL CAPS headings.
+# Title-case "Chapter" in TOC column headers and body sentences ("Chapter 3 discusses...")
+# must not be treated as body-chapter headings.
+
+# "CHAPTER 1 INTRODUCTION" or "APPENDIX A" — space-separated, ALL CAPS.
+_CHAPTER_HEADING_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+")
+# Fallback for PDFs where the space between "CHAPTER" and "1" is a whitespace-only span
+# that pdf_layout.py strips (line 83: `if not text.strip(): continue`), causing PyMuPDF
+# to join them as "CHAPTER1". Only ALL-CAPS versions match.
+_CHAPTER_HEADING_MASHED_RE = re.compile(r"^(CHAPTER|APPENDIX)[\dA-Z]+")
 # Fallback: "CHAPTER" or "APPENDIX" alone on its own line (split-heading layout).
-_CHAPTER_STANDALONE_RE = re.compile(r"^(CHAPTER|APPENDIX)\s*$", re.IGNORECASE)
+_CHAPTER_STANDALONE_RE = re.compile(r"^(CHAPTER|APPENDIX)\s*$")
 
 
 @dataclass(frozen=True)
@@ -91,16 +100,25 @@ def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) 
 def find_body_start_page(pdf_doc: PdfDocument) -> int | None:
     """Return the page number of the first CHAPTER/APPENDIX heading, or None.
 
-    Handles two layouts:
-    * "CHAPTER 1 INTRODUCTION" on a single line — matched by _CHAPTER_HEADING_RE.
-    * "CHAPTER" alone on one line with the number on the next — matched by
-      _CHAPTER_STANDALONE_RE (split-heading layout common in some templates).
+    Handles three ALL-CAPS layouts (all patterns are case-sensitive):
+    * "CHAPTER 1 INTRODUCTION" on a single line — _CHAPTER_HEADING_RE.
+    * "CHAPTER1" (mashed) — _CHAPTER_HEADING_MASHED_RE handles PDFs where the
+      inter-word space is a whitespace-only span filtered out by pdf_layout.py.
+    * "CHAPTER" alone on one line with the number on the next — _CHAPTER_STANDALONE_RE
+      (split-heading layout common in some templates).
+
+    Title-case "Chapter" (TOC column header or body-text forward reference such as
+    "Chapter 3 discusses...") is excluded by requiring ALL CAPS.
     """
     for page in pdf_doc.pages:
         for block in page.text_blocks:
             for line in block.lines:
                 clean = " ".join(line.text.strip().split())
-                if _CHAPTER_HEADING_RE.match(clean) or _CHAPTER_STANDALONE_RE.match(clean):
+                if (
+                    _CHAPTER_HEADING_RE.match(clean)
+                    or _CHAPTER_HEADING_MASHED_RE.match(clean)
+                    or _CHAPTER_STANDALONE_RE.match(clean)
+                ):
                     return page.page_number
     return None
 
