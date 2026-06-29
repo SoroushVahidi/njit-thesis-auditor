@@ -678,20 +678,21 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P026": {
         "rule_definition": (
-            "NJIT guidelines require body text to use Times New Roman 12pt "
-            "throughout. This check looks at ordinary body-text spans on each "
-            "page for (A) font size outside 11.0-13.0pt and (B) font family that "
-            "is not Times New Roman or an accepted near-equivalent "
-            "(NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, "
-            "STIX). Computer Modern (CMR) is flagged as likely non-Times. "
-            "Embedded subset font-name prefixes (e.g. ABCDEF+TimesNewRomanPSMT) "
-            "are stripped before classification. One finding per (page, "
-            "issue_type). Warnings emitted only when both violation count >=5 "
-            "AND fraction >=50% of body candidate spans on the page."
+            "NJIT guidelines require body text to use Times New Roman 12pt or an "
+            "accepted equivalent. Word documents should use Times New Roman 12pt. "
+            "Overleaf documents commonly use Computer Modern, which is an "
+            "accepted equivalent — if flagged, verify with your advisor. "
+            "This check looks at ordinary body-text spans on each page for "
+            "(A) font size outside 11.0-13.0pt and (B) font family not matching "
+            "accepted fonts (Times New Roman, NimbusRomNo9L, TeX Gyre Termes, "
+            "Liberation Serif, FreeSerif, STIX). Computer Modern (CMR) is "
+            "currently flagged — Overleaf users should confirm with their advisor "
+            "if this warning appears."
         ),
         "remediation": (
-            "Set body text to Times New Roman 12pt throughout. Word/LibreOffice: "
-            "set paragraph font to Times New Roman, size 12."
+            "Word users: set body text to Times New Roman 12pt. "
+            "Overleaf users: Computer Modern is an accepted equivalent — "
+            "if flagged, verify with your advisor."
         ),
     },
     "P028": {
@@ -701,18 +702,20 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         ),
     },
     "P013": {
-        "question": "Page-number candidates detected for verification",
+        "question": "Are all visible page numbers located at the bottom of the page, centered?",
         "rule_definition": (
             "Detect text that looks like a page number and record its position "
             "and style so it can be checked manually. This is a verification "
             "signal, not a confirmed formatting defect by itself — see the "
             "page-number sequence/style and page-numbering-regime rules for "
-            "findings that flag a specific page-numbering problem."
+            "findings that flag a specific page-numbering problem. "
+            "NJIT requires page numbers at the bottom of the page, centered, "
+            "0.5 inches from the bottom edge."
         ),
         "remediation": (
-            "Verify the detected page number is visible, in the required "
-            "bottom position, and uses the correct numbering style for that "
-            "section."
+            "Set page numbers at the bottom of the page, centered, and "
+            "0.5 inches from the bottom edge. Verify the detected page number "
+            "is visible and uses the correct numbering style for that section."
         ),
     },
 }
