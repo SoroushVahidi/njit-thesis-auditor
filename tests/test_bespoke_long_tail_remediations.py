@@ -24,7 +24,6 @@ _BANNED_FALLBACK_PHRASE = "flagged issue type"
 
 # High-impact long-tail issue types upgraded in this PR (30 pairs).
 UPGRADED_ISSUE_TYPES: tuple[tuple[str, str], ...] = (
-    ("P015", "unexpected_opening_indent"),
     ("P015", "missing_later_indent"),
     ("P017", "unexpected_terminal_period"),
     ("P017", "missing_terminal_punctuation"),
@@ -67,7 +66,6 @@ UPGRADED_ISSUE_TYPES: tuple[tuple[str, str], ...] = (
 
 # Minimum bespoke signal each upgraded pair must include in its polished comment.
 _EXPECTED_COMMENT_SIGNALS: dict[tuple[str, str], tuple[str, ...]] = {
-    ("P015", "unexpected_opening_indent"): ("first-line indent", "flush-left"),
     ("P015", "missing_later_indent"): ("first-line indent",),
     ("P017", "unexpected_terminal_period"): ("terminal period",),
     ("P017", "missing_terminal_punctuation"): ("terminal punctuation",),

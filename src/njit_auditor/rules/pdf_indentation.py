@@ -137,13 +137,20 @@ def _paragraph_indent_pt(paragraph: list[PdfTextLine]) -> float:
     return first_x - median_rest_x
 
 
-def _find_abstract_page_numbers(pdf_document: PdfDocument) -> set[int]:
+# Headings whose pages are handled atomically by dedicated detectors.
+# ABSTRACT → P044 covers Q002 and Q003.
+# ACKNOWLEDGEMENTS → P043 covers Q044 and Q045.
+_P015_EXCLUDED_HEADINGS: frozenset[str] = frozenset({"ABSTRACT", "ACKNOWLEDGEMENTS"})
+
+
+def _find_excluded_page_numbers(pdf_document: PdfDocument) -> set[int]:
+    """Return page numbers covered by P043/P044 that P015 should skip."""
     pages: set[int] = set()
     for page in pdf_document.pages:
         for block in page.text_blocks:
             for line in block.lines:
                 normalized = normalize_heading_text(line.text).upper()
-                if normalized == "ABSTRACT":
+                if normalized in _P015_EXCLUDED_HEADINGS:
                     pages.add(page.page_number)
                     break
     return pages
@@ -161,12 +168,18 @@ def _is_likely_expected_indent(indent_pt: float) -> bool:
 
 
 def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P015 warnings for strong likely indentation issues."""
+    """Emit P015 missing_later_indent warnings for body text paragraph indentation.
 
+    Skips Abstract pages (Q002/Q003 handled atomically by P044) and Acknowledgements
+    pages (Q044/Q045 handled atomically by P043).  P015 fires only on body-text pages
+    where the document uses first-line indentation but a later paragraph omits it.
+    """
     findings: list[AuditFinding] = []
-    abstract_pages = _find_abstract_page_numbers(pdf_document)
+    excluded_pages = _find_excluded_page_numbers(pdf_document)
 
     for page in pdf_document.pages:
+        if page.page_number in excluded_pages:
+            continue
         if _has_page_heading_in(page, REFERENCES_LIKE_HEADINGS):
             continue
         paragraphs = group_lines_into_paragraphs(page)
@@ -202,38 +215,10 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         seen_indented_paragraph = False
         page_issue_findings: dict[str, AuditFinding] = {}
         for idx, paragraph, indent_pt in paragraph_data:
-
-            # Strong case: opening abstract/front-matter paragraph should be flush-left.
-            if page.page_number in abstract_pages and idx == 0:
-                if indent_pt > STRONG_INDENT_THRESHOLD_PT:
-                    page_issue_findings["unexpected_opening_indent"] = AuditFinding(
-                        rule_id="P015",
-                        severity=Severity.WARNING,
-                        page=page.page_number,
-                        message=(
-                            "Opening paragraph appears unexpectedly indented where "
-                            "flush-left is likely expected."
-                        ),
-                        details={
-                            "page_number": str(page.page_number),
-                            "issue_type": "unexpected_opening_indent",
-                            "indent_pt": f"{indent_pt:.1f}",
-                            "expected": "flush_left",
-                            "paragraph_line_count": str(len(paragraph)),
-                            "paragraph_index": str(idx + 1),
-                            "bbox": format_bbox_detail(paragraph[0].bbox),
-                            "confidence": "high",
-                            "suggested_fix": (
-                                "Remove first-line indent for opening front-matter paragraph."
-                            ),
-                        },
-                    )
-                continue
-
             if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 seen_indented_paragraph = True
 
-            # Strong case: later paragraph likely expected to have first-line indent.
+            # Detect body-text paragraphs after the first that are missing first-line indent.
             if idx >= 1:
                 likely_indented = _is_likely_expected_indent(indent_pt)
                 if likely_indented or not seen_indented_paragraph:
@@ -274,8 +259,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                         if indent_pt < existing_indent:
                             page_issue_findings["missing_later_indent"] = current
 
-        for issue_type in ("unexpected_opening_indent", "missing_later_indent"):
-            if issue_type in page_issue_findings and MAX_FINDINGS_PER_PAGE_ISSUE >= 1:
-                findings.append(page_issue_findings[issue_type])
+        if "missing_later_indent" in page_issue_findings and MAX_FINDINGS_PER_PAGE_ISSUE >= 1:
+            findings.append(page_issue_findings["missing_later_indent"])
 
     return findings

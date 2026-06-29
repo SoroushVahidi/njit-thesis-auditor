@@ -552,6 +552,8 @@ def test_flush_left_first_abstract_paragraph_does_not_warn(tmp_path: Path) -> No
 
 
 def test_indented_first_abstract_paragraph_warns(tmp_path: Path) -> None:
+    # P015 no longer fires on Abstract pages (Q002 covered atomically by P044).
+    # Verify P044 catches the indented first abstract paragraph instead.
     pdf_path = tmp_path / "indent_abstract_bad.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -560,13 +562,20 @@ def test_indented_first_abstract_paragraph_warns(tmp_path: Path) -> None:
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_indentation(model)
-    warning = next(f for f in findings if f.rule_id == "P015")
-    assert warning.details.get("issue_type") == "unexpected_opening_indent"
-    assert warning.details.get("expected") == "flush_left"
-    assert warning.details.get("paragraph_index") == "1"
-    bbox = warning.details.get("bbox", "")
-    assert len(bbox.split(",")) == 4
+    # P015 must not fire on Abstract page
+    p015_findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not p015_findings, "P015 should not fire on Abstract page after atomic split"
+    # P044 must catch the indented first paragraph (Q002)
+    p044_findings = check_pdf_abstract_indentation(model)
+    warning = next(
+        (
+            f for f in p044_findings
+            if f.details.get("issue_type") == "abstract_first_paragraph_indented"
+        ),
+        None,
+    )
+    assert warning is not None, "P044 should catch indented first abstract paragraph (Q002)"
+    assert warning.details.get("source_q_rule_id") == "Q002"
 
 
 def test_later_paragraph_with_expected_indent_does_not_warn(tmp_path: Path) -> None:
@@ -700,6 +709,8 @@ def test_later_paragraph_missing_indent_low_style_confidence_is_ignored(tmp_path
 
 
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:
+    # PDF has ABSTRACT heading with an indented first paragraph.
+    # P015 no longer fires on Abstract pages (Q002 covered atomically by P044).
     pdf_path = tmp_path / "cli.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -710,7 +721,7 @@ def test_pdf_cli_command_runs(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pdf", str(pdf_path)])
     assert result.exit_code == 0
     assert "PDF Layout Findings" in result.output
-    assert "P015" in result.output
+    assert "P044" in result.output
 
 
 def test_normal_spacing_does_not_warn_for_p016(tmp_path: Path) -> None:
