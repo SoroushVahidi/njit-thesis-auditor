@@ -272,7 +272,7 @@
   {
     "id": "P016",
     "section": "PDF spacing and blank lines",
-    "question": "Excluding intentional page breaks, does text flow consistently from the top margin to the bottom margin?",
+    "question": "Excluding necessary page breaks to start a new chapter or to keep figures and tables with their captions, does the document's text consistently span from the top margin to the bottom margin on every page?",
     "rule_definition": "Heuristically detect strong blank-line and vertical-spacing anomalies from extracted text-line geometry.",
     "remediation": "Delete unnecessary blank lines and ensure text flows continuously from top to bottom where appropriate, excluding necessary page breaks for new chapters or to keep figures and tables with their captions.",
     "severity": "warning",

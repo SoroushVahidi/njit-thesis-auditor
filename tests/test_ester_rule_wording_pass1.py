@@ -23,7 +23,6 @@ import pytest
 
 from njit_auditor.polished_comments import build_polished_comment
 
-
 # ---------------------------------------------------------------------------
 # 1. P011 — strict margin wording
 # ---------------------------------------------------------------------------
@@ -172,7 +171,14 @@ def test_p016_catalog_question_mentions_text_flow() -> None:
     rules = _load_rule_catalog()
     p016 = next(r for r in rules if r["id"] == "P016")
     q = p016["question"].lower()
-    assert "text flow" in q or "flow" in q or "top margin" in q
+    assert "top margin" in q or "bottom margin" in q
+
+
+def test_p016_catalog_question_mentions_page_break_exception() -> None:
+    rules = _load_rule_catalog()
+    p016 = next(r for r in rules if r["id"] == "P016")
+    q = p016["question"].lower()
+    assert "page break" in q
 
 
 def test_p016_catalog_remediation_mentions_page_breaks() -> None:
