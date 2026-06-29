@@ -144,7 +144,8 @@ def run_pdf_margin_rule(
                 "triage_tier": "informational",
                 "bbox": format_bbox_detail(worst_violation.line.bbox),
                 "suggested_fix": (
-                    "Review margin settings and move content inside required layout bounds."
+                    "Set the left margin to 1.5 inches and the top, bottom, and right "
+                    "margins to 1 inch. Move all content inside the required margin bounds."
                 ),
             }
             if line_previews:

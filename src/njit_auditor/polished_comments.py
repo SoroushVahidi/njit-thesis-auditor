@@ -59,8 +59,9 @@ _P037_SECTION_KEY_LABELS: dict[str, str] = {
 
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ("P011", "margin_boundary_violation"): (
-        "Possible text crossing the {side} margin on page {page}. "
-        "Check that body text and headings respect NJIT margin requirements."
+        "Content appears to cross the required {side} boundary on page {page}. "
+        "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
+        "No text, tables, or figures are allowed in the margins."
     ),
     ("P013", "p013_document_overview"): (
         "Document-level page-number pattern summary detected (informational; "
@@ -284,18 +285,21 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
-        "lines on page {page}. Body text should be double-spaced with consistent "
-        "spacing throughout."
+        "lines on page {page}. Excluding necessary page breaks, text should flow "
+        "consistently from the top margin to the bottom margin. Delete unnecessary "
+        "blank lines and ensure body text flows continuously."
     ),
     ("P016", "excessive_paragraph_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
-        "paragraphs on page {page}. Paragraph spacing should be consistent with "
-        "double-spaced body text."
+        "paragraphs on page {page}. Excluding necessary page breaks for new chapters "
+        "or to keep figures and tables with their captions, text should flow from the "
+        "top margin to the bottom margin. Delete unnecessary blank lines."
     ),
     ("P016", "suspicious_heading_blank_gap"): (
         "An unusually large blank gap (about {largest_gap_pt}pt) was detected just "
-        "before a heading on page {page}. Verify this is intentional heading "
-        "spacing and not an extra blank line or page-break artifact."
+        "before a heading on page {page}. Verify this is intentional spacing "
+        "(such as a necessary page break before a new chapter) and not an extra "
+        "blank line. If unnecessary, delete the blank line."
     ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
         "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "
@@ -548,12 +552,14 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
 
 _RULE_FALLBACKS: dict[str, str] = {
     "P011": (
-        "Possible margin or overflow issue on page {page}. "
-        "Review layout against NJIT margin rules."
+        "Content on page {page} may exceed the required page margin. "
+        "NJIT requires: left 1.5 in, top/bottom/right 1 in. "
+        "No text, tables, or figures are allowed in the margins."
     ),
     "P013": (
-        "Page-number candidate detected on page {page} for manual "
-        "verification. This does not by itself confirm a formatting defect."
+        "A page-number candidate on page {page} requires manual verification. "
+        "Page numbers must appear at the bottom of the page, centered, "
+        "0.5 inches from the bottom edge."
     ),
     "P019": (
         "Page-numbering sequence or style issue detected on page {page}. "
@@ -623,8 +629,9 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
         "spacing to 'Double'."
     ),
     "P026": (
-        "Set body text to Times New Roman 12pt throughout. Word/LibreOffice: "
-        "set paragraph font to Times New Roman, size 12."
+        "Word users: set body text to Times New Roman 12pt. "
+        "Overleaf users: Computer Modern is an accepted equivalent — "
+        "if flagged, verify with your advisor."
     ),
     "P028": (
         "Use lowercase Roman numerals (i, ii, iii) for front-matter numbered "
@@ -896,34 +903,38 @@ def _p013_candidate_comment(*, page: int | None, details: dict[str, str]) -> str
         count = 1
     position_type = details.get("position_type", "") or ""
 
+    _BOTTOM_CENTER_NOTE = (
+        "NJIT requires page numbers at the bottom of the page, centered, "
+        "0.5 inches from the bottom edge."
+    )
     if count > 1:
         return (
             f"Multiple page-number-like tokens were detected on page "
             f"{page_label}. This may indicate duplicate numbering, extra "
             "footer/header text being mistaken for a page number, or an "
             "ambiguous page-number location. Verify which token is the "
-            "actual page number and remove or correct any unintended "
-            "duplicate."
+            f"actual page number and remove or correct any unintended "
+            f"duplicate. {_BOTTOM_CENTER_NOTE}"
         )
     if position_type in {"bottom_center", "bottom_right"}:
         position_label = position_type.replace("_", " ")
         return (
-            f"A page-number-like token was detected at the {position_label} "
-            f"of page {page_label}. This is an internal verification signal "
-            "and is not counted as a problem unless another finding reports a "
-            "specific defect."
+            f"A page-number candidate was detected at the {position_label} "
+            f"of page {page_label}. This is a verification signal — confirm "
+            "the number is visible and correctly placed. "
+            f"{_BOTTOM_CENTER_NOTE}"
         )
     if position_type in {"top_center", "top_right", "other"}:
         return (
-            "Problem: The page number on page "
-            f"{page_label} appears at {_safe_position_label(position_type)}, "
-            "but NJIT expects the page number in the required bottom "
-            "position. Move the page number to the required bottom position."
+            f"Problem: The page number on page {page_label} appears at "
+            f"{_safe_position_label(position_type)}, but NJIT expects the "
+            "page number at the bottom of the page, centered, 0.5 inches "
+            "from the bottom edge. Move the page number to the required "
+            "bottom-center position."
         )
     return (
-        f"A page-number-like token was detected on page {page_label}. This "
-        "is an internal verification signal and is not counted as a problem "
-        "unless another finding reports a specific defect."
+        f"A page-number candidate was detected on page {page_label}. "
+        f"Verify it is visible and correctly placed. {_BOTTOM_CENTER_NOTE}"
     )
 
 
@@ -1132,18 +1143,21 @@ def _margin_side_label(details: dict[str, str]) -> str:
 def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
     page_label = _safe_page_label(page)
     side = _margin_side_label(details)
+    _MARGIN_SPEC = (
+        "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
+        "No text, tables, or figures are allowed in the margins."
+    )
     if side == "required page margin":
         return (
             f"Likely problem: Some content on page {page_label} appears too close to or "
             "beyond a required page margin. The auditor could not determine the exact "
-            "margin side from the available metadata. NJIT formatting expects body "
-            "content to remain inside the required page margins. Review tables, figures, "
-            "long lines, indentation, headers, and footers on this page."
+            f"margin side from the available metadata. {_MARGIN_SPEC} "
+            "Review tables, figures, long lines, indentation, headers, and footers on this page."
         )
     return (
         f"Likely problem: Content on page {page_label} appears to cross the required "
-        f"{side} boundary. NJIT formatting expects body content to remain inside the "
-        "required page margins. Review the highlighted area if available, or inspect "
+        f"{side} boundary. {_MARGIN_SPEC} "
+        "Review the highlighted area if available, or inspect "
         "tables, figures, long lines, indentation, headers, and footers on this page."
     )
 
@@ -1170,9 +1184,9 @@ def _p012_annotation_comment(*, page: int | None, details: dict[str, str]) -> st
         f"Likely problem: The uploaded PDF appears to already contain a "
         f"{annotation_label} on page {page_label}. This refers to something left in "
         "the original file you uploaded, not a highlight added by this auditor to "
-        "show where a problem is located. Before final submission, accept or reject "
-        "any reviewer changes, remove comments, highlights, or markup from the PDF, "
-        "and upload a clean copy."
+        "show where a problem is located. Resolve or delete all annotations before "
+        "final submission: accept or reject any reviewer changes, remove comments, "
+        "highlights, or markup from the PDF, and upload a clean copy."
     )
 
 
@@ -1214,20 +1228,27 @@ def _p026_font_comment(
         or details.get("expected", "").strip()
         or "Times New Roman or an accepted Times-compatible font"
     )
+    _FONT_NOTE = (
+        "Word users should use Times New Roman 12pt. "
+        "Overleaf users: Computer Modern is an accepted equivalent — "
+        "if flagged, verify with your advisor."
+    )
     if observed:
         return (
             "Likely problem: Body text on page "
             f"{page_label} appears to use font family {observed}. "
-            "NJIT expects body text to use "
-            f"{expected}. Update the source document's body-text style if this text is "
+            f"NJIT expects body text to use {expected}. "
+            f"{_FONT_NOTE} "
+            "Update the source document's body-text font settings if this text is "
             "part of the main body."
         )
     return (
         f"Likely problem: Some body-text-like spans on page {page_label} appear not to "
         "match NJIT's expected font family. The auditor could not extract a precise "
         f"observed font value for this card. NJIT expects body text to use {expected}. "
-        "Review the explanation and confirm whether the flagged text is body text or "
-        "another text role."
+        f"{_FONT_NOTE} "
+        "Confirm whether the flagged text is body text or another text role such as "
+        "a heading, caption, or footnote."
     )
 
 

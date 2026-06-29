@@ -182,9 +182,9 @@
   {
     "id": "P011",
     "section": "PDF layout",
-    "question": "Is there possible text outside required margins?",
+    "question": "Is all text contained entirely within the required page margins?",
     "rule_definition": "Detect text blocks outside assumed margin bounds (left 1.5in, right/top/bottom 1.0in).",
-    "remediation": "Review block positions and adjust document margins/layout as needed.",
+    "remediation": "Set the left margin to 1.5 inches and the top, bottom, and right margins to 1 inch. No text, tables, or figures are allowed in the margins.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -202,7 +202,7 @@
     "section": "PDF annotations",
     "question": "Does the PDF contain annotations/comments?",
     "rule_definition": "Detect reviewer comments/annotations embedded in the PDF file.",
-    "remediation": "Resolve or remove annotations before final submission.",
+    "remediation": "Resolve or delete all annotations before final submission.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -218,9 +218,9 @@
   {
     "id": "P013",
     "section": "PDF page numbering",
-    "question": "Are there page-number candidates near top/bottom zones?",
+    "question": "Are all visible page numbers located at the bottom of the page, centered?",
     "rule_definition": "Detect numeric/roman page-number-like text in top/bottom margin zones for manual rule review.",
-    "remediation": "Verify page-number visibility/placement against NJIT requirements.",
+    "remediation": "Set page numbers at the bottom of the page, centered, and 0.5 inches from the bottom edge.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -272,9 +272,9 @@
   {
     "id": "P016",
     "section": "PDF spacing and blank lines",
-    "question": "Are there likely excessive spacing or blank-line issues in PDF text layout?",
+    "question": "Excluding necessary page breaks to start a new chapter or to keep figures and tables with their captions, does the document's text consistently span from the top margin to the bottom margin on every page?",
     "rule_definition": "Heuristically detect strong blank-line and vertical-spacing anomalies from extracted text-line geometry.",
-    "remediation": "Reduce unintended blank lines and excessive vertical gaps, especially around front-matter headings and paragraph transitions.",
+    "remediation": "Delete unnecessary blank lines and ensure text flows continuously from top to bottom where appropriate, excluding necessary page breaks for new chapters or to keep figures and tables with their captions.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -346,7 +346,7 @@
     "section": "PDF title and heading capitalization",
     "question": "Do title-like PDF lines follow NJIT title-case capitalization heuristics?",
     "rule_definition": "Heuristically detect obvious title-case violations in title-like PDF text regions. Per NJIT guidelines, Level 2 headings (X.x) and table titles use Title Case: each word capitalized except short articles, prepositions, and conjunctions. Checked for bold heading-like lines and table caption title bodies. Not applied to body paragraphs, figure captions (sentence case), Level 3+ headings (sentence case), references pages, or all-caps front-matter labels.",
-    "remediation": "Review flagged title-like lines for NJIT title case: capitalize the first word, last word, all major words (4+ letters), and all words after subtitle separators. Short articles (a, an, the), conjunctions (and, but, or, for, nor, as), and prepositions (at, by, in, of, on, per, to, up, via) may remain lowercase in the middle.",
+    "remediation": "Review flagged title-like lines for NJIT title case: capitalize the first word, last word, all major words (4+ letters), and all words after subtitle separators. Short articles (a, an, the), conjunctions (and, but, or, for, nor, as), and prepositions (at, by, in, of, on, per, to, up, via) may remain lowercase in the middle. Always check the heading in your original source document (Word or Overleaf) rather than relying solely on the PDF text extraction.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -364,7 +364,7 @@
     "section": "Abstract word count",
     "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
     "rule_definition": "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
-    "remediation": "Shorten the abstract to within the applicable limit. PhD: \u2264350 words. MS: \u2264150 words.",
+    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -400,7 +400,7 @@
     "id": "P023",
     "section": "PDF body text double-spacing",
     "question": "Does any body-text page show line spacing that appears to be less than double-spaced?",
-    "rule_definition": "Body text paragraphs must be double-spaced (line spacing \u2265 ~1.8\u20132.4\u00d7 font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55\u00d7 the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
+    "rule_definition": "Body text paragraphs must be double-spaced (line spacing ≥ ~1.8–2.4× font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55× the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
     "remediation": "Set body text to double line spacing. In LaTeX: use \\doublespacing or \\setstretch{2.0}. In Word: set paragraph line spacing to 'Double'.",
     "severity": "warning",
     "source_file": "project_added",
@@ -412,7 +412,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_body_spacing",
     "priority": "high",
-    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55\u00d7 is between single (\u22481.1\u20131.3\u00d7) and double (\u22482.0\u20132.3\u00d7) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0\u00d7) are excluded from spacing analysis."
+    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55× is between single (≈1.1–1.3×) and double (≈2.0–2.3×) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0×) are excluded from spacing analysis."
   },
   {
     "id": "P024",
@@ -455,7 +455,7 @@
     "section": "PDF body font compliance",
     "question": "Does the body text use Times New Roman 12pt (or an accepted equivalent)?",
     "rule_definition": "NJIT guidelines require body text to use Times New Roman 12pt throughout. This rule checks ordinary body-text spans on each page for (A) font size outside 11.0-13.0pt and (B) font family that is not Times New Roman or an accepted near-equivalent (NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX). Computer Modern (CMR, LaTeX default) is flagged as likely non-Times. Embedded subset font-name prefixes (e.g. ABCDEF+TimesNewRomanPSMT) are stripped before classification. One finding per (page, issue_type). Warnings emitted only when both violation count >=5 AND fraction >=50% of body candidate spans on the page.",
-    "remediation": "Set body text to Times New Roman 12pt throughout. LaTeX: use mathptmx or a Times-based font package. Word/LibreOffice: set paragraph font to Times New Roman, size 12.",
+    "remediation": "Word users: set body text to Times New Roman 12pt. Overleaf/LaTeX users: Computer Modern is an accepted equivalent — if flagged, verify with your advisor. To change in Word: select all body text and set font to Times New Roman, size 12.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -507,9 +507,9 @@
   {
     "id": "P029",
     "section": "PDF front-matter Roman numeral sequence",
-    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii\u2026)?",
+    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii…)?",
     "rule_definition": "Conservative heuristic that validates ordering of visible lowercase Roman numeral page numbers on front-matter pages. Flags repeated, decreasing, or skipped Roman numerals across consecutive visible numbered front-matter pages. Skips explicitly identified no-number pages and ambiguous region classifications.",
-    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, \u2026).",
+    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, …).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -652,7 +652,7 @@
     "id": "P037",
     "section": "PDF front-matter section-anchored Roman numerals",
     "question": "Do BIOGRAPHICAL SKETCH, DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, and LIST OF TABLES pages carry the expected lowercase Roman numerals per the NJIT template (bio=iv, ded=v, ack=vi, toc=vii, lot=viii)?",
-    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Subsequent sections (DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, LIST OF TABLES) are checked against fixed NJIT template expected values. DEDICATION is optional \u2014 if the heading is absent, the slot is still counted (page v may exist as an unnumbered dedication or blank). Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
+    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Subsequent sections (DEDICATION, ACKNOWLEDGEMENTS, TABLE OF CONTENTS, LIST OF TABLES) are checked against fixed NJIT template expected values. DEDICATION is optional — if the heading is absent, the slot is still counted (page v may exist as an unnumbered dedication or blank). Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
     "remediation": "Ensure BIOGRAPHICAL SKETCH appears on the page numbered iv; DEDICATION (if present) on v; ACKNOWLEDGEMENTS on vi; TABLE OF CONTENTS on vii; LIST OF TABLES on viii, per NJIT front-matter pagination template.",
     "severity": "warning",
     "source_file": "project_added",
@@ -671,7 +671,7 @@
     "section": "PDF front-matter exact headings",
     "question": "Do required front-matter section headings (APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, TABLE OF CONTENTS) appear with their exact canonical phrase, and are they present at all?",
     "rule_definition": "Conservative heuristic: (1) flags required_heading_missing when APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, or TABLE OF CONTENTS is not detected in the front-matter region; (2) flags heading_phrase_not_exact when a known curated spelling variant (e.g. ACKNOWLEDGMENTS) is found instead of the canonical NJIT phrase. Gated: no findings if no headings at all are detected (flattened/image-only PDFs). Optional sections (DEDICATION, LIST OF TABLES, LIST OF FIGURES) are not flagged as missing. Does not duplicate P014 style checks (bold/centered/near-top/all-caps) or P025 structure checks.",
-    "remediation": "Ensure all required front-matter headings use the exact canonical NJIT phrase (ACKNOWLEDGEMENTS not ACKNOWLEDGMENTS, etc.) and that every required section is present.",
+    "remediation": "Ensure all required front-matter headings are present and use the exact canonical NJIT phrase. The correct spelling is ACKNOWLEDGEMENTS (with double-E), not ACKNOWLEDGMENTS. Other required headings: APPROVAL PAGE, BIOGRAPHICAL SKETCH, TABLE OF CONTENTS.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -706,7 +706,7 @@
     "id": "P040",
     "section": "PDF List of Figures terminal punctuation",
     "question": "Does every List of Figures entry (figure description) end with a terminal punctuation mark?",
-    "rule_definition": "Conservative heuristic: identifies complete List of Figures entry lines (those with a detected page-number token) and checks that the figure description text, after stripping the Figure N. prefix, leader dots, and page-number token, ends with a terminal punctuation mark (period, question mark, or exclamation point). Skips wrap-continuation lines (no page-number token), lines shorter than 10 characters, and non-LoF pages (TOC and LoT excluded). Emits one finding per offending entry. Findings contain only geometric/count metadata \u2014 no figure description text.",
+    "rule_definition": "Conservative heuristic: identifies complete List of Figures entry lines (those with a detected page-number token) and checks that the figure description text, after stripping the Figure N. prefix, leader dots, and page-number token, ends with a terminal punctuation mark (period, question mark, or exclamation point). Skips wrap-continuation lines (no page-number token), lines shorter than 10 characters, and non-LoF pages (TOC and LoT excluded). Emits one finding per offending entry. Findings contain only geometric/count metadata — no figure description text.",
     "remediation": "Ensure every figure description in the List of Figures ends with a terminal punctuation mark (period, question mark, or exclamation point).",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -724,7 +724,7 @@
     "id": "P041",
     "section": "PDF Dedication page top-margin header",
     "question": "Is there no header text in the top margin area of the Dedication page?",
-    "rule_definition": "Conservative heuristic: detects the Dedication page by scanning the first _MAX_SCAN_PAGES (15) front-matter pages for a line whose normalized text equals \"DEDICATION\". If found, scans the top 15% of that page for text lines that are not page-number candidates, not the DEDICATION heading itself, and not whitespace/non-alphabetic. Emits at most one finding per Dedication page. Skips if no Dedication page is detected (optional section). Findings contain geometry/classification metadata only \u2014 no dedication content.",
+    "rule_definition": "Conservative heuristic: detects the Dedication page by scanning the first _MAX_SCAN_PAGES (15) front-matter pages for a line whose normalized text equals \"DEDICATION\". If found, scans the top 15% of that page for text lines that are not page-number candidates, not the DEDICATION heading itself, and not whitespace/non-alphabetic. Emits at most one finding per Dedication page. Skips if no Dedication page is detected (optional section). Findings contain geometry/classification metadata only — no dedication content.",
     "remediation": "Ensure the Dedication page does not have any running header or header text in the top margin area.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -741,7 +741,7 @@
   {
     "id": "P042",
     "section": "PDF TOC appendix entry format",
-    "question": "Are appendix entries in the Table of Contents formatted correctly \u2014 single appendix with a title, multiple appendices each identified by a letter?",
+    "question": "Are appendix entries in the Table of Contents formatted correctly — single appendix with a title, multiple appendices each identified by a letter?",
     "rule_definition": "Conservative heuristic: detects appendix entries on TABLE OF CONTENTS pages by matching lines whose cleaned text starts with \"appendix\" (case-insensitive). Single-appendix check (Q058): if exactly one appendix entry is found, verifies that there is title text after the word APPENDIX. Multiple-appendix check (Q059): if two or more are found, verifies each matches the pattern \"APPENDIX <single uppercase letter>\" immediately after APPENDIX. Skips LoT and LoF pages. Does not include TOC entry text in findings.",
     "remediation": "Ensure a single appendix TOC entry reads \"APPENDIX\" plus the appendix title. Ensure multiple appendix entries each use a letter identifier: \"APPENDIX A\", \"APPENDIX B\", etc.",
     "severity": "warning",
@@ -759,8 +759,8 @@
   {
     "id": "P043",
     "section": "PDF Acknowledgements paragraph indentation",
-    "question": "Does the Acknowledgements page follow the correct paragraph indentation style \u2014 first paragraph flush-left, subsequent paragraphs indented?",
-    "rule_definition": "Conservative heuristic: detects the ACKNOWLEDGEMENTS page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q044) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q045) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ACKNOWLEDGEMENTS page not detected or fewer than 2 paragraph blocks found. Complements P015 (general indentation), which may miss short Acknowledgements pages due to conservative thresholds. Findings contain only geometry metadata \u2014 no paragraph text.",
+    "question": "Does the Acknowledgements page follow the correct paragraph indentation style — first paragraph flush-left, subsequent paragraphs indented?",
+    "rule_definition": "Conservative heuristic: detects the ACKNOWLEDGEMENTS page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q044) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q045) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ACKNOWLEDGEMENTS page not detected or fewer than 2 paragraph blocks found. Complements P015 (general indentation), which may miss short Acknowledgements pages due to conservative thresholds. Findings contain only geometry metadata — no paragraph text.",
     "remediation": "Ensure the first paragraph on the Acknowledgements page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -777,8 +777,8 @@
   {
     "id": "P044",
     "section": "PDF Abstract paragraph indentation",
-    "question": "Does the Abstract page follow the correct paragraph indentation style \u2014 first paragraph flush-left, subsequent paragraphs indented?",
-    "rule_definition": "Conservative heuristic: detects the ABSTRACT page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q002) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q003) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ABSTRACT page not detected; skip Q003 if fewer than 2 paragraph blocks found. Complements P015 (general indentation), which partially covers abstract opening but not subsequent paragraphs. Findings contain only geometry metadata \u2014 no paragraph text.",
+    "question": "Does the Abstract page follow the correct paragraph indentation style — first paragraph flush-left, subsequent paragraphs indented?",
+    "rule_definition": "Conservative heuristic: detects the ABSTRACT page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q002) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q003) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ABSTRACT page not detected; skip Q003 if fewer than 2 paragraph blocks found. Complements P015 (general indentation), which partially covers abstract opening but not subsequent paragraphs. Findings contain only geometry metadata — no paragraph text.",
     "remediation": "Ensure the first paragraph on the Abstract page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -795,8 +795,8 @@
   {
     "id": "P045",
     "section": "PDF Biographical Sketch publication paragraph layout",
-    "question": "Does the Biographical Sketch page follow the correct publication entry layout \u2014 hanging indent for all publication entries, single-spaced entries with a blank line between them, and single-spaced wrapped lines within each entry?",
-    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks. For multi-line blocks with hanging-indent pattern (continuation lines x0 > first line x0 by HANGING_THRESHOLD_PT=12pt), checks: (Q029) if no blocks have hanging indent despite >=2 multi-line blocks, emits missing_hanging_indent; (Q028) if consecutive hanging-indent blocks have inter-block gap < ENTRY_GAP_THRESHOLD_PT=20pt, emits entry_spacing_not_double; (Q026) if a hanging-indent block has internal line gap > MAX_WITHIN_ENTRY_GAP_PT=16pt, emits wrapped_line_spacing_not_single. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than 2 multi-line blocks. Findings are geometry-only \u2014 no publication text, citation content, or names.",
+    "question": "Does the Biographical Sketch page follow the correct publication entry layout — hanging indent for all publication entries, single-spaced entries with a blank line between them, and single-spaced wrapped lines within each entry?",
+    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks. For multi-line blocks with hanging-indent pattern (continuation lines x0 > first line x0 by HANGING_THRESHOLD_PT=12pt), checks: (Q029) if no blocks have hanging indent despite >=2 multi-line blocks, emits missing_hanging_indent; (Q028) if consecutive hanging-indent blocks have inter-block gap < ENTRY_GAP_THRESHOLD_PT=20pt, emits entry_spacing_not_double; (Q026) if a hanging-indent block has internal line gap > MAX_WITHIN_ENTRY_GAP_PT=16pt, emits wrapped_line_spacing_not_single. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than 2 multi-line blocks. Findings are geometry-only — no publication text, citation content, or names.",
     "remediation": "Ensure all publication/presentation entries on the Biographical Sketch page use hanging indentation, are single-spaced internally, and have a blank line between entries.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -814,7 +814,7 @@
     "id": "P046",
     "section": "PDF LoT/LoF entry number left-column alignment",
     "question": "Are all table numbers and figure numbers aligned vertically in a consistent left column in the List of Tables and List of Figures respectively?",
-    "rule_definition": "Conservative heuristic: detects List of Tables and List of Figures pages via detect_toc_like_pages. Extracts entry lines via extract_toc_entry_lines, preferring entries with detected page numbers (complete entries). Collects indent_x (x0 position) for each entry. If fewer than MIN_ENTRIES=3 entries are found, skips the section. If the x0 range (max-min) across all entries exceeds X0_RANGE_THRESHOLD_PT=6.0pt, emits a section-level finding. Complements P018 (page-number right-column) and P031 (column-label presence). Findings contain geometry metadata only \u2014 no entry text, table/figure titles, or captions.",
+    "rule_definition": "Conservative heuristic: detects List of Tables and List of Figures pages via detect_toc_like_pages. Extracts entry lines via extract_toc_entry_lines, preferring entries with detected page numbers (complete entries). Collects indent_x (x0 position) for each entry. If fewer than MIN_ENTRIES=3 entries are found, skips the section. If the x0 range (max-min) across all entries exceeds X0_RANGE_THRESHOLD_PT=6.0pt, emits a section-level finding. Complements P018 (page-number right-column) and P031 (column-label presence). Findings contain geometry metadata only — no entry text, table/figure titles, or captions.",
     "remediation": "Ensure all table numbers in the List of Tables and all figure numbers in the List of Figures are vertically aligned at the same left margin.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -832,7 +832,7 @@
     "id": "P047",
     "section": "PDF Biographical Sketch bullet section single-spacing",
     "question": "Are the bullet items in the education section of the Biographical Sketch single-spaced within each bullet?",
-    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks using MAX_PARA_GAP_PT=20pt so wrapped or double-spaced lines remain in one candidate block. Identifies 'bullet' blocks as multi-line blocks that do NOT have hanging-indent (rest_x0 - first_x0 < HANGING_THRESHOLD_PT=12pt). For bullet blocks with >=3 lines, checks internal line gaps using BULLET_MAX_GAP_PT=12pt so distinct bullet/list entries remain separated from within-entry spacing checks. If any gap > BULLET_MAX_GAP_PT, emits biosketch_bullet_section_not_single_spaced. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than MIN_BULLET_BLOCKS=2 non-hanging-indent multi-line blocks. Findings are geometry-only \u2014 no bullet text, education content, names, or institutions.",
+    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks using MAX_PARA_GAP_PT=20pt so wrapped or double-spaced lines remain in one candidate block. Identifies 'bullet' blocks as multi-line blocks that do NOT have hanging-indent (rest_x0 - first_x0 < HANGING_THRESHOLD_PT=12pt). For bullet blocks with >=3 lines, checks internal line gaps using BULLET_MAX_GAP_PT=12pt so distinct bullet/list entries remain separated from within-entry spacing checks. If any gap > BULLET_MAX_GAP_PT, emits biosketch_bullet_section_not_single_spaced. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than MIN_BULLET_BLOCKS=2 non-hanging-indent multi-line blocks. Findings are geometry-only — no bullet text, education content, names, or institutions.",
     "remediation": "Ensure bullet items in the Biographical Sketch education section are single-spaced within each bullet, with no extra blank lines within a bullet item.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -850,7 +850,7 @@
     "id": "P048",
     "section": "PDF LoT/LoF page-number right-column alignment",
     "question": "Are all List of Tables and List of Figures page numbers aligned vertically in a consistent right column?",
-    "rule_definition": "Conservative heuristic: detects List of Tables and List of Figures pages via detect_toc_like_pages. Extracts complete entry lines via extract_toc_entry_lines, using detected page-number token right edges. If fewer than MIN_ENTRIES=3 complete entries are found, skips the section. If any page-number right edge differs from the section median by more than RIGHT_EDGE_TOLERANCE_PT=10.0pt, emits a section-level finding. Complements P018 (generic TOC/List alignment), P031 (column labels), and P046 (entry-number left column). Findings contain geometry metadata only \u2014 no entry text, table/figure titles, captions, or page-number-adjacent text.",
+    "rule_definition": "Conservative heuristic: detects List of Tables and List of Figures pages via detect_toc_like_pages. Extracts complete entry lines via extract_toc_entry_lines, using detected page-number token right edges. If fewer than MIN_ENTRIES=3 complete entries are found, skips the section. If any page-number right edge differs from the section median by more than RIGHT_EDGE_TOLERANCE_PT=10.0pt, emits a section-level finding. Complements P018 (generic TOC/List alignment), P031 (column labels), and P046 (entry-number left column). Findings contain geometry metadata only — no entry text, table/figure titles, captions, or page-number-adjacent text.",
     "remediation": "Ensure all page numbers in the List of Tables and List of Figures are vertically aligned in one consistent right column.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -868,7 +868,7 @@
     "id": "P049",
     "section": "PDF LoT/LoF column-header style/alignment refinement",
     "question": "Is the 'Page' column header in the List of Tables and List of Figures right-aligned with the page-number column and formatted in bold?",
-    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Derives expected right-column anchor from the median of entry page_number_right_x values. Locates the 'Page' header label in the P031 header zone. If the header's right edge (x1) deviates from the anchor by more than RIGHT_ALIGNMENT_TOLERANCE_PT=25.0pt, emits a right-alignment finding. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected 'Page' header (handled by P031). Findings contain geometry and style metadata only \u2014 no entry text, captions, titles, or private content.",
+    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Derives expected right-column anchor from the median of entry page_number_right_x values. Locates the 'Page' header label in the P031 header zone. If the header's right edge (x1) deviates from the anchor by more than RIGHT_ALIGNMENT_TOLERANCE_PT=25.0pt, emits a right-alignment finding. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected 'Page' header (handled by P031). Findings contain geometry and style metadata only — no entry text, captions, titles, or private content.",
     "remediation": "Ensure the 'Page' column header in the List of Tables and List of Figures is bold and right-aligned over the page-number column.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -886,7 +886,7 @@
     "id": "P050",
     "section": "PDF LoT/LoF left-column header bold-style check",
     "question": "Is the left-column header ('Table'/'Figure') in the List of Tables and List of Figures formatted in bold?",
-    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Locates the left-column header label ('Table' for LoT, 'Figure' for LoF) in the P031 header zone using _matches_left_label. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected left header (handled by P031), sparse pages, image-only pages, and pages where font metadata is unavailable or ambiguous. Findings contain style metadata only \u2014 no entry text, captions, titles, header text, or private content.",
+    "rule_definition": "Conservative heuristic: detects LoT/LoF pages via detect_toc_like_pages. Requires MIN_COMPLETE_ENTRIES=3 entries with confident page-number right-x geometry. Locates the left-column header label ('Table' for LoT, 'Figure' for LoF) in the P031 header zone using _matches_left_label. If all header spans expose reliable non-bold font metadata, emits a bold-style finding. Skips pages without a detected left header (handled by P031), sparse pages, image-only pages, and pages where font metadata is unavailable or ambiguous. Findings contain style metadata only — no entry text, captions, titles, header text, or private content.",
     "remediation": "Ensure the 'Table' and 'Figure' column headers in the List of Tables and List of Figures are formatted in bold.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -904,8 +904,8 @@
     "id": "P051",
     "section": "PDF copyright page year-format refinement",
     "question": "Is the copyright year present on the Copyright Page in a recognizable format?",
-    "rule_definition": "Conservative heuristic extension of P034. Uses _find_copyright_page (same gate as P034). Attempts year extraction via _extract_copyright_year (existing) and _extract_copyright_year_adjacent_lines (new: copyright marker on line N, standalone year on line N+1). If neither method extracts a year AND no year token exists anywhere on the page, emits a low-confidence advisory. Skips pages where any year token is present but unextractable (conservative false-negative preference). Findings contain only structural metadata \u2014 no copyright text, author names, or private content.",
-    "remediation": "Ensure the Copyright Page contains the copyright year in a clearly formatted line such as '\u00a9 YYYY', 'Copyright YYYY', or '\u00a9YYYY'.",
+    "rule_definition": "Conservative heuristic extension of P034. Uses _find_copyright_page (same gate as P034). Attempts year extraction via _extract_copyright_year (existing) and _extract_copyright_year_adjacent_lines (new: copyright marker on line N, standalone year on line N+1). If neither method extracts a year AND no year token exists anywhere on the page, emits a low-confidence advisory. Skips pages where any year token is present but unextractable (conservative false-negative preference). Findings contain only structural metadata — no copyright text, author names, or private content.",
+    "remediation": "Ensure the Copyright Page contains the copyright year in a clearly formatted line such as '© YYYY', 'Copyright YYYY', or '©YYYY'.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -916,14 +916,14 @@
     "implementation_module": "njit_auditor.rules.pdf_copyright_page",
     "source_file": "project_added",
     "priority": "low",
-    "notes": "Q010 improvement. issue_type: copyright_year_not_found. Advisory only \u2014 emitted when year is completely absent from copyright page text. Existing P034 year-mismatch finding covers the case where year IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles Copyright-marker/year split-across-lines pattern. triage_tier: low."
+    "notes": "Q010 improvement. issue_type: copyright_year_not_found. Advisory only — emitted when year is completely absent from copyright page text. Existing P034 year-mismatch finding covers the case where year IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles Copyright-marker/year split-across-lines pattern. triage_tier: low."
   },
   {
     "id": "P052",
     "section": "PDF copyright page author-format refinement",
     "question": "Is the copyright owner/author name present on the Copyright Page in a recognizable format?",
-    "rule_definition": "Conservative heuristic extension of P034/P051. Uses _find_copyright_page (same gate). Requires that a copyright year was already found (P034 or adjacent-line). Attempts author extraction via _extract_copyright_author (existing) and _extract_copyright_author_adjacent_lines (new: year on line N, author-like string on line N+1). If neither method extracts an author AND year was found, emits a low-confidence advisory. Skips when no year is found (P051's domain). Findings contain only structural metadata \u2014 no author names, no copyright text, no private content.",
-    "remediation": "Ensure the Copyright Page contains the copyright owner's full name in a clearly formatted line such as '\u00a9 YYYY Author Name' or on the line immediately following the copyright year line.",
+    "rule_definition": "Conservative heuristic extension of P034/P051. Uses _find_copyright_page (same gate). Requires that a copyright year was already found (P034 or adjacent-line). Attempts author extraction via _extract_copyright_author (existing) and _extract_copyright_author_adjacent_lines (new: year on line N, author-like string on line N+1). If neither method extracts an author AND year was found, emits a low-confidence advisory. Skips when no year is found (P051's domain). Findings contain only structural metadata — no author names, no copyright text, no private content.",
+    "remediation": "Ensure the Copyright Page contains the copyright owner's full name in a clearly formatted line such as '© YYYY Author Name' or on the line immediately following the copyright year line.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -934,13 +934,13 @@
     "implementation_module": "njit_auditor.rules.pdf_copyright_page",
     "source_file": "project_added",
     "priority": "low",
-    "notes": "Q011 improvement. issue_type: copyright_author_not_found. Advisory only \u2014 emitted when year IS found but author cannot be extracted. Existing P034 author-mismatch finding covers the case where author IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles year/author split-across-lines pattern. Gate: only fires when year is confidently found (avoiding overlap with P051). triage_tier: low."
+    "notes": "Q011 improvement. issue_type: copyright_author_not_found. Advisory only — emitted when year IS found but author cannot be extracted. Existing P034 author-mismatch finding covers the case where author IS found but mismatches title page. No P034 behavior changes. Adjacent-line extraction handles year/author split-across-lines pattern. Gate: only fires when year is confidently found (avoiding overlap with P051). triage_tier: low."
   },
   {
     "id": "P053",
     "section": "PDF List of Tables entry terminal-period check",
     "question": "Do any List of Tables entries incorrectly end with a terminal period?",
-    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q065) require that LoT entry titles use title case with no terminal period. P053 emits a warning when a complete LoT entry (with page-number token) ends with a period after stripping leaders and the 'Table X' prefix. Mirrors P040 (which checks that LoF entries DO have terminal punctuation). Findings contain only structural metadata \u2014 no entry text, no table titles.",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q065) require that LoT entry titles use title case with no terminal period. P053 emits a warning when a complete LoT entry (with page-number token) ends with a period after stripping leaders and the 'Table X' prefix. Mirrors P040 (which checks that LoF entries DO have terminal punctuation). Findings contain only structural metadata — no entry text, no table titles.",
     "remediation": "Remove the trailing period from List of Tables entry titles. Table titles should be in title case without terminal punctuation.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -952,13 +952,13 @@
     "implementation_module": "njit_auditor.rules.pdf_lot_terminal_period",
     "source_file": "project_added",
     "priority": "medium",
-    "notes": "Q065 refinement. issue_type: lot_entry_has_terminal_period. Symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have a terminal period). LoT pages only; gate: entry must have page_number_token and text \u2265 10 chars after stripping. Strip leader dots before checking. triage_tier: medium."
+    "notes": "Q065 refinement. issue_type: lot_entry_has_terminal_period. Symmetric counterpart to P040 (LoF entries must have terminal punctuation; LoT entries must not have a terminal period). LoT pages only; gate: entry must have page_number_token and text ≥ 10 chars after stripping. Strip leader dots before checking. triage_tier: medium."
   },
   {
     "id": "P054",
     "section": "PDF Table of Contents entry terminal-period absence check",
     "question": "Do any Table of Contents entries incorrectly end with a terminal period?",
-    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q049/Q050/Q051) require TOC entries at all levels to be in specific case styles (all-caps L1, title case L2, sentence case L3) without terminal punctuation. P054 emits a warning when a complete TOC entry (with page-number token) ends with a period after stripping leaders and any level prefix. Mirrors P053 (LoT entries must not have terminal period). Findings contain only structural metadata \u2014 no heading text.",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q049/Q050/Q051) require TOC entries at all levels to be in specific case styles (all-caps L1, title case L2, sentence case L3) without terminal punctuation. P054 emits a warning when a complete TOC entry (with page-number token) ends with a period after stripping leaders and any level prefix. Mirrors P053 (LoT entries must not have terminal period). Findings contain only structural metadata — no heading text.",
     "remediation": "Remove the trailing period from Table of Contents entries. TOC entries should not have terminal punctuation at any level.",
     "severity": "warning",
     "source_file": "project_added",
@@ -976,7 +976,7 @@
     "id": "P055",
     "section": "PDF List of Tables / List of Figures cross-type entry check",
     "question": "Do any List of Tables entries start with 'Figure', or any List of Figures entries start with 'Table'?",
-    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q063/Q072) define the List of Tables as containing only table entries and the List of Figures as containing only figure entries. P055 emits an advisory when a complete LoT entry (with page-number token) starts with 'Figure', or a complete LoF entry starts with 'Table'. This catches misplaced entries that indicate a copy-paste error or misconfigured template. Findings contain only structural metadata \u2014 no title text.",
+    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q063/Q072) define the List of Tables as containing only table entries and the List of Figures as containing only figure entries. P055 emits an advisory when a complete LoT entry (with page-number token) starts with 'Figure', or a complete LoF entry starts with 'Table'. This catches misplaced entries that indicate a copy-paste error or misconfigured template. Findings contain only structural metadata — no title text.",
     "remediation": "Move the misplaced entry to the correct section (List of Tables for tables, List of Figures for figures).",
     "severity": "warning",
     "source_file": "project_added",
@@ -994,7 +994,7 @@
     "id": "P056",
     "section": "PDF List of Tables / List of Figures entry numbering format consistency",
     "question": "Do entries in the List of Tables or List of Figures mix chapter-based (X.Y) and plain sequential (N) numbering formats?",
-    "rule_definition": "Conservative heuristic check. NJIT formatting guidelines (Q063/Q072) imply that LoT and LoF entries should follow a consistent naming convention. P056 emits an advisory when a complete LoT or LoF section contains a mix of chapter-based numbering (e.g., Table 1.2) and plain sequential numbering (e.g., Table 1). Findings contain only structural metadata \u2014 no title text.",
+    "rule_definition": "Conservative heuristic check. NJIT formatting guidelines (Q063/Q072) imply that LoT and LoF entries should follow a consistent naming convention. P056 emits an advisory when a complete LoT or LoF section contains a mix of chapter-based numbering (e.g., Table 1.2) and plain sequential numbering (e.g., Table 1). Findings contain only structural metadata — no title text.",
     "remediation": "Choose one numbering format (chapter-based or plain sequential) and apply it consistently throughout the List of Tables and List of Figures.",
     "severity": "warning",
     "source_file": "project_added",
@@ -1025,7 +1025,7 @@
       "lof_page_numbers_not_nondecreasing"
     ],
     "scope_doc": "docs/planning/p057_scope_and_design.md",
-    "section": "PDF Layout \u2014 List Pages",
+    "section": "PDF Layout — List Pages",
     "question": "Are the page numbers listed in the List of Tables and List of Figures entries in non-decreasing order?",
     "rule_definition": "Entries in the List of Tables and List of Figures should reference page numbers in ascending (non-decreasing) order, consistent with the physical order of tables and figures in the document body.",
     "remediation": "Reorder List of Tables or List of Figures entries so that page numbers appear in ascending order.",
@@ -1036,7 +1036,7 @@
       "pdf"
     ],
     "priority": "medium",
-    "notes": "Conservative gate: \u22653 complete entries with integer page numbers and \u22652 inversions before flagging."
+    "notes": "Conservative gate: ≥3 complete entries with integer page numbers and ≥2 inversions before flagging."
   },
   {
     "id": "P058",
@@ -1053,7 +1053,7 @@
       "toc_page_numbers_not_nondecreasing"
     ],
     "scope_doc": "docs/planning/p058_scope_and_design.md",
-    "section": "PDF Layout \u2014 Table of Contents",
+    "section": "PDF Layout — Table of Contents",
     "question": "Are the page numbers listed in the Table of Contents body entries in non-decreasing order?",
     "rule_definition": "Body entries in the Table of Contents should reference page numbers in non-decreasing order, consistent with the physical order of chapters in the document body. Roman-numeral front-matter entries are excluded.",
     "remediation": "Reorder Table of Contents entries so that page numbers appear in ascending order.",
@@ -1075,7 +1075,7 @@
       "lof_entry_numbers_not_nondecreasing"
     ],
     "scope_doc": "docs/planning/p059_scope_and_design.md",
-    "section": "PDF Layout \u2014 List of Tables / List of Figures",
+    "section": "PDF Layout — List of Tables / List of Figures",
     "question": "Are the entry numbers listed in the List of Tables or List of Figures in non-decreasing order?",
     "rule_definition": "Entries in the List of Tables and List of Figures should be numbered in non-decreasing order (e.g., Table 1, Table 2, Table 3 or Table 1.1, Table 1.2, Table 2.1). An entry numbered Table 5 appearing before Table 2 indicates a copy-paste or reordering error. Appendix/letter-prefixed entries and mixed-format pages are excluded.",
     "remediation": "Reorder List of Tables or List of Figures entries so that entry numbers appear in non-decreasing order.",
@@ -1097,9 +1097,9 @@
       "toc_entry_numbers_not_nondecreasing"
     ],
     "scope_doc": "docs/planning/p060_scope_and_design.md",
-    "section": "PDF Layout \u2014 Table of Contents",
+    "section": "PDF Layout — Table of Contents",
     "question": "Are the section numbers listed in the Table of Contents in non-decreasing order?",
-    "rule_definition": "Numeric section entries in the Table of Contents should be numbered in non-decreasing order (e.g., 1, 1.1, 1.2, 2, 2.1 \u2026). An entry numbered 2.1 appearing before 1.3 indicates a copy-paste or reordering error. Word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) and entries without page-number tokens (wrapped continuation lines) are excluded.",
+    "rule_definition": "Numeric section entries in the Table of Contents should be numbered in non-decreasing order (e.g., 1, 1.1, 1.2, 2, 2.1 …). An entry numbered 2.1 appearing before 1.3 indicates a copy-paste or reordering error. Word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) and entries without page-number tokens (wrapped continuation lines) are excluded.",
     "remediation": "Reorder Table of Contents entries so that numeric section numbers appear in non-decreasing order.",
     "severity": "warning",
     "source_file": "project_added",
@@ -1120,7 +1120,7 @@
       "lof_cross_page_entry_numbers_not_nondecreasing"
     ],
     "scope_doc": "docs/planning/p061_scope_and_design.md",
-    "section": "PDF Layout \u2014 List of Tables / List of Figures",
+    "section": "PDF Layout — List of Tables / List of Figures",
     "question": "Are List of Tables or List of Figures entry numbers in non-decreasing order across consecutive pages?",
     "rule_definition": "When a List of Tables or List of Figures spans multiple consecutive pages, entry numbers should remain in non-decreasing order across the full combined sequence (e.g., Table 8 on the last page of LoT page 1 followed by Table 2 on LoT page 2 indicates a cross-page ordering error). Single-page sections, mixed sequential+chapter-based runs, and appendix/letter-prefixed entries are excluded.",
     "remediation": "Reorder List of Tables or List of Figures entries so entry numbers are non-decreasing across all pages in the section.",
@@ -1142,7 +1142,7 @@
       "toc_cross_page_entry_numbers_not_nondecreasing"
     ],
     "scope_doc": "docs/planning/p062_scope_and_design.md",
-    "section": "PDF Layout \u2014 Table of Contents",
+    "section": "PDF Layout — Table of Contents",
     "question": "Are Table of Contents section numbers in non-decreasing order across consecutive pages?",
     "rule_definition": "When the Table of Contents spans multiple consecutive pages, section numbers should remain in non-decreasing order across the full combined sequence (e.g., section 2.1 on the last TOC page 1 followed by section 1.3 on TOC page 2 indicates a cross-page ordering error). Word-prefix entries (CHAPTER, APPENDIX, ABSTRACT) and entries without page-number tokens (wrapped continuation lines) are excluded.",
     "remediation": "Reorder Table of Contents entries so section numbers are non-decreasing across all pages in the TOC section.",
@@ -1175,7 +1175,7 @@
       "appendix_letter_sequence_repeat"
     ],
     "scope_doc": "docs/planning/p063_scope_and_design.md",
-    "section": "PDF Layout \u2014 Appendices",
+    "section": "PDF Layout — Appendices",
     "question": "Do body-page appendix headings follow the NJIT label convention (APPENDIX vs APPENDIX A/B/C)?",
     "rule_definition": "Body-page appendix headings must follow NJIT labeling rules: if there is one appendix, its heading must be APPENDIX (without a letter); if there are multiple appendices, each heading must be APPENDIX A, APPENDIX B, APPENDIX C, etc. with consecutive letter identifiers. Applies to body pages only; the TOC side is handled by P042.",
     "remediation": "For a single appendix: rename the heading to APPENDIX (remove any letter suffix). For multiple appendices: ensure each appendix heading uses APPENDIX A, APPENDIX B, etc. in consecutive alphabetical order.",
@@ -1191,7 +1191,7 @@
   {
     "id": "P064",
     "title": "References/citations structural check",
-    "description": "Emits warnings for structural issues in the references/bibliography section: (A) references_section_heading_not_detected \u2014 no REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading found in body pages of a document with >=5 body pages; (B) references_entry_indentation_inconsistent \u2014 multi-line reference entries show mixed hanging-indent patterns (stdev of indent deltas > threshold); (C) references_entry_spacing_inconsistent \u2014 inter-entry vertical gaps are highly irregular (>=20% outliers differing >2x median AND absolute range >15 pt). Does not check citation style compliance (APA/IEEE/etc.) \u2014 advisor-dependent. Privacy-safe: no reference entry text, author names, DOIs, or URLs in findings.",
+    "description": "Emits warnings for structural issues in the references/bibliography section: (A) references_section_heading_not_detected — no REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading found in body pages of a document with >=5 body pages; (B) references_entry_indentation_inconsistent — multi-line reference entries show mixed hanging-indent patterns (stdev of indent deltas > threshold); (C) references_entry_spacing_inconsistent — inter-entry vertical gaps are highly irregular (>=20% outliers differing >2x median AND absolute range >15 pt). Does not check citation style compliance (APA/IEEE/etc.) — advisor-dependent. Privacy-safe: no reference entry text, author names, DOIs, or URLs in findings.",
     "phase": "pdf_layout",
     "source_q_rule_ids": [],
     "source_q_rule_basis": "Q028/Q029 analogy (Bio Sketch); Self-Assessment Sheet p.4; Formatting Guidelines para 138; Front Matter Lorem Ipsum p.9",
@@ -1204,7 +1204,7 @@
       "references_entry_spacing_inconsistent"
     ],
     "scope_doc": "docs/planning/p064_references_citations_structural_check_scope_and_design.md",
-    "section": "PDF Layout \u2014 References/Bibliography",
+    "section": "PDF Layout — References/Bibliography",
     "question": "Does the document have a recognized references section heading and are reference entries consistently formatted (indentation and spacing)?",
     "rule_definition": "The document must include a REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading in the body pages (for documents >= 5 body pages). Within the references section, multi-line entries should exhibit a consistent hanging-indent pattern and entries should have consistent inter-entry vertical spacing. Only structural geometry is checked; citation style (APA/IEEE/etc.) is advisor-dependent and out of scope.",
     "remediation": "Add a REFERENCES or BIBLIOGRAPHY section heading if missing. Review reference entries for consistent formatting: either all entries use a hanging indent or all use flush-left style; inter-entry spacing should be uniform throughout.",
@@ -1215,15 +1215,15 @@
       "pdf"
     ],
     "priority": "medium",
-    "notes": "Conservative v1: geometry-only checks; no citation style enforcement. Skip conditions: no body region detected; document < 5 body pages (heading check); < 5 entry candidates (spacing check); < 3 multi-line entries (indent check); high x-variance > 50 pt (noisy geometry); multi-column layout detected; image-only or flattened pages. Limitation: uniform wrong formatting (all entries flush-left) not flagged \u2014 consistency-only metric cannot detect uniform noncompliance. IEEE-style numbered flush-left lists produce no false positives (all-flush-left skip). Guideline basis: Self-Assessment Sheet p.4 requires consistent formatting; Q028/Q029 analogy from Bio Sketch section applied to main References section."
+    "notes": "Conservative v1: geometry-only checks; no citation style enforcement. Skip conditions: no body region detected; document < 5 body pages (heading check); < 5 entry candidates (spacing check); < 3 multi-line entries (indent check); high x-variance > 50 pt (noisy geometry); multi-column layout detected; image-only or flattened pages. Limitation: uniform wrong formatting (all entries flush-left) not flagged — consistency-only metric cannot detect uniform noncompliance. IEEE-style numbered flush-left lists produce no false positives (all-flush-left skip). Guideline basis: Self-Assessment Sheet p.4 requires consistent formatting; Q028/Q029 analogy from Bio Sketch section applied to main References section."
   },
   {
     "id": "P065",
     "title": "Dedication page centering and italic style check",
-    "description": "Emits warnings for structural issues in the Dedication page: (A) dedication_text_not_centered \u2014 the main dedication text block center deviates from the text-area center by more than 20 pt (Q033); (B) dedication_text_not_italic \u2014 italic span ratio below 0.5 threshold among usable spans (Q034). Gates: \u22652 text lines required for centering check; \u22653 usable spans required for italic check; all-None font metadata skips italic check. Skip: no DEDICATION heading in first 15 pages; multiple competing DEDICATION headings; image-only/empty page.",
+    "description": "Emits warnings for structural issues in the Dedication page: (A) dedication_text_not_centered — the main dedication text block center deviates from the text-area center by more than 20 pt (Q033); (B) dedication_text_not_italic — italic span ratio below 0.5 threshold among usable spans (Q034). Gates: ≥2 text lines required for centering check; ≥3 usable spans required for italic check; all-None font metadata skips italic check. Skip: no DEDICATION heading in first 15 pages; multiple competing DEDICATION headings; image-only/empty page.",
     "section": "Dedication Page",
     "question": "Is the dedication text block centered and italicized?",
-    "rule_definition": "Conservative heuristics: (A) detect the Dedication page by finding a unique DEDICATION heading in the first 15 pages; collect text lines below the heading excluding page numbers and bottom margin; compute union bounding box and compare horizontal center to text-area center \u2014 emit dedication_text_not_centered if offset > 20 pt and \u22652 text lines present; (B) collect text spans from dedication text lines; compute italic span ratio \u2014 emit dedication_text_not_italic if ratio < 0.5 and \u22653 spans and at least one span has font metadata. Findings contain geometry/style metadata only \u2014 no dedication content, names, or font text.",
+    "rule_definition": "Conservative heuristics: (A) detect the Dedication page by finding a unique DEDICATION heading in the first 15 pages; collect text lines below the heading excluding page numbers and bottom margin; compute union bounding box and compare horizontal center to text-area center — emit dedication_text_not_centered if offset > 20 pt and ≥2 text lines present; (B) collect text spans from dedication text lines; compute italic span ratio — emit dedication_text_not_italic if ratio < 0.5 and ≥3 spans and at least one span has font metadata. Findings contain geometry/style metadata only — no dedication content, names, or font text.",
     "severity": "warning",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
@@ -1240,17 +1240,17 @@
       "dedication_text_not_centered",
       "dedication_text_not_italic"
     ],
-    "notes": "Conservative v1 PDF heuristic for Q033/Q034. Gate: skip if no unique DEDICATION heading in first 15 pages. Centering: offset > 20 pt threshold; \u22652 text lines required. Italic: ratio < 0.5; \u22653 spans required; skips if all font metadata is None. Does not check dedication content/professionalism (manual-only). Companion to P041 (Q032). issue_types: dedication_text_not_centered, dedication_text_not_italic.",
+    "notes": "Conservative v1 PDF heuristic for Q033/Q034. Gate: skip if no unique DEDICATION heading in first 15 pages. Centering: offset > 20 pt threshold; ≥2 text lines required. Italic: ratio < 0.5; ≥3 spans required; skips if all font metadata is None. Does not check dedication content/professionalism (manual-only). Companion to P041 (Q032). issue_types: dedication_text_not_centered, dedication_text_not_italic.",
     "remediation": "Ensure the dedication text block is horizontally centered within the text area. Format dedication text in italic; check that the font applied to the body of the dedication is an italic or oblique variant.",
     "source_file": "project_added"
   },
   {
     "id": "P066",
     "title": "Biographical Sketch degree ordering check",
-    "description": "Heuristic PDF check for Q025: postgraduate degree entries in the Biographical Sketch must be listed most recent to oldest. Detects 4-digit year tokens in short education-zone candidate lines (below the BIOGRAPHICAL SKETCH heading, above any detectable Publications/Presentations sub-section boundary) and checks whether the year sequence is non-increasing (most recent first). Emits biosketch_degree_order_suspicious when a clear inversion (> 2-year gap) is found among >= 3 candidate lines. Q023 (no birthplace/date of birth), Q024 (no work experience), and the 'NJIT first' sub-requirement of Q025 are explicitly out of scope for v1 \u2014 all three require reading biographical content and/or NLP.",
+    "description": "Heuristic PDF check for Q025: postgraduate degree entries in the Biographical Sketch must be listed most recent to oldest. Detects 4-digit year tokens in short education-zone candidate lines (below the BIOGRAPHICAL SKETCH heading, above any detectable Publications/Presentations sub-section boundary) and checks whether the year sequence is non-increasing (most recent first). Emits biosketch_degree_order_suspicious when a clear inversion (> 2-year gap) is found among >= 3 candidate lines. Q023 (no birthplace/date of birth), Q024 (no work experience), and the 'NJIT first' sub-requirement of Q025 are explicitly out of scope for v1 — all three require reading biographical content and/or NLP.",
     "section": "Biographical Sketch",
     "question": "Are postgraduate degrees listed from most recent to oldest?",
-    "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings; (2) find Publications/Presentations boundary line if present; (3) collect short lines (<= 120 chars) with exactly one 4-digit year token (1960-2099) in the education zone; (4) skip if < 3 such candidates or all years equal; (5) emit biosketch_degree_order_suspicious if any adjacent pair has a later-listed year > earlier-listed year by > 2 years. Findings contain counts and year integers only \u2014 no bio-sketch text, degree names, institution names, or biographical prose.",
+    "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings; (2) find Publications/Presentations boundary line if present; (3) collect short lines (<= 120 chars) with exactly one 4-digit year token (1960-2099) in the education zone; (4) skip if < 3 such candidates or all years equal; (5) emit biosketch_degree_order_suspicious if any adjacent pair has a later-listed year > earlier-listed year by > 2 years. Findings contain counts and year integers only — no bio-sketch text, degree names, institution names, or biographical prose.",
     "severity": "warning",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
@@ -1267,7 +1267,7 @@
     ],
     "remediation": "Reorder postgraduate degree entries in the Biographical Sketch from most recent to oldest. Q023 (no birthplace/date) and Q024 (no work experience) require manual review.",
     "source_file": "project_added",
-    "notes": "Conservative v1 PDF heuristic for Q025 (degree ordering) only. Q023 (no birthplace/date of birth) and Q024 (no work experience) are manual-only \u2014 require NLP and content reading; high privacy risk. Q025 'NJIT first' sub-requirement deferred \u2014 requires institution name recognition. False-positive risk: year tokens from narrative prose mitigated by line-length threshold (_MAX_DEGREE_LINE_CHARS=120), one-year-per-line gate, and 3-candidate minimum. If bio-sketch page is image-rendered, P066 returns 0 findings (expected). Companion to P045 (Q028/Q029) and P047 (Q026)."
+    "notes": "Conservative v1 PDF heuristic for Q025 (degree ordering) only. Q023 (no birthplace/date of birth) and Q024 (no work experience) are manual-only — require NLP and content reading; high privacy risk. Q025 'NJIT first' sub-requirement deferred — requires institution name recognition. False-positive risk: year tokens from narrative prose mitigated by line-length threshold (_MAX_DEGREE_LINE_CHARS=120), one-year-per-line gate, and 3-candidate minimum. If bio-sketch page is image-rendered, P066 returns 0 findings (expected). Companion to P045 (Q028/Q029) and P047 (Q026)."
   },
   {
     "id": "P067",
@@ -1275,7 +1275,7 @@
     "description": "Heuristic PDF check for Q027: publication/presentation entries in the Biographical Sketch must be listed from most recent to oldest. Detects a unique BIOGRAPHICAL SKETCH page, requires a clear Publications/Presentations subsection boundary, groups citation-like entry blocks, extracts only representative 4-digit year metadata (1960-2029), and checks whether comparable entries are in non-increasing order. Emits biosketch_publication_order_suspicious when a later-listed entry year is greater than an earlier-listed year by more than 1 year among >= 3 comparable entries. Titles, venues, author names, DOI/URL strings, and citation text are out of scope and never exposed.",
     "section": "Biographical Sketch",
     "question": "Are publication/presentation entries listed from most recent to oldest?",
-    "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page; (2) locate a clear Publications/Presentations subsection heading; (3) group citation-like entry blocks using Bio Sketch publication-layout geometry; (4) keep only entries with exactly one unique representative 4-digit year token (1960-2029); (5) skip ambiguous multi-year entries and sparse/flattened zones; (6) emit biosketch_publication_order_suspicious if any adjacent comparable pair has a later-listed year > earlier-listed year + 1. Findings contain counts and year integers only \u2014 no citation text, titles, names, venues, DOI strings, URLs, or bio-sketch prose.",
+    "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page; (2) locate a clear Publications/Presentations subsection heading; (3) group citation-like entry blocks using Bio Sketch publication-layout geometry; (4) keep only entries with exactly one unique representative 4-digit year token (1960-2029); (5) skip ambiguous multi-year entries and sparse/flattened zones; (6) emit biosketch_publication_order_suspicious if any adjacent comparable pair has a later-listed year > earlier-listed year + 1. Findings contain counts and year integers only — no citation text, titles, names, venues, DOI strings, URLs, or bio-sketch prose.",
     "severity": "warning",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
@@ -1363,7 +1363,7 @@
       "P067",
       "P068"
     ],
-    "remediation": "No direct remediation \u2014 improved gate recall allows dependent rules to run when front-matter sections use tolerated heading variants. Manual review remains required for semantics, image-only headings, and guideline compliance.",
+    "remediation": "No direct remediation — improved gate recall allows dependent rules to run when front-matter sections use tolerated heading variants. Manual review remains required for semantics, image-only headings, and guideline compliance.",
     "source_file": "project_added",
     "notes": "Infrastructure-only v1. No OCR, no fuzzy typo matching, no standalone findings. P014 style checks remain strict. Image-only headings remain undetectable. LoT/LoF entry parsing is a separate follow-up track."
   },
@@ -1446,7 +1446,7 @@
       "P061",
       "P062"
     ],
-    "remediation": "No direct remediation \u2014 improved parser recall allows dependent TOC/LoT/LoF rules to run on wrapped or split-column entries. Manual review remains required for semantics, image-only pages, and guideline compliance.",
+    "remediation": "No direct remediation — improved parser recall allows dependent TOC/LoT/LoF rules to run on wrapped or split-column entries. Manual review remains required for semantics, image-only pages, and guideline compliance.",
     "source_file": "project_added",
     "notes": "Infrastructure-only v1. No OCR, no fuzzy typo matching, no standalone findings. P069 heading gates unchanged. Image-only list pages remain undetectable. References/citations and approval-page tracks remain separate."
   },
@@ -1477,14 +1477,14 @@
     "affected_rules": [
       "P064"
     ],
-    "remediation": "No direct remediation \u2014 improved localization allows P064 structural checks to run when sections were previously skipped. Manual review remains required for citation style, semantics, and image-only pages.",
+    "remediation": "No direct remediation — improved localization allows P064 structural checks to run when sections were previously skipped. Manual review remains required for citation style, semantics, and image-only pages.",
     "source_file": "project_added",
     "notes": "Infrastructure-only v1. No OCR, no citation-style enforcement, no standalone findings. Q030 remains manual-only. Does not quote reference entry text."
   },
   {
     "id": "P072",
     "title": "Approval Page Heading-Gate Recall Refinement",
-    "description": "Infrastructure companion to P068 that improves approval-page localization reach when the APPROVAL PAGE heading text is absent from the PDF text layer. Adds a structural role-label fallback: if the heading gate returns 0 matches, scans front-matter/ambiguous pages for the distinctive combination of role-label phrases. Activates only when exactly 1 candidate is found. No standalone findings in v1 \u2014 existing P068 issue types fire when structural checks reach the newly located page.",
+    "description": "Infrastructure companion to P068 that improves approval-page localization reach when the APPROVAL PAGE heading text is absent from the PDF text layer. Adds a structural role-label fallback: if the heading gate returns 0 matches, scans front-matter/ambiguous pages for the distinctive combination of role-label phrases. Activates only when exactly 1 candidate is found. No standalone findings in v1 — existing P068 issue types fire when structural checks reach the newly located page.",
     "section": "Approval Page",
     "question": "Can P068 reliably reach the approval-page committee block when the APPROVAL PAGE heading text is absent from or unreadable in the text layer?",
     "rule_definition": "Infrastructure refinement only: (1) when find_gate_matches_for_heading returns 0 matches for APPROVAL PAGE, scan eligible front-matter/ambiguous pages for pages with >=_MIN_ROLE_LABELS role-label phrases and >=_MIN_BODY_LINES usable lines; (2) if exactly 1 such page exists, treat it as the inferred approval page and run existing P068 structural checks; (3) skip if 0 or >=2 candidates (ambiguous); (4) add detected_via field to findings for diagnostics only.",
@@ -1505,7 +1505,7 @@
     "affected_rules": [
       "P068"
     ],
-    "remediation": "No direct remediation \u2014 improved localization allows P068 structural checks to run when approval pages were previously skipped due to absent heading text. Manual review remains required for Q015-Q020 semantics, image-only pages, and guideline compliance.",
+    "remediation": "No direct remediation — improved localization allows P068 structural checks to run when approval pages were previously skipped due to absent heading text. Manual review remains required for Q015-Q020 semantics, image-only pages, and guideline compliance.",
     "source_file": "project_added",
     "notes": "Infrastructure-only v1. No OCR, no fuzzy typo matching, no standalone findings. Q015-Q020 remain manual-only. Image-only approval pages remain undetectable. Structural fallback skips when 0 or >=2 role-label candidates are found (ambiguous)."
   },
@@ -1533,7 +1533,7 @@
     "affected_rules": [
       "P019"
     ],
-    "remediation": "No direct remediation \u2014 P073 adds triage metadata to P019 findings for reviewer guidance. High-tier findings (sequence_gap, missing_page_number) warrant immediate attention; low-tier (inconsistent_position) are often artifact-driven on EF-annotated PDFs.",
+    "remediation": "No direct remediation — P073 adds triage metadata to P019 findings for reviewer guidance. High-tier findings (sequence_gap, missing_page_number) warrant immediate attention; low-tier (inconsistent_position) are often artifact-driven on EF-annotated PDFs.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P019 detection and canonical aggregate unchanged. Triage metadata injected post-deduplication via model_copy(). _P019_TRIAGE_MAP covers five issue types. inconsistent_position mapped to low/artifact-suspected based on P073 v1 evaluation evidence. mixed_numbering_style boundary-aware refinement deferred."
   },
@@ -1585,7 +1585,7 @@
     "affected_rules": [
       "P036"
     ],
-    "remediation": "No direct remediation \u2014 P076 adds report-level triage for existing P036 findings so reviewers can prioritize repeated same-section spacing issues and artifact-prone compressed-PDF cases.",
+    "remediation": "No direct remediation — P076 adds report-level triage for existing P036 findings so reviewers can prioritize repeated same-section spacing issues and artifact-prone compressed-PDF cases.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P036 findings, detail keys, and detection behavior remain unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
   },
@@ -1610,7 +1610,7 @@
     "affected_rules": [
       "P038"
     ],
-    "remediation": "No direct remediation \u2014 P077 adds report-level triage for existing P038 findings so reviewers can identify which required front-matter headings are missing or use non-exact phrases.",
+    "remediation": "No direct remediation — P077 adds report-level triage for existing P038 findings so reviewers can identify which required front-matter headings are missing or use non-exact phrases.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P038 findings, detail keys, and detection behavior remain unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
   },
@@ -1663,7 +1663,7 @@
     "affected_rules": [
       "P044"
     ],
-    "remediation": "No direct remediation \u2014 P079 adds report-level triage for existing P044 findings so reviewers can identify first-paragraph indentation issues and unindented subsequent paragraphs in the Abstract.",
+    "remediation": "No direct remediation — P079 adds report-level triage for existing P044 findings so reviewers can identify first-paragraph indentation issues and unindented subsequent paragraphs in the Abstract.",
     "source_file": "project_added",
     "notes": "Reporting-only. Raw P044 findings, details, and detection behavior unchanged. No standalone issue types. Canonical five-PDF aggregate remains 1,543."
   },
@@ -1685,7 +1685,7 @@
       "src/njit_auditor/cli.py"
     ],
     "issue_types": [],
-    "remediation": "No direct remediation \u2014 P080 is an extraction capability, not a detection rule. Use generated outputs under data/evaluation/generated/ (gitignored) to review EF comment metadata on DOCX drafts.",
+    "remediation": "No direct remediation — P080 is an extraction capability, not a detection rule. Use generated outputs under data/evaluation/generated/ (gitignored) to review EF comment metadata on DOCX drafts.",
     "source_file": "project_added",
     "notes": "Adds docx-comments CLI group with extract subcommand. No changes to PDF/TeX detection behavior. Canonical five-PDF aggregate remains 1,543. python-docx added as a project dependency. Unlocks EF comment extraction from 2 previously-inaccessible DOCX files in the Ester dataset."
   },
@@ -1711,7 +1711,7 @@
       "P013",
       "P026"
     ],
-    "remediation": "No direct remediation \u2014 P081 adds report-level calibration summaries so reviewers can quickly distinguish routine dominant-pattern P013/P026 warnings from outlier pages while preserving the full raw findings list.",
+    "remediation": "No direct remediation — P081 adds report-level calibration summaries so reviewers can quickly distinguish routine dominant-pattern P013/P026 warnings from outlier pages while preserving the full raw findings list.",
     "source_file": "project_added",
     "notes": "Reporting-only. P013 and P026 detector logic, thresholds, issue types, severities, and raw counts remain unchanged. Canonical five-PDF aggregate remains 1,543. Landscape page-number orientation is covered experimentally by P082 (opt-in, disabled by default)."
   },

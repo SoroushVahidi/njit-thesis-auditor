@@ -167,12 +167,12 @@ def get_no_highlight_reason(
 _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P011 margins ---
     ("P011", "margin_boundary_violation"): (
-        "Some content appears too close to or beyond the required page margin "
-        "({side_label}). "
-        "NJIT requires: left margin 1.5 inches, right margin 1 inch, "
-        "top and bottom margins 1 inch. "
+        "Content appears to cross the required page margin ({side_label}). "
+        "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
+        "No text, tables, or figures are allowed in the margins. "
         "Review the highlighted area or the listed page and adjust layout, "
-        "indentation, tables, figures, or long lines."
+        "indentation, tables, figures, or long lines so all content stays inside "
+        "the required margins."
     ),
     # --- P013 page number candidates ---
     # P013 only records a candidate's observed position/style — it has no
@@ -181,15 +181,15 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # defect. NJIT only specifies a bottom placement (0.5" from the bottom
     # edge); there is no "top right" allowance.
     ("P013", "page_number_candidate"): (
-        "A page-number-like token was detected in the {position_type_label} "
+        "A page-number candidate was detected in the {position_type_label} "
         "area of this page. This finding is a manual-verification signal: it "
-        "records where the candidate page number was found so a person can "
-        "confirm it. It does not by itself confirm a formatting defect. "
-        "NJIT requires page numbers to appear at the bottom of the page "
-        "(0.5 inches from the bottom edge), using lowercase Roman numerals "
-        "(i, ii, iii) for front matter and Arabic numerals (1, 2, 3) for "
-        "body pages. Verify that this page number is visible, correctly "
-        "placed, and uses the correct style."
+        "records where the candidate was found so a person can confirm it. "
+        "It does not by itself confirm a formatting defect. "
+        "NJIT requires page numbers to appear at the bottom of the page, "
+        "centered, 0.5 inches from the bottom edge. Use lowercase Roman "
+        "numerals (i, ii, iii) for front matter and Arabic numerals (1, 2, 3) "
+        "for body pages. Verify that this page number is visible, correctly "
+        "placed at the bottom-center, and uses the correct numbering style."
     ),
     ("P013", "p013_document_overview"): (
         "This is a document-level, informational summary of page-number "
@@ -266,32 +266,40 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on this page. "
-        "Body text should be double-spaced with consistent spacing. "
-        "Review for extra blank lines or manual spacing overrides."
+        "Excluding necessary page breaks for new chapters or to keep figures "
+        "and tables with their captions, text should flow consistently from "
+        "the top margin to the bottom margin. Delete unnecessary blank lines "
+        "or correct manual spacing overrides."
     ),
     ("P016", "excessive_paragraph_gap"): (
         "Unusually large spacing was detected between paragraphs on this page. "
-        "Paragraph spacing should be consistent with double-spaced body text. "
-        "Review for extra blank lines or manual paragraph-spacing overrides."
+        "Excluding necessary page breaks for new chapters or to keep figures "
+        "and tables with their captions, paragraph spacing should remain "
+        "consistent. Delete unnecessary blank lines or manual paragraph-spacing "
+        "overrides."
     ),
     ("P016", "suspicious_heading_blank_gap"): (
         "An unusually large blank gap was detected just before a heading on this "
-        "page. Verify this is intentional heading spacing and not an extra blank "
-        "line or page-break artifact."
+        "page. Verify this is an intentional necessary page break (for example, "
+        "starting a new chapter). If it is just an extra blank line, delete it."
     ),
     # --- P026 font compliance ---
     ("P026", "possible_body_font_family_issue"): (
         "This page contains body-text spans whose embedded PDF font does not appear "
-        "to be Times New Roman or an accepted Times-compatible font. "
-        "NJIT expects body text to use Times New Roman 12pt throughout. "
+        "to be Times New Roman or an accepted equivalent. "
+        "Word users should use Times New Roman 12pt. "
+        "Overleaf users: Computer Modern is an accepted equivalent — if "
+        "flagged, verify with your advisor. "
         "Review the highlighted text or the listed page and update the source "
-        "document font settings."
+        "document font settings if this text is part of the main body."
     ),
     ("P026", "possible_body_font_size_issue"): (
         "This page contains body-text spans outside the expected 12pt range "
         "(11–13 pt). "
         "NJIT expects body text to be 12pt. "
-        "Review the highlighted text or the listed page and correct the font size."
+        "Review the highlighted text or the listed page and correct the font size. "
+        "Verify whether the flagged text is body text or a permitted exception "
+        "such as a table, figure caption, heading, or footnote."
     ),
     # --- P027 heading level style: one explanation per level, never combined ---
     ("P027", "level1_not_all_caps"): (

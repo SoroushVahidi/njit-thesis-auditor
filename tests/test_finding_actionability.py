@@ -1317,8 +1317,9 @@ def test_p013_bottom_center_wording_is_verification_signal() -> None:
         details={"position_type": "bottom_center"},
     )
     assert "bottom center" in comment
-    assert "internal verification signal" in comment
-    assert "not counted as a problem" in comment
+    assert "verification signal" in comment
+    assert "bottom of the page" in comment
+    assert "0.5 inches" in comment
     assert "near top/bottom zones" not in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
@@ -1343,7 +1344,8 @@ def test_p013_outside_bottom_area_wording_flags_placement() -> None:
         details={"position_type": "top_center"},
     )
     assert "appears at top center" in comment
-    assert "required bottom position" in comment
+    assert "bottom" in comment
+    assert "0.5 inches" in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
 
@@ -1355,7 +1357,8 @@ def test_p013_undetermined_position_wording_is_neutral() -> None:
         page=9,
         details={},
     )
-    assert "internal verification signal" in comment
+    assert "verification signal" in comment or "verify" in comment.lower()
+    assert "bottom of the page" in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
 
