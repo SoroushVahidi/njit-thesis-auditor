@@ -327,6 +327,74 @@ def test_rules_how_to_correct_remains_always_visible(client: tuple[TestClient, A
 
 
 # ---------------------------------------------------------------------------
+# Rule-reference card declutter (UX cleanup)
+# ---------------------------------------------------------------------------
+
+
+def test_rules_cards_do_not_show_problem_badge(client: tuple[TestClient, Any]) -> None:
+    """'Problem' severity badge must not appear on any rule-reference card.
+
+    All student rules are problem-severity; the badge is universally repeated and
+    therefore removed. Severity is still filterable via the data-severity attribute.
+    """
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert 'badge-fail">Problem' not in body
+    assert 'badge-warn">Problem' not in body
+
+
+def test_rules_cards_do_not_show_pattern_based_badge(client: tuple[TestClient, Any]) -> None:
+    """'Pattern-based' checkability badge must not appear on rule-reference cards.
+
+    Most student rules are pattern-based; the badge is the default and therefore
+    removed to reduce noise. The 'Exact check' badge is preserved for the minority
+    of deterministic rules. The data-checkability attribute is unchanged.
+    """
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert 'badge-pattern">Pattern-based' not in body
+
+
+def test_rules_cards_do_not_repeat_applies_to_per_card(client: tuple[TestClient, Any]) -> None:
+    """'Applies to:' must not appear on individual rule cards.
+
+    All student rules target compiled PDFs, so per-card repetition is noise.
+    The scope is communicated once via the page-level scope note instead.
+    """
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "Applies to:" not in body
+
+
+def test_rules_page_has_pdf_scope_note(client: tuple[TestClient, Any]) -> None:
+    """A page-level note must state that all checks apply to compiled PDFs."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "All checks apply to compiled PDF submissions" in body
+
+
+def test_rules_exact_check_badge_still_renders(client: tuple[TestClient, Any]) -> None:
+    """Deterministic rules (e.g. P057) must still show the 'Exact check' badge."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "Exact check" in body
+    assert 'id="P057"' in body
+
+
+def test_rules_category_still_shows_on_cards(client: tuple[TestClient, Any]) -> None:
+    """Category metadata must still appear on rule cards."""
+    c, _ = client
+    resp = c.get("/rules")
+    body = resp.text
+    assert "Category:" in body
+
+
+# ---------------------------------------------------------------------------
 # Navigation links in base template
 # ---------------------------------------------------------------------------
 

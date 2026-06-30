@@ -4,7 +4,16 @@
 {% block head_extra %}
 <style>
   html, body { overflow-x: hidden; }
-  .rules-intro { margin-bottom: 1.5rem; font-size: 0.92rem; color: var(--color-muted); }
+  .rules-intro { margin-bottom: 0.5rem; font-size: 0.92rem; color: var(--color-muted); }
+  .rules-scope-note {
+    margin-bottom: 1.25rem;
+    font-size: 0.88rem;
+    color: var(--color-muted);
+    background: #f5f8ff;
+    border: 1px solid #d4e4f8;
+    border-radius: 5px;
+    padding: 0.45rem 0.75rem;
+  }
   .filter-bar--rules {
     display: flex;
     flex-wrap: wrap;
@@ -145,6 +154,9 @@
   Use the filters below to find checks by topic or priority.
   <a href="/help">How to read these results</a>
 </p>
+<p class="rules-scope-note">
+  All checks apply to compiled PDF submissions. Most are pattern-based checks — results should be reviewed in context.
+</p>
 
 <div class="filter-bar--rules" role="search" aria-label="Filter rules">
   <div>
@@ -207,31 +219,20 @@
       </p>
     </div>
   </div>
+  {% if rule.checkability_label == "Exact check" or rule.checkability_label == "Manual review" or rule.is_experimental %}
   <div class="rule-card__badges">
-    {% if rule.severity_code == "fail" %}
-    <span class="badge badge-fail">Problem</span>
-    {% elif rule.severity_code == "warning" %}
-    <span class="badge badge-warn">Problem</span>
-    {% elif rule.severity_code == "info" %}
-    <span class="badge badge-info">Information</span>
-    {% endif %}
     {% if rule.checkability_label == "Exact check" %}
     <span class="badge badge-deterministic">Exact check</span>
-    {% elif rule.checkability_label in ("Pattern-based", "Visual check") %}
-    <span class="badge badge-pattern">Pattern-based</span>
     {% elif rule.checkability_label == "Manual review" %}
     <span class="badge badge-manual">Manual review</span>
-    {% else %}
-    <span class="badge badge-muted">{{ rule.checkability_label }}</span>
     {% endif %}
     {% if rule.is_experimental %}
     <span class="badge badge-experimental">Experimental — opt-in only</span>
     {% endif %}
   </div>
+  {% endif %}
   <div class="rule-card__meta">
     <span class="rule-card__meta-item"><strong>Category:</strong>&nbsp;{{ rule.section }}</span>
-    <span class="rule-card__meta-item">&middot;</span>
-    <span class="rule-card__meta-item"><strong>Applies to:</strong>&nbsp;{{ rule.input_label }}</span>
   </div>
   {% if rule.what_it_checks %}
   <details class="rule-card__details" style="margin-top:0.7rem;">
