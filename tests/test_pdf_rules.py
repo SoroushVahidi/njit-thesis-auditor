@@ -4234,6 +4234,228 @@ def test_p028_toc_chapter_column_header_roman_pages_not_flagged(tmp_path: Path) 
     )
 
 
+def test_find_body_start_page_allcaps_chapter_entries_on_toc_not_matched(
+    tmp_path: Path,
+) -> None:
+    """Regression: ALL-CAPS TOC entries 'CHAPTER 1 INTRODUCTION ........ 1' must NOT
+    trigger body-start detection on the TABLE OF CONTENTS page.
+
+    The previous implementation only excluded title-case 'Chapter'; this tests the
+    all-caps 'CHAPTER N HEADING' format that actually appears as TOC entry text in
+    many NJIT dissertations.
+    """
+    pdf_path = tmp_path / "allcaps_toc_entries.pdf"
+    doc = fitz.open()
+
+    # Page 1: TABLE OF CONTENTS with all-caps TOC entries matching _CHAPTER_HEADING_RE.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "CHAPTER 1 INTRODUCTION ........ 1", fontsize=11)
+    p.insert_text((108, 160), "CHAPTER 2 LITERATURE REVIEW ........ 13", fontsize=11)
+    p.insert_text((108, 180), "CHAPTER 3 METHODOLOGY ........ 23", fontsize=11)
+    p.insert_text((300, 760), "vii", fontsize=12)
+
+    # Page 2: real CHAPTER 1 body page.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((220, 120), "INTRODUCTION", fontsize=14)
+    p.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    body_start = find_body_start_page(model)
+    assert body_start == 2, (
+        f"body_start should be page 2 (real CHAPTER 1), got {body_start!r}; "
+        "TOC entries 'CHAPTER 1 INTRODUCTION ........ 1' must not trigger body-start detection"
+    )
+
+
+def test_find_body_start_page_allcaps_chapter_column_header_on_toc_not_matched(
+    tmp_path: Path,
+) -> None:
+    """Regression: ALL-CAPS 'CHAPTER' column header on the TOC page must NOT
+    trigger body-start detection via _CHAPTER_STANDALONE_RE.
+
+    Some NJIT theses use all-caps 'CHAPTER' (not title-case 'Chapter') as the
+    column header label on the TABLE OF CONTENTS page.
+    """
+    pdf_path = tmp_path / "allcaps_chapter_column_toc.pdf"
+    doc = fitz.open()
+
+    # Page 1: TOC with all-caps CHAPTER column header.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "CHAPTER", fontsize=12)   # all-caps column header
+    p.insert_text((400, 140), "PAGE", fontsize=12)
+    p.insert_text((108, 165), "1 INTRODUCTION ........ 1", fontsize=11)
+    p.insert_text((108, 185), "2 LITERATURE REVIEW ........ 13", fontsize=11)
+    p.insert_text((300, 760), "iv", fontsize=12)
+
+    # Page 2: real CHAPTER 1 body page.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    body_start = find_body_start_page(model)
+    assert body_start == 2, (
+        f"body_start should be page 2 (real CHAPTER 1), got {body_start!r}; "
+        "ALL-CAPS 'CHAPTER' column header on TOC must not trigger body-start"
+    )
+
+
+def test_p028_toc_with_allcaps_chapter_entries_roman_not_flagged(tmp_path: Path) -> None:
+    """Regression: TOC page with all-caps 'CHAPTER 1 INTRODUCTION ........ 1' entries
+    and Roman numeral page number must NOT produce a P028 false positive.
+
+    Structure mirrors the real dissertation at digitalcommons.njit.edu/theses/3363:
+    - Pages 1-3:  front matter (roman i-iii)
+    - Pages 4-5:  TABLE OF CONTENTS continuation (roman iv-v) with all-caps CHAPTER entries
+    - Pages 6-7:  LIST OF TABLES / LIST OF FIGURES (roman vi-vii)
+    - Page 8:     CHAPTER 1 body (arabic 1)
+    """
+    pdf_path = tmp_path / "toc_allcaps_chapter_entries.pdf"
+    doc = fitz.open()
+
+    # Front matter (pages 1-3).
+    for roman, heading in [("i", "ABSTRACT"), ("ii", "BIOGRAPHICAL SKETCH"), ("iii", "ACKNOWLEDGEMENTS")]:
+        p = doc.new_page(width=612, height=792)
+        p.insert_text((220, 90), heading, fontsize=14, fontname="Times-Bold")
+        p.insert_text((300, 760), roman, fontsize=12)
+
+    # TABLE OF CONTENTS page with all-caps "CHAPTER N" entries (roman iv).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 135), "CHAPTER 1 INTRODUCTION ........ 1", fontsize=11)
+    p.insert_text((108, 155), "CHAPTER 2 LITERATURE REVIEW ........ 13", fontsize=11)
+    p.insert_text((108, 175), "CHAPTER 3 METHODOLOGY ........ 23", fontsize=11)
+    p.insert_text((300, 760), "iv", fontsize=12)
+
+    # TABLE OF CONTENTS continued (roman v).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 135), "(Continued)", fontsize=11)
+    p.insert_text((108, 155), "CHAPTER 4 RESULTS ........ 45", fontsize=11)
+    p.insert_text((300, 760), "v", fontsize=12)
+
+    # LIST OF TABLES (roman vi).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((210, 90), "LIST OF TABLES", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "vi", fontsize=12)
+
+    # LIST OF FIGURES (roman vii).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((210, 90), "LIST OF FIGURES", fontsize=14, fontname="Times-Bold")
+    p.insert_text((300, 760), "vii", fontsize=12)
+
+    # CHAPTER 1 body start (arabic 1).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((220, 120), "INTRODUCTION", fontsize=14)
+    p.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    body_start = find_body_start_page(model)
+    assert body_start == 8, (
+        f"body_start should be page 8 (CHAPTER 1), got {body_start!r}; "
+        "TOC pages with all-caps CHAPTER entries must not trigger body-start"
+    )
+
+    p028 = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    fm_false_positives = [f for f in p028 if f.page in {1, 2, 3, 4, 5, 6, 7}]
+    assert not fm_false_positives, (
+        f"Front-matter/TOC/List pages wrongly flagged by P028 as body: {fm_false_positives}"
+    )
+
+    body_false_positives = [f for f in p028 if f.page == 8]
+    assert not body_false_positives, (
+        f"CHAPTER 1 page (arabic '1') wrongly flagged by P028: {body_false_positives}"
+    )
+
+
+def test_p028_real_body_roman_still_flagged_when_toc_has_allcaps_chapter_entries(
+    tmp_path: Path,
+) -> None:
+    """Real body page using Roman numeral must still produce a P028 warning,
+    even when the preceding TOC contains all-caps 'CHAPTER N' entries."""
+    pdf_path = tmp_path / "toc_allcaps_body_roman.pdf"
+    doc = fitz.open()
+
+    # TOC page with all-caps CHAPTER entries.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "CHAPTER 1 INTRODUCTION ........ 1", fontsize=11)
+    p.insert_text((300, 760), "iii", fontsize=12)
+
+    # CHAPTER 1 body page — wrong: uses Roman instead of Arabic.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((300, 760), "iv", fontsize=12)   # wrong: should be arabic
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    p028 = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    body_roman_findings = [
+        f for f in p028
+        if f.page == 2 and f.details.get("issue_type") == "roman_number_on_body_page"
+    ]
+    assert body_roman_findings, (
+        "Expected P028 roman_number_on_body_page on CHAPTER 1 page; "
+        f"got: {[(f.page, f.details.get('issue_type')) for f in p028]}"
+    )
+
+
+def test_p028_toc_continued_page_roman_not_flagged(tmp_path: Path) -> None:
+    """TABLE OF CONTENTS (Continued) page with Roman numeral must not be flagged."""
+    pdf_path = tmp_path / "toc_continued_roman.pdf"
+    doc = fitz.open()
+
+    # TOC page 1.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p.insert_text((108, 140), "CHAPTER 1 INTRODUCTION ........ 1", fontsize=11)
+    p.insert_text((300, 760), "v", fontsize=12)
+
+    # TOC continued page — no "TABLE OF CONTENTS" heading; pure continuation entries.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((108, 90), "CHAPTER 2 LITERATURE REVIEW ........ 13", fontsize=11)
+    p.insert_text((108, 110), "CHAPTER 3 METHODOLOGY ........ 23", fontsize=11)
+    p.insert_text((300, 760), "vi", fontsize=12)
+
+    # CHAPTER 1 body.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    # The TOC page 1 must NOT be body start.
+    body_start = find_body_start_page(model)
+    assert body_start == 3, (
+        f"body_start should be page 3 (CHAPTER 1), got {body_start!r}; "
+        "TOC page must be skipped even with all-caps CHAPTER entries"
+    )
+
+    # Page 1 (TOC) must not be flagged.
+    p028 = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    toc_flagged = [f for f in p028 if f.page == 1]
+    assert not toc_flagged, (
+        f"TOC page (roman 'v') wrongly flagged by P028: {toc_flagged}"
+    )
+
+
 def test_p038_toc_heading_in_front_matter_when_chapter_in_toc_column(tmp_path: Path) -> None:
     """Regression: TABLE OF CONTENTS should be detected in front matter even when
     the TOC page contains a title-case 'Chapter' column header.
