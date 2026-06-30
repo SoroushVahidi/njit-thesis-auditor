@@ -135,9 +135,6 @@ def run_pdf_margin_rule(
             # indicates a compressed-PDF coordinate shift, not a real margin violation.
             if count >= ARTIFACT_GUARD_MIN_COUNT and worst < ARTIFACT_GUARD_MAX_OVERFLOW_PT:
                 continue
-            page_context = infer_page_margin_context(_page_text(page))
-
-            # Collect truncated text previews of all violating lines for student-facing wording.
             _MAX_PREVIEW_LEN = 60
             _MAX_PREVIEW_LINES = 5
             line_previews: list[str] = []
@@ -147,6 +144,7 @@ def run_pdf_margin_rule(
                     line_previews.append(
                         (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
                     )
+            page_context = infer_page_margin_context(_page_text(page), line_previews)
             content_kind = infer_margin_content_kind(page_context, line_previews)
             confidence = _group_confidence(
                 worst,

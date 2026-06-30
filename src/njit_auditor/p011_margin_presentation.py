@@ -37,7 +37,33 @@ _GENERIC_SIDE_FIX = (
 )
 
 
-def infer_page_margin_context(page_text: str) -> str:
+_REFERENCE_LINE_RE = re.compile(
+    r"^[A-Z][\w\-'']+(?:,\s+[A-Z]\.)+(?:\s*,?\s+et al\.)?\s*\(\d{4}\)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_reference_line(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if _REFERENCE_LINE_RE.match(stripped):
+        return True
+    return bool(re.search(r"\(\d{4}\)", stripped) and re.search(r",\s*[A-Z]", stripped))
+
+
+def _reference_line_ratio(previews: Sequence[str]) -> float:
+    nonempty = [preview.strip() for preview in previews if preview.strip()]
+    if not nonempty:
+        return 0.0
+    hits = sum(1 for preview in nonempty if _looks_like_reference_line(preview))
+    return hits / len(nonempty)
+
+
+def infer_page_margin_context(
+    page_text: str,
+    line_previews: Sequence[str] = (),
+) -> str:
     upper = page_text.upper()
     if re.search(r"\bREFERENCES\b|\bBIBLIOGRAPHY\b", upper):
         return "references"
@@ -51,6 +77,8 @@ def infer_page_margin_context(page_text: str) -> str:
         return "list_front_matter"
     if re.search(r"CHAPTER\s+\d", upper):
         return "body"
+    if _reference_line_ratio(line_previews) >= 0.5:
+        return "references"
     return "general"
 
 
@@ -64,7 +92,7 @@ def infer_margin_content_kind(page_context: str, line_previews: Sequence[str]) -
         re.match(r"^date\b", preview, flags=re.IGNORECASE) for preview in previews
     ):
         return "approval_date_layout"
-    if page_context == "references":
+    if page_context == "references" or _reference_line_ratio(previews) >= 0.5:
         return "references_hanging_indent"
     combined = " ".join(previews).lower()
     if re.search(r"\btable\s+\d", combined) or re.search(r"\bfigure\s+\d", combined):

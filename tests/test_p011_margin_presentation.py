@@ -148,6 +148,20 @@ def test_confidence_calibration_thresholds() -> None:
     )
 
 
+def test_reference_continuation_page_inferred_from_line_previews() -> None:
+    from njit_auditor.p011_margin_presentation import (
+        infer_margin_content_kind,
+        infer_page_margin_context,
+    )
+
+    previews = [
+        "Harris-Adamson, C., et al. (2021). Evaluation of industrial…",
+        "Huysamen, K., Bosch, T., de Looze, M. P., Stadler, K….…",
+    ]
+    assert infer_page_margin_context("", previews) == "references"
+    assert infer_margin_content_kind("general", previews) == "references_hanging_indent"
+
+
 def test_off_center_margin_pdf_stores_all_line_bboxes(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_two_lines.pdf"
     doc = fitz.open()
