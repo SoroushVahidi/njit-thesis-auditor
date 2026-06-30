@@ -60,20 +60,18 @@ def p011_page_location_label(page: int, sides: Sequence[str]) -> str:
 def p011_combined_rolled_up_comment(stats: P011PagePresentationStats) -> str:
     side_phrase = _join_margin_labels([_side_short_label(side) for side in stats.sides])
     return (
-        f"Likely problem: Page {stats.page} has content that may be too close to the "
+        f"Likely problem: Page {stats.page} has thesis content that may be too close to the "
         f"{side_phrase}. The auditor flagged {stats.raw_finding_count} separate "
         "margin-boundary warnings on this page. Review the highlighted areas if "
-        "available, or inspect the full page layout including headers, footers, page "
-        "numbers, tables, figures, captions, and long lines."
+        "available, or inspect the full page layout on every affected margin side."
     )
 
 
 def p011_combined_suggested_fix(stats: P011PagePresentationStats) -> str:
     side_phrase = _join_margin_labels([_side_short_label(side) for side in stats.sides])
     return (
-        f"Check the page header, page number, tables, figures, captions, and any long "
-        f"lines on page {stats.page}. Move any content that crosses the required "
-        f"{side_phrase} back inside the allowed page area."
+        f"Adjust the paragraph, text wrapping, or layout on page {stats.page} so all "
+        f"content stays inside the required {side_phrase}."
     )
 
 
@@ -81,7 +79,8 @@ def p011_combined_rolled_up_explanation(stats: P011PagePresentationStats) -> str
     location = p011_page_location_label(stats.page, stats.sides)
     if stats.highlight_bboxes:
         highlight_note = (
-            "If highlights are shown, each one marks one affected margin side on this page."
+            "If highlights are shown, each one marks an affected line or margin side on "
+            "this page."
         )
     else:
         highlight_note = (
@@ -91,8 +90,9 @@ def p011_combined_rolled_up_explanation(stats: P011PagePresentationStats) -> str
     return (
         f"Observed: {location}. The auditor flagged {stats.raw_finding_count} separate "
         "margin-boundary warnings on this page because text crosses more than one required "
-        "margin side. Expected: body content should stay inside NJIT page margins on every "
-        f"side. What to check or fix: inspect the whole page, not just one area. {highlight_note}"
+        "margin side. Expected: all thesis content should stay inside NJIT page margins on "
+        f"every side. What to check or fix: inspect the whole page, not just one area. "
+        f"{highlight_note}"
     )
 
 
@@ -108,10 +108,28 @@ def p011_combined_no_highlight_reason(stats: P011PagePresentationStats) -> str:
 
 def collect_p011_margin_pages_from_serialized(
     serialized_findings: Sequence[Mapping[str, object]],
-) -> dict[int, list[tuple[int, str, tuple[float, float, float, float] | None]]]:
-    by_page: dict[int, list[tuple[int, str, tuple[float, float, float, float] | None]]] = (
-        defaultdict(list)
-    )
+) -> dict[
+    int,
+    list[
+        tuple[
+            int,
+            str,
+            tuple[float, float, float, float] | None,
+            tuple[tuple[float, float, float, float], ...],
+        ]
+    ],
+]:
+    by_page: dict[
+        int,
+        list[
+            tuple[
+                int,
+                str,
+                tuple[float, float, float, float] | None,
+                tuple[tuple[float, float, float, float], ...],
+            ]
+        ],
+    ] = defaultdict(list)
     for index, finding in enumerate(serialized_findings):
         rule_id = str(finding.get("rule_id", "")).strip()
         if rule_id != P011_RULE_ID:
@@ -138,19 +156,51 @@ def collect_p011_margin_pages_from_serialized(
                     bbox = tuple(float(part) for part in parts)  # type: ignore[assignment]
                 except ValueError:
                     bbox = None
-        by_page[page_int].append((index, side, bbox))
+        line_boxes: list[tuple[float, float, float, float]] = []
+        extra_raw = str(details.get("affected_line_bboxes", "")).strip()
+        if extra_raw:
+            for part in extra_raw.split("|"):
+                part = part.strip()
+                if not part:
+                    continue
+                parts = [piece.strip() for piece in part.split(",")]
+                if len(parts) != 4:
+                    continue
+                try:
+                    parsed = tuple(float(piece) for piece in parts)
+                    if len(parsed) == 4:
+                        line_boxes.append(
+                            (parsed[0], parsed[1], parsed[2], parsed[3])
+                        )
+                except ValueError:
+                    continue
+        by_page[page_int].append((index, side, bbox, tuple(line_boxes)))
     return dict(by_page)
 
 
 def init_p011_display_state(
-    page_entries: Mapping[int, Sequence[tuple[int, str, tuple[float, float, float, float] | None]]],
+    page_entries: Mapping[
+        int,
+        Sequence[
+            tuple[
+                int,
+                str,
+                tuple[float, float, float, float] | None,
+                tuple[tuple[float, float, float, float], ...],
+            ]
+        ],
+    ],
 ) -> P011DisplayState:
     state = P011DisplayState()
     for page, entries in page_entries.items():
-        sides = tuple(sorted({side for _, side, _ in entries if side}))
-        highlight_bboxes = tuple(
-            bbox for _, _, bbox in entries if bbox is not None
-        )
+        sides = tuple(sorted({side for _, side, _, _ in entries if side}))
+        highlight_bboxes_list: list[tuple[float, float, float, float]] = []
+        for _, _, bbox, line_boxes in entries:
+            if line_boxes:
+                highlight_bboxes_list.extend(line_boxes)
+            elif bbox is not None:
+                highlight_bboxes_list.append(bbox)
+        highlight_bboxes = tuple(highlight_bboxes_list)
         stats = P011PagePresentationStats(
             page=page,
             sides=sides,

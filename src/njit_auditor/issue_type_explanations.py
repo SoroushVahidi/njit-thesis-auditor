@@ -117,6 +117,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "list_of_figures_sentence_case": "List of Figures sentence case issue",
     "misaligned_page_number_column": "Misaligned page-number column",
     "inconsistent_leader_dots": "Inconsistent leader dots",
+    "toc_mixed_leader_styles": "Mixed TOC leader styles",
+    "toc_missing_leader_style": "Missing TOC leader style",
     "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
     "acknowledgements_first_paragraph_indented": "Acknowledgements first paragraph indented",
     "acknowledgements_subsequent_paragraph_not_indented": (
@@ -134,6 +136,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "biosketch_bullet_section_not_single_spaced": (
         "Biographical Sketch bullet section not single-spaced"
     ),
+    "biosketch_birth_information_present": "Biographical Sketch birth information present",
     "biosketch_degree_order_suspicious": "Biographical Sketch degree order suspicious",
     "biosketch_publication_order_suspicious": "Biographical Sketch publication order suspicious",
     "unexpected_opening_indent": "Unexpected opening paragraph indent",
@@ -568,6 +571,23 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P018", "inconsistent_leader_dots"): (
         "This means leader dots or spacing before page numbers are inconsistent "
         "with the dominant style on this list page."
+    ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "This means the Table of Contents uses both dot leaders and hyphen leaders. "
+        "NJIT guidelines (Q052) require one consistent leader style throughout the TOC. "
+        "Choose either dot leaders or hyphen leaders and apply it to every entry."
+    ),
+    ("P075", "toc_missing_leader_style"): (
+        "This means some Table of Contents entries connect to their page number with "
+        "a leader (dots or hyphens) while others have no leader at all. "
+        "NJIT guidelines (Q052) require every TOC entry to use the same consistent "
+        "leader style. Add the missing leaders so all entries match."
+    ),
+    ("P084", "biosketch_birth_information_present"): (
+        "This means the Biographical Sketch appears to include place-of-birth or "
+        "date-of-birth information. NJIT guidelines (Q023) require the Biographical "
+        "Sketch to exclude both. Remove place of birth and date of birth from the "
+        "Biographical Sketch."
     ),
     ("P018", "inconsistent_hierarchy_indent"): (
         "This means entry indentation does not match the expected hierarchy "

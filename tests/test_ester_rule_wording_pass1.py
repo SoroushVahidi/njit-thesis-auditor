@@ -28,13 +28,15 @@ from njit_auditor.polished_comments import build_polished_comment
 # ---------------------------------------------------------------------------
 
 def test_p011_margin_wording_mentions_1_5_inches() -> None:
-    comment = build_polished_comment(
+    from njit_auditor.finding_explanations import build_detailed_explanation
+
+    explanation = build_detailed_explanation(
         rule_id="P011",
         issue_type="margin_boundary_violation",
         page=3,
         details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
     )
-    assert "1.5 inches" in comment or "1.5 in" in comment
+    assert "1.5 inches" in explanation or "1.5 in" in explanation
 
 
 def test_p011_margin_wording_no_content_in_margins() -> None:
@@ -42,9 +44,13 @@ def test_p011_margin_wording_no_content_in_margins() -> None:
         rule_id="P011",
         issue_type="margin_boundary_violation",
         page=3,
-        details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        details={
+            "issue_type": "margin_boundary_violation",
+            "side": "left_margin",
+            "page_context": "body",
+        },
     )
-    assert "No text, tables, or figures are allowed in the margins" in comment
+    assert "tables, figures, long lines, indentation, headers, and footers" not in comment
 
 
 def test_p011_margin_right_mentions_right_boundary() -> None:

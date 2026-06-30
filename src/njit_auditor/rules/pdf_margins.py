@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from enum import Enum
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.p011_margin_presentation import (
+    infer_margin_content_kind,
+    infer_page_margin_context,
+    margin_confidence,
+)
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, _is_top_or_bottom_zone
 
 INCH_TO_PT = 72.0
@@ -76,15 +81,23 @@ def _line_violation(
     return LineViolation(side=side, overflow_pt=overflow, line=line)
 
 
-def _group_confidence(worst_overflow_pt: float, count: int) -> str:
-    large_count_ok = (
-        count >= ARTIFACT_GUARD_MIN_COUNT and worst_overflow_pt >= ARTIFACT_GUARD_MAX_OVERFLOW_PT
+def _page_text(page: PdfPage) -> str:
+    return " ".join(block.text for block in page.text_blocks)
+
+
+def _group_confidence(
+    worst_overflow_pt: float,
+    count: int,
+    *,
+    page_context: str,
+    content_kind: str,
+) -> str:
+    return margin_confidence(
+        worst_overflow_pt,
+        count,
+        page_context=page_context,
+        content_kind=content_kind,
     )
-    if worst_overflow_pt >= 12.0 or large_count_ok:
-        return "high"
-    if worst_overflow_pt >= 5.0 or count >= 2:
-        return "medium"
-    return "low"
 
 
 def run_pdf_margin_rule(
@@ -122,7 +135,7 @@ def run_pdf_margin_rule(
             # indicates a compressed-PDF coordinate shift, not a real margin violation.
             if count >= ARTIFACT_GUARD_MIN_COUNT and worst < ARTIFACT_GUARD_MAX_OVERFLOW_PT:
                 continue
-            confidence = _group_confidence(worst, count)
+            page_context = infer_page_margin_context(_page_text(page))
 
             # Collect truncated text previews of all violating lines for student-facing wording.
             _MAX_PREVIEW_LEN = 60
@@ -134,6 +147,16 @@ def run_pdf_margin_rule(
                     line_previews.append(
                         (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
                     )
+            content_kind = infer_margin_content_kind(page_context, line_previews)
+            confidence = _group_confidence(
+                worst,
+                count,
+                page_context=page_context,
+                content_kind=content_kind,
+            )
+            line_bboxes = "|".join(
+                format_bbox_detail(v.line.bbox) for v in violations
+            )
 
             finding_details: dict[str, str] = {
                 "side": side.value,
@@ -143,10 +166,9 @@ def run_pdf_margin_rule(
                 "confidence": confidence,
                 "triage_tier": "informational",
                 "bbox": format_bbox_detail(worst_violation.line.bbox),
-                "suggested_fix": (
-                    "Set the left margin to 1.5 inches and the top, bottom, and right "
-                    "margins to 1 inch. Move all content inside the required margin bounds."
-                ),
+                "affected_line_bboxes": line_bboxes,
+                "page_context": page_context,
+                "margin_content_kind": content_kind,
             }
             if line_previews:
                 finding_details["affected_line_texts"] = " | ".join(line_previews)

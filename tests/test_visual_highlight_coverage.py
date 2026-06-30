@@ -192,6 +192,7 @@ def test_p011_margin_with_bbox_renders_real_highlight_and_keeps_wording(
                 "affected_line_count": "3",
                 "confidence": "medium",
                 "bbox": _BBOX,
+                "affected_line_bboxes": _BBOX,
             },
         )
     ]
@@ -202,9 +203,9 @@ def test_p011_margin_with_bbox_renders_real_highlight_and_keeps_wording(
     text, status = _get_html(c, f"/audits/{job_id}")
     assert status == 200
 
-    # Wording is unchanged from the pre-bbox baseline.
     assert "page 2 appears to cross the required right margin boundary" in text
-    assert "tables, figures, long lines, indentation, headers, and footers" in text
+    assert "Adjust the paragraph, text wrapping, or line spacing" in text
+    assert "tables, figures, long lines, indentation, headers, and footers" not in text
 
     # A real highlight is now offered, and it must not contradict itself.
     assert "Open highlighted PDF page" in text

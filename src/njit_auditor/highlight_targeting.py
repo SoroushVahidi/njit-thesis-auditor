@@ -33,6 +33,7 @@ _P035_CENTERING_ISSUES: frozenset[str] = frozenset(
         "figure_body_not_centered",
     }
 )
+_P011_MARGIN_ISSUE = ("P011", "margin_boundary_violation")
 _EXTRA_BBOX_KEYS: tuple[str, ...] = ("body_bbox", "caption_bbox", "token_bbox", "word_bbox", "rect")
 
 
@@ -169,6 +170,19 @@ def parse_highlight_bboxes_from_details(
         parsed = _parse_bbox_text(str(details.get(key, "")).strip())
         if parsed is not None:
             boxes.append(parsed)
+
+    if (rule_id, issue_type) == _P011_MARGIN_ISSUE:
+        extra_raw = str(details.get("affected_line_bboxes", "")).strip()
+        if extra_raw:
+            line_boxes = [
+                parsed
+                for part in extra_raw.split("|")
+                if part.strip()
+                for parsed in [_parse_bbox_text(part.strip())]
+                if parsed is not None
+            ]
+            if line_boxes:
+                return line_boxes
 
     if rule_id == "P035" and issue_type in _P035_PLACEMENT_ISSUES:
         placement_boxes = [

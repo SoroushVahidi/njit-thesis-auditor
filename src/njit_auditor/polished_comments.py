@@ -1146,24 +1146,38 @@ def _margin_side_label(details: dict[str, str]) -> str:
 
 
 def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
+    from njit_auditor.p011_margin_presentation import margin_comment_body, page_context_from_details
+
     page_label = _safe_page_label(page)
     side = _margin_side_label(details)
-    _MARGIN_SPEC = (
-        "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
-        "No text, tables, or figures are allowed in the margins."
-    )
-    if side == "required page margin":
-        return (
-            f"Likely problem: Some content on page {page_label} appears too close to or "
-            "beyond a required page margin. The auditor could not determine the exact "
-            f"margin side from the available metadata. {_MARGIN_SPEC} "
-            "Review tables, figures, long lines, indentation, headers, and footers on this page."
-        )
-    return (
-        f"Likely problem: Content on page {page_label} appears to cross the required "
-        f"{side} boundary. {_MARGIN_SPEC} "
-        "Review the highlighted area if available, or inspect "
-        "tables, figures, long lines, indentation, headers, and footers on this page."
+    page_context = page_context_from_details(details)
+    overflow = details.get("worst_overflow_pt", "").strip()
+    line_count = details.get("affected_line_count", "").strip()
+    overflow_detail = ""
+    if overflow or line_count:
+        extras: list[str] = []
+        if overflow:
+            extras.append(f"about {overflow}pt beyond the boundary")
+        if line_count:
+            noun = "line" if line_count == "1" else "lines"
+            extras.append(f"{line_count} text {noun} affected")
+        overflow_detail = f" ({'; '.join(extras)})"
+    texts_raw = details.get("affected_line_texts", "").strip()
+    lines_clause = ""
+    if texts_raw:
+        parts = [t.strip() for t in texts_raw.split("|") if t.strip()]
+        if len(parts) == 1:
+            lines_clause = f' Affected text: "{parts[0]}".'
+        elif parts:
+            previews = " and ".join(f'"{p}"' for p in parts[:3])
+            suffix = " (and more)" if len(parts) > 3 else ""
+            lines_clause = f" Affected text lines include: {previews}{suffix}."
+    return margin_comment_body(
+        page_label=page_label,
+        side_label=side,
+        page_context=page_context,
+        overflow_detail=overflow_detail,
+        lines_clause=lines_clause,
     )
 
 
