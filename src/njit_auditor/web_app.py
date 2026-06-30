@@ -702,7 +702,10 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         ),
     },
     "P013": {
-        "question": "Are all visible page numbers located at the bottom of the page, centered?",
+        "question": (
+            "Are all visible page numbers located exactly at the designated "
+            "bottom-center position, 0.5 inches from the bottom edge?"
+        ),
         "rule_definition": (
             "Detect text that looks like a page number and record its position "
             "and style so it can be checked manually. This is a verification "

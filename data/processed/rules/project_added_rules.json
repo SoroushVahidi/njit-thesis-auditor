@@ -218,9 +218,9 @@
   {
     "id": "P013",
     "section": "PDF page numbering",
-    "question": "Are all visible page numbers located at the bottom of the page, centered?",
+    "question": "Are all visible page numbers located at the designated bottom-center position (centered, 0.5 inches from the bottom edge)?",
     "rule_definition": "Detect numeric/roman page-number-like text in top/bottom margin zones for manual rule review.",
-    "remediation": "Set page numbers at the bottom of the page, centered, and 0.5 inches from the bottom edge.",
+    "remediation": "Set page numbers at the bottom of the page, centered, and 0.5 inches from the bottom edge. Verify the detected number is visible and uses the correct style (Roman numeral or Arabic) for that section.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -236,9 +236,9 @@
   {
     "id": "P014",
     "section": "PDF front matter headings",
-    "question": "Do named front-matter headings follow the required layout: centered, bold, all caps, and near the top of the page?",
+    "question": "Do named front-matter headings display the exact required text in all-caps, bold, and centered format at the top of the page?",
     "rule_definition": "Detect named front-matter headings and warn when any fail the required format: centered, bold, all caps, near top of page. Each finding includes source_q_rule_id linking it to the corresponding YES/NO audit matrix question (Q013, Q021, Q036, Q047, Q061, Q070).",
-    "remediation": "Center each named front-matter heading near the top of its page, format it in bold all-caps. Check: APPROVAL PAGE (Q013), BIOGRAPHICAL SKETCH (Q021), ACKNOWLEDGEMENTS (Q036), TABLE OF CONTENTS (Q047), LIST OF TABLES (Q061), LIST OF FIGURES (Q070).",
+    "remediation": "Format each front-matter heading in all-caps, bold, centered, at the top of its page. Per-page checks: APPROVAL PAGE (Q013, P038), BIOGRAPHICAL SKETCH (Q021, P038), ACKNOWLEDGEMENTS (Q036, P038), TABLE OF CONTENTS (Q047, P038), LIST OF TABLES (Q061, P038), LIST OF FIGURES (Q070, P038). Page-number and header checks: P022 (Q001/Q008/Q012/Q014), P034 (Q009). Indentation: P043 (Q044/Q045), P044 (Q002/Q003).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -249,7 +249,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_headings",
     "priority": "high",
-    "notes": "Named heading checks only. Each finding includes source_q_rule_id for the relevant Q-rule: Q013 (APPROVAL PAGE), Q021 (BIOGRAPHICAL SKETCH), Q036 (ACKNOWLEDGEMENTS), Q047 (TABLE OF CONTENTS), Q061 (LIST OF TABLES), Q070 (LIST OF FIGURES). ABSTRACT has no Q-rule for heading format. P038 covers heading phrase (exact text); P014 covers heading layout (bold/centered/all-caps/top)."
+    "notes": "Named heading checks only. Each finding includes source_q_rule_id for the relevant Q-rule: Q013 (APPROVAL PAGE), Q021 (BIOGRAPHICAL SKETCH), Q036 (ACKNOWLEDGEMENTS), Q047 (TABLE OF CONTENTS), Q061 (LIST OF TABLES), Q070 (LIST OF FIGURES). Per-page Q-rule checks beyond heading layout are in: P022 (no page numbers, Q001/Q008/Q012/Q014), P034 (copyright header, Q009), P038 (exact heading text), P043 (acknowledgements indent), P044 (abstract indent). Ester feedback: split P014 into per-page per-Q-rule checks — the split is implemented through P022/P034/P038/P043/P044 and the remaining 60+ P-rules."
   },
   {
     "id": "P015",
@@ -267,14 +267,14 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_indentation",
     "priority": "high",
-    "notes": "Body-text-only scope after atomic split. Abstract pages: P044 handles Q002 (first paragraph flush-left) and Q003 (subsequent paragraphs indented). Acknowledgements pages: P043 handles Q044 (first paragraph flush-left) and Q045 (subsequent paragraphs indented). P015 emits only missing_later_indent for body text."
+    "notes": "Body-text-only scope after atomic split (PRs 383/384). Abstract pages: P044 handles Q002 (first paragraph flush-left) and Q003 (subsequent paragraphs indented). Acknowledgements pages: P043 handles Q044 (first paragraph flush-left) and Q045 (subsequent paragraphs indented). P015 covers body-text chapters only: first paragraph after heading not indented; body paragraphs after first should be indented. Ester feedback: separate front-matter from body indentation — implemented: front-matter is in P043/P044."
   },
   {
     "id": "P016",
     "section": "PDF spacing and blank lines",
-    "question": "Excluding necessary page breaks to start a new chapter or to keep figures and tables with their captions, does the document's text consistently span from the top margin to the bottom margin on every page?",
+    "question": "Excluding necessary page breaks required to start a new chapter, or to prevent separating figures and tables from their captions, does the document text flow continuously from the top margin to the bottom margin of each page?",
     "rule_definition": "Heuristically detect strong blank-line and vertical-spacing anomalies from extracted text-line geometry.",
-    "remediation": "Delete unnecessary blank lines and ensure text flows continuously from top to bottom where appropriate, excluding necessary page breaks for new chapters or to keep figures and tables with their captions.",
+    "remediation": "Delete unnecessary blank lines and ensure text flows continuously from top to bottom where appropriate, excluding necessary chapter-start page breaks and figure/caption groupings.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -290,9 +290,9 @@
   {
     "id": "P017",
     "section": "PDF caption and title formatting",
-    "question": "Are figure and table caption and title lines formatted correctly for sentence case, title case, and terminal punctuation?",
+    "question": "Are figure descriptions in sentence case and ending with terminal punctuation, and are table titles in title case without a final period?",
     "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body) and LoF entries: check terminal punctuation (Q075) and sentence case (Q074). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
-    "remediation": "For figure captions and LoF entries: add terminal punctuation and use sentence case. For table titles and LoT entries: use title case and remove trailing periods.",
+    "remediation": "For figure captions and LoF entries: use sentence case (only first word and proper nouns capitalized) and end with a period. For table titles and LoT entries: use title case and do not end with a period. Ester: figure descriptions → sentence case + terminal period; table titles → title case + no period.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -303,14 +303,14 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_captions",
     "priority": "medium",
-    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period), Q074 (LoF sentence case — new in PR 3), Q075 (LoF terminal punct). Body-context findings have no direct Q-rule. Atomic check counterparts: P040 (Q075 LoF), P053 (Q065 LoT terminal period), P024 (Q074 LoF sentence case, Q065 LoT title case). issue_types: unexpected_terminal_period, missing_terminal_punctuation, possible_sentence_case_issue, possible_title_case_issue."
+    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period, no final period on table titles), Q074 (LoF sentence case — new in PR 3), Q075 (LoF terminal punctuation). Ester feedback: split into (1a) figure sentence case (Q074), (1b) figure terminal punctuation (Q075), (1c) figure single-spaced/justified (Q076, via P032), (1d) figure label bold (partial via P050/P055/P056), (2a) table title case (Q065, via P053), (2b) table no period (Q065, P053), (2c) table title single-spaced (Q066, P032). Full split is implemented via P032/P040/P050/P053/P055/P056."
   },
   {
     "id": "P018",
     "section": "PDF TOC and list alignment",
-    "question": "Do Table of Contents, List of Tables, and List of Figures entries follow required formatting and alignment?",
+    "question": "Do Table of Contents, List of Tables, and List of Figures entries follow the required formatting, alignment, and heading requirements?",
     "rule_definition": "Heuristically detect alignment issues in TOC/LoT/LoF pages: page-number column misalignment, missing page numbers, inconsistent leader-dot style (Q052), and indentation outliers. Complements P024 (Q049/Q050 capitalization), P032 (wrapped spacing), P036 (entry spacing), P039 (hierarchy indent), P042 (appendix), P046 (number alignment), P048 (page-num alignment). Each leader-dot finding carries source_q_rule_id=Q052.",
-    "remediation": "Align page-number columns, use one consistent leader style (dots or hyphens) throughout (Q052), add missing page numbers, and adjust indentation to reflect entry level.",
+    "remediation": "TOC: use all-caps for level-1 entries (Q049), title case for level-2 (Q050), sentence case for level-3 (Q051), consistent leader dots (Q052), single-space wrapped entries (Q053-Q055), indent level hierarchy (Q056), double-space between entries (Q057). LoT: double-space between entries (Q067), align numbers left (Q068), align page numbers right (Q069). LoF: same alignment rules for figures (Q077-Q079). Specific Q-rule checks in P030-P057.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages. Q-rule coverage: Q052 (leader-dot consistency) gets source_q_rule_id. Q049/Q050 capitalization handled by P024. Q053-Q059 spacing/indent handled by P032/P036/P039/P042. Q065-Q079 handled by P024/P040/P046/P048/P053. Q051 (level-3 sentence case) deferred. issue_types: misaligned_page_number_column, missing_page_number, inconsistent_leader_dots (Q052), inconsistent_hierarchy_indent."
+    "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages. Q-rule coverage: Q052 (leader-dot consistency), Q049/Q050/Q051 (case levels, via P054), Q053-Q055 (wrapped spacing, via P032), Q056 (indentation, via P039), Q057 (between-entry spacing, via P036), Q058/Q059 (appendix naming, via P042). Ester feedback: split into TOC group (Q047-Q059) and LoT/LoF groups (Q060-Q079) — the split is implemented through P030/P031/P032/P036/P039/P042/P046/P048/P049/P050/P053/P054/P055/P056/P057."
   },
   {
     "id": "P019",

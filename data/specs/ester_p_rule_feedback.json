@@ -1,0 +1,146 @@
+{
+  "metadata": {
+    "title": "NJIT Thesis Auditor Formatting Rules — Ester Flaim Feedback",
+    "source_file": "formatting_rules.xlsx",
+    "source_sheet": "NJIT Thesis Auditor Formatting Rules",
+    "source_date": "2026",
+    "author": "Ester Flaim",
+    "note": "Only P-rules with proposed edits included. 'No edits' responses excluded.",
+    "rules_with_feedback": 19
+  },
+  "feedback": [
+    {
+      "id": "P011",
+      "original_question": "Is there possible text outside required margins?",
+      "proposed_question_edit": "Is all text contained entirely within the required page margins?",
+      "original_remediation": "Review block positions and adjust document margins/layout as needed.",
+      "proposed_remediation_edit": "Set left margin to 1.5 inches and top bottom and right margin to 1 inch"
+    },
+    {
+      "id": "P012",
+      "original_question": "Does the PDF contain annotations/comments?",
+      "proposed_question_edit": "",
+      "original_remediation": "Resolve or remove annotations before final submission.",
+      "proposed_remediation_edit": "Resolve or delete all annotations"
+    },
+    {
+      "id": "P013",
+      "original_question": "Page-number candidates detected for verification",
+      "proposed_question_edit": "Are all visible page numbers located exactly in the designated bottom-center position?",
+      "original_remediation": "Verify the detected page number is visible, in the required bottom position, and uses the correct numbering style for that section.",
+      "proposed_remediation_edit": "Set page numbers on the bottom of the page , centered and 0.5 inches from margin"
+    },
+    {
+      "id": "P014",
+      "original_question": "Do named front-matter headings follow expected layout/style checks?",
+      "proposed_question_edit": "There should be a question for each of the front matter pages . Please use the following Questios from the doc Audit Logic Matrix : Q001, Q008, Q 009, Q013, Q021, Q032, Q036, Q047, Q048, Q061, Q062, Q063, Q064, Q070, Q071, Q072, Q073",
+      "original_remediation": "Center named front-matter headings near the top of the page and format as bold all caps.",
+      "proposed_remediation_edit": "Please use the remediation [hrases listed in the YES?NO Audit Logic Matrix"
+    },
+    {
+      "id": "P015",
+      "original_question": "Do front-matter/body paragraphs show likely indentation issues?",
+      "proposed_question_edit": "The only pages in the front matter that have paragraph structure are : 1. The Abstract  Page and 2. The  Acknowledgements Page. I think we should have different questions for the Front Matter and for the Body of the Dissertations. For the Front Matter, please use the following questions  Q002, Q003  Q044, Q045,.\nFor the dissertation text use the following two questions: \n1. Is the first paragraph after level 1, 2, 3, and 4 titles NOT indented? \n2. Are all body paragraphs indented, excluding the initial paragraph following Heading levels 1, 2, 3, and 5?",
+      "original_remediation": "Use consistent first-line indentation in paragraph text and remove unintended opening-paragraph indents.",
+      "proposed_remediation_edit": "For front Matter: use same remediation in YES/NO Audit Logic Matrix\n\nRemediation for proposed 1. Is the first paragraph after level 1, 2, 3, and 4 titles NOT indented?  delete first parharph indent \nRemediation proposed 2 2. Are all body paragraphs indented, excluding the initial paragraph following Heading levels 1, 2, 3, and 5? Indent all paragraphs following the first section pargarph."
+    },
+    {
+      "id": "P016",
+      "original_question": "Are there likely excessive spacing or blank-line issues in PDF text layout?",
+      "proposed_question_edit": "Excluding necessary page breaks required to start a new chapter, or to prevent separating figures and tables from their captions, does the document's text consistently span from the top margin to the bottom margin on every page?",
+      "original_remediation": "Reduce unintended blank lines and excessive vertical gaps, especially around front-matter headings and paragraph transitions.",
+      "proposed_remediation_edit": "Delete all blank lines and ensur ethat text flows continuoisly from top to bottom of the page."
+    },
+    {
+      "id": "P017",
+      "original_question": "Do figure/table caption and title lines show obvious formatting issues?",
+      "proposed_question_edit": "This must be broken doen in two groups of  questions: \n1a. Are figure descriptions in sentence case? \n1b. Do figure description end with a period?\n1.c Is every figure description single spaced and justfied? \n1d. Are all figure descriptions preceeded by the word Figure and Figure Number (X.x) in bold? \n\n2a. Are table titles in Title case?\n2b. Aretable titles free of a final period? \n2c. Are all multi-line table titles single-spaced?",
+      "original_remediation": "Review figure/table caption and list-entry punctuation/case formatting for consistency with thesis guidelines.",
+      "proposed_remediation_edit": "1a. Edit figure description to sentence case: just the first word ,propoer nouns and achronyms are capitalized. \n1b. Add a period at the end of the figure description. \n1c. Single space and justify all figure descriptions. \n1d. Bold the word Figure and format the Figure number based on the chapter and its sequence within the chapter.\n\n2a. Edit table title to title case : each word capitalized except for articles, prepositions and conjunctions.\n2b. Delete period from table title. \n2c. Single space multi lane table titles."
+    },
+    {
+      "id": "P018",
+      "original_question": "Do TOC/List of Tables/List of Figures entries show likely alignment inconsistencies?",
+      "proposed_question_edit": "This must be broken down in two groups of questions: \nTOC \n1a. In the TOC, are all level-1 chapter titles displayed in all caps? \n1b. In the TOC, are all level-2 section titles (X.x) displayed in title case? \n1c. In the TOC, are all level-3 section titles (X.xx) displayed in sentence case? \n1d. Is each entry connected to a page number by a consistent leader style?\n1e. Is every wrapped level-1 TOC entry single-spaced internally?\n1f. Is every wrapped level-2 TOC entry single-spaced internally?\n1g. Is every wrapped level-3 TOC entry single-spaced internally?\n1h. Are level-2 and level-3 entries indented to show hierarchy?\n1i. Is there visible double spacing between consecutive section-title entries?\n1l .If only one appendix is listed, does it begin with “APPENDIX” plus title? \n1m. If multiple appendices are listed, are they identified by letters?\n\nLIST OF TABLES \n2a. Is there visible double spacing between consecutive table entries?\n2b. Are all table numbers aligned vertically in one left column?\n2c. Are all table page numbers aligned vertically in one right column?\n\nLIST OF FIGURES \n3a. Is there visible double spacing between consecutive figure entries?\n3b. Are all figure numbers aligned vertically in one left column?\n3c. Are all figure page numbers aligned vertically in one right column?",
+      "original_remediation": "Align TOC/list entry page-number columns, maintain consistent leader-dot usage, and fix missing page numbers or obvious indentation outliers.",
+      "proposed_remediation_edit": "TOC\n1a. Change all level-1 chapter titles in the TOC to all caps.\n1b. Change all level-2 section titles in the TOC to title case.\n1.c Change all level-3 section titles in the TOC to sentence case.\n1d. Right-align page numbers and use one consistent leader style (dots or hyphens).\n1e. Single-space every wrapped level-1 TOC entry.\n1f. Single-space every wrapped level-2 TOC entry.\n1g. Single-space every wrapped level-3 TOC entry.\n1h. Indent level-2 and level-3 TOC entries to show hierarchy.\n1i.Add visible double spacing or a blank line between consecutive TOC entries.\n1l. Rename the single appendix entry to begin with “APPENDIX” followed by its title.\n1m. Rename the appendix entries in the TOC to use letter designations.\n\nLIST OF TABLES \n2a. Add visible double spacing or a blank line between consecutive entries.\n2b. Align all table numbers in the List of Tables into one vertical  left column.\n2c. Align all List of Tables page numbers into one vertical right column.\n\n\nLIST OF FIGURES \n3a. Add visible double spacing or a blank line between consecutive entries.\n3b. Align all figure numbers in the List of Figures into one vertical left column.\n3c.Align all List of Figures page numbers into one vertical right column."
+    },
+    {
+      "id": "P042",
+      "original_question": "Are appendix entries in the Table of Contents formatted correctly — single appendix with a title\\",
+      "proposed_question_edit": "",
+      "original_remediation": "multiple appendices each identified by a letter?",
+      "proposed_remediation_edit": "Ensure a single appendix TOC entry reads \"APPENDIX\" plus the appendix title. Ensure multiple appendix entries each use a letter identifier: \"APPENDIX A\", \"APPENDIX B\", etc."
+    },
+    {
+      "id": "P043",
+      "original_question": "Does the Acknowledgements page follow the correct paragraph indentation style — first paragraph flush-left\\",
+      "proposed_question_edit": "",
+      "original_remediation": "subsequent paragraphs indented?",
+      "proposed_remediation_edit": "Ensure the first paragraph on the Acknowledgements page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent."
+    },
+    {
+      "id": "P044",
+      "original_question": "Does the Abstract page follow the correct paragraph indentation style — first paragraph flush-left\\",
+      "proposed_question_edit": "",
+      "original_remediation": "subsequent paragraphs indented?",
+      "proposed_remediation_edit": "Ensure the first paragraph on the Abstract page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent."
+    },
+    {
+      "id": "P045",
+      "original_question": "Does the Biographical Sketch page follow the correct publication entry layout — hanging indent for all publication entries\\",
+      "proposed_question_edit": "",
+      "original_remediation": "single-spaced entries with a blank line between them\\",
+      "proposed_remediation_edit": "and single-spaced wrapped lines within each entry?"
+    },
+    {
+      "id": "P047",
+      "original_question": "Are the bullet items in the education section of the Biographical Sketch single-spaced within each bullet?",
+      "proposed_question_edit": "",
+      "original_remediation": "Ensure bullet items in the Biographical Sketch education section are single-spaced within each bullet\\",
+      "proposed_remediation_edit": "with no extra blank lines within a bullet item."
+    },
+    {
+      "id": "P051",
+      "original_question": "Is the copyright year present on the Copyright Page in a recognizable format?",
+      "proposed_question_edit": "",
+      "original_remediation": "Ensure the Copyright Page contains the copyright year in a clearly formatted line such as '© YYYY'\\",
+      "proposed_remediation_edit": "Copyright YYYY'\\"
+    },
+    {
+      "id": "P055",
+      "original_question": "Do any List of Tables entries start with 'Figure', or any List of Figures entries start with 'Table'?",
+      "proposed_question_edit": "",
+      "original_remediation": "Move the misplaced entry to the correct section (List of Tables for tables\\",
+      "proposed_remediation_edit": "List of Figures for figures)."
+    },
+    {
+      "id": "P063",
+      "original_question": "Do body-page appendix headings follow the NJIT label convention (APPENDIX vs APPENDIX A/B/C)?",
+      "proposed_question_edit": "",
+      "original_remediation": "For a single appendix: rename the heading to APPENDIX (remove any letter suffix). For multiple appendices: ensure each appendix heading uses APPENDIX A\\",
+      "proposed_remediation_edit": "APPENDIX B\\"
+    },
+    {
+      "id": "P067",
+      "original_question": "Are publication/presentation entries listed from most recent to oldest?",
+      "proposed_question_edit": "",
+      "original_remediation": "Reorder publication/presentation entries in the Biographical Sketch from most recent to oldest. Manual review is still required for citation style\\",
+      "proposed_remediation_edit": "authorship\\"
+    },
+    {
+      "id": "P068",
+      "original_question": "Does the Approval Page include recognizable committee role labels and signature/date structural blocks?",
+      "proposed_question_edit": "",
+      "original_remediation": "Ensure the Approval Page includes an advisor-role label and sufficient date/signature structural blocks for each committee entry. Manual review is still required for honorifics\\",
+      "proposed_remediation_edit": "rank order\\"
+    },
+    {
+      "id": "P074",
+      "original_question": "Does the Title Page display a valid NJIT graduation month (August\\",
+      "proposed_question_edit": "",
+      "original_remediation": "December\\",
+      "proposed_remediation_edit": "or May)?"
+    }
+  ]
+}
