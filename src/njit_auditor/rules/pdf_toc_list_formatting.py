@@ -262,6 +262,7 @@ def _check_lot_page(
                         "bbox": format_bbox_detail(entry.line.bbox),
                         "expected_or_reason": first["reason"],
                         "confidence": first["confidence"],
+                        "source_q_rule_id": "Q065",
                     },
                 )
             )
@@ -281,6 +282,7 @@ def _check_lot_page(
                         "bbox": format_bbox_detail(entry.line.bbox),
                         "expected_or_reason": "Table titles in LoT should not end with a period",
                         "confidence": "high",
+                        "source_q_rule_id": "Q065",
                     },
                 )
             )
@@ -320,6 +322,7 @@ def _check_lof_page(
                             "Figure descriptions in LoF expected in sentence case"
                         ),
                         "confidence": "medium",
+                        "source_q_rule_id": "Q074",
                     },
                 )
             )

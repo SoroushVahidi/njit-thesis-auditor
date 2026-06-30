@@ -290,9 +290,9 @@
   {
     "id": "P017",
     "section": "PDF caption and title formatting",
-    "question": "Do figure/table caption and title lines show obvious formatting issues?",
-    "rule_definition": "Heuristically detect obvious punctuation and high-confidence case-style anomalies in visible figure/table caption-like PDF lines.",
-    "remediation": "Review figure/table caption and list-entry punctuation/case formatting for consistency with thesis guidelines.",
+    "question": "Are figure and table caption and title lines formatted correctly for sentence case, title case, and terminal punctuation?",
+    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body) and LoF entries: check terminal punctuation (Q075) and sentence case (Q074). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
+    "remediation": "For figure captions and LoF entries: add terminal punctuation and use sentence case. For table titles and LoT entries: use title case and remove trailing periods.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -303,14 +303,14 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_captions",
     "priority": "medium",
-    "notes": "Conservative caption-line heuristic; warns only on strong visible text-layer signals."
+    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period), Q074 (LoF sentence case — new in PR 3), Q075 (LoF terminal punct). Body-context findings have no direct Q-rule. Atomic check counterparts: P040 (Q075 LoF), P053 (Q065 LoT terminal period), P024 (Q074 LoF sentence case, Q065 LoT title case). issue_types: unexpected_terminal_period, missing_terminal_punctuation, possible_sentence_case_issue, possible_title_case_issue."
   },
   {
     "id": "P018",
     "section": "PDF TOC and list alignment",
-    "question": "Do TOC/List of Tables/List of Figures entries show likely alignment inconsistencies?",
-    "rule_definition": "Heuristically detect obvious TOC/list entry alignment issues including page-number column alignment, missing page numbers, leader-dot inconsistency, and indentation outliers.",
-    "remediation": "Align TOC/list entry page-number columns, maintain consistent leader-dot usage, and fix missing page numbers or obvious indentation outliers.",
+    "question": "Do Table of Contents, List of Tables, and List of Figures entries follow required formatting and alignment?",
+    "rule_definition": "Heuristically detect alignment issues in TOC/LoT/LoF pages: page-number column misalignment, missing page numbers, inconsistent leader-dot style (Q052), and indentation outliers. Complements P024 (Q049/Q050 capitalization), P032 (wrapped spacing), P036 (entry spacing), P039 (hierarchy indent), P042 (appendix), P046 (number alignment), P048 (page-num alignment). Each leader-dot finding carries source_q_rule_id=Q052.",
+    "remediation": "Align page-number columns, use one consistent leader style (dots or hyphens) throughout (Q052), add missing page numbers, and adjust indentation to reflect entry level.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages."
+    "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages. Q-rule coverage: Q052 (leader-dot consistency) gets source_q_rule_id. Q049/Q050 capitalization handled by P024. Q053-Q059 spacing/indent handled by P032/P036/P039/P042. Q065-Q079 handled by P024/P040/P046/P048/P053. Q051 (level-3 sentence case) deferred. issue_types: misaligned_page_number_column, missing_page_number, inconsistent_leader_dots (Q052), inconsistent_hierarchy_indent."
   },
   {
     "id": "P019",

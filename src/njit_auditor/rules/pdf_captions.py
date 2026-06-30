@@ -44,6 +44,15 @@ MAX_PREVIEW_LEN = 80
 SAME_MARGIN_TOLERANCE_PT = 2.0
 MAX_PARAGRAPH_GAP_RATIO = 1.2
 
+# Q-rule IDs for P017 findings per Ester's YES/NO audit matrix.
+# Keyed by (page_context, issue_type). Body-context findings have no direct Q-rule
+# (Q074/Q075 are LoF-specific; Q065 is LoT-specific).
+_P017_Q_RULE_MAP: dict[tuple[str, str], str] = {
+    ("list_of_tables", "unexpected_terminal_period"): "Q065",
+    ("list_of_figures", "missing_terminal_punctuation"): "Q075",
+    ("list_of_figures", "possible_sentence_case_issue"): "Q074",
+}
+
 
 class CaptionLine:
     """Normalized caption-like line with page and context metadata."""
@@ -283,6 +292,12 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "Figure entry in List of Figures appears to be missing terminal "
                     "punctuation."
                 )
+            elif _likely_sentence_case_issue(caption.caption_body):
+                issue_type = "possible_sentence_case_issue"
+                confidence = "low"
+                message = (
+                    "Figure entry in List of Figures may not follow sentence-case style."
+                )
         elif caption.context == "body":
             if caption.caption_type == "figure":
                 if not _terminal_punctuation(caption.caption_body):
@@ -309,12 +324,15 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
         if issue_type is None:
             continue
 
+        q_rule_id = _P017_Q_RULE_MAP.get((caption.context, issue_type), "")
+
         details = {
             "page_number": str(caption.page_number),
             "caption_type": caption.caption_type,
             "issue_type": issue_type,
             "line_preview": _line_preview(caption.raw_text),
             "confidence": confidence,
+            "source_q_rule_id": q_rule_id,
         }
         if caption.bbox is not None:
             details["bbox"] = format_bbox_detail(caption.bbox)

@@ -527,6 +527,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "affected_entry_count": str(len(missing_dots_entries)),
                             "worst_entry_index": str(entry_positions[worst_entry]),
                             "confidence": "medium",
+                            "source_q_rule_id": "Q052",
                         },
                         worst_entry,
                     ),

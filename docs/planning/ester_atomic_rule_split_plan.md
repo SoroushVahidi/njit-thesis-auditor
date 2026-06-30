@@ -99,9 +99,39 @@ Single rule for all paragraph types.
 
 ---
 
-## PR 3: Split P017 into Atomic Caption/Title Checks
+## PR 3 (Implemented): Atomic Q-Rule Split for P017 and P018 — `fix/ester-p017-p018-caption-list-atomic-split`
 
-**Current rule:** P017 — "Do figure/table caption and title lines show obvious formatting issues?"
+**Status:** Implemented and tested. Branch: `fix/ester-p017-p018-caption-list-atomic-split`.
+
+**P017 changes:**
+- Added `_P017_Q_RULE_MAP` mapping (context, issue_type) → Q-rule.
+- LoT `unexpected_terminal_period` → `source_q_rule_id=Q065`.
+- LoF `missing_terminal_punctuation` → `source_q_rule_id=Q075`.
+- LoF sentence-case check added (new `possible_sentence_case_issue` in LoF context) → `source_q_rule_id=Q074`.
+- Catalog question tightened to binary yes/no form ending with `?`.
+- Broad "obvious formatting issues" wording blocked by 3 anti-regression tests.
+
+**P018 changes:**
+- `inconsistent_leader_dots` → `source_q_rule_id=Q052`.
+- Catalog question tightened to binary yes/no form.
+- Broad "likely alignment inconsistencies" wording blocked by 3 anti-regression tests.
+
+**P024 changes (completing atomic coverage):**
+- `list_of_tables_title_case` → `source_q_rule_id=Q065`.
+- `unexpected_terminal_punctuation` (LoT) → `source_q_rule_id=Q065`.
+- `list_of_figures_sentence_case` → `source_q_rule_id=Q074`.
+
+**Deferred:**
+- Q051 (TOC level-3 sentence case) — needs reliable level-3 classification.
+- Figure label bold check — no Q-rule; needs span-level bold detection.
+
+**Tests added:** 26 tests in `tests/test_ester_p017_p018_atomic_split.py`.
+
+---
+
+## PR 3 Background: Split P017 into Atomic Caption/Title Checks
+
+**Original rule:** P017 — "Do figure/table caption and title lines show obvious formatting issues?"
 Covers all caption/title formatting.
 
 **Ester's atomic checks with Q-matrix mapping:**
@@ -124,7 +154,7 @@ Covers all caption/title formatting.
 
 ---
 
-## PR 3: Split P018 into Atomic TOC/LoT/LoF Alignment Checks
+## PR 3 Background: Split P018 into Atomic TOC/LoT/LoF Alignment Checks (Implemented)
 
 **Current rule:** P018 — "Do TOC/List of Tables/List of Figures entries show likely alignment inconsistencies?"
 Combined alignment rule.
