@@ -18,6 +18,10 @@ from __future__ import annotations
 
 import re
 
+from njit_auditor.digital_commons_wrapper import (
+    detect_digital_commons_wrapper_pages,
+    without_wrapper_pages,
+)
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
 from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings
@@ -73,11 +77,13 @@ def _find_copyright_page_number(pdf_doc: PdfDocument) -> int | None:
 
 def check_pdf_frontmatter_no_page_number(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P022 warnings when visible page-number candidates appear on no-number pages."""
+    wrapper_pages = detect_digital_commons_wrapper_pages(pdf_doc)
+    working_doc = without_wrapper_pages(pdf_doc, wrapper_pages)
 
-    if not pdf_doc.pages:
+    if not working_doc.pages:
         return []
 
-    headings = find_named_frontmatter_headings(pdf_doc)
+    headings = find_named_frontmatter_headings(working_doc)
     heading_pages: dict[str, int] = {}
     for match in headings:
         if match.heading not in heading_pages:
@@ -93,14 +99,14 @@ def check_pdf_frontmatter_no_page_number(pdf_doc: PdfDocument) -> list[AuditFind
         no_number_targets.append((heading_pages["APPROVAL PAGE"], "approval_page", "Q014", False))
 
     # Title page heuristic: page 1 when the document has front-matter headings.
-    if len(pdf_doc.pages) >= _MIN_DOC_PAGES_FOR_TITLE_CHECK and heading_pages:
-        page1_num = pdf_doc.pages[0].page_number
+    if len(working_doc.pages) >= _MIN_DOC_PAGES_FOR_TITLE_CHECK and heading_pages:
+        page1_num = working_doc.pages[0].page_number
         already_claimed = {pn for pn, _, _, _ in no_number_targets}
         if page1_num not in already_claimed:
             no_number_targets.append((page1_num, "title_page", "Q008", True))
 
     # Copyright page: conservative — only when clearly identified in early pages.
-    copyright_pnum = _find_copyright_page_number(pdf_doc)
+    copyright_pnum = _find_copyright_page_number(working_doc)
     if copyright_pnum is not None:
         already_claimed = {pn for pn, _, _, _ in no_number_targets}
         if copyright_pnum not in already_claimed:
@@ -109,7 +115,7 @@ def check_pdf_frontmatter_no_page_number(pdf_doc: PdfDocument) -> list[AuditFind
     if not no_number_targets:
         return []
 
-    pages_by_number = {p.page_number: p for p in pdf_doc.pages}
+    pages_by_number = {p.page_number: p for p in working_doc.pages}
     findings: list[AuditFinding] = []
     seen: set[int] = set()
 

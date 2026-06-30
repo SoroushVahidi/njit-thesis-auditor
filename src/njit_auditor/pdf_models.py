@@ -69,6 +69,11 @@ class PdfPage(BaseModel):
     """Single PDF page with geometric and text-block content."""
 
     page_number: int
+    original_page_index: int | None = None
+    original_page_number: int | None = None
+    manuscript_page_index: int | None = None
+    manuscript_page_number: int | None = None
+    display_page_label: str = ""
     width: float
     height: float
     page_rotation: int = 0

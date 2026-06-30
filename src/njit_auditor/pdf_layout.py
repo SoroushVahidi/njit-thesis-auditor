@@ -57,6 +57,11 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
             page_height = float(page.rect.height)
             page_model = PdfPage(
                 page_number=page_index,
+                original_page_index=page_index - 1,
+                original_page_number=page_index,
+                manuscript_page_index=page_index - 1,
+                manuscript_page_number=page_index,
+                display_page_label=str(page_index),
                 width=page_width,
                 height=page_height,
                 page_rotation=int(page.rotation),
