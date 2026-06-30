@@ -24,9 +24,21 @@ Changes made in Pass 1 and Pass 2 of this branch:
 
 ---
 
-## PR 2: Split P014 into Atomic Front-Matter Heading Checks
+## PR 2 (Implemented): Atomic Q-Rule Split for P014 and P015 — `fix/ester-p014-p015-binary-atomic-enforcement`
 
-**Current rule:** P014 — "Do named front-matter headings follow expected layout/style heuristics?"
+**Status:** Implemented and tested. Merged in PR 2 (branch: `fix/ester-p014-p015-binary-atomic-enforcement`).
+
+**P014 changes:** Each named-heading finding now carries `source_q_rule_id` linking to the corresponding YES/NO matrix question: Q013 (APPROVAL PAGE), Q021 (BIOGRAPHICAL SKETCH), Q036 (ACKNOWLEDGEMENTS), Q047 (TABLE OF CONTENTS), Q061 (LIST OF TABLES), Q070 (LIST OF FIGURES). The catalog question is tightened to a strict binary yes/no form ending with "?". Broad vague wording is blocked by 4 anti-regression tests.
+
+**P015 changes:** Scope narrowed to body-text pages only. Abstract pages now handled atomically by P044 (Q002/Q003). Acknowledgements pages handled atomically by P043 (Q044/Q045). The broad "front-matter/body paragraphs" wording is blocked by 3 anti-regression tests.
+
+**Tests added:** 44 tests in `tests/test_ester_p014_p015_atomic_split.py` (24 original + 20 new guardrails/contracts).
+
+---
+
+## PR 2 Background: Split P014 into Atomic Front-Matter Heading Checks
+
+**Original rule:** P014 — "Do named front-matter headings follow expected layout/style heuristics?"
 Single heuristic checking bold/centered/top/all-caps for named headings.
 
 **Ester's mapping to YES/NO matrix:**
@@ -61,7 +73,7 @@ Single heuristic checking bold/centered/top/all-caps for named headings.
 
 ---
 
-## PR 2: Split P015 into Atomic Indentation Checks
+## PR 2 Background: Split P015 into Atomic Indentation Checks (Implemented)
 
 **Current rule:** P015 — "Do front-matter/body paragraphs show likely indentation issues?"
 Single rule for all paragraph types.

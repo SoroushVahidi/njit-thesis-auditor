@@ -236,9 +236,9 @@
   {
     "id": "P014",
     "section": "PDF front matter headings",
-    "question": "Do named front-matter headings follow expected layout/style heuristics?",
-    "rule_definition": "Detect expected named front-matter headings and warn if they are not near top, centered, bold, and all caps.",
-    "remediation": "Center named front-matter headings near the top of the page and format as bold all caps.",
+    "question": "Do named front-matter headings follow the required layout: centered, bold, all caps, and near the top of the page?",
+    "rule_definition": "Detect named front-matter headings and warn when any fail the required format: centered, bold, all caps, near top of page. Each finding includes source_q_rule_id linking it to the corresponding YES/NO audit matrix question (Q013, Q021, Q036, Q047, Q061, Q070).",
+    "remediation": "Center each named front-matter heading near the top of its page, format it in bold all-caps. Check: APPROVAL PAGE (Q013), BIOGRAPHICAL SKETCH (Q021), ACKNOWLEDGEMENTS (Q036), TABLE OF CONTENTS (Q047), LIST OF TABLES (Q061), LIST OF FIGURES (Q070).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -249,14 +249,14 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_headings",
     "priority": "high",
-    "notes": "Named heading checks only; does not require every optional front-matter section."
+    "notes": "Named heading checks only. Each finding includes source_q_rule_id for the relevant Q-rule: Q013 (APPROVAL PAGE), Q021 (BIOGRAPHICAL SKETCH), Q036 (ACKNOWLEDGEMENTS), Q047 (TABLE OF CONTENTS), Q061 (LIST OF TABLES), Q070 (LIST OF FIGURES). ABSTRACT has no Q-rule for heading format. P038 covers heading phrase (exact text); P014 covers heading layout (bold/centered/all-caps/top)."
   },
   {
     "id": "P015",
     "section": "PDF paragraph indentation",
-    "question": "Do front-matter/body paragraphs show likely indentation issues?",
-    "rule_definition": "Heuristically detect strong paragraph indentation anomalies in PDF text lines, including unexpected opening indents and likely missing later first-line indents.",
-    "remediation": "Use consistent first-line indentation in paragraph text and remove unintended opening-paragraph indents.",
+    "question": "Do body-text paragraphs (outside the Abstract and Acknowledgements sections) use consistent first-line indentation?",
+    "rule_definition": "Heuristically detect missing first-line indentation in body-text paragraphs. Skips Abstract pages (Q002/Q003 covered atomically by P044) and Acknowledgements pages (Q044/Q045 covered atomically by P043). Fires only when the page style has high confidence of first-line indentation and a later paragraph omits it.",
+    "remediation": "Apply consistent first-line indentation to body-text paragraphs. For Abstract indentation (Q002/Q003) see P044. For Acknowledgements indentation (Q044/Q045) see P043.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -267,7 +267,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_indentation",
     "priority": "high",
-    "notes": "Conservative heuristic; ignores heading lines, page numbers, and TOC/list pages."
+    "notes": "Body-text-only scope after atomic split. Abstract pages: P044 handles Q002 (first paragraph flush-left) and Q003 (subsequent paragraphs indented). Acknowledgements pages: P043 handles Q044 (first paragraph flush-left) and Q045 (subsequent paragraphs indented). P015 emits only missing_later_indent for body text."
   },
   {
     "id": "P016",

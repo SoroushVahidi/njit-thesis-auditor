@@ -26,6 +26,18 @@ EXPECTED_HEADINGS: tuple[str, ...] = (
 
 BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold)", re.IGNORECASE)
 
+# Q-rule IDs for each named front-matter heading (per Ester's YES/NO audit matrix).
+# Q013=Approval Page, Q021=Biographical Sketch, Q036=Acknowledgements,
+# Q047=TOC, Q061=List of Tables, Q070=List of Figures.
+_HEADING_Q_RULE_MAP: dict[str, str] = {
+    "APPROVAL PAGE": "Q013",
+    "BIOGRAPHICAL SKETCH": "Q021",
+    "ACKNOWLEDGEMENTS": "Q036",
+    "TABLE OF CONTENTS": "Q047",
+    "LIST OF TABLES": "Q061",
+    "LIST OF FIGURES": "Q070",
+}
+
 # Chapter/appendix heading patterns used to locate the start of the body region.
 # All three patterns are intentionally case-SENSITIVE: NJIT requires ALL CAPS headings.
 # Title-case "Chapter" in TOC column headers and body sentences ("Chapter 3 discusses...")
@@ -184,6 +196,7 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
         if not match.centered and match.near_top and match.bold and match.all_caps:
             issue_type = "frontmatter_heading_not_centered"
 
+        q_rule_id = _HEADING_Q_RULE_MAP.get(match.heading, "")
         findings.append(
             AuditFinding(
                 rule_id="P014",
@@ -197,6 +210,7 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
                     "heading": match.heading,
                     "page_number": str(match.page_number),
                     "issue_type": issue_type,
+                    "source_q_rule_id": q_rule_id,
                     "centered": str(match.centered),
                     "near_top": str(match.near_top),
                     "bold": str(match.bold),
