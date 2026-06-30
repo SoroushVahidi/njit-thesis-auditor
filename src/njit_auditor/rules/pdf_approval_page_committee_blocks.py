@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage
+from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
 from njit_auditor.rules.pdf_frontmatter_heading_gate import (
     _eligible_page_numbers,
     find_gate_matches_for_heading,
@@ -37,12 +37,19 @@ _ROLE_PREFIX_CHARS = 60
 _ADVISOR_ROLE_PHRASES: tuple[str, ...] = (
     "dissertation advisor",
     "doctoral dissertation advisor",
+    "thesis advisor",
+    "thesis co-advisor",
+    "dissertation co-advisor",
     "major professor",
+    "co-advisor",
 )
 
 _ROLE_LABEL_PHRASES: tuple[str, ...] = (
     "dissertation advisor",
     "doctoral dissertation advisor",
+    "thesis advisor",
+    "thesis co-advisor",
+    "dissertation co-advisor",
     "committee member",
     "doctoral committee member",
     "major professor",
@@ -83,21 +90,32 @@ def _mostly_single_token_noise(lines: list[str]) -> bool:
     return single_token > len(lines) / 2
 
 
+def _phrase_in_line(line: str, phrase: str) -> bool:
+    return phrase in _normalized_line(line)
+
+
 def _phrase_in_prefix(line: str, phrase: str) -> bool:
     prefix = _normalized_line(line)[:_ROLE_PREFIX_CHARS]
     return phrase in prefix
 
 
 def _is_role_label_line(line: str) -> bool:
-    return any(_phrase_in_prefix(line, phrase) for phrase in _ROLE_LABEL_PHRASES)
+    normalized = _normalized_line(line)
+    if any(_phrase_in_prefix(line, phrase) for phrase in _ROLE_LABEL_PHRASES):
+        return True
+    return bool(re.search(r"\b(thesis|dissertation)\s+advisor\b", normalized))
 
 
 def _advisor_role_present(lines: list[str]) -> bool:
-    return any(
-        _phrase_in_prefix(line, phrase)
-        for line in lines
-        for phrase in _ADVISOR_ROLE_PHRASES
-    )
+    for line in lines:
+        normalized = _normalized_line(line)
+        if any(_phrase_in_line(line, phrase) for phrase in _ADVISOR_ROLE_PHRASES):
+            return True
+        if re.search(r"\b(thesis|dissertation)\s+advisor\b", normalized):
+            return True
+        if re.search(r"\bmajor\s+professor\b", normalized):
+            return True
+    return False
 
 
 def _is_date_label(line: str) -> bool:
@@ -120,6 +138,74 @@ def _is_signature_blank(line: str) -> bool:
         return False
     fill_chars = sum(1 for char in non_space if char in "_.-")
     return fill_chars / len(non_space) >= 0.7
+
+
+def _lines_below_heading_with_bbox(
+    page: PdfPage,
+    heading: str,
+) -> list[tuple[str, tuple[float, float, float, float]]]:
+    """Return text and bbox for non-empty lines below *heading* on this page."""
+    from njit_auditor.rules.pdf_frontmatter_heading_gate import (  # noqa: PLC0415
+        line_resolves_to_gate_heading,
+        resolve_gate_heading_from_line,
+    )
+
+    heading_seen = False
+    result: list[tuple[str, tuple[float, float, float, float]]] = []
+    for block in page.text_blocks:
+        for line in block.lines:
+            if line_resolves_to_gate_heading(line.text, heading):
+                heading_seen = True
+                continue
+            if not heading_seen:
+                continue
+            resolved = resolve_gate_heading_from_line(line.text)
+            if resolved is not None and resolved[0] in {
+                "ABSTRACT",
+                "APPROVAL PAGE",
+                "BIOGRAPHICAL SKETCH",
+                "ACKNOWLEDGEMENTS",
+                "ACKNOWLEDGMENTS",
+                "TABLE OF CONTENTS",
+                "LIST OF TABLES",
+                "LIST OF FIGURES",
+                "DEDICATION",
+                "COPYRIGHT PAGE",
+            }:
+                return result
+            text = line.text.strip()
+            if text and len(_normalized_line(text)) >= _MIN_LINE_CHARS:
+                bbox = (line.bbox.x0, line.bbox.y0, line.bbox.x1, line.bbox.y1)
+                result.append((text, bbox))
+    return result
+
+
+def _committee_block_bbox(
+    page: PdfPage,
+    *,
+    body_lines: list[str],
+    detected_via: str,
+) -> tuple[float, float, float, float] | None:
+    if detected_via == "heading_gate":
+        line_items = _lines_below_heading_with_bbox(page, _APPROVAL_HEADING)
+    else:
+        line_items = [
+            (text, (line.bbox.x0, line.bbox.y0, line.bbox.x1, line.bbox.y1))
+            for block in page.text_blocks
+            for line in block.lines
+            if (text := line.text.strip())
+            and len(_normalized_line(text)) >= _MIN_LINE_CHARS
+        ]
+    if not line_items:
+        return None
+    body_set = set(body_lines)
+    selected = [bbox for text, bbox in line_items if text in body_set]
+    boxes = selected or [bbox for _, bbox in line_items]
+    x0 = min(box[0] for box in boxes)
+    y0 = min(box[1] for box in boxes)
+    x1 = max(box[2] for box in boxes)
+    y1 = max(box[3] for box in boxes)
+    return (x0, y0, x1, y1)
 
 
 def _confidence(role_label_count: int, indicator_count: int) -> str:
@@ -167,8 +253,9 @@ def _base_details(
     signature_date_indicator_count: int,
     confidence: str,
     detected_via: str = "heading_gate",
+    bbox: tuple[float, float, float, float] | None = None,
 ) -> dict[str, str]:
-    return {
+    details = {
         "page_number": str(page_number),
         "issue_type": issue_type,
         "role_label_count": str(role_label_count),
@@ -182,6 +269,9 @@ def _base_details(
         "source_q_rule_ids": "Q013",
         "detected_via": detected_via,
     }
+    if bbox is not None:
+        details["bbox"] = format_bbox_detail(bbox)
+    return details
 
 
 def _make_finding(
@@ -197,6 +287,7 @@ def _make_finding(
     signature_date_indicator_count: int,
     confidence: str,
     detected_via: str = "heading_gate",
+    bbox: tuple[float, float, float, float] | None = None,
 ) -> AuditFinding:
     return AuditFinding(
         rule_id=_RULE_ID,
@@ -214,6 +305,7 @@ def _make_finding(
             signature_date_indicator_count=signature_date_indicator_count,
             confidence=confidence,
             detected_via=detected_via,
+            bbox=bbox,
         ),
     )
 
@@ -262,6 +354,11 @@ def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[
         date_label_count + signature_label_count + signature_blank_count
     )
     confidence = _confidence(role_label_count, signature_date_indicator_count)
+    committee_bbox = _committee_block_bbox(
+        page,
+        body_lines=body_lines,
+        detected_via=detected_via,
+    )
 
     findings: list[AuditFinding] = []
     required_indicators = max(2, role_label_count)
@@ -283,6 +380,7 @@ def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[
                 signature_date_indicator_count=signature_date_indicator_count,
                 confidence=confidence,
                 detected_via=detected_via,
+                bbox=committee_bbox,
             )
         )
 
@@ -303,6 +401,7 @@ def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[
                 signature_date_indicator_count=signature_date_indicator_count,
                 confidence=confidence,
                 detected_via=detected_via,
+                bbox=committee_bbox,
             )
         )
 

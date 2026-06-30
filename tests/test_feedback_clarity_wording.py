@@ -178,15 +178,14 @@ def test_p016_heading_gap_comment_includes_measurement() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_p068_advisor_missing_includes_role_label_count() -> None:
+def test_p068_advisor_missing_uses_atomic_wording() -> None:
     comment = build_polished_comment(
         rule_id="P068",
         issue_type="approval_page_advisor_role_label_missing",
         page=3,
         details={"role_label_count": "3"},
     )
-    assert "3 committee role label" in comment
-    assert "advisor role label" in comment
+    assert "thesis/dissertation advisor" in comment.lower()
 
 
 def test_p068_signature_sparse_includes_counts_and_required() -> None:

@@ -537,10 +537,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P068 approval page structure ---
     ("P068", "approval_page_advisor_role_label_missing"): (
-        "Problem: The Approval Page on page {page} lists {role_label_count} "
-        "committee role label(s), but none of them is a recognizable advisor role "
-        "label (for example, 'Dissertation Advisor' or 'Major Professor'). Add the "
-        "required advisor role label."
+        "Likely problem: The Approval Page on page {page} does not appear to "
+        "identify any committee member as the thesis/dissertation advisor."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
         "Problem: The Approval Page on page {page} has {signature_date_indicator_count} "
@@ -714,7 +712,11 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "",
     ("P055", "lof_entry_is_table"): "",
-    ("P068", "approval_page_advisor_role_label_missing"): "",
+    ("P068", "approval_page_advisor_role_label_missing"): (
+        "Add the appropriate advisor role label, such as 'Thesis Advisor' for a "
+        "thesis or 'Dissertation Advisor' for a dissertation, to the advisor's "
+        "approval-page entry."
+    ),
     ("P068", "approval_page_signature_blocks_sparse"): "",
 }
 

@@ -102,7 +102,7 @@ _EXPECTED_COMMENT_SIGNALS: dict[tuple[str, str], tuple[str, ...]] = {
     ("P064", "references_section_heading_not_detected"): ("REFERENCES",),
     ("P064", "references_entry_indentation_inconsistent"): ("indentation",),
     ("P064", "references_entry_spacing_inconsistent"): ("spacing",),
-    ("P068", "approval_page_advisor_role_label_missing"): ("advisor role label",),
+    ("P068", "approval_page_advisor_role_label_missing"): ("thesis/dissertation advisor",),
     ("P068", "approval_page_signature_blocks_sparse"): ("signature", "date"),
 }
 
@@ -184,6 +184,6 @@ def test_p068_advisor_and_signature_remediations_are_distinct() -> None:
         page=2,
         details={},
     )
-    assert "advisor role label" in advisor.lower()
+    assert "thesis/dissertation advisor" in advisor.lower()
     assert "signature" in sparse.lower() and "date" in sparse.lower()
     assert advisor != sparse

@@ -697,8 +697,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means spacing between reference entries appears inconsistent."
     ),
     ("P068", "approval_page_advisor_role_label_missing"): (
-        "This means the Approval Page may be missing a recognizable advisor role "
-        "label such as 'Dissertation Advisor' or 'Major Professor'."
+        "This means the Approval Page may not identify any committee member as "
+        "the thesis or dissertation advisor."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
         "This means the Approval Page appears to have too few signature or date "

@@ -738,8 +738,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P068 approval page structure ---
     ("P068", "approval_page_advisor_role_label_missing"): (
-        "The Approval Page may be missing a recognizable advisor role label "
-        "(for example, 'Dissertation Advisor' or 'Major Professor')."
+        "The Approval Page may not identify any committee member as the thesis "
+        "or dissertation advisor."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
         "The Approval Page appears to have too few signature or date structural "
@@ -1390,10 +1390,9 @@ def _p068_approval_page_explanation(
         required = "2"
     if issue_type == "approval_page_advisor_role_label_missing":
         return (
-            f"The Approval Page lists {role_label_count} committee role label(s), "
-            "but none of them is a recognizable advisor role label (for example, "
-            "'Dissertation Advisor' or 'Major Professor'). Add the required advisor "
-            "role label."
+            "The Approval Page does not appear to identify any committee member as "
+            "the thesis/dissertation advisor. Add an advisor role label such as "
+            "'Thesis Advisor' or 'Dissertation Advisor' to the advisor's entry."
         )
     return (
         f"The Approval Page has {indicator_count} signature/date line(s) for "
