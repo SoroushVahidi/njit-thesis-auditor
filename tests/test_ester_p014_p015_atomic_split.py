@@ -286,12 +286,13 @@ def _load_rule_catalog() -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_p014_catalog_question_references_q_rule_ids() -> None:
+def test_p014_catalog_notes_references_q_rule_ids() -> None:
+    """Q-rule IDs must appear in P014 notes (not the question, which must stay concise)."""
     rules = _load_rule_catalog()
     p014 = next(r for r in rules if r["id"] == "P014")
-    q = p014["question"]
+    searchable = p014.get("notes", "") + p014.get("rule_definition", "")
     for q_id in ("Q013", "Q021", "Q036", "Q047", "Q061", "Q070"):
-        assert q_id in q, f"P014 question should reference {q_id}"
+        assert q_id in searchable, f"P014 notes/rule_definition should reference {q_id}"
 
 
 def test_p014_catalog_remediation_references_heading_names() -> None:
@@ -343,3 +344,125 @@ def test_p044_catalog_references_q002_q003() -> None:
     notes = p044.get("notes", "") + p044.get("rule_definition", "")
     assert "Q002" in notes, "P044 should reference Q002"
     assert "Q003" in notes, "P044 should reference Q003"
+
+
+# ---------------------------------------------------------------------------
+# 11. Rule quality contract — P014/P015 only (Ester binary yes/no enforcement)
+# ---------------------------------------------------------------------------
+
+_BINARY_STARTERS = ("Is ", "Are ", "Does ", "Do ")
+
+
+def _starts_binary(question: str) -> bool:
+    return any(question.startswith(s) for s in _BINARY_STARTERS)
+
+
+@pytest.mark.parametrize("rule_id", ["P014", "P015"])
+def test_rule_question_ends_with_question_mark(rule_id: str) -> None:
+    """P014/P015 catalog questions must end with '?' (binary yes/no form)."""
+    rules = _load_rule_catalog()
+    rule = next(r for r in rules if r["id"] == rule_id)
+    q = rule["question"]
+    assert q.endswith("?"), (
+        f"{rule_id} question must end with '?', got: {q!r}"
+    )
+
+
+@pytest.mark.parametrize("rule_id", ["P014", "P015"])
+def test_rule_question_starts_with_binary_form(rule_id: str) -> None:
+    """P014/P015 catalog questions must start with Is/Are/Does/Do."""
+    rules = _load_rule_catalog()
+    rule = next(r for r in rules if r["id"] == rule_id)
+    q = rule["question"]
+    assert _starts_binary(q), (
+        f"{rule_id} question must start with Is/Are/Does/Do, got: {q!r}"
+    )
+
+
+@pytest.mark.parametrize("rule_id", ["P014", "P015"])
+def test_rule_remediation_is_present(rule_id: str) -> None:
+    """P014/P015 must have a non-empty remediation."""
+    rules = _load_rule_catalog()
+    rule = next(r for r in rules if r["id"] == rule_id)
+    rem = rule.get("remediation", "").strip()
+    assert rem, f"{rule_id} remediation must not be empty"
+
+
+# ---------------------------------------------------------------------------
+# 12. Anti-regression — broad vague wording must never appear in P014/P015
+# ---------------------------------------------------------------------------
+
+_BROAD_P014_PATTERNS = (
+    "expected layout/style checks",
+    "follow expected layout",
+    "layout/style heuristics",
+    "named front-matter headings follow expected",
+)
+
+_BROAD_P015_PATTERNS = (
+    "front-matter/body paragraphs",
+    "show likely indentation issues",
+    "front-matter or body paragraphs",
+)
+
+
+@pytest.mark.parametrize("pattern", _BROAD_P014_PATTERNS)
+def test_p014_question_does_not_use_broad_wording(pattern: str) -> None:
+    """P014 catalog must not revert to the original broad vague question wording."""
+    rules = _load_rule_catalog()
+    p014 = next(r for r in rules if r["id"] == "P014")
+    question = p014["question"].lower()
+    assert pattern.lower() not in question, (
+        f"P014 question contains broad/vague pattern {pattern!r}: {p014['question']!r}"
+    )
+
+
+@pytest.mark.parametrize("pattern", _BROAD_P015_PATTERNS)
+def test_p015_question_does_not_use_broad_wording(pattern: str) -> None:
+    """P015 catalog must not revert to the original vague indentation wording."""
+    rules = _load_rule_catalog()
+    p015 = next(r for r in rules if r["id"] == "P015")
+    question = p015["question"].lower()
+    assert pattern.lower() not in question, (
+        f"P015 question contains broad/vague pattern {pattern!r}: {p015['question']!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 13. P014 individual findings carry Q-rule reference or heading-specific detail
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("heading,expected_q_rule_id", _HEADING_Q_RULE_CASES)
+def test_p014_finding_details_identify_atomic_check(
+    heading: str, expected_q_rule_id: str
+) -> None:
+    """Each P014 finding must carry source_q_rule_id so the atomic check is identifiable."""
+    heading_line = _line(heading, x0=450.0, x1=550.0, y0=50.0, y1=62.0, bold=True)
+    doc = _doc(_page(1, _block(heading_line)))
+    findings = check_named_frontmatter_headings(doc)
+    p014 = [f for f in findings if f.rule_id == "P014" and f.details.get("heading") == heading]
+    assert p014, f"Expected a P014 finding for {heading!r}"
+    q_rule_id = p014[0].details.get("source_q_rule_id")
+    assert q_rule_id, (
+        f"P014 finding for {heading!r} must have non-empty source_q_rule_id "
+        f"to identify the atomic check; got {q_rule_id!r}"
+    )
+    assert q_rule_id == expected_q_rule_id
+
+
+# ---------------------------------------------------------------------------
+# 14. P015 body-text findings address paragraph indentation (issue_type present)
+# ---------------------------------------------------------------------------
+
+def test_p015_body_finding_issue_type_is_indentation() -> None:
+    """P015 body-text findings must carry a paragraph-indentation issue_type."""
+    doc = _doc(_make_body_page(page_number=10))
+    findings = check_pdf_indentation(doc)
+    p015 = [f for f in findings if f.rule_id == "P015"]
+    assert p015, "Expected at least one P015 finding on body page"
+    for f in p015:
+        it = f.details.get("issue_type", "")
+        assert it, f"P015 finding must have non-empty issue_type; got {f.details!r}"
+        assert "indent" in it.lower(), (
+            f"P015 issue_type should reference indentation; got {it!r}"
+        )

@@ -236,7 +236,7 @@
   {
     "id": "P014",
     "section": "PDF front matter headings",
-    "question": "Do named front-matter headings follow the required layout: centered, bold, all caps, and near the top of the page? (Q013 Approval Page, Q021 Biographical Sketch, Q036 Acknowledgements, Q047 TOC, Q061 List of Tables, Q070 List of Figures)",
+    "question": "Do named front-matter headings follow the required layout: centered, bold, all caps, and near the top of the page?",
     "rule_definition": "Detect named front-matter headings and warn when any fail the required format: centered, bold, all caps, near top of page. Each finding includes source_q_rule_id linking it to the corresponding YES/NO audit matrix question (Q013, Q021, Q036, Q047, Q061, Q070).",
     "remediation": "Center each named front-matter heading near the top of its page, format it in bold all-caps. Check: APPROVAL PAGE (Q013), BIOGRAPHICAL SKETCH (Q021), ACKNOWLEDGEMENTS (Q036), TABLE OF CONTENTS (Q047), LIST OF TABLES (Q061), LIST OF FIGURES (Q070).",
     "severity": "warning",
@@ -249,7 +249,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_headings",
     "priority": "high",
-    "notes": "Named heading checks only. Each finding includes source_q_rule_id for the relevant Q-rule. ABSTRACT has no Q-rule for heading format. P038 covers heading phrase (exact text); P014 covers heading layout (bold/centered/all-caps/top)."
+    "notes": "Named heading checks only. Each finding includes source_q_rule_id for the relevant Q-rule: Q013 (APPROVAL PAGE), Q021 (BIOGRAPHICAL SKETCH), Q036 (ACKNOWLEDGEMENTS), Q047 (TABLE OF CONTENTS), Q061 (LIST OF TABLES), Q070 (LIST OF FIGURES). ABSTRACT has no Q-rule for heading format. P038 covers heading phrase (exact text); P014 covers heading layout (bold/centered/all-caps/top)."
   },
   {
     "id": "P015",
