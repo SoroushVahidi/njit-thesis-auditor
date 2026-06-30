@@ -172,8 +172,30 @@ class TestQRuleCoverage:
     def test_coverage_summary_totals_consistent(self, coverage_report):
         summary = coverage_summary(coverage_report)
         assert summary["total"] == 79
-        total = summary["implemented"] + summary["manual_review_only"] + summary["unimplemented"]
+        total = (
+            summary["implemented"]
+            + summary.get("partial", 0)
+            + summary["manual_review_only"]
+            + summary["unimplemented"]
+        )
         assert total == 79
+
+    def test_partial_coverage_q_rules_have_gap_reason(self, coverage_report):
+        partial = [r for r in coverage_report if r.implementation_status == "partial"]
+        for r in partial:
+            assert r.gap_reason, f"{r.q_id} is partial but has no gap_reason"
+            assert r.coverage_confidence in ("low", "diagnostic"), (
+                f"{r.q_id} is partial but confidence={r.coverage_confidence!r}"
+            )
+
+    def test_known_partial_gaps(self, coverage_report):
+        """Q023/Q024/Q030/Q052 are explicitly noted as not checked in P-rule notes."""
+        known = {"Q023", "Q024", "Q030", "Q052"}
+        by_id = {r.q_id: r for r in coverage_report}
+        for qid in known:
+            assert by_id[qid].implementation_status == "partial", (
+                f"{qid} should be partial, got {by_id[qid].implementation_status}"
+            )
 
     def test_q001_covered_by_p_rule(self, coverage_report):
         q001 = next(r for r in coverage_report if r.q_id == "Q001")
