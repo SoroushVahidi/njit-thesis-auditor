@@ -31,7 +31,7 @@ PAGE_NUMBER_TOKEN_RE = re.compile(
 )
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
-SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\s")
+SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)[\s:]")
 LINE_PREVIEW_MAX_LEN = 80
 RIGHT_EDGE_TOLERANCE_PT = 10.0
 MIN_ENTRIES_FOR_DOT_STYLE = 4
@@ -441,9 +441,21 @@ def _find_hierarchy_indent_outliers(
         level = _parse_toc_hierarchy_level(entry.cleaned_text)
         by_level.setdefault(level, []).append(entry)
 
+    has_named_levels = any(
+        lvl is not None and len(lvl_entries) >= MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON
+        for lvl, lvl_entries in by_level.items()
+    )
+
     outlier_pairs: list[tuple[TocEntryLine, float]] = []
-    for _level, level_entries in by_level.items():
+    for level, level_entries in by_level.items():
         if len(level_entries) < MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON:
+            continue
+        # Skip unclassified (None-level) entries when the TOC has well-populated
+        # numbered levels. None-level entries are often PDF-split fragments whose
+        # x-coord reflects the title text start, not the section number — mixing
+        # them with numbered-level entries or with each other across hierarchy
+        # boundaries causes false positives.
+        if level is None and has_named_levels:
             continue
         indents = [e.indent_x for e in level_entries]
         med = median(indents)
