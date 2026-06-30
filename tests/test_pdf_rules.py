@@ -10797,3 +10797,209 @@ def test_p074_wiring_in_collect_pdf_layout_findings(tmp_path: Path) -> None:
     p074 = [f for f in findings if f.rule_id == "P074"]
     assert len(p074) == 1
     assert p074[0].details.get("issue_type") == "title_page_graduation_month_invalid"
+
+
+# ---------------------------------------------------------------------------
+# US-federal copyright-warning wrapper detection (regression tests for P020
+# false-positive family where pages 2-3 of a repository PDF were not detected
+# as wrappers and P020 ran on legal boilerplate text).
+# ---------------------------------------------------------------------------
+
+
+def _make_us_copyright_warning_then_thesis_pdf(path: Path) -> None:
+    """Create a 5-page PDF: DC cover, US copyright notice, Van Houten notice, thesis pages."""
+    doc = fitz.open()
+
+    # Page 1: Digital Commons cover
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72, 72), "Digital Commons @ NJIT", fontsize=14)
+    page.insert_text((72, 100), "Electronic Theses and Dissertations", fontsize=11)
+    page.insert_text((72, 130), "Recommended Citation", fontsize=11)
+    page.insert_text((292, 760), "1", fontsize=12)
+
+    # Page 2: US federal copyright warning (the format NOT matched by old markers)
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((150, 72), "Copyright Warning & Restrictions", fontsize=14, fontname="Times-Bold")
+    page.insert_text(
+        (72, 100),
+        "The copyright law of the United States (Title 17, United States Code)",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 120),
+        "governs the making of photocopies or other reproductions of copyrighted material.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 145),
+        "Under certain conditions specified in the law, libraries and archives are authorized",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 165),
+        "to furnish a photocopy or other reproduction.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 190),
+        "If a, user makes a request for, or later uses, a photocopy or",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 210),
+        "reproduction for purposes in excess of fair use that user",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 230),
+        "may be liable for copyright infringement.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 255),
+        "This institution reserves the right to refuse to accept a copying order",
+        fontsize=11,
+    )
+    page.insert_text((292, 760), "2", fontsize=12)
+
+    # Page 3: Van Houten Library privacy notice
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (72, 72),
+        "The Van Houten library has removed some of the personal information",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 92),
+        "and all signatures from the approval page and biographical sketches",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 112),
+        "of theses and dissertations in order to protect the identity of",
+        fontsize=11,
+    )
+    page.insert_text((72, 132), "NJIT graduates and faculty.", fontsize=11)
+    page.insert_text((292, 760), "3", fontsize=12)
+
+    # Page 4: real title page
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 180), "Actual Thesis Title", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 210), "Author Name", fontsize=12)
+
+    # Page 5: chapter heading with a deliberate title-case error
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 180),
+        "Machine learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+
+    doc.save(path)
+    doc.close()
+
+
+def test_us_copyright_warning_page_detected_as_wrapper(tmp_path: Path) -> None:
+    from njit_auditor.digital_commons_wrapper import is_repository_copyright_warning_page
+
+    pdf_path = tmp_path / "us_copyright_wrapper.pdf"
+    _make_us_copyright_warning_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    # Page 2 is the US federal copyright notice — must be classified as wrapper.
+    copyright_page = model.pages[1]
+    assert is_repository_copyright_warning_page(copyright_page)
+
+
+def test_van_houten_library_page_detected_as_wrapper(tmp_path: Path) -> None:
+    from njit_auditor.digital_commons_wrapper import is_repository_copyright_warning_page
+
+    pdf_path = tmp_path / "van_houten_wrapper.pdf"
+    _make_us_copyright_warning_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    # Page 3 is the Van Houten Library privacy notice — must be classified as wrapper.
+    van_houten_page = model.pages[2]
+    assert is_repository_copyright_warning_page(van_houten_page)
+
+
+def test_dc_cover_plus_us_copyright_plus_van_houten_all_excluded(tmp_path: Path) -> None:
+    from njit_auditor.digital_commons_wrapper import detect_digital_commons_wrapper_pages
+
+    pdf_path = tmp_path / "us_copyright_full_wrapper.pdf"
+    _make_us_copyright_warning_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    wrapper_pages = detect_digital_commons_wrapper_pages(model)
+
+    # All three leading repository pages must be excluded.
+    assert 1 in wrapper_pages, f"DC cover (page 1) not detected; got {wrapper_pages}"
+    assert 2 in wrapper_pages, f"US copyright page (page 2) not detected; got {wrapper_pages}"
+    assert 3 in wrapper_pages, f"Van Houten page (page 3) not detected; got {wrapper_pages}"
+    # Manuscript pages must not be excluded.
+    assert 4 not in wrapper_pages
+    assert 5 not in wrapper_pages
+
+
+def test_p020_not_triggered_on_us_copyright_warning_pages(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "us_copyright_p020.pdf"
+    _make_us_copyright_warning_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+
+    copyright_or_van_houten_pages = {2, 3}
+    assert not any(
+        f.page in copyright_or_van_houten_pages for f in findings
+    ), f"P020 fired on wrapper page: {[f for f in findings if f.page in copyright_or_van_houten_pages]}"
+
+
+def test_p020_still_triggered_on_real_heading_after_us_copyright_wrappers(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "us_copyright_p020_real_heading.pdf"
+    _make_us_copyright_warning_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+
+    # Page 5 has "Machine learning Approaches…" — the word "learning" must be flagged.
+    assert any(
+        f.page == 5 and f.details.get("flagged_word") == "learning" for f in findings
+    ), f"Expected P020 on page 5 for 'learning'; got: {[(f.page, f.details) for f in findings]}"
+
+
+def test_page_labels_correct_after_us_copyright_wrapper_filtering(tmp_path: Path) -> None:
+    from njit_auditor.digital_commons_wrapper import (
+        detect_digital_commons_wrapper_pages,
+        without_wrapper_pages,
+    )
+
+    pdf_path = tmp_path / "us_copyright_labels.pdf"
+    _make_us_copyright_warning_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    wrapper_pages = detect_digital_commons_wrapper_pages(model)
+    filtered = without_wrapper_pages(model, wrapper_pages)
+
+    assert [p.page_number for p in filtered.pages] == [4, 5]
+    assert [p.manuscript_page_number for p in filtered.pages] == [1, 2]
+    assert [p.original_page_number for p in filtered.pages] == [4, 5]
+
+
+def test_p020_prose_paragraph_guard_filters_comma_heavy_lines(tmp_path: Path) -> None:
+    """Regression: 'If a, user makes a request for, or later uses, a photocopy or' must not be flagged."""
+    from njit_auditor.rules.pdf_title_capitalization import _is_prose_paragraph_line
+
+    # The exact sentence from the copyright-warning page.
+    assert _is_prose_paragraph_line(
+        "If a, user makes a request for, or later uses, a photocopy or"
+    )
+    # Multi-sentence body paragraph.
+    assert _is_prose_paragraph_line(
+        "Under certain conditions. Libraries and archives are authorized. Fair use applies."
+    )
+    # Line ending with a comma (truncated sentence).
+    assert _is_prose_paragraph_line("The copyright law of the United States,")
+    # Normal heading-like line must NOT be filtered.
+    assert not _is_prose_paragraph_line("Machine Learning Approaches to Signal Processing")
+    assert not _is_prose_paragraph_line("Data Analysis and Visualization")
