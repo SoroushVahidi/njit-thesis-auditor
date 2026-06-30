@@ -12,27 +12,15 @@ from njit_auditor.rules.pdf_page_numbering_regime import (
 from njit_auditor.rules.pdf_page_numbers import (
     PageNumberCandidate,
     detect_page_number_candidates,
+    is_plausible_page_number_candidate,
 )
 from njit_auditor.rules.pdf_roman_sequence import _MAX_PLAUSIBLE_FRONTMATTER_ROMAN
 
-# NJIT template expected Roman numeral values by section heading.
-# Biographical Sketch is always iv (4); subsequent sections occupy fixed slots.
-# DEDICATION is optional: if the heading is absent, the slot (v) is still counted
-# because a dedication page may exist without a detectable heading.
-_SECTION_EXPECTED: dict[str, int] = {
-    "BIOGRAPHICAL SKETCH": 4,
-    "DEDICATION": 5,
-    "ACKNOWLEDGEMENTS": 6,
-    "TABLE OF CONTENTS": 7,
-    "LIST OF TABLES": 8,
-}
+# NJIT template: Biographical Sketch should begin on Roman numeral iv when numbered.
+_BIO_SKETCH_EXPECTED = 4
 
 _SECTION_KEYS: dict[str, str] = {
     "BIOGRAPHICAL SKETCH": "biographical_sketch",
-    "DEDICATION": "dedication",
-    "ACKNOWLEDGEMENTS": "acknowledgements",
-    "TABLE OF CONTENTS": "table_of_contents",
-    "LIST OF TABLES": "list_of_tables",
 }
 
 
@@ -77,23 +65,23 @@ def _best_roman_candidate(
         c
         for c in candidates
         if c.page_number == page_number
+        and is_plausible_page_number_candidate(c)
         and c.number_style == "roman_lower"
         and c.value is not None
         and c.value <= _MAX_PLAUSIBLE_FRONTMATTER_ROMAN
     ]
     if not page_cands:
         return None
-    # Prefer bottom-zone candidates; fall back to first match.
     bottom = [c for c in page_cands if c.location == "bottom"]
     return (bottom or page_cands)[0]
 
 
 def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
-    """Emit P037 warnings when front-matter section pages carry wrong Roman numerals.
+    """Emit P037 warnings for the Biographical Sketch Roman anchor only.
 
-    Conservative: emits nothing unless BIOGRAPHICAL SKETCH heading is detected.
-    Checks five sections against NJIT template-fixed expected values.
-    Does not duplicate P029 relative sequence checks or P028 regime checks.
+    Front-matter sequence continuity is handled by P029. Other section headings
+    may legitimately fall on later Roman numerals when optional front-matter pages
+    or multi-page lists shift the actual numbering.
     """
     if not pdf_doc.pages:
         return []
@@ -106,65 +94,41 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
     no_number_pages = _find_no_number_pages(pdf_doc)
     candidates = detect_page_number_candidates(pdf_doc)
 
-    # Gate: no findings without a detectable BIOGRAPHICAL SKETCH heading.
     bio_page = _find_heading_first_page("BIOGRAPHICAL SKETCH", front_matter_pages, pdf_doc)
     if bio_page is None:
         return []
 
-    findings: list[AuditFinding] = []
+    cand = _best_roman_candidate(bio_page, candidates, no_number_pages)
+    if cand is None or cand.value == _BIO_SKETCH_EXPECTED:
+        return []
 
-    for heading, expected_value in _SECTION_EXPECTED.items():
-        section_page = (
-            bio_page
-            if heading == "BIOGRAPHICAL SKETCH"
-            else _find_heading_first_page(heading, front_matter_pages, pdf_doc)
+    expected_roman = _int_to_roman_lower(_BIO_SKETCH_EXPECTED)
+    details = {
+        "issue_type": "roman_bio_sketch_not_iv",
+        "section_key": _SECTION_KEYS["BIOGRAPHICAL SKETCH"],
+        "page_number": str(bio_page),
+        "expected_roman": expected_roman,
+        "expected_value": str(_BIO_SKETCH_EXPECTED),
+        "observed_roman": cand.text,
+        "observed_value": str(cand.value),
+        "observed_sequence": cand.text,
+        "expected_sequence": expected_roman,
+        "triage_tier": "check",
+        "confidence": "medium",
+    }
+    if cand.bbox is not None:
+        details["bbox"] = format_bbox_detail(cand.bbox)
+
+    return [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=bio_page,
+            message=(
+                f"Section 'BIOGRAPHICAL SKETCH' on page {bio_page} has Roman numeral "
+                f"'{cand.text}' (value={cand.value}); "
+                f"NJIT template expects {expected_roman} ({_BIO_SKETCH_EXPECTED})."
+            ),
+            details=details,
         )
-        if section_page is None:
-            continue  # Section absent; P025 covers missing structure.
-
-        cand = _best_roman_candidate(section_page, candidates, no_number_pages)
-        if cand is None:
-            continue  # No confident candidate; skip conservatively.
-
-        if cand.value == expected_value:
-            continue  # Correct.
-
-        section_key = _SECTION_KEYS[heading]
-        expected_roman = _int_to_roman_lower(expected_value)
-        issue_type = (
-            "roman_bio_sketch_not_iv"
-            if heading == "BIOGRAPHICAL SKETCH"
-            else "roman_section_wrong_value"
-        )
-
-        details = {
-            "issue_type": issue_type,
-            "section_key": section_key,
-            "page_number": str(section_page),
-            "expected_roman": expected_roman,
-            "expected_value": str(expected_value),
-            "observed_roman": cand.text,
-            "observed_value": str(cand.value),
-            "observed_sequence": cand.text,
-            "expected_sequence": expected_roman,
-            "triage_tier": "check",
-            "confidence": "medium",
-        }
-        if cand.bbox is not None:
-            details["bbox"] = format_bbox_detail(cand.bbox)
-
-        findings.append(
-            AuditFinding(
-                rule_id="P037",
-                severity=Severity.WARNING,
-                page=section_page,
-                message=(
-                    f"Section '{heading}' on page {section_page} has Roman numeral "
-                    f"'{cand.text}' (value={cand.value}); "
-                    f"NJIT template expects {expected_roman} ({expected_value})."
-                ),
-                details=details,
-            )
-        )
-
-    return findings
+    ]

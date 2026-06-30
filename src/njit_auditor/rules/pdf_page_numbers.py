@@ -146,9 +146,9 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
     candidates: list[PageNumberCandidate] = []
     for page in pdf_doc.pages:
         for block in page.text_blocks:
-            if not _is_top_or_bottom_zone(block.bbox.y0, block.bbox.y1, page.height):
-                continue
             for line in block.lines:
+                if not _is_top_or_bottom_zone(line.bbox.y0, line.bbox.y1, page.height):
+                    continue
                 clean = " ".join(line.text.strip().split())
                 if not clean or not PAGE_NUM_RE.match(clean):
                     continue
@@ -358,8 +358,11 @@ def run_pdf_page_number_candidates_rule(
 
     for page in sorted(candidates_by_page):
         page_candidates = candidates_by_page[page]
-        primary = max(page_candidates, key=_candidate_rank)
-        distinct_texts = sorted({c.text for c in page_candidates})
+        plausible = _plausible_candidates(page_candidates)
+        if not plausible:
+            continue
+        primary = max(plausible, key=_candidate_rank)
+        distinct_texts = sorted({c.text for c in plausible})
         sample_text = ", ".join(distinct_texts[:3])
         if len(distinct_texts) > 3:
             sample_text += ", ..."
@@ -370,7 +373,8 @@ def run_pdf_page_number_candidates_rule(
             "candidate_position_label": _position_label(primary.position_type),
             "number_style": primary.number_style,
             "candidate_style_label": _style_label(primary.number_style),
-            "candidate_count_on_page": str(len(page_candidates)),
+            "candidate_count_on_page": str(len(plausible)),
+            "plausible_candidate_count": str(len(plausible)),
             "candidate_sample": sample_text,
             "observed_summary": f"{primary.position_type}/{primary.number_style}",
             "confidence": _candidate_confidence(primary),
@@ -379,6 +383,8 @@ def run_pdf_page_number_candidates_rule(
                 "Verify placement/format against NJIT page-number requirements."
             ),
         }
+        if len(plausible) > 1:
+            details["candidate_tokens"] = _format_candidate_tokens(plausible)
         if primary.bbox is not None:
             details["bbox"] = format_bbox_detail(primary.bbox)
         findings.append(
@@ -386,7 +392,7 @@ def run_pdf_page_number_candidates_rule(
                 rule_id="P013",
                 severity=Severity.WARNING,
                 page=page,
-                message=f"Page has {len(page_candidates)} page-number-like candidate(s).",
+                message=f"Page has {len(plausible)} page-number-like candidate(s).",
                 details=details,
             )
         )
@@ -442,7 +448,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     }
 
     pages_with_plausible_primary: set[int] = set()
-    for page, page_candidates in by_page.items():
+    for page, page_candidates in filtered_by_page.items():
         if _primary_plausible_candidate(page_candidates) is not None:
             pages_with_plausible_primary.add(page)
 
@@ -558,31 +564,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Mixed dominant style across document (TOC noise filtered).
-    style_counts = Counter(
-        c.number_style for c in all_filtered_plausible if c.number_style != "other"
-    )
-    if len([s for s in style_counts if style_counts[s] > 0]) > 1:
-        observed_style_labels = sorted(_style_label(style) for style in style_counts)
-        findings.append(
-            AuditFinding(
-                rule_id="P019",
-                severity=Severity.WARNING,
-                message="Mixed numbering styles detected across candidate page-number regions.",
-                details={
-                    "page_number": "-",
-                    "issue_type": "mixed_numbering_style",
-                    "expected_or_context": ",".join(
-                        f"{style}:{count}" for style, count in sorted(style_counts.items())
-                    ),
-                    "observed_style": ", ".join(observed_style_labels),
-                    "expected_style": "one consistent page-numbering style per numbering section",
-                    "confidence": "low",
-                },
-            )
-        )
-
-    arabic_values = _primary_sequence_values(by_page, number_style="arabic")
+    arabic_values = _primary_sequence_values(filtered_by_page, number_style="arabic")
     arabic_gap = _find_sequence_gap(arabic_values)
     if arabic_gap:
         page, expected, actual = arabic_gap
@@ -602,7 +584,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 "sequence_confidence": "medium",
                 "confidence": "medium",
             }
-            primary = _primary_plausible_candidate(by_page.get(page, []))
+            primary = _primary_plausible_candidate(filtered_by_page.get(page, []))
             if primary is not None and primary.bbox is not None:
                 sequence_details["bbox"] = format_bbox_detail(primary.bbox)
             findings.append(
@@ -615,7 +597,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    roman_values = _primary_sequence_values(by_page, number_style="roman_lower")
+    roman_values = _primary_sequence_values(filtered_by_page, number_style="roman_lower")
     roman_gap = _find_sequence_gap(roman_values)
     if roman_gap:
         page, expected, actual = roman_gap

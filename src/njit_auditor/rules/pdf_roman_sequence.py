@@ -10,6 +10,7 @@ from njit_auditor.rules.pdf_page_numbering_regime import (
 )
 from njit_auditor.rules.pdf_page_numbers import (
     detect_page_number_candidates,
+    is_plausible_page_number_candidate,
 )
 
 # Front-matter Roman numeral pages never legitimately exceed this value.
@@ -52,7 +53,8 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     fm_candidates = [
         c
         for c in candidates
-        if regions.get(c.page_number) == "front_matter"
+        if is_plausible_page_number_candidate(c)
+        and regions.get(c.page_number) == "front_matter"
         and c.number_style == "roman_lower"
         and c.value is not None
         and c.page_number not in no_number_pages

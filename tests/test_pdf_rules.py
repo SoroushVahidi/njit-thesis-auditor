@@ -75,6 +75,7 @@ from njit_auditor.rules.pdf_page_numbers import (
     run_pdf_page_number_candidates_rule,
 )
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
+from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import (
     _is_math_font,
@@ -7209,6 +7210,7 @@ def test_p037_dedication_present_correct_no_finding(tmp_path: Path) -> None:
 
 
 def test_p037_dedication_present_wrong_warns(tmp_path: Path) -> None:
+    """Dedication numbering shifts are covered by P029 sequence checks, not P037."""
     pdf_path = tmp_path / "p037_ded_wrong.pdf"
     _make_p037_pdf(pdf_path, [
         ("BIOGRAPHICAL SKETCH", None, "iv"),
@@ -7216,15 +7218,14 @@ def test_p037_dedication_present_wrong_warns(tmp_path: Path) -> None:
         (None, "CHAPTER 1 INTRODUCTION", "1"),
     ])
     model = load_pdf_layout(str(pdf_path))
-    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
-    ded = [f for f in findings if f.details.get("section_key") == "dedication"]
-    assert ded
-    assert ded[0].details.get("issue_type") == "roman_section_wrong_value"
-    assert ded[0].details.get("expected_roman") == "v"
-    assert ded[0].details.get("observed_roman") == "vi"
+    p037 = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not p037
+    p029 = [f for f in check_pdf_roman_sequence(model) if f.rule_id == "P029"]
+    assert p029
 
 
 def test_p037_toc_wrong_value_warns(tmp_path: Path) -> None:
+    """TOC Roman numeral shifts are covered by P029 sequence checks, not P037."""
     pdf_path = tmp_path / "p037_toc_wrong.pdf"
     _make_p037_pdf(pdf_path, [
         ("BIOGRAPHICAL SKETCH", None, "iv"),
@@ -7233,11 +7234,38 @@ def test_p037_toc_wrong_value_warns(tmp_path: Path) -> None:
         (None, "CHAPTER 1 INTRODUCTION", "1"),
     ])
     model = load_pdf_layout(str(pdf_path))
+    p037 = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not p037
+    p029 = [f for f in check_pdf_roman_sequence(model) if f.rule_id == "P029"]
+    assert p029
+
+
+def test_p037_lot_ix_after_multipage_toc_passes(tmp_path: Path) -> None:
+    """List of Tables may correctly be ix when the TOC spans multiple pages."""
+    pdf_path = tmp_path / "p037_lot_ix_multipage_toc.pdf"
+    doc = fitz.open()
+    pages = [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        ("TABLE OF CONTENTS", None, "viii"),
+        ("LIST OF TABLES", None, "ix"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ]
+    for heading, chapter, page_num in pages:
+        page = doc.new_page(width=612, height=792)
+        if heading:
+            page.insert_text((180, 90), heading, fontsize=14, fontname="Times-Bold")
+        if chapter:
+            page.insert_text((108, 200), chapter, fontsize=14)
+        if page_num:
+            page.insert_text((300, 760), page_num, fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
-    toc = [f for f in findings if f.details.get("section_key") == "table_of_contents"]
-    assert toc
-    assert toc[0].details.get("expected_roman") == "vii"
-    assert toc[0].details.get("issue_type") == "roman_section_wrong_value"
+    assert not findings
 
 
 def test_p037_no_bio_heading_no_findings(tmp_path: Path) -> None:

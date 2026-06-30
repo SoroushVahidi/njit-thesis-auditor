@@ -49,7 +49,11 @@ def classify_visible_page_number_issue(
         if issue_type != "page_number_candidate":
             return synthetic_mapping.get(issue_type), True
         try:
-            candidate_count = int(details.get("candidate_count_on_page", "1") or "1")
+            candidate_count = int(
+                details.get("plausible_candidate_count")
+                or details.get("candidate_count_on_page", "1")
+                or "1"
+            )
         except ValueError:
             candidate_count = 1
         if candidate_count > 1:
