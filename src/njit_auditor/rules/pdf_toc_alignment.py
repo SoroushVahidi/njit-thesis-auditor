@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 from statistics import median
 
+from njit_auditor.digital_commons_wrapper import (
+    detect_digital_commons_wrapper_pages,
+    without_wrapper_pages,
+)
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import (
     PdfDocument,
@@ -33,9 +37,9 @@ PAGE_NUMBER_TOKEN_RE = re.compile(
 )
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
+SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\s")
 LINE_PREVIEW_MAX_LEN = 80
 RIGHT_EDGE_TOLERANCE_PT = 10.0
-INDENT_CLUSTER_TOLERANCE_PT = 12.0
 MIN_ENTRIES_FOR_DOT_STYLE = 4
 PAGE_NUMBER_LINE_Y_TOLERANCE_PT = 5.0
 PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT = 8.0
@@ -45,6 +49,10 @@ PREFIX_ENTRY_MIN_LEN = 4
 DEFAULT_ENTRY_MIN_LEN = 8
 PREFIX_ENTRY_RE = re.compile(r"^(TABLE|FIGURE|CHAPTER|APPENDIX)\b", re.IGNORECASE)
 NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\s")
+INDENT_CLUSTER_TOLERANCE_PT = 12.0
+MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON = 3
+HIERARCHY_INDENT_TOLERANCE_PT = 10.0
+HIERARCHY_INDENT_MEDIUM_CONFIDENCE_PT = 18.0
 
 
 class TocEntryLine:
@@ -152,10 +160,12 @@ def classify_toc_heading_line(line_text: str) -> tuple[str, bool] | None:
 
 def detect_toc_like_pages(pdf_document: PdfDocument) -> list[TocPageContext]:
     """Detect TOC/List pages from named heading lines."""
+    wrapper_pages = detect_digital_commons_wrapper_pages(pdf_document)
+    working_doc = without_wrapper_pages(pdf_document, wrapper_pages)
 
     contexts: list[TocPageContext] = []
 
-    for page in pdf_document.pages:
+    for page in working_doc.pages:
         best_match: tuple[str, float] | None = None
         for block in page.text_blocks:
             for line in block.lines:
@@ -461,28 +471,47 @@ def group_toc_page_runs(contexts: list[TocPageContext]) -> list[TocPageRun]:
     return runs
 
 
-def _find_indent_outliers(indents: list[float]) -> list[float]:
-    if len(indents) < 5:
-        return []
-    sorted_indents = sorted(indents)
-    clusters: list[float] = []
-    for indent in sorted_indents:
-        matched = False
-        for idx, center in enumerate(clusters):
-            if abs(indent - center) <= INDENT_CLUSTER_TOLERANCE_PT:
-                clusters[idx] = (clusters[idx] + indent) / 2.0
-                matched = True
-                break
-        if not matched:
-            clusters.append(indent)
-    if len(clusters) <= 1:
-        return []
-    expected = min(clusters)
-    return [
-        indent
-        for indent in indents
-        if abs(indent - expected) > (INDENT_CLUSTER_TOLERANCE_PT * 2)
-    ]
+def _parse_toc_hierarchy_level(cleaned_text: str) -> int | None:
+    """Return 1-based hierarchy depth for numbered section entries, None for others.
+
+    "1 INTRODUCTION" → 1, "1.1 Background" → 2, "1.1.1 Detail" → 3.
+    Entries without a leading numeric section number (chapter titles, appendix
+    labels, etc.) all return None and are compared only against each other.
+    """
+    m = SECTION_NUMBER_PREFIX_RE.match(cleaned_text)
+    if m is None:
+        return None
+    return m.group(1).count(".") + 1
+
+
+def _find_hierarchy_indent_outliers(
+    entries: list[TocEntryLine],
+) -> list[tuple[TocEntryLine, float]]:
+    """Find entries whose left indent diverges from their same-level peers.
+
+    Entries are grouped by hierarchy level so level-2 entries are only compared
+    against other level-2 entries — never against level-1 entries.  A level group
+    needs at least MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON entries before any
+    outlier can be flagged, and the deviation must exceed HIERARCHY_INDENT_TOLERANCE_PT.
+
+    Returns a list of (entry, delta_pt) pairs for outliers, empty when none found.
+    """
+    by_level: dict[int | None, list[TocEntryLine]] = {}
+    for entry in entries:
+        level = _parse_toc_hierarchy_level(entry.cleaned_text)
+        by_level.setdefault(level, []).append(entry)
+
+    outlier_pairs: list[tuple[TocEntryLine, float]] = []
+    for _level, level_entries in by_level.items():
+        if len(level_entries) < MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON:
+            continue
+        indents = [e.indent_x for e in level_entries]
+        med = median(indents)
+        for entry in level_entries:
+            delta = abs(entry.indent_x - med)
+            if delta > HIERARCHY_INDENT_TOLERANCE_PT:
+                outlier_pairs.append((entry, delta))
+    return outlier_pairs
 
 
 def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
@@ -596,34 +625,29 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
         entries_with_indent = [
             entry for entry in entries if entry.page_number_right_x is not None
         ]
-        indents = [entry.indent_x for entry in entries_with_indent]
-        indent_outliers = _find_indent_outliers(indents)
-        if indent_outliers:
-            outlier_value_set = set(indent_outliers)
-            outlier_entries = [
-                entry for entry in entries_with_indent if entry.indent_x in outlier_value_set
-            ]
-            worst_delta = max(abs(indent - min(indents)) for indent in indent_outliers)
-            worst_entry = max(
-                outlier_entries, key=lambda entry: abs(entry.indent_x - min(indents))
+        indent_outlier_pairs = _find_hierarchy_indent_outliers(entries_with_indent)
+        if indent_outlier_pairs:
+            worst_entry, worst_delta = max(indent_outlier_pairs, key=lambda pair: pair[1])
+            confidence = (
+                "medium" if worst_delta >= HIERARCHY_INDENT_MEDIUM_CONFIDENCE_PT else "low"
             )
             page_issue_findings["inconsistent_hierarchy_indent"] = AuditFinding(
                 rule_id="P018",
                 severity=Severity.WARNING,
                 page=context.page.page_number,
                 message=(
-                    "TOC/List entries show an indentation outlier likely inconsistent "
-                    "with hierarchy."
+                    "This TOC entry's left indent does not match other entries at the "
+                    "same hierarchy level."
                 ),
                 details=_details_with_affected_entry_preview(
                     {
                         "page_number": str(context.page.page_number),
                         "page_type": context.page_type,
                         "issue_type": "inconsistent_hierarchy_indent",
-                        "affected_entry_count": str(len(indent_outliers)),
+                        "affected_entry_count": str(len(indent_outlier_pairs)),
                         "worst_entry_index": str(entry_positions[worst_entry]),
                         "worst_delta_pt": f"{worst_delta:.1f}",
-                        "confidence": "medium",
+                        "confidence": confidence,
                     },
                     worst_entry,
                 ),

@@ -1198,6 +1198,166 @@ def test_hierarchy_indent_outlier_warns_p018(tmp_path: Path) -> None:
     assert finding.details.get("worst_entry_index") == "5"
 
 
+def test_level2_entries_consistently_indented_do_not_trigger_hierarchy_indent(
+    tmp_path: Path,
+) -> None:
+    """Level-2 entries aligned at the same x must never fire inconsistent_hierarchy_indent.
+
+    Regression guard for the false-positive where 1.1/1.2/… level-2 entries were
+    compared against level-1 entries and flagged because their (correct) extra indent
+    exceeded the cross-level tolerance threshold.
+    """
+    pdf_path = tmp_path / "toc_level2_consistent.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "1 INTRODUCTION ....", 500)
+    _draw_toc_entry(page, 160, 130, "1.1 Background and Context ....", 500)
+    _draw_toc_entry(page, 180, 130, "1.2 Exoskeletons as an Emerging Solution ....", 500)
+    _draw_toc_entry(page, 200, 130, "1.3 Problem Statement ....", 500)
+    _draw_toc_entry(page, 220, 130, "1.4 Purpose of the Study ....", 500)
+    _draw_toc_entry(page, 240, 130, "1.5 Research Questions and Hypotheses ....", 500)
+    _draw_toc_entry(page, 260, 130, "1.6 Significance of the Study ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    indent_warnings = [
+        f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"
+    ]
+    assert indent_warnings == [], (
+        "Level-2 entries with a consistent indent must not trigger inconsistent_hierarchy_indent"
+    )
+
+
+def test_level2_not_compared_against_level1_large_indent_difference(tmp_path: Path) -> None:
+    """Level-2 entries with a large indent relative to level-1 must not be flagged.
+
+    If level-2 entries are 50+ pt to the right of level-1 entries, they are correctly
+    indented and must not be flagged — hierarchy-level comparison must stay within level.
+    """
+    pdf_path = tmp_path / "toc_level2_large_indent.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 72, "1 INTRODUCTION ....", 500)
+    _draw_toc_entry(page, 160, 72, "2 LITERATURE REVIEW ....", 500)
+    _draw_toc_entry(page, 180, 72, "3 METHODS ....", 500)
+    _draw_toc_entry(page, 200, 144, "3.1 Data Collection ....", 500)
+    _draw_toc_entry(page, 220, 144, "3.2 Analysis Approach ....", 500)
+    _draw_toc_entry(page, 240, 144, "3.3 Validation Strategy ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    indent_warnings = [
+        f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"
+    ]
+    assert indent_warnings == [], (
+        "Level-2 entries consistently indented relative to level-1 must not be flagged"
+    )
+
+
+def test_clear_same_level_outlier_triggers_hierarchy_indent_warning(tmp_path: Path) -> None:
+    """A level-2 entry clearly mis-indented relative to its level-2 peers must be flagged."""
+    pdf_path = tmp_path / "toc_level2_outlier.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "1 INTRODUCTION ....", 500)
+    _draw_toc_entry(page, 160, 130, "1.1 Background and Context ....", 500)
+    _draw_toc_entry(page, 180, 130, "1.2 Literature Review ....", 500)
+    _draw_toc_entry(page, 200, 130, "1.3 Problem Statement ....", 500)
+    _draw_toc_entry(page, 220, 130, "1.4 Purpose of the Study ....", 500)
+    _draw_toc_entry(page, 240, 180, "1.5 Deeply Mis-Indented Entry ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    finding = next(
+        (f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"),
+        None,
+    )
+    assert finding is not None, "A clearly mis-indented level-2 entry should trigger a warning"
+    assert float(finding.details.get("worst_delta_pt", "0")) > 10.0
+
+
+def test_fewer_than_3_same_level_entries_no_hierarchy_indent_warning(tmp_path: Path) -> None:
+    """With only 2 level-2 entries, no comparison is possible — no warning should fire."""
+    pdf_path = tmp_path / "toc_level2_two_entries.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "1 INTRODUCTION ....", 500)
+    _draw_toc_entry(page, 160, 130, "1.1 Background ....", 500)
+    _draw_toc_entry(page, 180, 200, "1.2 Mis-indented ....", 500)
+    _draw_toc_entry(page, 200, 108, "2 METHODS ....", 500)
+    _draw_toc_entry(page, 220, 108, "3 RESULTS ....", 500)
+    _draw_toc_entry(page, 240, 108, "4 DISCUSSION ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    indent_warnings = [
+        f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"
+    ]
+    assert indent_warnings == [], (
+        "With only 2 same-level entries, the hierarchy indent check must not fire"
+    )
+
+
+def test_slight_indent_jitter_within_tolerance_no_warning(tmp_path: Path) -> None:
+    """Level-2 entries with x-coordinate jitter ≤ 8 pt must not trigger a warning."""
+    pdf_path = tmp_path / "toc_level2_jitter.pdf"
+    import fitz as _fitz
+
+    doc = _fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "1 INTRODUCTION ....", 500)
+    _draw_toc_entry(page, 160, 130, "1.1 Background and Context ....", 500)
+    _draw_toc_entry(page, 180, 133, "1.2 Literature Review ....", 500)
+    _draw_toc_entry(page, 200, 131, "1.3 Problem Statement ....", 500)
+    _draw_toc_entry(page, 220, 132, "1.4 Purpose of the Study ....", 500)
+    _draw_toc_entry(page, 240, 129, "1.5 Research Questions ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    indent_warnings = [
+        f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"
+    ]
+    assert indent_warnings == [], (
+        "Minor rendering jitter (≤8 pt) must not trigger inconsistent_hierarchy_indent"
+    )
+
+
+def test_hierarchy_indent_medium_confidence_only_for_large_deviation(tmp_path: Path) -> None:
+    """Confidence must be 'medium' only when deviation is clearly beyond 18 pt."""
+    pdf_path = tmp_path / "toc_level2_confidence.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "1 INTRODUCTION ....", 500)
+    _draw_toc_entry(page, 160, 130, "1.1 Background ....", 500)
+    _draw_toc_entry(page, 180, 130, "1.2 Methods ....", 500)
+    _draw_toc_entry(page, 200, 130, "1.3 Results ....", 500)
+    _draw_toc_entry(page, 220, 130, "1.4 Discussion ....", 500)
+    _draw_toc_entry(page, 240, 180, "1.5 Greatly Mis-indented ....", 500)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    finding = next(
+        (f for f in warnings if f.details.get("issue_type") == "inconsistent_hierarchy_indent"),
+        None,
+    )
+    assert finding is not None
+    assert finding.details.get("confidence") == "medium", (
+        "A 50-pt deviation should produce medium confidence"
+    )
+
+
 def test_non_toc_page_is_ignored_for_p018(tmp_path: Path) -> None:
     pdf_path = tmp_path / "toc_ignore_non_toc.pdf"
     doc = fitz.open()
@@ -2507,6 +2667,31 @@ def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
         f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
         for f in findings
     )
+
+
+def test_p024_lof_common_nouns_in_title_case_warn(tmp_path: Path) -> None:
+    """A LoF entry with obvious title-cased common nouns must trigger the warning."""
+    pdf_path = tmp_path / "lof_common_nouns_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 4.1 Relationship between Benefits and Readiness ....", 108),
+            ("Figure 4.2 Overview of results for baseline comparison ....", 108),
+            ("Figure 4.3 Summary of findings from pilot testing ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    lof_findings = [
+        f
+        for f in findings
+        if f.rule_id == "P024"
+        and f.details.get("issue_type") == "list_of_figures_sentence_case"
+    ]
+    assert lof_findings
+    assert lof_findings[0].details.get("source_q_rule_id") == "Q074"
+    assert lof_findings[0].details.get("entry_index") == "0"
 
 
 def test_p024_leader_dots_and_page_number_stripped_before_check(tmp_path: Path) -> None:
@@ -4310,6 +4495,304 @@ def test_p020_finding_includes_detection_reason(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
     if findings:
         assert "detection_reason" in findings[0].details
+
+
+def _make_repository_wrapper_then_thesis_pdf(path: Path) -> None:
+    doc = fitz.open()
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72, 72), "Digital Commons @ NJIT", fontsize=14)
+    page.insert_text((72, 100), "Electronic Theses and Dissertations", fontsize=11)
+    page.insert_text((72, 130), "Recommended Citation", fontsize=11)
+    page.insert_text(
+        (108, 210),
+        "machine learning repository cover title",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    page.insert_text((292, 760), "1", fontsize=12)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (72, 90),
+        "This work is protected by copyright and/or related rights.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 118),
+        "For other uses you need to obtain permission from the rights-holder(s) directly.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 146),
+        "A Creative Commons license in the record may apply to some uses.",
+        fontsize=11,
+    )
+    page.insert_text((292, 760), "2", fontsize=12)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 180), "Actual Thesis Title", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 210), "Author Name", fontsize=12)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text(
+        (108, 140),
+        "This abstract contains enough body text to count as the real manuscript front matter.",
+        fontsize=12,
+    )
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 180),
+        "Machine learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+
+    doc.save(path)
+    doc.close()
+
+
+def _make_repository_wrapper_title_page_warning_pdf(path: Path) -> None:
+    doc = fitz.open()
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72, 72), "Digital Commons @ NJIT", fontsize=14)
+    page.insert_text((72, 100), "Electronic Theses and Dissertations", fontsize=11)
+    page.insert_text((72, 130), "Recommended Citation", fontsize=11)
+    page.insert_text((108, 210), "repository wrapper title", fontsize=16, fontname="Times-Bold")
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (72, 90),
+        "This work is protected by copyright and/or related rights.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 118),
+        "For other uses you need to obtain permission from the rights-holder(s) directly.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 146),
+        "A Creative Commons license in the record may apply to some uses.",
+        fontsize=11,
+    )
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 180),
+        "machine learning Approaches to Signal Processing",
+        fontsize=16,
+        fontname="Times-Bold",
+    )
+    page.insert_text((108, 210), "Author Name", fontsize=12)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text(
+        (108, 140),
+        "This abstract contains enough body text to count as the real manuscript front matter.",
+        fontsize=12,
+    )
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 180), "Chapter 1", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 220), "Body text starts here.", fontsize=12)
+
+    doc.save(path)
+    doc.close()
+
+
+def _make_repository_wrapper_real_copyright_pdf(
+    path: Path,
+    *,
+    copyright_line: str,
+) -> None:
+    doc = fitz.open()
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((72, 72), "Digital Commons @ NJIT", fontsize=14)
+    page.insert_text((72, 100), "Electronic Theses and Dissertations", fontsize=11)
+    page.insert_text((72, 130), "Recommended Citation", fontsize=11)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (72, 90),
+        "This work is protected by copyright and/or related rights.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 118),
+        "For other uses you need to obtain permission from the rights-holder(s) directly.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (72, 146),
+        "A Creative Commons license in the record may apply to some uses.",
+        fontsize=11,
+    )
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 170), "Actual Thesis Title", fontsize=16, fontname="Times-Bold")
+    page.insert_text((220, 210), "by", fontsize=12)
+    page.insert_text((108, 238), "Author Name", fontsize=12)
+    page.insert_text((108, 520), "May 2024", fontsize=12)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 110), "COPYRIGHT PAGE", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 180), copyright_line, fontsize=12)
+
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    page.insert_text(
+        (108, 140),
+        "This abstract contains enough body text to count as the real manuscript front matter.",
+        fontsize=12,
+    )
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p020_ignores_repository_wrapper_pages_but_still_flags_real_heading(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "repository_wrapper_then_thesis.pdf"
+    _make_repository_wrapper_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+
+    assert len(findings) == 1
+    assert findings[0].page == 5
+    assert findings[0].details.get("flagged_word") == "learning"
+    assert not any(f.page in {1, 2} for f in findings)
+
+
+def test_p022_does_not_treat_repository_wrapper_page_as_title_page(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "repository_wrapper_frontmatter.pdf"
+    _make_repository_wrapper_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    warnings = [f for f in check_pdf_frontmatter_no_page_number(model) if f.rule_id == "P022"]
+
+    assert not any(f.page == 1 for f in warnings)
+    assert not any(f.page == 2 for f in warnings)
+
+
+def test_collect_pdf_layout_findings_skips_repository_wrapper_pages_for_p020(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.audit_runner import collect_pdf_layout_findings
+
+    pdf_path = tmp_path / "repository_wrapper_collect.pdf"
+    _make_repository_wrapper_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = collect_pdf_layout_findings(model, pdf_path)
+    p020_pages = {
+        f.page
+        for f in findings
+        if f.rule_id == "P020"
+        and f.details.get("issue_type") == "possible_title_capitalization_issue"
+    }
+    wrapper_notice = [
+        f
+        for f in findings
+        if f.details.get("issue_type") == "digital_commons_wrapper_pages_detected"
+    ]
+
+    assert p020_pages == {5}
+    assert len(wrapper_notice) == 1
+    assert wrapper_notice[0].details.get("digital_commons_wrapper_pages") == "1,2"
+
+
+def test_without_wrapper_pages_preserves_original_and_manuscript_page_identity(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.digital_commons_wrapper import (
+        detect_digital_commons_wrapper_pages,
+        without_wrapper_pages,
+    )
+
+    pdf_path = tmp_path / "repository_wrapper_identity.pdf"
+    _make_repository_wrapper_then_thesis_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    filtered = without_wrapper_pages(model, detect_digital_commons_wrapper_pages(model))
+
+    assert [page.page_number for page in filtered.pages] == [3, 4, 5]
+    assert [page.original_page_index for page in filtered.pages] == [2, 3, 4]
+    assert [page.original_page_number for page in filtered.pages] == [3, 4, 5]
+    assert [page.manuscript_page_index for page in filtered.pages] == [0, 1, 2]
+    assert [page.manuscript_page_number for page in filtered.pages] == [1, 2, 3]
+    assert [page.display_page_label for page in filtered.pages] == [
+        "manuscript page 1 / PDF page 3",
+        "manuscript page 2 / PDF page 4",
+        "manuscript page 3 / PDF page 5",
+    ]
+
+
+def test_p025_title_page_warnings_use_original_pdf_page_after_wrapper_filtering(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.audit_runner import collect_pdf_layout_findings
+
+    pdf_path = tmp_path / "repository_wrapper_title_page_warning.pdf"
+    _make_repository_wrapper_title_page_warning_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [
+        f
+        for f in collect_pdf_layout_findings(model, pdf_path)
+        if f.rule_id == "P025"
+        and f.details.get("issue_type")
+        in {"missing_title_page_degree_phrase", "missing_title_page_institution"}
+    ]
+
+    assert {f.page for f in findings} == {3}
+    assert {f.details.get("page_number") for f in findings} == {"3"}
+    assert {f.details.get("original_pdf_page_index") for f in findings} == {"2"}
+    assert {f.details.get("original_pdf_page_number") for f in findings} == {"3"}
+    assert {f.details.get("manuscript_page_index") for f in findings} == {"0"}
+    assert {f.details.get("manuscript_page_number") for f in findings} == {"1"}
+    assert {f.details.get("page_label") for f in findings} == {
+        "manuscript page 1 / PDF page 3"
+    }
+
+
+def test_p051_ignores_repository_copyright_warning_but_checks_real_copyright_page(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.audit_runner import collect_pdf_layout_findings
+
+    pdf_path = tmp_path / "repository_wrapper_real_copyright_missing_year.pdf"
+    _make_repository_wrapper_real_copyright_pdf(pdf_path, copyright_line="© Author Name")
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in collect_pdf_layout_findings(model, pdf_path) if f.rule_id == "P051"]
+
+    assert len(findings) == 1
+    assert findings[0].page == 4
+    assert findings[0].details.get("issue_type") == "copyright_year_not_found"
+
+
+def test_p052_ignores_repository_copyright_warning_but_checks_real_copyright_page(
+    tmp_path: Path,
+) -> None:
+    from njit_auditor.audit_runner import collect_pdf_layout_findings
+
+    pdf_path = tmp_path / "repository_wrapper_real_copyright_missing_author.pdf"
+    _make_repository_wrapper_real_copyright_pdf(pdf_path, copyright_line="© 2024")
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in collect_pdf_layout_findings(model, pdf_path) if f.rule_id == "P052"]
+
+    assert len(findings) == 1
+    assert findings[0].page == 4
+    assert findings[0].details.get("issue_type") == "copyright_author_not_found"
 
 
 def test_p020_font_size_fallback_large_font_wrong_case_warns(tmp_path: Path) -> None:
