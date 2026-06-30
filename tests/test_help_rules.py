@@ -237,7 +237,7 @@ def test_rules_page_shows_only_web_pdf_rule_ids(client: tuple[TestClient, Any]) 
     body = resp.text
     catalog = _build_rule_catalog()
     expected_ids = {r["id"] for r in catalog["student_rules"]}
-    rendered_ids = set(re.findall(r'id="(P\d+)"', body))
+    rendered_ids = set(re.findall(r'data-rule-id="([^"]+)"', body))
     assert rendered_ids == expected_ids
     assert expected_ids, "expected at least one web PDF rule to be shown"
 
@@ -319,6 +319,9 @@ def test_rules_cards_are_simplified(client: tuple[TestClient, Any]) -> None:
     assert "Category:" not in body, "Category meta line should be removed"
     assert "Applies to:" not in body, "Applies-to meta line should be removed"
     assert "<details" not in body, "Collapsed details block should be removed"
+    assert "confidence-badge" not in catalog_section, (
+        "Confidence badge should not appear on rule reference cards"
+    )
 
 
 def test_rules_how_to_correct_remains_always_visible(client: tuple[TestClient, Any]) -> None:

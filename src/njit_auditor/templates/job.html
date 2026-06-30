@@ -328,13 +328,13 @@
   {% if label %}
     {% set badge_label = label %}
   {% elif normalized == "high" %}
-    {% set badge_label = "High confidence" %}
+    {% set badge_label = "Confidence: High" %}
   {% elif normalized == "medium" %}
-    {% set badge_label = "Medium confidence" %}
+    {% set badge_label = "Confidence: Medium" %}
   {% elif normalized == "low" %}
-    {% set badge_label = "Low confidence" %}
+    {% set badge_label = "Confidence: Low" %}
   {% else %}
-    {% set badge_label = "Needs review" %}
+    {% set badge_label = "Confidence: Needs review" %}
   {% endif %}
   {% if css_class %}
     {% set badge_class = css_class %}
@@ -544,8 +544,15 @@
     <div class="triage-panel__header">
       <span class="triage-panel__title">{{ panel.title }}</span>
       <span class="badge badge-info">
-        {% if is_p_rule_id(panel.rule_id) %}
-        <a href="/rules#{{ panel.rule_id }}" class="rule-link" style="color:inherit;" aria-label="{{ panel.rule_id }}: see rule reference">{{ panel.rule_id }}</a>
+        {% if public_rule_reference_href is defined %}
+        {% set panel_rule_href = public_rule_reference_href(panel.rule_id) %}
+        {% elif is_p_rule_id(panel.rule_id) %}
+        {% set panel_rule_href = "/rules#" ~ panel.rule_id %}
+        {% else %}
+        {% set panel_rule_href = "" %}
+        {% endif %}
+        {% if panel_rule_href %}
+        <a href="{{ panel_rule_href }}" class="rule-link" style="color:inherit;" aria-label="{{ panel.rule_id }}: see rule reference">{{ panel.rule_id }}</a>
         {% else %}{{ panel.rule_id }}{% endif %}
       </span>
       {% if panel.informational_count > 0 %}
@@ -600,8 +607,15 @@
       {% for row in grouped_summary %}
         <tr>
           <td><strong>
-            {% if is_p_rule_id(row.rule_id) %}
-            <a href="/rules#{{ row.rule_id }}" class="rule-link" aria-label="{{ row.rule_id }}: see rule reference">{{ row.rule_id }}</a>
+            {% if public_rule_reference_href is defined %}
+            {% set row_rule_href = public_rule_reference_href(row.rule_id) %}
+            {% elif is_p_rule_id(row.rule_id) %}
+            {% set row_rule_href = "/rules#" ~ row.rule_id %}
+            {% else %}
+            {% set row_rule_href = "" %}
+            {% endif %}
+            {% if row_rule_href %}
+            <a href="{{ row_rule_href }}" class="rule-link" aria-label="{{ row.rule_id }}: see rule reference">{{ row.rule_id }}</a>
             {% else %}{{ row.rule_id }}{% endif %}
           </strong></td>
           <td>{{ row.count }}</td>
@@ -704,8 +718,15 @@
           <div>
             <p class="grouped-problem__title">
             {% if problem.problem_number_label %}{{ problem.problem_number_label }} — {% endif %}
-            {% if is_p_rule_id(problem.rule_id) %}
-            <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
+            {% if public_rule_reference_href is defined %}
+            {% set problem_rule_href = public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) %}
+            {% elif is_p_rule_id(problem.rule_id) %}
+            {% set problem_rule_href = "/rules#" ~ problem.rule_id %}
+            {% else %}
+            {% set problem_rule_href = "" %}
+            {% endif %}
+            {% if problem_rule_href %}
+            <a href="{{ problem_rule_href }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
             {% else %}{{ problem.rule_id }}{% endif %}
             {% if problem.issue_type_label %} · {{ problem.issue_type_label }}{% elif problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
@@ -789,7 +810,7 @@
             {% for f in problem.individual_findings %}
               <tr class="grouped-occurrence" data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
                 <td><a href="#{{ f.problem_anchor }}">{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</a></td>
-                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
+                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
                 <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
                 <td class="meta-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
@@ -871,12 +892,19 @@
               data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
             <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
             <td><strong>
-              {% if is_p_rule_id(f.rule_id) %}
-              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
+              {% if public_rule_reference_href is defined %}
+              {% set finding_rule_href = public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
+              {% elif is_p_rule_id(f.rule_id) %}
+              {% set finding_rule_href = "/rules#" ~ f.rule_id %}
+              {% else %}
+              {% set finding_rule_href = "" %}
+              {% endif %}
+              {% if finding_rule_href %}
+              <a href="{{ finding_rule_href }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
+              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
             </td>
             <td>
               {{ severity_status_badge(f.severity, f.triage_tier) }}

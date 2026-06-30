@@ -373,12 +373,16 @@ def _inject_complete_job_with_findings(
                 "rule_id": fv["rule_id"],
                 "severity": fv["severity"],
                 "page": fv["page"],
+                "page_display_label": fv.get("page_display_label", ""),
                 "issue_type": fv["issue_type"],
                 "category": fv["category"],
                 "polished_comment": fv["polished_comment"],
                 "suggested_fix": fv.get("suggested_fix", ""),
                 "triage_tier": fv.get("triage_tier", ""),
                 "confidence": fv.get("confidence", ""),
+                "confidence_level": fv.get("confidence_level", "") or fv.get("confidence", ""),
+                "confidence_label": fv.get("confidence_label", ""),
+                "confidence_css_class": fv.get("confidence_css_class", ""),
                 "source_file": fv.get("source_file", ""),
                 "source_line": fv.get("source_line", ""),
                 "location_label": fv.get("location_label", ""),
@@ -622,9 +626,9 @@ def test_results_page_renders_confidence_badges_and_filters(
     assert 'data-confidence-filter="high"' in body
     assert 'data-confidence-filter="medium"' in body
     assert 'data-confidence-filter="low"' in body
-    assert "High confidence" in body
-    assert "Medium confidence" in body
-    assert "Low confidence" in body
+    assert "Confidence: High" in body
+    assert "Confidence: Medium" in body
+    assert "Confidence: Low" in body
     assert 'data-confidence="high"' in body
     assert 'data-confidence="medium"' in body
     assert 'data-confidence="low"' in body
@@ -697,7 +701,7 @@ def test_results_page_omits_redundant_problem_badge_and_uses_confidence_palette(
     assert "confidence-badge--high" in body
     assert "confidence-badge--low" in body
     assert "confidence-badge--mixed-orange" in body
-    assert "Mixed confidence: High, Low" in body
+    assert "Confidence: Mixed" in body
 
 
 def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
@@ -795,7 +799,7 @@ def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
 
     assert resp.status_code == 200
     body = resp.text
-    assert "Mixed confidence: High, Low" in body
+    assert "Confidence: Mixed" in body
     assert 'data-confidence-levels="|high|low|"' in body
     assert 'class="grouped-occurrence" data-confidence="high"' in body
     assert 'class="grouped-occurrence" data-confidence="low"' in body
@@ -2821,6 +2825,74 @@ def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
     assert pdf_path.read_bytes() == original_bytes
 
 
+def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    import fitz
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=3,
+            message="Possible title-case issue.",
+            details={
+                "issue_type": "possible_title_capitalization_issue",
+                "line_preview": "machine learning Approaches to Signal Processing",
+                "flagged_word": "machine",
+                "source": "heading",
+                "bbox": "108.0,166.0,360.0,186.0",
+                "page_label": "manuscript page 1 / PDF page 3",
+                "original_pdf_page_index": "2",
+                "original_pdf_page_number": "3",
+                "manuscript_page_index": "0",
+                "manuscript_page_number": "1",
+                "confidence": "medium",
+            },
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    page_resp = c.get(f"/audits/{job_id}")
+    assert page_resp.status_code == 200
+    body = page_resp.text
+    assert "manuscript page 1 / PDF page 3" in body
+    expected_link = f"/audits/{job_id}/pdf/highlighted"
+    assert expected_link in body
+    assert "page=3" in body
+    assert "rule_id=P020" in body
+    assert "issue_type=possible_title_capitalization_issue" in body
+    assert "page=1&amp;rule_id=P020" not in body
+    rule_resp = c.get(f"/audits/{job_id}/problems/rule/P020")
+    assert rule_resp.status_code == 200
+    assert "Pages to review: manuscript page 1 / PDF page 3" in rule_resp.text
+
+    resp = c.get(
+        f"/audits/{job_id}/pdf/highlighted",
+        params={
+            "page": 3,
+            "rule_id": "P020",
+            "issue_type": "possible_title_capitalization_issue",
+        },
+    )
+    assert resp.status_code == 200
+    highlighted = fitz.open(stream=resp.content, filetype="pdf")
+    try:
+        first_page_annots = list(highlighted[0].annots() or [])
+        third_page_annots = list(highlighted[2].annots() or [])
+    finally:
+        highlighted.close()
+    assert not first_page_annots
+    assert third_page_annots
+
+
 def test_highlighted_pdf_endpoint_falls_back_without_bbox(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -3049,15 +3121,81 @@ def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]
     _, wa = client
     globals_ = wa._templates.env.globals
     assert callable(globals_.get("pdf_finding_url"))
+    assert callable(globals_.get("public_rule_reference_href"))
 
     template_dir = Path(wa.__file__).parent / "templates"
     for name in ("job.html", "problem_group.html"):
         text = (template_dir / name).read_text(encoding="utf-8")
-        for global_name in ("pdf_finding_url", "pdf_finding_is_highlighted"):
+        for global_name in (
+            "pdf_finding_url",
+            "pdf_finding_is_highlighted",
+            "public_rule_reference_href",
+        ):
             if global_name in text:
                 assert global_name in globals_, (
                     f"{name} calls {global_name}() but it is unregistered"
                 )
+
+
+def test_sample_audit_job_page_still_renders_if_public_rule_reference_helper_missing(
+    tmp_path: Path,
+) -> None:
+    """Simulate a stale long-running process whose Jinja env lacks the new helper."""
+    from njit_auditor.web_samples import SampleInfo
+
+    app, wa = _make_app(tmp_path)
+    c = TestClient(app, raise_server_exceptions=False)
+
+    def fake_copy(sample_id: str, dest: Path) -> None:
+        _make_real_pdf(dest, page_count=5)
+
+    sample = SampleInfo(
+        sample_id="ester_sample_a",
+        label="Sample A — first review (EF-annotated)",
+        rel_path="data/raw/ester/250218 Cibaku Elson First Review.pdf",
+    )
+    wa._templates.env.globals.pop("public_rule_reference_href", None)
+
+    with patch.object(wa, "list_builtin_samples", lambda: [sample]):
+        with patch.object(wa, "get_builtin_sample", lambda sid: sample):
+            with patch.object(wa, "copy_builtin_sample_to_job", fake_copy):
+                resp = c.post(
+                    "/audits/sample",
+                    data={"sample_id": "ester_sample_a"},
+                    follow_redirects=False,
+                )
+
+    assert resp.status_code == 303
+    job_path = resp.headers["location"]
+    job_page = c.get(job_path)
+    assert job_page.status_code == 200
+    assert b"Problems found" in job_page.content or b"No issues detected" in job_page.content
+
+
+def test_public_pdf_url_job_page_still_renders_if_public_rule_reference_helper_missing(
+    tmp_path: Path,
+) -> None:
+    """The URL audit path must not 500 when the helper is absent in a stale process."""
+    app, wa = _make_app(tmp_path)
+    c = TestClient(app, raise_server_exceptions=False)
+
+    def fake_fetch(url: str, dest: Path, max_bytes: int) -> None:
+        _make_real_pdf(dest, page_count=5)
+
+    wa._templates.env.globals.pop("public_rule_reference_href", None)
+
+    with patch.object(wa, "fetch_pdf_url", fake_fetch):
+        resp = c.post(
+            "/audits/url",
+            data={"pdf_url": "https://example.com/thesis.pdf"},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    job_path = resp.headers["location"]
+    job_page = c.get(job_path)
+    assert job_page.status_code == 200
+    assert b"Problems found" in job_page.content or b"No issues detected" in job_page.content
 
 
 def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
@@ -3275,3 +3413,18 @@ def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:
         assert "Soroush Vahidi" in body, f"{path} missing author name"
         assert "mailto:sv96@njit.edu" in body, f"{path} missing mailto link"
         assert "soroush.vahidi@njit.edu" not in body, f"{path} contains wrong email address"
+
+
+def test_rules_page_has_no_confidence_badges(client: tuple[TestClient, Any]) -> None:
+    """The /rules reference page must not show confidence badges or labels.
+
+    Confidence is a per-finding audit property and belongs only on job result pages.
+    Showing it on the static rule-reference page would confuse users into thinking
+    entire rules have a confidence level.
+    """
+    c, _ = client
+    resp = c.get("/rules")
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "confidence-badge" not in body, "/rules page must not render confidence badges"
+    assert "Confidence:" not in body, "/rules page must not show any Confidence: label"

@@ -118,6 +118,9 @@ def _inject_job(
                 "suggested_fix": f.suggested_fix,
                 "triage_tier": f.triage_tier,
                 "confidence": f.confidence,
+                "confidence_level": f.confidence_level or f.confidence,
+                "confidence_label": f.confidence_label,
+                "confidence_css_class": f.confidence_css_class,
                 "source_file": f.source_file,
                 "source_line": f.source_line,
                 "location_label": f.location_label,
@@ -776,3 +779,139 @@ def test_all_drilldown_routes_return_non_500(
     for path in routes:
         resp = c.get(path, headers=_DESKTOP_HEADERS)
         assert resp.status_code != 500, f"Route {path!r} returned 500"
+
+
+# ---------------------------------------------------------------------------
+# H. Confidence display on drilldown pages
+# ---------------------------------------------------------------------------
+
+
+def _inject_job_with_confidence(
+    wa: Any,
+    tmp_path: Path,
+) -> str:
+    """Inject a job with explicit confidence levels for confidence-display tests."""
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=5,
+            message="Possible font issue.",
+            details={
+                "issue_type": "possible_body_font_family_issue",
+                "confidence": "medium",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=7,
+            message="Possible font issue.",
+            details={
+                "issue_type": "possible_body_font_family_issue",
+                "confidence": "low",
+            },
+        ),
+    ]
+    return _inject_job(wa, findings)
+
+
+def test_drilldown_rule_page_shows_confidence_badges(
+    app: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = app
+    job_id = _inject_job_with_confidence(wa, tmp_path)
+    text = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
+    assert "confidence-badge" in text, (
+        "Confidence badge class should appear on rule drilldown page"
+    )
+    assert "Confidence: Medium" in text or "Confidence: Low" in text, (
+        "Readable confidence label should appear on rule drilldown page"
+    )
+
+
+def test_drilldown_category_page_shows_confidence_badges(
+    app: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = app
+    job_id = _inject_job_with_confidence(wa, tmp_path)
+    text = _get_html(c, f"/audits/{job_id}/problems/category/font-format")
+    assert "confidence-badge" in text, (
+        "Confidence badge class should appear on category drilldown page"
+    )
+
+
+def test_drilldown_issue_type_page_shows_confidence_badges(
+    app: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = app
+    job_id = _inject_job_with_confidence(wa, tmp_path)
+    text = _get_html(
+        c,
+        f"/audits/{job_id}/problems/rule/P026/issue-type/possible-body-font-family-issue",
+    )
+    assert "confidence-badge" in text, (
+        "Confidence badge class should appear on issue-type drilldown page"
+    )
+    assert "Confidence: Medium" in text or "Confidence: Low" in text
+
+
+def test_drilldown_pages_do_not_show_clutter_badges(
+    app: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Drilldown pages must not resurface the old PROBLEM / PATTERN-BASED badge clutter."""
+    c, wa = app
+    job_id = _inject_job_with_confidence(wa, tmp_path)
+    for path in [
+        f"/audits/{job_id}/problems/rule/P026",
+        f"/audits/{job_id}/problems/category/font-format",
+        f"/audits/{job_id}/problems/rule/P026/issue-type/possible-body-font-family-issue",
+    ]:
+        text = _get_html(c, path)
+        assert 'badge-warn">Problem</span>' not in text, f"PROBLEM badge appeared on {path}"
+        assert 'badge-pattern' not in text, f"PATTERN-BASED badge appeared on {path}"
+        assert "Applies to:" not in text, f"Applies-to clutter appeared on {path}"
+
+
+def test_individual_findings_table_shows_confidence_badges(
+    app: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The individual-findings table on the main results page must show confidence badges."""
+    c, wa = app
+    job_id = _inject_job_with_confidence(wa, tmp_path)
+    text = _get_html(c, f"/audits/{job_id}")
+    assert "confidence-badge--high" in text, "High confidence badge should appear in results"
+    assert "confidence-badge--medium" in text, "Medium confidence badge should appear in results"
+    assert "confidence-badge--low" in text, "Low confidence badge should appear in results"
+    assert "Confidence: High" in text
+    assert "Confidence: Medium" in text
+    assert "Confidence: Low" in text
+
+
+def test_individual_findings_table_does_not_collapse_confidence_to_needs_review(
+    app: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """When all findings have explicit confidence, 'Confidence: Needs review' must not appear.
+
+    Regression guard for the serialization gap where job.findings was built without
+    confidence_level/label/css_class fields, causing the template macro to fall back
+    to 'Confidence: Needs review' for every individual-table row.
+    """
+    c, wa = app
+    job_id = _inject_job_with_confidence(wa, tmp_path)
+    text = _get_html(c, f"/audits/{job_id}")
+    assert "Confidence: Needs review" not in text, (
+        "No finding in this job has unknown confidence, so 'Confidence: Needs review' "
+        "must not appear — the individual-findings table may be missing confidence_level."
+    )

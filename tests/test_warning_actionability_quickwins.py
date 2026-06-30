@@ -362,6 +362,6 @@ def test_results_page_shows_confidence_badge_not_prose(
     )
     html = c.get(f"/audits/{job_id}").text
     assert "confidence-badge" in html
-    assert "Medium confidence" in html
+    assert "Confidence: Medium" in html
     assert "Confidence: medium" not in html
     assert "Suggested fix:" in html

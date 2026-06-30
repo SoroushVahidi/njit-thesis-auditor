@@ -219,6 +219,42 @@ def test_grouped_problem_views_default_to_grouped_problems_for_repeats() -> None
     assert all(f.rule_id == "P011" for f in p011.individual_findings)
 
 
+def test_build_report_view_preserves_wrapper_filtered_page_label() -> None:
+    report = audit_findings_to_json_dict(
+        [
+            AuditFinding(
+                rule_id="P020",
+                severity=Severity.WARNING,
+                page=3,
+                message="Possible title-case issue.",
+                details={
+                    "issue_type": "possible_title_capitalization_issue",
+                    "line_preview": "machine learning Approaches to Signal Processing",
+                    "flagged_word": "machine",
+                    "source": "heading",
+                    "bbox": "108.0,166.0,360.0,186.0",
+                    "page_label": "manuscript page 1 / PDF page 3",
+                    "original_pdf_page_index": "2",
+                    "original_pdf_page_number": "3",
+                    "manuscript_page_index": "0",
+                    "manuscript_page_number": "1",
+                    "confidence": "medium",
+                },
+            )
+        ],
+        {"audit_type": "pdf"},
+    )
+
+    view = build_report_view(report, pdf_page_sizes=[(612.0, 792.0)] * 5)
+
+    assert len(view.findings) == 1
+    finding = view.findings[0]
+    assert finding.page == 3
+    assert finding.page_display_label == "manuscript page 1 / PDF page 3"
+    assert finding.location_label.startswith("manuscript page 1 / PDF page 3")
+    assert view.grouped_problems[0].affected_compact == "manuscript page 1 / PDF page 3"
+
+
 def test_grouped_problem_views_keep_single_findings_simple() -> None:
     view = build_report_view(_sample_report())
 
@@ -235,13 +271,13 @@ def test_report_view_adds_confidence_display_metadata() -> None:
     finding = next(f for f in view.findings if f.rule_id == "P011")
     assert finding.confidence == "medium"
     assert finding.confidence_level == "medium"
-    assert finding.confidence_label == "Medium confidence"
+    assert finding.confidence_label == "Confidence: Medium"
     assert finding.confidence_css_class == "confidence-badge--medium"
 
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
     assert group.confidence_levels == ["medium"]
     assert group.confidence_level == "medium"
-    assert group.confidence_label == "Medium confidence"
+    assert group.confidence_label == "Confidence: Medium"
     assert group.confidence_css_class == "confidence-badge--medium"
 
 
@@ -252,11 +288,11 @@ def test_finding_with_missing_confidence_shows_needs_review_badge() -> None:
 
     finding = next(f for f in view.findings if f.rule_id == "P030")
     assert finding.confidence == ""
-    assert finding.confidence_label == "Needs review"
+    assert finding.confidence_label == "Confidence: Needs review"
     assert finding.confidence_css_class == "confidence-badge--unknown"
 
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P030")
-    assert group.confidence_label == "Needs review"
+    assert group.confidence_label == "Confidence: Needs review"
     assert group.confidence_css_class == "confidence-badge--unknown"
 
 
@@ -300,7 +336,7 @@ def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
     assert group.is_grouped is True
     assert group.confidence_levels == ["high", "low"]
     assert group.confidence_level == "mixed"
-    assert group.confidence_label == "Mixed confidence: High, Low"
+    assert group.confidence_label == "Confidence: Mixed"
     assert group.confidence_css_class == "confidence-badge--mixed-orange"
 
 
@@ -340,7 +376,7 @@ def test_mixed_high_medium_confidence_uses_orange_badge() -> None:
 
     view = build_report_view(report)
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
-    assert group.confidence_label == "Mixed confidence: High, Medium"
+    assert group.confidence_label == "Confidence: Mixed"
     assert group.confidence_css_class == "confidence-badge--mixed-orange"
 
 
@@ -372,7 +408,7 @@ def test_mixed_medium_low_confidence_uses_yellow_badge() -> None:
 
     view = build_report_view(report)
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P037")
-    assert group.confidence_label == "Mixed confidence: Medium, Low"
+    assert group.confidence_label == "Confidence: Mixed"
     assert group.confidence_css_class == "confidence-badge--medium"
 
 
@@ -740,6 +776,30 @@ def test_p024_build_polished_comment_never_quotes_line_preview(
     )
     assert secret not in comment
     assert contains_blocked_detail_text(comment, details) is False
+
+
+def test_p024_lof_sentence_case_suggested_fix_is_atomic() -> None:
+    finding = _p024_finding(
+        page=15,
+        issue_type="list_of_figures_sentence_case",
+        entry_index="0",
+        page_type="list_of_figures",
+        source_q_rule_id="Q074",
+    )
+    report = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    rendered = next(f for f in view.findings if f.issue_type == "list_of_figures_sentence_case")
+    fix = rendered.suggested_fix
+    assert (
+        fix
+        == "Change the List of Figures entry to sentence case. Capitalize only the "
+        "first word, proper nouns, and acronyms."
+    )
+    forbidden = ("table of contents", "list of tables", "level 1", "level 2")
+    lower_fix = fix.lower()
+    for token in forbidden:
+        assert token not in lower_fix
 
 
 def test_polished_comment_templates_for_key_rules() -> None:

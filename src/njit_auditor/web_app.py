@@ -717,8 +717,7 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         ),
         "remediation": (
             "Set page numbers at the bottom of the page, centered, and "
-            "0.5 inches from the bottom edge. Verify the detected page number "
-            "is visible and uses the correct numbering style for that section."
+            "0.5 inches from the bottom edge."
         ),
     },
 }
@@ -734,6 +733,643 @@ def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
     return result
 
 
+@dataclass(frozen=True)
+class PublicRuleCardSpec:
+    """One student-facing rule-reference card shown on /rules."""
+
+    id: str
+    parent_rule_id: str
+    question: str
+    remediation: str
+    compatibility_anchors: tuple[str, ...] = ()
+    issue_types: tuple[str, ...] = ()
+    source_q_rule_ids: tuple[str, ...] = ()
+
+
+_ATOMIC_PUBLIC_RULE_CARDS: tuple[PublicRuleCardSpec, ...] = (
+    PublicRuleCardSpec(
+        id="P014A",
+        parent_rule_id="P014",
+        question=(
+            "Is the APPROVAL PAGE heading displayed in all caps, bold, centered, "
+            "and at the top of the page?"
+        ),
+        remediation=(
+            "Format the APPROVAL PAGE heading in all caps, bold, centered, and at the top "
+            "of the page."
+        ),
+        compatibility_anchors=("P014",),
+        source_q_rule_ids=("Q013",),
+    ),
+    PublicRuleCardSpec(
+        id="P014B",
+        parent_rule_id="P014",
+        question=(
+            "Is the BIOGRAPHICAL SKETCH heading displayed in all caps, bold, centered, "
+            "and at the top of the page?"
+        ),
+        remediation=(
+            "Format the BIOGRAPHICAL SKETCH heading in all caps, bold, centered, and at "
+            "the top of the page."
+        ),
+        source_q_rule_ids=("Q021",),
+    ),
+    PublicRuleCardSpec(
+        id="P014C",
+        parent_rule_id="P014",
+        question=(
+            "Is the ACKNOWLEDGEMENTS heading displayed in all caps, bold, centered, "
+            "and at the top of the page?"
+        ),
+        remediation=(
+            "Format the ACKNOWLEDGEMENTS heading in all caps, bold, centered, and at the "
+            "top of the page."
+        ),
+        source_q_rule_ids=("Q036",),
+    ),
+    PublicRuleCardSpec(
+        id="P014D",
+        parent_rule_id="P014",
+        question=(
+            "Is the TABLE OF CONTENTS heading displayed in all caps, bold, centered, "
+            "and at the top of the page?"
+        ),
+        remediation=(
+            "Format the TABLE OF CONTENTS heading in all caps, bold, centered, and at the "
+            "top of the page."
+        ),
+        source_q_rule_ids=("Q047",),
+    ),
+    PublicRuleCardSpec(
+        id="P014E",
+        parent_rule_id="P014",
+        question=(
+            "Is the LIST OF TABLES heading displayed in all caps, bold, centered, and "
+            "at the top of the page?"
+        ),
+        remediation=(
+            "Format the LIST OF TABLES heading in all caps, bold, centered, and at the "
+            "top of the page."
+        ),
+        source_q_rule_ids=("Q061",),
+    ),
+    PublicRuleCardSpec(
+        id="P014F",
+        parent_rule_id="P014",
+        question=(
+            "Is the LIST OF FIGURES heading displayed in all caps, bold, centered, and "
+            "at the top of the page?"
+        ),
+        remediation=(
+            "Format the LIST OF FIGURES heading in all caps, bold, centered, and at the "
+            "top of the page."
+        ),
+        source_q_rule_ids=("Q070",),
+    ),
+    PublicRuleCardSpec(
+        id="P017A",
+        parent_rule_id="P017",
+        question="Are figure descriptions in sentence case?",
+        remediation=(
+            "Edit each figure description to sentence case: capitalize only the first word, "
+            "proper nouns, and acronyms."
+        ),
+        compatibility_anchors=("P017",),
+        issue_types=("possible_sentence_case_issue",),
+        source_q_rule_ids=("Q074",),
+    ),
+    PublicRuleCardSpec(
+        id="P017B",
+        parent_rule_id="P017",
+        question="Do figure descriptions end with a period?",
+        remediation="Add a period at the end of each figure description.",
+        issue_types=("missing_terminal_punctuation",),
+        source_q_rule_ids=("Q075",),
+    ),
+    PublicRuleCardSpec(
+        id="P017C",
+        parent_rule_id="P017",
+        question="Are table titles in title case?",
+        remediation=(
+            "Edit each table title to title case: capitalize each word except articles, "
+            "prepositions, and conjunctions."
+        ),
+        issue_types=("possible_table_title_case_issue", "list_of_tables_title_case"),
+        source_q_rule_ids=("Q065",),
+    ),
+    PublicRuleCardSpec(
+        id="P017D",
+        parent_rule_id="P017",
+        question="Are table titles free of a final period?",
+        remediation="Delete the period from each table title.",
+        issue_types=("unexpected_terminal_punctuation", "lot_entry_has_terminal_period"),
+        source_q_rule_ids=("Q065",),
+    ),
+    PublicRuleCardSpec(
+        id="P024A",
+        parent_rule_id="P024",
+        question=(
+            "In the Table of Contents, are all level-1 chapter titles displayed in all caps?"
+        ),
+        remediation="Change all level-1 chapter titles in the Table of Contents to all caps.",
+        compatibility_anchors=("P018", "P024"),
+        issue_types=("toc_level1_capitalization",),
+        source_q_rule_ids=("Q049",),
+    ),
+    PublicRuleCardSpec(
+        id="P024B",
+        parent_rule_id="P024",
+        question=(
+            "In the Table of Contents, are all level-2 section titles displayed in title case?"
+        ),
+        remediation=(
+            "Change all level-2 section titles in the Table of Contents to title case."
+        ),
+        issue_types=("toc_level2_capitalization",),
+        source_q_rule_ids=("Q050",),
+    ),
+    PublicRuleCardSpec(
+        id="P024C",
+        parent_rule_id="P024",
+        question=(
+            "In the Table of Contents, are all level-3 section titles displayed in "
+            "sentence case?"
+        ),
+        remediation=(
+            "Change all level-3 section titles in the Table of Contents to sentence case."
+        ),
+        issue_types=("toc_level3_capitalization",),
+        source_q_rule_ids=("Q051",),
+    ),
+    PublicRuleCardSpec(
+        id="P024D",
+        parent_rule_id="P024",
+        question="In the List of Tables, are table titles displayed in title case?",
+        remediation="Change List of Tables entry titles to title case.",
+        issue_types=("list_of_tables_title_case",),
+        source_q_rule_ids=("Q065",),
+    ),
+    PublicRuleCardSpec(
+        id="P024E",
+        parent_rule_id="P024",
+        question="In the List of Figures, are figure descriptions displayed in sentence case?",
+        remediation=(
+            "Change the List of Figures entry to sentence case. Capitalize only "
+            "the first word, proper nouns, and acronyms."
+        ),
+        issue_types=("list_of_figures_sentence_case",),
+        source_q_rule_ids=("Q074",),
+    ),
+    PublicRuleCardSpec(
+        id="P026A",
+        parent_rule_id="P026",
+        question=(
+            "Does the body text use an accepted font family or type "
+            "(for example, Times New Roman or Arial in Word, or Computer Modern / "
+            "Latin Modern in Overleaf)?"
+        ),
+        remediation=(
+            "Use one accepted body-text font family consistently. Word users typically "
+            "use Times New Roman or Arial. Overleaf users typically use Computer "
+            "Modern or Latin Modern. If the PDF's source is unclear, check the source "
+            "document conservatively before changing fonts."
+        ),
+        compatibility_anchors=("P026",),
+        issue_types=("possible_body_font_family_issue",),
+    ),
+    PublicRuleCardSpec(
+        id="P026B",
+        parent_rule_id="P026",
+        question="Does the body text use 12pt font size?",
+        remediation="Set body text to 12pt throughout the document.",
+        issue_types=("possible_body_font_size_issue",),
+    ),
+    PublicRuleCardSpec(
+        id="P030A",
+        parent_rule_id="P030",
+        question=(
+            "Do continued Table of Contents pages use the heading "
+            "\"TABLE OF CONTENTS (Continued)\"?"
+        ),
+        remediation=(
+            "Add the heading \"TABLE OF CONTENTS (Continued)\" to each continued Table "
+            "of Contents page."
+        ),
+        compatibility_anchors=("P030",),
+        source_q_rule_ids=("Q048",),
+    ),
+    PublicRuleCardSpec(
+        id="P030B",
+        parent_rule_id="P030",
+        question=(
+            "Do continued List of Tables pages use the heading "
+            "\"LIST OF TABLES (Continued)\"?"
+        ),
+        remediation=(
+            "Add the heading \"LIST OF TABLES (Continued)\" to each continued List of "
+            "Tables page."
+        ),
+        source_q_rule_ids=("Q062",),
+    ),
+    PublicRuleCardSpec(
+        id="P030C",
+        parent_rule_id="P030",
+        question=(
+            "Do continued List of Figures pages use the heading "
+            "\"LIST OF FIGURES (Continued)\"?"
+        ),
+        remediation=(
+            "Add the heading \"LIST OF FIGURES (Continued)\" to each continued List of "
+            "Figures page."
+        ),
+        source_q_rule_ids=("Q071",),
+    ),
+    PublicRuleCardSpec(
+        id="P032A",
+        parent_rule_id="P032",
+        question=(
+            "Does every wrapped Table of Contents entry stay single-spaced between its "
+            "first line and continuation line?"
+        ),
+        remediation="Single-space each wrapped Table of Contents entry internally.",
+        compatibility_anchors=("P032",),
+        source_q_rule_ids=("Q053", "Q054", "Q055"),
+    ),
+    PublicRuleCardSpec(
+        id="P032B",
+        parent_rule_id="P032",
+        question=(
+            "Does every wrapped List of Tables entry stay single-spaced between its first "
+            "line and continuation line?"
+        ),
+        remediation="Single-space each wrapped List of Tables entry internally.",
+        source_q_rule_ids=("Q066",),
+    ),
+    PublicRuleCardSpec(
+        id="P032C",
+        parent_rule_id="P032",
+        question=(
+            "Does every wrapped List of Figures entry stay single-spaced between its first "
+            "line and continuation line?"
+        ),
+        remediation="Single-space each wrapped List of Figures entry internally.",
+        source_q_rule_ids=("Q076",),
+    ),
+    PublicRuleCardSpec(
+        id="P036A",
+        parent_rule_id="P036",
+        question=(
+            "Is there visible double spacing between consecutive Table of Contents entries?"
+        ),
+        remediation=(
+            "Add visible double spacing or a blank line between consecutive Table of "
+            "Contents entries."
+        ),
+        compatibility_anchors=("P036",),
+        source_q_rule_ids=("Q057",),
+    ),
+    PublicRuleCardSpec(
+        id="P036B",
+        parent_rule_id="P036",
+        question=(
+            "Is there visible double spacing between consecutive List of Tables entries?"
+        ),
+        remediation=(
+            "Add visible double spacing or a blank line between consecutive List of Tables "
+            "entries."
+        ),
+        source_q_rule_ids=("Q067",),
+    ),
+    PublicRuleCardSpec(
+        id="P036C",
+        parent_rule_id="P036",
+        question=(
+            "Is there visible double spacing between consecutive List of Figures entries?"
+        ),
+        remediation=(
+            "Add visible double spacing or a blank line between consecutive List of Figures "
+            "entries."
+        ),
+        source_q_rule_ids=("Q077",),
+    ),
+    PublicRuleCardSpec(
+        id="P038A",
+        parent_rule_id="P038",
+        question='Does the heading read exactly "APPROVAL PAGE"?',
+        remediation='Change the heading text to exactly "APPROVAL PAGE".',
+        compatibility_anchors=("P038",),
+        source_q_rule_ids=("Q013",),
+    ),
+    PublicRuleCardSpec(
+        id="P038B",
+        parent_rule_id="P038",
+        question='Does the heading read exactly "BIOGRAPHICAL SKETCH"?',
+        remediation='Change the heading text to exactly "BIOGRAPHICAL SKETCH".',
+        source_q_rule_ids=("Q021",),
+    ),
+    PublicRuleCardSpec(
+        id="P038C",
+        parent_rule_id="P038",
+        question='Does the heading read exactly "ACKNOWLEDGEMENTS"?',
+        remediation=(
+            'Change the heading text to exactly "ACKNOWLEDGEMENTS" '
+            '(with the double-E spelling).'
+        ),
+        source_q_rule_ids=("Q036",),
+    ),
+    PublicRuleCardSpec(
+        id="P038D",
+        parent_rule_id="P038",
+        question='Does the heading read exactly "TABLE OF CONTENTS"?',
+        remediation='Change the heading text to exactly "TABLE OF CONTENTS".',
+        source_q_rule_ids=("Q047",),
+    ),
+    PublicRuleCardSpec(
+        id="P038E",
+        parent_rule_id="P038",
+        question='Does the heading read exactly "LIST OF TABLES"?',
+        remediation='Change the heading text to exactly "LIST OF TABLES".',
+        source_q_rule_ids=("Q061",),
+    ),
+    PublicRuleCardSpec(
+        id="P038F",
+        parent_rule_id="P038",
+        question='Does the heading read exactly "LIST OF FIGURES"?',
+        remediation='Change the heading text to exactly "LIST OF FIGURES".',
+        source_q_rule_ids=("Q070",),
+    ),
+    PublicRuleCardSpec(
+        id="P042A",
+        parent_rule_id="P042",
+        question=(
+            "If only one appendix is listed in the Table of Contents, does the entry begin "
+            'with "APPENDIX" plus the appendix title?'
+        ),
+        remediation=(
+            'Rename the single appendix Table of Contents entry to begin with "APPENDIX" '
+            "followed by its title."
+        ),
+        compatibility_anchors=("P042",),
+        issue_types=("single_appendix_missing_title",),
+        source_q_rule_ids=("Q058",),
+    ),
+    PublicRuleCardSpec(
+        id="P042B",
+        parent_rule_id="P042",
+        question=(
+            "If multiple appendices are listed in the Table of Contents, are they "
+            "identified by letters?"
+        ),
+        remediation=(
+            "Rename the appendix entries in the Table of Contents to use letter "
+            "designations such as APPENDIX A and APPENDIX B."
+        ),
+        issue_types=("multiple_appendix_missing_letter",),
+        source_q_rule_ids=("Q059",),
+    ),
+    PublicRuleCardSpec(
+        id="P043A",
+        parent_rule_id="P043",
+        question=(
+            "Does the first paragraph on the Acknowledgements page begin flush with the "
+            "left margin?"
+        ),
+        remediation=(
+            "Ensure the first paragraph on the Acknowledgements page begins flush with the "
+            "left margin."
+        ),
+        compatibility_anchors=("P043",),
+        source_q_rule_ids=("Q044",),
+    ),
+    PublicRuleCardSpec(
+        id="P043B",
+        parent_rule_id="P043",
+        question=(
+            "Do subsequent paragraphs on the Acknowledgements page begin with a visible "
+            "first-line indent?"
+        ),
+        remediation=(
+            "Ensure each subsequent paragraph on the Acknowledgements page begins with a "
+            "visible first-line indent."
+        ),
+        source_q_rule_ids=("Q045",),
+    ),
+    PublicRuleCardSpec(
+        id="P044A",
+        parent_rule_id="P044",
+        question=(
+            "Does the first paragraph on the Abstract page begin flush with the left margin?"
+        ),
+        remediation=(
+            "Ensure the first paragraph on the Abstract page begins flush with the left "
+            "margin."
+        ),
+        compatibility_anchors=("P044",),
+        source_q_rule_ids=("Q002",),
+    ),
+    PublicRuleCardSpec(
+        id="P044B",
+        parent_rule_id="P044",
+        question=(
+            "Do subsequent paragraphs on the Abstract page begin with a visible "
+            "first-line indent?"
+        ),
+        remediation=(
+            "Ensure each subsequent paragraph on the Abstract page begins with a visible "
+            "first-line indent."
+        ),
+        source_q_rule_ids=("Q003",),
+    ),
+    PublicRuleCardSpec(
+        id="P046A",
+        parent_rule_id="P046",
+        question=(
+            "Are all table numbers aligned vertically in one left column in the List of "
+            "Tables?"
+        ),
+        remediation=(
+            "Align all table numbers in the List of Tables into one vertical left column."
+        ),
+        compatibility_anchors=("P046",),
+        source_q_rule_ids=("Q068",),
+    ),
+    PublicRuleCardSpec(
+        id="P046B",
+        parent_rule_id="P046",
+        question=(
+            "Are all figure numbers aligned vertically in one left column in the List of "
+            "Figures?"
+        ),
+        remediation=(
+            "Align all figure numbers in the List of Figures into one vertical left column."
+        ),
+        source_q_rule_ids=("Q078",),
+    ),
+    PublicRuleCardSpec(
+        id="P048A",
+        parent_rule_id="P048",
+        question=(
+            "Are all List of Tables page numbers aligned vertically in one right column?"
+        ),
+        remediation=(
+            "Align all List of Tables page numbers into one vertical right column."
+        ),
+        compatibility_anchors=("P048",),
+        source_q_rule_ids=("Q069",),
+    ),
+    PublicRuleCardSpec(
+        id="P048B",
+        parent_rule_id="P048",
+        question=(
+            "Are all List of Figures page numbers aligned vertically in one right column?"
+        ),
+        remediation=(
+            "Align all List of Figures page numbers into one vertical right column."
+        ),
+        source_q_rule_ids=("Q079",),
+    ),
+)
+
+_HIDDEN_PUBLIC_RULE_IDS = frozenset(
+    {
+        "P014",
+        "P017",
+        "P018",
+        "P019",
+        "P024",
+        "P026",
+        "P027",
+        "P030",
+        "P031",
+        "P032",
+        "P035",
+        "P036",
+        "P037",
+        "P038",
+        "P042",
+        "P043",
+        "P044",
+        "P045",
+        "P046",
+        "P048",
+        "P049",
+        "P050",
+        "P056",
+        "P057",
+        "P059",
+        "P061",
+        "P064",
+    }
+)
+
+_ATOMIC_CARD_BY_ID = {spec.id: spec for spec in _ATOMIC_PUBLIC_RULE_CARDS}
+
+
+def _rule_reference_sort_key(rule_id: str) -> tuple[int, str]:
+    match = re.match(r"^P(\d+)([A-Z]*)$", rule_id)
+    if not match:
+        return (10**9, rule_id)
+    return int(match.group(1)), match.group(2) or ""
+
+
+def _enriched_rule_dict(rule: dict[str, Any]) -> dict[str, Any]:
+    """Return the normalized public-rule dict shared by visible and hidden entries."""
+    rule_id = str(rule.get("id", "")).strip()
+    notes = (rule.get("notes", "") or "")
+    is_experimental = any(
+        kw in notes.lower()
+        for kw in ("experimental", "opt-in", "disabled by default")
+    ) or "experimental" in (rule.get("rule_type", "") or "").lower()
+    is_active_default = not is_experimental
+    return {
+        "id": rule_id,
+        "title": _websafe_rule_text(
+            rule_id, "question", rule.get("question", rule.get("title", rule_id))
+        ),
+        "section": rule.get("section", ""),
+        "input_label": _input_label(rule),
+        "severity_code": (rule.get("severity", "") or "").lower(),
+        "severity_label": _severity_label(rule.get("severity", "")),
+        "checkability": rule.get("checkability") or "",
+        "checkability_label": _checkability_label(rule.get("checkability")),
+        "what_it_checks": _websafe_rule_text(
+            rule_id, "rule_definition", rule.get("rule_definition", "")
+        ),
+        "how_to_correct": _websafe_rule_text(
+            rule_id, "remediation", rule.get("remediation", "")
+        ),
+        "is_experimental": is_experimental,
+        "is_active_default": is_active_default,
+        "implementation_status": rule.get("implementation_status", ""),
+        "compatibility_anchors": [],
+    }
+
+
+def _atomic_public_rule_dict(
+    spec: PublicRuleCardSpec,
+    parent_rule: dict[str, Any],
+) -> dict[str, Any]:
+    """Create one visible atomic rule-reference card from its parent backend rule."""
+    parent = _enriched_rule_dict(parent_rule)
+    parent["id"] = spec.id
+    parent["title"] = spec.question
+    parent["how_to_correct"] = spec.remediation
+    parent["what_it_checks"] = spec.question
+    parent["compatibility_anchors"] = list(spec.compatibility_anchors)
+    return parent
+
+
+def _public_rule_reference_id(
+    rule_id: str,
+    *,
+    issue_type: str = "",
+    source_q_rule_id: str = "",
+) -> str:
+    """Map a backend finding/rule to the student-facing /rules anchor ID."""
+    clean_rule_id = str(rule_id).strip()
+    clean_issue_type = str(issue_type).strip()
+    clean_q_rule = str(source_q_rule_id).strip()
+
+    for spec in _ATOMIC_PUBLIC_RULE_CARDS:
+        if clean_rule_id != spec.parent_rule_id:
+            continue
+        if spec.issue_types and clean_issue_type in spec.issue_types:
+            return spec.id
+        if spec.source_q_rule_ids and clean_q_rule in spec.source_q_rule_ids:
+            return spec.id
+
+    if clean_rule_id in _HIDDEN_PUBLIC_RULE_IDS:
+        anchor = next(
+            (
+                spec.id
+                for spec in _ATOMIC_PUBLIC_RULE_CARDS
+                if clean_rule_id in spec.compatibility_anchors
+            ),
+            "",
+        )
+        return anchor
+
+    return clean_rule_id if clean_rule_id in _public_rule_lookup() else ""
+
+
+def _public_rule_reference_href(
+    rule_id: str,
+    *,
+    issue_type: str = "",
+    source_q_rule_id: str = "",
+) -> str:
+    anchor_id = _public_rule_reference_id(
+        rule_id,
+        issue_type=issue_type,
+        source_q_rule_id=source_q_rule_id,
+    )
+    return f"/rules#{anchor_id}" if anchor_id else ""
+
+
+_templates.env.globals["public_rule_reference_id"] = _public_rule_reference_id
+_templates.env.globals["public_rule_reference_href"] = _public_rule_reference_href
+
+
 def _build_rule_catalog() -> dict[str, Any]:
     """Load P-rules from canonical source and classify for the rules page."""
     try:
@@ -741,8 +1377,14 @@ def _build_rule_catalog() -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         raw = []
 
+    rules_by_id = {
+        str(rule.get("id", "")).strip(): rule
+        for rule in raw
+        if isinstance(rule, dict) and str(rule.get("id", "")).strip()
+    }
     student_rules: list[dict[str, Any]] = []
     technical_rules: list[dict[str, Any]] = []
+    reference_rules: list[dict[str, Any]] = []
 
     for rule in raw:
         rule_id = rule.get("id", "")
@@ -786,17 +1428,34 @@ def _build_rule_catalog() -> dict[str, Any]:
 
         classification = _classify_rule(rule)
         if classification == "student":
-            student_rules.append(enriched)
+            reference_rules.append(enriched)
+            if rule_id not in _HIDDEN_PUBLIC_RULE_IDS:
+                student_rules.append(enriched)
         else:
             enriched["technical_reason"] = _technical_reason(rule)
             technical_rules.append(enriched)
 
+    for spec in _ATOMIC_PUBLIC_RULE_CARDS:
+        parent_rule = rules_by_id.get(spec.parent_rule_id)
+        if not isinstance(parent_rule, dict):
+            continue
+        if _classify_rule(parent_rule) != "student":
+            continue
+        if _input_label(parent_rule) == "TeX / ZIP source":
+            continue
+        atomic_rule = _atomic_public_rule_dict(spec, parent_rule)
+        student_rules.append(atomic_rule)
+        reference_rules.append(atomic_rule)
+
+    student_rules.sort(key=lambda rule: _rule_reference_sort_key(str(rule.get("id", ""))))
+    reference_rules.sort(key=lambda rule: _rule_reference_sort_key(str(rule.get("id", ""))))
     categories = sorted({r["section"] for r in student_rules if r["section"]})
     input_types = sorted({r["input_label"] for r in student_rules})
     severities = sorted({r["severity_label"] for r in student_rules if r["severity_label"] != "—"})
 
     return {
         "student_rules": student_rules,
+        "reference_rules": reference_rules,
         "technical_rules": technical_rules,
         "categories": categories,
         "input_types": input_types,
@@ -831,7 +1490,7 @@ def _technical_reason(rule: dict[str, Any]) -> str:
 def _public_rule_lookup() -> dict[str, dict[str, Any]]:
     """Return public PDF rules keyed by rule ID."""
     catalog = _build_rule_catalog()
-    rules = catalog.get("student_rules", [])
+    rules = catalog.get("reference_rules", [])
     if not isinstance(rules, list):
         return {}
     return {
@@ -854,16 +1513,57 @@ def _coerce_page_number(raw_page: Any) -> int | None:
 def _student_location_text(finding: dict[str, Any]) -> str:
     """Return a simple location label for a student-facing example card."""
     page = _coerce_page_number(finding.get("page"))
+    page_display_label = str(finding.get("page_display_label", "")).strip()
+    custom_page_display = bool(
+        page is not None
+        and page_display_label
+        and page_display_label != str(page)
+    )
     location_label = str(finding.get("location_label", "")).strip()
     if page is not None:
         if not location_label or location_label == str(page):
-            return f"Page {page}"
-        if location_label.lower().startswith("page "):
+            return page_display_label if custom_page_display else f"Page {page}"
+        if location_label.lower().startswith(("page ", "manuscript page ", "pdf page ")):
             return location_label
+        if custom_page_display:
+            return f"{page_display_label} - {location_label}"
         return f"Page {page} - {location_label}"
     if location_label:
         return location_label
     return "Document-wide overview"
+
+
+def _pages_to_review_text(examples: list[dict[str, Any]]) -> str:
+    pages = sorted(
+        {
+            page
+            for page in (_coerce_page_number(example.get("page")) for example in examples)
+            if page is not None
+        }
+    )
+    display_labels: list[str] = []
+    seen_labels: set[str] = set()
+    has_custom_label = False
+    for example in sorted(
+        examples,
+        key=lambda example: (
+            _coerce_page_number(example.get("page")) or 10**9,
+            str(example.get("page_display_label", "")).strip(),
+        ),
+    ):
+        page = _coerce_page_number(example.get("page"))
+        if page is None:
+            continue
+        label = str(example.get("page_display_label", "")).strip() or str(page)
+        if label != str(page):
+            has_custom_label = True
+        if label in seen_labels:
+            continue
+        seen_labels.add(label)
+        display_labels.append(label)
+    if has_custom_label and display_labels:
+        return ", ".join(display_labels)
+    return compact_page_list(pages) if pages else ""
 
 
 def _short_rule_explanation(rule: dict[str, Any] | None) -> str:
@@ -1001,6 +1701,9 @@ def _problem_group_examples(
             str(finding.get("problem_anchor", "")).strip()
             or (f"problem-{problem_number}" if problem_number > 0 else "")
         )
+        confidence_level = str(
+            finding.get("confidence_level", "") or finding.get("confidence", "")
+        ).strip()
         examples.append(
             {
                 "problem_number": problem_number,
@@ -1013,6 +1716,7 @@ def _problem_group_examples(
                 "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
                 "location_text": _student_location_text(finding),
                 "page": page,
+                "page_display_label": str(finding.get("page_display_label", "")).strip(),
                 "pdf_page_url": pdf_page_url,
                 "highlighted": has_highlight,
                 "action_kind": action_kind,
@@ -1021,6 +1725,9 @@ def _problem_group_examples(
                 "detailed_explanation": detailed_explanation,
                 "issue_type_label": issue_type_label,
                 "issue_type_explanation": issue_type_explanation,
+                "confidence_level": confidence_level,
+                "confidence_label": str(finding.get("confidence_label", "")).strip(),
+                "confidence_css_class": str(finding.get("confidence_css_class", "")).strip(),
             }
         )
 
@@ -1047,7 +1754,9 @@ _GROUP_KIND_HEADINGS: dict[str, str] = {
 }
 
 
-def _group_pattern_note(examples: list[dict[str, Any]], pages: list[int]) -> str:
+def _group_pattern_note(
+    examples: list[dict[str, Any]], pages_to_review: str, page_count: int
+) -> str:
     """Explain why a problem-group page lists many examples, when safe.
 
     Mirrors the main results page's high-volume framing: only fires when every
@@ -1070,7 +1779,7 @@ def _group_pattern_note(examples: list[dict[str, Any]], pages: list[int]) -> str
         issue_type,
         len(examples),
         "Pages",
-        compact_page_list(pages) if pages else "",
+        pages_to_review if page_count else "",
     )
 
 
@@ -1096,6 +1805,7 @@ def _problem_group_context(
             if page is not None
         }
     )
+    pages_to_review = _pages_to_review_text(examples)
     hero_action_kind = "none"
     hero_action_label = ""
     hero_action_url = ""
@@ -1124,11 +1834,11 @@ def _problem_group_context(
         "group_kind": group_kind,
         "group_key": group_key,
         "group_explanation": group_explanation,
-        "pattern_note": _group_pattern_note(examples, pages),
+        "pattern_note": _group_pattern_note(examples, pages_to_review, len(pages)),
         "group_kicker": _GROUP_KIND_KICKERS.get(group_kind, "Examples of this problem"),
         "group_examples_heading": _GROUP_KIND_HEADINGS.get(group_kind, "Examples of this problem"),
         "example_count": len(examples),
-        "pages_to_review": compact_page_list(pages) if pages else "",
+        "pages_to_review": pages_to_review,
         "examples": examples,
         "hero_action_kind": hero_action_kind,
         "hero_action_label": hero_action_label,
@@ -1306,6 +2016,7 @@ def _run_audit_task(job_id: str) -> None:
             "rule_id": fv["rule_id"],
             "severity": fv["severity"],
             "page": fv["page"],
+            "page_display_label": fv.get("page_display_label", ""),
             "problem_number": fv.get("problem_number", 0),
             "problem_anchor": fv.get("problem_anchor", ""),
             "issue_type": fv["issue_type"],
@@ -1314,6 +2025,9 @@ def _run_audit_task(job_id: str) -> None:
             "suggested_fix": fv.get("suggested_fix", ""),
             "triage_tier": fv.get("triage_tier", ""),
             "confidence": fv.get("confidence", ""),
+            "confidence_level": fv.get("confidence_level", "") or fv.get("confidence", ""),
+            "confidence_label": fv.get("confidence_label", ""),
+            "confidence_css_class": fv.get("confidence_css_class", ""),
             "source_file": fv.get("source_file", ""),
             "source_line": fv.get("source_line", ""),
             "location_label": fv.get("location_label", ""),

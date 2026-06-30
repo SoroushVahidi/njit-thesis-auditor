@@ -161,6 +161,7 @@ class FindingView:
     severity: str
     issue_type: str
     polished_comment: str
+    page_display_label: str = ""
     problem_number: int = 0
     problem_anchor: str = ""
     suggested_fix: str = ""
@@ -219,6 +220,7 @@ class GroupedProblemView:
     confidence_levels: list[str] = field(default_factory=list)
     is_grouped: bool = False
     page_tokens: list[str] = field(default_factory=list)
+    page_display_tokens: list[str] = field(default_factory=list)
     location_tokens: list[str] = field(default_factory=list)
     individual_findings: list[FindingView] = field(default_factory=list)
     # Actionability fields for the group card
@@ -380,6 +382,7 @@ def _build_digital_commons_advisory_view(
         rule_id="P025",
         category="frontmatter_structure",
         page=first_page,
+        page_display_label=str(first_page),
         problem_number=0,
         problem_anchor="",
         severity="WARNING",
@@ -474,6 +477,15 @@ def _p015_location_label(rule_id: str, issue_type: str, details: Mapping[str, st
     return ""
 
 
+def _page_display_label(details: Mapping[str, str], page: int | None) -> str:
+    label = str(details.get("page_label", "")).strip()
+    if label:
+        return label
+    if page is None:
+        return ""
+    return str(page)
+
+
 def _section_label_from_details(details: Mapping[str, str]) -> str:
     page_type = details.get("page_type", "").strip()
     if page_type:
@@ -491,7 +503,13 @@ def enriched_pdf_location_label(
     bbox_label: str = "",
 ) -> str:
     """Return a privacy-safe location label using list/caption metadata when available."""
-    page_prefix = f"Page {page}" if page is not None else ""
+    page_display = _page_display_label(details, page)
+    if page is None:
+        page_prefix = ""
+    elif page_display and page_display != str(page):
+        page_prefix = page_display
+    else:
+        page_prefix = f"Page {page}"
     section_label = _section_label_from_details(details)
     entry_kind_label = P032_ENTRY_KIND_LABELS.get(details.get("entry_kind", "").strip(), "")
     entry_index = details.get("entry_index", "").strip()
@@ -637,11 +655,10 @@ def _confidence_level(levels: Sequence[str]) -> str:
 def _confidence_label(levels: Sequence[str]) -> str:
     ordered = _ordered_confidence_levels(levels)
     if len(ordered) == 1:
-        return f"{_CONFIDENCE_LABELS[ordered[0]]} confidence"
+        return f"Confidence: {_CONFIDENCE_LABELS[ordered[0]]}"
     if ordered:
-        joined = ", ".join(_CONFIDENCE_LABELS[level] for level in ordered)
-        return f"Mixed confidence: {joined}"
-    return "Needs review"
+        return "Confidence: Mixed"
+    return "Confidence: Needs review"
 
 
 def _confidence_css_class(levels: Sequence[str]) -> str:
@@ -722,6 +739,7 @@ def _finding_view_from_item(
             rule_id=rule_id,
             category=category,
             page=page,
+            page_display_label=_page_display_label(details, page),
             problem_number=0,
             problem_anchor="",
             severity=severity,
@@ -2674,10 +2692,15 @@ def build_report_view(
             )
             problem_numbers = [f.problem_number for f in individual_views if f.problem_number > 0]
             page_values = sorted({f.page for f in individual_views if f.page is not None})
+            page_display_values = sorted(
+                {f.page_display_label for f in individual_views if f.page_display_label}
+            )
             location_values = sorted(
                 {f.location_label for f in individual_views if f.location_label}
             )
-            affected_compact = (
+            raw_affected_label = str(entry.get("affected_label", "")).strip()
+            raw_affected_compact = str(entry.get("affected_compact", "")).strip()
+            affected_compact = raw_affected_compact or (
                 _compact_page_ranges(page_values)
                 if page_values
                 else str(entry.get("locations_compact", "")).strip() or ", ".join(location_values)
@@ -2694,7 +2717,7 @@ def build_report_view(
                     polished_comment=first.polished_comment,
                     suggested_fix=first.suggested_fix,
                     occurrence_count=len(individual_views),
-                    affected_label="Pages" if page_values else "Locations",
+                    affected_label=raw_affected_label or ("Pages" if page_values else "Locations"),
                     affected_compact=affected_compact,
                     triage_tier=first.triage_tier,
                     confidence=first.confidence,
@@ -2707,6 +2730,7 @@ def build_report_view(
                         {str(f.page) for f in individual_views if f.page is not None},
                         key=int,
                     ),
+                    page_display_tokens=page_display_values,
                     location_tokens=location_values,
                     individual_findings=individual_views,
                     detailed_explanation=first.detailed_explanation,
@@ -2742,7 +2766,8 @@ def build_report_view(
                 occurrence_count=1,
                 affected_label="Locations" if is_source_audit else "Pages",
                 affected_compact=(
-                    finding.location_label
+                    finding.page_display_label
+                    or finding.location_label
                     or (str(finding.page) if finding.page is not None else "")
                 ),
                 triage_tier=finding.triage_tier,
@@ -2753,6 +2778,9 @@ def build_report_view(
                 confidence_levels=_ordered_confidence_levels([finding.confidence_level]),
                 is_grouped=False,
                 page_tokens=[str(finding.page)] if finding.page is not None else [],
+                page_display_tokens=(
+                    [finding.page_display_label] if finding.page_display_label else []
+                ),
                 location_tokens=[finding.location_label] if finding.location_label else [],
                 individual_findings=[finding],
                 detailed_explanation=finding.detailed_explanation,

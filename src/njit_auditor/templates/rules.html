@@ -143,6 +143,9 @@
 
 <div id="rule-catalog" aria-label="Detector rule catalog">
 {% for rule in student_rules %}
+{% for anchor_id in rule.compatibility_anchors %}
+<span id="{{ anchor_id }}" aria-hidden="true"></span>
+{% endfor %}
 <div class="rule-card"
      id="{{ rule.id }}"
      data-rule-id="{{ rule.id }}"
