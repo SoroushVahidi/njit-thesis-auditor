@@ -453,9 +453,9 @@
   {
     "id": "P026",
     "section": "PDF body font compliance",
-    "question": "Does the body text use Times New Roman 12pt (or an accepted equivalent)?",
-    "rule_definition": "NJIT guidelines require body text to use Times New Roman 12pt throughout. This rule checks ordinary body-text spans on each page for (A) font size outside 11.0-13.0pt and (B) font family that is not Times New Roman or an accepted near-equivalent (NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX). Computer Modern (CMR, LaTeX default) is flagged as likely non-Times. Embedded subset font-name prefixes (e.g. ABCDEF+TimesNewRomanPSMT) are stripped before classification. One finding per (page, issue_type). Warnings emitted only when both violation count >=5 AND fraction >=50% of body candidate spans on the page.",
-    "remediation": "Word users: set body text to Times New Roman 12pt. Overleaf/LaTeX users: Computer Modern is an accepted equivalent — if flagged, verify with your advisor. To change in Word: select all body text and set font to Times New Roman, size 12.",
+    "question": "Does the body text use Times New Roman 12pt (or an accepted equivalent)? For LaTeX/Overleaf submissions, Computer Modern (the LaTeX default) is generally accepted.",
+    "rule_definition": "NJIT guidelines require body text to use Times New Roman 12pt throughout. For LaTeX/Overleaf submissions, Computer Modern (CMR, Latin Modern) is accepted as an equivalent. This rule checks ordinary body-text spans on each page for (A) font size outside 11.0-13.0pt and (B) font family that is not Times New Roman, Computer Modern, or an accepted near-equivalent (NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX). PDF origin is inferred from the creator metadata field to distinguish LaTeX from Word submissions. LaTeX PDFs using Computer Modern emit issue_type 'possible_body_font_family_issue_latex_cm' with an advisory note rather than a hard warning. Embedded subset font-name prefixes (e.g. ABCDEF+TimesNewRomanPSMT) are stripped before classification. One finding per (page, issue_type). Warnings emitted only when both violation count >=5 AND fraction >=50% of body candidate spans on the page.",
+    "remediation": "Word users: set body text to Times New Roman 12pt (select all body text, Font → Times New Roman, size 12). LaTeX/Overleaf users: Computer Modern is the default and is generally accepted — verify with your advisor. If Times New Roman is required, add \\usepackage{mathptmx} to your LaTeX preamble, export a clean PDF, and re-run the auditor.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -466,7 +466,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_font_compliance",
     "priority": "medium",
-    "notes": "Heuristic. Sources: Thesis and Dissertation Formatting Guidelines (WIP).docx; Self-Self Assessment Sheet.pdf. Excludes named front-matter pages, TOC/list pages, references pages. Excludes margin zones, headings, captions, bullets, short lines, and low-alpha-density lines. Accepted font aliases: Times, NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX. issue_type values: possible_body_font_size_issue, possible_body_font_family_issue. Note: Computer Modern (CMR12, the LaTeX default) will be flagged. EF evaluation: all 4 tested PDFs use CMR12 or Georgia -- expect P026 family warnings on all."
+    "notes": "Heuristic. Sources: Thesis and Dissertation Formatting Guidelines (WIP).docx; Self-Self Assessment Sheet.pdf; Ester Flaim feedback (LaTeX CMR accepted). Excludes named front-matter pages, TOC/list pages, references pages. Excludes margin zones, headings, captions, bullets, short lines, and low-alpha-density lines. Accepted font aliases: Times, NimbusRomNo9L, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX, Computer Modern. issue_type values: possible_body_font_size_issue, possible_body_font_family_issue, possible_body_font_family_issue_latex_cm. pdf_origin field added to all family findings: 'latex', 'word', or 'unknown'. EF evaluation: CMR12 is accepted for LaTeX submissions; Georgia (Word) is non-compliant."
   },
   {
     "id": "P027",

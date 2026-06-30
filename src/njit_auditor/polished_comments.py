@@ -156,6 +156,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Body text on page {page} may not use the expected font family. "
         "Compare embedded fonts against NJIT font requirements."
     ),
+    ("P026", "possible_body_font_family_issue_latex_cm"): (
+        "Body text on page {page} uses Computer Modern (the LaTeX/Overleaf default). "
+        "Computer Modern is generally accepted for NJIT dissertations — verify with your "
+        "advisor whether your department requires a Times-equivalent font instead."
+    ),
     ("P026", "possible_body_font_size_issue"): (
         "Body text on page {page} may not use the expected font size. "
         "Compare body text size against NJIT requirements."
@@ -1223,6 +1228,21 @@ def _p026_font_comment(
             "Review the explanation and verify whether the flagged text is a permitted "
             "exception such as a table, figure caption, heading, or footnote."
         )
+    if issue_type == "possible_body_font_family_issue_latex_cm":
+        if observed:
+            return (
+                "Advisory: Body text on page "
+                f"{page_label} uses Computer Modern ({observed}), "
+                "the LaTeX/Overleaf default font. Computer Modern is generally accepted "
+                "for NJIT dissertations. Verify with your advisor whether your department "
+                "requires Times New Roman instead."
+            )
+        return (
+            "Advisory: Body text on page "
+            f"{page_label} uses Computer Modern (the LaTeX/Overleaf default). "
+            "Computer Modern is generally accepted for NJIT dissertations. Verify with "
+            "your advisor whether your department requires Times New Roman instead."
+        )
     expected = (
         details.get("expected_font", "").strip()
         or details.get("expected", "").strip()
@@ -1746,6 +1766,7 @@ def build_polished_comment(
 
     if rule_id == "P026" and issue in {
         "possible_body_font_family_issue",
+        "possible_body_font_family_issue_latex_cm",
         "possible_body_font_size_issue",
     }:
         body = _p026_font_comment(

@@ -677,17 +677,20 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         ),
     },
     "P026": {
+        "question": (
+            "Does the body text use Times New Roman 12pt (or an accepted equivalent)? "
+            "For Overleaf submissions, Computer Modern (the default font) is generally accepted."
+        ),
         "rule_definition": (
             "NJIT guidelines require body text to use Times New Roman 12pt or an "
             "accepted equivalent. Word documents should use Times New Roman 12pt. "
             "Overleaf documents commonly use Computer Modern, which is an "
-            "accepted equivalent — if flagged, verify with your advisor. "
+            "accepted equivalent for NJIT dissertations — verify with your advisor "
+            "if you receive a font-family advisory. "
             "This check looks at ordinary body-text spans on each page for "
             "(A) font size outside 11.0-13.0pt and (B) font family not matching "
-            "accepted fonts (Times New Roman, NimbusRomNo9L, TeX Gyre Termes, "
-            "Liberation Serif, FreeSerif, STIX). Computer Modern (CMR) is "
-            "currently flagged — Overleaf users should confirm with their advisor "
-            "if this warning appears."
+            "accepted fonts (Times New Roman, Computer Modern, NimbusRomNo9L, "
+            "TeX Gyre Termes, Liberation Serif, FreeSerif, STIX)."
         ),
         "remediation": (
             "Word users: set body text to Times New Roman 12pt. "

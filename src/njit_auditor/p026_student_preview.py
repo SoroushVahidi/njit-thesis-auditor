@@ -11,8 +11,11 @@ from njit_auditor.polished_comments import REVIEW_PREFIX
 
 P026_RULE_ID = "P026"
 P026_FAMILY_ISSUE_TYPE = "possible_body_font_family_issue"
+P026_LATEX_CM_ISSUE_TYPE = "possible_body_font_family_issue_latex_cm"
 P026_SIZE_ISSUE_TYPE = "possible_body_font_size_issue"
-P026_ISSUE_TYPES = frozenset({P026_FAMILY_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE})
+P026_ISSUE_TYPES = frozenset(
+    {P026_FAMILY_ISSUE_TYPE, P026_LATEX_CM_ISSUE_TYPE, P026_SIZE_ISSUE_TYPE}
+)
 
 # Presentation-only thresholds (not detector thresholds).
 P026_DOCUMENT_SUMMARY_MIN_AFFECTED_PAGES = 11
@@ -371,6 +374,13 @@ def p026_document_suggested_fix(stats: P026PatternPresentationStats) -> str:
         return (
             "Set body text to the required 12pt font size on every affected page "
             "listed above, export a clean PDF, and re-run the auditor."
+        )
+    if stats.issue_type == P026_LATEX_CM_ISSUE_TYPE:
+        return (
+            "Computer Modern is the LaTeX/Overleaf default and is generally accepted "
+            "for NJIT dissertations. Verify with your advisor whether your department "
+            "requires Times New Roman instead. If so, add \\usepackage{mathptmx} to "
+            "your LaTeX preamble, export a clean PDF, and re-run the auditor."
         )
     return (
         "Set body text to Times New Roman 12pt (or an accepted equivalent) on "

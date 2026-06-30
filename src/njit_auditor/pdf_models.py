@@ -81,3 +81,4 @@ class PdfDocument(BaseModel):
 
     path: str
     pages: list[PdfPage] = Field(default_factory=list)
+    creator: str | None = None

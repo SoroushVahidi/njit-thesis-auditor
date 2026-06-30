@@ -138,4 +138,9 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                 )
             pages.append(page_model)
 
-    return PdfDocument(path=pdf_path, pages=pages)
+    creator: str | None = None
+    with fitz.open(pdf_path) as _meta_doc:
+        raw = _meta_doc.metadata.get("creator") or ""
+        creator = raw.strip() or None
+
+    return PdfDocument(path=pdf_path, pages=pages, creator=creator)

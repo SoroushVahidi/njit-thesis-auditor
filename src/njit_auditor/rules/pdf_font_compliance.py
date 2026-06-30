@@ -15,8 +15,10 @@ Accepted font families (no warning):
   - Embedded subset variants: e.g., ABCDEF+TimesNewRomanPSMT (prefix stripped).
 
 Computer Modern (LaTeX default):
-  - CMR, CMBX, CMTI, Latin Modern (LMRoman, LMBX) — flagged as non-Times.
-  - Common in LaTeX dissertations; may or may not be accepted by department.
+  - CMR, CMBX, CMTI, Latin Modern (LMRoman, LMBX) — classified as 'computer_modern'.
+  - LaTeX/Overleaf dissertations use CMR by default; Ester accepts this as equivalent.
+  - issue_type "possible_body_font_family_issue_latex_cm" is used instead of the
+    standard family issue so student-facing text can distinguish Word from LaTeX students.
 
 Math/symbol fonts (CMR variants CMM/CMY, MSAM, MSBM, Symbol, ZapfDingbats):
   - Skipped — not body text.
@@ -24,6 +26,7 @@ Math/symbol fonts (CMR variants CMM/CMY, MSAM, MSBM, Symbol, ZapfDingbats):
 Sources:
   - Thesis and Dissertation Formatting Guidelines (WIP).docx: Times New Roman 12pt
   - Self-Self Assessment Sheet.pdf: explicit font size/family checklist item
+  - Ester feedback (formatting_rules.xlsx): Word → Times New Roman; LaTeX → CMR accepted
 """
 
 from __future__ import annotations
@@ -95,7 +98,8 @@ def classify_font(font_name: str | None) -> str:
     """Classify a PDF font name into 'times', 'computer_modern', 'math', or 'other'.
 
     Returns 'unknown' when font_name is None or empty.
-    Accepted (no warning): 'times', 'math', 'unknown'.
+    Accepted without warning: 'times', 'math', 'unknown'.
+    'computer_modern' triggers a softer advisory for LaTeX-origin PDFs only.
     """
     if not font_name:
         return "unknown"
@@ -107,6 +111,26 @@ def classify_font(font_name: str | None) -> str:
     if any(norm.startswith(p) for p in _CM_PREFIXES):
         return "computer_modern"
     return "other"
+
+
+# Keyword fragments that identify LaTeX-origin PDFs via the PDF creator field.
+_LATEX_CREATOR_KEYWORDS: tuple[str, ...] = ("tex", "latex", "xetex", "pdftex", "lualatex")
+# Keywords that identify Word/LibreOffice-origin PDFs.
+_WORD_CREATOR_KEYWORDS: tuple[str, ...] = (
+    "word", "microsoft", "libreoffice", "openoffice", "writer", "acrobat"
+)
+
+
+def _infer_pdf_origin(creator: str | None) -> str:
+    """Return 'latex', 'word', or 'unknown' based on the PDF creator metadata field."""
+    if not creator:
+        return "unknown"
+    c = creator.lower()
+    if any(k in c for k in _LATEX_CREATOR_KEYWORDS):
+        return "latex"
+    if any(k in c for k in _WORD_CREATOR_KEYWORDS):
+        return "word"
+    return "unknown"
 
 
 def _page_has_named_heading(page: PdfPage, headings: frozenset[str]) -> bool:
@@ -164,8 +188,16 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
 
     One finding per (page, issue_type). Requires both ≥5 violating spans AND ≥50%
     of body-candidate spans on the page to show the same issue.
+
+    Font-family handling distinguishes PDF origin:
+    - LaTeX/Overleaf PDFs using Computer Modern get issue_type
+      "possible_body_font_family_issue_latex_cm" with an advisory note that CMR is
+      generally accepted and the student should verify with their advisor.
+    - Word/LibreOffice PDFs or LaTeX PDFs using a genuinely non-standard font get
+      the standard "possible_body_font_family_issue" with a Word-oriented fix.
     """
     findings: list[AuditFinding] = []
+    origin = _infer_pdf_origin(pdf_doc.creator)
 
     for page in pdf_doc.pages:
         if _page_has_named_heading(page, _NAMED_HEADINGS):
@@ -187,6 +219,17 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
             observed_sizes = sorted(
                 {round(s.size, 1) for s in size_violations if s.size is not None}
             )
+            if origin == "latex":
+                size_fix = (
+                    "Set body text font size to 12pt in your document class options "
+                    "(e.g., \\documentclass[12pt]{...}) and ensure \\normalsize is not "
+                    "overridden. Export a clean PDF and re-run the auditor."
+                )
+            else:
+                size_fix = (
+                    "Set body text font size to 12pt throughout the document. "
+                    "In Word: select all body text and set font size to 12."
+                )
             findings.append(
                 AuditFinding(
                     rule_id="P026",
@@ -194,7 +237,7 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     page=page.page_number,
                     message=(
                         f"Body text on page {page.page_number} may not use 12pt font size "
-                        f"(NJIT guidelines require Times New Roman 12pt)."
+                        f"(NJIT guidelines require 12pt body text)."
                     ),
                     details={
                         "page_number": str(page.page_number),
@@ -205,12 +248,9 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
                         "candidate_count": str(len(body_spans)),
                         "confidence": "medium",
                         "triage_tier": "informational",
+                        "pdf_origin": origin,
                         "bbox": format_bbox_detail(size_violations[0].bbox),
-                        "suggested_fix": (
-                            "Set body text font size to 12pt throughout the document "
-                            "(LaTeX: \\normalsize in a 12pt document class; "
-                            "Word: select body text and set font size to 12)."
-                        ),
+                        "suggested_fix": size_fix,
                     },
                 )
             )
@@ -229,30 +269,67 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
             and len(family_violations) / len(named_spans) >= _MIN_VIOLATION_FRACTION
         ):
             observed_fonts = sorted({s.font for s in family_violations if s.font})
+            observed_summary = ", ".join(observed_fonts[:4])
+
+            all_cm = all(
+                classify_font(s.font) == "computer_modern" for s in family_violations
+            )
+
+            if all_cm and origin == "latex":
+                issue_type = "possible_body_font_family_issue_latex_cm"
+                message = (
+                    f"Body text on page {page.page_number} uses Computer Modern "
+                    f"(LaTeX default font). Verify with your advisor whether this is "
+                    f"acceptable for your submission."
+                )
+                family_fix = (
+                    "Computer Modern is the LaTeX/Overleaf default and is generally "
+                    "accepted for NJIT dissertations. Verify with your advisor. "
+                    "If Times New Roman is required, add \\usepackage{mathptmx} to "
+                    "your LaTeX preamble, export a clean PDF, and re-run the auditor."
+                )
+            elif origin == "latex":
+                issue_type = "possible_body_font_family_issue"
+                message = (
+                    f"Body text on page {page.page_number} may not use Times New Roman "
+                    f"or Computer Modern (NJIT guidelines require Times New Roman 12pt; "
+                    f"Computer Modern is accepted for LaTeX submissions)."
+                )
+                family_fix = (
+                    "NJIT requires Times New Roman 12pt or Computer Modern for LaTeX. "
+                    "To use Times-compatible fonts in LaTeX, add \\usepackage{mathptmx} "
+                    "to your preamble, export a clean PDF, and re-run the auditor."
+                )
+            else:
+                issue_type = "possible_body_font_family_issue"
+                message = (
+                    f"Body text on page {page.page_number} may not use Times New Roman "
+                    f"(NJIT guidelines require Times New Roman 12pt)."
+                )
+                family_fix = (
+                    "Set body text font to Times New Roman 12pt. "
+                    "In Word: select all body text and set font to Times New Roman, size 12. "
+                    "In LibreOffice: Format → Character → Font → Times New Roman."
+                )
+
             findings.append(
                 AuditFinding(
                     rule_id="P026",
                     severity=Severity.WARNING,
                     page=page.page_number,
-                    message=(
-                        f"Body text on page {page.page_number} may not use Times New Roman "
-                        f"(NJIT guidelines require Times New Roman 12pt)."
-                    ),
+                    message=message,
                     details={
                         "page_number": str(page.page_number),
-                        "issue_type": "possible_body_font_family_issue",
+                        "issue_type": issue_type,
                         "expected": "Times New Roman or accepted equivalent",
-                        "observed_summary": ", ".join(observed_fonts[:4]),
+                        "observed_summary": observed_summary,
                         "affected_span_count": str(len(family_violations)),
                         "candidate_count": str(len(named_spans)),
                         "confidence": "medium",
                         "triage_tier": "informational",
+                        "pdf_origin": origin,
                         "bbox": format_bbox_detail(family_violations[0].bbox),
-                        "suggested_fix": (
-                            "Set body text font to Times New Roman 12pt throughout the document "
-                            "(LaTeX: use \\usepackage{mathptmx} or \\usepackage{times}; "
-                            "Word: set paragraph font to Times New Roman)."
-                        ),
+                        "suggested_fix": family_fix,
                     },
                 )
             )
