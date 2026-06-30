@@ -51,6 +51,9 @@ _CHAPTER_HEADING_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+")
 _CHAPTER_HEADING_MASHED_RE = re.compile(r"^(CHAPTER|APPENDIX)[\dA-Z]+")
 # Fallback: "CHAPTER" or "APPENDIX" alone on its own line (split-heading layout).
 _CHAPTER_STANDALONE_RE = re.compile(r"^(CHAPTER|APPENDIX)\s*$")
+# Four or more consecutive dots indicate a TOC dotted leader ("........ 1").
+# Lines matching this pattern are TOC entries, not real chapter headings.
+_TOC_LEADER_RE = re.compile(r"\.{4,}")
 
 
 @dataclass(frozen=True)
@@ -119,18 +122,31 @@ def find_body_start_page(pdf_doc: PdfDocument) -> int | None:
     * "CHAPTER" alone on one line with the number on the next — _CHAPTER_STANDALONE_RE
       (split-heading layout common in some templates).
 
-    Title-case "Chapter" (TOC column header or body-text forward reference such as
-    "Chapter 3 discusses...") is excluded by requiring ALL CAPS.
+    Named front-matter pages (TABLE OF CONTENTS, LIST OF TABLES, LIST OF FIGURES,
+    etc.) are always skipped, even when they contain ALL-CAPS text that matches the
+    chapter-heading patterns.  Common examples that would otherwise trigger a false
+    body-start:
+    * "CHAPTER" or "CHAPTER 1" used as a TOC column header on the TOC page.
+    * Full TOC entries such as "CHAPTER 1 INTRODUCTION ........ 1".
     """
+    # Named front-matter pages: "CHAPTER"/"APPENDIX" alone on one line is a common
+    # TOC column-header layout ("CHAPTER    PAGE") — skip the standalone match on
+    # those pages, but still allow the full "CHAPTER 1 ..." pattern to fire so
+    # that pages carrying BOTH a named FM heading and a real chapter heading are
+    # classified correctly.
+    fm_page_numbers: frozenset[int] = frozenset(
+        m.page_number for m in find_named_frontmatter_headings(pdf_doc)
+    )
     for page in pdf_doc.pages:
         for block in page.text_blocks:
             for line in block.lines:
                 clean = " ".join(line.text.strip().split())
-                if (
-                    _CHAPTER_HEADING_RE.match(clean)
-                    or _CHAPTER_HEADING_MASHED_RE.match(clean)
-                    or _CHAPTER_STANDALONE_RE.match(clean)
-                ):
+                if _TOC_LEADER_RE.search(clean):
+                    continue  # dotted leader → TOC entry, not a chapter heading
+                if _CHAPTER_HEADING_RE.match(clean) or _CHAPTER_HEADING_MASHED_RE.match(clean):
+                    return page.page_number
+                # "CHAPTER" alone could be a TOC column header — skip on named FM pages.
+                if _CHAPTER_STANDALONE_RE.match(clean) and page.page_number not in fm_page_numbers:
                     return page.page_number
     return None
 
