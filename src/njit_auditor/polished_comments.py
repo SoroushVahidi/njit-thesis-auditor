@@ -694,7 +694,10 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P017", "possible_title_case_issue"): "",
     ("P024", "toc_level_capitalization"): "",
     ("P024", "list_of_tables_title_case"): "",
-    ("P024", "list_of_figures_sentence_case"): "",
+    ("P024", "list_of_figures_sentence_case"): (
+        "Change the List of Figures entry to sentence case. Capitalize only "
+        "the first word, proper nouns, and acronyms."
+    ),
     ("P024", "unexpected_terminal_punctuation"): "",
     ("P035", "table_caption_not_above_body"): "",
     ("P035", "figure_caption_not_below_body"): "",

@@ -4520,7 +4520,12 @@ def test_p028_toc_with_allcaps_chapter_entries_roman_not_flagged(tmp_path: Path)
     doc = fitz.open()
 
     # Front matter (pages 1-3).
-    for roman, heading in [("i", "ABSTRACT"), ("ii", "BIOGRAPHICAL SKETCH"), ("iii", "ACKNOWLEDGEMENTS")]:
+    front_matter = [
+        ("i", "ABSTRACT"),
+        ("ii", "BIOGRAPHICAL SKETCH"),
+        ("iii", "ACKNOWLEDGEMENTS"),
+    ]
+    for roman, heading in front_matter:
         p = doc.new_page(width=612, height=792)
         p.insert_text((220, 90), heading, fontsize=14, fontname="Times-Bold")
         p.insert_text((300, 760), roman, fontsize=12)
@@ -11238,7 +11243,12 @@ def _make_us_copyright_warning_then_thesis_pdf(path: Path) -> None:
 
     # Page 2: US federal copyright warning (the format NOT matched by old markers)
     page = doc.new_page(width=612, height=792)
-    page.insert_text((150, 72), "Copyright Warning & Restrictions", fontsize=14, fontname="Times-Bold")
+    page.insert_text(
+        (150, 72),
+        "Copyright Warning & Restrictions",
+        fontsize=14,
+        fontname="Times-Bold",
+    )
     page.insert_text(
         (72, 100),
         "The copyright law of the United States (Title 17, United States Code)",
@@ -11369,9 +11379,10 @@ def test_p020_not_triggered_on_us_copyright_warning_pages(tmp_path: Path) -> Non
     findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
 
     copyright_or_van_houten_pages = {2, 3}
+    wrapper_hits = [f for f in findings if f.page in copyright_or_van_houten_pages]
     assert not any(
         f.page in copyright_or_van_houten_pages for f in findings
-    ), f"P020 fired on wrapper page: {[f for f in findings if f.page in copyright_or_van_houten_pages]}"
+    ), f"P020 fired on wrapper page: {wrapper_hits}"
 
 
 def test_p020_still_triggered_on_real_heading_after_us_copyright_wrappers(tmp_path: Path) -> None:
@@ -11406,7 +11417,7 @@ def test_page_labels_correct_after_us_copyright_wrapper_filtering(tmp_path: Path
 
 
 def test_p020_prose_paragraph_guard_filters_comma_heavy_lines(tmp_path: Path) -> None:
-    """Regression: 'If a, user makes a request for, or later uses, a photocopy or' must not be flagged."""
+    """Regression: comma-heavy copyright prose must not be flagged as title case."""
     from njit_auditor.rules.pdf_title_capitalization import _is_prose_paragraph_line
 
     # The exact sentence from the copyright-warning page.
