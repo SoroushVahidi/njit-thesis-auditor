@@ -44,6 +44,20 @@ _BODY_SECTION_HEADING_RE = re.compile(r"^\d+(?:\.\d+)+\s+\S")
 # Chapter/appendix heading in the body region: "CHAPTER 1 INTRODUCTION"
 _BODY_CHAPTER_HEADING_RE = re.compile(r"^(?:CHAPTER|APPENDIX)\s+[\dA-Z]")
 
+# Equation-continuation lines after displayed math often start flush-left with these words.
+_EQUATION_CONTINUATION_START_RE = re.compile(
+    r"^(?:where|with|such that|for|and|or|while|in which)\b",
+    re.IGNORECASE,
+)
+# Symbol-heavy displayed-equation markers in the PDF text layer.
+_DISPLAY_EQUATION_MARKER_RE = re.compile(
+    r"(?:[=→↦⟶≥≤±∑∫√]|:\s*R\b|\bR[\^³²]|\bf[\wθ({])",
+    re.IGNORECASE,
+)
+_MAX_EQUATION_TO_CONTINUATION_GAP_PT = 36.0
+_MAX_FIRST_LINE_WRAP_GAP_PT = 6.0
+_SHORT_FIRST_LINE_CHARS = 24
+
 
 def first_text_x(line: PdfTextLine) -> float:
     """Return the first text x position for a line."""
@@ -106,6 +120,97 @@ def _is_section_heading_line(line: PdfTextLine) -> bool:
     return bool(
         _BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean)
     )
+
+
+def _is_math_font(font_name: str) -> bool:
+    base = font_name.lower().split("+")[-1]
+    return base.startswith(
+        ("cmmi", "cmsy", "cmex", "msam", "msbm", "wasy", "symbol", "zapf")
+    )
+
+
+def _line_clean_text(line: PdfTextLine) -> str:
+    return " ".join(line.text.strip().split())
+
+
+def _starts_equation_continuation(paragraph: list[PdfTextLine]) -> bool:
+    return bool(_EQUATION_CONTINUATION_START_RE.match(_line_clean_text(paragraph[0])))
+
+
+def _is_displayed_equation_line(line: PdfTextLine) -> bool:
+    """Return True when a line looks like displayed math rather than body prose."""
+    if _is_named_heading_line(line) or _is_page_number_line(line):
+        return False
+    clean = _line_clean_text(line)
+    if not clean:
+        return False
+    if _is_usable_paragraph_line(line):
+        return False
+
+    if line.spans:
+        math_spans = sum(1 for span in line.spans if span.font and _is_math_font(span.font))
+        if math_spans and math_spans >= max(1, len(line.spans) // 2):
+            return True
+
+    alpha_count = sum(ch.isalpha() for ch in clean)
+    if _DISPLAY_EQUATION_MARKER_RE.search(clean) and alpha_count < 20:
+        return True
+    if re.search(r"[θαβγδλμσφω]", clean):
+        return True
+    symbol_count = sum(not ch.isalnum() and not ch.isspace() for ch in clean)
+    return len(clean) <= 40 and symbol_count >= 2 and alpha_count <= 12
+
+
+def _paragraph_follows_displayed_equation(
+    page: PdfPage,
+    paragraph: list[PdfTextLine],
+) -> bool:
+    """Return True when a displayed-equation line sits just above the paragraph."""
+    start_y = paragraph[0].bbox.y0
+    for block in page.text_blocks:
+        for line in block.lines:
+            if line is paragraph[0]:
+                continue
+            gap = start_y - line.bbox.y1
+            if gap < -2.0 or gap > _MAX_EQUATION_TO_CONTINUATION_GAP_PT:
+                continue
+            if _is_section_heading_line(line):
+                return False
+            if _is_displayed_equation_line(line):
+                return True
+    return False
+
+
+def _paragraph_is_equation_continuation_exempt(
+    page: PdfPage,
+    paragraph: list[PdfTextLine],
+) -> bool:
+    return _starts_equation_continuation(paragraph) and _paragraph_follows_displayed_equation(
+        page, paragraph
+    )
+
+
+def _paragraph_highlight_bbox(paragraph: list[PdfTextLine]) -> tuple[float, float, float, float]:
+    """Return a drawable bbox for the first logical line of a paragraph."""
+    first = paragraph[0]
+    boxes = [first.bbox]
+    if len(paragraph) > 1:
+        second = paragraph[1]
+        first_text = _line_clean_text(first)
+        second_text = _line_clean_text(second)
+        wrapped_continuation = (
+            len(first_text) <= _SHORT_FIRST_LINE_CHARS
+            and second_text
+            and second_text[0].islower()
+            and (second.bbox.y0 - first.bbox.y1) <= _MAX_FIRST_LINE_WRAP_GAP_PT
+        )
+        if wrapped_continuation:
+            boxes.append(second.bbox)
+    x0 = min(box.x0 for box in boxes)
+    y0 = min(box.y0 for box in boxes)
+    x1 = max(box.x1 for box in boxes)
+    y1 = max(box.y1 for box in boxes)
+    return (x0, y0, x1, y1)
 
 
 def _find_heading_exempt_paragraph_indices(
@@ -298,6 +403,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                     continue
                 if len(paragraph) < MIN_LINES_FOR_MISSING_LATER_INDENT:
                     continue
+                if _paragraph_is_equation_continuation_exempt(page, paragraph):
+                    continue
                 if NEGATIVE_INDENT_IGNORE_PT <= indent_pt < STRONG_INDENT_THRESHOLD_PT:
                     existing = page_issue_findings.get("missing_later_indent")
                     current = AuditFinding(
@@ -315,7 +422,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "expected": "first_line_indent_approx_36pt",
                             "paragraph_line_count": str(len(paragraph)),
                             "paragraph_index": str(idx + 1),
-                            "bbox": format_bbox_detail(paragraph[0].bbox),
+                            "bbox": format_bbox_detail(_paragraph_highlight_bbox(paragraph)),
                             "confidence": "high",
                             "suggested_fix": (
                                 "Apply consistent first-line indentation "
