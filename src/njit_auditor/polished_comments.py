@@ -436,8 +436,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "the figure body. NJIT expects figure captions to appear below the figure."
     ),
     ("P035", "table_body_not_centered"): (
-        "Likely problem: A table body block on page {page} does not appear "
-        "centered within the text area. Center the table within the page margins."
+        "Likely problem: A table body block on page {page} appears not to be "
+        "centered within the text area."
     ),
     ("P035", "figure_body_not_centered"): (
         "Likely problem: A figure body block on page {page} does not appear "
@@ -701,7 +701,9 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P024", "unexpected_terminal_punctuation"): "",
     ("P035", "table_caption_not_above_body"): "",
     ("P035", "figure_caption_not_below_body"): "",
-    ("P035", "table_body_not_centered"): "",
+    ("P035", "table_body_not_centered"): (
+        "Center the table body within the text area between the left and right margins."
+    ),
     ("P035", "figure_body_not_centered"): "",
     ("P041", "dedication_top_margin_header_text"): "",
     ("P043", "acknowledgements_first_paragraph_indented"): "",

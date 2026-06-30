@@ -31,6 +31,7 @@ from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 CENTER_TOLERANCE_PT = 15.0
 CAPTION_BODY_GAP_PT = 8.0
 MAX_BODY_SEARCH_GAP_PT = 120.0
+MAX_TABLE_CLUSTER_MERGE_GAP_PT = 36.0
 MIN_BODY_LINES = 2
 MIN_BODY_WIDTH_PT = 72.0
 MIN_BODY_ALPHA_CHARS = 12
@@ -106,6 +107,47 @@ def _select_body_cluster(blocks: list[PdfTextBlock]) -> list[PdfTextBlock] | Non
     if len(qualifying) > 1:
         return None
     return qualifying[0]
+
+
+def _select_table_body_cluster(blocks: list[PdfTextBlock]) -> list[PdfTextBlock] | None:
+    """Merge vertically stacked table-body clusters below a caption into one region."""
+    qualifying = [
+        cluster
+        for cluster in _cluster_body_blocks(blocks)
+        if _cluster_has_body_signal(cluster)
+    ]
+    if not qualifying:
+        return None
+    if len(qualifying) == 1:
+        return qualifying[0]
+
+    ordered = sorted(qualifying, key=lambda cluster: _union_bbox(cluster).y0)
+    merged_blocks: list[PdfTextBlock] = []
+    for cluster in ordered:
+        if not merged_blocks:
+            merged_blocks.extend(cluster)
+            continue
+        prev_union = _union_bbox(merged_blocks)
+        curr_union = _union_bbox(cluster)
+        gap = curr_union.y0 - prev_union.y1
+        if gap > MAX_TABLE_CLUSTER_MERGE_GAP_PT:
+            break
+        if abs(curr_union.x0 - prev_union.x0) > 48.0:
+            break
+        merged_blocks.extend(cluster)
+
+    if not _cluster_has_body_signal(merged_blocks):
+        return None
+    return merged_blocks
+
+
+def _centering_confidence(center_delta: float, body_bbox: BBox) -> str:
+    """Return medium when centering drift is clearly measured; low when borderline."""
+    if center_delta >= CENTER_TOLERANCE_PT * 2.0 and body_bbox.width >= MIN_BODY_WIDTH_PT:
+        return "medium"
+    if center_delta > CENTER_TOLERANCE_PT:
+        return "medium"
+    return "low"
 
 
 def _union_bbox(blocks: list[PdfTextBlock]) -> BBox:
@@ -216,6 +258,7 @@ def _append_finding(
     *,
     issue_type: str,
     float_type: str,
+    page: PdfPage,
     page_number: int,
     float_number: str,
     center_delta: float | None = None,
@@ -223,6 +266,7 @@ def _append_finding(
     body_bbox: BBox | None = None,
     caption_bbox: BBox | None = None,
 ) -> None:
+    effective_body_bbox = body_bbox or bbox
     details: dict[str, str] = {
         "issue_type": issue_type,
         "float_type": float_type,
@@ -234,10 +278,17 @@ def _append_finding(
     }
     if center_delta is not None:
         details["center_delta_points"] = f"{center_delta:.1f}"
+    if effective_body_bbox is not None and issue_type in {
+        "table_body_not_centered",
+        "figure_body_not_centered",
+    }:
+        details["table_center_x"] = f"{_bbox_center_x(effective_body_bbox):.1f}"
+        details["text_area_center_x"] = f"{_text_area_center(page):.1f}"
+        details["confidence"] = _centering_confidence(center_delta or 0.0, effective_body_bbox)
     if bbox is not None:
         details["bbox"] = format_bbox_detail(bbox)
-    if body_bbox is not None:
-        details["body_bbox"] = format_bbox_detail(body_bbox)
+    if effective_body_bbox is not None:
+        details["body_bbox"] = format_bbox_detail(effective_body_bbox)
     if caption_bbox is not None:
         details["caption_bbox"] = format_bbox_detail(caption_bbox)
 
@@ -289,7 +340,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             # still can't masquerade as a misplaced table body.
             _, below = _candidate_body_blocks(page, caption_bbox, allow_multiline=True)
             above, _ = _candidate_body_blocks(page, caption_bbox)
-            primary = _select_body_cluster(below)
+            primary = _select_table_body_cluster(below)
             wrong_side = _select_body_cluster(above)
             if primary is None and wrong_side is None:
                 continue
@@ -298,6 +349,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     findings,
                     issue_type="table_caption_not_above_body",
                     float_type="table",
+                    page=page,
                     page_number=caption.page_number,
                     float_number=float_number,
                     bbox=caption_bbox,
@@ -314,10 +366,12 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     findings,
                     issue_type="table_body_not_centered",
                     float_type="table",
+                    page=page,
                     page_number=caption.page_number,
                     float_number=float_number,
                     center_delta=center_delta,
                     bbox=body_bbox,
+                    body_bbox=body_bbox,
                 )
             continue
 
@@ -333,6 +387,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 findings,
                 issue_type="figure_caption_not_below_body",
                 float_type="figure",
+                page=page,
                 page_number=caption.page_number,
                 float_number=float_number,
                 bbox=caption_bbox,
@@ -349,10 +404,12 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 findings,
                 issue_type="figure_body_not_centered",
                 float_type="figure",
+                page=page,
                 page_number=caption.page_number,
                 float_number=float_number,
                 center_delta=center_delta,
                 bbox=body_bbox,
+                body_bbox=body_bbox,
             )
 
     return findings

@@ -1968,8 +1968,8 @@ _P035_FLOAT_ISSUE_LABELS: dict[str, str] = {
         "appear below the figure body. NJIT expects figure captions to appear below the figure."
     ),
     "table_body_not_centered": (
-        "Likely problem: A table body block on page {page}{float_clause} does not "
-        "appear centered within the text area. Center the table within the page margins."
+        "Likely problem: A table body block on page {page} appears not to be "
+        "centered within the text area."
     ),
     "figure_body_not_centered": (
         "Likely problem: A figure body block on page {page}{float_clause} does not "
@@ -2000,7 +2000,13 @@ def _apply_float_layout_presentation(
         float_clause = f" for {noun} {float_number}"
     else:
         float_clause = ""
-    comment = template.format(page=page_label, float_clause=float_clause)
+    if finding.issue_type == "table_body_not_centered" and float_number:
+        comment = (
+            f"Likely problem: Table {float_number} appears not to be centered "
+            "within the text area."
+        )
+    else:
+        comment = template.format(page=page_label, float_clause=float_clause)
     suggested_fix = finding.suggested_fix
     if finding.issue_type == "figure_caption_not_below_body":
         if float_number:
@@ -2017,6 +2023,10 @@ def _apply_float_layout_presentation(
         suggested_fix = (
             f"Place the Table {float_number} caption above the table body. "
             "Keep the caption and table rows together within the text area."
+        )
+    elif finding.issue_type == "table_body_not_centered":
+        suggested_fix = (
+            "Center the table body within the text area between the left and right margins."
         )
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 

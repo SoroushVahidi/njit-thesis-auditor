@@ -27,6 +27,12 @@ _P035_PLACEMENT_ISSUES: frozenset[str] = frozenset(
         "table_caption_not_above_body",
     }
 )
+_P035_CENTERING_ISSUES: frozenset[str] = frozenset(
+    {
+        "table_body_not_centered",
+        "figure_body_not_centered",
+    }
+)
 _EXTRA_BBOX_KEYS: tuple[str, ...] = ("body_bbox", "caption_bbox", "token_bbox", "word_bbox", "rect")
 
 
@@ -175,6 +181,14 @@ def parse_highlight_bboxes_from_details(
         ]
         if placement_boxes:
             return placement_boxes
+
+    if rule_id == "P035" and issue_type in _P035_CENTERING_ISSUES:
+        body_bbox = _parse_bbox_text(str(details.get("body_bbox", "")).strip())
+        if body_bbox is not None:
+            return [body_bbox]
+        if line_bbox is not None:
+            return [line_bbox]
+        return []
 
     token_bbox = _token_specific_bbox(
         details,
