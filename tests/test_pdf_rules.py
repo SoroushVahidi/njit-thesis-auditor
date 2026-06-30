@@ -2085,6 +2085,149 @@ def test_p020_cli_pdf_run_includes_p020(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# P020 — title/approval-page template boilerplate suppression
+# ---------------------------------------------------------------------------
+
+
+def _make_title_page_boilerplate_pdf(path: Path, *, with_real_body_heading: bool = False) -> None:
+    """Create a PDF with an NJIT-style title page (bold template text) and optional body."""
+    doc = fitz.open()
+
+    # Page 1: NJIT title page — all text bold (as it appears in real theses).
+    p = doc.new_page(width=612, height=792)
+    for y, text in [
+        (80,  "A STUDY OF MACHINE LEARNING"),
+        (100, "AND APPLICATIONS"),
+        (140, "by"),
+        (160, "Test Author"),
+        (220, "A Thesis"),
+        (245, "Submitted to the Faculty of the"),
+        (270, "New Jersey Institute of Technology"),
+        (295, "in Partial Fulfillment of the Requirements for the Degree of"),
+        (320, "Master of Science in Computer Science"),
+        (380, "Department of Computer Science"),
+        (440, "December 2024"),
+    ]:
+        p.insert_text((108, y), text, fontsize=12, fontname="Times-Bold")
+
+    # Page 2: APPROVAL PAGE with template fields (bold labels).
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((200, 90), "APPROVAL PAGE", fontsize=14, fontname="Times-Bold")
+    for y, text in [
+        (150, "Author:"),
+        (180, "Test Author"),
+        (210, "Degree:"),
+        (240, "Master of Science in Computer Science"),
+        (270, "Date:"),
+        (300, "December 2024"),
+        (340, "Dissertation Advisor:"),
+        (370, "Dr. Test Advisor"),
+    ]:
+        p.insert_text((108, y), text, fontsize=12, fontname="Times-Bold")
+
+    # Page 3: body chapter heading with deliberate title-case error.
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    if with_real_body_heading:
+        p.insert_text(
+            (108, 200),
+            "2.1 background and Related Work",
+            fontsize=14,
+            fontname="Times-Bold",
+        )
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p020_title_page_boilerplate_in_partial_fulfillment_not_flagged(tmp_path: Path) -> None:
+    """Regression: 'in Partial Fulfillment of the Requirements for the Degree of'
+    (title page template text) must NOT trigger P020."""
+    pdf_path = tmp_path / "title_page_boilerplate.pdf"
+    _make_title_page_boilerplate_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    title_page_findings = [f for f in findings if f.page == 1]
+    assert not title_page_findings, (
+        f"P020 should not fire on Title Page template text; got: {title_page_findings}"
+    )
+
+
+def test_p020_title_page_submitted_to_faculty_not_flagged(tmp_path: Path) -> None:
+    """Regression: 'Submitted to the Faculty of the' (title page template text)
+    must NOT trigger P020 — the trailing 'the' as last word should not be flagged."""
+    pdf_path = tmp_path / "submitted_to_faculty.pdf"
+    _make_title_page_boilerplate_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    submitted_findings = [
+        f for f in findings
+        if "submitted" in f.details.get("line_preview", "").lower()
+        or "faculty" in f.details.get("line_preview", "").lower()
+    ]
+    assert not submitted_findings, (
+        f"'Submitted to the Faculty' must not trigger P020; got: {submitted_findings}"
+    )
+
+
+def test_p020_approval_page_template_not_flagged(tmp_path: Path) -> None:
+    """Regression: Approval Page template fields ('Author:', 'Degree:', etc.)
+    and the 'APPROVAL PAGE' heading must NOT trigger P020."""
+    pdf_path = tmp_path / "approval_page.pdf"
+    _make_title_page_boilerplate_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    approval_page_findings = [f for f in findings if f.page == 2]
+    assert not approval_page_findings, (
+        f"P020 should not fire on Approval Page template; got: {approval_page_findings}"
+    )
+
+
+def test_p020_real_body_heading_still_flagged_after_title_page_fix(tmp_path: Path) -> None:
+    """Body heading 'background and Related Work' must still trigger P020
+    even when a Title Page with template boilerplate precedes it."""
+    pdf_path = tmp_path / "title_then_real_heading.pdf"
+    _make_title_page_boilerplate_pdf(pdf_path, with_real_body_heading=True)
+    model = load_pdf_layout(str(pdf_path))
+
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    body_findings = [
+        f for f in findings
+        if f.page == 3 and f.details.get("flagged_word") == "background"
+    ]
+    assert body_findings, (
+        "P020 should still fire on real body heading 'background and Related Work'; "
+        f"got page-3 findings: {[f.details.get('flagged_word') for f in findings if f.page == 3]}"
+    )
+
+
+def test_is_template_frontmatter_page_detects_title_and_approval_pages(tmp_path: Path) -> None:
+    """_is_template_frontmatter_page must return True for title/approval pages
+    and False for normal body pages."""
+    from njit_auditor.rules.pdf_title_capitalization import _is_template_frontmatter_page
+
+    pdf_path = tmp_path / "template_detect.pdf"
+    _make_title_page_boilerplate_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    # Page 1 is the title page.
+    assert _is_template_frontmatter_page(model.pages[0]), (
+        "Title page must be detected as template frontmatter"
+    )
+    # Page 2 is the approval page.
+    assert _is_template_frontmatter_page(model.pages[1]), (
+        "Approval page must be detected as template frontmatter"
+    )
+    # Page 3 is a body chapter page.
+    assert not _is_template_frontmatter_page(model.pages[2]), (
+        "Body chapter page must NOT be detected as template frontmatter"
+    )
+
+
+# ---------------------------------------------------------------------------
 # P021: PDF abstract word-count tests
 # ---------------------------------------------------------------------------
 
