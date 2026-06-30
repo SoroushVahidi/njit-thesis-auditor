@@ -708,6 +708,60 @@ def test_later_paragraph_missing_indent_low_style_confidence_is_ignored(tmp_path
     assert not any(f.rule_id == "P015" for f in findings)
 
 
+def test_p015_first_paragraph_after_numbered_section_heading_not_flagged(
+    tmp_path: Path,
+) -> None:
+    # A flush-left opening paragraph immediately after a numbered section heading
+    # ("2.4 Perceived Barriers ...") must not trigger P015.
+    pdf_path = tmp_path / "indent_section_heading_exempt.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)  # indented body paragraph
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)  # second indented paragraph
+    page.insert_text((108, 290), "2.4 Perceived Barriers and Challenges in Research")
+    _draw_paragraph(page, first_x=108, rest_x=108, y=340, lines=4)  # flush-left opener
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_p015_first_paragraph_after_chapter_heading_not_flagged(tmp_path: Path) -> None:
+    # A flush-left paragraph immediately after a CHAPTER heading must not trigger P015.
+    pdf_path = tmp_path / "indent_chapter_heading_exempt.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)  # indented body paragraph
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)  # second indented paragraph
+    page.insert_text((108, 290), "CHAPTER 3 METHODOLOGY AND RESEARCH DESIGN")
+    _draw_paragraph(page, first_x=108, rest_x=108, y=340, lines=4)  # flush-left opener
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_indentation(model)
+    assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_p015_second_paragraph_after_section_heading_still_warns(tmp_path: Path) -> None:
+    # Only the *first* paragraph after a section heading is exempt.  A second flush-left
+    # paragraph in that same section (no intervening heading) must still warn.
+    pdf_path = tmp_path / "indent_section_heading_second_para_warns.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=100)  # indented paragraph
+    _draw_paragraph(page, first_x=190, rest_x=108, y=170)  # indented paragraph
+    page.insert_text((108, 250), "2.5 Research Questions and Hypotheses Tested")
+    _draw_paragraph(page, first_x=108, rest_x=108, y=300, lines=4)  # flush-left opener — exempt
+    _draw_paragraph(page, first_x=108, rest_x=108, y=380, lines=4)  # flush-left — NOT exempt
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "missing_later_indent"
+
+
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:
     # PDF has ABSTRACT heading with an indented first paragraph.
     # P015 no longer fires on Abstract pages (Q002 covered atomically by P044).

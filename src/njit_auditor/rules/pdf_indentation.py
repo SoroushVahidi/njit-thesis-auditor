@@ -38,6 +38,12 @@ REFERENCES_LIKE_HEADINGS = {
 CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
 BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
 
+# Numbered body section heading: "2.4 Perceived Barriers", "3.6.1 Sub-section Title"
+# Requires at least one level separator (dot+digit) so bare "1 Introduction" is excluded.
+_BODY_SECTION_HEADING_RE = re.compile(r"^\d+(?:\.\d+)+\s+\S")
+# Chapter/appendix heading in the body region: "CHAPTER 1 INTRODUCTION"
+_BODY_CHAPTER_HEADING_RE = re.compile(r"^(?:CHAPTER|APPENDIX)\s+[\dA-Z]")
+
 
 def first_text_x(line: PdfTextLine) -> float:
     """Return the first text x position for a line."""
@@ -80,6 +86,63 @@ def _has_page_heading_in(page: PdfPage, headings: set[str]) -> bool:
             if normalized in headings:
                 return True
     return False
+
+
+def _is_section_heading_line(line: PdfTextLine) -> bool:
+    """Return True for lines that act as section headings, resetting indent expectations.
+
+    Covers named front-matter headings, chapter/appendix headings, and numbered
+    body section headings like "2.4 Perceived Barriers".  Prose sentences that
+    happen to start with a section reference are excluded by the 100-char cap and
+    the no-trailing-punctuation guard.
+    """
+    if _is_named_heading_line(line):
+        return True
+    clean = " ".join(line.text.strip().split())
+    if not clean or len(clean) > 100:
+        return False
+    if clean.endswith((".", ",", ";")):
+        return False
+    return bool(
+        _BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean)
+    )
+
+
+def _find_heading_exempt_paragraph_indices(
+    page: PdfPage, paragraphs: list[list[PdfTextLine]]
+) -> frozenset[int]:
+    """Return indices of paragraphs that are opening paragraphs after a section heading.
+
+    Two cases are detected:
+    * A heading line falls in the vertical gap between paragraph[idx-1] and paragraph[idx].
+    * paragraph[idx][0] is itself a heading (heading grouped with opening body line
+      due to tight vertical spacing in the source PDF).
+
+    These opening paragraphs are flush-left by NJIT convention and must not be
+    flagged for missing first-line indentation.
+    """
+    exempt: set[int] = set()
+
+    heading_spans: list[tuple[float, float]] = []
+    for block in page.text_blocks:
+        for line in block.lines:
+            if _is_section_heading_line(line):
+                heading_spans.append((line.bbox.y0, line.bbox.y1))
+
+    for idx, paragraph in enumerate(paragraphs):
+        if _is_section_heading_line(paragraph[0]):
+            exempt.add(idx)
+            continue
+        if idx == 0 or not heading_spans:
+            continue
+        prev_end_y = paragraphs[idx - 1][-1].bbox.y1
+        this_start_y = paragraph[0].bbox.y0
+        for hy0, hy1 in heading_spans:
+            if hy0 >= prev_end_y - 4.0 and hy1 <= this_start_y + 4.0:
+                exempt.add(idx)
+                break
+
+    return frozenset(exempt)
 
 
 def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
@@ -186,6 +249,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         if not paragraphs:
             continue
 
+        heading_exempt = _find_heading_exempt_paragraph_indices(page, paragraphs)
+
         paragraph_data: list[tuple[int, list[PdfTextLine], float]] = []
         for idx, paragraph in enumerate(paragraphs):
             if _paragraph_is_low_confidence(paragraph):
@@ -194,9 +259,13 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         if not paragraph_data:
             continue
 
+        # Opening paragraphs after headings are flush-left by convention; exclude them
+        # from the style-confidence stats so they don't dilute the indented-paragraph ratio.
         likely_indented_count = 0
         likely_not_indented_count = 0
         for idx, paragraph, indent_pt in paragraph_data:
+            if idx in heading_exempt:
+                continue
             if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 likely_indented_count += 1
             elif (
@@ -220,6 +289,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
 
             # Detect body-text paragraphs after the first that are missing first-line indent.
             if idx >= 1:
+                if idx in heading_exempt:
+                    continue  # first paragraph after a section heading — flush-left expected
                 likely_indented = _is_likely_expected_indent(indent_pt)
                 if likely_indented or not seen_indented_paragraph:
                     continue
