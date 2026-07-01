@@ -1,0 +1,61 @@
+{# Shared confidence summary, filter links, sort links, and group-by toggle. #}
+{% if confidence_summary is defined %}
+{% if show_confidence_summary|default(true) %}
+<section class="confidence-panel" aria-label="Confidence summary">
+  <div class="confidence-summary" aria-label="Confidence summary">
+    {% for bucket in ["high", "medium", "low", "needs_review"] %}
+    <div class="confidence-summary__item">
+      <span class="confidence-summary__label">
+        {% if bucket == "high" %}High confidence
+        {% elif bucket == "medium" %}Medium confidence
+        {% elif bucket == "low" %}Low confidence
+        {% else %}Needs review{% endif %}:
+      </span>
+      <span class="confidence-summary__value">{{ confidence_summary.get(bucket, 0) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if show_confidence_toolbar|default(true) %}
+<div class="confidence-toolbar-wrap" aria-label="Confidence filters and sorting">
+  <div class="confidence-toolbar">
+    <div class="confidence-filter">
+      <span class="confidence-filter__label">Show warnings</span>
+      <div class="confidence-filter__chips" role="group" aria-label="Filter findings by confidence">
+        {% for link in confidence_filter_links %}
+        <a
+          href="{{ link.href }}"
+          class="confidence-filter__chip{% if link.active %} confidence-filter__chip--active{% endif %}"
+          data-confidence-filter="{{ link.bucket }}"
+          {% if link.active %}aria-current="true"{% endif %}
+        >{{ link.label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="confidence-sort">
+      <span class="confidence-sort__label">Sort by</span>
+      <div class="confidence-sort__links" role="group" aria-label="Sort findings">
+        {% for link in confidence_sort_links %}
+        <a
+          href="{{ link.href }}"
+          class="confidence-sort__link{% if link.active %} confidence-sort__link--active{% endif %}"
+          {% if link.active %}aria-current="true"{% endif %}
+        >{{ link.label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="confidence-view-toggle">
+      {% if group_by_confidence %}
+      <a href="{{ confidence_default_view_href }}" class="btn btn-secondary">Default grouping</a>
+      {% else %}
+      <a href="{{ confidence_group_view_href }}" class="btn btn-secondary">Group by confidence</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}

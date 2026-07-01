@@ -130,6 +130,45 @@
   .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.2rem 0; }
   .issue-type-help summary:hover { text-decoration: underline; }
   .issue-type-help p { margin: 0.35rem 0 0; color: var(--color-text-muted, #555); font-size: 0.89rem; }
+  .confidence-panel { display: grid; gap: 1rem; margin-bottom: 1rem; }
+  .confidence-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  .confidence-summary__label { color: var(--color-text-muted, #555); }
+  .confidence-summary__value { font-weight: 700; margin-left: 0.15rem; }
+  .confidence-filter__chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .confidence-filter__chip {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+  .confidence-filter__chip--active { background: var(--color-primary); color: #fff; }
+  .confidence-sort__links { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .confidence-sort__link {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    background: #fff;
+  }
+  .confidence-sort__link--active { background: #eef4fb; border-color: var(--color-primary); }
+  .confidence-section__title { margin: 0 0 0.75rem; font-size: 1.05rem; }
   @media (max-width: 640px) {
     .example-card__header {
       align-items: flex-start;
@@ -177,7 +216,88 @@
     <span class="section-note">Pages to review: {{ pages_to_review }}</span>
     {% endif %}
   </div>
+  {% if confidence_summary is defined %}
+  {% set show_confidence_summary = true %}
+  {% set show_confidence_toolbar = true %}
+  {% include "partials/confidence_controls.html" %}
+  {% endif %}
   <div class="example-list">
+    {% if group_by_confidence and confidence_sections %}
+    {% for section in confidence_sections %}
+    <h3 class="confidence-section__title">{{ section.label }}</h3>
+    {% for example in section.examples %}
+    <article id="{{ example.problem_anchor if example.problem_anchor else '' }}" class="card example-card">
+      <div class="example-card__header">
+        <div>
+          <p class="example-card__title">
+            {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
+            {% if group_kind == "category" %}
+              {% if public_rule_reference_href is defined %}
+              {% set example_rule_href = public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
+              {% elif is_p_rule_id(example.rule_id) %}
+              {% set example_rule_href = "/rules#" ~ example.rule_id %}
+              {% else %}
+              {% set example_rule_href = "" %}
+              {% endif %}
+              {% if example_rule_href %}
+              <a href="{{ example_rule_href }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
+              {% else %}{{ example.rule_id }}{% endif %}
+              {% if example.issue_type_label %} · {{ example.issue_type_label }}
+              {% elif example.issue_type %} · {{ example.issue_type | humanize_detail_key }}
+              {% elif example.rule_title %} · {{ example.rule_title }}{% endif %}
+            {% else %}
+              {% if example.issue_type_label %}{{ example.issue_type_label }}{% elif example.issue_type %}{{ example.issue_type | humanize_detail_key }}{% else %}Finding {{ loop.index }}{% endif %}
+            {% endif %}
+          </p>
+          <div style="margin-top:0.3rem;">
+            {{ confidence_badge(example.confidence_level, example.confidence_label, example.confidence_css_class) }}
+          </div>
+        </div>
+        {% if example.page is not none %}
+        <span class="badge badge-info">{% if example.page_display_label and example.page_display_label != (example.page|string) %}{{ example.page_display_label }}{% else %}Page {{ example.page }}{% endif %}</span>
+        {% elif example.location_text and example.location_text.startswith("Document-wide") %}
+        <span class="badge badge-muted">Document-wide</span>
+        {% else %}
+        <span class="badge badge-muted">No page number</span>
+        {% endif %}
+      </div>
+      <div class="example-card__meta">
+        <div><strong>Location:</strong> {{ example.location_text }}</div>
+        {% if example.issue_type_label %}
+        <details class="issue-type-help">
+          <summary>Issue type: {{ example.issue_type_label }}</summary>
+          <p>{{ example.issue_type_explanation if example.issue_type_explanation else "Review this finding against NJIT formatting requirements." }}</p>
+          {% if example.issue_type and example.rule_id %}
+          <p style="margin:0.3rem 0 0;font-size:0.86rem"><a href="/audits/{{ job_id }}/problems/rule/{{ example.rule_id }}/issue-type/{{ example.issue_type | issue_type_slug }}" class="rule-link">View all findings of this type &rarr;</a></p>
+          {% endif %}
+        </details>
+        {% elif example.issue_type %}
+        <div><strong>Issue type:</strong> {{ example.issue_type | humanize_detail_key }}</div>
+        {% endif %}
+        <div>{{ example.polished_comment }}</div>
+        {% if example.suggested_fix %}
+        <div><strong>Suggested fix:</strong> {{ example.suggested_fix }}</div>
+        {% endif %}
+      </div>
+      {% if example.detailed_explanation %}
+      <details class="finding-explanation">
+        <summary>What does this mean?</summary>
+        <p>{{ example.detailed_explanation }}</p>
+      </details>
+      {% endif %}
+      <div class="example-card__actions">
+        {% if example.action_kind in ("highlight", "original_page") and example.pdf_page_url %}
+        <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+          {{ example.action_label }}
+        </a>
+        {% else %}
+        <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+    {% endfor %}
+    {% else %}
     {% for example in examples %}
     <article id="{{ example.problem_anchor if example.problem_anchor else '' }}" class="card example-card">
       <div class="example-card__header">
@@ -249,6 +369,7 @@
       </div>
     </article>
     {% endfor %}
+    {% endif %}
   </div>
 </section>
 {% endblock %}

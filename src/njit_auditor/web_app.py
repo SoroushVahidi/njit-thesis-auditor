@@ -30,6 +30,19 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.confidence_presentation import (
+    CONFIDENCE_BUCKETS,
+    CONFIDENCE_SORT_RANK,
+    CONFIDENCE_SUMMARY_LABELS,
+    apply_report_view_presentation,
+    apply_results_presentation,
+    confidence_presentation_template_context,
+    count_confidence_summary,
+    finding_confidence_bucket,
+    parse_confidence_filter,
+    parse_group_by_confidence,
+    parse_sort_mode,
+)
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.issue_type_explanations import (
     explain_issue_type,
@@ -1658,6 +1671,7 @@ def _problem_group_examples(
     job: JobState,
     *,
     findings: list[dict[str, Any]],
+    sort_mode: str = "default",
 ) -> list[dict[str, Any]]:
     """Build template-ready example cards for a problem-group page.
 
@@ -1731,15 +1745,54 @@ def _problem_group_examples(
             }
         )
 
-    return sorted(
-        examples,
-        key=lambda example: (
-            example["page"] if example["page"] is not None else 10**9,
-            example["rule_id"],
-            example["location_text"],
-            example["polished_comment"],
-        ),
-    )
+    if sort_mode == "default":
+        return sorted(
+            examples,
+            key=lambda example: (
+                example["page"] if example["page"] is not None else 10**9,
+                example["rule_id"],
+                example["location_text"],
+                example["polished_comment"],
+            ),
+        )
+    if sort_mode in {"confidence_desc", "confidence_asc"}:
+        descending = sort_mode == "confidence_desc"
+        return sorted(
+            examples,
+            key=lambda example: (
+                CONFIDENCE_SORT_RANK.get(
+                    finding_confidence_bucket(example) or "needs_review",
+                    len(CONFIDENCE_SORT_RANK),
+                )
+                if descending
+                else -CONFIDENCE_SORT_RANK.get(
+                    finding_confidence_bucket(example) or "needs_review",
+                    len(CONFIDENCE_SORT_RANK),
+                ),
+                example["page"] if example["page"] is not None else 10**9,
+                example["rule_id"],
+                example["location_text"],
+            ),
+        )
+    if sort_mode == "page":
+        return sorted(
+            examples,
+            key=lambda example: (
+                example["page"] if example["page"] is not None else 10**9,
+                example["rule_id"],
+                example["location_text"],
+            ),
+        )
+    if sort_mode == "rule":
+        return sorted(
+            examples,
+            key=lambda example: (
+                example["rule_id"],
+                example["page"] if example["page"] is not None else 10**9,
+                example["location_text"],
+            ),
+        )
+    return examples
 
 
 _GROUP_KIND_KICKERS: dict[str, str] = {
@@ -1783,6 +1836,88 @@ def _group_pattern_note(
     )
 
 
+def _parse_results_query_params(request: Request) -> tuple[str, str, bool]:
+    confidence_filter = parse_confidence_filter(request.query_params.get("confidence"))
+    sort_mode = parse_sort_mode(request.query_params.get("sort"))
+    group_by_confidence = parse_group_by_confidence(request.query_params.get("group"))
+    return confidence_filter, sort_mode, group_by_confidence
+
+
+def _results_presentation_for_job(
+    job: JobState,
+    request: Request | None,
+) -> dict[str, Any]:
+    confidence_filter = ""
+    sort_mode = "default"
+    group_by_confidence = False
+    if request is not None:
+        confidence_filter, sort_mode, group_by_confidence = _parse_results_query_params(request)
+    grouped_problems = (job.report_view or {}).get("grouped_problems") or []
+    return apply_results_presentation(
+        findings=job.findings,
+        grouped_problems=grouped_problems,
+        confidence_filter=confidence_filter,
+        sort_mode=sort_mode,
+        group_by_confidence=group_by_confidence,
+    )
+
+
+def _results_presentation_for_findings(
+    findings: list[dict[str, Any]],
+    request: Request,
+) -> dict[str, Any]:
+    confidence_filter, sort_mode, group_by_confidence = _parse_results_query_params(request)
+    return apply_results_presentation(
+        findings=findings,
+        grouped_problems=[],
+        confidence_filter=confidence_filter,
+        sort_mode=sort_mode,
+        group_by_confidence=group_by_confidence,
+    )
+
+
+def _problem_group_page_data(
+    job: JobState,
+    request: Request,
+    matching_findings: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    presentation = _results_presentation_for_findings(matching_findings, request)
+    presentation = dict(presentation)
+    presentation["confidence_summary"] = count_confidence_summary(matching_findings)
+    examples = _problem_group_examples(
+        job,
+        findings=list(presentation["findings"]),
+        sort_mode=str(presentation.get("sort_mode", "default")),
+    )
+    if presentation.get("group_by_confidence"):
+        presentation["confidence_sections"] = [
+            {
+                "bucket": bucket,
+                "label": CONFIDENCE_SUMMARY_LABELS[bucket],
+                "count": len(
+                    [
+                        example
+                        for example in examples
+                        if finding_confidence_bucket(example) == bucket
+                    ]
+                ),
+                "examples": [
+                    example
+                    for example in examples
+                    if finding_confidence_bucket(example) == bucket
+                ],
+                "findings": [],
+                "grouped_problems": [],
+                "grouped_count": 0,
+            }
+            for bucket in CONFIDENCE_BUCKETS
+            if any(
+                finding_confidence_bucket(example) == bucket for example in examples
+            )
+        ]
+    return presentation, examples
+
+
 def _problem_group_context(
     *,
     job: JobState,
@@ -1791,6 +1926,8 @@ def _problem_group_context(
     group_key: str,
     group_explanation: str,
     examples: list[dict[str, Any]],
+    request: Request | None = None,
+    presentation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build template context for a category-, rule-, or issue-type-specific problem page.
 
@@ -1826,7 +1963,7 @@ def _problem_group_context(
         hero_action_kind = "explanation"
         hero_action_label = "Read explanation"
         hero_action_url = "#examples"
-    return {
+    context: dict[str, Any] = {
         "job_id": job.job_id,
         "file_name": job.file_name,
         "audit_page_url": f"/audits/{job.job_id}",
@@ -1844,6 +1981,16 @@ def _problem_group_context(
         "hero_action_label": hero_action_label,
         "hero_action_url": hero_action_url,
     }
+    if request is not None:
+        base_path = str(request.url.path)
+        presentation_data = presentation or apply_results_presentation(
+            findings=examples,
+            grouped_problems=[],
+        )
+        context.update(
+            confidence_presentation_template_context(base_path, presentation_data)
+        )
+    return context
 
 
 def _render(
@@ -1860,9 +2007,10 @@ def _render(
 
 
 
-def _job_page_context(job: JobState) -> dict[str, Any]:
+def _job_page_context(job: JobState, request: Request | None = None) -> dict[str, Any]:
     """Build template context for the job results page (PDF audits only)."""
-    report_view = job.report_view or {}
+    presentation = _results_presentation_for_job(job, request)
+    report_view = apply_report_view_presentation(job.report_view or {}, presentation)
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
     counts_by_category = report_view.get("counts_by_category", {}) or {}
@@ -1883,7 +2031,7 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         key=lambda x: int(x),
     )
 
-    return {
+    context: dict[str, Any] = {
         "job_id": job.job_id,
         "state": job.state,
         "created_at": job.created_at,
@@ -1893,9 +2041,9 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "warn_count": job.warn_count,
         "fail_count": job.fail_count,
         "error_message": job.error_message,
-        "findings": job.findings,
+        "findings": presentation["findings"],
         "grouped_summary": job.grouped_summary,
-        "report_view": job.report_view,
+        "report_view": report_view,
         "md_preview": job.md_preview,
         "problems_found_count": job.fail_count + job.warn_count,
         "pages_affected": len(pages),
@@ -1909,6 +2057,14 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "category_summary": category_summary,
         "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
     }
+    if request is not None:
+        context.update(
+            confidence_presentation_template_context(
+                f"/audits/{job.job_id}",
+                presentation,
+            )
+        )
+    return context
 
 
 def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
@@ -2261,7 +2417,7 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
     if job is None:
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
-    return _render(request, "job.html", _job_page_context(job))
+    return _render(request, "job.html", _job_page_context(job, request))
 
 
 @app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)
@@ -2314,13 +2470,16 @@ async def category_problem_page(
         group_explanation = _with_multi_issue_type_note(
             _category_explanation(matched_category), matching_findings
         )
+    presentation, examples = _problem_group_page_data(job, request, matching_findings)
     context = _problem_group_context(
         job=job,
         group_title=group_title,
         group_kind="category",
         group_key=matched_category,
         group_explanation=group_explanation,
-        examples=_problem_group_examples(job, findings=matching_findings),
+        examples=examples,
+        request=request,
+        presentation=presentation,
     )
     return _render(request, "problem_group.html", context)
 
@@ -2357,13 +2516,16 @@ async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTML
         group_explanation = _with_multi_issue_type_note(
             _short_rule_explanation(rule), matching_findings
         )
+    presentation, examples = _problem_group_page_data(job, request, matching_findings)
     context = _problem_group_context(
         job=job,
         group_title=group_title,
         group_kind="rule",
         group_key=rule_id,
         group_explanation=group_explanation,
-        examples=_problem_group_examples(job, findings=matching_findings),
+        examples=examples,
+        request=request,
+        presentation=presentation,
     )
     return _render(request, "problem_group.html", context)
 
@@ -2403,13 +2565,16 @@ async def issue_type_problem_page(
 
     group_title = issue_type_title(rule_id, issue_type)
     group_explanation = explain_issue_type(rule_id, issue_type)
+    presentation, examples = _problem_group_page_data(job, request, matching_findings)
     context = _problem_group_context(
         job=job,
         group_title=group_title,
         group_kind="issue_type",
         group_key=issue_type,
         group_explanation=group_explanation,
-        examples=_problem_group_examples(job, findings=matching_findings),
+        examples=examples,
+        request=request,
+        presentation=presentation,
     )
     return _render(request, "problem_group.html", context)
 

@@ -626,6 +626,7 @@ def test_results_page_renders_confidence_badges_and_filters(
     assert 'data-confidence-filter="high"' in body
     assert 'data-confidence-filter="medium"' in body
     assert 'data-confidence-filter="low"' in body
+    assert 'data-confidence-filter="needs_review"' in body
     assert "Confidence: High" in body
     assert "Confidence: Medium" in body
     assert "Confidence: Low" in body

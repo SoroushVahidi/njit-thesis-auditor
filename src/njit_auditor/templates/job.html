@@ -111,6 +111,80 @@
   .confidence-filter__chip[aria-pressed="true"]:hover {
     background: var(--color-primary-dark);
   }
+  .confidence-filter__chip--active,
+  a.confidence-filter__chip.confidence-filter__chip--active {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  a.confidence-filter__chip {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+  .confidence-panel {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .confidence-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  .confidence-summary__item {
+    font-size: 0.92rem;
+  }
+  .confidence-summary__label {
+    color: var(--color-text-muted, #555);
+  }
+  .confidence-summary__value {
+    font-weight: 700;
+    margin-left: 0.15rem;
+  }
+  .confidence-toolbar {
+    display: grid;
+    gap: 0.85rem;
+  }
+  .confidence-sort {
+    display: grid;
+    gap: 0.45rem;
+  }
+  .confidence-sort__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .confidence-sort__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .confidence-sort__link {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    background: #fff;
+  }
+  .confidence-sort__link--active {
+    background: #eef4fb;
+    border-color: var(--color-primary);
+  }
+  .confidence-section__title {
+    margin: 1.25rem 0 0.75rem;
+    font-size: 1.05rem;
+  }
+  .confidence-view-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
   @media (max-width: 640px) {
     .grouped-problem__summary {
       gap: 0.35rem;
@@ -145,7 +219,7 @@
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     var currentMode = "grouped";
-    var currentConfidenceFilter = "";
+    var currentConfidenceFilter = {{ confidence_filter|default("", true)|tojson }};
 
     function matchesTokenList(value, selected) {
       return !selected || value.indexOf("|" + selected + "|") !== -1;
@@ -153,8 +227,18 @@
 
     function setConfidenceButtons(value) {
       document.querySelectorAll("[data-confidence-filter]").forEach(function(button) {
-        var isActive = (button.dataset.confidenceFilter || "") === value;
-        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        var filterValue = button.dataset.confidenceFilter || "";
+        var isActive = filterValue === value;
+        if (button.tagName === "BUTTON") {
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        } else {
+          button.classList.toggle("confidence-filter__chip--active", isActive);
+          if (isActive) {
+            button.setAttribute("aria-current", "true");
+          } else {
+            button.removeAttribute("aria-current");
+          }
+        }
       });
     }
 
@@ -283,11 +367,13 @@
       });
     }
     document.querySelectorAll("[data-confidence-filter]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        currentConfidenceFilter = button.dataset.confidenceFilter || "";
-        setConfidenceButtons(currentConfidenceFilter);
-        applyFilters();
-      });
+      if (button.tagName === "BUTTON") {
+        button.addEventListener("click", function() {
+          currentConfidenceFilter = button.dataset.confidenceFilter || "";
+          setConfidenceButtons(currentConfidenceFilter);
+          applyFilters();
+        });
+      }
     });
     document.querySelectorAll("[data-results-mode]").forEach(function(button) {
       button.addEventListener("click", function() {
@@ -463,6 +549,12 @@
     </div>
   </div>
 </section>
+
+{% if findings and confidence_summary is defined %}
+{% set show_confidence_summary = true %}
+{% set show_confidence_toolbar = false %}
+{% include "partials/confidence_controls.html" %}
+{% endif %}
 
 {% if findings %}
 <section id="section-review-order" class="section" aria-label="Recommended review order">
@@ -689,15 +781,9 @@
         {% endfor %}
       </select>
     </div>
-    <div class="confidence-filter">
-      <span class="confidence-filter__label">Confidence</span>
-      <div class="confidence-filter__chips" role="group" aria-label="Filter findings by confidence">
-        <button type="button" class="confidence-filter__chip" data-confidence-filter="" aria-pressed="true">All</button>
-        <button type="button" class="confidence-filter__chip" data-confidence-filter="high" aria-pressed="false">High</button>
-        <button type="button" class="confidence-filter__chip" data-confidence-filter="medium" aria-pressed="false">Medium</button>
-        <button type="button" class="confidence-filter__chip" data-confidence-filter="low" aria-pressed="false">Low</button>
-      </div>
-    </div>
+    {% set show_confidence_summary = false %}
+    {% set show_confidence_toolbar = true %}
+    {% include "partials/confidence_controls.html" %}
     <div class="filter-actions">
       <button type="button" id="filter-reset" class="btn btn-secondary" style="padding:0.4rem 0.9rem;font-size:0.85rem">Reset filters</button>
     </div>
@@ -705,7 +791,16 @@
 
   <div id="grouped-problems-panel">
     <div class="grouped-problem-list">
-      {% for problem in report_view.grouped_problems %}
+      {% if group_by_confidence and confidence_sections %}
+      {% set problem_sections = confidence_sections %}
+      {% else %}
+      {% set problem_sections = [{"label": "", "grouped_problems": report_view.grouped_problems}] %}
+      {% endif %}
+      {% for section in problem_sections %}
+      {% if section.label %}
+      <h3 class="confidence-section__title">{{ section.label }}</h3>
+      {% endif %}
+      {% for problem in section.grouped_problems %}
       <div id="{{ problem.problem_anchor if problem.problem_anchor else '' }}" class="card grouped-problem-card {% if not problem.is_grouped %}grouped-problem-card--single{% endif %} grouped-problem"
            data-rule="{{ problem.rule_id }}"
            data-severity="{{ problem.severity }}"
@@ -826,6 +921,7 @@
         </details>
         {% endif %}
       </div>
+      {% endfor %}
       {% endfor %}
     </div>
   </div>

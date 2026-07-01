@@ -6,6 +6,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
+from njit_auditor.confidence_presentation import (
+    CONFIDENCE_BUCKETS,
+    normalize_confidence_bucket,
+)
 from njit_auditor.digital_commons_student_preview import (
     digital_commons_advisory_comment,
     digital_commons_advisory_location_label,
@@ -141,11 +145,12 @@ _LIST_LOCATION_RULE_IDS = frozenset(
     {"P018", "P024", "P032", "P036", "P040", "P046", "P053"}
 )
 
-_CONFIDENCE_ORDER: tuple[str, ...] = ("high", "medium", "low")
+_CONFIDENCE_ORDER: tuple[str, ...] = CONFIDENCE_BUCKETS
 _CONFIDENCE_LABELS: dict[str, str] = {
     "high": "High",
     "medium": "Medium",
     "low": "Low",
+    "needs_review": "Needs review",
 }
 
 
@@ -640,10 +645,10 @@ def _finalize_finding_display(finding: FindingView) -> FindingView:
 
 
 def _normalize_confidence(value: str) -> str:
-    normalized = value.strip().lower()
-    if normalized in _CONFIDENCE_LABELS:
-        return normalized
-    return ""
+    bucket = normalize_confidence_bucket(value)
+    if bucket == "needs_review" and not value.strip():
+        return ""
+    return bucket if bucket in _CONFIDENCE_LABELS else ""
 
 
 def _ordered_confidence_levels(values: Sequence[str]) -> list[str]:
@@ -673,6 +678,8 @@ def _confidence_label(levels: Sequence[str]) -> str:
 def _confidence_css_class(levels: Sequence[str]) -> str:
     ordered = _ordered_confidence_levels(levels)
     if len(ordered) == 1:
+        if ordered[0] == "needs_review":
+            return "confidence-badge--unknown"
         return f"confidence-badge--{ordered[0]}"
     if not ordered:
         return "confidence-badge--unknown"
