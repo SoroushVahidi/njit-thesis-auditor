@@ -153,8 +153,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "'{expected_sequence}'."
     ),
     ("P026", "possible_body_font_family_issue"): (
-        "Body text on page {page} may not use the expected font family. "
-        "Compare embedded fonts against NJIT font requirements."
+        "Body text on page {page} may use a font family outside the accepted NJIT options."
     ),
     ("P026", "possible_body_font_size_issue"): (
         "Body text on page {page} may not use the expected font size. "
@@ -1249,12 +1248,11 @@ def _p026_font_comment(
     expected = (
         details.get("expected_font", "").strip()
         or details.get("expected", "").strip()
-        or "Times New Roman or an accepted Times-compatible font"
+        or "Times New Roman, Arial, Computer Modern, or Latin Modern"
     )
     _FONT_NOTE = (
-        "Word users should use Times New Roman 12pt. "
-        "Overleaf users: Computer Modern is an accepted equivalent — "
-        "if flagged, verify with your advisor."
+        "Use Times New Roman or Arial for Word documents, or Computer Modern/Latin Modern "
+        "for Overleaf documents, unless your program has approved a different font."
     )
     if observed:
         return (
