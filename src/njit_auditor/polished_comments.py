@@ -278,9 +278,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P023 body spacing ---
     ("P023", "possible_body_text_not_double_spaced"): (
-        "Body text on page {page} appears to be single-spaced or less than "
-        "double-spaced. NJIT requires all body text to be double-spaced "
-        "throughout."
+        "The paragraph beginning '{affected_text_snippet}' on page {page} appears "
+        "to be spaced closer than double spacing. NJIT requires normal body "
+        "paragraphs to be double-spaced throughout."
     ),
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
@@ -623,8 +623,9 @@ _RULE_FALLBACKS: dict[str, str] = {
 # rules-page override of the same names in web_app.py's _RULE_TEXT_OVERRIDES.
 _REMEDIATION_OVERRIDES: dict[str, str] = {
     "P023": (
-        "Set body text to double line spacing. In Word: set paragraph line "
-        "spacing to 'Double'."
+        "Set this body paragraph to double spacing while keeping allowed table, "
+        "figure, and caption spacing rules separate. In Word: select the paragraph "
+        "and set line spacing to Double."
     ),
     "P026": (
         "Word users: set body text to Times New Roman 12pt. "
@@ -892,6 +893,7 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         role_label_count=role_label_count,
         signature_date_indicator_count=signature_date_indicator_count,
         required_indicator_count=required_indicator_count,
+        affected_text_snippet=details.get("affected_text_snippet", "") or "this paragraph",
     )
 
 

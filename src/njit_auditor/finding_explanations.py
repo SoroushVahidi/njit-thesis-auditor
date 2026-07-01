@@ -249,11 +249,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P023 body spacing ---
     ("P023", "possible_body_text_not_double_spaced"): (
-        "Body text on this page appears to be single-spaced or less than "
-        "double-spaced. "
-        "NJIT requires all body text to be double-spaced throughout. "
-        "Set the paragraph line spacing to 'Double' in Word, or use the equivalent "
-        "setting in your editor."
+        "The paragraph beginning '{affected_text_snippet}' on this page appears "
+        "to be spaced closer than double spacing. "
+        "NJIT requires normal body paragraphs to be double-spaced throughout. "
+        "Set this body paragraph to double spacing while keeping allowed table, "
+        "figure, and caption spacing rules separate."
     ),
     # --- P014 named front-matter heading style ---
     # P014 never sets issue_type, so this is keyed on the empty string. Text here
