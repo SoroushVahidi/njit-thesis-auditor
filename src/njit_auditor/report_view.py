@@ -14,6 +14,7 @@ from njit_auditor.digital_commons_student_preview import (
     digital_commons_advisory_comment,
     digital_commons_advisory_location_label,
     digital_commons_advisory_suggested_fix,
+    is_wrapper_preprocessing_notice,
 )
 from njit_auditor.digital_commons_wrapper import is_layout_warning_suppressed_on_wrapper_page
 from njit_auditor.evaluation import map_finding_rule_to_category
@@ -260,6 +261,7 @@ class ReportView:
     grouped_problems: list[GroupedProblemView]
     findings: list[FindingView]
     inventory_findings: list[FindingView] = field(default_factory=list)
+    preprocessing_notices: list[FindingView] = field(default_factory=list)
 
 
 def _build_triage_highlights(rule_id: str, triage: Mapping[str, Any]) -> list[tuple[str, str]]:
@@ -406,11 +408,11 @@ def _build_digital_commons_advisory_view(
             pages_compact=pages_compact,
         ),
         suggested_fix=digital_commons_advisory_suggested_fix(),
-        triage_tier="review",
-        confidence="high",
-        confidence_level="high",
-        confidence_label="High confidence",
-        confidence_css_class="confidence-badge--high",
+        triage_tier="informational",
+        confidence="",
+        confidence_level="",
+        confidence_label="",
+        confidence_css_class="",
         source_file="",
         source_line="",
         location_label=location_label,
@@ -419,20 +421,19 @@ def _build_digital_commons_advisory_view(
         action_label=get_action_label(has_highlight=False, page=first_page),
         has_highlight=False,
         no_highlight_reason=(
-            "Open the original PDF on the listed wrapper page(s) and remove the "
-            "repository-generated cover or metadata pages before resubmitting."
+            "Open the original PDF on the listed wrapper page(s) to review the "
+            "repository-generated content."
         ),
         detailed_explanation=(
-            "Observed: the PDF includes Digital Commons repository wrapper content before "
-            "the thesis manuscript. Expected: submit only the thesis manuscript pages for "
-            "formatting review. What to check or fix: remove repository cover, copyright, "
-            "and citation pages so margin and layout warnings reflect your thesis rather "
-            "than the download wrapper."
+            "The PDF includes Digital Commons repository wrapper pages before the "
+            "thesis manuscript. These pages are excluded from thesis-formatting "
+            "checks. Manuscript/PDF page labels are shown separately to avoid "
+            "confusion."
         ),
-        issue_type_label="Digital Commons wrapper pages detected",
+        issue_type_label="Repository wrapper pages detected",
         issue_type_explanation=(
-            "This means the PDF still includes NJIT Digital Commons repository pages that "
-            "are not part of your thesis manuscript."
+            "Repository-generated cover, copyright, or metadata pages were detected "
+            "and excluded from formatting analysis."
         ),
     )
 
@@ -2075,7 +2076,21 @@ def _apply_digital_commons_wrapper_presentation(
             first_page=first_page,
             page_count=page_count,
         ),
-        issue_type_label="Digital Commons wrapper pages detected",
+        issue_type_label="Repository wrapper pages detected",
+        triage_tier="informational",
+        confidence="",
+        confidence_level="",
+        confidence_label="",
+        confidence_css_class="",
+        no_highlight_reason=(
+            "Open the original PDF on the listed wrapper page(s) to review the "
+            "repository-generated content."
+        ),
+        detailed_explanation=(
+            "The PDF includes Digital Commons repository wrapper pages before the "
+            "thesis manuscript. These pages are excluded from thesis-formatting "
+            "checks."
+        ),
     )
 
 
@@ -2443,6 +2458,7 @@ def build_report_view(
 
     finding_views: list[FindingView] = []
     inventory_findings: list[FindingView] = []
+    preprocessing_notices: list[FindingView] = []
     visible_view_by_index: dict[int, FindingView] = {}
     visible_indexes: set[int] = set()
     p020_display_seen: set[tuple] = set()
@@ -2521,6 +2537,7 @@ def build_report_view(
                 details,
                 metadata,
             )
+            is_problem = False
         elif visible_view.rule_id == "P020":
             visible_view, is_problem = _apply_title_case_presentation(visible_view, details)
             if is_problem and not consume_p020_display_slot(
@@ -2641,6 +2658,11 @@ def build_report_view(
             )
             if location_key is not None:
                 source_locations.add(location_key)
+        elif is_wrapper_preprocessing_notice(
+            rule_id=visible_view.rule_id,
+            issue_type=visible_view.issue_type,
+        ):
+            preprocessing_notices.append(_finalize_finding_display(visible_view))
         elif visible_view.issue_type == "detected_page_number_candidate":
             inventory_findings.append(visible_view)
 
@@ -2850,6 +2872,7 @@ def build_report_view(
         grouped_problems=grouped_problem_views,
         findings=finding_views,
         inventory_findings=inventory_findings,
+        preprocessing_notices=preprocessing_notices,
     )
 
 

@@ -12,6 +12,7 @@ import pymupdf
 from pymupdf import FileDataError
 
 from njit_auditor.audit_options import DEFAULT_AUDIT_OPTIONS, AuditOptions
+from njit_auditor.digital_commons_student_preview import digital_commons_advisory_suggested_fix
 from njit_auditor.digital_commons_wrapper import (
     detect_digital_commons_wrapper_pages,
     digital_commons_wrapper_metadata,
@@ -320,13 +321,11 @@ def collect_pdf_layout_findings(
                 ),
                 details={
                     "issue_type": "digital_commons_wrapper_pages_detected",
+                    "presentation_kind": "preprocessing_notice",
                     **wrapper_meta,
-                    "triage_tier": "review",
-                    "confidence": "high",
-                    "suggested_fix": (
-                        "Remove repository-generated Digital Commons cover, copyright, and "
-                        "metadata pages from the PDF before submitting your thesis manuscript."
-                    ),
+                    "triage_tier": "informational",
+                    "confidence": "",
+                    "suggested_fix": digital_commons_advisory_suggested_fix(),
                 },
             )
         )

@@ -2056,6 +2056,7 @@ def _job_page_context(job: JobState, request: Request | None = None) -> dict[str
         "text_layer_quality": job.text_layer_quality,
         "category_summary": category_summary,
         "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
+        "preprocessing_notice_count": len(report_view.get("preprocessing_notices", []) or []),
     }
     if request is not None:
         context.update(

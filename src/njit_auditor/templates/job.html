@@ -185,6 +185,27 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+  .preprocessing-notice-list {
+    display: grid;
+    gap: 0.9rem;
+  }
+  .preprocessing-notice-card {
+    border-left: 4px solid #64748b;
+    background: #f8fafc;
+  }
+  .preprocessing-notice-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.55rem;
+  }
+  .preprocessing-notice-card__header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+  }
   @media (max-width: 640px) {
     .grouped-problem__summary {
       gap: 0.35rem;
@@ -477,9 +498,10 @@
 
 {% elif state == "complete" %}
 
-{% if findings %}
+{% if findings or (report_view and report_view.preprocessing_notices) %}
 <nav class="jump-links" aria-label="Jump to section">
   <a href="#section-summary">Summary</a>
+  {% if report_view and report_view.preprocessing_notices %}<a href="#section-preprocessing-notices">Preprocessing notices</a>{% endif %}
   {% if category_summary %}<a href="#section-overview">By problem type</a>{% endif %}
   <a href="#section-review-order">Review order</a>
   {% if report_view and report_view.triage_panels %}<a href="#section-triage">Most common issues</a>{% endif %}
@@ -521,10 +543,49 @@
 </div>
 {% endif %}
 
+{% if report_view and report_view.preprocessing_notices %}
+<section id="section-preprocessing-notices" class="section" aria-label="Document preprocessing notices">
+  <div class="section-header">
+    <h2>Document preprocessing notices</h2>
+    <span class="section-note">Informational items about the PDF source. These are not counted as thesis formatting problems.</span>
+  </div>
+  <div class="preprocessing-notice-list">
+    {% for notice in report_view.preprocessing_notices %}
+    <article class="card preprocessing-notice-card">
+      <div class="preprocessing-notice-card__header">
+        <h3>{{ notice.issue_type_label if notice.issue_type_label else "Repository wrapper pages detected" }}</h3>
+        <span class="badge badge-muted">Notice</span>
+      </div>
+      <p style="margin:0;">{{ notice.polished_comment }}</p>
+      {% if notice.suggested_fix %}
+      <p style="margin:0.75rem 0 0;"><strong>Suggested action:</strong> {{ notice.suggested_fix }}</p>
+      {% endif %}
+      <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center;">
+        {% if notice.location_text or notice.location_label %}
+        <span class="file-hint">{{ notice.location_label if notice.location_label else notice.location_text }}</span>
+        {% elif notice.page is not none %}
+        <span class="badge badge-info">{% if notice.page_display_label and notice.page_display_label != (notice.page|string) %}{{ notice.page_display_label }}{% else %}Page {{ notice.page }}{% endif %}</span>
+        {% endif %}
+        {% if notice.action_kind in ("highlight", "original_page") and notice.page is not none %}
+        <a href="{{ pdf_action_url(job_id, page=notice.page, action_kind=notice.action_kind, rule_id=notice.rule_id, issue_type=notice.issue_type) }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">{{ notice.action_label }}</a>
+        {% endif %}
+      </div>
+      {% if notice.detailed_explanation %}
+      <details class="finding-explanation" style="margin-top:0.65rem;">
+        <summary>What does this mean?</summary>
+        <p>{{ notice.detailed_explanation }}</p>
+      </details>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Problem counts exclude non-problem page-number inventory candidates &middot; <a href="/help#results">What do these results mean?</a></span>
+    <span class="section-note">Problem counts exclude preprocessing notices and non-problem page-number inventory candidates &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
