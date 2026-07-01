@@ -2695,7 +2695,7 @@ def test_results_page_page_links_present_for_findings_with_page(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     """A known page number alone must NOT render a page-link anchor; only a real,
-    visible highlight does (pointing to /pdf/highlighted, not a plain /pdf#page=N)."""
+    visible highlight does (pointing to highlighted.pdf, not a plain /pdf#page=N)."""
     c, wa = client
     findings = [_p012_annotation_finding_with_bbox(page=3)]
     job_id = _inject_complete_job_with_findings(
@@ -2705,7 +2705,7 @@ def test_results_page_page_links_present_for_findings_with_page(
     assert resp.status_code == 200
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" not in body
-    assert "/pdf/highlighted" in body
+    assert "/highlighted.pdf" in body
     assert "page-link" in body
 
 
@@ -2719,7 +2719,7 @@ def test_results_page_uses_original_page_link_for_known_page_without_highlight(
     assert resp.status_code == 200
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" in body
-    assert "/pdf/highlighted" not in body
+    assert "/highlighted.pdf" not in body
     assert "Open original PDF page" in body
 
 
@@ -2812,7 +2812,7 @@ def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
     original_bytes = pdf_path.read_bytes()
 
     resp = c.get(
-        f"/audits/{job_id}/pdf/highlighted",
+        f"/audits/{job_id}/highlighted.pdf",
         params={"page": 3, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
     )
     assert resp.status_code == 200
@@ -2820,7 +2820,9 @@ def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
     disposition = resp.headers.get("content-disposition", "").lower()
     assert "inline" in disposition
     assert "attachment" not in disposition
+    assert "highlighted.pdf" in disposition
     assert resp.content[:4] == b"%PDF"
+    assert resp.content != original_bytes
 
     # The original uploaded PDF must never be modified by highlight generation.
     assert pdf_path.read_bytes() == original_bytes
@@ -2865,7 +2867,7 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert page_resp.status_code == 200
     body = page_resp.text
     assert "manuscript page 1 / PDF page 3" in body
-    expected_link = f"/audits/{job_id}/pdf/highlighted"
+    expected_link = f"/audits/{job_id}/highlighted.pdf"
     assert expected_link in body
     assert "page=3" in body
     assert "rule_id=P020" in body
@@ -2876,7 +2878,7 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert "Pages to review: manuscript page 1 / PDF page 3" in rule_resp.text
 
     resp = c.get(
-        f"/audits/{job_id}/pdf/highlighted",
+        f"/audits/{job_id}/highlighted.pdf",
         params={
             "page": 3,
             "rule_id": "P020",
@@ -2894,29 +2896,29 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert third_page_annots
 
 
-def test_highlighted_pdf_endpoint_falls_back_without_bbox(
+def test_highlighted_pdf_endpoint_unavailable_without_bbox(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """The highlighted-PDF endpoint must fall back to the plain PDF when no bbox matches."""
+    """The highlighted-PDF endpoint must not serve the original upload when no bbox matches."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    upload_bytes = (jdir / "upload.pdf").read_bytes()
 
     resp = c.get(
-        f"/audits/{job_id}/pdf/highlighted",
+        f"/audits/{job_id}/highlighted.pdf",
         params={"page": 1, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
     )
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("application/pdf")
-    disposition = resp.headers.get("content-disposition", "").lower()
-    assert "inline" in disposition
-    assert "attachment" not in disposition
+    assert resp.status_code == 404
+    assert "Highlighted PDF is not available" in resp.text
+    assert resp.content != upload_bytes
 
 
 @pytest.mark.parametrize("page", ["0", "-1", "99999"])
 def test_highlighted_pdf_endpoint_invalid_page_number_never_500s(
     client: tuple[TestClient, Any], tmp_path: Path, page: str
 ) -> None:
-    """Out-of-range page numbers must fall back safely, never 500."""
+    """Out-of-range page numbers must return unavailable safely, never 500."""
     c, wa = client
     findings = [_p012_annotation_finding_with_bbox(page=3)]
     job_id = _inject_complete_job_with_findings(
@@ -2925,10 +2927,9 @@ def test_highlighted_pdf_endpoint_invalid_page_number_never_500s(
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
     _make_real_pdf(jdir / "upload.pdf", page_count=5)
 
-    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": page, "rule_id": "P012"})
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf", params={"page": page, "rule_id": "P012"})
     assert resp.status_code != 500
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.status_code == 404
 
 
 def test_highlighted_pdf_endpoint_non_numeric_page_never_500s(
@@ -2946,7 +2947,7 @@ def test_highlighted_pdf_endpoint_non_numeric_page_never_500s(
 def test_highlighted_pdf_endpoint_degenerate_bbox_falls_back_without_500(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """A finding with a degenerate (zero-area/inverted/NaN) bbox must fall back, not 500.
+    """A finding with a degenerate (zero-area/inverted/NaN) bbox must 404, not 500.
 
     Regression test: PyMuPDF's annotation reader does not validate the rect stored in an
     uploaded PDF, so a real document can produce a degenerate rect string here. Previously
@@ -2977,13 +2978,10 @@ def test_highlighted_pdf_endpoint_degenerate_bbox_falls_back_without_500(
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
     _make_real_pdf(jdir / "upload.pdf", page_count=5)
 
-    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 2, "rule_id": "P012"})
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf", params={"page": 2, "rule_id": "P012"})
     assert resp.status_code != 500
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("application/pdf")
-    disposition = resp.headers.get("content-disposition", "").lower()
-    assert "inline" in disposition
-    assert "attachment" not in disposition
+    assert resp.status_code == 404
+    assert "Highlighted PDF is not available" in resp.text
 
 
 def test_highlighted_pdf_endpoint_draws_all_valid_boxes_for_multiple_matches(
@@ -3035,7 +3033,7 @@ def test_highlighted_pdf_endpoint_draws_all_valid_boxes_for_multiple_matches(
         wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
     )
 
-    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 4, "rule_id": "P012"})
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf", params={"page": 4, "rule_id": "P012"})
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/pdf")
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
@@ -3059,7 +3057,9 @@ def test_result_and_problem_pages_pdf_links_never_500(
         f"/audits/{job_id}/problems/category/annotations",
         f"/audits/{job_id}/problems/rule/P012",
     ]
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    pdf_link_re = re.compile(
+        r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
+    )
     checked_any = False
     for page_url in pages:
         resp = c.get(page_url)
@@ -3085,7 +3085,7 @@ def test_problem_group_page_links_to_highlighted_pdf_when_bbox_available(
     assert resp.status_code == 200
     body = resp.text
     assert "Open highlighted PDF page" in body
-    assert f"/audits/{job_id}/pdf/highlighted?" in body
+    assert f"/audits/{job_id}/highlighted.pdf?" in body
     assert 'rel="noopener noreferrer"' in body
 
 
@@ -3102,9 +3102,32 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     assert "Open highlighted PDF page" not in body
     assert "Open PDF page" not in body
     assert f"/audits/{job_id}/pdf#page=" in body
-    assert f"/audits/{job_id}/pdf/highlighted?" not in body
+    assert f"/audits/{job_id}/highlighted.pdf?" not in body
     assert "Open original PDF page" in body
     assert "No exact highlight is available" in body
+
+
+def test_legacy_pdf_highlighted_route_still_serves_inline_highlight(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The legacy /pdf/highlighted path remains available for older bookmarks."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(
+        f"/audits/{job_id}/pdf/highlighted",
+        params={"page": 3, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
+    )
+    assert resp.status_code == 200
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "attachment" not in disposition
+    assert resp.content[:4] == b"%PDF"
 
 
 def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]) -> None:
@@ -3240,7 +3263,9 @@ def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
     assert "pdf_finding_url" not in resp.text
     assert "Undefined" not in resp.text
 
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    pdf_link_re = re.compile(
+        r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
+    )
     links = set(pdf_link_re.findall(resp.text))
     assert links, "expected at least one PDF link on the rendered job page"
     for link in links:
@@ -3279,7 +3304,9 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
 
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    pdf_link_re = re.compile(
+        r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
+    )
     links = pdf_link_re.findall(resp.text)
     assert links
     for link in links:

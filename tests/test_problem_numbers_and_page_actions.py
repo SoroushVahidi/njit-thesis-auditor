@@ -217,7 +217,12 @@ def _problem_numbers(text: str) -> list[int]:
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
+    links = set(
+        re.findall(
+            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            text,
+        )
+    )
     return {html.unescape(link) for link in links}
 
 
@@ -297,7 +302,7 @@ def test_highlighted_and_original_page_actions_are_distinct(
     assert "Open original PDF page" in main_html
 
     highlight_resp = c.get(
-        f"/audits/{job_id}/pdf/highlighted",
+        f"/audits/{job_id}/highlighted.pdf",
         params={"page": 2, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
     )
     assert highlight_resp.status_code == 200
@@ -310,7 +315,7 @@ def test_highlighted_and_original_page_actions_are_distinct(
     assert "Open original PDF page" in p026_rule_html
     assert "Open highlighted PDF page" not in p026_rule_html
     assert f"/audits/{job_id}/pdf#page=4" in p026_rule_html
-    assert "/pdf/highlighted" not in p026_rule_html
+    assert "/highlighted.pdf" not in p026_rule_html
     original_resp = c.get(f"/audits/{job_id}/pdf")
     assert original_resp.status_code == 200
     assert original_resp.headers["content-type"].startswith("application/pdf")
@@ -378,7 +383,7 @@ def test_problem_routes_and_downloads_do_not_500(app: tuple[TestClient, Any]) ->
         f"/audits/{job_id}/problems/rule/P017",
         f"/audits/{job_id}/problems/rule/P017/issue-type/missing-terminal-punctuation",
         f"/audits/{job_id}/pdf",
-        f"/audits/{job_id}/pdf/highlighted?page=2&rule_id=P012&issue_type=pdf_annotation_detected",
+        f"/audits/{job_id}/highlighted.pdf?page=2&rule_id=P012&issue_type=pdf_annotation_detected",
         f"/audits/{job_id}/download/json",
         f"/audits/{job_id}/download/markdown",
     ]

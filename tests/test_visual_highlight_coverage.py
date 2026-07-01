@@ -158,7 +158,12 @@ def _get_html(
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
+    links = set(
+        re.findall(
+            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            text,
+        )
+    )
     return {link.split("#")[0] for link in links}
 
 
@@ -410,7 +415,7 @@ def test_no_geometry_findings_stay_explanation_only(app: tuple[TestClient, Any])
     assert status == 200
     assert "Open highlighted PDF page" not in text
     assert "Open original PDF page" in text
-    assert "/pdf/highlighted" not in text
+    assert "/highlighted.pdf" not in text
 
 
 # ---------------------------------------------------------------------------
@@ -450,7 +455,7 @@ def test_invalid_bbox_never_produces_fake_highlight_or_crash(
 
     # Even a manually-constructed highlight request for this job/rule must not 500.
     resp = c.get(
-        f"/audits/{job_id}/pdf/highlighted", params={"page": 2, "rule_id": "P011"}
+        f"/audits/{job_id}/highlighted.pdf", params={"page": 2, "rule_id": "P011"}
     )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/pdf")
@@ -749,7 +754,7 @@ def test_no_500_route_crawl_for_all_newly_highlightable_rules(
             )
         if fv.has_highlight:
             routes.append(
-                f"/audits/{job_id}/pdf/highlighted?page={fv.page}&rule_id={fv.rule_id}"
+                f"/audits/{job_id}/highlighted.pdf?page={fv.page}&rule_id={fv.rule_id}"
             )
 
     for route in routes:

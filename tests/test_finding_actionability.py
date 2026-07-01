@@ -192,7 +192,12 @@ def _get_html(client: TestClient, path: str, headers: dict[str, str] | None = No
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
+    links = set(
+        re.findall(
+            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            text,
+        )
+    )
     return {html.unescape(link).split("#")[0] for link in links}
 
 
@@ -227,7 +232,7 @@ def test_highlightable_finding_renders_highlighted_action(app: tuple[TestClient,
     # Action label
     assert "Open highlighted PDF page" in page_html
     # URL must point to highlighted endpoint
-    assert "/pdf/highlighted" in page_html
+    assert "/highlighted.pdf" in page_html
     # Route must return a PDF, not 500, with at least one real visible annotation.
     highlighted_links = [
         link for link in _pdf_links(page_html) if "highlighted" in link
@@ -305,7 +310,7 @@ def test_page_known_no_bbox_finding_renders_original_page_action(
     assert "Open highlighted PDF page" not in page_html
     assert "Open original PDF page" in page_html
     assert f"/audits/{job_id}/pdf#page=3" in page_html
-    assert "/pdf/highlighted" not in page_html
+    assert "/highlighted.pdf" not in page_html
     assert (
         "No exact highlight is available" in page_html
         and "page 3" in page_html
@@ -365,7 +370,7 @@ def test_document_level_finding_renders_explanation(app: tuple[TestClient, Any])
     page_html = _get_html(c, f"/audits/{job_id}")
 
     # Should not show a fake highlighted link
-    assert "/pdf/highlighted" not in page_html
+    assert "/highlighted.pdf" not in page_html
     # Should show document-level explanation note
     assert "document-level" in page_html.lower() or "What does this mean?" in page_html
 
@@ -485,7 +490,7 @@ def test_abstract_no_fake_highlight(app: tuple[TestClient, Any]) -> None:
     ]
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
-    assert "/pdf/highlighted" not in page_html
+    assert "/highlighted.pdf" not in page_html
     assert "400" in page_html or "What does this mean?" in page_html
 
 
@@ -533,7 +538,7 @@ def test_font_findingview_explanation(app: tuple[TestClient, Any]) -> None:
     # Rule problem page
     page_html = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
     assert "Times New Roman" in page_html
-    assert "/pdf/highlighted" not in page_html
+    assert "/highlighted.pdf" not in page_html
     assert "Open original PDF page" in page_html
     assert "Page 5" in page_html
 
@@ -633,7 +638,7 @@ def test_annotation_findingview_highlight(app: tuple[TestClient, Any]) -> None:
     # Rule problem page
     rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P012")
     assert "Open highlighted PDF page" in rule_html
-    assert "/pdf/highlighted" in rule_html
+    assert "/highlighted.pdf" in rule_html
     # Route must not 500
     for link in _pdf_links(rule_html):
         resp = c.get(link)
@@ -679,7 +684,7 @@ def test_annotation_invalid_bbox_falls_back(
     # Invalid/unusable bbox → no highlight → original-page fallback only.
     assert "Open original PDF page" in page_html, case_name
     assert "Open highlighted PDF page" not in page_html, case_name
-    assert "/pdf/highlighted" not in page_html, case_name
+    assert "/highlighted.pdf" not in page_html, case_name
     assert "No exact highlight is available" in page_html, case_name
     # No 500, regardless of which malformed bbox shape produced this state.
     for link in _pdf_links(page_html):
@@ -710,10 +715,9 @@ def test_annotation_page_out_of_pdf_range_falls_back(app: tuple[TestClient, Any]
     assert "Open original PDF page" in page_html
     assert "No exact highlight is available" in page_html
 
-    resp = c.get(f"/audits/{job_id}/pdf/highlighted", params={"page": 99, "rule_id": "P012"})
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf", params={"page": 99, "rule_id": "P012"})
     assert resp.status_code != 500
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -897,12 +901,12 @@ def test_main_category_rule_parity(app: tuple[TestClient, Any]) -> None:
     # P012 highlighted action appears everywhere it is relevant
     for page_html in (main_html, cat_html, rule_p012_html):
         assert "Open highlighted PDF page" in page_html, "P012 highlight missing"
-        assert "/pdf/highlighted" in page_html
+        assert "/highlighted.pdf" in page_html
 
     assert "Open original PDF page" in main_html
     assert "Open original PDF page" in rule_p026_html
     assert "Open highlighted PDF page" not in rule_p026_html
-    assert "/pdf/highlighted" not in rule_p026_html
+    assert "/highlighted.pdf" not in rule_p026_html
 
     # issue types appear on all pages
     assert "pdf annotation detected" in main_html.lower()
@@ -931,7 +935,7 @@ def test_rule_page_explanation_present(app: tuple[TestClient, Any]) -> None:
     # Explanation shown
     assert "What does this mean?" in rule_html
     assert "Open original PDF page" in rule_html
-    assert "/pdf/highlighted" not in rule_html
+    assert "/highlighted.pdf" not in rule_html
     assert "Page 5" in rule_html
 
 
@@ -1044,7 +1048,12 @@ def _build_parity_job(wa: Any) -> str:
 
 
 def _normalize_pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
+    links = set(
+        re.findall(
+            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            text,
+        )
+    )
     return {html.unescape(link).split("#")[0] for link in links}
 
 
@@ -1487,7 +1496,7 @@ def test_highlight_action_consistent_across_main_category_rule_issue_type_pages(
 
     for page_html in (main_html, cat_html, rule_html, issue_html):
         assert "Open highlighted PDF page" in page_html
-        assert "/pdf/highlighted" in page_html
+        assert "/highlighted.pdf" in page_html
         for link in _pdf_links(page_html):
             if "highlighted" not in link:
                 continue
@@ -1694,7 +1703,7 @@ def test_p063_page_known_no_highlight_wording(app: tuple[TestClient, Any]) -> No
 
     assert "Open original PDF page" in page_html
     assert "Open highlighted PDF page" not in page_html
-    assert "/pdf/highlighted" not in page_html
+    assert "/highlighted.pdf" not in page_html
     assert "No exact highlight is available" in page_html
     assert "Open the original PDF page" in page_html
 
@@ -1728,7 +1737,7 @@ def test_document_level_structure_finding_no_pdf_button_explanation_only(
     actions_end = main_html.index("Examples of this exact problem", card_start)
     card_section = main_html[card_start:actions_end]
     assert f'href="/audits/{job_id}/pdf"' not in card_section
-    assert "/pdf/highlighted" not in card_section
+    assert "/highlighted.pdf" not in card_section
     assert "document-level" in card_section.lower()
     assert "What does this mean?" in main_html
 
@@ -1771,7 +1780,7 @@ def test_highlightable_finding_unaffected_by_pdf_action_policy(
 
     for page_html in (main_html, cat_html, rule_html):
         assert "Open highlighted PDF page" in page_html
-        assert "/pdf/highlighted" in page_html
+        assert "/highlighted.pdf" in page_html
 
     for page_html in (cat_html, rule_html):
         links = [link for link in _pdf_links(page_html) if "highlighted" in link]

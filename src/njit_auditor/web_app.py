@@ -395,7 +395,7 @@ def _pdf_highlight_url(
     if finding_index is not None:
         params["finding_index"] = str(finding_index)
     fragment = f"#page={page}" if page is not None else ""
-    return f"/audits/{job_id}/pdf/highlighted?{urllib.parse.urlencode(params)}{fragment}"
+    return f"/audits/{job_id}/highlighted.pdf?{urllib.parse.urlencode(params)}{fragment}"
 
 
 def _pdf_original_page_url(job_id: str, *, page: int | None) -> str:
@@ -2641,6 +2641,32 @@ def _safe_pdf_disposition_filename(file_name: str) -> str:
     return name or "document.pdf"
 
 
+_HIGHLIGHTED_PDF_DISPOSITION_NAME = "highlighted.pdf"
+_HIGHLIGHT_UNAVAILABLE_MESSAGE = "Highlighted PDF is not available for this audit."
+
+
+def _inline_pdf_response(path: Path, *, filename: str) -> FileResponse:
+    """Return an inline PDF FileResponse with an explicit disposition type."""
+    return FileResponse(
+        path=str(path),
+        media_type="application/pdf",
+        filename=_safe_pdf_disposition_filename(filename),
+        content_disposition_type="inline",
+    )
+
+
+def _highlight_unavailable_response(request: Request) -> HTMLResponse | JSONResponse:
+    """Return a browser- or API-friendly 404 when highlights cannot be served."""
+    accept = request.headers.get("accept", "")
+    prefers_html = "text/html" in accept and not accept.strip().startswith("application/json")
+    if prefers_html:
+        return HTMLResponse(
+            f"<html><body><p>{_HIGHLIGHT_UNAVAILABLE_MESSAGE}</p></body></html>",
+            status_code=404,
+        )
+    return JSONResponse({"error": _HIGHLIGHT_UNAVAILABLE_MESSAGE}, status_code=404)
+
+
 @app.get("/audits/{job_id}/pdf", response_model=None)
 async def serve_job_pdf(job_id: str) -> FileResponse | JSONResponse:
     """Serve the uploaded PDF inline (not as a forced download) for the embedded viewer."""
@@ -2812,19 +2838,19 @@ def _highlight_cache_path(
     return jdir / f"highlighted-{digest}.pdf"
 
 
-@app.get("/audits/{job_id}/pdf/highlighted", response_model=None)
-async def serve_job_pdf_highlighted(
+async def _serve_job_pdf_highlighted(
+    request: Request,
     job_id: str,
+    *,
     page: int | None = None,
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
-) -> FileResponse | JSONResponse:
-    """Serve the uploaded PDF inline with a highlight for a specific finding.
+) -> FileResponse | HTMLResponse | JSONResponse:
+    """Serve a generated highlighted PDF copy for a specific finding request.
 
-    Falls back to the plain (unhighlighted) PDF when the matched finding(s)
-    carry no bounding-box coordinates. The original uploaded PDF is never
-    modified -- highlights are always drawn on a separate generated copy.
+    Never serves the original upload when highlight geometry is missing or
+    generation fails -- callers receive a clear 404 instead.
     """
     job = _get_job(job_id)
     if job is None or job.state != "complete":
@@ -2837,18 +2863,6 @@ async def serve_job_pdf_highlighted(
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
         return JSONResponse({"error": "PDF not found"}, status_code=404)
 
-    headers = {
-        "Content-Disposition": f'inline; filename="{_safe_pdf_disposition_filename(job.file_name)}"'
-    }
-    plain_response = FileResponse(
-        path=str(pdf_path), media_type="application/pdf", headers=headers
-    )
-
-    # Highlight generation is a best-effort enhancement layered on top of the
-    # always-available plain PDF: any unexpected failure below (bad query
-    # params, an unanticipated PDF-geometry edge case, a filesystem race,
-    # etc.) must fall back to the plain inline PDF rather than ever surface
-    # as a 500 to the browser.
     try:
         matches = _matching_findings_for_highlight(
             job,
@@ -2859,35 +2873,77 @@ async def serve_job_pdf_highlighted(
         )
         boxes_by_page = _highlight_boxes_by_page(matches)
         if not boxes_by_page:
-            return plain_response
+            return _highlight_unavailable_response(request)
 
         cache_path = _highlight_cache_path(
             jdir, page=page, rule_id=rule_id, issue_type=issue_type, finding_index=finding_index
         )
         if not _is_under_runtime(cache_path):
-            return plain_response
+            return _highlight_unavailable_response(request)
 
         if not cache_path.exists():
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
                     "Highlight request for job %s matched %d finding(s) but drew no "
-                    "visible annotation (skipped=%d); falling back to plain PDF.",
+                    "visible annotation (skipped=%d).",
                     job_id,
                     len(matches),
                     result.skipped_count,
                 )
         if not cache_path.exists():
-            return plain_response
+            return _highlight_unavailable_response(request)
 
-        return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+        return _inline_pdf_response(
+            cache_path, filename=_HIGHLIGHTED_PDF_DISPOSITION_NAME
+        )
     except Exception:
         _logger.warning(
-            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
+            "Highlighted PDF generation failed for job %s.",
             job_id,
             exc_info=True,
         )
-        return plain_response
+        return _highlight_unavailable_response(request)
+
+
+@app.get("/audits/{job_id}/highlighted.pdf", response_model=None)
+async def serve_job_highlighted_pdf_file(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> FileResponse | HTMLResponse | JSONResponse:
+    """Serve a highlighted PDF inline using a .pdf URL path for browser viewers."""
+    return await _serve_job_pdf_highlighted(
+        request,
+        job_id,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+
+
+@app.get("/audits/{job_id}/pdf/highlighted", response_model=None)
+async def serve_job_pdf_highlighted(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> FileResponse | HTMLResponse | JSONResponse:
+    """Backward-compatible highlighted-PDF route (prefer /highlighted.pdf)."""
+    return await _serve_job_pdf_highlighted(
+        request,
+        job_id,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
 
 
 @app.get("/help", response_class=HTMLResponse)

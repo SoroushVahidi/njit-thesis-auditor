@@ -153,7 +153,12 @@ def _get_html(client: TestClient, path: str, headers: dict[str, str] | None = No
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf[^"]*)"', text))
+    links = set(
+        re.findall(
+            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            text,
+        )
+    )
     return {html.unescape(link).split("#")[0] for link in links}
 
 
@@ -361,7 +366,7 @@ def test_font_category_page_has_no_pdf_link_without_highlight(
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/category/font-format")
-    assert "/pdf/highlighted" not in text
+    assert "/highlighted.pdf" not in text
     assert f"/audits/{job_id}/pdf#page=" in text
     assert "Open original PDF page" in text
     assert "No exact highlight is available" in text
@@ -420,7 +425,7 @@ def test_p013_rule_page_has_no_pdf_link_without_highlight(
 ) -> None:
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}/problems/rule/P013")
-    assert "/pdf/highlighted" not in text
+    assert "/highlighted.pdf" not in text
     assert f"/audits/{job_id}/pdf#page=" in text
     assert "Open original PDF page" in text
     assert "Page 1" in text or "Page 2" in text or "Page 3" in text or "Page 5" in text

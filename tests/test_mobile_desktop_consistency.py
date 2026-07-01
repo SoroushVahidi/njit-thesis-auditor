@@ -249,7 +249,12 @@ def _assert_contains_tokens(text: str, tokens: list[str]) -> None:
 
 
 def _normalize_pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
+    links = set(
+        re.findall(
+            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            text,
+        )
+    )
     normalized: set[str] = set()
     for link in links:
         resolved = html.unescape(link)
