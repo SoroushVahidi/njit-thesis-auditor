@@ -480,15 +480,28 @@ def _ester_priority_review(
     )
 
     # F. TOC/LoT/LoF
+    p018_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P018"
+    )
+    if p018_atomic and len(p018_atomic) >= 17:
+        p018_status = "aligned"
+        p018_detail = (
+            f"Canonical public cards: {', '.join(p018_atomic)}. "
+            "Superseded delegated cards (P024A–C, P032A, P036A–C, P042A–B, "
+            "P046A–B, P048A–B) hidden from /rules. Q051 level-3 sentence case "
+            "remains partial in detector."
+        )
+    else:
+        p018_status = "delegated split"
+        p018_detail = (
+            f"P018 atomic cards: {p018_atomic or 'none'}. "
+            "Expected P018A–P018Q covering Ester TOC/LoT/LoF sub-questions."
+        )
     findings.append(
         {
             "area": "F. TOC/LoT/LoF (P018 family)",
-            "status": "delegated split",
-            "detail": (
-                "No P018A.. cards; coverage spread across P024A–E (case), P032A–C (wrapped spacing), "
-                "P036A–C (double spacing), P039 (indent), P042A–B (appendix), P046A–B / P048A–B (alignment), "
-                "P030A–C (continued headings). Q051 level-3 sentence case remains partial."
-            ),
+            "status": p018_status,
+            "detail": p018_detail,
         }
     )
 
@@ -820,17 +833,42 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
         if row["Status"] != "aligned":
             mismatch_inventory.append({"kind": "Q-rule", **row, "priority": _priority_for(row["Status"], qid=row["Q-rule"])})
 
-    # P018 sub-check gaps (Ester atomic TOC/list checks without public cards)
-    p018_gaps = []
+    # P018 sub-check gaps and duplicate public cards
+    p018_gaps: list[str] = []
+    p018_duplicates: list[str] = []
     ester_p018 = next((r for r in ester_p if r["id"] == "P018"), None)
     if ester_p018:
         ester_subs = re.findall(r"\d[a-z]\.", _norm(ester_p018["proposed_question"]))
         atomic_p018 = [s.id for s in public["atomic_specs"].values() if s.parent_rule_id == "P018"]
+        try:
+            import njit_auditor.web_app as wa_check  # noqa: PLC0415
+
+            hidden_atomic = wa_check._HIDDEN_ATOMIC_PUBLIC_RULE_IDS
+            visible_atomic_ids = {
+                spec.id
+                for spec in wa_check._ATOMIC_PUBLIC_RULE_CARDS
+                if spec.id not in hidden_atomic
+            }
+            for q_id, canonical in wa_check._P018_Q_RULE_TO_CARD.items():
+                visible_for_q = [
+                    spec.id
+                    for spec in wa_check._ATOMIC_PUBLIC_RULE_CARDS
+                    if q_id in (spec.source_q_rule_ids or ())
+                    and spec.id in visible_atomic_ids
+                ]
+                if len(visible_for_q) > 1:
+                    p018_duplicates.append(
+                        f"{q_id}: multiple public cards {sorted(visible_for_q)}"
+                    )
+        except Exception:
+            pass
         if ester_subs and not atomic_p018:
             p018_gaps.append(
                 "P018: Ester lists many TOC/LoT/LoF atomic sub-questions but no P018A/B/C public cards; "
                 "coverage delegated to P024/P032/P036/P039/P042/P046/P048 and hidden P018."
             )
+        if p018_duplicates:
+            p018_gaps.extend(p018_duplicates)
 
     warning_examples = _collect_warning_examples(impl_rules)
     recent_checks = _recent_fix_checks(impl_rules, public)

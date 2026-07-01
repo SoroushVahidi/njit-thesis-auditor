@@ -874,7 +874,9 @@
           <div>
             <p class="grouped-problem__title">
             {% if problem.problem_number_label %}{{ problem.problem_number_label }} — {% endif %}
-            {% if public_rule_reference_href is defined %}
+            {% if problem.public_rule_reference_id %}
+            {% set problem_rule_href = "/rules#" ~ problem.public_rule_reference_id %}
+            {% elif public_rule_reference_href is defined %}
             {% set problem_rule_href = public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) %}
             {% elif is_p_rule_id(problem.rule_id) %}
             {% set problem_rule_href = "/rules#" ~ problem.rule_id %}
@@ -1049,7 +1051,9 @@
               data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
             <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
             <td><strong>
-              {% if public_rule_reference_href is defined %}
+              {% if f.public_rule_reference_id %}
+              {% set finding_rule_href = "/rules#" ~ f.public_rule_reference_id %}
+              {% elif public_rule_reference_href is defined %}
               {% set finding_rule_href = public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
               {% elif is_p_rule_id(f.rule_id) %}
               {% set finding_rule_href = "/rules#" ~ f.rule_id %}

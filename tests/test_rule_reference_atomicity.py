@@ -44,11 +44,10 @@ def test_rule_reference_catalog_replaces_known_broad_cards(client: tuple[TestCli
     assert {"P014A", "P014B", "P014C", "P014D", "P014E", "P014F"} <= visible_ids
     assert {"P038A", "P038B", "P038C", "P038D", "P038E", "P038F"} <= visible_ids
     assert {"P030A", "P030B", "P030C"} <= visible_ids
-    assert {"P032A", "P032B", "P032C"} <= visible_ids
-    assert {"P036A", "P036B", "P036C"} <= visible_ids
-    assert {"P042A", "P042B"} <= visible_ids
+    assert {"P032B", "P032C"} <= visible_ids
+    assert {f"P018{letter}" for letter in "ABCDEFGHIJKLMNOPQ"} <= visible_ids
     assert {"P043A", "P043B", "P044A", "P044B"} <= visible_ids
-    assert {"P046A", "P046B", "P048A", "P048B"} <= visible_ids
+    assert {"P024D", "P024E"} <= visible_ids
 
     assert {
         "P014",
@@ -62,11 +61,27 @@ def test_rule_reference_catalog_replaces_known_broad_cards(client: tuple[TestCli
         "P032",
         "P036",
         "P038",
+        "P039",
         "P042",
         "P043",
         "P044",
         "P046",
         "P048",
+    }.isdisjoint(visible_ids)
+    assert {
+        "P024A",
+        "P024B",
+        "P024C",
+        "P032A",
+        "P036A",
+        "P036B",
+        "P036C",
+        "P042A",
+        "P042B",
+        "P046A",
+        "P046B",
+        "P048A",
+        "P048B",
     }.isdisjoint(visible_ids)
 
 
@@ -180,6 +195,24 @@ def test_public_rule_reference_mapping_splits_p024_lof_sentence_case(
         issue_type="list_of_figures_sentence_case",
         source_q_rule_id="Q074",
     ) == "P024E"
+
+
+def test_public_rule_reference_mapping_splits_p018_toc_capitalization(
+    client: tuple[TestClient, Any],
+) -> None:
+    _, wa = client
+
+    assert wa._public_rule_reference_id(
+        "P024",
+        issue_type="toc_level_capitalization",
+        source_q_rule_id="Q049",
+        details={"entry_level": "1"},
+    ) == "P018A"
+    assert wa._public_rule_reference_id(
+        "P018",
+        issue_type="inconsistent_leader_dots",
+        source_q_rule_id="Q052",
+    ) == "P018D"
 
 
 def test_results_font_findings_link_to_split_public_cards(
@@ -351,6 +384,85 @@ def test_results_lof_sentence_case_findings_link_to_p024e_and_use_atomic_fix(
     body = resp.text
     assert 'href="/rules#P024E"' in body
     assert "Change the List of Figures entry to sentence case." in body
+
+
+def test_results_p018_leader_findings_link_to_p018d(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+    from njit_auditor.models import AuditFinding, Severity
+
+    findings = [
+        AuditFinding(
+            rule_id="P018",
+            severity=Severity.WARNING,
+            page=7,
+            message="Leader dots inconsistent.",
+            details={
+                "issue_type": "inconsistent_leader_dots",
+                "source_q_rule_id": "Q052",
+                "section_type": "table_of_contents",
+                "confidence": "medium",
+            },
+        )
+    ]
+    job_id = secrets.token_urlsafe(16)
+    runtime = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
+    jdir = runtime / job_id
+    jdir.mkdir(parents=True, exist_ok=True)
+    (jdir / "upload.pdf").write_bytes(_MINIMAL_PDF)
+    metadata = {"input_file_name": "thesis.pdf", "audit_type": "pdf", "job_id": job_id}
+    payload = audit_findings_to_json_dict(findings, metadata)
+    (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    write_markdown_report(findings, metadata, jdir / "report.md")
+    view = build_report_view(payload)
+
+    job = wa.JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+        finding_count=view.total_findings,
+        warn_count=1,
+        fail_count=0,
+        findings=[
+            {
+                "rule_id": fv.rule_id,
+                "public_rule_reference_id": wa._public_rule_reference_id(
+                    fv.rule_id,
+                    issue_type=fv.issue_type,
+                    source_q_rule_id=str(
+                        payload["findings"][0].get("details", {}).get("source_q_rule_id", "")
+                    ),
+                    details=payload["findings"][0].get("details", {}),
+                ),
+                "severity": fv.severity,
+                "page": fv.page,
+                "issue_type": fv.issue_type,
+                "category": fv.category,
+                "polished_comment": fv.polished_comment,
+                "suggested_fix": fv.suggested_fix,
+                "triage_tier": fv.triage_tier,
+                "confidence": fv.confidence,
+                "confidence_level": fv.confidence_level,
+                "confidence_label": fv.confidence_label,
+                "confidence_css_class": fv.confidence_css_class,
+                "source_file": fv.source_file,
+                "source_line": fv.source_line,
+                "location_label": fv.location_label,
+            }
+            for fv in view.findings
+        ],
+        grouped_summary=[],
+        report_view=report_view_to_dict(view),
+        md_preview="# Audit\n",
+    )
+    wa._set_job(job)
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert 'href="/rules#P018D"' in resp.text
 
 
 def test_rules_page_renders_split_font_cards_not_combined_p026(

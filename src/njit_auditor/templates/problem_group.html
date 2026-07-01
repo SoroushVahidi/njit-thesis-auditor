@@ -232,7 +232,9 @@
           <p class="example-card__title">
             {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
             {% if group_kind == "category" %}
-              {% if public_rule_reference_href is defined %}
+              {% if example.public_rule_reference_id %}
+              {% set example_rule_href = "/rules#" ~ example.public_rule_reference_id %}
+              {% elif public_rule_reference_href is defined %}
               {% set example_rule_href = public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
               {% elif is_p_rule_id(example.rule_id) %}
               {% set example_rule_href = "/rules#" ~ example.rule_id %}
@@ -305,7 +307,9 @@
           <p class="example-card__title">
             {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
             {% if group_kind == "category" %}
-              {% if public_rule_reference_href is defined %}
+              {% if example.public_rule_reference_id %}
+              {% set example_rule_href = "/rules#" ~ example.public_rule_reference_id %}
+              {% elif public_rule_reference_href is defined %}
               {% set example_rule_href = public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
               {% elif is_p_rule_id(example.rule_id) %}
               {% set example_rule_href = "/rules#" ~ example.rule_id %}

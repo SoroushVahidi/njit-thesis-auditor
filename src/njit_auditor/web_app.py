@@ -930,6 +930,217 @@ _ATOMIC_PUBLIC_RULE_CARDS: tuple[PublicRuleCardSpec, ...] = (
         source_q_rule_ids=("Q074",),
     ),
     PublicRuleCardSpec(
+        id="P018A",
+        parent_rule_id="P018",
+        question=(
+            "In the Table of Contents, are all level-1 chapter titles displayed in all caps?"
+        ),
+        remediation="Change all level-1 chapter titles in the Table of Contents to all caps.",
+        compatibility_anchors=("P024",),
+        issue_types=("toc_level_capitalization",),
+        source_q_rule_ids=("Q049",),
+    ),
+    PublicRuleCardSpec(
+        id="P018B",
+        parent_rule_id="P018",
+        question=(
+            "In the Table of Contents, are all level-2 section titles displayed in title case?"
+        ),
+        remediation=(
+            "Change all level-2 section titles in the Table of Contents to title case."
+        ),
+        issue_types=("toc_level_capitalization",),
+        source_q_rule_ids=("Q050",),
+    ),
+    PublicRuleCardSpec(
+        id="P018C",
+        parent_rule_id="P018",
+        question=(
+            "In the Table of Contents, are all level-3 section titles displayed in "
+            "sentence case?"
+        ),
+        remediation=(
+            "Change all level-3 section titles in the Table of Contents to sentence case."
+        ),
+        issue_types=("toc_level_capitalization",),
+        source_q_rule_ids=("Q051",),
+    ),
+    PublicRuleCardSpec(
+        id="P018D",
+        parent_rule_id="P018",
+        question=(
+            "Is each Table of Contents entry connected to its page number by a "
+            "consistent leader style?"
+        ),
+        remediation="Right-align page numbers and use one consistent leader style.",
+        issue_types=("inconsistent_leader_dots",),
+        source_q_rule_ids=("Q052",),
+    ),
+    PublicRuleCardSpec(
+        id="P018E",
+        parent_rule_id="P018",
+        question=(
+            "Is every wrapped level-1 Table of Contents entry single-spaced internally?"
+        ),
+        remediation="Single-space every wrapped level-1 Table of Contents entry.",
+        issue_types=("wrapped_entry_internal_spacing",),
+        source_q_rule_ids=("Q053",),
+    ),
+    PublicRuleCardSpec(
+        id="P018F",
+        parent_rule_id="P018",
+        question=(
+            "Is every wrapped level-2 Table of Contents entry single-spaced internally?"
+        ),
+        remediation="Single-space every wrapped level-2 Table of Contents entry.",
+        issue_types=("wrapped_entry_internal_spacing",),
+        source_q_rule_ids=("Q054",),
+    ),
+    PublicRuleCardSpec(
+        id="P018G",
+        parent_rule_id="P018",
+        question=(
+            "Is every wrapped level-3 Table of Contents entry single-spaced internally?"
+        ),
+        remediation="Single-space every wrapped level-3 Table of Contents entry.",
+        issue_types=("wrapped_entry_internal_spacing",),
+        source_q_rule_ids=("Q055",),
+    ),
+    PublicRuleCardSpec(
+        id="P018H",
+        parent_rule_id="P018",
+        question=(
+            "Are level-2 and level-3 Table of Contents entries indented to show hierarchy?"
+        ),
+        remediation=(
+            "Indent level-2 and level-3 Table of Contents entries to show hierarchy."
+        ),
+        issue_types=(
+            "toc_l2_not_indented_relative_to_l1",
+            "toc_l3_not_indented_relative_to_l2",
+            "inconsistent_hierarchy_indent",
+        ),
+        source_q_rule_ids=("Q056",),
+    ),
+    PublicRuleCardSpec(
+        id="P018I",
+        parent_rule_id="P018",
+        question=(
+            "Is there visible double spacing between consecutive Table of Contents "
+            "section-title entries?"
+        ),
+        remediation=(
+            "Add visible double spacing or a blank line between consecutive Table of "
+            "Contents entries."
+        ),
+        issue_types=("toc_inter_entry_spacing_too_tight",),
+        source_q_rule_ids=("Q057",),
+    ),
+    PublicRuleCardSpec(
+        id="P018J",
+        parent_rule_id="P018",
+        question=(
+            "If only one appendix is listed in the Table of Contents, does it begin with "
+            "'APPENDIX' followed by its title?"
+        ),
+        remediation=(
+            "Rename the single appendix entry to begin with 'APPENDIX' followed by its "
+            "title."
+        ),
+        issue_types=("single_appendix_missing_title",),
+        source_q_rule_ids=("Q058",),
+    ),
+    PublicRuleCardSpec(
+        id="P018K",
+        parent_rule_id="P018",
+        question=(
+            "If multiple appendices are listed in the Table of Contents, are they "
+            "identified by letters?"
+        ),
+        remediation=(
+            "Rename the appendix entries in the Table of Contents to use letter "
+            "designations."
+        ),
+        issue_types=("multiple_appendix_missing_letter",),
+        source_q_rule_ids=("Q059",),
+    ),
+    PublicRuleCardSpec(
+        id="P018L",
+        parent_rule_id="P018",
+        question=(
+            "Is there visible double spacing between consecutive List of Tables entries?"
+        ),
+        remediation=(
+            "Add visible double spacing or a blank line between consecutive List of Tables "
+            "entries."
+        ),
+        issue_types=("lot_inter_entry_spacing_too_tight",),
+        source_q_rule_ids=("Q067",),
+    ),
+    PublicRuleCardSpec(
+        id="P018M",
+        parent_rule_id="P018",
+        question=(
+            "Are all table numbers in the List of Tables aligned vertically in one left "
+            "column?"
+        ),
+        remediation=(
+            "Align all table numbers in the List of Tables into one vertical left column."
+        ),
+        issue_types=("lot_entry_number_column_misaligned",),
+        source_q_rule_ids=("Q068",),
+    ),
+    PublicRuleCardSpec(
+        id="P018N",
+        parent_rule_id="P018",
+        question=(
+            "Are all List of Tables page numbers aligned vertically in one right column?"
+        ),
+        remediation=(
+            "Align all List of Tables page numbers into one vertical right column."
+        ),
+        issue_types=("lot_page_number_column_misaligned",),
+        source_q_rule_ids=("Q069",),
+    ),
+    PublicRuleCardSpec(
+        id="P018O",
+        parent_rule_id="P018",
+        question=(
+            "Is there visible double spacing between consecutive List of Figures entries?"
+        ),
+        remediation=(
+            "Add visible double spacing or a blank line between consecutive List of "
+            "Figures entries."
+        ),
+        issue_types=("lof_inter_entry_spacing_too_tight",),
+        source_q_rule_ids=("Q077",),
+    ),
+    PublicRuleCardSpec(
+        id="P018P",
+        parent_rule_id="P018",
+        question=(
+            "Are all figure numbers in the List of Figures aligned vertically in one left "
+            "column?"
+        ),
+        remediation=(
+            "Align all figure numbers in the List of Figures into one vertical left column."
+        ),
+        issue_types=("lof_entry_number_column_misaligned",),
+        source_q_rule_ids=("Q078",),
+    ),
+    PublicRuleCardSpec(
+        id="P018Q",
+        parent_rule_id="P018",
+        question=(
+            "Are all List of Figures page numbers aligned vertically in one right column?"
+        ),
+        remediation=(
+            "Align all List of Figures page numbers into one vertical right column."
+        ),
+        issue_types=("lof_page_number_column_misaligned",),
+        source_q_rule_ids=("Q079",),
+    ),
+    PublicRuleCardSpec(
         id="P026A",
         parent_rule_id="P026",
         question=(
@@ -1274,6 +1485,7 @@ _HIDDEN_PUBLIC_RULE_IDS = frozenset(
         "P036",
         "P037",
         "P038",
+        "P039",
         "P042",
         "P043",
         "P044",
@@ -1289,6 +1501,70 @@ _HIDDEN_PUBLIC_RULE_IDS = frozenset(
         "P064",
     }
 )
+
+# Superseded by canonical P018A–P018Q cards (same student-facing issue, no duplicate /rules).
+_HIDDEN_ATOMIC_PUBLIC_RULE_IDS = frozenset(
+    {
+        "P024A",
+        "P024B",
+        "P024C",
+        "P032A",
+        "P036A",
+        "P036B",
+        "P036C",
+        "P042A",
+        "P042B",
+        "P046A",
+        "P046B",
+        "P048A",
+        "P048B",
+    }
+)
+
+_P018_ENTRY_LEVEL_TO_CARD = {
+    "1": "P018A",
+    "2": "P018B",
+    "3": "P018C",
+}
+_P018_Q_RULE_TO_CARD = {
+    "Q049": "P018A",
+    "Q050": "P018B",
+    "Q051": "P018C",
+    "Q052": "P018D",
+    "Q053": "P018E",
+    "Q054": "P018F",
+    "Q055": "P018G",
+    "Q056": "P018H",
+    "Q057": "P018I",
+    "Q058": "P018J",
+    "Q059": "P018K",
+    "Q067": "P018L",
+    "Q068": "P018M",
+    "Q069": "P018N",
+    "Q077": "P018O",
+    "Q078": "P018P",
+    "Q079": "P018Q",
+}
+_P018_ENTRY_KIND_TO_CARD = {
+    "toc_level_1": "P018E",
+    "toc_level_2": "P018F",
+    "toc_level_3": "P018G",
+}
+_P018_BACKEND_ISSUE_MAP: dict[tuple[str, str], str] = {
+    ("P018", "inconsistent_leader_dots"): "P018D",
+    ("P018", "inconsistent_hierarchy_indent"): "P018H",
+    ("P039", "toc_l2_not_indented_relative_to_l1"): "P018H",
+    ("P039", "toc_l3_not_indented_relative_to_l2"): "P018H",
+    ("P036", "toc_inter_entry_spacing_too_tight"): "P018I",
+    ("P036", "lot_inter_entry_spacing_too_tight"): "P018L",
+    ("P036", "lof_inter_entry_spacing_too_tight"): "P018O",
+    ("P042", "single_appendix_missing_title"): "P018J",
+    ("P042", "multiple_appendix_missing_letter"): "P018K",
+    ("P046", "lot_entry_number_column_misaligned"): "P018M",
+    ("P046", "lof_entry_number_column_misaligned"): "P018P",
+    ("P048", "lot_page_number_column_misaligned"): "P018N",
+    ("P048", "lof_page_number_column_misaligned"): "P018Q",
+}
 
 _ATOMIC_CARD_BY_ID = {spec.id: spec for spec in _ATOMIC_PUBLIC_RULE_CARDS}
 
@@ -1344,7 +1620,57 @@ def _atomic_public_rule_dict(
     parent["how_to_correct"] = spec.remediation
     parent["what_it_checks"] = spec.question
     parent["compatibility_anchors"] = list(spec.compatibility_anchors)
+    parent["parent_rule_id"] = spec.parent_rule_id
+    parent["source_q_rule_ids"] = list(spec.source_q_rule_ids)
+    parent["issue_types"] = list(spec.issue_types)
     return parent
+
+
+def _detail_str(details: Mapping[str, Any] | None, key: str) -> str:
+    if not details:
+        return ""
+    return str(details.get(key, "")).strip()
+
+
+def _resolve_p018_public_card(
+    rule_id: str,
+    issue_type: str,
+    *,
+    source_q_rule_id: str = "",
+    details: Mapping[str, Any] | None = None,
+) -> str:
+    """Map backend TOC/List findings to canonical P018A–P018Q public cards."""
+    clean_rule_id = str(rule_id).strip()
+    clean_issue_type = str(issue_type).strip()
+    clean_q_rule = str(source_q_rule_id).strip()
+    entry_level = _detail_str(details, "entry_level")
+    entry_kind = _detail_str(details, "entry_kind")
+    section_type = _detail_str(details, "section_type")
+
+    if clean_q_rule in _P018_Q_RULE_TO_CARD:
+        return _P018_Q_RULE_TO_CARD[clean_q_rule]
+
+    if clean_issue_type == "toc_level_capitalization":
+        if entry_level in _P018_ENTRY_LEVEL_TO_CARD:
+            return _P018_ENTRY_LEVEL_TO_CARD[entry_level]
+
+    if clean_issue_type == "wrapped_entry_internal_spacing":
+        if entry_kind in _P018_ENTRY_KIND_TO_CARD:
+            return _P018_ENTRY_KIND_TO_CARD[entry_kind]
+        if section_type == "table_of_contents" or clean_rule_id == "P032":
+            return "P018E"
+
+    if clean_issue_type == "misaligned_page_number_column":
+        if section_type == "list_of_tables":
+            return "P018N"
+        if section_type == "list_of_figures":
+            return "P018Q"
+
+    mapped = _P018_BACKEND_ISSUE_MAP.get((clean_rule_id, clean_issue_type))
+    if mapped:
+        return mapped
+
+    return ""
 
 
 def _public_rule_reference_id(
@@ -1352,16 +1678,38 @@ def _public_rule_reference_id(
     *,
     issue_type: str = "",
     source_q_rule_id: str = "",
+    details: Mapping[str, Any] | None = None,
 ) -> str:
     """Map a backend finding/rule to the student-facing /rules anchor ID."""
     clean_rule_id = str(rule_id).strip()
     clean_issue_type = str(issue_type).strip()
     clean_q_rule = str(source_q_rule_id).strip()
 
+    p018_card = _resolve_p018_public_card(
+        clean_rule_id,
+        clean_issue_type,
+        source_q_rule_id=clean_q_rule,
+        details=details,
+    )
+    if p018_card:
+        return p018_card
+
     for spec in _ATOMIC_PUBLIC_RULE_CARDS:
+        if spec.id in _HIDDEN_ATOMIC_PUBLIC_RULE_IDS:
+            continue
         if clean_rule_id != spec.parent_rule_id:
             continue
         if spec.issue_types and clean_issue_type in spec.issue_types:
+            if clean_issue_type == "toc_level_capitalization":
+                entry_level = _detail_str(details, "entry_level")
+                if entry_level in _P018_ENTRY_LEVEL_TO_CARD:
+                    continue
+                if clean_q_rule in _P018_Q_RULE_TO_CARD:
+                    continue
+            if clean_issue_type == "wrapped_entry_internal_spacing":
+                entry_kind = _detail_str(details, "entry_kind")
+                if entry_kind in _P018_ENTRY_KIND_TO_CARD:
+                    continue
             return spec.id
         if spec.source_q_rule_ids and clean_q_rule in spec.source_q_rule_ids:
             return spec.id
@@ -1372,6 +1720,7 @@ def _public_rule_reference_id(
                 spec.id
                 for spec in _ATOMIC_PUBLIC_RULE_CARDS
                 if clean_rule_id in spec.compatibility_anchors
+                and spec.id not in _HIDDEN_ATOMIC_PUBLIC_RULE_IDS
             ),
             "",
         )
@@ -1385,11 +1734,13 @@ def _public_rule_reference_href(
     *,
     issue_type: str = "",
     source_q_rule_id: str = "",
+    details: Mapping[str, Any] | None = None,
 ) -> str:
     anchor_id = _public_rule_reference_id(
         rule_id,
         issue_type=issue_type,
         source_q_rule_id=source_q_rule_id,
+        details=details,
     )
     return f"/rules#{anchor_id}" if anchor_id else ""
 
@@ -1464,6 +1815,8 @@ def _build_rule_catalog() -> dict[str, Any]:
             technical_rules.append(enriched)
 
     for spec in _ATOMIC_PUBLIC_RULE_CARDS:
+        if spec.id in _HIDDEN_ATOMIC_PUBLIC_RULE_IDS:
+            continue
         parent_rule = rules_by_id.get(spec.parent_rule_id)
         if not isinstance(parent_rule, dict):
             continue
@@ -2182,38 +2535,54 @@ def _run_audit_task(job_id: str) -> None:
 
     view = build_report_view(web_payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
+    raw_findings = web_payload.get("findings", [])
+    if not isinstance(raw_findings, list):
+        raw_findings = []
 
-    serialized = [
-        {
-            "rule_id": fv["rule_id"],
-            "severity": fv["severity"],
-            "page": fv["page"],
-            "page_display_label": fv.get("page_display_label", ""),
-            "problem_number": fv.get("problem_number", 0),
-            "problem_anchor": fv.get("problem_anchor", ""),
-            "issue_type": fv["issue_type"],
-            "category": fv["category"],
-            "polished_comment": fv["polished_comment"],
-            "suggested_fix": fv.get("suggested_fix", ""),
-            "triage_tier": fv.get("triage_tier", ""),
-            "confidence": fv.get("confidence", ""),
-            "confidence_level": fv.get("confidence_level", "") or fv.get("confidence", ""),
-            "confidence_label": fv.get("confidence_label", ""),
-            "confidence_css_class": fv.get("confidence_css_class", ""),
-            "source_file": fv.get("source_file", ""),
-            "source_line": fv.get("source_line", ""),
-            "location_label": fv.get("location_label", ""),
-            "bbox": fv.get("bbox"),
-            "action_kind": fv.get("action_kind", ""),
-            "action_label": fv.get("action_label", ""),
-            "has_highlight": fv.get("has_highlight", False),
-            "no_highlight_reason": fv.get("no_highlight_reason", ""),
-            "detailed_explanation": fv.get("detailed_explanation", ""),
-            "issue_type_label": fv.get("issue_type_label", ""),
-            "issue_type_explanation": fv.get("issue_type_explanation", ""),
-        }
-        for fv in view_dict.get("findings", [])
-    ]
+    serialized = []
+    for index, fv in enumerate(view_dict.get("findings", [])):
+        raw_details: dict[str, Any] = {}
+        if index < len(raw_findings) and isinstance(raw_findings[index], dict):
+            details = raw_findings[index].get("details", {})
+            if isinstance(details, dict):
+                raw_details = {str(k): v for k, v in details.items()}
+        public_ref = _public_rule_reference_id(
+            str(fv.get("rule_id", "")),
+            issue_type=str(fv.get("issue_type", "")),
+            source_q_rule_id=str(raw_details.get("source_q_rule_id", "")),
+            details=raw_details,
+        )
+        serialized.append(
+            {
+                "rule_id": fv["rule_id"],
+                "public_rule_reference_id": public_ref,
+                "severity": fv["severity"],
+                "page": fv["page"],
+                "page_display_label": fv.get("page_display_label", ""),
+                "problem_number": fv.get("problem_number", 0),
+                "problem_anchor": fv.get("problem_anchor", ""),
+                "issue_type": fv["issue_type"],
+                "category": fv["category"],
+                "polished_comment": fv["polished_comment"],
+                "suggested_fix": fv.get("suggested_fix", ""),
+                "triage_tier": fv.get("triage_tier", ""),
+                "confidence": fv.get("confidence", ""),
+                "confidence_level": fv.get("confidence_level", "") or fv.get("confidence", ""),
+                "confidence_label": fv.get("confidence_label", ""),
+                "confidence_css_class": fv.get("confidence_css_class", ""),
+                "source_file": fv.get("source_file", ""),
+                "source_line": fv.get("source_line", ""),
+                "location_label": fv.get("location_label", ""),
+                "bbox": fv.get("bbox"),
+                "action_kind": fv.get("action_kind", ""),
+                "action_label": fv.get("action_label", ""),
+                "has_highlight": fv.get("has_highlight", False),
+                "no_highlight_reason": fv.get("no_highlight_reason", ""),
+                "detailed_explanation": fv.get("detailed_explanation", ""),
+                "issue_type_label": fv.get("issue_type_label", ""),
+                "issue_type_explanation": fv.get("issue_type_explanation", ""),
+            }
+        )
 
     grouped_rows = [
         {
