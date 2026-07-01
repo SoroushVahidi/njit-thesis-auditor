@@ -905,6 +905,11 @@ def _margin_detailed_explanation(
             "the detector found layout content outside the expected printable area, but the "
             "stored metadata does not identify which margin side was crossed"
         )
+    elif content_kind == "toc_entry_bottom_margin":
+        why = (
+            "this Table of Contents entry itself extends below the required bottom text "
+            "boundary; this is not about the page's printed page number in the footer"
+        )
     else:
         why = (
             f"{margin_content_label(page_context)} should stay inside the {side}, not extend "
@@ -946,12 +951,15 @@ def _margin_comment_and_fix(
     page_context = page_context_from_details(details)
     content_kind = content_kind_from_details(details)
     overflow_detail = _margin_overflow_detail_phrase(details)
+    overflow_pt = details.get("worst_overflow_pt", "").strip()
     lines_clause = _margin_affected_lines_clause(details)
     body = margin_comment_body(
         page_label=page_label,
         side_label=side,
         page_context=page_context,
+        content_kind=content_kind,
         overflow_detail=overflow_detail,
+        overflow_pt=overflow_pt,
         lines_clause=lines_clause,
     )
     comment = body.replace("Likely problem:", f"{prefix}:", 1)

@@ -162,6 +162,171 @@ def test_reference_continuation_page_inferred_from_line_previews() -> None:
     assert infer_margin_content_kind("general", previews) == "references_hanging_indent"
 
 
+def test_toc_right_margin_uses_toc_specific_wording() -> None:
+    rendered = _finding_view(
+        {
+            "side": "right_margin",
+            "worst_overflow_pt": "21.2",
+            "affected_line_count": "1",
+            "confidence": "medium",
+            "page_context": "table_of_contents",
+            "margin_content_kind": "toc_entry_right_margin",
+            "affected_line_texts": (
+                "3.3 The Off-Diagonal Weingarten Loss for CAD-Type Neural SDF "
+                "Reconstruction 36"
+            ),
+        },
+        page=9,
+    )
+    assert "table of contents entry" in rendered.polished_comment.lower()
+    assert "21.2 pt" in rendered.polished_comment
+    assert "right margin" in rendered.polished_comment.lower()
+
+
+def test_toc_right_margin_fix_mentions_wrapping_leaders_or_tab_stop() -> None:
+    rendered = _finding_view(
+        {
+            "side": "right_margin",
+            "worst_overflow_pt": "21.2",
+            "affected_line_count": "1",
+            "confidence": "medium",
+            "page_context": "table_of_contents",
+            "margin_content_kind": "toc_entry_right_margin",
+        },
+        page=9,
+    )
+    lower = rendered.suggested_fix.lower()
+    assert "table of contents entry wrapping" in lower
+    assert "leader dots" in lower
+    assert "page-number tab stop" in lower
+    for token in _FORBIDDEN_FIX_TOKENS:
+        assert token not in lower
+    assert "adjust the paragraph" not in lower
+
+
+def test_toc_bottom_margin_uses_toc_specific_wording() -> None:
+    rendered = _finding_view(
+        {
+            "side": "bottom_margin",
+            "worst_overflow_pt": "9.2",
+            "affected_line_count": "1",
+            "confidence": "medium",
+            "page_context": "table_of_contents",
+            "margin_content_kind": "toc_entry_bottom_margin",
+            "affected_line_texts": "4.5.1 Experimental setup .......... 62",
+        },
+        page=9,
+    )
+    assert "table of contents entry" in rendered.polished_comment.lower()
+    assert "9.2 pt" in rendered.polished_comment
+    assert "bottom" in rendered.polished_comment.lower()
+    assert "page number" not in rendered.polished_comment.lower()
+
+
+def test_toc_bottom_margin_fix_mentions_pagination_spacing_or_page_break() -> None:
+    rendered = _finding_view(
+        {
+            "side": "bottom_margin",
+            "worst_overflow_pt": "9.2",
+            "affected_line_count": "1",
+            "confidence": "medium",
+            "page_context": "table_of_contents",
+            "margin_content_kind": "toc_entry_bottom_margin",
+        },
+        page=9,
+    )
+    lower = rendered.suggested_fix.lower()
+    assert "pagination" in lower
+    assert "spacing" in lower or "page break" in lower
+    for token in _FORBIDDEN_FIX_TOKENS:
+        assert token not in lower
+    assert "adjust the paragraph" not in lower
+
+
+def test_toc_bottom_margin_does_not_blame_printed_page_number() -> None:
+    rendered = _finding_view(
+        {
+            "side": "bottom_margin",
+            "worst_overflow_pt": "9.2",
+            "affected_line_count": "1",
+            "confidence": "medium",
+            "page_context": "table_of_contents",
+            "margin_content_kind": "toc_entry_bottom_margin",
+        },
+        page=9,
+    )
+    lower = rendered.detailed_explanation.lower()
+    assert "not about the page's printed page number" in lower
+
+
+def test_tiny_toc_overflow_is_low_confidence() -> None:
+    assert (
+        margin_confidence(
+            4.3, 1, page_context="table_of_contents", content_kind="toc_entry_right_margin"
+        )
+        == "low"
+    )
+
+
+def test_tiny_toc_overflow_repeated_across_entries_is_medium() -> None:
+    assert (
+        margin_confidence(
+            4.3, 3, page_context="table_of_contents", content_kind="toc_entry_right_margin"
+        )
+        == "medium"
+    )
+
+
+def test_large_toc_overflow_remains_medium_not_high() -> None:
+    assert (
+        margin_confidence(
+            21.2, 1, page_context="table_of_contents", content_kind="toc_entry_right_margin"
+        )
+        == "medium"
+    )
+    assert (
+        margin_confidence(
+            9.2, 1, page_context="table_of_contents", content_kind="toc_entry_bottom_margin"
+        )
+        == "medium"
+    )
+
+
+def test_toc_entry_content_kind_inferred_from_side_and_page_context() -> None:
+    from njit_auditor.p011_margin_presentation import infer_margin_content_kind
+
+    toc_previews = ["3.3 The Off-Diagonal Weingarten Loss Reconstruction 36"]
+    assert (
+        infer_margin_content_kind("table_of_contents", toc_previews, side="right_margin")
+        == "toc_entry_right_margin"
+    )
+    assert (
+        infer_margin_content_kind("table_of_contents", toc_previews, side="bottom_margin")
+        == "toc_entry_bottom_margin"
+    )
+
+
+def test_toc_entry_pdf_end_to_end_produces_toc_content_kind(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "toc_margin.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((350, 150), "3.3 The Off-Diagonal Weingarten Loss  545")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in run_pdf_margin_rule(model)
+        if f.details.get("issue_type") == "margin_boundary_violation"
+    ]
+    assert findings
+    finding = findings[0]
+    assert finding.details.get("page_context") == "table_of_contents"
+    assert finding.details.get("margin_content_kind") == "toc_entry_right_margin"
+
+
 def test_off_center_margin_pdf_stores_all_line_bboxes(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_two_lines.pdf"
     doc = fitz.open()

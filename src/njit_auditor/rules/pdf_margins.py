@@ -145,7 +145,9 @@ def run_pdf_margin_rule(
                         (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
                     )
             page_context = infer_page_margin_context(_page_text(page), line_previews)
-            content_kind = infer_margin_content_kind(page_context, line_previews)
+            content_kind = infer_margin_content_kind(
+                page_context, line_previews, side=side.value
+            )
             confidence = _group_confidence(
                 worst,
                 count,

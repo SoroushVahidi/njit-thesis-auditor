@@ -1150,11 +1150,16 @@ def _margin_side_label(details: dict[str, str]) -> str:
 
 
 def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
-    from njit_auditor.p011_margin_presentation import margin_comment_body, page_context_from_details
+    from njit_auditor.p011_margin_presentation import (
+        content_kind_from_details,
+        margin_comment_body,
+        page_context_from_details,
+    )
 
     page_label = _safe_page_label(page)
     side = _margin_side_label(details)
     page_context = page_context_from_details(details)
+    content_kind = content_kind_from_details(details)
     overflow = details.get("worst_overflow_pt", "").strip()
     line_count = details.get("affected_line_count", "").strip()
     overflow_detail = ""
@@ -1180,7 +1185,9 @@ def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
         page_label=page_label,
         side_label=side,
         page_context=page_context,
+        content_kind=content_kind,
         overflow_detail=overflow_detail,
+        overflow_pt=overflow,
         lines_clause=lines_clause,
     )
 
