@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import os
 import socket
 import urllib.error
 import urllib.parse
@@ -10,7 +11,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-FETCH_TIMEOUT_SEC: int = 15
+FETCH_TIMEOUT_SEC: int = int(os.environ.get("NJIT_AUDITOR_WEB_FETCH_TIMEOUT_SEC", "60"))
 
 _ALLOWED_SCHEMES: frozenset[str] = frozenset({"http", "https"})
 
