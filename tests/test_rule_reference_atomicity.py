@@ -40,6 +40,7 @@ def test_rule_reference_catalog_replaces_known_broad_cards(client: tuple[TestCli
     visible_ids = {rule["id"] for rule in catalog["student_rules"]}
 
     assert {"P026A", "P026B"} <= visible_ids
+    assert {"P015A", "P015B"} <= visible_ids
     assert {"P014A", "P014B", "P014C", "P014D", "P014E", "P014F"} <= visible_ids
     assert {"P038A", "P038B", "P038C", "P038D", "P038E", "P038F"} <= visible_ids
     assert {"P030A", "P030B", "P030C"} <= visible_ids
@@ -51,6 +52,7 @@ def test_rule_reference_catalog_replaces_known_broad_cards(client: tuple[TestCli
 
     assert {
         "P014",
+        "P015",
         "P017",
         "P018",
         "P019",
@@ -113,6 +115,44 @@ def test_font_split_cards_have_separate_atomic_wording(client: tuple[TestClient,
     assert "times new roman" not in size_fix
     assert "arial" not in size_fix
     assert "computer modern" not in size_fix
+
+
+def test_public_rule_reference_mapping_splits_indent_issue_types(
+    client: tuple[TestClient, Any],
+) -> None:
+    _, wa = client
+
+    assert wa._public_rule_reference_id(
+        "P015",
+        issue_type="unexpected_opening_indent",
+    ) == "P015A"
+    assert wa._public_rule_reference_id(
+        "P015",
+        issue_type="missing_later_indent",
+    ) == "P015B"
+
+
+def test_public_rule_reference_mapping_splits_frontmatter_indent_issue_types(
+    client: tuple[TestClient, Any],
+) -> None:
+    _, wa = client
+
+    assert wa._public_rule_reference_id(
+        "P044",
+        issue_type="abstract_first_paragraph_indented",
+    ) == "P044A"
+    assert wa._public_rule_reference_id(
+        "P044",
+        issue_type="abstract_subsequent_paragraph_not_indented",
+    ) == "P044B"
+    assert wa._public_rule_reference_id(
+        "P043",
+        issue_type="acknowledgements_first_paragraph_indented",
+    ) == "P043A"
+    assert wa._public_rule_reference_id(
+        "P043",
+        issue_type="acknowledgements_subsequent_paragraph_not_indented",
+    ) == "P043B"
 
 
 def test_public_rule_reference_mapping_splits_font_issue_types(

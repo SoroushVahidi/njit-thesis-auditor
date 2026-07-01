@@ -492,16 +492,33 @@ def _ester_priority_review(
         }
     )
 
-    # G. Paragraph indentation
+    # G. Paragraph indentation — derive body-indent split status from atomic cards
+    p015_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P015"
+    )
+    p043_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P043"
+    )
+    p044_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P044"
+    )
+    if p015_atomic == ["P015A", "P015B"] and p043_atomic and p044_atomic:
+        indent_status = "aligned"
+        indent_detail = (
+            "Abstract (Q002/Q003) and Acknowledgements (Q044/Q045) split into "
+            f"P044A/B and P043A/B. Body indentation split into {', '.join(p015_atomic)}."
+        )
+    else:
+        indent_status = "partial"
+        indent_detail = (
+            f"Abstract/Acknowledgements atomic cards: P043={p043_atomic or 'none'}, "
+            f"P044={p044_atomic or 'none'}. Body P015 atomic cards: {p015_atomic or 'none'}."
+        )
     findings.append(
         {
             "area": "G. Paragraph indentation (P015/P043/P044)",
-            "status": "partial",
-            "detail": (
-                "Abstract (Q002/Q003) and Acknowledgements (Q044/Q045) split into P044A/B and P043A/B. "
-                "Body indentation still one broad P015 public card; Ester wants two atomic body checks "
-                "(first para after heading not indented; subsequent body paragraphs indented)."
-            ),
+            "status": indent_status,
+            "detail": indent_detail,
         }
     )
 

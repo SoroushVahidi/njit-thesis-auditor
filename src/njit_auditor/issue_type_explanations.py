@@ -536,13 +536,13 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "abstract to avoid first-person language."
     ),
     ("P015", "unexpected_opening_indent"): (
-        "This means a paragraph appears to have an unintended first-line indent "
-        "where NJIT expects a flush-left opening paragraph. Remove the extra "
-        "indent or confirm this is a permitted exception."
+        "This means the first paragraph after a section heading appears indented when "
+        "NJIT expects it to begin flush with the left margin. Remove the first-line "
+        "indent from that paragraph."
     ),
     ("P015", "missing_later_indent"): (
-        "This means a paragraph after the first appears to start flush-left where NJIT "
-        "expects a first-line indent. Add the required indent."
+        "This means a later body paragraph appears to be missing its required "
+        "first-line indent. Apply a first-line indent to that paragraph."
     ),
     ("P017", "unexpected_terminal_period"): (
         "This means a figure or table caption ends with a terminal period where "

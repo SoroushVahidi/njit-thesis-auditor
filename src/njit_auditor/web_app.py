@@ -954,6 +954,31 @@ _ATOMIC_PUBLIC_RULE_CARDS: tuple[PublicRuleCardSpec, ...] = (
         issue_types=("possible_body_font_size_issue",),
     ),
     PublicRuleCardSpec(
+        id="P015A",
+        parent_rule_id="P015",
+        question=(
+            "Is the first paragraph after a level 1, 2, 3, or 4 heading not indented?"
+        ),
+        remediation=(
+            "Remove the first-line indent from the first paragraph after the heading."
+        ),
+        compatibility_anchors=("P015",),
+        issue_types=("unexpected_opening_indent",),
+    ),
+    PublicRuleCardSpec(
+        id="P015B",
+        parent_rule_id="P015",
+        question=(
+            "Are all body paragraphs indented, excluding the first paragraph after a "
+            "heading?"
+        ),
+        remediation=(
+            "Apply a first-line indent to each body paragraph after the first paragraph "
+            "in the section."
+        ),
+        issue_types=("missing_later_indent",),
+    ),
+    PublicRuleCardSpec(
         id="P030A",
         parent_rule_id="P030",
         question=(
@@ -1139,54 +1164,47 @@ _ATOMIC_PUBLIC_RULE_CARDS: tuple[PublicRuleCardSpec, ...] = (
     PublicRuleCardSpec(
         id="P043A",
         parent_rule_id="P043",
-        question=(
-            "Does the first paragraph on the Acknowledgements page begin flush with the "
-            "left margin?"
-        ),
-        remediation=(
-            "Ensure the first paragraph on the Acknowledgements page begins flush with the "
-            "left margin."
-        ),
+        question="Does the first Acknowledgements paragraph begin flush with the left margin?",
+        remediation="Remove the first-line indent from the first Acknowledgements paragraph.",
         compatibility_anchors=("P043",),
+        issue_types=("acknowledgements_first_paragraph_indented",),
         source_q_rule_ids=("Q044",),
     ),
     PublicRuleCardSpec(
         id="P043B",
         parent_rule_id="P043",
         question=(
-            "Do subsequent paragraphs on the Acknowledgements page begin with a visible "
-            "first-line indent?"
+            "Does every Acknowledgements paragraph after the first begin with a visible "
+            "indent?"
         ),
-        remediation=(
-            "Ensure each subsequent paragraph on the Acknowledgements page begins with a "
-            "visible first-line indent."
-        ),
+        remediation="Apply a first-line indent to every paragraph after the first.",
+        issue_types=("acknowledgements_subsequent_paragraph_not_indented",),
         source_q_rule_ids=("Q045",),
     ),
     PublicRuleCardSpec(
         id="P044A",
         parent_rule_id="P044",
         question=(
-            "Does the first paragraph on the Abstract page begin flush with the left margin?"
+            "Look at the very first word of the first body paragraph. Is its starting "
+            "position horizontally aligned perfectly with the left edge of the text "
+            "block, showing zero indentation?"
         ),
-        remediation=(
-            "Ensure the first paragraph on the Abstract page begins flush with the left "
-            "margin."
-        ),
+        remediation="Remove the first-line indent from the first Abstract paragraph.",
         compatibility_anchors=("P044",),
+        issue_types=("abstract_first_paragraph_indented",),
         source_q_rule_ids=("Q002",),
     ),
     PublicRuleCardSpec(
         id="P044B",
         parent_rule_id="P044",
         question=(
-            "Do subsequent paragraphs on the Abstract page begin with a visible "
-            "first-line indent?"
+            'Look at the left side of Paragraph 2. Imagine the left edge of the main '
+            'body text is a solid vertical wall. Is the top line of the paragraph '
+            'pushed inward to the right, creating a visible "step" or empty cutout at '
+            "the top left corner? Repeat this check for any subsequent paragraphs."
         ),
-        remediation=(
-            "Ensure each subsequent paragraph on the Abstract page begins with a visible "
-            "first-line indent."
-        ),
+        remediation="Apply a first-line indent to every Abstract paragraph after the first.",
+        issue_types=("abstract_subsequent_paragraph_not_indented",),
         source_q_rule_ids=("Q003",),
     ),
     PublicRuleCardSpec(
@@ -1242,6 +1260,7 @@ _ATOMIC_PUBLIC_RULE_CARDS: tuple[PublicRuleCardSpec, ...] = (
 _HIDDEN_PUBLIC_RULE_IDS = frozenset(
     {
         "P014",
+        "P015",
         "P017",
         "P018",
         "P019",
