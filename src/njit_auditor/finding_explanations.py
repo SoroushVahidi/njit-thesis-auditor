@@ -286,10 +286,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P026 font compliance ---
     ("P026", "possible_body_font_family_issue"): (
         "This page contains body-text spans whose embedded PDF font does not appear "
-        "to be Times New Roman or an accepted equivalent. "
-        "Word users should use Times New Roman 12pt. "
-        "Overleaf users: Computer Modern is an accepted equivalent — if "
-        "flagged, verify with your advisor. "
+        "to be one of the accepted NJIT body font families (Times New Roman, Arial, "
+        "Computer Modern, or Latin Modern). "
         "Review the highlighted text or the listed page and update the source "
         "document font settings if this text is part of the main body."
     ),
