@@ -11,8 +11,13 @@ from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
 
 INCH_TO_PT = 72.0
 TOP_ZONE_PT = 2.0 * INCH_TO_PT
-CENTER_TOLERANCE_PT = 18.0
-BORDERLINE_CENTER_TOLERANCE_PT = 26.0
+# Heading centering tolerances (points from text-area center).
+CENTER_SUPPRESS_THRESHOLD_PT = 6.0
+CENTER_REVIEW_MAX_THRESHOLD_PT = 12.0
+CENTER_MEDIUM_MAX_THRESHOLD_PT = 36.0
+# Legacy aliases kept for tests/docs that referenced the old pass window.
+CENTER_TOLERANCE_PT = CENTER_SUPPRESS_THRESHOLD_PT
+BORDERLINE_CENTER_TOLERANCE_PT = CENTER_REVIEW_MAX_THRESHOLD_PT
 
 EXPECTED_HEADINGS: tuple[str, ...] = (
     "ABSTRACT",
@@ -57,6 +62,21 @@ _TOC_LEADER_RE = re.compile(r"\.{4,}")
 
 
 @dataclass(frozen=True)
+class HeadingCenteringMetrics:
+    passes: bool
+    heading_center_x: float
+    text_area_center_x: float
+    signed_offset_pt: float
+    abs_offset_pt: float
+    direction: str
+    suppress_threshold_pt: float
+    review_threshold_pt: float
+    medium_threshold_pt: float
+    finding_confidence: str
+    centering_confidence: str
+
+
+@dataclass(frozen=True)
 class HeadingMatch:
     heading: str
     page_number: int
@@ -68,6 +88,9 @@ class HeadingMatch:
     center_offset_pt: float
     centering_confidence: str
     text_area_center_pt: float
+    heading_center_x: float
+    signed_center_offset_pt: float
+    center_offset_direction: str
 
 
 def normalize_heading_text(text: str) -> str:
@@ -93,18 +116,66 @@ def _visible_text_bbox(line: PdfTextLine) -> BBox:
     )
 
 
+def _heading_centering_metrics(
+    line: PdfTextLine, text_area_x0: float, text_area_x1: float
+) -> HeadingCenteringMetrics:
+    bbox = _visible_text_bbox(line)
+    heading_center_x = (bbox.x0 + bbox.x1) / 2.0
+    text_area_center_x = (text_area_x0 + text_area_x1) / 2.0
+    signed_offset_pt = heading_center_x - text_area_center_x
+    abs_offset_pt = abs(signed_offset_pt)
+    if signed_offset_pt < 0:
+        direction = "left"
+    elif signed_offset_pt > 0:
+        direction = "right"
+    else:
+        direction = ""
+
+    if abs_offset_pt <= CENTER_SUPPRESS_THRESHOLD_PT:
+        return HeadingCenteringMetrics(
+            passes=True,
+            heading_center_x=heading_center_x,
+            text_area_center_x=text_area_center_x,
+            signed_offset_pt=signed_offset_pt,
+            abs_offset_pt=abs_offset_pt,
+            direction=direction,
+            suppress_threshold_pt=CENTER_SUPPRESS_THRESHOLD_PT,
+            review_threshold_pt=CENTER_REVIEW_MAX_THRESHOLD_PT,
+            medium_threshold_pt=CENTER_MEDIUM_MAX_THRESHOLD_PT,
+            finding_confidence="",
+            centering_confidence="high",
+        )
+
+    if abs_offset_pt <= CENTER_REVIEW_MAX_THRESHOLD_PT:
+        finding_confidence = "review needed"
+        centering_confidence = "borderline"
+    elif abs_offset_pt <= CENTER_MEDIUM_MAX_THRESHOLD_PT:
+        finding_confidence = "medium"
+        centering_confidence = "medium"
+    else:
+        finding_confidence = "high"
+        centering_confidence = "high"
+
+    return HeadingCenteringMetrics(
+        passes=False,
+        heading_center_x=heading_center_x,
+        text_area_center_x=text_area_center_x,
+        signed_offset_pt=signed_offset_pt,
+        abs_offset_pt=abs_offset_pt,
+        direction=direction,
+        suppress_threshold_pt=CENTER_SUPPRESS_THRESHOLD_PT,
+        review_threshold_pt=CENTER_REVIEW_MAX_THRESHOLD_PT,
+        medium_threshold_pt=CENTER_MEDIUM_MAX_THRESHOLD_PT,
+        finding_confidence=finding_confidence,
+        centering_confidence=centering_confidence,
+    )
+
+
 def _line_centering(
     line: PdfTextLine, text_area_x0: float, text_area_x1: float
 ) -> tuple[bool, float, str]:
-    bbox = _visible_text_bbox(line)
-    line_center = (bbox.x0 + bbox.x1) / 2.0
-    text_area_center = (text_area_x0 + text_area_x1) / 2.0
-    offset = abs(line_center - text_area_center)
-    if offset <= CENTER_TOLERANCE_PT:
-        return True, offset, "high"
-    if offset <= BORDERLINE_CENTER_TOLERANCE_PT:
-        return False, offset, "borderline"
-    return False, offset, "high"
+    metrics = _heading_centering_metrics(line, text_area_x0, text_area_x1)
+    return metrics.passes, metrics.abs_offset_pt, metrics.centering_confidence
 
 
 def _line_centered(line: PdfTextLine, text_area_x0: float, text_area_x1: float) -> bool:
@@ -168,26 +239,74 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                 if normalized_upper not in expected_set:
                     continue
 
-                centered, center_offset, centering_confidence = _line_centering(
-                    line, text_area_x0, text_area_x1
-                )
-                text_area_center = (text_area_x0 + text_area_x1) / 2.0
+                metrics = _heading_centering_metrics(line, text_area_x0, text_area_x1)
                 matches.append(
                     HeadingMatch(
                         heading=normalized_upper,
                         page_number=page.page_number,
-                        centered=centered,
+                        centered=metrics.passes,
                         near_top=line.bbox.y0 <= TOP_ZONE_PT,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized_upper),
                         bbox=_visible_text_bbox(line),
-                        center_offset_pt=center_offset,
-                        centering_confidence=centering_confidence,
-                        text_area_center_pt=text_area_center,
+                        center_offset_pt=metrics.abs_offset_pt,
+                        centering_confidence=metrics.centering_confidence,
+                        text_area_center_pt=metrics.text_area_center_x,
+                        heading_center_x=metrics.heading_center_x,
+                        signed_center_offset_pt=metrics.signed_offset_pt,
+                        center_offset_direction=metrics.direction,
                     )
                 )
 
     return matches
+
+
+def _centering_finding_details(match: HeadingMatch) -> dict[str, str]:
+    metrics = _heading_centering_metrics_from_match(match)
+    details = {
+        "heading_text": match.heading,
+        "heading_center_x": f"{match.heading_center_x:.1f}",
+        "text_area_center_x": f"{match.text_area_center_pt:.1f}",
+        "center_offset_pt": f"{match.center_offset_pt:.1f}",
+        "center_offset_direction": match.center_offset_direction,
+        "centering_threshold_points": f"{CENTER_SUPPRESS_THRESHOLD_PT:.1f}",
+        "centering_review_threshold_points": f"{CENTER_REVIEW_MAX_THRESHOLD_PT:.1f}",
+        "centering_medium_threshold_points": f"{CENTER_MEDIUM_MAX_THRESHOLD_PT:.1f}",
+    }
+    if metrics.finding_confidence:
+        details["confidence"] = metrics.finding_confidence
+        details["triage_tier"] = (
+            "review" if metrics.finding_confidence == "review needed" else "check"
+        )
+    return details
+
+
+def _heading_centering_metrics_from_match(match: HeadingMatch) -> HeadingCenteringMetrics:
+    if match.center_offset_pt <= CENTER_SUPPRESS_THRESHOLD_PT:
+        finding_confidence = ""
+        centering_confidence = "high"
+    elif match.center_offset_pt <= CENTER_REVIEW_MAX_THRESHOLD_PT:
+        finding_confidence = "review needed"
+        centering_confidence = "borderline"
+    elif match.center_offset_pt <= CENTER_MEDIUM_MAX_THRESHOLD_PT:
+        finding_confidence = "medium"
+        centering_confidence = "medium"
+    else:
+        finding_confidence = "high"
+        centering_confidence = "high"
+    return HeadingCenteringMetrics(
+        passes=match.centered,
+        heading_center_x=match.heading_center_x,
+        text_area_center_x=match.text_area_center_pt,
+        signed_offset_pt=match.signed_center_offset_pt,
+        abs_offset_pt=match.center_offset_pt,
+        direction=match.center_offset_direction,
+        suppress_threshold_pt=CENTER_SUPPRESS_THRESHOLD_PT,
+        review_threshold_pt=CENTER_REVIEW_MAX_THRESHOLD_PT,
+        medium_threshold_pt=CENTER_MEDIUM_MAX_THRESHOLD_PT,
+        finding_confidence=finding_confidence,
+        centering_confidence=centering_confidence,
+    )
 
 
 def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFinding]:
@@ -213,6 +332,30 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
             issue_type = "frontmatter_heading_not_centered"
 
         q_rule_id = _HEADING_Q_RULE_MAP.get(match.heading, "")
+        finding_details: dict[str, str] = {
+            "heading": match.heading,
+            "page_number": str(match.page_number),
+            "issue_type": issue_type,
+            "source_q_rule_id": q_rule_id,
+            "centered": str(match.centered),
+            "near_top": str(match.near_top),
+            "bold": str(match.bold),
+            "all_caps": str(match.all_caps),
+            "center_offset_pt": f"{match.center_offset_pt:.1f}",
+            "centering_confidence": match.centering_confidence,
+            "text_area_center_pt": f"{match.text_area_center_pt:.1f}",
+            "bbox": format_bbox_detail(match.bbox),
+            "suggested_fix": (
+                "Center the front-matter heading within the text area."
+                if issue_type == "frontmatter_heading_not_centered"
+                else (
+                    "Place named front-matter headings centered near the top "
+                    "in bold all-caps."
+                )
+            ),
+        }
+        if issue_type == "frontmatter_heading_not_centered":
+            finding_details.update(_centering_finding_details(match))
         findings.append(
             AuditFinding(
                 rule_id="P014",
@@ -222,23 +365,7 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
                     f"Named front-matter heading '{match.heading}' may violate layout/style "
                     f"heuristics: {', '.join(failures)}."
                 ),
-                details={
-                    "heading": match.heading,
-                    "page_number": str(match.page_number),
-                    "issue_type": issue_type,
-                    "source_q_rule_id": q_rule_id,
-                    "centered": str(match.centered),
-                    "near_top": str(match.near_top),
-                    "bold": str(match.bold),
-                    "all_caps": str(match.all_caps),
-                    "center_offset_pt": f"{match.center_offset_pt:.1f}",
-                    "centering_confidence": match.centering_confidence,
-                    "text_area_center_pt": f"{match.text_area_center_pt:.1f}",
-                    "bbox": format_bbox_detail(match.bbox),
-                    "suggested_fix": (
-                        "Place named front-matter headings centered near the top in bold all-caps."
-                    ),
-                },
+                details=finding_details,
             )
         )
 

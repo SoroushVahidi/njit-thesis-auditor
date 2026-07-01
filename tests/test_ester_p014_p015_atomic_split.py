@@ -134,10 +134,10 @@ def test_p014_abstract_finding_has_empty_q_rule_id() -> None:
 
 def test_p014_no_finding_for_correct_heading() -> None:
     """No P014 finding when heading is centered, bold, near top, all caps."""
-    # Centered in 612pt page: text_area x0=108 (1.5 in), x1=504 (7 in).
-    # center = (108+504)/2 = 306. Line from 261 to 351 → center=306.
+    # Text area x0=108 (1.5 in), x1=540 (612-72). Center = 324.
+    # Line from 279 to 369 → center = 324.
     heading_line = _line(
-        "APPROVAL PAGE", x0=261.0, x1=351.0, y0=50.0, y1=62.0, bold=True
+        "APPROVAL PAGE", x0=279.0, x1=369.0, y0=50.0, y1=62.0, bold=True
     )
     doc = _doc(_page(1, _block(heading_line)))
     findings = check_named_frontmatter_headings(doc)

@@ -151,7 +151,10 @@ def test_p014_student_facing_title_not_internal_checklist_question() -> None:
             "bold": "True",
             "all_caps": "True",
             "issue_type": "frontmatter_heading_not_centered",
-            "centering_confidence": "high",
+            "centering_confidence": "medium",
+            "confidence": "medium",
+            "center_offset_pt": "32.4",
+            "center_offset_direction": "left",
         },
     )
     payload = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
@@ -159,7 +162,7 @@ def test_p014_student_facing_title_not_internal_checklist_question() -> None:
     fv = next(f for f in view.findings if f.rule_id == "P014")
     assert fv.issue_type_label == "Front-matter heading may not be centered"
     assert "follow expected layout/style checks" not in fv.issue_type_label.lower()
-    assert "appears off-center" in fv.polished_comment
+    assert "32.4 pt left" in fv.polished_comment or "pt left" in fv.polished_comment
     assert "BIOGRAPHICAL SKETCH" in fv.polished_comment
 
 

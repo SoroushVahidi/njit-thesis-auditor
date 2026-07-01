@@ -14,7 +14,7 @@ from njit_auditor.rules.pdf_headings import (
     BOLD_FONT_HINT_RE,
     EXPECTED_HEADINGS,
     HeadingMatch,
-    _line_centering,
+    _heading_centering_metrics,
     _visible_text_bbox,
     normalize_heading_text,
 )
@@ -144,22 +144,22 @@ def find_frontmatter_headings_for_gates(
                     continue
                 canonical, match_path, match_confidence = resolved
                 normalized = normalize_heading_text(line.text)
-                centered, center_offset, centering_confidence = _line_centering(
-                    line, text_area_x0, text_area_x1
-                )
-                text_area_center = (text_area_x0 + text_area_x1) / 2.0
+                metrics = _heading_centering_metrics(line, text_area_x0, text_area_x1)
                 matches.append(
                     GateHeadingMatch(
                         heading=canonical,
                         page_number=page.page_number,
-                        centered=centered,
+                        centered=metrics.passes,
                         near_top=line.bbox.y0 <= 2.0 * 72.0,
                         bold=_is_bold_line(line),
                         all_caps=(normalized == normalized.upper()),
                         bbox=_visible_text_bbox(line),
-                        center_offset_pt=center_offset,
-                        centering_confidence=centering_confidence,
-                        text_area_center_pt=text_area_center,
+                        center_offset_pt=metrics.abs_offset_pt,
+                        centering_confidence=metrics.centering_confidence,
+                        text_area_center_pt=metrics.text_area_center_x,
+                        heading_center_x=metrics.heading_center_x,
+                        signed_center_offset_pt=metrics.signed_offset_pt,
+                        center_offset_direction=metrics.direction,
                         match_path=match_path,
                         match_confidence=match_confidence,
                     )

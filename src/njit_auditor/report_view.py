@@ -2279,6 +2279,20 @@ def _p014_issue_type_label(heading: str, failed_labels: list[str]) -> str:
     return "Front-matter heading alignment issue"
 
 
+def _p014_centering_evidence_phrase(details: Mapping[str, str]) -> str:
+    direction = details.get("center_offset_direction", "").strip().lower()
+    raw_offset = details.get("center_offset_pt", "").strip()
+    if not direction or not raw_offset:
+        return ""
+    try:
+        offset = float(raw_offset)
+    except ValueError:
+        return ""
+    if offset <= 0:
+        return ""
+    return f"Its center appears about {offset:.1f} pt {direction} of the text-area center."
+
+
 def _apply_named_heading_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -2287,7 +2301,7 @@ def _apply_named_heading_presentation(
     if finding.rule_id != "P014":
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
-    heading = details.get("heading", "").strip()
+    heading = details.get("heading", "").strip() or details.get("heading_text", "").strip()
     heading_clause = f' "{heading}"' if heading else ""
     failed_labels = [
         label
@@ -2295,35 +2309,40 @@ def _apply_named_heading_presentation(
         if details.get(key, "").strip().lower() == "false"
     ]
     centering_confidence = details.get("centering_confidence", "").strip().lower()
+    finding_confidence = details.get("confidence", "").strip().lower()
     only_centering_failed = failed_labels == ["centered"]
+    evidence_phrase = _p014_centering_evidence_phrase(details)
+    atomic_centering_fix = "Center the front-matter heading within the text area."
 
     if failed_labels:
-        if only_centering_failed and centering_confidence == "borderline":
-            comment = (
-                f'The auditor detected the heading{heading_clause} as possibly off-center. '
-                f'Please check whether "{heading}" is centered within the required text area. '
-                "NJIT expects named front-matter headings to be centered near the top of the "
-                "page, in bold, and in all capital letters."
-            )
-            fix = (
-                f'Center the "{heading}" heading within the text area. '
-                "Keep it bold and in all capital letters."
-            )
-        elif only_centering_failed:
-            comment = (
-                f'The front-matter heading{heading_clause} appears off-center. '
-                "NJIT expects named front-matter headings to be centered near the top of the "
-                "page, in bold, and in all capital letters."
-            )
-            fix = (
-                f'Center the "{heading}" heading within the text area. '
-                "Keep it bold and in all capital letters."
-            )
+        if only_centering_failed:
+            if centering_confidence == "borderline" or finding_confidence in {
+                "review needed",
+                "needs_review",
+            }:
+                comment = (
+                    f"The{heading_clause} heading may be slightly off-center. "
+                    f"{evidence_phrase} Review whether the heading is centered within "
+                    "the text area."
+                ).replace("..", ".")
+            else:
+                comment = (
+                    f"The{heading_clause} heading appears about "
+                    f"{details.get('center_offset_pt', '').strip()} pt "
+                    f"{details.get('center_offset_direction', '').strip()} of the "
+                    "text-area center."
+                )
+            fix = atomic_centering_fix
         else:
             issue_clause = ", ".join(f"not {label}" for label in failed_labels)
             comment = (
                 f"The front-matter heading{heading_clause} on page {page_label} is "
-                f"{issue_clause}. NJIT requires named front-matter headings to be centered "
+                f"{issue_clause}."
+            )
+            if "centered" in failed_labels and evidence_phrase:
+                comment = f"{comment} {evidence_phrase}"
+            comment = (
+                f"{comment} NJIT requires named front-matter headings to be centered "
                 "near the top of the page, in bold, and in all capital letters."
             )
             fix = f"Make this heading {', '.join(failed_labels)}."
