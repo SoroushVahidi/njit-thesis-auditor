@@ -58,6 +58,22 @@ _MAX_EQUATION_TO_CONTINUATION_GAP_PT = 36.0
 _MAX_FIRST_LINE_WRAP_GAP_PT = 6.0
 _SHORT_FIRST_LINE_CHARS = 24
 
+# A prior line ending in one of these words, or in comma/semicolon/colon/dash/open-paren,
+# clearly continues into the next line rather than ending a sentence or paragraph.
+_CONTINUATION_END_WORDS: frozenset[str] = frozenset(
+    {
+        "is", "are", "was", "were", "as", "of", "and", "or", "the", "a", "an",
+        "to", "in", "with",
+    }
+)
+_SENTENCE_TERMINAL_RE = re.compile(r"[.!?][\"'’”)\]]*\s*$")
+_CONTINUATION_TRAILING_PUNCT_RE = re.compile(r"[,;:—–-]\s*$|\(\s*$")
+_WORD_RE = re.compile(r"[A-Za-z']+")
+
+# A genuine paragraph break needs a vertical gap comfortably larger than the gap the
+# grouper already uses to split lines, so borderline splits stay Medium confidence.
+_STRONG_PARAGRAPH_GAP_PT = MAX_PARAGRAPH_GAP_PT + 6.0
+
 
 def first_text_x(line: PdfTextLine) -> float:
     """Return the first text x position for a line."""
@@ -188,6 +204,99 @@ def _paragraph_is_equation_continuation_exempt(
     return _starts_equation_continuation(paragraph) and _paragraph_follows_displayed_equation(
         page, paragraph
     )
+
+
+def _line_ends_sentence(text: str) -> bool:
+    return bool(_SENTENCE_TERMINAL_RE.search(text.strip()))
+
+
+def _line_ends_with_continuation_cue(text: str) -> bool:
+    """Return True when *text* ends in a way that clearly continues onto the next line."""
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if _CONTINUATION_TRAILING_PUNCT_RE.search(stripped):
+        return True
+    words = _WORD_RE.findall(stripped)
+    return bool(words) and words[-1].lower() in _CONTINUATION_END_WORDS
+
+
+def _page_usable_lines_sorted(page: PdfPage) -> list[PdfTextLine]:
+    """Return every paragraph-candidate line on *page* in reading order."""
+    lines: list[PdfTextLine] = []
+    for block in page.text_blocks:
+        for line in block.lines:
+            if _is_usable_paragraph_line(line):
+                lines.append(line)
+    lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+    return lines
+
+
+def _line_immediately_before(
+    ordered_lines: list[PdfTextLine], target: PdfTextLine
+) -> PdfTextLine | None:
+    """Return the usable line immediately preceding *target* in reading order.
+
+    Uses the raw page-level line sequence rather than paragraph-group boundaries,
+    because a short trailing line at the end of a wrapped sentence (e.g. "One
+    widely used strategy is") can be extracted as its own single-line group and
+    dropped entirely by group_lines_into_paragraphs, which would otherwise make
+    the previous paragraph's last kept line look like the true predecessor.
+    """
+    for prev_line, line in zip(ordered_lines, ordered_lines[1:]):
+        if line is target:
+            return prev_line
+    return None
+
+
+def _paragraph_is_continuation_of_previous(
+    ordered_lines: list[PdfTextLine], paragraphs: list[list[PdfTextLine]], idx: int
+) -> bool:
+    """Return True when paragraph[idx] is a wrapped continuation of the previous
+    line in reading order rather than a genuine new paragraph start.
+
+    The line grouper can split one physical paragraph into two groups when the
+    inter-line gap runs slightly over MAX_PARAGRAPH_GAP_PT (e.g. double-spaced
+    body text), or drop a short trailing line entirely. When that happens, the
+    "new" paragraph's first line is really still mid-sentence, so it must not be
+    treated as a paragraph start that requires a first-line indent.
+    """
+    if idx == 0:
+        return False
+    current_paragraph = paragraphs[idx]
+    if _paragraph_indent_pt(current_paragraph) >= STRONG_INDENT_THRESHOLD_PT:
+        # A deliberate first-line indent can never be a mid-sentence continuation.
+        return False
+    prev_line = _line_immediately_before(ordered_lines, current_paragraph[0])
+    if prev_line is None:
+        prev_line = paragraphs[idx - 1][-1]
+    prev_text = _line_clean_text(prev_line)
+    if not prev_text:
+        return False
+    if _line_ends_with_continuation_cue(prev_text):
+        return True
+    return not _line_ends_sentence(prev_text)
+
+
+def _paragraph_start_confidence(
+    ordered_lines: list[PdfTextLine], paragraphs: list[list[PdfTextLine]], idx: int
+) -> str:
+    """Return "high" only when the previous line clearly ends its sentence and the
+    vertical gap before this paragraph is a genuine paragraph-sized gap, not a
+    borderline split of the same paragraph."""
+    if idx == 0:
+        return "high"
+    current_line = paragraphs[idx][0]
+    prev_line = _line_immediately_before(ordered_lines, current_line)
+    if prev_line is None:
+        prev_line = paragraphs[idx - 1][-1]
+    prev_text = _line_clean_text(prev_line)
+    if not prev_text or not _line_ends_sentence(prev_text):
+        return "medium"
+    vertical_gap = current_line.bbox.y0 - prev_line.bbox.y1
+    if vertical_gap < _STRONG_PARAGRAPH_GAP_PT:
+        return "medium"
+    return "high"
 
 
 def _paragraph_highlight_bbox(paragraph: list[PdfTextLine]) -> tuple[float, float, float, float]:
@@ -354,6 +463,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         if not paragraphs:
             continue
 
+        ordered_lines = _page_usable_lines_sorted(page)
         heading_exempt = _find_heading_exempt_paragraph_indices(page, paragraphs)
 
         paragraph_data: list[tuple[int, list[PdfTextLine], float]] = []
@@ -370,6 +480,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         likely_not_indented_count = 0
         for idx, paragraph, indent_pt in paragraph_data:
             if idx in heading_exempt:
+                continue
+            if _paragraph_is_continuation_of_previous(ordered_lines, paragraphs, idx):
                 continue
             if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 likely_indented_count += 1
@@ -396,6 +508,8 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
             if idx >= 1:
                 if idx in heading_exempt:
                     continue  # first paragraph after a section heading — flush-left expected
+                if _paragraph_is_continuation_of_previous(ordered_lines, paragraphs, idx):
+                    continue  # wrapped continuation of the previous line, not a paragraph start
                 likely_indented = _is_likely_expected_indent(indent_pt)
                 if likely_indented or not seen_indented_paragraph:
                     continue
@@ -423,7 +537,9 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "paragraph_line_count": str(len(paragraph)),
                             "paragraph_index": str(idx + 1),
                             "bbox": format_bbox_detail(_paragraph_highlight_bbox(paragraph)),
-                            "confidence": "high",
+                            "confidence": _paragraph_start_confidence(
+                                ordered_lines, paragraphs, idx
+                            ),
                             "suggested_fix": (
                                 "Apply consistent first-line indentation "
                                 "for non-opening paragraphs."
