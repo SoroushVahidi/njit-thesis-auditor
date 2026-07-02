@@ -7,12 +7,44 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-02 (live regression diagnosis — cleanup paused)
+## Current Status — 2026-07-02 (PR #406 merged — live server on main)
 
 This section is the authoritative current snapshot. Everything below it (including the
-post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot,
-earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
-preserved as historical context and should not be read as current.
+live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
+snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
+2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and
+should not be read as current.
+
+- **Code baseline `main`:** `811838c4a260977e290f24138b0c60665f676684` (squash-merge of PR
+  [#406](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/406), which folded in #405's
+  `7e17232a` Digital Commons wrapper fixes plus the single-page `highlighted-page.pdf` fix and a
+  ruff import-order/unused-import cleanup in 9 test files). `fix/live-false-positive-and-highlight-regression`
+  branch deleted after merge.
+- **Live server:** restarted against `main` at `811838c4`; `/version` confirms `commit=811838c4...`,
+  `branch=main` (no longer dependent on the unmerged #406 branch). `/healthz` OK.
+- **Fresh post-merge live audit (Digital Commons sample, new job, not a cached URL):** 141 findings,
+  matches local `main` exactly. Wrapper pages 1–3 detected (`P025 digital_commons_wrapper_pages_detected`);
+  P020 = 2 (both on real manuscript pages, none on wrapper pages); P018 = 0; P026 = 0. Highlighted-page
+  route re-verified: 1-page artifact with annotation when a bbox exists, 1-page artifact (no annotation)
+  when it doesn't — never the full multi-page document.
+- **PR cleanup:** **still paused** — do not touch #311/#349/#362/#375/#376/#385; warning-legitimacy
+  review continues separately from this merge.
+- **Protected regression tests:** 88 passed (P026, P018 row association, P015 split, P018 public cards,
+  ester rule consistency), re-run before and after the merge.
+- **Full validation on merged `main`:** `ruff check .` clean, `mypy src` clean, `pytest` 2454 passed
+  (ignoring the two known untracked P084 / TOC-leader-consistency WIP files, which are not part of
+  any merged branch).
+
+### Next recommended work
+
+1. Resume PR cleanup only after the warning-legitimacy review concludes.
+2. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-02 (live regression diagnosis — cleanup paused)
+
+> **Superseded** by the PR #406 merge snapshot above.
 
 - **Code baseline `main`:** `7e17232a` (PR [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405)); docs tip `28a4797`.
 - **Live server before fix:** `fbefbb6432364edec07566c6bec4e744a87be7bd` (PR #400 merge) — **10 commits behind** `main`; process started `2026-07-02T03:38:34Z`.

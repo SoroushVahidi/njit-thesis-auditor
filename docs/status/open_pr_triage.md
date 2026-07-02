@@ -1,16 +1,19 @@
-# Open PR Triage (2026-07-02, live regression — cleanup paused)
+# Open PR Triage (2026-07-02, PR #406 merged — cleanup still paused)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 
-**Baseline inspected:** `main` @ `28a4797` (docs tip; code baseline `7e17232`, PR #405)  
-**Live server (2026-07-02):** restarted on `fix/live-false-positive-and-highlight-regression` @ `3fa8620` (see live regression section in current status doc)  
-**Open PR count:** **6** (+1 emergency fix PR pending merge)
+**Baseline inspected:** `main` @ `811838c4` (squash-merge of PR #406, folding in #405's `7e17232`)  
+**Live server (2026-07-02):** restarted on `main` @ `811838c4` — no longer dependent on an unmerged branch  
+**Open PR count:** **6**
 
-## Live regression pause (2026-07-02)
+## PR #406 merged (2026-07-02)
 
-**PR cleanup is paused** until live false-positive and highlight-page regressions are resolved on `main`.
+**#406 is merged.** Live false-positive and highlight-page regressions are resolved on `main`; verified
+with a fresh post-merge live audit. **PR cleanup remains paused** — not because of the live regression
+(resolved) but because a separate warning-legitimacy review is still in progress. Do not resume
+#311/#349/#362/#375/#376/#385 review until that review concludes.
 
 | Finding | Cause | Action |
 |---|---|---|
@@ -41,25 +44,24 @@ Earlier same-day cleanup: #394/#395 closed; merged #397–#400/#402/#401; delete
 | [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | `ux/review-needed-prefix-policy` → `main` | DIRTY | **Paused** — rebase after live fix merges |
 | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375) | `docs/fix-clean-minimal-demo-baseline` → `main` | UNSTABLE | **Paused** — docs-only |
 | [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376) | `fix/p014-frontmatter-centering-false-positive` → `main` | UNSTABLE | **Paused** |
-| [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385) | `ux/rule-reference-card-declutter` → `main` | DIRTY | **Paused** — rebase after live fix merges |
-| **#406** (new) | `fix/live-false-positive-and-highlight-regression` → `main` | — | **Emergency** — restore single-page highlight PDFs; merge before resuming cleanup |
+| [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385) | `ux/rule-reference-card-declutter` → `main` | DIRTY | **Paused** — pending warning-legitimacy review |
+| ~~#406~~ | `fix/live-false-positive-and-highlight-regression` → `main` | **MERGED** | Squash-merged at `811838c4`; branch deleted; live server restarted on `main` |
 
 **Closed (2026-07-02):** [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389)–[#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) presentation stack — no code merged.
 
 ## Dependency graph (open stacks)
 
 ```
-main (28a4797 / code 7e17232)
- ├── Emergency: #406 (highlight-page fix)
- └── Independent PRs (paused): #311, #349, #362, #375, #376, #385
+main (811838c4 / includes merged #406 + #405)
+ └── Independent PRs (paused pending warning-legitimacy review): #311, #349, #362, #375, #376, #385
 ```
 
 **Ester alignment stack on `main` (complete):** #397 → #398 (P026) → #399 (P018 parser) → #400 (P015) → #402 (P018 public cards) → #405 (wrapper FP reductions). **#388 closed** — would reintroduce P026 false positives. **#389–#393 closed** — stale presentation stack.
 
 ## Recommended next development sequence
 
-1. **Merge #406** and restart live server at merged `main` SHA; confirm fresh audits + highlight-page UI.
-2. Only then resume review of **#375**, **#376**, **#385**, **#362**, **#349**, **#311** (no auto-port of old detector stacks).
+1. ~~Merge #406 and restart live server at merged `main` SHA; confirm fresh audits + highlight-page UI.~~ **Done (2026-07-02).**
+2. Resume review of **#375**, **#376**, **#385**, **#362**, **#349**, **#311** only after the warning-legitimacy review concludes (no auto-port of old detector stacks).
 
 ## PRs requiring explicit confirmation before close
 
