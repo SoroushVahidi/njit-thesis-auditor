@@ -5,8 +5,8 @@
 
 - Date: 2026-06-11 (release-engineering/status consistency refresh)
 - Historical baseline note: PR #47 (`8afdcad165ab`)
-- Baseline main for this status snapshot: `fbefbb6` (PR #400)
-- Status snapshot validation: **2375 pytest passed** on tracked tests at `fbefbb6` (2026-07-02); repository progress P001–P083 — see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) for full status.
+- Baseline main for this status snapshot: `fd29574` (PR #402)
+- Status snapshot validation: **2419 pytest passed** on tracked tests at `fd29574` (2026-07-02); repository progress P001–P083 — see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) for full status.
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary

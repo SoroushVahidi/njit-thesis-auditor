@@ -220,7 +220,7 @@ Repository progress: **P001–P083** implemented (82 project-added inventory ent
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Status snapshot validation | **2375 pytest passed** on tracked tests at `fbefbb6` (2026-07-02); see [docs/status/current_project_state_and_next_steps.md](docs/status/current_project_state_and_next_steps.md) |
+| Status snapshot validation | **2419 pytest passed** on tracked tests at `fd29574` (2026-07-02); see [docs/status/current_project_state_and_next_steps.md](docs/status/current_project_state_and_next_steps.md) |
 | Ester Q / P / public rule mapping | [docs/status/ester_q_p_rule_public_rule_mapping.md](docs/status/ester_q_p_rule_public_rule_mapping.md) |
 | Status doc index | [docs/status/README.md](docs/status/README.md) |
 
