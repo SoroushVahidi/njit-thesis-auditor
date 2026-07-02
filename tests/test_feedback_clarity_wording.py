@@ -1175,7 +1175,7 @@ def test_p050_issue_type_explanation_is_sensible_when_metadata_key_missing() -> 
         {"section_type": "list_of_tables", "column_type": "left"},
     )
     assert "'Table' column header" in explanation
-    assert "does not appear to be bold" in explanation
+    assert "is not formatted in bold" in explanation
     assert "was flagged by an automated check" not in explanation
 
 

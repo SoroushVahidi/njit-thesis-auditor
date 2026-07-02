@@ -1236,8 +1236,7 @@ def test_p023_body_spacing_explanation() -> None:
         details={},
         page=5,
     )
-    assert "double" in expl.lower()
-    assert "spacing" in expl.lower()
+    assert "double-spaced" in expl.lower()
 
 
 def test_p011_margin_explanation_with_side() -> None:
@@ -1318,7 +1317,6 @@ def test_p013_bottom_center_wording_is_verification_signal() -> None:
     )
     assert "bottom center" in comment
     assert "verification signal" in comment
-    assert "bottom of the page" in comment
     assert "0.5 inches" in comment
     assert "near top/bottom zones" not in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
@@ -1358,7 +1356,7 @@ def test_p013_undetermined_position_wording_is_neutral() -> None:
         details={},
     )
     assert "verification signal" in comment or "verify" in comment.lower()
-    assert "bottom of the page" in comment
+    assert "bottom center" in comment
     assert _OLD_VAGUE_P013_PHRASE not in comment
 
 

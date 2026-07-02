@@ -44,7 +44,7 @@ def test_p011_margin_wording_no_content_in_margins() -> None:
         page=3,
         details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
     )
-    assert "No text, tables, or figures are allowed in the margins" in comment
+    assert "Move any text, table, or figure" in comment
 
 
 def test_p011_margin_right_mentions_right_boundary() -> None:
@@ -99,7 +99,7 @@ def test_p013_catalog_question_mentions_bottom_centered() -> None:
     p013 = next(r for r in rules if r["id"] == "P013")
     q = p013["question"].lower()
     assert "bottom" in q
-    assert "centered" in q
+    assert "center" in q
 
 
 def test_p013_catalog_remediation_mentions_0_5_inches() -> None:

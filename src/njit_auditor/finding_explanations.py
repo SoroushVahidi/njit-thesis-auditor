@@ -167,12 +167,11 @@ def get_no_highlight_reason(
 _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P011 margins ---
     ("P011", "margin_boundary_violation"): (
-        "Content appears to cross the required page margin ({side_label}). "
+        "Problem: Text on this page is not contained entirely within the required "
+        "page margin ({side_label}). "
         "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
-        "No text, tables, or figures are allowed in the margins. "
-        "Review the highlighted area or the listed page and adjust layout, "
-        "indentation, tables, figures, or long lines so all content stays inside "
-        "the required margins."
+        "Move any text, table, or figure that extends into the margins back inside "
+        "the required page area."
     ),
     # --- P013 page number candidates ---
     # P013 only records a candidate's observed position/style — it has no
@@ -249,11 +248,9 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P023 body spacing ---
     ("P023", "possible_body_text_not_double_spaced"): (
-        "Body text on this page appears to be single-spaced or less than "
-        "double-spaced. "
-        "NJIT requires all body text to be double-spaced throughout. "
-        "Set the paragraph line spacing to 'Double' in Word, or use the equivalent "
-        "setting in your editor."
+        "Problem: Body text on this page does not appear to be double-spaced. "
+        "NJIT requires body text to be double-spaced, except for tables, figure "
+        "descriptions, bullet points, and multi-line titles."
     ),
     # --- P014 named front-matter heading style ---
     # P014 never sets issue_type, so this is keyed on the empty string. Text here
@@ -418,18 +415,14 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P030 TOC continued headings ---
     ("P030", "missing_continued_heading"): (
-        "A multi-page table of contents, List of Tables, or List of Figures "
-        "continuation page may be missing the required '(Continued)' heading. "
-        "NJIT requires continuation pages to include a repeated heading such as "
-        "'TABLE OF CONTENTS (Continued)'. "
-        "Add the required heading to the top of this continuation page."
+        "Problem: A continuation page of a multi-page Table of Contents, List of "
+        "Tables, or List of Figures does not include the correct continued heading. "
+        "Add the correct continued heading on this continuation page."
     ),
     ("P030", "toc_missing_continued_heading"): (
-        "The TABLE OF CONTENTS continuation page may be missing a "
-        "'TABLE OF CONTENTS (Continued)' heading. "
-        "NJIT requires this heading to appear at the top of every TOC continuation "
-        "page. "
-        "Add the required heading."
+        "Problem: A Table of Contents continuation page does not include "
+        "'TABLE OF CONTENTS (Continued).' "
+        "Add the correct continued heading on this continuation page."
     ),
     # --- P033 title consistency ---
     ("P033", "title_page_mismatch"): (
@@ -750,10 +743,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
 # is not appropriate).
 _RULE_FALLBACKS: dict[str, str] = {
     "P011": (
-        "Some content appears too close to or beyond the required page margin. "
+        "Problem: Text on this page is not contained entirely within the required "
+        "page margins. "
         "NJIT requires: left 1.5 inches, right 1 inch, top and bottom 1 inch. "
-        "Review the highlighted area or the listed page and adjust layout, "
-        "indentation, tables, figures, or long lines."
+        "Move any text, table, or figure that extends into the margins back inside "
+        "the required page area."
     ),
     "P012": (
         "This finding refers to an annotation, comment, sticky note, markup, or "
@@ -764,11 +758,10 @@ _RULE_FALLBACKS: dict[str, str] = {
         "reviewer comments before resubmitting."
     ),
     "P013": (
-        "This finding concerns page-numbering style, placement, sequence, or "
-        "presence. "
-        "Check whether the page number appears in the required position and whether "
-        "front matter uses lowercase Roman numerals while the main body uses "
-        "Arabic numerals."
+        "A visible page number on this page may not be located exactly in the "
+        "designated bottom-center position. "
+        "Set page numbers at the bottom center of the page, 0.5 inches from the "
+        "bottom edge."
     ),
     "P019": (
         "This finding concerns page-numbering style, placement, sequence, or "
@@ -789,10 +782,9 @@ _RULE_FALLBACKS: dict[str, str] = {
         "the title page."
     ),
     "P023": (
-        "Body text on this page may not be double-spaced as required by NJIT "
-        "guidelines. "
-        "Set the paragraph line spacing to 'Double' throughout the body of the "
-        "document."
+        "Problem: Body text on this page does not appear to be double-spaced. "
+        "Apply double spacing to body text and keep tables, figure descriptions, "
+        "bullet points, and multi-line titles single-spaced."
     ),
     "P025": (
         "A required front-matter structural element may be missing or "
@@ -826,10 +818,9 @@ _RULE_FALLBACKS: dict[str, str] = {
         "Front-matter numbered pages should use consecutive lowercase Roman numerals."
     ),
     "P030": (
-        "A multi-page table of contents or list may be missing a continuation "
-        "heading. "
-        "NJIT requires '(Continued)' headings on continuation pages for the TOC, "
-        "List of Tables, and List of Figures."
+        "Problem: A continuation page of a multi-page Table of Contents, List of "
+        "Tables, or List of Figures does not include the correct continued heading. "
+        "Add the correct continued heading on each continuation page."
     ),
     "P033": (
         "Title-page metadata may be inconsistent or incomplete. "
@@ -1690,10 +1681,9 @@ def _p050_left_bold_explanation(details: dict[str, str], *, page: int | None) ->
     header_word = "Table" if _lot_lof_entry_noun(details) == "table" else "Figure"
     verify_clause = _font_metadata_clause(details)
     return (
-        f"The '{header_word}' column header on the {section_label} page does not "
-        f"appear to be bold.{verify_clause} NJIT requires the '{header_word}' "
-        "column header to be formatted in bold. Apply bold formatting to this "
-        "header."
+        f"Problem: The '{header_word}' column header on the {section_label} page "
+        f"is not formatted in bold.{verify_clause} "
+        f"Format the \"{header_word}\" column header in bold."
     )
 
 

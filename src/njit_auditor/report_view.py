@@ -971,30 +971,32 @@ def _margin_comment_and_fix(
     side = _margin_side_label(details.get("side", ""))
     if side == "required page margin":
         comment = (
-            f"{prefix}: Some content on page {page_label} appears too close to or beyond "
-            "a required page margin. The auditor could not determine the exact margin "
-            "side from the available metadata. NJIT formatting expects body content to "
-            "remain inside the required page margins. Review tables, figures, long "
-            "lines, indentation, headers, and footers on this page."
+            f"{prefix}: Text on page {page_label} is not contained entirely within "
+            "the required page margins. The auditor could not determine the exact "
+            "margin side from the available metadata. NJIT requires: left margin "
+            "1.5 inches; top, bottom, and right margins 1 inch. Move any text, "
+            "table, or figure that extends into the margins back inside the "
+            "required page area."
         )
         fix = (
-            f"Check the page header, page number, tables, figures, captions, and any long "
-            f"lines on page {page_label}. Move any content that crosses a required margin "
-            "back inside the allowed page area."
+            f"Set the left margin to 1.5 inches and the top, bottom, and right "
+            f"margins to 1 inch on page {page_label}. Move any text, table, or "
+            "figure that extends into the margins back inside the required page area."
         )
         return comment, fix
     overflow_detail = _margin_overflow_detail_phrase(details)
     lines_clause = _margin_affected_lines_clause(details)
     comment = (
-        f"{prefix}: Content on page {page_label} appears to cross the required {side} "
-        f"boundary{overflow_detail}. NJIT formatting expects body content to remain inside "
-        "the required page margins. Review the highlighted area if available, or inspect "
-        f"tables, figures, long lines, indentation, headers, and footers on this page."
+        f"{prefix}: Text on page {page_label} is not contained entirely within "
+        f"the required {side}{overflow_detail}. NJIT requires: left margin 1.5 "
+        "inches; top, bottom, and right margins 1 inch. Move any text, table, or "
+        "figure that extends into the margins back inside the required page area."
         f"{lines_clause}"
     )
     fix = (
-        f"Move the flagged content back inside the required {side} and correct any "
-        "table, figure, long-line, indentation, header, or footer layout causing the overflow."
+        f"Set the left margin to 1.5 inches and the top, bottom, and right "
+        f"margins to 1 inch on page {page_label}. Move any text, table, or "
+        "figure that extends into the margins back inside the required page area."
     )
     return comment, fix
 
