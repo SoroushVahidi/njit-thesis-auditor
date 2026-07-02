@@ -7,36 +7,44 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-02 (post-#388 closure, #405 pending merge)
+## Current Status — 2026-07-02 (post-#405 merge)
 
 This section is the authoritative current snapshot. Everything below it (including the
-post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
-2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context
-and should not be read as current.
+post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot,
+earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
+preserved as historical context and should not be read as current.
 
-- **Baseline main for this status snapshot:** `3b4043c289b9a6d700c8c4722717f940381faa26` (PR [#404](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/404) — #386 closure status); **pending merge:** [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) (clean #388 Digital Commons wrapper FP port).
-- **Short SHA:** `3b4043c`.
-- **Status snapshot validation (tracked tests, 2026-07-02, #405 branch):** `ruff check .` clean; `mypy src` clean (107 source files); `python -m pytest --ignore=tests/test_p084_biosketch_birth_information.py --ignore=tests/test_pdf_toc_leader_consistency.py` → **2450 pytest passed**, 1 warning.
-- **Closed as superseded (2026-07-02):** [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) → dirty stack mixed useful wrapper/P018/P020/P028 false-positive reductions with Q-matrix coverage tiers and obsolete atomic web refactor (superseded by #402). Useful behavior ported to [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) on branch `fix/digital-commons-wrapper-fp-mainprep`.
-- **Earlier same-day closure:** [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) → #398 already accepts Computer Modern/Latin Modern with **no** P026A family warning.
-- **Remote branches to delete after #405 lands:** `fix/ester-q-matrix-coverage` (#388 head).
-- **Open PRs:** **11** as of 2026-07-02 (#388 closed). Full triage: [open_pr_triage.md](open_pr_triage.md).
+- **Baseline main for this status snapshot:** `7e17232a` (PR [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) — Digital Commons wrapper false-positive reductions, clean #388 port).
+- **Short SHA:** `7e17232`.
+- **Status snapshot validation (tracked tests, 2026-07-02):** `ruff check .` clean; `mypy src` clean (107 source files); `python -m pytest --ignore=tests/test_p084_biosketch_birth_information.py --ignore=tests/test_pdf_toc_leader_consistency.py` → **2450 pytest passed**, 1 warning.
+- **Merged (2026-07-02):** [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) — ports useful #388 behavior (wrapper page filtering, manuscript/PDF page identity, P018/P020/P028 false-positive reductions) without Q-matrix tiers or obsolete atomic web refactor.
+- **Closed as superseded (2026-07-02):** [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) → replaced by #405.
+- **Remote branch deleted:** `fix/ester-q-matrix-coverage` (#388 head).
+- **Open PRs:** **11** as of 2026-07-02. Full triage: [open_pr_triage.md](open_pr_triage.md).
 
 ### Open PR situation (summary)
 
 | Category | PRs | Maintainer note |
 |---|---|---|
-| **Ready for review** | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375), [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376), [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) | #405 is clean #388 replacement; CI green |
+| **Ready for review** | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375), [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376) | Rebase on `7e17232` before merge |
 | **Stacked presentation** | [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389) → … → [#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) | Compare with landed #400/#402/#405; #390 wrapper notice may overlap |
-| **Conflicting but valuable** | [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | Rebase after `main` / #405 |
+| **Conflicting but valuable** | [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | Rebase after `7e17232` |
 | **Likely superseded / confirm** | [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | Close only after explicit confirmation |
 
 ### Next recommended work
 
-1. **Merge [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405)** — Digital Commons wrapper false-positive reductions.
-2. Presentation stack **#389–#393** — merge as a unit or cherry-pick; watch #390 vs #405 wrapper notice overlap.
-3. Rebase UX/docs PRs **#385**, **#362**, **#349**.
-4. **P084 remains out of scope** unless explicitly requested.
+1. Presentation stack **#389–#393** — merge as a unit or cherry-pick; watch #390 vs #405 wrapper notice overlap.
+2. Rebase UX/docs PRs **#385**, **#362**, **#349**.
+3. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-02 (post-#388 closure, #405 pending merge)
+
+> **Superseded** by the post-#405-merge snapshot above.
+
+- **Baseline main:** `3b4043c` (PR #404); #405 open for merge.
+- **Open PRs at that time:** 11; #388 closed.
 
 ---
 
