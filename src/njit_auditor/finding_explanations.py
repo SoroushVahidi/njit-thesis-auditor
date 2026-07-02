@@ -986,7 +986,7 @@ def _p012_annotation_explanation(details: dict[str, str], *, page: int | None) -
 
 def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
     if issue_type == "unexpected_opening_indent":
-        return "the opening paragraph"
+        return "the first paragraph after a heading"
     paragraph_index = details.get("paragraph_index", "").strip()
     if paragraph_index:
         return f"body paragraph {paragraph_index}"
@@ -1000,12 +1000,14 @@ def _p015_indentation_explanation(
     indent_pt = details.get("indent_pt", "").strip()
 
     if issue_type == "unexpected_opening_indent":
-        observed = f"{descriptor.capitalize()} starts with an indented first line"
+        observed = f"{descriptor.capitalize()} starts with a first-line indent"
         if indent_pt:
             observed = f"{observed} (about {indent_pt}pt from the left margin)"
-        expected = f"{descriptor.capitalize()} should start flush with the left margin"
+        expected = (
+            f"{descriptor.capitalize()} should begin flush with the left margin"
+        )
     else:
-        observed = f"{descriptor.capitalize()} starts flush with the left margin"
+        observed = f"{descriptor.capitalize()} appears to be missing its first-line indent"
         if indent_pt:
             observed = f"{observed} (about {indent_pt}pt first-line offset observed)"
         expected = (

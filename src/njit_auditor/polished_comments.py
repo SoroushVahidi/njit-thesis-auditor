@@ -1097,11 +1097,11 @@ def _p036_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
 
 def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
     if issue_type == "unexpected_opening_indent":
-        return "the opening paragraph"
+        return "the first paragraph after a heading"
     paragraph_index = details.get("paragraph_index", "").strip()
     if paragraph_index:
         return f"body paragraph {paragraph_index}"
-    return "a paragraph after the first"
+    return "a later body paragraph"
 
 
 def _p015_indentation_comment(
@@ -1112,15 +1112,14 @@ def _p015_indentation_comment(
     if issue_type == "unexpected_opening_indent":
         return (
             f"Likely problem: {descriptor.capitalize()} on page {page_label} appears "
-            "to have an unintended first-line indent where NJIT expects a flush-left "
-            "opening paragraph. Remove the extra indent or confirm this is a permitted "
-            "exception such as a block quote or list item."
+            "to have a first-line indent. NJIT expects the first paragraph after a "
+            "section heading to begin flush with the left margin. Remove the first-line "
+            "indent from this paragraph."
         )
     return (
         f"Likely problem: {descriptor.capitalize()} on page {page_label} appears to "
-        "start flush-left where NJIT expects a first-line indent for a paragraph after "
-        "the first. Add the required first-line indent or confirm this paragraph is "
-        "meant to begin a new block."
+        "be missing its required first-line indent. Apply a first-line indent to this "
+        "body paragraph after the first paragraph in the section."
     )
 
 

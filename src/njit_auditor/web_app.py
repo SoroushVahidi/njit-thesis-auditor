@@ -732,6 +732,48 @@ def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
     return result
 
 
+_HIDDEN_PUBLIC_RULE_IDS = frozenset({"P015", "P026"})
+
+_PUBLIC_RULE_ISSUE_REFERENCE: dict[tuple[str, str], str] = {
+    ("P015", "unexpected_opening_indent"): "P015A",
+    ("P015", "missing_later_indent"): "P015B",
+    ("P026", "possible_body_font_family_issue"): "P026A",
+    ("P026", "possible_body_font_size_issue"): "P026B",
+}
+
+
+def _public_rule_reference_id(
+    rule_id: str,
+    *,
+    issue_type: str = "",
+    source_q_rule_id: str = "",
+) -> str:
+    """Map a backend finding/rule to the student-facing /rules anchor ID."""
+    del source_q_rule_id  # reserved for future Q-rule-specific splits
+    clean_rule_id = str(rule_id).strip()
+    clean_issue_type = str(issue_type).strip()
+    mapped = _PUBLIC_RULE_ISSUE_REFERENCE.get((clean_rule_id, clean_issue_type))
+    if mapped is not None:
+        return mapped
+    if clean_rule_id in _HIDDEN_PUBLIC_RULE_IDS:
+        return ""
+    return clean_rule_id if clean_rule_id in _public_rule_lookup() else ""
+
+
+def _public_rule_reference_href(
+    rule_id: str,
+    *,
+    issue_type: str = "",
+    source_q_rule_id: str = "",
+) -> str:
+    anchor_id = _public_rule_reference_id(
+        rule_id,
+        issue_type=issue_type,
+        source_q_rule_id=source_q_rule_id,
+    )
+    return f"/rules#{anchor_id}" if anchor_id else ""
+
+
 def _build_rule_catalog() -> dict[str, Any]:
     """Load P-rules from canonical source and classify for the rules page."""
     try:
@@ -818,6 +860,34 @@ def _build_rule_catalog() -> dict[str, Any]:
                 )
 
                 student_rules.extend([p026a, p026b])
+            elif rule_id == "P015":
+                # Public rules page splits P015 into two student-facing cards:
+                # P015A (first paragraph after heading flush-left) and P015B
+                # (later body paragraphs indented). Findings remain P015.
+                p015a = dict(enriched)
+                p015a["id"] = "P015A"
+                p015a["title"] = (
+                    "Is the first paragraph after a level 1, 2, 3, or 4 heading "
+                    "not indented?"
+                )
+                p015a["what_it_checks"] = p015a["title"]
+                p015a["how_to_correct"] = (
+                    "Remove the first-line indent from the first paragraph after the heading."
+                )
+
+                p015b = dict(enriched)
+                p015b["id"] = "P015B"
+                p015b["title"] = (
+                    "Are all body paragraphs indented, excluding the first paragraph "
+                    "after a heading?"
+                )
+                p015b["what_it_checks"] = p015b["title"]
+                p015b["how_to_correct"] = (
+                    "Apply a first-line indent to each body paragraph after the first "
+                    "paragraph in the section."
+                )
+
+                student_rules.extend([p015a, p015b])
             else:
                 student_rules.append(enriched)
         else:

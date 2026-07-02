@@ -466,7 +466,7 @@ def _p015_location_label(rule_id: str, issue_type: str, details: Mapping[str, st
     if rule_id != "P015":
         return ""
     if issue_type == "unexpected_opening_indent":
-        return "First line of the opening paragraph"
+        return "First line of the first paragraph after a heading"
     if issue_type == "missing_later_indent":
         paragraph_index = str(details.get("paragraph_index", "")).strip()
         if paragraph_index:

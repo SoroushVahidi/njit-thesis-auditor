@@ -497,11 +497,11 @@ def test_p015_unexpected_opening_indent_gets_precise_location_and_highlight() ->
     view = build_report_view(report, pdf_page_sizes=[(612.0, 792.0)] * 4)
 
     finding = next(f for f in view.findings if f.rule_id == "P015")
-    assert finding.location_label == "First line of the opening paragraph"
+    assert finding.location_label == "First line of the first paragraph after a heading"
     assert finding.has_highlight is True
     assert finding.action_kind == "highlight"
     assert finding.action_label == "Open highlighted PDF page"
-    assert "flush-left" in finding.polished_comment.lower()
+    assert "flush with the left margin" in finding.polished_comment.lower()
     assert "190.0" not in finding.detailed_explanation
 
 
