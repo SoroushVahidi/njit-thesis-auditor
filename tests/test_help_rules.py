@@ -237,7 +237,7 @@ def test_rules_page_shows_only_web_pdf_rule_ids(client: tuple[TestClient, Any]) 
     body = resp.text
     catalog = _build_rule_catalog()
     expected_ids = {r["id"] for r in catalog["student_rules"]}
-    rendered_ids = set(re.findall(r'id="(P\d+)"', body))
+    rendered_ids = set(re.findall(r'id="(P\d+(?:[A-Z])?)"', body))
     assert rendered_ids == expected_ids
     assert expected_ids, "expected at least one web PDF rule to be shown"
 
