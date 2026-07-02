@@ -18,7 +18,12 @@ from njit_auditor.polished_comments import (
     contains_blocked_detail_text,
 )
 from njit_auditor.report_outputs import audit_findings_to_json_dict
-from njit_auditor.report_view import build_report_view, report_view_to_dict
+from njit_auditor.report_view import (
+    build_report_view,
+    normalize_sort_mode,
+    report_view_to_dict,
+    sort_grouped_problems,
+)
 
 
 def _p011_findings(count: int = 6) -> list[AuditFinding]:
@@ -375,6 +380,235 @@ def test_mixed_medium_low_confidence_uses_yellow_badge() -> None:
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P037")
     assert group.confidence_label == "Mixed confidence: Medium, Low"
     assert group.confidence_css_class == "confidence-badge--medium"
+
+
+def _confidence_sort_fixture_grouped_problems() -> list[dict[str, Any]]:
+    """Five singleton cards in a deliberately non-confidence-ordered default order.
+
+    Default order (by rule_id): P037 (low), P011 (high), P026 (medium), P030 (missing),
+    P044 (high). Two "high" cards (P011, P044) are included non-adjacently so sorting
+    tests can also confirm stability within a confidence bucket.
+    """
+    findings = [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=2,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=3,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "medium"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=4,
+            message="Missing continued heading.",
+            details={"issue_type": "missing_continued_heading"},
+        ),
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=5,
+            message="Table centering issue.",
+            details={"issue_type": "table_not_centered", "confidence": "high"},
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    return report_view_to_dict(view)["grouped_problems"]
+
+
+def test_normalize_sort_mode_accepts_known_values_and_falls_back_for_unknown() -> None:
+    assert normalize_sort_mode("default") == "default"
+    assert normalize_sort_mode("confidence_desc") == "confidence_desc"
+    assert normalize_sort_mode("confidence_asc") == "confidence_asc"
+    assert normalize_sort_mode("CONFIDENCE_DESC") == "confidence_desc"
+    assert normalize_sort_mode("  confidence_asc  ") == "confidence_asc"
+    # Unrecognized, empty, or tampered values safely fall back to default order.
+    assert normalize_sort_mode("") == "default"
+    assert normalize_sort_mode("bogus") == "default"
+    assert normalize_sort_mode("newest") == "default"
+
+
+def test_sort_grouped_problems_default_mode_preserves_existing_order() -> None:
+    problems = _confidence_sort_fixture_grouped_problems()
+    default_order = [p["rule_id"] for p in problems]
+    assert default_order == ["P037", "P011", "P026", "P030", "P044"]
+
+    sorted_problems = sort_grouped_problems(problems, "default")
+    assert [p["rule_id"] for p in sorted_problems] == default_order
+    # "default" must not even be treated as a no-op copy that could mask a bug: it
+    # should be the literal same relative order as the unsorted input list.
+    assert sorted_problems == problems
+
+
+def test_sort_grouped_problems_high_first_orders_high_before_medium_before_low() -> None:
+    problems = _confidence_sort_fixture_grouped_problems()
+    sorted_problems = sort_grouped_problems(problems, "confidence_desc")
+    # High-confidence cards (P011, P044) keep their original relative order (stability),
+    # followed by medium (P026), then low (P037), then missing confidence (P030) last.
+    assert [p["rule_id"] for p in sorted_problems] == [
+        "P011",
+        "P044",
+        "P026",
+        "P037",
+        "P030",
+    ]
+
+
+def test_sort_grouped_problems_low_first_orders_low_before_medium_before_high() -> None:
+    problems = _confidence_sort_fixture_grouped_problems()
+    sorted_problems = sort_grouped_problems(problems, "confidence_asc")
+    # Low first (P037), then medium (P026), then the high-confidence cards in their
+    # original relative order (P011, P044), with missing confidence (P030) last in
+    # this direction too.
+    assert [p["rule_id"] for p in sorted_problems] == [
+        "P037",
+        "P026",
+        "P011",
+        "P044",
+        "P030",
+    ]
+
+
+def test_sort_grouped_problems_invalid_mode_falls_back_to_default_order() -> None:
+    problems = _confidence_sort_fixture_grouped_problems()
+    default_order = [p["rule_id"] for p in problems]
+    mode = normalize_sort_mode("not-a-real-mode")
+    assert mode == "default"
+    sorted_problems = sort_grouped_problems(problems, mode)
+    assert [p["rule_id"] for p in sorted_problems] == default_order
+
+
+def test_sort_grouped_problems_does_not_change_problem_numbers_or_card_contents() -> None:
+    """Sorting only reorders the list; it must never renumber or rewrite cards."""
+    problems = _confidence_sort_fixture_grouped_problems()
+    before_by_rule = {p["rule_id"]: p for p in problems}
+
+    for mode in ("confidence_desc", "confidence_asc"):
+        sorted_problems = sort_grouped_problems(problems, mode)
+        assert len(sorted_problems) == len(problems)
+        for problem in sorted_problems:
+            original = before_by_rule[problem["rule_id"]]
+            assert problem["problem_numbers"] == original["problem_numbers"]
+            assert problem["problem_number_label"] == original["problem_number_label"]
+            assert problem["problem_anchor"] == original["problem_anchor"]
+            assert problem["individual_findings"] == original["individual_findings"]
+
+
+def test_sort_grouped_problems_ranks_mixed_confidence_card_by_extreme_present() -> None:
+    """A grouped card spanning high+low confidence occurrences should surface with the
+    high-confidence cards in high-first mode, and with the low-confidence cards in
+    low-first mode, so a reviewer never misses a low-confidence occurrence hidden
+    inside a card that also happens to contain a high-confidence one."""
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "low",
+            },
+        ),
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=3,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "medium"},
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    report["grouped_findings"] = [
+        {
+            "rule_id": "P011",
+            "issue_type": "margin_boundary_violation",
+            "individual_indexes": [0, 1],
+        },
+        {
+            "rule_id": "P037",
+            "issue_type": "wrong_page_number_sequence",
+            "individual_indexes": [2],
+        },
+    ]
+    view = build_report_view(report)
+    problems = report_view_to_dict(view)["grouped_problems"]
+    assert next(p for p in problems if p["rule_id"] == "P011")["confidence_level"] == "mixed"
+
+    desc_order = [p["rule_id"] for p in sort_grouped_problems(problems, "confidence_desc")]
+    assert desc_order == ["P011", "P037"]
+
+    asc_order = [p["rule_id"] for p in sort_grouped_problems(problems, "confidence_asc")]
+    assert asc_order == ["P011", "P037"]
+
+
+def test_sort_grouped_problems_preserves_grouping_and_occurrence_details() -> None:
+    """Sorting must not split or flatten a grouped card's individual occurrences."""
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=i + 1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "medium",
+            },
+        )
+        for i in range(3)
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    report["grouped_findings"] = [
+        {
+            "rule_id": "P011",
+            "issue_type": "margin_boundary_violation",
+            "individual_indexes": [0, 1, 2],
+        }
+    ]
+    view = build_report_view(report)
+    problems = report_view_to_dict(view)["grouped_problems"]
+    assert len(problems) == 1
+    assert problems[0]["is_grouped"] is True
+    assert problems[0]["occurrence_count"] == 3
+
+    for mode in ("default", "confidence_desc", "confidence_asc"):
+        sorted_problems = sort_grouped_problems(problems, mode)
+        assert len(sorted_problems) == 1
+        assert sorted_problems[0]["is_grouped"] is True
+        assert sorted_problems[0]["occurrence_count"] == 3
+        assert len(sorted_problems[0]["individual_findings"]) == 3
 
 
 def test_same_problem_with_different_confidence_stays_on_one_card_by_default() -> None:
