@@ -684,12 +684,16 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means spacing between reference entries appears inconsistent."
     ),
     ("P068", "approval_page_advisor_role_label_missing"): (
-        "This means the Approval Page may be missing a recognizable advisor role "
-        "label such as 'Dissertation Advisor' or 'Major Professor'."
+        "This means the Approval Page may be missing a recognizable advisor or "
+        "committee role label such as 'Dissertation Advisor' or 'Major Professor'. "
+        "Add the required advisor or committee role label for each committee entry "
+        "on the Approval Page."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
-        "This means the Approval Page appears to have too few signature or date "
-        "structural blocks for the committee entries present."
+        "This means the Approval Page appears to have too few signature/date "
+        "structural blocks for the committee entries present. Add the required "
+        "signature/date structural block for each committee entry on the Approval "
+        "Page."
     ),
     ("P036", "toc_inter_entry_spacing_too_tight"): (
         "This means consecutive Table of Contents entries do not appear to have "
@@ -895,12 +899,14 @@ def _p068_issue_type_explanation(issue_type: str, details: Mapping[str, str]) ->
             f"This means the Approval Page lists {role_label_count} committee role "
             "label(s), but none of them is a recognizable advisor role label (for "
             "example, 'Dissertation Advisor' or 'Major Professor'). Add the required "
-            "advisor role label."
+            "advisor or committee role label for each committee entry on the "
+            "Approval Page."
         )
     return (
         f"This means the Approval Page has {indicator_count} signature/date line(s) "
         f"for {role_label_count} committee role label(s), but at least {required} are "
-        "expected. Add a signature line and a date line for each committee member."
+        "expected. Add the required signature/date structural block for each "
+        "committee entry on the Approval Page."
     )
 
 
@@ -968,11 +974,11 @@ def _p066_issue_type_explanation(details: Mapping[str, str]) -> str:
     place_noun = "place" if inversion_count == "1" else "places"
     return (
         "This means the postgraduate degree entries on the Biographical Sketch page "
-        "appear out of order: the candidate years found (in listed order) run from "
-        f"{first_year} to {last_year}, with {inversion_count} {place_noun} where a "
-        "later-listed entry's year is more recent than the entry just before it. NJIT "
-        "requires postgraduate degrees to be listed from most recent to oldest. "
-        "Reorder the entries accordingly."
+        "appear to be out of order: the candidate years found (in listed order) run "
+        f"from {first_year} to {last_year}, with {inversion_count} {place_noun} where "
+        "a later-listed entry's year is more recent than the entry just before it. "
+        "Reorder postgraduate degree entries in the Biographical Sketch from most "
+        "recent to oldest."
     )
 
 
@@ -982,12 +988,12 @@ def _p067_issue_type_explanation(details: Mapping[str, str]) -> str:
     inversion_count = details.get("inversion_count", "").strip() or "at least one"
     place_noun = "place" if inversion_count == "1" else "places"
     return (
-        "This means the publication/presentation entries on the Biographical Sketch "
-        "page appear out of order: the comparable entry years found (in listed order) "
-        f"run from {first_year} to {last_year}, with {inversion_count} {place_noun} "
-        "where a later-listed entry's year is more recent than the entry just before "
-        "it. NJIT requires publications/presentations to be listed from most recent "
-        "to oldest. Reorder the entries accordingly."
+        "This means the publication and presentation entries on the Biographical "
+        "Sketch page appear to be out of order: the comparable entry years found "
+        f"(in listed order) run from {first_year} to {last_year}, with "
+        f"{inversion_count} {place_noun} where a later-listed entry's year is more "
+        "recent than the entry just before it. Reorder publication and presentation "
+        "entries in the Biographical Sketch from most recent to oldest."
     )
 
 
@@ -997,12 +1003,11 @@ def _p045_hanging_indent_issue_type_explanation(details: Mapping[str, str]) -> s
     count_clause = f" out of {block_count} multi-line entries checked" if block_count else ""
     threshold_clause = f" by at least {threshold}pt" if threshold else ""
     return (
-        "This means none of the publication/presentation entries on the "
-        f"Biographical Sketch page use hanging indentation{count_clause}: no "
-        f"continuation line is indented{threshold_clause} relative to its entry's "
-        "first line. NJIT requires publication/presentation entries to use hanging "
-        "indentation (first line flush left, continuation lines indented). Indent "
-        "the continuation lines of each entry."
+        "This means publication/presentation entries on the Biographical Sketch page "
+        f"do not appear to use hanging indentation{count_clause}: no continuation line "
+        f"is indented{threshold_clause} relative to its entry's first line. Format "
+        "each publication or presentation entry with a hanging indent (first line flush "
+        "left, continuation lines indented)."
     )
 
 
@@ -1016,9 +1021,8 @@ def _p045_entry_spacing_issue_type_explanation(details: Mapping[str, str]) -> st
     )
     return (
         "This means two consecutive publication/presentation entries on the "
-        f"Biographical Sketch page appear to lack the required gap between "
-        f"them{gap_clause}. NJIT requires a blank-line gap between publication/"
-        "presentation entries. Add a blank line between these entries."
+        "Biographical Sketch page do not appear to have a blank line between "
+        f"them{gap_clause}. Add a blank line between separate entries."
     )
 
 
@@ -1041,11 +1045,10 @@ def _p047_issue_type_explanation(details: Mapping[str, str]) -> str:
         else ""
     )
     return (
-        f"This means {block_label} on the Biographical Sketch page has an internal "
-        f"line gap that looks double-spaced rather than single-spaced{gap_clause}. "
-        "NJIT requires bullet/list items in the Biographical Sketch to be "
-        "single-spaced internally. Remove the extra blank space within this bullet "
-        "item."
+        f"This means {block_label} on the Biographical Sketch page appears to have "
+        f"extra spacing inside the bullet item{gap_clause}. Single-space each bullet "
+        "item in the Biographical Sketch education section, with no extra blank "
+        "lines inside the same bullet item."
     )
 
 

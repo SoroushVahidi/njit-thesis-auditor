@@ -738,12 +738,15 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P068 approval page structure ---
     ("P068", "approval_page_advisor_role_label_missing"): (
-        "The Approval Page may be missing a recognizable advisor role label "
-        "(for example, 'Dissertation Advisor' or 'Major Professor')."
+        "The Approval Page may be missing a recognizable advisor or committee role "
+        "label (for example, 'Dissertation Advisor' or 'Major Professor'). Add the "
+        "required advisor or committee role label for each committee entry on the "
+        "Approval Page."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
-        "The Approval Page appears to have too few signature or date structural "
-        "blocks for the committee entries present."
+        "The Approval Page appears to have too few signature/date structural blocks "
+        "for the committee entries present. Add the required signature/date "
+        "structural block for each committee entry on the Approval Page."
     ),
 }
 
@@ -1378,12 +1381,13 @@ def _p068_approval_page_explanation(
             f"The Approval Page lists {role_label_count} committee role label(s), "
             "but none of them is a recognizable advisor role label (for example, "
             "'Dissertation Advisor' or 'Major Professor'). Add the required advisor "
-            "role label."
+            "or committee role label for each committee entry on the Approval Page."
         )
     return (
         f"The Approval Page has {indicator_count} signature/date line(s) for "
         f"{role_label_count} committee role label(s), but at least {required} are "
-        "expected. Add a signature line and a date line for each committee member."
+        "expected. Add the required signature/date structural block for each "
+        "committee entry on the Approval Page."
     )
 
 
@@ -1451,12 +1455,12 @@ def _p066_degree_order_explanation(details: dict[str, str], *, page: int | None)
     inversion_count = details.get("inversion_count", "").strip() or "at least one"
     place_noun = "place" if inversion_count == "1" else "places"
     return (
-        "Postgraduate degree entries on the Biographical Sketch page appear out of "
-        "order: the candidate years found (in listed order) run from "
+        "Postgraduate degree entries on the Biographical Sketch page appear to be "
+        "out of order: the candidate years found (in listed order) run from "
         f"{first_year} to {last_year}, with {inversion_count} {place_noun} where a "
         "later-listed entry's year is more recent than the entry just before it. "
-        "NJIT requires postgraduate degrees to be listed from most recent to "
-        "oldest. Reorder the entries."
+        "Reorder postgraduate degree entries in the Biographical Sketch from most "
+        "recent to oldest."
     )
 
 
@@ -1466,12 +1470,14 @@ def _p067_publication_order_explanation(details: dict[str, str], *, page: int | 
     inversion_count = details.get("inversion_count", "").strip() or "at least one"
     place_noun = "place" if inversion_count == "1" else "places"
     return (
-        "Publication/presentation entries on the Biographical Sketch page appear "
-        "out of order: the comparable entry years found (in listed order) run from "
-        f"{first_year} to {last_year}, with {inversion_count} {place_noun} where a "
-        "later-listed entry's year is more recent than the entry just before it. "
-        "NJIT requires publications/presentations to be listed from most recent to "
-        "oldest. Reorder the entries."
+        "Publication and presentation entries on the Biographical Sketch page "
+        "appear to be out of order: the comparable entry years found (in listed "
+        f"order) run from {first_year} to {last_year}, with {inversion_count} "
+        f"{place_noun} where a later-listed entry's year is more recent than the "
+        "entry just before it. Reorder publication and presentation entries in the "
+        "Biographical Sketch from most recent to oldest. Manual review may still be "
+        "needed for citation style, authorship, title correctness, venue correctness, "
+        "and ambiguous multi-year entries."
     )
 
 
@@ -1481,12 +1487,11 @@ def _p045_hanging_indent_explanation(details: dict[str, str], *, page: int | Non
     count_clause = f" out of {block_count} multi-line entries checked" if block_count else ""
     threshold_clause = f" by at least {threshold}pt" if threshold else ""
     return (
-        "None of the publication/presentation entries on the Biographical Sketch "
-        f"page use hanging indentation{count_clause}: no continuation line is "
-        f"indented{threshold_clause} relative to its entry's first line. NJIT "
-        "requires publication/presentation entries to use hanging indentation "
-        "(first line flush left, continuation lines indented). Indent the "
-        "continuation lines of each entry."
+        "Publication/presentation entries on the Biographical Sketch page do not "
+        f"appear to use hanging indentation{count_clause}: no continuation line is "
+        f"indented{threshold_clause} relative to its entry's first line. Format each "
+        "publication or presentation entry with a hanging indent (first line flush "
+        "left, continuation lines indented)."
     )
 
 
@@ -1500,9 +1505,8 @@ def _p045_entry_spacing_explanation(details: dict[str, str], *, page: int | None
     )
     return (
         "Two consecutive publication/presentation entries on the Biographical "
-        f"Sketch page appear to lack the required gap between them{gap_clause}. "
-        "NJIT requires a blank-line gap between publication/presentation entries. "
-        "Add a blank line between these entries."
+        f"Sketch page do not appear to have a blank line between them{gap_clause}. "
+        "Add a blank line between separate entries."
     )
 
 
@@ -1525,11 +1529,10 @@ def _p047_bullet_spacing_explanation(details: dict[str, str], *, page: int | Non
         else ""
     )
     return (
-        f"{block_label} on the Biographical Sketch page has an internal line gap "
-        f"that looks double-spaced rather than single-spaced{gap_clause}. NJIT "
-        "requires bullet/list items in the Biographical Sketch to be "
-        "single-spaced internally. Remove the extra blank space within this "
-        "bullet item."
+        f"{block_label} on the Biographical Sketch page appears to have extra spacing "
+        f"inside the bullet item{gap_clause}. Single-space each bullet item in the "
+        "Biographical Sketch education section, with no extra blank lines inside the "
+        "same bullet item."
     )
 
 

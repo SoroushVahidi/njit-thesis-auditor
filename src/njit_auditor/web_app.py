@@ -911,6 +911,59 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "\"our.\""
         ),
     },
+    "P045": {
+        "question": (
+            "Do publication and presentation entries in the Biographical Sketch "
+            "use the required layout: hanging indent, internal single spacing, "
+            "and a blank line between entries?"
+        ),
+        "remediation": (
+            "Format each publication or presentation entry with a hanging indent. "
+            "Keep wrapped lines within each entry single-spaced, and add a blank "
+            "line between separate entries."
+        ),
+    },
+    "P047": {
+        "question": (
+            "Are bullet items in the Biographical Sketch education section "
+            "single-spaced within each bullet?"
+        ),
+        "remediation": (
+            "Single-space each bullet item in the Biographical Sketch education "
+            "section, with no extra blank lines inside the same bullet item."
+        ),
+    },
+    "P066": {
+        "question": (
+            "Are postgraduate degrees in the Biographical Sketch listed from "
+            "most recent to oldest?"
+        ),
+        "remediation": (
+            "Reorder postgraduate degree entries in the Biographical Sketch from "
+            "most recent to oldest."
+        ),
+    },
+    "P067": {
+        "question": (
+            "Are publication and presentation entries in the Biographical Sketch "
+            "listed from most recent to oldest?"
+        ),
+        "remediation": (
+            "Reorder publication and presentation entries in the Biographical "
+            "Sketch from most recent to oldest."
+        ),
+    },
+    "P068": {
+        "question": (
+            "Does the Approval Page include committee role labels and "
+            "signature/date structural blocks for committee entries?"
+        ),
+        "remediation": (
+            "Add the required advisor or committee role label and the "
+            "signature/date structural block for each committee entry on the "
+            "Approval Page."
+        ),
+    },
 }
 
 
