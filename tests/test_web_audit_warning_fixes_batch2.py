@@ -251,6 +251,44 @@ def test_digital_commons_wrapper_suppresses_layout_warnings_and_emits_notice(
     assert len(wrapper_findings) == 1
 
 
+def test_digital_commons_notice_labeled_notice_not_problem(tmp_path: Path) -> None:
+    """The DC wrapper-pages finding is a preprocessing notice, not a formatting
+    problem: it should render as "Notice N", use the audit-accuracy-framed
+    suggested fix, and remain actionable via the original-page link even
+    though it has no highlight bbox."""
+    pdf_path = tmp_path / "digital_commons_wrapper_notice.pdf"
+    _make_digital_commons_wrapper_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+
+    from njit_auditor.audit_runner import collect_pdf_layout_findings
+
+    findings = collect_pdf_layout_findings(model, pdf_path)
+    wrapper_finding = next(
+        f
+        for f in findings
+        if f.details.get("issue_type") == "digital_commons_wrapper_pages_detected"
+    )
+    assert "upload the thesis manuscript PDF without" in wrapper_finding.details.get(
+        "suggested_fix", ""
+    )
+    assert "before submitting" not in wrapper_finding.details.get("suggested_fix", "")
+
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    problem = next(
+        p
+        for p in view.grouped_problems
+        if p.issue_type == "digital_commons_wrapper_pages_detected"
+    )
+    assert problem.problem_number_label.startswith("Notice")
+    assert not problem.problem_number_label.startswith("Problem")
+
+    wrapper_view = next(
+        f for f in view.findings if f.issue_type == "digital_commons_wrapper_pages_detected"
+    )
+    assert wrapper_view.action_kind == "original_page"
+
+
 def test_p035_figure_caption_below_body_with_following_prose_does_not_flag(
     tmp_path: Path,
 ) -> None:

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from njit_auditor.high_volume_student_preview import margin_location_label
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.polished_comments import (
     REVIEW_PREFIX,
@@ -597,6 +598,33 @@ def test_p024_location_label_falls_back_without_entry_index() -> None:
     assert "entry" not in finding.location_label.lower()
 
 
+def test_p027_location_label_names_the_actual_heading() -> None:
+    """P027 findings must show the flagged heading, not a bare page number,
+    so a Level 3 sentence-case warning reads as an actual heading location."""
+    findings = [
+        AuditFinding(
+            rule_id="P027",
+            severity=Severity.WARNING,
+            page=62,
+            message="Change this Level 3 heading to sentence case.",
+            details={
+                "issue_type": "level3_sentence_case_issue",
+                "inferred_level": "3",
+                "heading_pattern": "4.4.1",
+                "line_preview": "4.4.1 Scatterplots Of Relationships With Readiness",
+                "confidence": "medium",
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P027")
+    assert finding.location_label == (
+        'Page 62 — Level 3 heading "4.4.1 Scatterplots Of Relationships With Readiness"'
+    )
+
+
 def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
     findings = [
         _p024_finding(
@@ -626,6 +654,63 @@ def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
         "Page 12 — Table of Contents, affected entry: 'Synthetic first toc entry marker ABC'",
         "Page 12 — Table of Contents, affected entry: 'Synthetic third toc entry marker DEF'",
     }
+
+
+def test_p024_lof_sentence_case_display_comment_names_flagged_words() -> None:
+    """The displayed comment for a List of Figures sentence-case finding must
+    name the specific flagged word(s), not a generic 'multiple later words'
+    message — and grouping is unaffected because the override happens after
+    grouping (the underlying card-level comment stays generic)."""
+    findings = [
+        AuditFinding(
+            rule_id="P024",
+            severity=Severity.WARNING,
+            page=15,
+            message="List of Figures entry may not follow sentence-case style.",
+            details={
+                "page_type": "list_of_figures",
+                "issue_type": "list_of_figures_sentence_case",
+                "entry_index": "0",
+                "flagged_words": "Schematic, Diagram",
+                "confidence": "medium",
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P024")
+    assert "'Schematic'" in finding.polished_comment
+    assert "'Diagram'" in finding.polished_comment
+    assert "multiple later words" not in finding.polished_comment
+
+
+def test_p040_entry_clause_uses_page_relative_index_not_document_global() -> None:
+    """A List of Figures continuation page with 5 visible entries must not be
+    labeled '(entry #6)' just because earlier pages already used indices 0-4
+    — the display index must be relative to what is visible on that page."""
+    findings = [
+        AuditFinding(
+            rule_id="P040",
+            severity=Severity.WARNING,
+            page=16,
+            message="List of Figures entry does not end with terminal punctuation.",
+            details={
+                "issue_type": "lof_entry_missing_terminal_punctuation",
+                # Document-global index carried over from an earlier page,
+                # but this is the first (page-relative index 0) flagged entry
+                # on *this* page.
+                "entry_index": "5",
+                "page_entry_index": "0",
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P040")
+    assert "(entry #1)" in finding.polished_comment
+    assert "(entry #6)" not in finding.polished_comment
 
 
 def test_p024_line_preview_never_rendered_in_comment_or_explanation() -> None:
@@ -764,6 +849,37 @@ def test_polished_comment_templates_for_key_rules() -> None:
         details={"run_start_page": "17", "run_end_page": "18"},
     )
     assert "figures" in p061.lower() or "lof" in p061.lower()
+
+
+def test_p011_location_label_states_measured_overrun() -> None:
+    """The exact measured overrun must be visible per occurrence via
+    location_label — not baked into the shared card-level comment, which
+    would split identical margin problems across cards by overflow amount
+    (see test_same_problem_with_different_confidence_stays_on_one_card_by_default)."""
+    label = margin_location_label(
+        {"side": "right_margin", "worst_overflow_pt": "3.5"}, 11
+    )
+    assert label == "Page 11 — right margin (~3.5 pt over)"
+
+
+def test_p011_polished_comment_identical_regardless_of_overflow_or_confidence() -> None:
+    """The card-level P011 comment must not vary with overflow amount or
+    confidence — both feed build_grouped_findings()'s grouping key, and an
+    instance-specific value there would silently break the "one card per
+    problem type" grouping guarantee for a high-volume rule."""
+    low_confidence = build_polished_comment(
+        rule_id="P011",
+        issue_type="margin_boundary_violation",
+        page=11,
+        details={"side": "right_margin", "worst_overflow_pt": "3.5", "confidence": "low"},
+    )
+    high_confidence = build_polished_comment(
+        rule_id="P011",
+        issue_type="margin_boundary_violation",
+        page=11,
+        details={"side": "right_margin", "worst_overflow_pt": "22.0", "confidence": "high"},
+    )
+    assert low_confidence == high_confidence
 
 
 def test_polished_comment_fallback_unknown_rule() -> None:

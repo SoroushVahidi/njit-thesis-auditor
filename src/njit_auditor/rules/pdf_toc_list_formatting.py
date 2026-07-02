@@ -34,6 +34,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 LINE_PREVIEW_MAX = 80
 MIN_ENTRY_WORDS = 3
+_MAX_FLAGGED_WORDS = 3
 
 # TOC level-classification patterns.
 _CHAPTER_RE = re.compile(r"^(?:chapter|appendix)\b", re.IGNORECASE)
@@ -128,14 +129,16 @@ def _obvious_not_all_caps(text: str) -> bool:
     return len(lowercase_major) >= 2
 
 
-def _sentence_case_violation(text: str) -> bool:
-    """Conservative: True if later content words are >60% capitalized (title-case-like).
+def _sentence_case_violation_words(text: str) -> list[str]:
+    """Return the specific later words that are unexpectedly capitalized.
 
-    Used for List of Figures entries where sentence case is expected.
+    Conservative: flags only when >=60% of eligible later words are
+    capitalized (title-case-like). Used for List of Figures entries, which
+    NJIT expects in sentence case.
     """
     words = _WORD_RE.findall(text)
     if len(words) < 4:
-        return False
+        return []
     later = [
         w for w in words[1:]
         if len(w) > 3
@@ -144,9 +147,19 @@ def _sentence_case_violation(text: str) -> bool:
         and w.lower() not in MINOR_WORDS
     ]
     if len(later) < 3:
-        return False
-    capitalized = sum(1 for w in later if w[0].isupper())
-    return (capitalized / len(later)) >= 0.6
+        return []
+    capitalized = [w for w in later if w[0].isupper()]
+    if (len(capitalized) / len(later)) >= 0.6:
+        return capitalized
+    return []
+
+
+def _sentence_case_violation(text: str) -> bool:
+    """Conservative: True if later content words are >60% capitalized (title-case-like).
+
+    Used for List of Figures entries where sentence case is expected.
+    """
+    return bool(_sentence_case_violation_words(text))
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +314,9 @@ def _check_lof_page(
             continue
         if len(tokenize_title_words(entry_text)) < 4:
             continue
-        if _sentence_case_violation(entry_text):
+        flagged_words = _sentence_case_violation_words(entry_text)
+        if flagged_words:
+            words_clause = ", ".join(f"'{w}'" for w in flagged_words[:_MAX_FLAGGED_WORDS])
             findings.append(
                 AuditFinding(
                     rule_id="P024",
@@ -309,7 +324,7 @@ def _check_lof_page(
                     page=context.page.page_number,
                     message=(
                         "List of Figures entry may not follow sentence-case style: "
-                        "multiple later words appear capitalized."
+                        f"{words_clause} appear capitalized where sentence case is expected."
                     ),
                     details={
                         "page_number": str(context.page.page_number),
@@ -321,6 +336,7 @@ def _check_lof_page(
                         "expected_or_reason": (
                             "Figure descriptions in LoF expected in sentence case"
                         ),
+                        "flagged_words": ", ".join(flagged_words[:_MAX_FLAGGED_WORDS]),
                         "confidence": "medium",
                         "source_q_rule_id": "Q074",
                     },

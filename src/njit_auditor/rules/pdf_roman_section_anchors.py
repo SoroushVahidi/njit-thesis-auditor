@@ -88,11 +88,43 @@ def _best_roman_candidate(
     return (bottom or page_cands)[0]
 
 
+def _list_of_tables_expected_value(
+    toc_page: int | None,
+    lot_page: int,
+    candidates: list[PageNumberCandidate],
+    no_number_pages: set[int],
+) -> int | None:
+    """Return List of Tables' expected Roman value, or None if not confidently known.
+
+    Per Q060, the List of Tables must continue the Roman numeral sequence
+    *after the TOC* — not a fixed template slot. Because the TOC may span
+    multiple pages (a "(Continued)" run), its last page is not always the
+    same fixed offset from Biographical Sketch. Instead of hard-coding a
+    slot, read the numeral actually printed on the page immediately before
+    List of Tables (i.e. the TOC's last page, however many pages it took)
+    and expect the next value. If that page carries no confident numeral,
+    the sequence cannot be verified here, so return None rather than assert
+    a guessed value.
+    """
+    preceding_page = lot_page - 1
+    if toc_page is None or preceding_page < toc_page:
+        return None
+    preceding_cand = _best_roman_candidate(preceding_page, candidates, no_number_pages)
+    if preceding_cand is None or preceding_cand.value is None:
+        return None
+    return preceding_cand.value + 1
+
+
 def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P037 warnings when front-matter section pages carry wrong Roman numerals.
 
     Conservative: emits nothing unless BIOGRAPHICAL SKETCH heading is detected.
-    Checks five sections against NJIT template-fixed expected values.
+    Biographical Sketch/Dedication/Acknowledgements/Table of Contents are checked
+    against NJIT template-fixed slots (Q022 fixes Biographical Sketch at "iv";
+    the others are single, always-present front-matter pages). List of Tables is
+    computed dynamically (Q060: "continues the sequence after the TOC") because
+    the TOC may span more than one page, which shifts List of Tables' expected
+    value away from any fixed slot.
     Does not duplicate P029 relative sequence checks or P028 regime checks.
     """
     if not pdf_doc.pages:
@@ -113,7 +145,7 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
 
     findings: list[AuditFinding] = []
 
-    for heading, expected_value in _SECTION_EXPECTED.items():
+    for heading, fixed_expected_value in _SECTION_EXPECTED.items():
         section_page = (
             bio_page
             if heading == "BIOGRAPHICAL SKETCH"
@@ -121,6 +153,18 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
         )
         if section_page is None:
             continue  # Section absent; P025 covers missing structure.
+
+        if heading == "LIST OF TABLES":
+            toc_page = _find_heading_first_page(
+                "TABLE OF CONTENTS", front_matter_pages, pdf_doc
+            )
+            expected_value = _list_of_tables_expected_value(
+                toc_page, section_page, candidates, no_number_pages
+            )
+            if expected_value is None:
+                continue  # Preceding sequence not confidently known; do not guess.
+        else:
+            expected_value = fixed_expected_value
 
         cand = _best_roman_candidate(section_page, candidates, no_number_pages)
         if cand is None:

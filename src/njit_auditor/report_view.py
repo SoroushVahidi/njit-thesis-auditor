@@ -26,6 +26,7 @@ from njit_auditor.high_volume_student_preview import (
     font_location_label,
     margin_location_label,
     normalize_area_phrase,
+    p027_heading_location_label,
 )
 from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
@@ -508,6 +509,9 @@ def enriched_pdf_location_label(
 
     if rule_id == "P011" and issue_type == "margin_boundary_violation":
         return margin_location_label(details, page, bbox_label=bbox_label)
+
+    if rule_id == "P027" and page_prefix:
+        return p027_heading_location_label(details, page_prefix=page_prefix)
 
     if rule_id == "P038":
         if issue_type == "required_heading_missing":
@@ -1140,13 +1144,26 @@ def _compact_page_ranges(values: Sequence[int]) -> str:
     return ", ".join(ranges)
 
 
-def _problem_number_label(problem_numbers: Sequence[int]) -> str:
+# Findings that are preprocessing notices, not formatting problems: the DC
+# wrapper-pages detection is informational (it explains why some pages were
+# excluded from the audit), not a defect in the student's manuscript.
+_NOTICE_ISSUES: frozenset[tuple[str, str]] = frozenset(
+    {("P025", "digital_commons_wrapper_pages_detected")}
+)
+
+
+def _problem_number_label(
+    problem_numbers: Sequence[int], *, rule_id: str = "", issue_type: str = ""
+) -> str:
     if not problem_numbers:
         return ""
     compact = _compact_page_ranges([int(number) for number in problem_numbers])
+    noun = "Notice" if (rule_id, issue_type) in _NOTICE_ISSUES else "Problem"
     if len(set(problem_numbers)) == 1:
-        return f"Problem {compact}"
-    return f"Problems {compact}"
+        return f"{noun} {compact}"
+    return f"{noun}s {compact}"
+
+
 def _page_number_detail_text(issue_type: str, *, page: int | None) -> str:
     text = explain_issue_type("", issue_type)
     if page is not None:
@@ -2039,6 +2056,31 @@ def _apply_digital_commons_wrapper_presentation(
     )
 
 
+def _apply_lof_sentence_case_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> FindingView:
+    """Name the specific capitalized word(s) in a List of Figures sentence-case finding.
+
+    Overrides only the display comment after grouping has already been
+    computed upstream (on the word-independent comment) — see
+    _apply_spacing_presentation for the same pattern and rationale.
+    """
+    if finding.rule_id != "P024" or finding.issue_type != "list_of_figures_sentence_case":
+        return finding
+    flagged_words = details.get("flagged_words", "").strip()
+    if not flagged_words:
+        return finding
+    words_clause = ", ".join(f"'{w.strip()}'" for w in flagged_words.split(",") if w.strip())
+    page_label = str(finding.page) if finding.page is not None else "this page"
+    comment = (
+        f"Likely problem: A List of Figures entry on page {page_label} may not use "
+        f"sentence case: {words_clause} appear capitalized where only the first word "
+        "and proper nouns should be. Change these words to lowercase."
+    )
+    return replace(finding, polished_comment=comment)
+
+
 def _apply_lof_punctuation_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -2046,12 +2088,17 @@ def _apply_lof_punctuation_presentation(
     """Distinguish same-page P040 occurrences by the affected entry's index.
 
     Overrides only the display comment after grouping has already been
-    computed upstream (on the entry-index-independent comment).
+    computed upstream (on the entry-index-independent comment). Uses the
+    page-relative index (falling back to the document-global one for older
+    report data) so the displayed "(entry #N)" never exceeds the number of
+    entries actually visible on that page of a multi-page List of Figures.
     """
     if finding.rule_id != "P040" or finding.issue_type != "lof_entry_missing_terminal_punctuation":
         return finding, True
     page_label = str(finding.page) if finding.page is not None else "this page"
-    raw_index = details.get("entry_index", "").strip()
+    raw_index = details.get("page_entry_index", "").strip() or details.get(
+        "entry_index", ""
+    ).strip()
     try:
         entry_clause = f" (entry #{int(raw_index) + 1})"
     except ValueError:
@@ -2495,6 +2542,11 @@ def build_report_view(
             visible_view, is_problem = _apply_float_layout_presentation(visible_view, details)
         elif visible_view.rule_id == "P040":
             visible_view, is_problem = _apply_lof_punctuation_presentation(visible_view, details)
+        elif (
+            visible_view.rule_id == "P024"
+            and visible_view.issue_type == "list_of_figures_sentence_case"
+        ):
+            visible_view = _apply_lof_sentence_case_presentation(visible_view, details)
         elif visible_view.rule_id == "P018":
             visible_view, is_problem = _apply_toc_alignment_presentation(visible_view, details)
         elif visible_view.rule_id == "P046":
@@ -2689,7 +2741,9 @@ def build_report_view(
                     severity=first.severity,
                     issue_type=group_issue_type,
                     problem_numbers=problem_numbers,
-                    problem_number_label=_problem_number_label(problem_numbers),
+                    problem_number_label=_problem_number_label(
+                        problem_numbers, rule_id=group_rule_id, issue_type=group_issue_type
+                    ),
                     problem_anchor=first.problem_anchor,
                     polished_comment=first.polished_comment,
                     suggested_fix=first.suggested_fix,
@@ -2732,7 +2786,11 @@ def build_report_view(
                 issue_type=finding.issue_type,
                 problem_numbers=([finding.problem_number] if finding.problem_number > 0 else []),
                 problem_number_label=(
-                    _problem_number_label([finding.problem_number])
+                    _problem_number_label(
+                        [finding.problem_number],
+                        rule_id=finding.rule_id,
+                        issue_type=finding.issue_type,
+                    )
                     if finding.problem_number > 0
                     else ""
                 ),

@@ -28,6 +28,12 @@ MIN_TEXT_LEN = 20
 MIN_PARA_BLOCKS = 2
 _HEADING_LABEL = "ABSTRACT"
 _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
+# A line ending in sentence-terminal punctuation (optionally followed by a closing
+# quote/paren) signals that the *next* line is free to start a new paragraph.
+# Without that, a large vertical gap is more likely double-spacing/rendering
+# jitter than a real paragraph break, and the next line is a wrapped
+# continuation of the current sentence — see _group_paragraphs.
+_SENTENCE_END_RE = re.compile(r"[.?!][\"'”’)\]]?\s*$")
 
 
 def _is_usable_line(line: PdfTextLine) -> bool:
@@ -62,16 +68,41 @@ def _lines_below_heading(
     return sorted(lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
 
 
-def _group_paragraphs(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
+def _ends_sentence(line: PdfTextLine) -> bool:
+    return bool(_SENTENCE_END_RE.search(line.text.strip()))
+
+
+def _group_paragraphs(
+    lines: list[PdfTextLine], left_margin: float
+) -> list[list[PdfTextLine]]:
+    """Group lines into paragraphs using indent, gap, and sentence-continuation evidence.
+
+    A line starts a new paragraph when either:
+      - it is visibly indented past the shared left margin (Q003's own signal
+        that a new, correctly-indented paragraph has begun), or
+      - it follows a large vertical gap *and* the previous line ends a
+        sentence (a real paragraph break, not just a wide inter-line gap from
+        double spacing).
+    A flush-left line that merely continues the previous line's sentence
+    (no terminal punctuation yet) is always treated as a continuation of the
+    current paragraph, regardless of the raw vertical gap — this is what
+    keeps a wrapped continuation line from being misread as a new,
+    non-indented paragraph.
+    """
     if not lines:
         return []
     groups: list[list[PdfTextLine]] = [[lines[0]]]
     for line in lines[1:]:
-        gap = line.bbox.y0 - groups[-1][-1].bbox.y1
-        if gap <= MAX_PARA_GAP_PT:
-            groups[-1].append(line)
-        else:
+        prev_line = groups[-1][-1]
+        gap = line.bbox.y0 - prev_line.bbox.y1
+        indented = (line.bbox.x0 - left_margin) > INDENT_THRESHOLD_PT
+        starts_new_paragraph = indented or (
+            gap > MAX_PARA_GAP_PT and _ends_sentence(prev_line)
+        )
+        if starts_new_paragraph:
             groups.append([line])
+        else:
+            groups[-1].append(line)
     return groups
 
 
@@ -85,12 +116,15 @@ def check_pdf_abstract_indentation(
 
     page, heading_bottom_y = result
     lines = _lines_below_heading(page, heading_bottom_y)
-    paragraphs = _group_paragraphs(lines)
+    if not lines:
+        return []
+
+    left_margin = min(line.bbox.x0 for line in lines)
+    paragraphs = _group_paragraphs(lines, left_margin)
 
     if not paragraphs:
         return []
 
-    left_margin = min(line.bbox.x0 for para in paragraphs for line in para)
     findings: list[AuditFinding] = []
 
     first_x0 = paragraphs[0][0].bbox.x0
