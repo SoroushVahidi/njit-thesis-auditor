@@ -7,54 +7,56 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-02 (PR #407 and PR #408 merged on main)
+## Current Status — 2026-07-02 (PR #409 merged — status docs synced on main)
 
 This section is the authoritative current snapshot. Everything below it (including the
-PR #406 merge snapshot, live regression diagnosis / cleanup-paused snapshot, post-#405-merge
-snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot,
-earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is preserved
-as historical context and should not be read as current.
+PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis / cleanup-paused
+snapshot, post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018
+public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated
+bullets) is preserved as historical context and should not be read as current.
 
-- **Code baseline `main`:** `70dcd952871c993814437edf1dcf1f2280b47dc7` (squash-merge of PR
-  [#408](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/408) on top of PR
-  [#407](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/407) at `1827d8c1` and the
-  earlier #406 docs tip at `c5e3cbc`). Short SHA: `70dcd95`.
-- **Merged after the older PR #406 status snapshot (2026-07-02):**
-  - **#407** — Ester-reviewed warning-precision fixes: P044 abstract continuation-line false
-    positives reduced; P027 bold-heading requirement; P037 List of Tables Roman-number false-positive
-    reduction; P011 margin overrun presentation without grouping breakage; P024/P040 List of
-    Figures presentation fixes; P025 Digital Commons wrapper notice behavior (notice, not problem).
-    No detector thresholds, rule IDs, issue types, or report schema changes outside narrowly scoped
-    presentation/wording tied to sampled findings.
-  - **#408** — Web UI confidence sorting of grouped problem cards (`?sort=` query param); display
-    order only — problem numbers/anchors, grouping keys, and detector output unchanged.
-- **Preserved from earlier merges (do not regress):** #406 single-page `highlighted-page.pdf`
-  behavior; #405 Digital Commons wrapper page filtering and manuscript/PDF page identity; #400–#402
-  P015/P018/P026 ester-alignment stack.
-- **Live server:** last documented restart was at `811838c4` (post-#406). Confirm current deploy
-  SHA with `GET /version` before treating live behavior as matching `70dcd95`.
+- **Code baseline `main`:** `921d0df0dd0507ea816d57851d27f3d1b849762a` (merge of PR
+  [#409](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/409) docs/status sync on top of
+  behavior baseline `70dcd952871c993814437edf1dcf1f2280b47dc7`). Short SHA: `921d0df`.
+- **Behavior baseline (unchanged by #409):** `70dcd95` — PR [#408](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/408)
+  on PR [#407](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/407). PR #409 changed
+  documentation and manifest pointers only.
+- **Merged in #407 (behavior, preserved):** Ester-reviewed warning-precision fixes: P044 abstract
+  continuation-line false positives reduced; P027 bold-heading requirement; P037 List of Tables
+  Roman-number false-positive reduction; P011 margin overrun presentation without grouping
+  breakage; P024/P040 List of Figures presentation fixes; P025 Digital Commons wrapper notice
+  behavior (notice, not problem).
+- **Merged in #408 (UI display only, preserved):** confidence sorting of grouped problem cards
+  (`?sort=` query param); grouping keys and detector output unchanged.
+- **Merged in #409 (docs only):** status documentation and `evaluation_data_manifest.json` pointers
+  aligned to `70dcd95` / 2506 tracked pytest; open-PR cleanup remains paused; P084 out of scope.
+- **Live server (verified 2026-07-02, post–#409 merge):** `GET /version` on
+  `127.0.0.1:8000` / `localhost:8000` / `10.196.93.210:8000` reports
+  `commit=70dcd952871c993814437edf1dcf1f2280b47dc7`, `branch=main`,
+  `process_start_time=2026-07-02T18:03:41.571263+00:00`; `/healthz` OK. Process cwd:
+  `/home/soroush/njit-thesis-auditor/main`. **Not** yet reporting merged docs tip `921d0df` (restart
+  optional — #409 has no runtime code changes). Fresh built-in sample audit **not run** in this
+  verification pass. See [live_deployment_checklist.md](live_deployment_checklist.md).
 - **PR cleanup:** **still paused** — do not touch #311/#349/#362/#375/#376/#385 unless a separate
-  human instruction says otherwise; warning-legitimacy review continues separately.
-- **Protected regression tests:** P026, P018 row association, P015 split, P018 public cards, ester
-  rule consistency, single-page highlighted PDF — all passing on `70dcd95`.
-- **Full validation on `main` @ `70dcd95` (2026-07-02):** `ruff check .` clean; `mypy src` clean
-  (107 source files); `python -m pytest --ignore=tests/test_p084_biosketch_birth_information.py
-  --ignore=tests/test_pdf_toc_leader_consistency.py` → **2506 pytest passed**, 1 warning. (Two
-  untracked local WIP test files for P084 / TOC-leader consistency are out of scope and not part
-  of merged `main`.)
+  human instruction says otherwise.
+- **Full validation on `main` @ `921d0df` (2026-07-02, clean worktree):** `ruff check .` clean;
+  `mypy src` clean; `python -m pytest` → **2486 passed**, 1 warning (clean worktree without local
+  WIP). **Status snapshot validation** on merged tracked `main` @ `70dcd95`: **2506 pytest passed**,
+  1 warning (per manifest).
 
 ### Next recommended work
 
-1. Confirm live server `/version` matches `70dcd95` (or restart per
-   [live_deployment_checklist.md](live_deployment_checklist.md)) before relying on #407/#408 UI
-   behavior in production.
+1. Optionally restart live server so `/version.commit` matches `921d0df` (behavior already at
+   `70dcd95`).
 2. Resume PR cleanup only after the warning-legitimacy review concludes (or explicit human
    instruction).
 3. **P084 remains out of scope** unless explicitly requested.
 
 ---
 
-## Historical — 2026-07-02 (PR #406 merged — live server on main)
+## Historical — 2026-07-02 (PR #407 and PR #408 merged on main)
+
+> **Superseded** by the PR #409 merge snapshot above.
 
 > **Superseded** by the PR #407/#408 merge snapshot above.
 

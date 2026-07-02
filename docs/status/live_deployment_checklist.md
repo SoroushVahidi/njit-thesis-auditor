@@ -5,7 +5,22 @@ Use this checklist whenever the live web UI needs to be (re)started from a fresh
 `thesis-auditor-web` as an alternate convention — use whichever session already exists;
 do not create a duplicate listener on port 8000).
 
-**Last verified against host state:** 2026-07-01 (`main` at `cdc99ea`; confirm live SHA with `GET /version` — may still be on an older deploy).
+**Last verified against host state:** 2026-07-02 (`main` at `921d0df` after PR #409 merge; live
+`/version` still reports `70dcd95` — behavior baseline from PR #408, docs-only delta in #409).
+
+### 2026-07-02 verification snapshot (post–PR #409 merge)
+
+| Check | Result |
+|---|---|
+| Merged `main` SHA | `921d0df0dd0507ea816d57851d27f3d1b849762a` (PR [#409](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/409) docs sync) |
+| `GET /version` (`127.0.0.1:8000`, `localhost:8000`, `10.196.93.210:8000`) | `commit=70dcd952871c993814437edf1dcf1f2280b47dc7`, `branch=main`, `process_start_time=2026-07-02T18:03:41.571263+00:00` |
+| `GET /healthz` | `{"ok":true,"app":"njit-thesis-auditor","status":"healthy"}` |
+| Running process cwd | `/home/soroush/njit-thesis-auditor/main` |
+| Fresh built-in sample audit | **Not run** in this verification pass |
+| Interpretation | Live runtime matches the **behavior baseline** (`70dcd95`, PR #408). PR #409 changed docs/manifest only, so no behavior regression is expected, but `/version` will not show `921d0df` until the next restart/redeploy. |
+
+**Next required action (optional for behavior, recommended for SHA parity):** restart per steps below so
+`/version.commit` equals merged `main` (`921d0df`).
 
 ## 1. Confirm the commit being deployed
 
