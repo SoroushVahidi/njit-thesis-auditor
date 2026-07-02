@@ -2018,10 +2018,15 @@ def _render(
     template: str,
     context: dict[str, Any],
     status_code: int = 200,
+    headers: Mapping[str, str] | None = None,
 ) -> HTMLResponse:
     """Render a Jinja2 template using the Starlette 1.x API."""
     return _templates.TemplateResponse(
-        request=request, name=template, context=context, status_code=status_code
+        request=request,
+        name=template,
+        context=context,
+        status_code=status_code,
+        headers=dict(headers or {}),
     )
 
 
@@ -2471,7 +2476,12 @@ async def job_page(request: Request, job_id: str) -> HTMLResponse:
     if job is None:
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
-    return _render(request, "job.html", _job_page_context(job, request))
+    return _render(
+        request,
+        "job.html",
+        _job_page_context(job, request),
+        headers=_NO_STORE_HEADERS,
+    )
 
 
 @app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)
@@ -2535,7 +2545,7 @@ async def category_problem_page(
         request=request,
         presentation=presentation,
     )
-    return _render(request, "problem_group.html", context)
+    return _render(request, "problem_group.html", context, headers=_NO_STORE_HEADERS)
 
 
 @app.get("/audits/{job_id}/problems/rule/{rule_id}", response_class=HTMLResponse)
@@ -2581,7 +2591,7 @@ async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTML
         request=request,
         presentation=presentation,
     )
-    return _render(request, "problem_group.html", context)
+    return _render(request, "problem_group.html", context, headers=_NO_STORE_HEADERS)
 
 
 @app.get(
@@ -2630,7 +2640,7 @@ async def issue_type_problem_page(
         request=request,
         presentation=presentation,
     )
-    return _render(request, "problem_group.html", context)
+    return _render(request, "problem_group.html", context, headers=_NO_STORE_HEADERS)
 
 
 @app.get("/audits/{job_id}/status")
@@ -2681,6 +2691,7 @@ def _safe_pdf_disposition_filename(file_name: str) -> str:
 
 _HIGHLIGHTED_PDF_DISPOSITION_NAME = "highlighted.pdf"
 _HIGHLIGHT_UNAVAILABLE_MESSAGE = "Highlighted PDF is not available for this audit."
+_NO_STORE_HEADERS = {"Cache-Control": "no-store"}
 
 
 def _inline_pdf_response(path: Path, *, filename: str) -> FileResponse:

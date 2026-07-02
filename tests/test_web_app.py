@@ -2821,6 +2821,23 @@ def test_results_page_has_canonical_highlighted_pdf_button_without_download_attr
     assert (jdir / "highlighted.pdf").exists()
 
 
+def test_results_page_sends_no_store_cache_header(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Audit result pages should not be cacheable across deploys or restarts."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    assert resp.headers.get("cache-control") == "no-store"
+
+
 def test_canonical_highlighted_pdf_route_serves_artifact_inline_and_not_upload(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
