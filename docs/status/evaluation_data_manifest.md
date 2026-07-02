@@ -5,8 +5,8 @@
 > The inventory tables below remain useful; validation bullets at the top are historical.
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
-- **Baseline main for this status snapshot:** `7e17232` (PR #405); prior baseline: `3b4043c` (PR #404).
-- **Status snapshot validation:** see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) — **2450 pytest passed** on tracked tests at `7e17232` (2026-07-02).
+- **Baseline main for this status snapshot:** `70dcd95` (PR #408); prior baseline: `811838c4` (PR #406 docs tip / #406 merge).
+- **Status snapshot validation:** see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) — **2506 pytest passed** on tracked tests at `70dcd95` (2026-07-02).
 - **Historical P082 closeout snapshot:** `docs/status/project_closeout.md`
 - **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
