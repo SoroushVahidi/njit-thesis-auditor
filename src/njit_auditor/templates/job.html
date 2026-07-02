@@ -704,7 +704,11 @@
           <div>
             <p class="grouped-problem__title">
             {% if problem.problem_number_label %}{{ problem.problem_number_label }} — {% endif %}
-            {% if is_p_rule_id(problem.rule_id) %}
+            {% if problem.public_rule_reference_id %}
+            <a href="/rules#{{ problem.public_rule_reference_id }}" class="rule-link" aria-label="{{ problem.public_rule_reference_id }}: see rule reference">{{ problem.public_rule_reference_id }}</a>
+            {% elif public_rule_reference_href is defined and public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) %}
+            <a href="{{ public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
+            {% elif is_p_rule_id(problem.rule_id) %}
             <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
             {% else %}{{ problem.rule_id }}{% endif %}
             {% if problem.issue_type_label %} · {{ problem.issue_type_label }}{% elif problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
@@ -871,7 +875,11 @@
               data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
             <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
             <td><strong>
-              {% if is_p_rule_id(f.rule_id) %}
+              {% if f.public_rule_reference_id %}
+              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id }}: see rule reference">{{ f.public_rule_reference_id }}</a>
+              {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
+              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
+              {% elif is_p_rule_id(f.rule_id) %}
               <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>

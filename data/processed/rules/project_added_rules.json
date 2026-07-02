@@ -309,8 +309,8 @@
     "id": "P018",
     "section": "PDF TOC and list alignment",
     "question": "Do Table of Contents, List of Tables, and List of Figures entries follow the required formatting, alignment, and heading requirements?",
-    "rule_definition": "Heuristically detect alignment issues in TOC/LoT/LoF pages: page-number column misalignment, missing page numbers, inconsistent leader-dot style (Q052), and indentation outliers. Complements P024 (Q049/Q050 capitalization), P032 (wrapped spacing), P036 (entry spacing), P039 (hierarchy indent), P042 (appendix), P046 (number alignment), P048 (page-num alignment). Each leader-dot finding carries source_q_rule_id=Q052.",
-    "remediation": "TOC: use all-caps for level-1 entries (Q049), title case for level-2 (Q050), sentence case for level-3 (Q051), consistent leader dots (Q052), single-space wrapped entries (Q053-Q055), indent level hierarchy (Q056), double-space between entries (Q057). LoT: double-space between entries (Q067), align numbers left (Q068), align page numbers right (Q069). LoF: same alignment rules for figures (Q077-Q079). Specific Q-rule checks in P030-P057.",
+    "rule_definition": "Internal umbrella for TOC/LoT/LoF alignment heuristics. Student-facing coverage is split into atomic public cards P018A–P018Q on /rules. Backend detectors remain on P018 (leaders, page-number column), P024 (TOC capitalization), P032 (wrapped TOC spacing), P036 (inter-entry spacing), P039 (hierarchy indent), P042 (appendix naming), P046 (entry-number column), and P048 (page-number column). Each leader-dot finding carries source_q_rule_id=Q052.",
+    "remediation": "See atomic public cards P018A–P018Q for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). Leaders: P018D (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Conservative TOC/list-page heuristic; runs only on named TOC/list heading pages. Q-rule coverage: Q052 (leader-dot consistency), Q049/Q050/Q051 (case levels, via P054), Q053-Q055 (wrapped spacing, via P032), Q056 (indentation, via P039), Q057 (between-entry spacing, via P036), Q058/Q059 (appendix naming, via P042). Ester feedback: split into TOC group (Q047-Q059) and LoT/LoF groups (Q060-Q079) — the split is implemented through P030/P031/P032/P036/P039/P042/P046/P048/P049/P050/P053/P054/P055/P056/P057."
+    "notes": "Internal umbrella rule; public /rules cards P018A-P018Q cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. Backend detectors unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
   },
   {
     "id": "P019",
