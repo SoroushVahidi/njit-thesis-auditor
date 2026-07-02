@@ -2318,7 +2318,14 @@ def _run_audit_task(job_id: str) -> None:
                     highlighted_pdf_path.unlink(missing_ok=True)
                     _highlight_version_path(highlighted_pdf_path).unlink(missing_ok=True)
                 elif highlighted_pdf_path.exists():
-                    _write_highlight_version_marker(highlighted_pdf_path)
+                    _write_highlight_version_marker(
+                        highlighted_pdf_path,
+                        jdir=jdir,
+                        page=None,
+                        rule_id="",
+                        issue_type="",
+                        finding_index=None,
+                    )
         except Exception:
             _logger.warning(
                 "Canonical highlighted PDF generation failed for job %s.",
@@ -2791,6 +2798,9 @@ def _safe_pdf_disposition_filename(file_name: str) -> str:
 
 _HIGHLIGHTED_PDF_DISPOSITION_NAME = "highlighted.pdf"
 _HIGHLIGHT_UNAVAILABLE_MESSAGE = "Highlighted PDF is not available for this audit."
+_HIGHLIGHT_NO_MATCHING_MESSAGE = (
+    "No matching highlighted finding was found for this page/rule/type."
+)
 _NO_STORE_HEADERS = {"Cache-Control": "no-store"}
 _HIGHLIGHT_RENDERER_VERSION = "overlay-v1"
 
@@ -2805,16 +2815,116 @@ def _inline_pdf_response(path: Path, *, filename: str) -> FileResponse:
     )
 
 
-def _highlight_unavailable_response(request: Request) -> HTMLResponse | JSONResponse:
+def _highlight_unavailable_response(
+    request: Request,
+    *,
+    message: str = _HIGHLIGHT_UNAVAILABLE_MESSAGE,
+) -> HTMLResponse | JSONResponse:
     """Return a browser- or API-friendly 404 when highlights cannot be served."""
     accept = request.headers.get("accept", "")
     prefers_html = "text/html" in accept and not accept.strip().startswith("application/json")
     if prefers_html:
         return HTMLResponse(
-            f"<html><body><p>{_HIGHLIGHT_UNAVAILABLE_MESSAGE}</p></body></html>",
+            f"<html><body><p>{message}</p></body></html>",
             status_code=404,
         )
-    return JSONResponse({"error": _HIGHLIGHT_UNAVAILABLE_MESSAGE}, status_code=404)
+    return JSONResponse({"error": message}, status_code=404)
+
+
+def _file_content_digest(path: Path) -> str:
+    """Return a short stable digest for cache invalidation of on-disk artifacts."""
+    hasher = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()[:16]
+
+
+def _highlight_request_has_filters(
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> bool:
+    return page is not None or bool(rule_id) or bool(issue_type) or finding_index is not None
+
+
+def _highlight_version_token(
+    jdir: Path,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> str | None:
+    """Return the cache-version token for a highlighted artifact, if sources exist."""
+    pdf_path = _job_pdf_path(jdir)
+    report_path = jdir / "report.json"
+    if not pdf_path.exists() or not report_path.exists():
+        return None
+    try:
+        upload_hash = _file_content_digest(pdf_path)
+        report_hash = _file_content_digest(report_path)
+    except OSError:
+        return None
+    return (
+        f"{_HIGHLIGHT_RENDERER_VERSION}|upload:{upload_hash}|report:{report_hash}|"
+        f"page:{page}|rule:{rule_id}|issue:{issue_type}|index:{finding_index}"
+    )
+
+
+def _highlightable_boxes_for_findings(
+    findings: list[dict[str, Any]],
+) -> dict[int, list[tuple[float, float, float, float]]]:
+    return _highlight_boxes_by_page(findings)
+
+
+def _highlight_unavailable_message(
+    job: JobState,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+    generation_failed: bool = False,
+) -> str:
+    """Return the most specific user-facing unavailable message for a highlight request."""
+    jdir = _job_dir(job.job_id)
+    pdf_path = _job_pdf_path(jdir)
+    report_path = jdir / "report.json"
+    if not pdf_path.exists() or not report_path.exists():
+        return _HIGHLIGHT_UNAVAILABLE_MESSAGE
+
+    try:
+        json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return _HIGHLIGHT_UNAVAILABLE_MESSAGE
+
+    all_findings = _report_json_findings_for_highlight(job)
+    if not _highlightable_boxes_for_findings(all_findings):
+        return _HIGHLIGHT_UNAVAILABLE_MESSAGE
+
+    if not _highlight_request_has_filters(
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    ):
+        return _HIGHLIGHT_UNAVAILABLE_MESSAGE
+
+    matches = _matching_findings_for_highlight(
+        job,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    if not matches or not _highlightable_boxes_for_findings(matches):
+        return _HIGHLIGHT_NO_MATCHING_MESSAGE
+    if generation_failed:
+        return _HIGHLIGHT_NO_MATCHING_MESSAGE
+    return _HIGHLIGHT_UNAVAILABLE_MESSAGE
 
 
 @app.get("/audits/{job_id}/pdf", response_model=None)
@@ -2938,6 +3048,34 @@ def _matching_findings_for_highlight(
             matches = [f for f in matches if str(f.get("rule_id", "")) == rule]
         if issue:
             matches = [f for f in matches if _finding_issue_type(f) == issue]
+        if _highlight_request_has_filters(
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_index=finding_index,
+        ):
+            candidate_pages = sorted(
+                {
+                    page_no
+                    for page_no in (
+                        _coerce_page_number(finding.get("page")) for finding in source_findings
+                    )
+                    if page_no is not None
+                }
+            )
+            highlightable_count = len(_highlightable_boxes_for_findings(matches))
+            _logger.info(
+                "Highlight filter job=%s requested page=%s rule_id=%s issue_type=%s "
+                "finding_index=%s candidate_pages=%s matched=%d highlightable=%d",
+                job.job_id,
+                page,
+                rule_id,
+                issue_type,
+                finding_index,
+                candidate_pages,
+                len(matches),
+                highlightable_count,
+            )
         return matches
 
     matches = source_findings
@@ -2947,6 +3085,34 @@ def _matching_findings_for_highlight(
         matches = [f for f in matches if str(f.get("rule_id", "")) == rule_id]
     if issue_type:
         matches = [f for f in matches if _finding_issue_type(f) == issue_type]
+    if _highlight_request_has_filters(
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    ):
+        candidate_pages = sorted(
+            {
+                page_no
+                for page_no in (
+                    _coerce_page_number(finding.get("page")) for finding in source_findings
+                )
+                if page_no is not None
+            }
+        )
+        highlightable_count = len(_highlightable_boxes_for_findings(matches))
+        _logger.info(
+            "Highlight filter job=%s requested page=%s rule_id=%s issue_type=%s "
+            "finding_index=%s candidate_pages=%s matched=%d highlightable=%d",
+            job.job_id,
+            page,
+            rule_id,
+            issue_type,
+            finding_index,
+            candidate_pages,
+            len(matches),
+            highlightable_count,
+        )
     return matches
 
 
@@ -2990,7 +3156,16 @@ def _highlight_cache_path(
     finding_index: int | None,
 ) -> Path:
     """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
-    key = f"{_HIGHLIGHT_RENDERER_VERSION}|{page}|{rule_id}|{issue_type}|{finding_index}"
+    version_token = _highlight_version_token(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    key = version_token or (
+        f"{_HIGHLIGHT_RENDERER_VERSION}|{page}|{rule_id}|{issue_type}|{finding_index}"
+    )
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     return jdir / f"highlighted-{digest}.pdf"
 
@@ -3000,20 +3175,52 @@ def _highlight_version_path(pdf_path: Path) -> Path:
     return pdf_path.with_suffix(f"{pdf_path.suffix}.version")
 
 
-def _highlight_artifact_is_current(pdf_path: Path) -> bool:
-    """Return True when *pdf_path* exists and was built by the current renderer."""
+def _highlight_artifact_is_current(
+    pdf_path: Path,
+    *,
+    jdir: Path,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> bool:
+    """Return True when *pdf_path* exists and matches current renderer and sources."""
     version_path = _highlight_version_path(pdf_path)
-    if not pdf_path.exists() or not version_path.exists():
+    expected = _highlight_version_token(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    if expected is None or not pdf_path.exists() or not version_path.exists():
         return False
     try:
-        return version_path.read_text(encoding="utf-8").strip() == _HIGHLIGHT_RENDERER_VERSION
+        return version_path.read_text(encoding="utf-8").strip() == expected
     except OSError:
         return False
 
 
-def _write_highlight_version_marker(pdf_path: Path) -> None:
-    """Persist the current highlight renderer version for a generated artifact."""
-    _highlight_version_path(pdf_path).write_text(_HIGHLIGHT_RENDERER_VERSION, encoding="utf-8")
+def _write_highlight_version_marker(
+    pdf_path: Path,
+    *,
+    jdir: Path,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> None:
+    """Persist the current highlight cache token for a generated artifact."""
+    token = _highlight_version_token(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    if token is None:
+        return
+    _highlight_version_path(pdf_path).write_text(token, encoding="utf-8")
 
 
 def _highlight_output_path(
@@ -3076,7 +3283,14 @@ def _ensure_highlighted_pdf(
     )
     if not _is_under_runtime(output_path):
         return None
-    if _highlight_artifact_is_current(output_path):
+    if _highlight_artifact_is_current(
+        output_path,
+        jdir=jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    ):
         return output_path
 
     if output_path.exists():
@@ -3095,7 +3309,14 @@ def _ensure_highlighted_pdf(
         output_path.unlink(missing_ok=True)
         _highlight_version_path(output_path).unlink(missing_ok=True)
     if output_path.exists():
-        _write_highlight_version_marker(output_path)
+        _write_highlight_version_marker(
+            output_path,
+            jdir=jdir,
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_index=finding_index,
+        )
         return output_path
     return None
 
@@ -3134,7 +3355,15 @@ async def _serve_job_pdf_highlighted(
             finding_index=finding_index,
         )
         if highlight_path is None:
-            return _highlight_unavailable_response(request)
+            message = _highlight_unavailable_message(
+                job,
+                page=page,
+                rule_id=rule_id.strip(),
+                issue_type=issue_type.strip(),
+                finding_index=finding_index,
+                generation_failed=True,
+            )
+            return _highlight_unavailable_response(request, message=message)
 
         return _inline_pdf_response(highlight_path, filename=_HIGHLIGHTED_PDF_DISPOSITION_NAME)
     except Exception:
@@ -3143,7 +3372,15 @@ async def _serve_job_pdf_highlighted(
             job_id,
             exc_info=True,
         )
-        return _highlight_unavailable_response(request)
+        message = _highlight_unavailable_message(
+            job,
+            page=page,
+            rule_id=rule_id.strip(),
+            issue_type=issue_type.strip(),
+            finding_index=finding_index,
+            generation_failed=True,
+        )
+        return _highlight_unavailable_response(request, message=message)
 
 
 @app.get("/audits/{job_id}/highlighted.pdf", response_model=None)

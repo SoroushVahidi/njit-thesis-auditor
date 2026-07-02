@@ -3082,6 +3082,7 @@ def test_highlighted_pdf_endpoint_invalid_page_number_never_500s(
     resp = c.get(f"/audits/{job_id}/highlighted.pdf", params={"page": page, "rule_id": "P012"})
     assert resp.status_code != 500
     assert resp.status_code == 404
+    assert "No matching highlighted finding was found" in resp.text
 
 
 def test_highlighted_pdf_endpoint_non_numeric_page_never_500s(
@@ -3258,6 +3259,184 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     assert f"/audits/{job_id}/highlighted.pdf?" not in body
     assert "Open original PDF page" in body
     assert "No exact highlight is available" in body
+
+
+def test_old_job_generates_canonical_highlighted_pdf_on_demand(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Old jobs with only upload.pdf + report.json must build highlighted.pdf on GET."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+    for artifact in jdir.glob("highlighted*"):
+        artifact.unlink()
+    wa._jobs.pop(job_id, None)
+
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert (jdir / "highlighted.pdf").exists()
+    assert (jdir / "highlighted.pdf.version").exists()
+    assert resp.content != (jdir / "upload.pdf").read_bytes()
+
+
+def test_old_job_generates_filtered_highlighted_pdf_on_demand(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Filtered highlight links must rebuild artifacts for old jobs on demand."""
+    import fitz
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Possible text crossing right_margin.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "right_margin",
+                "bbox": "108.0,242.4,543.0,258.6",
+                "affected_line_bboxes": "108.0,242.4,543.0,258.6|108.0,352.8,543.0,369.0",
+                "confidence": "low",
+            },
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+    for artifact in jdir.glob("highlighted*"):
+        artifact.unlink()
+    wa._jobs.pop(job_id, None)
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted.pdf",
+        params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.content != (jdir / "upload.pdf").read_bytes()
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert len(doc[3].get_drawings()) == 2
+
+
+def test_filtered_highlighted_pdf_returns_specific_message_when_no_match(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A filtered request with no matching highlightable finding gets a specific 404."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+    upload_bytes = (jdir / "upload.pdf").read_bytes()
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted.pdf",
+        params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 404
+    assert "No matching highlighted finding was found" in resp.text
+    assert "Highlighted PDF is not available" not in resp.text
+    assert resp.content != upload_bytes
+
+
+def test_highlighted_pdf_report_link_page_rule_type_selects_intended_finding(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Report link page/rule_id/issue_type must select the same finding geometry."""
+    import fitz
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Possible text crossing right_margin.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "right_margin",
+                "bbox": "108.0,242.4,543.0,258.6",
+                "affected_line_bboxes": "108.0,242.4,543.0,258.6|108.0,352.8,543.0,369.0",
+                "confidence": "low",
+            },
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=5,
+            message="Possible text crossing right_margin.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "right_margin",
+                "bbox": "108.0,100.0,543.0,120.0",
+                "affected_line_bboxes": "108.0,100.0,543.0,120.0",
+                "confidence": "low",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    page_resp = c.get(f"/audits/{job_id}")
+    assert page_resp.status_code == 200
+    assert (
+        f"/audits/{job_id}/highlighted.pdf?page=4&amp;rule_id=P011"
+        "&amp;issue_type=margin_boundary_violation#page=4"
+    ) in page_resp.text
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted.pdf",
+        params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 200
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert len(doc[3].get_drawings()) == 2
+        assert len(doc[4].get_drawings()) == 0
+
+
+def test_stale_highlighted_pdf_cache_is_rebuilt_with_current_renderer_version(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Stale highlighted artifacts without a current cache token must be rebuilt."""
+    import fitz
+
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    pdf_path = jdir / "upload.pdf"
+    _make_real_pdf(pdf_path, page_count=5)
+    stale_path = jdir / "highlighted.pdf"
+    stale_path.write_bytes(pdf_path.read_bytes())
+    (jdir / "highlighted.pdf.version").write_text("annotation-v0", encoding="utf-8")
+
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf")
+    assert resp.status_code == 200
+    assert resp.content != pdf_path.read_bytes()
+    version = (jdir / "highlighted.pdf.version").read_text(encoding="utf-8")
+    assert version.startswith("overlay-v1|upload:")
+    assert "|report:" in version
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert len(doc[2].get_drawings()) >= 1
 
 
 def test_legacy_pdf_highlighted_route_still_serves_inline_highlight(
