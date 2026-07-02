@@ -19,6 +19,10 @@ import re
 from dataclasses import dataclass, field
 from statistics import median
 
+from njit_auditor.digital_commons_wrapper import (
+    detect_digital_commons_wrapper_pages,
+    without_wrapper_pages,
+)
 from njit_auditor.highlight_targeting import (
     estimate_word_bbox_in_line_bbox,
     format_optional_bbox_detail,
@@ -64,6 +68,17 @@ _REFERENCES_HEADINGS: frozenset[str] = frozenset(
     ["REFERENCES", "BIBLIOGRAPHY", "WORKS CITED"]
 )
 _TOC_HEADINGS: frozenset[str] = frozenset(["TABLE OF CONTENTS"])
+
+# Patterns that identify a page as a Title Page or Approval Page template.
+# If any line on a page matches, the page is skipped from generic P020 bold-heading
+# checks — those pages contain NJIT institutional boilerplate, not body headings.
+_TEMPLATE_PAGE_MARKER_RE = re.compile(
+    r"submitted\s+to\s+the\s+faculty|"
+    r"in\s+partial\s+fulfillment|"
+    r"for\s+the\s+degree\s+of|"
+    r"^approval\s+page$",
+    re.IGNORECASE,
+)
 
 # All-caps acronym: 2+ uppercase letters (PDF, AI, MRI, NJIT, CAD, SDF, …).
 _ACRONYM_RE = re.compile(r"^[A-Z][A-Z0-9]{1,}$")
@@ -303,6 +318,38 @@ def _is_font_size_heading(line: PdfTextLine, body_size: float) -> bool:
     return True
 
 
+def _is_template_frontmatter_page(page: PdfPage) -> bool:
+    """Return True when a page contains NJIT title-page or approval-page boilerplate.
+
+    Such pages must not be subject to generic body-heading title-case checks (P020)
+    because their text is institutional template language, not manuscript headings.
+    A single strong-signal pattern match on any line is sufficient.
+    """
+    for block in page.text_blocks:
+        for line in block.lines:
+            clean = normalize_title_text(line.text)
+            if _TEMPLATE_PAGE_MARKER_RE.search(clean):
+                return True
+    return False
+
+
+def _is_prose_paragraph_line(text: str) -> bool:
+    """Return True when text looks like a body-paragraph fragment rather than a heading.
+
+    Catches cases where wrapper-page paragraph text slips through detection:
+    three or more commas, multiple mid-sentence periods, or a dangling end
+    punctuation (comma/semicolon) all indicate body prose rather than headings.
+    """
+    if text.count(",") >= 3:
+        return True
+    if text.count(". ") >= 2:
+        return True
+    stripped = text.rstrip()
+    if stripped.endswith(",") or stripped.endswith(";"):
+        return True
+    return False
+
+
 def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine]:
     """
     Detect title-like lines for NJIT title-case checking.
@@ -322,10 +369,12 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
     - Lines over 150 characters.
     - Page-number-like lines.
     """
+    wrapper_pages = detect_digital_commons_wrapper_pages(pdf_document)
+    working_doc = without_wrapper_pages(pdf_document, wrapper_pages)
     results: list[TitleLikeLine] = []
 
     # 1. Table caption/title bodies only (figure captions use sentence case — skip).
-    for caption in detect_caption_lines(pdf_document):
+    for caption in detect_caption_lines(working_doc):
         if caption.context in {"references", "toc"}:
             continue
         # NJIT: table titles are title case; figure descriptions are sentence case.
@@ -341,13 +390,15 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
             )
         )
 
-    body_size = _estimate_document_body_size(pdf_document)
+    body_size = _estimate_document_body_size(working_doc)
 
     # 2. Bold heading-like lines (Level 2 and similar title-case headings).
-    for page in pdf_document.pages:
+    for page in working_doc.pages:
         page_ctx = _page_context_type(page)
         if page_ctx in {"references", "toc"}:
             continue
+        if _is_template_frontmatter_page(page):
+            continue  # Title/Approval Page boilerplate — not subject to generic P020
         for block in page.text_blocks:
             for line in block.lines:
                 clean = normalize_title_text(line.text)
@@ -361,6 +412,8 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                     continue
                 if CAPTION_START_RE.match(normalize_caption_candidate_text(clean)):
                     continue  # already covered by caption detection above
+                if _is_prose_paragraph_line(clean):
+                    continue  # prose body text, not a heading
 
                 detection_reason = _spans_bold_reason(line)
                 if detection_reason is None and len(clean) <= _MAX_FONT_SIZE_FALLBACK_LINE_LEN:

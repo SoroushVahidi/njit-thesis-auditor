@@ -15,6 +15,8 @@ from njit_auditor.audit_options import DEFAULT_AUDIT_OPTIONS, AuditOptions
 from njit_auditor.digital_commons_wrapper import (
     detect_digital_commons_wrapper_pages,
     digital_commons_wrapper_metadata,
+    page_identity_details,
+    without_wrapper_pages,
 )
 from njit_auditor.latex_linters import run_optional_latex_linters
 from njit_auditor.latex_loader import load_tex_project
@@ -234,74 +236,75 @@ def collect_pdf_layout_findings(
     path_str = str(pdf_path)
     audit_options = options or DEFAULT_AUDIT_OPTIONS
     wrapper_pages = detect_digital_commons_wrapper_pages(pdf_doc)
+    content_doc = without_wrapper_pages(pdf_doc, wrapper_pages)
     findings: list[AuditFinding] = []
     findings.extend(
-        run_pdf_page_number_candidates_rule(pdf_doc, skip_pages=wrapper_pages)
+        run_pdf_page_number_candidates_rule(content_doc, skip_pages=wrapper_pages)
     )
-    findings.extend(check_pdf_page_number_sequence(pdf_doc))
+    findings.extend(check_pdf_page_number_sequence(content_doc))
     findings.extend(
         check_pdf_landscape_page_number_orientation(
-            pdf_doc,
+            content_doc,
             enabled=audit_options.is_experimental_enabled("P082"),
         )
     )
-    findings.extend(check_pdf_page_numbering_regime(pdf_doc))
-    findings.extend(check_pdf_roman_sequence(pdf_doc))
-    findings.extend(check_pdf_roman_section_anchors(pdf_doc))
-    findings.extend(check_pdf_frontmatter_no_page_number(pdf_doc))
-    findings.extend(run_pdf_margin_rule(pdf_doc, skip_pages=wrapper_pages))
-    findings.extend(check_named_frontmatter_headings(pdf_doc))
-    findings.extend(check_pdf_frontmatter_headings(pdf_doc))
-    findings.extend(check_pdf_frontmatter_structure(pdf_doc))
-    findings.extend(check_pdf_title_page_graduation_month(pdf_doc))
-    findings.extend(check_pdf_title_consistency(pdf_doc))
-    findings.extend(check_pdf_copyright_page(pdf_doc))
-    findings.extend(check_pdf_copyright_year_format(pdf_doc))
-    findings.extend(check_pdf_copyright_author_format(pdf_doc))
-    findings.extend(check_pdf_dedication_page(pdf_doc))
-    findings.extend(check_pdf_abstract_word_count(pdf_doc))
-    findings.extend(check_pdf_abstract_keywords(pdf_doc))
-    findings.extend(check_pdf_indentation(pdf_doc))
-    findings.extend(check_pdf_abstract_indentation(pdf_doc))
-    findings.extend(check_pdf_acknowledgements_indentation(pdf_doc))
-    findings.extend(check_pdf_biosketch_publication_layout(pdf_doc))
-    findings.extend(check_pdf_biosketch_bullet_spacing(pdf_doc))
-    findings.extend(check_pdf_spacing(pdf_doc))
-    findings.extend(check_pdf_body_spacing(pdf_doc))
-    findings.extend(check_pdf_font_compliance(pdf_doc))
-    findings.extend(check_pdf_captions(pdf_doc))
-    findings.extend(check_pdf_figure_table_layout(pdf_doc))
-    findings.extend(check_pdf_heading_level_styles(pdf_doc))
-    findings.extend(check_pdf_toc_alignment(pdf_doc))
-    findings.extend(check_pdf_toc_list_formatting(pdf_doc))
-    findings.extend(check_pdf_toc_continued_headings(pdf_doc))
-    findings.extend(check_pdf_lot_lof_column_headers(pdf_doc))
-    findings.extend(check_pdf_lot_lof_entry_number_alignment(pdf_doc))
-    findings.extend(check_pdf_lot_lof_page_number_alignment(pdf_doc))
-    findings.extend(check_pdf_lot_lof_column_header_style_alignment(pdf_doc))
-    findings.extend(check_pdf_lot_lof_left_column_header_bold(pdf_doc))
-    findings.extend(check_pdf_toc_list_wrapped_spacing(pdf_doc))
-    findings.extend(check_pdf_toc_list_entry_spacing(pdf_doc))
-    findings.extend(check_pdf_toc_entry_hierarchy(pdf_doc))
-    findings.extend(check_pdf_toc_appendix_format(pdf_doc))
-    findings.extend(check_pdf_lof_terminal_punctuation(pdf_doc))
-    findings.extend(check_pdf_lot_terminal_period(pdf_doc))
-    findings.extend(check_pdf_toc_terminal_period(pdf_doc))
-    findings.extend(check_pdf_lot_lof_entry_type(pdf_doc))
-    findings.extend(check_pdf_lot_lof_number_format(pdf_doc))
-    findings.extend(check_pdf_lot_lof_page_number_ordering(pdf_doc))
-    findings.extend(check_pdf_toc_page_number_ordering(pdf_doc))
-    findings.extend(check_pdf_lot_lof_entry_number_ordering(pdf_doc))
-    findings.extend(check_pdf_toc_entry_number_ordering(pdf_doc))
-    findings.extend(check_pdf_lot_lof_cross_page_entry_ordering(pdf_doc))
-    findings.extend(check_pdf_toc_cross_page_entry_ordering(pdf_doc))
-    findings.extend(check_pdf_appendix_body_headings(pdf_doc))
-    findings.extend(check_pdf_references_citations_structural(pdf_doc))
-    findings.extend(check_pdf_dedication_centering_italic(pdf_doc))
-    findings.extend(check_pdf_biosketch_degree_ordering(pdf_doc))
-    findings.extend(check_pdf_biosketch_publication_ordering(pdf_doc))
-    findings.extend(check_pdf_approval_page_committee_blocks(pdf_doc))
-    findings.extend(check_pdf_title_capitalization(pdf_doc))
+    findings.extend(check_pdf_page_numbering_regime(content_doc))
+    findings.extend(check_pdf_roman_sequence(content_doc))
+    findings.extend(check_pdf_roman_section_anchors(content_doc))
+    findings.extend(check_pdf_frontmatter_no_page_number(content_doc))
+    findings.extend(run_pdf_margin_rule(content_doc, skip_pages=wrapper_pages))
+    findings.extend(check_named_frontmatter_headings(content_doc))
+    findings.extend(check_pdf_frontmatter_headings(content_doc))
+    findings.extend(check_pdf_frontmatter_structure(content_doc))
+    findings.extend(check_pdf_title_page_graduation_month(content_doc))
+    findings.extend(check_pdf_title_consistency(content_doc))
+    findings.extend(check_pdf_copyright_page(content_doc))
+    findings.extend(check_pdf_copyright_year_format(content_doc))
+    findings.extend(check_pdf_copyright_author_format(content_doc))
+    findings.extend(check_pdf_dedication_page(content_doc))
+    findings.extend(check_pdf_abstract_word_count(content_doc))
+    findings.extend(check_pdf_abstract_keywords(content_doc))
+    findings.extend(check_pdf_indentation(content_doc))
+    findings.extend(check_pdf_abstract_indentation(content_doc))
+    findings.extend(check_pdf_acknowledgements_indentation(content_doc))
+    findings.extend(check_pdf_biosketch_publication_layout(content_doc))
+    findings.extend(check_pdf_biosketch_bullet_spacing(content_doc))
+    findings.extend(check_pdf_spacing(content_doc))
+    findings.extend(check_pdf_body_spacing(content_doc))
+    findings.extend(check_pdf_font_compliance(content_doc))
+    findings.extend(check_pdf_captions(content_doc))
+    findings.extend(check_pdf_figure_table_layout(content_doc))
+    findings.extend(check_pdf_heading_level_styles(content_doc))
+    findings.extend(check_pdf_toc_alignment(content_doc))
+    findings.extend(check_pdf_toc_list_formatting(content_doc))
+    findings.extend(check_pdf_toc_continued_headings(content_doc))
+    findings.extend(check_pdf_lot_lof_column_headers(content_doc))
+    findings.extend(check_pdf_lot_lof_entry_number_alignment(content_doc))
+    findings.extend(check_pdf_lot_lof_page_number_alignment(content_doc))
+    findings.extend(check_pdf_lot_lof_column_header_style_alignment(content_doc))
+    findings.extend(check_pdf_lot_lof_left_column_header_bold(content_doc))
+    findings.extend(check_pdf_toc_list_wrapped_spacing(content_doc))
+    findings.extend(check_pdf_toc_list_entry_spacing(content_doc))
+    findings.extend(check_pdf_toc_entry_hierarchy(content_doc))
+    findings.extend(check_pdf_toc_appendix_format(content_doc))
+    findings.extend(check_pdf_lof_terminal_punctuation(content_doc))
+    findings.extend(check_pdf_lot_terminal_period(content_doc))
+    findings.extend(check_pdf_toc_terminal_period(content_doc))
+    findings.extend(check_pdf_lot_lof_entry_type(content_doc))
+    findings.extend(check_pdf_lot_lof_number_format(content_doc))
+    findings.extend(check_pdf_lot_lof_page_number_ordering(content_doc))
+    findings.extend(check_pdf_toc_page_number_ordering(content_doc))
+    findings.extend(check_pdf_lot_lof_entry_number_ordering(content_doc))
+    findings.extend(check_pdf_toc_entry_number_ordering(content_doc))
+    findings.extend(check_pdf_lot_lof_cross_page_entry_ordering(content_doc))
+    findings.extend(check_pdf_toc_cross_page_entry_ordering(content_doc))
+    findings.extend(check_pdf_appendix_body_headings(content_doc))
+    findings.extend(check_pdf_references_citations_structural(content_doc))
+    findings.extend(check_pdf_dedication_centering_italic(content_doc))
+    findings.extend(check_pdf_biosketch_degree_ordering(content_doc))
+    findings.extend(check_pdf_biosketch_publication_ordering(content_doc))
+    findings.extend(check_pdf_approval_page_committee_blocks(content_doc))
+    findings.extend(check_pdf_title_capitalization(content_doc))
     findings.extend(run_pdf_annotation_rule(path_str, skip_pages=wrapper_pages))
     if wrapper_pages:
         wrapper_meta = digital_commons_wrapper_metadata(sorted(wrapper_pages))
@@ -327,6 +330,24 @@ def collect_pdf_layout_findings(
                 },
             )
         )
+    page_details_by_number = {
+        page.page_number: page_identity_details(page)
+        for page in content_doc.pages
+    }
+    enriched_findings: list[AuditFinding] = []
+    for finding in findings:
+        page_details = (
+            page_details_by_number.get(finding.page, {})
+            if finding.page is not None
+            else {}
+        )
+        if not page_details:
+            enriched_findings.append(finding)
+            continue
+        merged_details = dict(page_details)
+        merged_details.update(finding.details)
+        enriched_findings.append(finding.model_copy(update={"details": merged_details}))
+    findings = enriched_findings
     return findings
 
 

@@ -20,6 +20,10 @@ Does NOT duplicate:
 
 from __future__ import annotations
 
+from njit_auditor.digital_commons_wrapper import (
+    detect_digital_commons_wrapper_pages,
+    without_wrapper_pages,
+)
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_headings import find_body_start_page, find_named_frontmatter_headings
@@ -65,17 +69,22 @@ def _classify_pages(
 
     Regions: "front_matter", "body", "ambiguous".
     """
+    wrapper_pages = detect_digital_commons_wrapper_pages(pdf_doc)
+    working_doc = without_wrapper_pages(pdf_doc, wrapper_pages)
+    if not working_doc.pages:
+        return {}, False
+
     # Named front-matter heading pages.
     fm_heading_pages: dict[int, str] = {}
-    for match in find_named_frontmatter_headings(pdf_doc):
+    for match in find_named_frontmatter_headings(working_doc):
         if match.page_number not in fm_heading_pages:
             fm_heading_pages[match.page_number] = match.heading
     has_front_matter = bool(fm_heading_pages)
 
-    body_start = find_body_start_page(pdf_doc)
+    body_start = find_body_start_page(working_doc)
 
     regions: dict[int, str] = {}
-    for page in pdf_doc.pages:
+    for page in working_doc.pages:
         pn = page.page_number
         if body_start is not None:
             if pn < body_start:

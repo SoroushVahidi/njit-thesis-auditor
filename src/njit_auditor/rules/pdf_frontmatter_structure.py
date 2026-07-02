@@ -179,6 +179,8 @@ def _check_title_page_elements(pdf_document: PdfDocument) -> list[AuditFinding]:
         return []
 
     scan_pages = pdf_document.pages[:TITLE_PAGE_SCAN_PAGES]
+    title_page = scan_pages[0]
+    title_page_number = title_page.page_number
     combined_text = " ".join(_page_all_text(p) for p in scan_pages)
     # Space-stripped fallback: handles PDFs where words are merged in the text layer
     # (e.g. "DoctorofPhilosophy" instead of "Doctor of Philosophy").
@@ -198,13 +200,13 @@ def _check_title_page_elements(pdf_document: PdfDocument) -> list[AuditFinding]:
             AuditFinding(
                 rule_id="P025",
                 severity=Severity.WARNING,
-                page=1,
+                page=title_page_number,
                 message=(
                     "No degree phrase detected in the first pages of the document. "
                     "Expected e.g. 'Doctor of Philosophy' or 'Master of Science' on title page."
                 ),
                 details={
-                    "page_number": "1",
+                    "page_number": str(title_page_number),
                     "page_type": "title_page",
                     "issue_type": "missing_title_page_degree_phrase",
                     "scan_pages": str(TITLE_PAGE_SCAN_PAGES),
@@ -222,13 +224,13 @@ def _check_title_page_elements(pdf_document: PdfDocument) -> list[AuditFinding]:
             AuditFinding(
                 rule_id="P025",
                 severity=Severity.WARNING,
-                page=1,
+                page=title_page_number,
                 message=(
                     "Institution name not detected in the first pages of the document. "
                     "Expected 'New Jersey Institute of Technology' or 'NJIT' on title page."
                 ),
                 details={
-                    "page_number": "1",
+                    "page_number": str(title_page_number),
                     "page_type": "title_page",
                     "issue_type": "missing_title_page_institution",
                     "scan_pages": str(TITLE_PAGE_SCAN_PAGES),
