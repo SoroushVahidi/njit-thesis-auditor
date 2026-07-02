@@ -9,6 +9,7 @@ import pytest
 
 from njit_auditor.pdf_highlight import (
     build_highlighted_pdf,
+    build_highlighted_single_page_pdf,
     clip_box_to_page,
     get_pdf_page_sizes,
     has_visible_highlight,
@@ -122,6 +123,26 @@ def test_build_highlighted_pdf_draws_valid_box(tmp_path: Path) -> None:
     assert _page_rgb_bytes(output, 1) != _page_rgb_bytes(source, 1)
     # The original uploaded PDF must never be modified.
     assert source.read_bytes() == original_bytes
+
+
+def test_build_highlighted_single_page_pdf_extracts_selected_page(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "highlighted-page.pdf"
+    _make_pdf(source, page_count=5)
+
+    result = build_highlighted_single_page_pdf(
+        source,
+        output,
+        source_page_number=4,
+        boxes=[(100.0, 200.0, 300.0, 260.0)],
+    )
+
+    assert result.has_highlight is True
+    assert result.pages_highlighted == [1]
+    with fitz.open(output) as doc:
+        assert doc.page_count == 1
+        assert len(doc[0].get_drawings()) == 1
+    assert _page_rgb_bytes(output, 0) != _page_rgb_bytes(source, 3)
 
 
 def test_build_highlighted_pdf_skips_degenerate_boxes_without_writing_output(

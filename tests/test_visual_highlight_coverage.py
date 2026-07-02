@@ -172,7 +172,7 @@ def _get_html(
 def _pdf_links(text: str) -> set[str]:
     links = set(
         re.findall(
-            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
             text,
         )
     )
@@ -228,18 +228,19 @@ def test_p011_margin_with_bbox_renders_real_highlight_and_keeps_wording(
     assert "Open highlighted PDF page" in text
     assert "No exact highlight is available for this finding." not in text
 
-    highlighted_links = [link for link in _pdf_links(text) if "highlighted" in link]
+    highlighted_links = [link for link in _pdf_links(text) if "highlighted-page" in link]
     assert highlighted_links, "No highlighted PDF link found"
     for link in highlighted_links:
         resp = c.get(link)
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("application/pdf")
         assert resp.content != original_bytes
-        assert _page_rgb_bytes_from_bytes(resp.content, 1) != _page_rgb_bytes_from_path(
+        assert _page_rgb_bytes_from_bytes(resp.content, 0) != _page_rgb_bytes_from_path(
             Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf",
             1,
         )
         with fitz.open(stream=resp.content, filetype="pdf") as doc:
+            assert doc.page_count == 1
             total_drawings = sum(len(page.get_drawings()) for page in doc)
             total_annots = sum(len(list(page.annots() or [])) for page in doc)
         assert total_drawings >= 1
@@ -288,7 +289,7 @@ def test_p026_font_with_bbox_no_text_leak(
     assert _BBOX not in text
     assert "100.0,200.0" not in text
 
-    highlighted_links = [link for link in _pdf_links(text) if "highlighted" in link]
+    highlighted_links = [link for link in _pdf_links(text) if "highlighted-page" in link]
     assert highlighted_links
     resp = c.get(highlighted_links[0])
     assert resp.status_code == 200
@@ -384,7 +385,7 @@ def test_propagated_rules_render_highlight_without_raw_bbox(
         assert "100.0,200.0" not in text
         assert "300.0,260.0" not in text
 
-    highlighted_links = [link for link in _pdf_links(main_text) if "highlighted" in link]
+    highlighted_links = [link for link in _pdf_links(main_text) if "highlighted-page" in link]
     assert highlighted_links
     resp = c.get(highlighted_links[0])
     assert resp.status_code == 200
@@ -437,7 +438,7 @@ def test_no_geometry_findings_stay_explanation_only(app: tuple[TestClient, Any])
     assert status == 200
     assert "Open highlighted PDF page" not in text
     assert "Open original PDF page" in text
-    assert "/highlighted.pdf" not in text
+    assert "/highlighted-page.pdf" not in text
 
 
 # ---------------------------------------------------------------------------
@@ -478,7 +479,7 @@ def test_invalid_bbox_never_produces_fake_highlight_or_crash(
     # Even a manually-constructed highlight request for this job/rule must not 500
     # and must not fall back to the original upload.
     resp = c.get(
-        f"/audits/{job_id}/highlighted.pdf", params={"page": 2, "rule_id": "P011"}
+        f"/audits/{job_id}/highlighted-page.pdf", params={"page": 2, "rule_id": "P011"}
     )
     assert resp.status_code == 404
     assert "Highlighted PDF is not available" in resp.text
@@ -777,7 +778,7 @@ def test_no_500_route_crawl_for_all_newly_highlightable_rules(
             )
         if fv.has_highlight:
             routes.append(
-                f"/audits/{job_id}/highlighted.pdf?page={fv.page}&rule_id={fv.rule_id}"
+                f"/audits/{job_id}/highlighted-page.pdf?page={fv.page}&rule_id={fv.rule_id}"
             )
 
     for route in routes:

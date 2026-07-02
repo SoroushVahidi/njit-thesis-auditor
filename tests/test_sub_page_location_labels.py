@@ -72,7 +72,7 @@ def _get_html(client: TestClient, path: str, *, headers: dict[str, str] | None =
 def _pdf_links(text: str) -> set[str]:
     links = set(
         re.findall(
-            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
             text,
         )
     )
@@ -331,7 +331,7 @@ def test_highlight_policy_unaffected_by_location_labels(app: tuple[TestClient, A
     assert "Open PDF page" not in text
     assert "Open first example page" not in text
     assert "Open highlighted PDF page" not in text
-    assert "/highlighted.pdf" not in text
+    assert "/highlighted-page.pdf" not in text
 
     highlight_job, _ = _inject_job(
         wa,

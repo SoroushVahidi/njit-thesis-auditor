@@ -52,6 +52,7 @@ from njit_auditor.issue_type_explanations import (
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_highlight import (
     build_highlighted_pdf,
+    build_highlighted_single_page_pdf,
     get_pdf_page_sizes,
     is_drawable_bbox,
 )
@@ -485,7 +486,7 @@ def _pdf_highlight_url(
     issue_type: str = "",
     finding_index: int | None = None,
 ) -> str:
-    """Return the highlighted-PDF URL for a finding."""
+    """Return the page-focused highlighted-PDF URL for a per-finding action."""
     params: dict[str, str] = {}
     if page is not None:
         params["page"] = str(page)
@@ -495,8 +496,7 @@ def _pdf_highlight_url(
         params["issue_type"] = issue_type
     if finding_index is not None:
         params["finding_index"] = str(finding_index)
-    fragment = f"#page={page}" if page is not None else ""
-    return f"/audits/{job_id}/highlighted.pdf?{urllib.parse.urlencode(params)}{fragment}"
+    return f"/audits/{job_id}/highlighted-page.pdf?{urllib.parse.urlencode(params)}"
 
 
 def _pdf_original_page_url(job_id: str, *, page: int | None) -> str:
@@ -2325,6 +2325,7 @@ def _run_audit_task(job_id: str) -> None:
                         rule_id="",
                         issue_type="",
                         finding_index=None,
+                        artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_FULL,
                     )
         except Exception:
             _logger.warning(
@@ -2797,6 +2798,9 @@ def _safe_pdf_disposition_filename(file_name: str) -> str:
 
 
 _HIGHLIGHTED_PDF_DISPOSITION_NAME = "highlighted.pdf"
+_HIGHLIGHTED_PAGE_PDF_DISPOSITION_NAME = "highlighted-page.pdf"
+_HIGHLIGHT_ARTIFACT_KIND_FULL = "full"
+_HIGHLIGHT_ARTIFACT_KIND_PAGE = "page-focused"
 _HIGHLIGHT_UNAVAILABLE_MESSAGE = "Highlighted PDF is not available for this audit."
 _HIGHLIGHT_NO_MATCHING_MESSAGE = (
     "No matching highlighted finding was found for this page/rule/type."
@@ -2857,6 +2861,7 @@ def _highlight_version_token(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> str | None:
     """Return the cache-version token for a highlighted artifact, if sources exist."""
     pdf_path = _job_pdf_path(jdir)
@@ -2869,8 +2874,9 @@ def _highlight_version_token(
     except OSError:
         return None
     return (
-        f"{_HIGHLIGHT_RENDERER_VERSION}|upload:{upload_hash}|report:{report_hash}|"
-        f"page:{page}|rule:{rule_id}|issue:{issue_type}|index:{finding_index}"
+        f"{_HIGHLIGHT_RENDERER_VERSION}|kind:{artifact_kind}|upload:{upload_hash}|"
+        f"report:{report_hash}|page:{page}|rule:{rule_id}|issue:{issue_type}|"
+        f"index:{finding_index}"
     )
 
 
@@ -3154,6 +3160,7 @@ def _highlight_cache_path(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> Path:
     """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
     version_token = _highlight_version_token(
@@ -3162,12 +3169,19 @@ def _highlight_cache_path(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        artifact_kind=artifact_kind,
     )
     key = version_token or (
-        f"{_HIGHLIGHT_RENDERER_VERSION}|{page}|{rule_id}|{issue_type}|{finding_index}"
+        f"{_HIGHLIGHT_RENDERER_VERSION}|{artifact_kind}|{page}|{rule_id}|"
+        f"{issue_type}|{finding_index}"
     )
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
-    return jdir / f"highlighted-{digest}.pdf"
+    prefix = (
+        "highlighted-page"
+        if artifact_kind == _HIGHLIGHT_ARTIFACT_KIND_PAGE
+        else "highlighted"
+    )
+    return jdir / f"{prefix}-{digest}.pdf"
 
 
 def _highlight_version_path(pdf_path: Path) -> Path:
@@ -3183,6 +3197,7 @@ def _highlight_artifact_is_current(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> bool:
     """Return True when *pdf_path* exists and matches current renderer and sources."""
     version_path = _highlight_version_path(pdf_path)
@@ -3192,6 +3207,7 @@ def _highlight_artifact_is_current(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        artifact_kind=artifact_kind,
     )
     if expected is None or not pdf_path.exists() or not version_path.exists():
         return False
@@ -3209,6 +3225,7 @@ def _write_highlight_version_marker(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> None:
     """Persist the current highlight cache token for a generated artifact."""
     token = _highlight_version_token(
@@ -3217,6 +3234,7 @@ def _write_highlight_version_marker(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        artifact_kind=artifact_kind,
     )
     if token is None:
         return
@@ -3316,6 +3334,110 @@ def _ensure_highlighted_pdf(
             rule_id=rule_id,
             issue_type=issue_type,
             finding_index=finding_index,
+            artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_FULL,
+        )
+        return output_path
+    return None
+
+
+def _highlight_page_output_path(
+    jdir: Path,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> Path:
+    """Return the cache path for a page-focused highlighted PDF artifact."""
+    return _highlight_cache_path(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+        artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_PAGE,
+    )
+
+
+def _ensure_highlighted_page_pdf(
+    job: JobState,
+    *,
+    page: int | None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> Path | None:
+    """Build and return a one-page highlighted PDF focused on the selected source page."""
+    if job.state != "complete" or job.audit_type != "pdf" or page is None:
+        return None
+
+    jdir = _job_dir(job.job_id)
+    pdf_path = _job_pdf_path(jdir)
+    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+        return None
+
+    matches = _matching_findings_for_highlight(
+        job,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    boxes_by_page = _highlight_boxes_by_page(matches)
+    page_boxes = boxes_by_page.get(page)
+    if not page_boxes:
+        return None
+
+    output_path = _highlight_page_output_path(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    if not _is_under_runtime(output_path):
+        return None
+    if _highlight_artifact_is_current(
+        output_path,
+        jdir=jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+        artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_PAGE,
+    ):
+        return output_path
+
+    if output_path.exists():
+        output_path.unlink(missing_ok=True)
+    _highlight_version_path(output_path).unlink(missing_ok=True)
+
+    result = build_highlighted_single_page_pdf(
+        pdf_path,
+        output_path,
+        source_page_number=page,
+        boxes=page_boxes,
+    )
+    if not result.has_highlight:
+        _logger.warning(
+            "Page-focused highlight request for job %s page=%s matched %d finding(s) "
+            "but drew no visible annotation (skipped=%d).",
+            job.job_id,
+            page,
+            len(matches),
+            result.skipped_count,
+        )
+        output_path.unlink(missing_ok=True)
+        _highlight_version_path(output_path).unlink(missing_ok=True)
+    if output_path.exists():
+        _write_highlight_version_marker(
+            output_path,
+            jdir=jdir,
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_index=finding_index,
+            artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_PAGE,
         )
         return output_path
     return None
@@ -3381,6 +3503,87 @@ async def _serve_job_pdf_highlighted(
             generation_failed=True,
         )
         return _highlight_unavailable_response(request, message=message)
+
+
+async def _serve_job_pdf_highlighted_page(
+    request: Request,
+    job_id: str,
+    *,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> FileResponse | HTMLResponse | JSONResponse:
+    """Serve a one-page highlighted PDF whose first page is the selected source page."""
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return JSONResponse({"error": "not available"}, status_code=404)
+    if job.audit_type != "pdf":
+        return JSONResponse({"error": "not a PDF audit"}, status_code=404)
+
+    jdir = _job_dir(job_id)
+    pdf_path = _job_pdf_path(jdir)
+    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+        return JSONResponse({"error": "PDF not found"}, status_code=404)
+
+    try:
+        highlight_path = _ensure_highlighted_page_pdf(
+            job,
+            page=page,
+            rule_id=rule_id.strip(),
+            issue_type=issue_type.strip(),
+            finding_index=finding_index,
+        )
+        if highlight_path is None:
+            message = _highlight_unavailable_message(
+                job,
+                page=page,
+                rule_id=rule_id.strip(),
+                issue_type=issue_type.strip(),
+                finding_index=finding_index,
+                generation_failed=True,
+            )
+            return _highlight_unavailable_response(request, message=message)
+
+        return _inline_pdf_response(
+            highlight_path,
+            filename=_HIGHLIGHTED_PAGE_PDF_DISPOSITION_NAME,
+        )
+    except Exception:
+        _logger.warning(
+            "Page-focused highlighted PDF generation failed for job %s.",
+            job_id,
+            exc_info=True,
+        )
+        message = _highlight_unavailable_message(
+            job,
+            page=page,
+            rule_id=rule_id.strip(),
+            issue_type=issue_type.strip(),
+            finding_index=finding_index,
+            generation_failed=True,
+        )
+        return _highlight_unavailable_response(request, message=message)
+
+
+@app.get("/audits/{job_id}/highlighted-page.pdf", response_model=None)
+async def serve_job_highlighted_page_pdf_file(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> FileResponse | HTMLResponse | JSONResponse:
+    """Serve a page-focused highlighted PDF inline for per-finding report links."""
+    return await _serve_job_pdf_highlighted_page(
+        request,
+        job_id,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
 
 
 @app.get("/audits/{job_id}/highlighted.pdf", response_model=None)

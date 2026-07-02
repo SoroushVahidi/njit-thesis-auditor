@@ -231,7 +231,7 @@ def _problem_numbers(text: str) -> list[int]:
 def _pdf_links(text: str) -> set[str]:
     links = set(
         re.findall(
-            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
             text,
         )
     )
@@ -314,27 +314,28 @@ def test_highlighted_and_original_page_actions_are_distinct(
     assert "Open original PDF page" in main_html
 
     highlight_resp = c.get(
-        f"/audits/{job_id}/highlighted.pdf",
+        f"/audits/{job_id}/highlighted-page.pdf",
         params={"page": 2, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
     )
     assert highlight_resp.status_code == 200
     assert highlight_resp.content != original_bytes
     with fitz.open(stream=highlight_resp.content, filetype="pdf") as doc:
-        drawing_count = sum(len(page.get_drawings()) for page in doc)
-        annot_count = sum(len(list(page.annots() or [])) for page in doc)
+        assert doc.page_count == 1
+        drawing_count = len(doc[0].get_drawings())
+        annot_count = len(list(doc[0].annots() or []))
     assert drawing_count >= 1
     assert annot_count == 0
     upload_path = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf"
     assert _pdf_page_rgb_bytes_from_bytes(
         highlight_resp.content,
-        1,
+        0,
     ) != _pdf_page_rgb_bytes_from_path(upload_path, 1)
 
     p026_rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
     assert "Open original PDF page" in p026_rule_html
     assert "Open highlighted PDF page" not in p026_rule_html
     assert f"/audits/{job_id}/pdf#page=4" in p026_rule_html
-    assert "/highlighted.pdf" not in p026_rule_html
+    assert "/highlighted-page.pdf" not in p026_rule_html
     original_resp = c.get(f"/audits/{job_id}/pdf")
     assert original_resp.status_code == 200
     assert original_resp.headers["content-type"].startswith("application/pdf")
@@ -402,7 +403,7 @@ def test_problem_routes_and_downloads_do_not_500(app: tuple[TestClient, Any]) ->
         f"/audits/{job_id}/problems/rule/P017",
         f"/audits/{job_id}/problems/rule/P017/issue-type/missing-terminal-punctuation",
         f"/audits/{job_id}/pdf",
-        f"/audits/{job_id}/highlighted.pdf?page=2&rule_id=P012&issue_type=pdf_annotation_detected",
+        f"/audits/{job_id}/highlighted-page.pdf?page=2&rule_id=P012&issue_type=pdf_annotation_detected",
         f"/audits/{job_id}/download/json",
         f"/audits/{job_id}/download/markdown",
     ]

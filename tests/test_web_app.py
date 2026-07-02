@@ -2721,7 +2721,7 @@ def test_results_page_page_links_present_for_findings_with_page(
     assert resp.status_code == 200
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" not in body
-    assert "/highlighted.pdf" in body
+    assert "/highlighted-page.pdf" in body
     assert "page-link" in body
 
 
@@ -2735,7 +2735,7 @@ def test_results_page_uses_original_page_link_for_known_page_without_highlight(
     assert resp.status_code == 200
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" in body
-    assert "/highlighted.pdf" not in body
+    assert "/highlighted-page.pdf" not in body
     assert "Open original PDF page" in body
 
 
@@ -3004,7 +3004,7 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert page_resp.status_code == 200
     body = page_resp.text
     assert "manuscript page 1 / PDF page 3" in body
-    expected_link = f"/audits/{job_id}/highlighted.pdf"
+    expected_link = f"/audits/{job_id}/highlighted-page.pdf"
     assert expected_link in body
     assert "page=3" in body
     assert "rule_id=P020" in body
@@ -3015,7 +3015,7 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert "Pages to review: manuscript page 1 / PDF page 3" in rule_resp.text
 
     resp = c.get(
-        f"/audits/{job_id}/highlighted.pdf",
+        f"/audits/{job_id}/highlighted-page.pdf",
         params={
             "page": 3,
             "rule_id": "P020",
@@ -3025,12 +3025,11 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert resp.status_code == 200
     highlighted = fitz.open(stream=resp.content, filetype="pdf")
     try:
+        assert highlighted.page_count == 1
         first_page_drawings = highlighted[0].get_drawings()
-        third_page_drawings = highlighted[2].get_drawings()
     finally:
         highlighted.close()
-    assert not first_page_drawings
-    assert third_page_drawings
+    assert first_page_drawings
 
 
 def test_highlighted_pdf_endpoint_unavailable_without_bbox(
@@ -3212,7 +3211,7 @@ def test_result_and_problem_pages_pdf_links_never_500(
         f"/audits/{job_id}/problems/rule/P012",
     ]
     pdf_link_re = re.compile(
-        r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
+        r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
     )
     checked_any = False
     for page_url in pages:
@@ -3239,7 +3238,8 @@ def test_problem_group_page_links_to_highlighted_pdf_when_bbox_available(
     assert resp.status_code == 200
     body = resp.text
     assert "Open highlighted PDF page" in body
-    assert f"/audits/{job_id}/highlighted.pdf?" in body
+    assert f"/audits/{job_id}/highlighted-page.pdf?" in body
+    assert f"/audits/{job_id}/highlighted.pdf?" not in body
     assert 'rel="noopener noreferrer"' in body
 
 
@@ -3284,10 +3284,10 @@ def test_old_job_generates_canonical_highlighted_pdf_on_demand(
     assert resp.content != (jdir / "upload.pdf").read_bytes()
 
 
-def test_old_job_generates_filtered_highlighted_pdf_on_demand(
+def test_old_job_generates_filtered_highlighted_page_pdf_on_demand(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Filtered highlight links must rebuild artifacts for old jobs on demand."""
+    """Page-focused highlight links must rebuild artifacts for old jobs on demand."""
     import fitz
 
     from njit_auditor.models import AuditFinding, Severity
@@ -3318,14 +3318,18 @@ def test_old_job_generates_filtered_highlighted_pdf_on_demand(
     wa._jobs.pop(job_id, None)
 
     resp = c.get(
-        f"/audits/{job_id}/highlighted.pdf",
+        f"/audits/{job_id}/highlighted-page.pdf",
         params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
     )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/pdf")
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "highlighted-page.pdf" in disposition
     assert resp.content != (jdir / "upload.pdf").read_bytes()
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
-        assert len(doc[3].get_drawings()) == 2
+        assert doc.page_count == 1
+        assert len(doc[0].get_drawings()) == 2
 
 
 def test_filtered_highlighted_pdf_returns_specific_message_when_no_match(
@@ -3349,6 +3353,50 @@ def test_filtered_highlighted_pdf_returns_specific_message_when_no_match(
     assert "No matching highlighted finding was found" in resp.text
     assert "Highlighted PDF is not available" not in resp.text
     assert resp.content != upload_bytes
+
+
+def test_highlighted_page_pdf_returns_specific_message_when_no_match(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Page-focused route must 404 clearly when the filter matches nothing."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+    upload_bytes = (jdir / "upload.pdf").read_bytes()
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted-page.pdf",
+        params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 404
+    assert "No matching highlighted finding was found" in resp.text
+    assert resp.content != upload_bytes
+
+
+def test_per_finding_highlight_links_use_page_focused_route_without_fragment(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Per-finding links must target highlighted-page.pdf without #page fragments."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(f"/audits/{job_id}/problems/rule/P012")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "/highlighted-page.pdf?" in body
+    assert "/highlighted.pdf?" not in body
+    assert "#page=" not in body
+    assert 'target="_blank"' in body
+    assert "download=" not in body
 
 
 def test_highlighted_pdf_report_link_page_rule_type_selects_intended_finding(
@@ -3397,18 +3445,19 @@ def test_highlighted_pdf_report_link_page_rule_type_selects_intended_finding(
     page_resp = c.get(f"/audits/{job_id}")
     assert page_resp.status_code == 200
     assert (
-        f"/audits/{job_id}/highlighted.pdf?page=4&amp;rule_id=P011"
-        "&amp;issue_type=margin_boundary_violation#page=4"
+        f"/audits/{job_id}/highlighted-page.pdf?page=4&amp;rule_id=P011"
+        "&amp;issue_type=margin_boundary_violation"
     ) in page_resp.text
+    assert f"/audits/{job_id}/highlighted.pdf?page=4" not in page_resp.text
 
     resp = c.get(
-        f"/audits/{job_id}/highlighted.pdf",
+        f"/audits/{job_id}/highlighted-page.pdf",
         params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
     )
     assert resp.status_code == 200
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
-        assert len(doc[3].get_drawings()) == 2
-        assert len(doc[4].get_drawings()) == 0
+        assert doc.page_count == 1
+        assert len(doc[0].get_drawings()) == 2
 
 
 def test_stale_highlighted_pdf_cache_is_rebuilt_with_current_renderer_version(
@@ -3433,7 +3482,7 @@ def test_stale_highlighted_pdf_cache_is_rebuilt_with_current_renderer_version(
     assert resp.status_code == 200
     assert resp.content != pdf_path.read_bytes()
     version = (jdir / "highlighted.pdf.version").read_text(encoding="utf-8")
-    assert version.startswith("overlay-v1|upload:")
+    assert version.startswith("overlay-v1|kind:full|upload:")
     assert "|report:" in version
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
         assert len(doc[2].get_drawings()) >= 1
@@ -3596,7 +3645,7 @@ def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
     assert "Undefined" not in resp.text
 
     pdf_link_re = re.compile(
-        r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
+        r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
     )
     links = set(pdf_link_re.findall(resp.text))
     assert links, "expected at least one PDF link on the rendered job page"
@@ -3637,7 +3686,7 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     pdf_link_re = re.compile(
-        r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
+        r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"'
     )
     links = pdf_link_re.findall(resp.text)
     assert links

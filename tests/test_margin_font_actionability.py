@@ -66,7 +66,7 @@ def _get_html(client: TestClient, path: str, *, headers: dict[str, str] | None =
 def _pdf_links(text: str) -> set[str]:
     return set(
         re.findall(
-            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
             text,
         )
     )
@@ -372,7 +372,7 @@ def test_no_highlight_actions_without_bbox_and_real_highlight_with_bbox(
     text = _get_html(client, f"/audits/{no_highlight_job}")
     assert "Open PDF page" not in text
     assert "Open highlighted PDF page" not in text
-    assert "/highlighted.pdf" not in text
+    assert "/highlighted-page.pdf" not in text
 
     highlight_job = _inject_job(
         wa,

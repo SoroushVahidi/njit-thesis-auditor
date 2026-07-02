@@ -139,7 +139,7 @@ def _get_html(client: TestClient, path: str, headers: dict[str, str] | None = No
 def _pdf_links(text: str) -> set[str]:
     links = set(
         re.findall(
-            r'href="(/audits/[^"]*?(?:/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
+            r'href="(/audits/[^"]*?(?:/highlighted-page\.pdf|/highlighted\.pdf|/pdf)(?:[/?#][^"]*)?)"',
             text,
         )
     )
@@ -178,7 +178,7 @@ def test_routine_p013_bottom_area_candidate_is_not_a_problem(
     assert "Page number candidate" not in text
     assert "Wrong page-number location" not in text
     assert f"/audits/{job_id}/problems/rule/P013" not in text
-    assert "/highlighted.pdf" not in text
+    assert "/highlighted-page.pdf" not in text
 
 
 def test_p013_wrong_location_suspicion_is_shown_with_exact_location(
@@ -437,7 +437,7 @@ def test_no_highlight_actions_and_no_500_routes_for_page_number_findings(
     all_links: set[str] = set()
     for path in paths:
         text = _get_html(c, path)
-        assert "/highlighted.pdf" not in text
+        assert "/highlighted-page.pdf" not in text
         all_links.update(_pdf_links(text))
 
     for link in all_links:
