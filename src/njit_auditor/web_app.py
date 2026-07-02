@@ -841,6 +841,76 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "page-number column on the right."
         ),
     },
+    "P041": {
+        "question": (
+            "Is there no header text in the top margin area of the Dedication page?"
+        ),
+        "remediation": (
+            "Remove any running header or header text from the top margin area "
+            "of the Dedication page."
+        ),
+    },
+    "P042": {
+        "question": (
+            "Are appendix entries in the Table of Contents formatted correctly "
+            "for a single appendix or multiple appendices?"
+        ),
+        "remediation": (
+            "For one appendix, begin the TOC entry with \"APPENDIX\" followed "
+            "by the title. For multiple appendices, label each TOC entry with a "
+            "letter, such as \"APPENDIX A,\" \"APPENDIX B,\" and so on."
+        ),
+    },
+    "P053": {
+        "question": (
+            "Are all List of Tables entries free of a final period?"
+        ),
+        "remediation": (
+            "Remove the final period from each List of Tables entry. Table "
+            "titles should use title case without terminal punctuation."
+        ),
+    },
+    "P054": {
+        "question": (
+            "Are all Table of Contents entries free of a final period?"
+        ),
+        "remediation": (
+            "Remove the final period from each Table of Contents entry."
+        ),
+    },
+    "P055": {
+        "question": (
+            "Are table entries listed only in the List of Tables and figure "
+            "entries listed only in the List of Figures?"
+        ),
+        "remediation": (
+            "Move each misplaced entry to the correct section: table entries "
+            "belong in the List of Tables, and figure entries belong in the "
+            "List of Figures."
+        ),
+    },
+    "P074": {
+        "question": (
+            "Does the Title Page display a graduation month that is exactly "
+            "August, December, or May?"
+        ),
+        "remediation": (
+            "Change the graduation month on the Title Page to August, December, "
+            "or May."
+        ),
+    },
+    "P078": {
+        "question": (
+            "Is the Abstract text free of the words \"paper\" or \"article\" "
+            "and free of first-person pronouns?"
+        ),
+        "remediation": (
+            "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" "
+            "\"work,\" or \"research.\" Rewrite sentences to remove "
+            "first-person pronouns such as \"I,\" \"me,\" \"my,\" \"we,\" or "
+            "\"our.\""
+        ),
+    },
 }
 
 

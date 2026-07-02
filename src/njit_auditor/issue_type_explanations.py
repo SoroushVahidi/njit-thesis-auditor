@@ -523,14 +523,14 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "to the dedication text in your source document."
     ),
     ("P078", "abstract_pdf_forbidden_term"): (
-        "The abstract contains a term that is not recommended for formal thesis "
-        "abstracts. Review the abstract text and revise as needed to meet "
-        "NJIT submission requirements."
+        "This means the abstract appears to contain \"paper\" or \"article\" "
+        "(or a plural form). Replace \"paper\" or \"article\" with "
+        "\"dissertation,\" \"study,\" \"work,\" or \"research.\""
     ),
     ("P078", "abstract_pdf_first_person_pronoun"): (
-        "The abstract uses a first-person pronoun (I, we, my, our). Thesis "
-        "abstracts should typically be written in third person. Revise the "
-        "abstract to avoid first-person language."
+        "This means the abstract appears to use a first-person pronoun such as "
+        "\"I,\" \"me,\" \"my,\" \"we,\" or \"our.\" Rewrite the sentence to "
+        "remove first-person pronouns."
     ),
     ("P015", "unexpected_opening_indent"): (
         "This means the first paragraph after a section heading appears indented when "
@@ -592,6 +592,11 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means the graduation month on the title page may not match the "
         "expected NJIT format (spelled-out month and year)."
     ),
+    ("P074", "title_page_graduation_month_invalid"): (
+        "This means the graduation month detected on the Title Page is not "
+        "August, December, or May. Change the graduation month on the Title Page "
+        "to August, December, or May."
+    ),
     ("P035", "table_caption_not_above_body"): (
         "This means a table caption does not appear above the table body. "
         "NJIT expects table captions above the table."
@@ -622,8 +627,9 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "mark, or exclamation point, to every figure description."
     ),
     ("P041", "dedication_top_margin_header_text"): (
-        "This means text was detected in the top margin area of the dedication "
-        "page. The dedication page should not have running headers."
+        "This means header text appears to be present in the top margin area of "
+        "the Dedication page. Remove any running header or header text from the "
+        "top margin area of the Dedication page."
     ),
     ("P043", "acknowledgements_first_paragraph_indented"): (
         "This means the first paragraph on the Acknowledgements page appears "
@@ -642,20 +648,21 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "expects a first-line indent."
     ),
     ("P053", "lot_entry_has_terminal_period"): (
-        "This means a List of Tables entry ends with a terminal period. Remove "
-        "the trailing period."
+        "This means a List of Tables entry ends with a final period. Remove the "
+        "final period from each List of Tables entry. Table titles should use "
+        "title case without terminal punctuation."
     ),
     ("P054", "toc_entry_has_terminal_period"): (
-        "This means a Table of Contents entry ends with a terminal period. "
-        "Remove the trailing period."
+        "This means a Table of Contents entry ends with a final period. Remove "
+        "the final period from each Table of Contents entry."
     ),
     ("P055", "lot_entry_is_figure"): (
-        "This means a List of Tables entry appears to describe a figure. Move "
-        "this entry to the List of Figures."
+        "This means a table entry appears in the List of Tables but describes a "
+        "figure. Move this entry to the List of Figures."
     ),
     ("P055", "lof_entry_is_table"): (
-        "This means a List of Figures entry appears to describe a table. Move "
-        "this entry to the List of Tables."
+        "This means a figure entry appears in the List of Figures but describes "
+        "a table. Move this entry to the List of Tables."
     ),
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "This means Table of Contents page numbers do not appear in ascending "
@@ -1210,19 +1217,19 @@ def _p042_issue_type_explanation(issue_type: str, details: Mapping[str, str]) ->
         expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <title>"
         return (
             "This means the Table of Contents lists a single appendix entry "
-            "that does not appear to include a title after 'APPENDIX'. NJIT "
-            f"requires a single-appendix entry to follow the pattern "
-            f"'{expected_pattern}'. Add the missing appendix title to this "
-            "Table of Contents entry."
+            "that does not appear to include a title after 'APPENDIX'. For one "
+            "appendix, begin the TOC entry with \"APPENDIX\" followed by the "
+            f"title (pattern '{expected_pattern}'). Add the missing appendix "
+            "title to this Table of Contents entry."
         )
     expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <A-Z>"
     position_clause = _p042_entry_position_clause(details)
     return (
         "This means the Table of Contents lists multiple appendix entries, "
         f"but one entry{position_clause} does not appear to include a letter "
-        f"identifier. NJIT requires every appendix entry to follow the pattern "
-        f"'{expected_pattern}' (e.g. 'APPENDIX A,' 'APPENDIX B') when there is "
-        "more than one appendix. Add the missing letter to this Table of "
+        "identifier. For multiple appendices, label each TOC entry with a "
+        f"letter, such as \"APPENDIX A,\" \"APPENDIX B,\" and so on (pattern "
+        f"'{expected_pattern}'). Add the missing letter to this Table of "
         "Contents entry."
     )
 

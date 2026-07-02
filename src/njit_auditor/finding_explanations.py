@@ -502,9 +502,9 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P041 dedication ---
     ("P041", "dedication_top_margin_header_text"): (
-        "Text was detected in the top margin area of the dedication page. "
-        "The dedication page typically should not have header text or running heads. "
-        "Review the dedication page layout."
+        "Header text appears to be present in the top margin area of the "
+        "Dedication page. Remove any running header or header text from the "
+        "top margin area of the Dedication page."
     ),
     ("P041", "dedication_text_not_centered"): (
         "The dedication text does not appear to be centered horizontally. "
@@ -567,15 +567,14 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P078 abstract keywords ---
     ("P078", "abstract_pdf_forbidden_term"): (
-        "The abstract contains a term that is not appropriate for an NJIT thesis or "
-        "dissertation abstract (e.g., 'paper', 'article'). "
-        "Review the abstract and replace the flagged term with more appropriate "
-        "academic wording."
+        "The abstract appears to contain \"paper\" or \"article\" (or a plural "
+        "form). Replace \"paper\" or \"article\" with \"dissertation,\" "
+        "\"study,\" \"work,\" or \"research.\""
     ),
     ("P078", "abstract_pdf_first_person_pronoun"): (
-        "The abstract contains a first-person pronoun (e.g., 'I', 'we', 'my'). "
-        "NJIT abstracts should typically be written in third person. "
-        "Review the abstract and revise any first-person phrasing."
+        "The abstract appears to use a first-person pronoun such as \"I,\" "
+        "\"me,\" \"my,\" \"we,\" or \"our.\" Rewrite the sentence to remove "
+        "first-person pronouns."
     ),
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
@@ -637,6 +636,12 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "The graduation month on the title page may not match the expected NJIT "
         "format. NJIT expects a spelled-out month and year (for example, 'May 2025')."
     ),
+    # --- P074 title page graduation month (PDF) ---
+    ("P074", "title_page_graduation_month_invalid"): (
+        "The graduation month detected on the Title Page is not August, December, "
+        "or May. Change the graduation month on the Title Page to August, "
+        "December, or May."
+    ),
     # --- P035 figure/table layout ---
     ("P035", "table_caption_not_above_body"): (
         "A table caption on this page does not appear above the table body. "
@@ -692,21 +697,22 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P053/P054 list terminal periods ---
     ("P053", "lot_entry_has_terminal_period"): (
-        "A List of Tables entry on this page ends with a terminal period. "
-        "Remove the trailing period — table titles should not end with punctuation."
+        "A List of Tables entry on this page ends with a final period. "
+        "Remove the final period from each List of Tables entry. Table titles "
+        "should use title case without terminal punctuation."
     ),
     ("P054", "toc_entry_has_terminal_period"): (
-        "A Table of Contents entry on this page ends with a terminal period. "
-        "Remove the trailing period — TOC entries should not end with punctuation."
+        "A Table of Contents entry on this page ends with a final period. "
+        "Remove the final period from each Table of Contents entry."
     ),
     # --- P055 misplaced list entries ---
     ("P055", "lot_entry_is_figure"): (
-        "A List of Tables entry on this page appears to describe a figure rather "
-        "than a table. Move this entry to the List of Figures."
+        "A table entry appears in the List of Tables but describes a figure. "
+        "Move this entry to the List of Figures."
     ),
     ("P055", "lof_entry_is_table"): (
-        "A List of Figures entry on this page appears to describe a table rather "
-        "than a figure. Move this entry to the List of Tables."
+        "A figure entry appears in the List of Figures but describes a table. "
+        "Move this entry to the List of Tables."
     ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
@@ -851,9 +857,9 @@ _RULE_FALLBACKS: dict[str, str] = {
         "and worded exactly as NJIT specifies."
     ),
     "P041": (
-        "The dedication page may have a formatting issue (centering, italic style, "
-        "or header text). "
-        "Review the dedication page against NJIT requirements."
+        "Header text appears to be present in the top margin area of the "
+        "Dedication page. Remove any running header or header text from the "
+        "top margin area of the Dedication page."
     ),
     "P063": (
         "An appendix or body heading may have a formatting or ordering issue. "
@@ -870,9 +876,10 @@ _RULE_FALLBACKS: dict[str, str] = {
         "Review the dedication page."
     ),
     "P078": (
-        "The abstract may contain wording that does not meet NJIT guidelines "
-        "(forbidden terms or first-person pronouns). "
-        "Review the abstract and revise the flagged wording."
+        "The abstract may contain \"paper\" or \"article\" or first-person "
+        "pronouns. Replace \"paper\" or \"article\" with \"dissertation,\" "
+        "\"study,\" \"work,\" or \"research,\" and rewrite sentences to remove "
+        "first-person pronouns such as \"I,\" \"me,\" \"my,\" \"we,\" or \"our.\""
     ),
 }
 
@@ -1704,20 +1711,19 @@ def _p042_appendix_format_explanation(
         expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <title>"
         return (
             "The Table of Contents lists a single appendix entry that does not "
-            "appear to include a title after 'APPENDIX'. NJIT requires a "
-            f"single-appendix entry to follow the pattern '{expected_pattern}'. "
-            "Check this Table of Contents entry and add the missing appendix "
-            "title."
+            "appear to include a title after 'APPENDIX'. For one appendix, begin "
+            "the TOC entry with \"APPENDIX\" followed by the title "
+            f"(pattern '{expected_pattern}'). Add the missing appendix title to "
+            "this Table of Contents entry."
         )
     expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <A-Z>"
     position_clause = _p042_entry_position_clause(details)
     return (
         f"The Table of Contents lists multiple appendix entries, but one entry"
         f"{position_clause} does not appear to include a letter identifier. "
-        f"NJIT requires every appendix entry to follow the pattern "
-        f"'{expected_pattern}' (e.g. 'APPENDIX A,' 'APPENDIX B') when there is "
-        "more than one appendix. Check this Table of Contents entry and add "
-        "the missing letter."
+        "For multiple appendices, label each TOC entry with a letter, such as "
+        f"\"APPENDIX A,\" \"APPENDIX B,\" and so on (pattern '{expected_pattern}'). "
+        "Add the missing letter to this Table of Contents entry."
     )
 
 
