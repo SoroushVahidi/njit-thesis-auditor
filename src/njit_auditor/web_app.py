@@ -678,21 +678,19 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P026": {
         "rule_definition": (
-            "NJIT guidelines require body text to use Times New Roman 12pt or an "
-            "accepted equivalent. Word documents should use Times New Roman 12pt. "
-            "Overleaf documents commonly use Computer Modern, which is an "
-            "accepted equivalent — if flagged, verify with your advisor. "
+            "NJIT guidelines require body text to use an accepted font family and 12pt size. "
+            "Word documents should use Times New Roman or Arial. Documents prepared with "
+            "common thesis templates often use Computer Modern or Latin Modern, which are "
+            "also accepted. "
             "This check looks at ordinary body-text spans on each page for "
-            "(A) font size outside 11.0-13.0pt and (B) font family not matching "
-            "accepted fonts (Times New Roman, NimbusRomNo9L, TeX Gyre Termes, "
-            "Liberation Serif, FreeSerif, STIX). Computer Modern (CMR) is "
-            "currently flagged — Overleaf users should confirm with their advisor "
-            "if this warning appears."
+            "(A) font size outside 11.0-13.0pt and (B) font family outside accepted "
+            "families (Times New Roman, Arial, Computer Modern, Latin Modern, and "
+            "common near-equivalent serifs)."
         ),
         "remediation": (
-            "Word users: set body text to Times New Roman 12pt. "
-            "Overleaf users: Computer Modern is an accepted equivalent — "
-            "if flagged, verify with your advisor."
+            "Word users: set body text to Times New Roman or Arial at 12pt. "
+            "For documents prepared with common thesis templates, Computer Modern or "
+            "Latin Modern are accepted."
         ),
     },
     "P028": {
@@ -786,7 +784,42 @@ def _build_rule_catalog() -> dict[str, Any]:
 
         classification = _classify_rule(rule)
         if classification == "student":
-            student_rules.append(enriched)
+            if rule_id == "P026":
+                # Public rules page splits P026 into two student-facing cards:
+                # P026A (font family) and P026B (font size). Findings remain P026.
+                p026a = dict(enriched)
+                p026a["id"] = "P026A"
+                p026a["title"] = (
+                    "Does body text use an accepted font family "
+                    "(Times New Roman, Arial, Computer Modern, or Latin Modern)?"
+                )
+                p026a["what_it_checks"] = (
+                    "Checks ordinary body-text spans for font family outside accepted "
+                    "options: Times New Roman, Arial, Computer Modern, Latin Modern, "
+                    "and common near-equivalent serifs."
+                )
+                p026a["how_to_correct"] = (
+                    "Set the source-document body font family to Times New Roman or Arial, "
+                    "or use Computer Modern/Latin Modern in approved thesis templates."
+                )
+
+                p026b = dict(enriched)
+                p026b["id"] = "P026B"
+                p026b["title"] = (
+                    "Does body text use 12pt font size "
+                    "(11.0-13.0pt tolerance)?"
+                )
+                p026b["what_it_checks"] = (
+                    "Checks ordinary body-text spans for font size outside the accepted "
+                    "11.0-13.0pt range around a 12pt requirement."
+                )
+                p026b["how_to_correct"] = (
+                    "Set body text to 12pt throughout the document."
+                )
+
+                student_rules.extend([p026a, p026b])
+            else:
+                student_rules.append(enriched)
         else:
             enriched["technical_reason"] = _technical_reason(rule)
             technical_rules.append(enriched)
