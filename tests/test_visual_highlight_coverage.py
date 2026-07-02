@@ -18,12 +18,9 @@ P022 (no-number page), P038 (heading_phrase_not_exact).
 """
 from __future__ import annotations
 
-from pdf_link_helpers import extract_audit_pdf_links
-
 import html
 import json
 import os
-import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +29,7 @@ from typing import Any
 import fitz
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import extract_audit_pdf_links
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_highlight import get_pdf_page_sizes

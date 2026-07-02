@@ -7,8 +7,6 @@ assert CSS layout behavior such as stacking vs. columns.
 """
 from __future__ import annotations
 
-from pdf_link_helpers import extract_audit_pdf_links
-
 import html
 import json
 import os
@@ -21,6 +19,7 @@ from typing import Any
 import fitz
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import extract_audit_pdf_links
 
 _MOBILE_HEADERS = {
     "User-Agent": (
