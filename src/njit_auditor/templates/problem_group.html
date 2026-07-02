@@ -142,7 +142,11 @@
           <p class="example-card__title">
             {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
             {% if group_kind == "category" %}
-              {% if is_p_rule_id(example.rule_id) %}
+              {% if example.public_rule_reference_id %}
+              <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.public_rule_reference_id }}: see rule reference">{{ example.public_rule_reference_id }}</a>
+              {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
+              <a href="{{ public_rule_reference_href(example.rule_id, issue_type=example.issue_type) }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
+              {% elif is_p_rule_id(example.rule_id) %}
               <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
               {% else %}{{ example.rule_id }}{% endif %}
               {% if example.issue_type_label %} · {{ example.issue_type_label }}

@@ -501,15 +501,28 @@ def _ester_priority_review(
     )
 
     # F. TOC/LoT/LoF
+    p018_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P018"
+    )
+    if p018_atomic and len(p018_atomic) >= 17:
+        p018_status = "aligned"
+        p018_detail = (
+            f"Canonical public cards: {', '.join(p018_atomic)}. "
+            "Superseded delegated cards (P024A–C, P032A, P036A–C, P042A–B, "
+            "P046A–B, P048A–B) hidden from /rules. Q051 level-3 sentence case "
+            "remains partial in detector."
+        )
+    else:
+        p018_status = "delegated split"
+        p018_detail = (
+            f"P018 atomic cards: {p018_atomic or 'none'}. "
+            "Expected P018A–P018Q covering Ester TOC/LoT/LoF sub-questions."
+        )
     findings.append(
         {
             "area": "F. TOC/LoT/LoF (P018 family)",
-            "status": "delegated split",
-            "detail": (
-                "No P018A.. cards; coverage spread across P024A–E (case), P032A–C (wrapped spacing), "
-                "P036A–C (double spacing), P039 (indent), P042A–B (appendix), P046A–B / P048A–B (alignment), "
-                "P030A–C (continued headings). Q051 level-3 sentence case remains partial."
-            ),
+            "status": p018_status,
+            "detail": p018_detail,
         }
     )
 
