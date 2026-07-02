@@ -5,13 +5,13 @@ from __future__ import annotations
 import io
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import AUDIT_PDF_HREF_RE
 
 # Minimal synthetic PDF header — enough to pass the magic-byte check
 _MINIMAL_PDF = b"%PDF-1.4\n%%EOF\n"
@@ -2700,7 +2700,7 @@ def test_results_page_page_links_present_for_findings_with_page(
     assert resp.status_code == 200
     body = resp.text
     assert f"/audits/{job_id}/pdf#page=" not in body
-    assert "/pdf/highlighted" in body
+    assert "/highlighted-page.pdf" in body
     assert "page-link" in body
 
 
@@ -2819,6 +2819,35 @@ def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
 
     # The original uploaded PDF must never be modified by highlight generation.
     assert pdf_path.read_bytes() == original_bytes
+
+
+def test_highlighted_page_pdf_endpoint_serves_single_page_with_annotation(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Per-finding links must serve a one-page highlighted artifact, not the full upload."""
+    import fitz
+
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    pdf_path = jdir / "upload.pdf"
+    _make_real_pdf(pdf_path, page_count=5)
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted-page.pdf",
+        params={"page": 3, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert "highlighted-page.pdf" in resp.headers.get("content-disposition", "").lower()
+    assert resp.content[:4] == b"%PDF"
+
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert doc.page_count == 1
+        assert len(list(doc[0].annots() or [])) >= 1
 
 
 def test_highlighted_pdf_endpoint_falls_back_without_bbox(
@@ -2986,7 +3015,7 @@ def test_result_and_problem_pages_pdf_links_never_500(
         f"/audits/{job_id}/problems/category/annotations",
         f"/audits/{job_id}/problems/rule/P012",
     ]
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    pdf_link_re = AUDIT_PDF_HREF_RE
     checked_any = False
     for page_url in pages:
         resp = c.get(page_url)
@@ -3012,7 +3041,7 @@ def test_problem_group_page_links_to_highlighted_pdf_when_bbox_available(
     assert resp.status_code == 200
     body = resp.text
     assert "Open highlighted PDF page" in body
-    assert f"/audits/{job_id}/pdf/highlighted?" in body
+    assert f"/audits/{job_id}/highlighted-page.pdf?" in body
     assert 'rel="noopener noreferrer"' in body
 
 
@@ -3029,7 +3058,7 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     assert "Open highlighted PDF page" not in body
     assert "Open PDF page" not in body
     assert f"/audits/{job_id}/pdf#page=" in body
-    assert f"/audits/{job_id}/pdf/highlighted?" not in body
+    assert f"/audits/{job_id}/highlighted-page.pdf?" not in body
     assert "Open original PDF page" in body
     assert "No exact highlight is available" in body
 
@@ -3101,7 +3130,7 @@ def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
     assert "pdf_finding_url" not in resp.text
     assert "Undefined" not in resp.text
 
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    pdf_link_re = AUDIT_PDF_HREF_RE
     links = set(pdf_link_re.findall(resp.text))
     assert links, "expected at least one PDF link on the rendered job page"
     for link in links:
@@ -3140,7 +3169,7 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
 
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    pdf_link_re = re.compile(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"')
+    pdf_link_re = AUDIT_PDF_HREF_RE
     links = pdf_link_re.findall(resp.text)
     assert links
     for link in links:

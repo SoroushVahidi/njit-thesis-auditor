@@ -16,8 +16,9 @@ P022 (no-number page), P038 (heading_phrase_not_exact).
 9. Mobile/desktop parity for newly-highlightable findings
 10. No-500 route crawl across main/category/rule/issue-type/highlighted-PDF routes
 """
-
 from __future__ import annotations
+
+from pdf_link_helpers import extract_audit_pdf_links
 
 import html
 import json
@@ -158,8 +159,8 @@ def _get_html(
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    return {link.split("#")[0] for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 def _category_slug(category: str) -> str:
@@ -748,7 +749,7 @@ def test_no_500_route_crawl_for_all_newly_highlightable_rules(
             )
         if fv.has_highlight:
             routes.append(
-                f"/audits/{job_id}/pdf/highlighted?page={fv.page}&rule_id={fv.rule_id}"
+                f"/audits/{job_id}/highlighted-page.pdf?page={fv.page}&rule_id={fv.rule_id}"
             )
 
     for route in routes:

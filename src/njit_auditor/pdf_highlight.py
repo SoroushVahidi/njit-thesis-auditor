@@ -259,3 +259,46 @@ def build_highlighted_pdf(
     return HighlightDrawResult(
         drawn_count=drawn, skipped_count=skipped, pages_highlighted=pages_highlighted
     )
+
+
+def build_highlighted_single_page_pdf(
+    source_pdf: Path,
+    output_pdf: Path,
+    *,
+    source_page_number: int,
+    boxes: list[tuple[float, float, float, float]],
+) -> HighlightDrawResult:
+    """Write a one-page PDF whose sole page is *source_page_number* with overlays.
+
+    Browsers open directly on the highlighted content without relying on URL
+    fragments such as ``#page=4``.
+    """
+    drawn = 0
+    skipped = 0
+    with fitz.open(source_pdf) as src:
+        page_index = source_page_number - 1
+        if page_index < 0 or page_index >= src.page_count:
+            return HighlightDrawResult(drawn_count=0, skipped_count=len(boxes))
+        with fitz.open() as out:
+            out.insert_pdf(src, from_page=page_index, to_page=page_index)
+            page = out[0]
+            capped_boxes = boxes[:MAX_HIGHLIGHT_BOXES_PER_PAGE]
+            skipped += len(boxes) - len(capped_boxes)
+            for box in capped_boxes:
+                clipped = clip_box_to_page(box, page.rect.width, page.rect.height)
+                if clipped is None:
+                    skipped += 1
+                    continue
+                annot = page.add_rect_annot(fitz.Rect(*clipped))
+                annot.set_colors(stroke=_HIGHLIGHT_STROKE_RGB, fill=_HIGHLIGHT_FILL_RGB)
+                annot.set_opacity(_HIGHLIGHT_OPACITY)
+                annot.update()
+                drawn += 1
+            if drawn:
+                output_pdf.parent.mkdir(parents=True, exist_ok=True)
+                out.save(output_pdf)
+    return HighlightDrawResult(
+        drawn_count=drawn,
+        skipped_count=skipped,
+        pages_highlighted=[1] if drawn else [],
+    )

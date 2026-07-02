@@ -13,8 +13,9 @@ existing generic, rule-agnostic highlight pipeline (no rule-specific code added)
 7. Mobile/desktop parity for P017 highlight and no-highlight cases
 8. No-500 route crawl across main/category/rule/issue-type/highlighted-PDF routes
 """
-
 from __future__ import annotations
+
+from pdf_link_helpers import extract_audit_pdf_links
 
 import html
 import json
@@ -155,8 +156,8 @@ def _get_html(
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    return {link.split("#")[0] for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 def _category_slug(category: str) -> str:
@@ -484,7 +485,7 @@ def test_no_500_route_crawl_for_p017(app: tuple[TestClient, Any]) -> None:
             )
         if fv.has_highlight:
             routes.append(
-                f"/audits/{job_id}/pdf/highlighted?page={fv.page}&rule_id={fv.rule_id}"
+                f"/audits/{job_id}/highlighted-page.pdf?page={fv.page}&rule_id={fv.rule_id}"
             )
 
     for route in routes:

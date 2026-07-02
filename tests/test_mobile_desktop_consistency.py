@@ -5,8 +5,9 @@ server-rendered content parity, link parity, and PDF-route safety for the same
 audit job across two representative viewport/header profiles. They do not
 assert CSS layout behavior such as stacking vs. columns.
 """
-
 from __future__ import annotations
+
+from pdf_link_helpers import extract_audit_pdf_links
 
 import html
 import json
@@ -249,12 +250,8 @@ def _assert_contains_tokens(text: str, tokens: list[str]) -> None:
 
 
 def _normalize_pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    normalized: set[str] = set()
-    for link in links:
-        resolved = html.unescape(link)
-        normalized.add(resolved.split("#", 1)[0])
-    return normalized
+    return extract_audit_pdf_links(text)
+
 
 
 def _assert_pdf_links_inline(client: TestClient, html_text: str) -> None:

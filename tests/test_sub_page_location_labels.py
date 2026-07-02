@@ -5,8 +5,9 @@ location-label concept: labels are derived purely from (bbox, page_size)
 quadrant geometry, never from rule-specific text snippets, and never replace
 or weaken existing problem explanations or the strict highlight policy.
 """
-
 from __future__ import annotations
+
+from pdf_link_helpers import extract_audit_pdf_links
 
 import html
 import json
@@ -70,8 +71,8 @@ def _get_html(client: TestClient, path: str, *, headers: dict[str, str] | None =
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    return {link.split("#", 1)[0] for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 def _summary_value(text: str, label: str) -> str:
