@@ -217,6 +217,11 @@ def _job_pdf_path(jdir: Path) -> Path:
     return jdir / "upload.pdf"
 
 
+def _job_highlighted_pdf_path(jdir: Path) -> Path:
+    """Return the canonical highlighted PDF artifact path for a job."""
+    return jdir / _HIGHLIGHTED_PDF_DISPOSITION_NAME
+
+
 def _parse_job_timestamp(value: str) -> datetime:
     """Parse an ISO timestamp from job state, defaulting to epoch UTC."""
     try:
@@ -2045,6 +2050,8 @@ def _job_page_context(job: JobState, request: Request | None = None) -> dict[str
         {str(f.get("page")) for f in job.findings if f.get("page") is not None},
         key=lambda x: int(x),
     )
+    highlighted_pdf_path = _ensure_highlighted_pdf(job)
+    highlighted_pdf_available = highlighted_pdf_path is not None
 
     context: dict[str, Any] = {
         "job_id": job.job_id,
@@ -2072,6 +2079,10 @@ def _job_page_context(job: JobState, request: Request | None = None) -> dict[str
         "category_summary": category_summary,
         "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
         "preprocessing_notice_count": len(report_view.get("preprocessing_notices", []) or []),
+        "highlighted_pdf_available": highlighted_pdf_available,
+        "highlighted_pdf_url": (
+            f"/audits/{job.job_id}/highlighted.pdf" if highlighted_pdf_available else ""
+        ),
     }
     if request is not None:
         context.update(
@@ -2182,6 +2193,33 @@ def _run_audit_task(job_id: str) -> None:
 
     view = build_report_view(web_payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
+
+    if result.audit_type == "pdf":
+        try:
+            highlightable_findings = _normalize_findings_for_highlight(
+                web_payload.get("findings", [])
+            )
+            boxes_by_page = _highlight_boxes_by_page(highlightable_findings)
+            highlighted_pdf_path = _job_highlighted_pdf_path(jdir)
+            if boxes_by_page and _is_under_runtime(highlighted_pdf_path):
+                build_result = build_highlighted_pdf(
+                    upload_path,
+                    highlighted_pdf_path,
+                    boxes_by_page,
+                )
+                if not build_result.has_highlight:
+                    _logger.warning(
+                        "Canonical highlighted PDF generation for job %s drew no visible "
+                        "annotation (skipped=%d).",
+                        job_id,
+                        build_result.skipped_count,
+                    )
+        except Exception:
+            _logger.warning(
+                "Canonical highlighted PDF generation failed for job %s.",
+                job_id,
+                exc_info=True,
+            )
 
     serialized = [
         {
@@ -2746,6 +2784,13 @@ def _report_json_findings_for_highlight(job: JobState) -> list[dict[str, Any]]:
     raw_findings = payload.get("findings", [])
     if not isinstance(raw_findings, list):
         return job.findings
+    return _normalize_findings_for_highlight(raw_findings) or job.findings
+
+
+def _normalize_findings_for_highlight(raw_findings: Any) -> list[dict[str, Any]]:
+    """Return highlight-ready finding dicts with parsed bbox and issue_type fields."""
+    if not isinstance(raw_findings, list):
+        return []
     enriched: list[dict[str, Any]] = []
     for finding in raw_findings:
         if not isinstance(finding, Mapping):
@@ -2756,7 +2801,7 @@ def _report_json_findings_for_highlight(job: JobState) -> list[dict[str, Any]]:
             entry["bbox"] = bbox
         entry["issue_type"] = _finding_issue_type(entry)
         enriched.append(entry)
-    return enriched or job.findings
+    return enriched
 
 
 def _matching_findings_for_highlight(
@@ -2838,6 +2883,83 @@ def _highlight_cache_path(
     return jdir / f"highlighted-{digest}.pdf"
 
 
+def _highlight_output_path(
+    jdir: Path,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+) -> Path:
+    """Return the canonical or filtered highlighted PDF artifact path."""
+    if page is None and not rule_id and not issue_type and finding_index is None:
+        return _job_highlighted_pdf_path(jdir)
+    return _highlight_cache_path(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+
+
+def _ensure_highlighted_pdf(
+    job: JobState,
+    *,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_index: int | None = None,
+) -> Path | None:
+    """Build and return the requested highlighted PDF artifact when possible."""
+    if job.state != "complete" or job.audit_type != "pdf":
+        return None
+
+    jdir = _job_dir(job.job_id)
+    pdf_path = _job_pdf_path(jdir)
+    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+        return None
+
+    if page is None and not rule_id and not issue_type and finding_index is None:
+        matches = _report_json_findings_for_highlight(job)
+    else:
+        matches = _matching_findings_for_highlight(
+            job,
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_index=finding_index,
+        )
+    boxes_by_page = _highlight_boxes_by_page(matches)
+    if not boxes_by_page:
+        return None
+
+    output_path = _highlight_output_path(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_index=finding_index,
+    )
+    if not _is_under_runtime(output_path):
+        return None
+    if output_path.exists():
+        return output_path
+
+    result = build_highlighted_pdf(pdf_path, output_path, boxes_by_page)
+    if not result.has_highlight:
+        _logger.warning(
+            "Highlight request for job %s matched %d finding(s) but drew no "
+            "visible annotation (skipped=%d).",
+            job.job_id,
+            len(matches),
+            result.skipped_count,
+        )
+    if output_path.exists():
+        return output_path
+    return None
+
+
 async def _serve_job_pdf_highlighted(
     request: Request,
     job_id: str,
@@ -2864,39 +2986,17 @@ async def _serve_job_pdf_highlighted(
         return JSONResponse({"error": "PDF not found"}, status_code=404)
 
     try:
-        matches = _matching_findings_for_highlight(
+        highlight_path = _ensure_highlighted_pdf(
             job,
             page=page,
             rule_id=rule_id.strip(),
             issue_type=issue_type.strip(),
             finding_index=finding_index,
         )
-        boxes_by_page = _highlight_boxes_by_page(matches)
-        if not boxes_by_page:
+        if highlight_path is None:
             return _highlight_unavailable_response(request)
 
-        cache_path = _highlight_cache_path(
-            jdir, page=page, rule_id=rule_id, issue_type=issue_type, finding_index=finding_index
-        )
-        if not _is_under_runtime(cache_path):
-            return _highlight_unavailable_response(request)
-
-        if not cache_path.exists():
-            result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
-            if not result.has_highlight:
-                _logger.warning(
-                    "Highlight request for job %s matched %d finding(s) but drew no "
-                    "visible annotation (skipped=%d).",
-                    job_id,
-                    len(matches),
-                    result.skipped_count,
-                )
-        if not cache_path.exists():
-            return _highlight_unavailable_response(request)
-
-        return _inline_pdf_response(
-            cache_path, filename=_HIGHLIGHTED_PDF_DISPOSITION_NAME
-        )
+        return _inline_pdf_response(highlight_path, filename=_HIGHLIGHTED_PDF_DISPOSITION_NAME)
     except Exception:
         _logger.warning(
             "Highlighted PDF generation failed for job %s.",

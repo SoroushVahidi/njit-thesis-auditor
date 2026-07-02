@@ -2797,6 +2797,60 @@ def test_category_and_rule_problem_pages_pdf_links_use_new_tab_and_noreferrer(
     assert 'rel="noopener"' not in rule_body
 
 
+def test_results_page_has_canonical_highlighted_pdf_button_without_download_attribute(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The main report page must expose a new-tab canonical highlighted PDF link."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    assert 'id="open-highlighted-parts-btn"' in body
+    assert f'href="/audits/{job_id}/highlighted.pdf"' in body
+    assert f'href="/audits/{job_id}/upload.pdf"' not in body
+    assert 'target="_blank"' in body
+    assert 'rel="noopener noreferrer"' in body
+    assert "download=" not in body
+    assert (jdir / "highlighted.pdf").exists()
+
+
+def test_canonical_highlighted_pdf_route_serves_artifact_inline_and_not_upload(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The report-level highlighted.pdf route must serve the canonical artifact inline."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    pdf_path = jdir / "upload.pdf"
+    _make_real_pdf(pdf_path, page_count=5)
+    upload_bytes = pdf_path.read_bytes()
+
+    page_resp = c.get(f"/audits/{job_id}")
+    assert page_resp.status_code == 200
+    artifact_path = jdir / "highlighted.pdf"
+    assert artifact_path.exists()
+
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    disposition = resp.headers.get("content-disposition", "").lower()
+    assert "inline" in disposition
+    assert "attachment" not in disposition
+    assert "highlighted.pdf" in disposition
+    assert resp.content == artifact_path.read_bytes()
+    assert resp.content != upload_bytes
+
+
 def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -2909,6 +2963,21 @@ def test_highlighted_pdf_endpoint_unavailable_without_bbox(
         f"/audits/{job_id}/highlighted.pdf",
         params={"page": 1, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
     )
+    assert resp.status_code == 404
+    assert "Highlighted PDF is not available" in resp.text
+    assert resp.content != upload_bytes
+
+
+def test_canonical_highlighted_pdf_route_404s_without_highlight_and_never_returns_upload(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Missing canonical highlights must 404 rather than falling back to upload.pdf."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    upload_bytes = (jdir / "upload.pdf").read_bytes()
+
+    resp = c.get(f"/audits/{job_id}/highlighted.pdf")
     assert resp.status_code == 404
     assert "Highlighted PDF is not available" in resp.text
     assert resp.content != upload_bytes

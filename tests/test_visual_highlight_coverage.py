@@ -453,12 +453,13 @@ def test_invalid_bbox_never_produces_fake_highlight_or_crash(
     assert "Open original PDF page" in text
     assert "No exact highlight is available" in text
 
-    # Even a manually-constructed highlight request for this job/rule must not 500.
+    # Even a manually-constructed highlight request for this job/rule must not 500
+    # and must not fall back to the original upload.
     resp = c.get(
         f"/audits/{job_id}/highlighted.pdf", params={"page": 2, "rule_id": "P011"}
     )
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.status_code == 404
+    assert "Highlighted PDF is not available" in resp.text
 
 
 # ---------------------------------------------------------------------------
