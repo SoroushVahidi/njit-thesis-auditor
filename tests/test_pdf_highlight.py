@@ -9,6 +9,8 @@ import pytest
 
 from njit_auditor.pdf_highlight import (
     build_highlighted_pdf,
+    build_highlighted_single_page_pdf,
+    build_single_page_pdf,
     clip_box_to_page,
     get_pdf_page_sizes,
     has_visible_highlight,
@@ -217,6 +219,39 @@ def test_build_highlighted_pdf_multi_box_finding_draws_all_valid_boxes(tmp_path:
     assert result.skipped_count == 1
     with fitz.open(output) as doc:
         assert len(list(doc[0].annots() or [])) == 2
+
+
+def test_build_highlighted_single_page_pdf_extracts_one_page(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "highlighted-page.pdf"
+    _make_pdf(source, page_count=5)
+
+    result = build_highlighted_single_page_pdf(
+        source,
+        output,
+        source_page_number=4,
+        boxes=[(100.0, 200.0, 300.0, 260.0)],
+    )
+
+    assert result.has_highlight is True
+    assert result.drawn_count == 1
+    assert output.exists()
+    with fitz.open(output) as doc:
+        assert doc.page_count == 1
+        assert len(list(doc[0].annots() or [])) == 1
+    with fitz.open(source) as doc:
+        assert doc.page_count == 5
+
+
+def test_build_single_page_pdf_extracts_one_page_without_highlight(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "page-only.pdf"
+    _make_pdf(source, page_count=4)
+
+    assert build_single_page_pdf(source, output, source_page_number=3)
+    with fitz.open(output) as doc:
+        assert doc.page_count == 1
+        assert len(list(doc[0].annots() or [])) == 0
 
 
 _LETTER_PAGE = (612.0, 792.0)

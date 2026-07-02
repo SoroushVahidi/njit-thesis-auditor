@@ -1,5 +1,4 @@
 """Regression tests for problem numbering and original-page PDF actions."""
-
 from __future__ import annotations
 
 import html
@@ -14,6 +13,7 @@ from typing import Any
 import fitz
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import extract_audit_pdf_links
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_highlight import get_pdf_page_sizes
@@ -217,8 +217,8 @@ def _problem_numbers(text: str) -> list[int]:
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    return {html.unescape(link) for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 def test_problem_numbering_is_consecutive_and_skips_suppressed_candidates(
@@ -378,7 +378,7 @@ def test_problem_routes_and_downloads_do_not_500(app: tuple[TestClient, Any]) ->
         f"/audits/{job_id}/problems/rule/P017",
         f"/audits/{job_id}/problems/rule/P017/issue-type/missing-terminal-punctuation",
         f"/audits/{job_id}/pdf",
-        f"/audits/{job_id}/pdf/highlighted?page=2&rule_id=P012&issue_type=pdf_annotation_detected",
+        f"/audits/{job_id}/highlighted-page.pdf?page=2&rule_id=P012&issue_type=pdf_annotation_detected",
         f"/audits/{job_id}/download/json",
         f"/audits/{job_id}/download/markdown",
     ]

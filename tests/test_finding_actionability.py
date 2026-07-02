@@ -25,7 +25,6 @@ Covers:
 22. Mobile/desktop parity for P063 and the PDF-action policy
 23. No-500 route crawl across category/rule/issue-type pages for P063
 """
-
 from __future__ import annotations
 
 import html
@@ -40,6 +39,7 @@ from typing import Any
 import fitz
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import extract_audit_pdf_links
 
 from njit_auditor.finding_explanations import (
     build_detailed_explanation,
@@ -192,8 +192,8 @@ def _get_html(client: TestClient, path: str, headers: dict[str, str] | None = No
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    return {html.unescape(link).split("#")[0] for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +227,7 @@ def test_highlightable_finding_renders_highlighted_action(app: tuple[TestClient,
     # Action label
     assert "Open highlighted PDF page" in page_html
     # URL must point to highlighted endpoint
-    assert "/pdf/highlighted" in page_html
+    assert "/highlighted-page.pdf" in page_html
     # Route must return a PDF, not 500, with at least one real visible annotation.
     highlighted_links = [
         link for link in _pdf_links(page_html) if "highlighted" in link
@@ -633,7 +633,7 @@ def test_annotation_findingview_highlight(app: tuple[TestClient, Any]) -> None:
     # Rule problem page
     rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P012")
     assert "Open highlighted PDF page" in rule_html
-    assert "/pdf/highlighted" in rule_html
+    assert "/highlighted-page.pdf" in rule_html
     # Route must not 500
     for link in _pdf_links(rule_html):
         resp = c.get(link)
@@ -897,7 +897,7 @@ def test_main_category_rule_parity(app: tuple[TestClient, Any]) -> None:
     # P012 highlighted action appears everywhere it is relevant
     for page_html in (main_html, cat_html, rule_p012_html):
         assert "Open highlighted PDF page" in page_html, "P012 highlight missing"
-        assert "/pdf/highlighted" in page_html
+        assert "/highlighted-page.pdf" in page_html
 
     assert "Open original PDF page" in main_html
     assert "Open original PDF page" in rule_p026_html
@@ -1044,8 +1044,8 @@ def _build_parity_job(wa: Any) -> str:
 
 
 def _normalize_pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf(?:[/?#][^"]*)?)"', text))
-    return {html.unescape(link).split("#")[0] for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 def test_mobile_desktop_parity_job_page(app: tuple[TestClient, Any]) -> None:
@@ -1487,7 +1487,7 @@ def test_highlight_action_consistent_across_main_category_rule_issue_type_pages(
 
     for page_html in (main_html, cat_html, rule_html, issue_html):
         assert "Open highlighted PDF page" in page_html
-        assert "/pdf/highlighted" in page_html
+        assert "/highlighted-page.pdf" in page_html
         for link in _pdf_links(page_html):
             if "highlighted" not in link:
                 continue
@@ -1771,7 +1771,7 @@ def test_highlightable_finding_unaffected_by_pdf_action_policy(
 
     for page_html in (main_html, cat_html, rule_html):
         assert "Open highlighted PDF page" in page_html
-        assert "/pdf/highlighted" in page_html
+        assert "/highlighted-page.pdf" in page_html
 
     for page_html in (cat_html, rule_html):
         links = [link for link in _pdf_links(page_html) if "highlighted" in link]

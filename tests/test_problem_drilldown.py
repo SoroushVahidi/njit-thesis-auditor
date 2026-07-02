@@ -9,13 +9,11 @@ E. Summary count equals drill-down count
 F. Mobile/desktop parity
 G. PDF link safety (no 500s)
 """
-
 from __future__ import annotations
 
 import html
 import json
 import os
-import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +22,7 @@ from typing import Any
 import fitz
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import extract_audit_pdf_links
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
@@ -150,8 +149,8 @@ def _get_html(client: TestClient, path: str, headers: dict[str, str] | None = No
 
 
 def _pdf_links(text: str) -> set[str]:
-    links = set(re.findall(r'href="(/audits/[^"]*?/pdf[^"]*)"', text))
-    return {html.unescape(link).split("#")[0] for link in links}
+    return extract_audit_pdf_links(text)
+
 
 
 # ---------------------------------------------------------------------------

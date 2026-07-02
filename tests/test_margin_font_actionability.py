@@ -1,11 +1,9 @@
 """Regression tests for actionable margin/font wording in the PDF web UI."""
-
 from __future__ import annotations
 
 import html
 import json
 import os
-import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +12,7 @@ from typing import Any
 import fitz
 import pytest
 from fastapi.testclient import TestClient
+from pdf_link_helpers import extract_audit_pdf_links
 
 _MOBILE_HEADERS = {
     "User-Agent": (
@@ -64,7 +63,8 @@ def _get_html(client: TestClient, path: str, *, headers: dict[str, str] | None =
 
 
 def _pdf_links(text: str) -> set[str]:
-    return set(re.findall(r'href="(/audits/[^"]*?/pdf[^"]*)"', text))
+    return extract_audit_pdf_links(text)
+
 
 
 def _inject_job(
