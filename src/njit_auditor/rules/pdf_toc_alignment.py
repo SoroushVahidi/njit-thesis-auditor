@@ -6,7 +6,13 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_models import (
+    PdfDocument,
+    PdfPage,
+    PdfTextLine,
+    PdfTextSpan,
+    format_bbox_detail,
+)
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.toc_list_student_preview import (
     is_toc_export_metadata_line,
@@ -168,16 +174,69 @@ def detect_toc_like_pages(pdf_document: PdfDocument) -> list[TocPageContext]:
     return contexts
 
 
+def _right_column_page_number_span(
+    line: PdfTextLine,
+    *,
+    min_x_offset: float = 100.0,
+) -> PdfTextSpan | None:
+    """Return the rightmost numeric-only span that looks like a page-number column."""
+
+    if not line.spans:
+        return None
+    indent_x = line.bbox.x0
+    for span in reversed(line.spans):
+        span_text = _clean_text(span.text)
+        if not NUMERIC_ONLY_RE.match(span_text):
+            continue
+        if span.bbox.x0 <= indent_x + min_x_offset:
+            continue
+        return span
+    return None
+
+
+def _extract_page_number_from_spans(line: PdfTextLine) -> tuple[str | None, float | None]:
+    span = _right_column_page_number_span(line)
+    if span is None:
+        return None, None
+    return _clean_text(span.text), span.bbox.x1
+
+
+def _page_number_right_x_for_token(line: PdfTextLine, token: str) -> float:
+    for span in reversed(line.spans):
+        if token in span.text:
+            return span.bbox.x1
+    return line.bbox.x1
+
+
 def _extract_page_number_token(
     line: PdfTextLine, cleaned_text: str
 ) -> tuple[str | None, float | None]:
     match = PAGE_NUMBER_TOKEN_RE.search(cleaned_text)
-    if match is None:
-        return None, None
-    token = match.group("num")
-    span = line.spans[-1] if line.spans else None
-    right_x = span.bbox.x1 if span is not None else line.bbox.x1
-    return token, right_x
+    if match is not None:
+        token = match.group("num")
+        right_x = _page_number_right_x_for_token(line, token)
+        return token, right_x
+    return _extract_page_number_from_spans(line)
+
+
+def _is_leader_page_fragment_line(cleaned_text: str) -> bool:
+    """True when a line carries leaders and a trailing page number but is not an entry."""
+
+    if PAGE_NUMBER_TOKEN_RE.search(cleaned_text) is None:
+        return False
+    return not _likely_entry_line(cleaned_text, has_page_number_signal=True)
+
+
+def _apply_auxiliary_page_number(entry: TocEntryLine, aux_line: PdfTextLine) -> None:
+    cleaned = _clean_text(aux_line.text)
+    token, right_x = _extract_page_number_token(aux_line, cleaned)
+    if token is None:
+        token = cleaned
+        right_x = aux_line.bbox.x1
+    entry.page_number_token = token
+    entry.page_number_right_x = right_x if right_x is not None else aux_line.bbox.x1
+    if not entry.has_leader_dots and _has_leader_dot_pattern(cleaned):
+        entry.has_leader_dots = True
 
 
 def _has_prefix_entry_shape(cleaned_text: str) -> bool:
@@ -231,7 +290,7 @@ def _y_tolerance_for_pairing(entry_indent_x: float, numeric_x0: float) -> float:
 
 def _pair_right_column_number(
     entry: TocEntryLine,
-    numeric_lines: list[PdfTextLine],
+    auxiliary_lines: list[PdfTextLine],
     *,
     max_y_gap: float,
     require_below: bool = False,
@@ -239,18 +298,18 @@ def _pair_right_column_number(
 ) -> PdfTextLine | None:
     best_idx: int | None = None
     best_delta = 9999.0
-    for idx, num_line in enumerate(numeric_lines):
-        y_delta = num_line.bbox.y0 - entry.line.bbox.y0
+    for idx, aux_line in enumerate(auxiliary_lines):
+        y_delta = aux_line.bbox.y0 - entry.line.bbox.y0
         if require_below and y_delta < 0:
             continue
         y_delta_abs = abs(y_delta)
         if y_delta_abs > max_y_gap:
             continue
-        if num_line.bbox.x0 <= (entry.indent_x + 100):
+        if aux_line.bbox.x0 <= (entry.indent_x + 100):
             continue
         tolerance = max_y_gap if relax_y_tolerance else _y_tolerance_for_pairing(
             entry.indent_x,
-            num_line.bbox.x0,
+            aux_line.bbox.x0,
         )
         if y_delta_abs > tolerance:
             continue
@@ -259,7 +318,7 @@ def _pair_right_column_number(
             best_idx = idx
     if best_idx is None:
         return None
-    return numeric_lines.pop(best_idx)
+    return auxiliary_lines.pop(best_idx)
 
 
 def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
@@ -276,7 +335,7 @@ def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
 
 def _merge_wrapped_entries(
     entries: list[TocEntryLine],
-    numeric_lines: list[PdfTextLine],
+    auxiliary_lines: list[PdfTextLine],
 ) -> list[TocEntryLine]:
     if not entries:
         return entries
@@ -291,14 +350,13 @@ def _merge_wrapped_entries(
         if entry.page_number_token is None:
             matched = _pair_right_column_number(
                 entry,
-                numeric_lines,
+                auxiliary_lines,
                 max_y_gap=WRAPPED_ENTRY_Y_GAP_PT,
                 require_below=True,
                 relax_y_tolerance=True,
             )
             if matched is not None:
-                entry.page_number_token = _clean_text(matched.text)
-                entry.page_number_right_x = matched.bbox.x1
+                _apply_auxiliary_page_number(entry, matched)
                 entry.is_wrapped = True
             elif idx + 1 < len(sorted_entries):
                 nxt = sorted_entries[idx + 1]
@@ -344,13 +402,16 @@ def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
     ordered_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
 
     entries: list[TocEntryLine] = []
-    numeric_lines: list[PdfTextLine] = []
+    auxiliary_lines: list[PdfTextLine] = []
     for line in ordered_lines:
         cleaned = _clean_text(line.text)
         if _is_list_heading_line(cleaned):
             continue
         if NUMERIC_ONLY_RE.match(cleaned):
-            numeric_lines.append(line)
+            auxiliary_lines.append(line)
+            continue
+        if _is_leader_page_fragment_line(cleaned):
+            auxiliary_lines.append(line)
             continue
         page_num, page_right_x = _extract_page_number_token(line, cleaned)
         has_signal = page_num is not None or page_right_x is not None
@@ -358,20 +419,19 @@ def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
             continue
         entries.append(_make_entry_from_line(line, cleaned))
 
-    unused_numeric = sorted(numeric_lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+    unused_auxiliary = sorted(auxiliary_lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
     for entry in entries:
         if entry.page_number_right_x is not None:
             continue
         matched = _pair_right_column_number(
             entry,
-            unused_numeric,
+            unused_auxiliary,
             max_y_gap=PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT,
         )
         if matched is not None:
-            entry.page_number_token = _clean_text(matched.text)
-            entry.page_number_right_x = matched.bbox.x1
+            _apply_auxiliary_page_number(entry, matched)
 
-    entries = _merge_wrapped_entries(entries, unused_numeric)
+    entries = _merge_wrapped_entries(entries, unused_auxiliary)
     entries = _drop_merge_orphans(entries)
     entries.sort(key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
     return entries
