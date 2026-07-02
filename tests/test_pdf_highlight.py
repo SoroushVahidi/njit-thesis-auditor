@@ -25,6 +25,12 @@ def _make_pdf(path: Path, page_count: int = 3) -> None:
     doc.close()
 
 
+def _page_rgb_bytes(pdf_path: Path, page_index: int) -> bytes:
+    with fitz.open(pdf_path) as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
 @pytest.mark.parametrize(
     ("box", "expected"),
     [
@@ -111,7 +117,9 @@ def test_build_highlighted_pdf_draws_valid_box(tmp_path: Path) -> None:
     assert result.has_highlight is True
     assert output.exists()
     with fitz.open(output) as doc:
-        assert len(list(doc[1].annots() or [])) == 1
+        assert len(list(doc[1].annots() or [])) == 0
+        assert len(doc[1].get_drawings()) == 1
+    assert _page_rgb_bytes(output, 1) != _page_rgb_bytes(source, 1)
     # The original uploaded PDF must never be modified.
     assert source.read_bytes() == original_bytes
 
@@ -177,7 +185,9 @@ def test_build_highlighted_pdf_mixed_valid_and_degenerate_boxes_on_same_page(
     assert result.skipped_count == 1
     assert result.pages_highlighted == [1]
     with fitz.open(output) as doc:
-        assert len(list(doc[0].annots() or [])) == 1
+        assert len(list(doc[0].annots() or [])) == 0
+        assert len(doc[0].get_drawings()) == 1
+    assert _page_rgb_bytes(output, 0) != _page_rgb_bytes(source, 0)
 
 
 def test_build_highlighted_pdf_clips_partially_off_page_box(tmp_path: Path) -> None:
@@ -193,7 +203,9 @@ def test_build_highlighted_pdf_clips_partially_off_page_box(tmp_path: Path) -> N
     assert result.drawn_count == 1
     assert result.has_highlight is True
     with fitz.open(output) as doc:
-        assert len(list(doc[0].annots() or [])) == 1
+        assert len(list(doc[0].annots() or [])) == 0
+        assert len(doc[0].get_drawings()) == 1
+    assert _page_rgb_bytes(output, 0) != _page_rgb_bytes(source, 0)
 
 
 def test_build_highlighted_pdf_multi_box_finding_draws_all_valid_boxes(tmp_path: Path) -> None:
@@ -216,7 +228,9 @@ def test_build_highlighted_pdf_multi_box_finding_draws_all_valid_boxes(tmp_path:
     assert result.drawn_count == 2
     assert result.skipped_count == 1
     with fitz.open(output) as doc:
-        assert len(list(doc[0].annots() or [])) == 2
+        assert len(list(doc[0].annots() or [])) == 0
+        assert len(doc[0].get_drawings()) == 2
+    assert _page_rgb_bytes(output, 0) != _page_rgb_bytes(source, 0)
 
 
 _LETTER_PAGE = (612.0, 792.0)

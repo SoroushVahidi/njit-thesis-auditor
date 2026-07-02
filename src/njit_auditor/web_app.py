@@ -200,7 +200,13 @@ _jobs_lock = threading.Lock()
 
 def _get_job(job_id: str) -> JobState | None:
     with _jobs_lock:
-        return _jobs.get(job_id)
+        cached = _jobs.get(job_id)
+    if cached is not None:
+        return cached
+    loaded = _load_completed_job_from_disk(job_id)
+    if loaded is not None:
+        _set_job(loaded)
+    return loaded
 
 
 def _set_job(job: JobState) -> None:
@@ -249,6 +255,96 @@ def _delete_job_workspace(job_id: str) -> None:
         return
     if jdir.exists():
         shutil.rmtree(jdir, ignore_errors=True)
+
+
+def _load_completed_job_from_disk(job_id: str) -> JobState | None:
+    """Rehydrate a completed job from runtime files after a process restart."""
+    jdir = _job_dir(job_id)
+    report_path = jdir / "report.json"
+    md_path = jdir / "report.md"
+    pdf_path = _job_pdf_path(jdir)
+    if not (report_path.exists() and md_path.exists() and pdf_path.exists()):
+        return None
+
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    metadata = payload.get("metadata", {}) if isinstance(payload, Mapping) else {}
+    if not isinstance(metadata, Mapping):
+        metadata = {}
+    pdf_page_sizes: list[tuple[float, float]] = []
+    try:
+        pdf_page_sizes = get_pdf_page_sizes(pdf_path)
+    except Exception:  # noqa: BLE001
+        pdf_page_sizes = []
+
+    view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
+    view_dict = report_view_to_dict(view)
+    serialized = [
+        {
+            "rule_id": fv["rule_id"],
+            "severity": fv["severity"],
+            "page": fv["page"],
+            "page_display_label": fv.get("page_display_label", ""),
+            "problem_number": fv.get("problem_number", 0),
+            "problem_anchor": fv.get("problem_anchor", ""),
+            "issue_type": fv["issue_type"],
+            "category": fv["category"],
+            "polished_comment": fv["polished_comment"],
+            "suggested_fix": fv.get("suggested_fix", ""),
+            "triage_tier": fv.get("triage_tier", ""),
+            "confidence": fv.get("confidence", ""),
+            "confidence_level": fv.get("confidence_level", "") or fv.get("confidence", ""),
+            "confidence_label": fv.get("confidence_label", ""),
+            "confidence_css_class": fv.get("confidence_css_class", ""),
+            "source_file": fv.get("source_file", ""),
+            "source_line": fv.get("source_line", ""),
+            "location_label": fv.get("location_label", ""),
+            "bbox": fv.get("bbox"),
+            "action_kind": fv.get("action_kind", ""),
+            "action_label": fv.get("action_label", ""),
+            "has_highlight": fv.get("has_highlight", False),
+            "no_highlight_reason": fv.get("no_highlight_reason", ""),
+            "detailed_explanation": fv.get("detailed_explanation", ""),
+            "issue_type_label": fv.get("issue_type_label", ""),
+            "issue_type_explanation": fv.get("issue_type_explanation", ""),
+        }
+        for fv in view_dict.get("findings", [])
+    ]
+    grouped_rows = [
+        {
+            "rule_id": rs["rule_id"],
+            "count": rs["count"],
+            "category": rs["category"],
+            "top_issue_types": "",
+        }
+        for rs in view_dict.get("rule_summaries", [])
+    ]
+
+    file_name = str(metadata.get("input_file_name", "")).strip() or "upload.pdf"
+    created_at = datetime.fromtimestamp(jdir.stat().st_ctime, tz=timezone.utc).isoformat()
+    finished_at = datetime.fromtimestamp(report_path.stat().st_mtime, tz=timezone.utc).isoformat()
+    return JobState(
+        job_id=job_id,
+        state="complete",
+        created_at=created_at,
+        file_name=file_name,
+        audit_type=str(metadata.get("audit_type", "pdf")).strip() or "pdf",
+        finished_at=finished_at,
+        finding_count=view.total_findings,
+        warn_count=int(view.counts_by_severity.get("WARNING", 0)),
+        fail_count=int(view.counts_by_severity.get("FAIL", 0)),
+        error_message="",
+        text_layer_quality="",
+        pdf_page_count=len(pdf_page_sizes),
+        pdf_page_sizes=pdf_page_sizes,
+        findings=serialized,
+        grouped_summary=grouped_rows,
+        report_view=view_dict,
+        md_preview=md_path.read_text(encoding="utf-8")[:6000],
+    )
 
 
 def cleanup_expired_jobs(now: datetime | None = None) -> int:
@@ -2219,6 +2315,10 @@ def _run_audit_task(job_id: str) -> None:
                         job_id,
                         build_result.skipped_count,
                     )
+                    highlighted_pdf_path.unlink(missing_ok=True)
+                    _highlight_version_path(highlighted_pdf_path).unlink(missing_ok=True)
+                elif highlighted_pdf_path.exists():
+                    _write_highlight_version_marker(highlighted_pdf_path)
         except Exception:
             _logger.warning(
                 "Canonical highlighted PDF generation failed for job %s.",
@@ -2692,6 +2792,7 @@ def _safe_pdf_disposition_filename(file_name: str) -> str:
 _HIGHLIGHTED_PDF_DISPOSITION_NAME = "highlighted.pdf"
 _HIGHLIGHT_UNAVAILABLE_MESSAGE = "Highlighted PDF is not available for this audit."
 _NO_STORE_HEADERS = {"Cache-Control": "no-store"}
+_HIGHLIGHT_RENDERER_VERSION = "overlay-v1"
 
 
 def _inline_pdf_response(path: Path, *, filename: str) -> FileResponse:
@@ -2889,9 +2990,30 @@ def _highlight_cache_path(
     finding_index: int | None,
 ) -> Path:
     """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
-    key = f"{page}|{rule_id}|{issue_type}|{finding_index}"
+    key = f"{_HIGHLIGHT_RENDERER_VERSION}|{page}|{rule_id}|{issue_type}|{finding_index}"
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     return jdir / f"highlighted-{digest}.pdf"
+
+
+def _highlight_version_path(pdf_path: Path) -> Path:
+    """Return the sidecar file recording which renderer version built *pdf_path*."""
+    return pdf_path.with_suffix(f"{pdf_path.suffix}.version")
+
+
+def _highlight_artifact_is_current(pdf_path: Path) -> bool:
+    """Return True when *pdf_path* exists and was built by the current renderer."""
+    version_path = _highlight_version_path(pdf_path)
+    if not pdf_path.exists() or not version_path.exists():
+        return False
+    try:
+        return version_path.read_text(encoding="utf-8").strip() == _HIGHLIGHT_RENDERER_VERSION
+    except OSError:
+        return False
+
+
+def _write_highlight_version_marker(pdf_path: Path) -> None:
+    """Persist the current highlight renderer version for a generated artifact."""
+    _highlight_version_path(pdf_path).write_text(_HIGHLIGHT_RENDERER_VERSION, encoding="utf-8")
 
 
 def _highlight_output_path(
@@ -2954,8 +3076,12 @@ def _ensure_highlighted_pdf(
     )
     if not _is_under_runtime(output_path):
         return None
-    if output_path.exists():
+    if _highlight_artifact_is_current(output_path):
         return output_path
+
+    if output_path.exists():
+        output_path.unlink(missing_ok=True)
+    _highlight_version_path(output_path).unlink(missing_ok=True)
 
     result = build_highlighted_pdf(pdf_path, output_path, boxes_by_page)
     if not result.has_highlight:
@@ -2966,7 +3092,10 @@ def _ensure_highlighted_pdf(
             len(matches),
             result.skipped_count,
         )
+        output_path.unlink(missing_ok=True)
+        _highlight_version_path(output_path).unlink(missing_ok=True)
     if output_path.exists():
+        _write_highlight_version_marker(output_path)
         return output_path
     return None
 

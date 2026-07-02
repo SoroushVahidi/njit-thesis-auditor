@@ -65,6 +65,18 @@ def _write_real_pdf(path: Path, *, page_count: int = 8) -> None:
     doc.close()
 
 
+def _pdf_page_rgb_bytes_from_bytes(pdf_bytes: bytes, page_index: int) -> bytes:
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        pixmap = doc[page_index].get_pixmap(alpha=False)
+        return bytes(pixmap.samples)
+
+
+def _pdf_page_rgb_bytes_from_path(pdf_path: Path, page_index: int) -> bytes:
+    with fitz.open(pdf_path) as doc:
+        pixmap = doc[page_index].get_pixmap(alpha=False)
+        return bytes(pixmap.samples)
+
+
 def _base_findings() -> list[AuditFinding]:
     return [
         AuditFinding(
@@ -308,8 +320,15 @@ def test_highlighted_and_original_page_actions_are_distinct(
     assert highlight_resp.status_code == 200
     assert highlight_resp.content != original_bytes
     with fitz.open(stream=highlight_resp.content, filetype="pdf") as doc:
+        drawing_count = sum(len(page.get_drawings()) for page in doc)
         annot_count = sum(len(list(page.annots() or [])) for page in doc)
-    assert annot_count >= 1
+    assert drawing_count >= 1
+    assert annot_count == 0
+    upload_path = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf"
+    assert _pdf_page_rgb_bytes_from_bytes(
+        highlight_resp.content,
+        1,
+    ) != _pdf_page_rgb_bytes_from_path(upload_path, 1)
 
     p026_rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
     assert "Open original PDF page" in p026_rule_html

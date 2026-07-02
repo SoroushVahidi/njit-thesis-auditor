@@ -81,6 +81,18 @@ def _write_real_pdf(path: Path, *, page_count: int = 8) -> None:
     doc.close()
 
 
+def _page_rgb_bytes_from_bytes(pdf_bytes: bytes, page_index: int) -> bytes:
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
+def _page_rgb_bytes_from_path(pdf_path: Path, page_index: int) -> bytes:
+    with fitz.open(pdf_path) as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
 def _inject_job(
     wa: Any,
     findings: list[AuditFinding],
@@ -223,9 +235,15 @@ def test_p011_margin_with_bbox_renders_real_highlight_and_keeps_wording(
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("application/pdf")
         assert resp.content != original_bytes
+        assert _page_rgb_bytes_from_bytes(resp.content, 1) != _page_rgb_bytes_from_path(
+            Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf",
+            1,
+        )
         with fitz.open(stream=resp.content, filetype="pdf") as doc:
+            total_drawings = sum(len(page.get_drawings()) for page in doc)
             total_annots = sum(len(list(page.annots() or [])) for page in doc)
-        assert total_annots >= 1
+        assert total_drawings >= 1
+        assert total_annots == 0
 
 
 # ---------------------------------------------------------------------------
@@ -275,8 +293,10 @@ def test_p026_font_with_bbox_no_text_leak(
     resp = c.get(highlighted_links[0])
     assert resp.status_code == 200
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        total_drawings = sum(len(page.get_drawings()) for page in doc)
         total_annots = sum(len(list(page.annots() or [])) for page in doc)
-    assert total_annots >= 1
+    assert total_drawings >= 1
+    assert total_annots == 0
 
 
 # ---------------------------------------------------------------------------
@@ -369,8 +389,10 @@ def test_propagated_rules_render_highlight_without_raw_bbox(
     resp = c.get(highlighted_links[0])
     assert resp.status_code == 200
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        total_drawings = sum(len(page.get_drawings()) for page in doc)
         total_annots = sum(len(list(page.annots() or [])) for page in doc)
-    assert total_annots >= 1
+    assert total_drawings >= 1
+    assert total_annots == 0
 
 
 # ---------------------------------------------------------------------------

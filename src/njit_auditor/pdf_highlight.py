@@ -1,8 +1,8 @@
 """Generate highlighted PDF copies for the web finding viewer.
 
-Draws translucent rectangle annotations on a *copy* of an uploaded PDF so a
-student can see exactly where a finding is located. The original uploaded
-PDF is never modified.
+Draws translucent rectangle overlays directly into a *copy* of an uploaded PDF
+so desktop PDF viewers like Chrome render the highlight consistently. The
+original uploaded PDF is never modified.
 """
 
 from __future__ import annotations
@@ -15,7 +15,9 @@ import fitz
 
 _HIGHLIGHT_STROKE_RGB = (1.0, 0.55, 0.0)
 _HIGHLIGHT_FILL_RGB = (1.0, 1.0, 0.0)
-_HIGHLIGHT_OPACITY = 0.35
+_HIGHLIGHT_STROKE_OPACITY = 0.95
+_HIGHLIGHT_FILL_OPACITY = 0.22
+_HIGHLIGHT_BORDER_WIDTH_PT = 2.2
 
 # Caps annotations per page in case a single request matches many findings.
 MAX_HIGHLIGHT_BOXES_PER_PAGE = 25
@@ -213,7 +215,7 @@ class HighlightDrawResult:
 def build_highlighted_pdf(
     source_pdf: Path, output_pdf: Path, boxes_by_page: BoxesByPage
 ) -> HighlightDrawResult:
-    """Write a copy of *source_pdf* to *output_pdf* with highlight rectangles added.
+    """Write a copy of *source_pdf* to *output_pdf* with visible highlight overlays added.
 
     ``boxes_by_page`` maps 1-based page numbers to (x0, y0, x1, y1) boxes in
     PDF coordinate space. Page numbers outside the document and boxes that
@@ -245,10 +247,15 @@ def build_highlighted_pdf(
                 if clipped is None:
                     skipped += 1
                     continue
-                annot = page.add_rect_annot(fitz.Rect(*clipped))
-                annot.set_colors(stroke=_HIGHLIGHT_STROKE_RGB, fill=_HIGHLIGHT_FILL_RGB)
-                annot.set_opacity(_HIGHLIGHT_OPACITY)
-                annot.update()
+                page.draw_rect(
+                    fitz.Rect(*clipped),
+                    color=_HIGHLIGHT_STROKE_RGB,
+                    fill=_HIGHLIGHT_FILL_RGB,
+                    width=_HIGHLIGHT_BORDER_WIDTH_PT,
+                    overlay=True,
+                    stroke_opacity=_HIGHLIGHT_STROKE_OPACITY,
+                    fill_opacity=_HIGHLIGHT_FILL_OPACITY,
+                )
                 drawn += 1
                 page_drawn += 1
             if page_drawn:

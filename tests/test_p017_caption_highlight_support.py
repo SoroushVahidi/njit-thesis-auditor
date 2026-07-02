@@ -69,6 +69,18 @@ def app(tmp_path: Path) -> tuple[TestClient, Any]:
     return _make_app(tmp_path)
 
 
+def _page_rgb_bytes_from_bytes(pdf_bytes: bytes, page_index: int) -> bytes:
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
+def _page_rgb_bytes_from_path(pdf_path: Path, page_index: int) -> bytes:
+    with fitz.open(pdf_path) as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
 def _write_real_pdf(path: Path, *, page_count: int = 8) -> None:
     doc = fitz.open()
     for index in range(page_count):
@@ -238,9 +250,15 @@ def test_p017_with_bbox_renders_real_highlight_and_keeps_explanation(
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/pdf")
     assert resp.content != original_bytes
+    assert _page_rgb_bytes_from_bytes(resp.content, 3) != _page_rgb_bytes_from_path(
+        Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf",
+        3,
+    )
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        total_drawings = sum(len(page_obj.get_drawings()) for page_obj in doc)
         total_annots = sum(len(list(page_obj.annots() or [])) for page_obj in doc)
-    assert total_annots >= 1
+    assert total_drawings >= 1
+    assert total_annots == 0
 
 
 # ---------------------------------------------------------------------------

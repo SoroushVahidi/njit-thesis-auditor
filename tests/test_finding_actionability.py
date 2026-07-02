@@ -116,6 +116,18 @@ def _write_real_pdf(path: Path, *, page_count: int = 5) -> None:
     doc.close()
 
 
+def _pdf_page_rgb_bytes_from_bytes(pdf_bytes: bytes, page_index: int) -> bytes:
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        pixmap = doc[page_index].get_pixmap(alpha=False)
+        return bytes(pixmap.samples)
+
+
+def _pdf_page_rgb_bytes_from_path(pdf_path: Path, page_index: int) -> bytes:
+    with fitz.open(pdf_path) as doc:
+        pixmap = doc[page_index].get_pixmap(alpha=False)
+        return bytes(pixmap.samples)
+
+
 def _inject_job(
     wa: Any,
     findings: list[AuditFinding],
@@ -233,11 +245,12 @@ def test_highlightable_finding_renders_highlighted_action(app: tuple[TestClient,
     assert "Open highlighted PDF page" in page_html
     # URL must point to highlighted endpoint
     assert "/highlighted.pdf" in page_html
-    # Route must return a PDF, not 500, with at least one real visible annotation.
+    # Route must return a PDF, not 500, with at least one real visible overlay.
     highlighted_links = [
         link for link in _pdf_links(page_html) if "highlighted" in link
     ]
     assert highlighted_links, "No highlighted PDF link found"
+    upload_path = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id / "upload.pdf"
     for link in highlighted_links:
         resp = c.get(link)
         assert resp.status_code != 500, f"{link} returned 500"
@@ -245,8 +258,14 @@ def test_highlightable_finding_renders_highlighted_action(app: tuple[TestClient,
         assert resp.headers["content-type"].startswith("application/pdf")
         assert resp.content != original_bytes
         with fitz.open(stream=resp.content, filetype="pdf") as doc:
+            total_drawings = sum(len(page.get_drawings()) for page in doc)
             total_annots = sum(len(list(page.annots() or [])) for page in doc)
-        assert total_annots >= 1
+        assert total_drawings >= 1
+        assert total_annots == 0
+        assert _pdf_page_rgb_bytes_from_bytes(resp.content, 1) != _pdf_page_rgb_bytes_from_path(
+            upload_path,
+            1,
+        )
 
 
 def test_highlightable_finding_action_kind_and_label() -> None:

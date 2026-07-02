@@ -22,6 +22,22 @@ _MINIMAL_TEX = (
 )
 
 
+def _pdf_page_rgb_bytes_from_bytes(pdf_bytes: bytes, page_index: int) -> bytes:
+    import fitz
+
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
+def _pdf_page_rgb_bytes_from_path(pdf_path: Path, page_index: int) -> bytes:
+    import fitz
+
+    with fitz.open(pdf_path) as doc:
+        pix = doc[page_index].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return pix.samples
+
+
 def _make_app(tmp_path: Path) -> Any:
     """Import the web app with RUNTIME_DIR pointed at a temp directory."""
     os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"] = str(tmp_path / "web_audits")
@@ -2894,9 +2910,59 @@ def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
     assert "highlighted.pdf" in disposition
     assert resp.content[:4] == b"%PDF"
     assert resp.content != original_bytes
+    assert _pdf_page_rgb_bytes_from_bytes(resp.content, 2) != _pdf_page_rgb_bytes_from_path(
+        pdf_path, 2
+    )
 
     # The original uploaded PDF must never be modified by highlight generation.
     assert pdf_path.read_bytes() == original_bytes
+
+
+def test_highlighted_pdf_endpoint_renders_visible_overlay_for_p011_filtered_page(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Filtered P011 links must visibly alter the intended PDF page, not just metadata."""
+    import fitz
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Possible text crossing right_margin.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "right_margin",
+                "bbox": "108.0,242.4,543.0,258.6",
+                "affected_line_bboxes": "108.0,242.4,543.0,258.6|108.0,352.8,543.0,369.0",
+                "confidence": "low",
+            },
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    pdf_path = jdir / "upload.pdf"
+    _make_real_pdf(pdf_path, page_count=5)
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted.pdf",
+        params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 200
+    assert _pdf_page_rgb_bytes_from_bytes(resp.content, 3) != _pdf_page_rgb_bytes_from_path(
+        pdf_path, 3
+    )
+    assert _pdf_page_rgb_bytes_from_bytes(resp.content, 2) == _pdf_page_rgb_bytes_from_path(
+        pdf_path, 2
+    )
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert len(doc[3].get_drawings()) == 2
+        assert len(list(doc[3].annots() or [])) == 0
 
 
 def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
@@ -2959,12 +3025,12 @@ def test_wrapper_filtered_highlight_link_and_endpoint_use_original_pdf_page(
     assert resp.status_code == 200
     highlighted = fitz.open(stream=resp.content, filetype="pdf")
     try:
-        first_page_annots = list(highlighted[0].annots() or [])
-        third_page_annots = list(highlighted[2].annots() or [])
+        first_page_drawings = highlighted[0].get_drawings()
+        third_page_drawings = highlighted[2].get_drawings()
     finally:
         highlighted.close()
-    assert not first_page_annots
-    assert third_page_annots
+    assert not first_page_drawings
+    assert third_page_drawings
 
 
 def test_highlighted_pdf_endpoint_unavailable_without_bbox(
@@ -3123,7 +3189,8 @@ def test_highlighted_pdf_endpoint_draws_all_valid_boxes_for_multiple_matches(
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/pdf")
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
-        assert len(list(doc[3].annots() or [])) == 2
+        assert len(list(doc[3].annots() or [])) == 0
+        assert len(doc[3].get_drawings()) == 2
 
 
 def test_result_and_problem_pages_pdf_links_never_500(
