@@ -428,6 +428,12 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "expected NJIT format. NJIT expects a spelled-out month and year on "
         "the title page (for example, 'May 2025'). Correct the graduation date line."
     ),
+    # --- P074 title page graduation month (PDF) ---
+    ("P074", "title_page_graduation_month_invalid"): (
+        "Problem: The graduation month on the Title Page is not August, "
+        "December, or May. Change the graduation month on the Title Page to "
+        "August, December, or May."
+    ),
     # --- P035 figure/table layout ---
     ("P035", "table_caption_not_above_body"): (
         "Likely problem: A table caption on page {page} does not appear above "
@@ -465,9 +471,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P041 dedication header text ---
     ("P041", "dedication_top_margin_header_text"): (
-        "Problem: Text was detected in the top margin area of the dedication "
-        "page on page {page}. The dedication page should not have running "
-        "headers or header text in the top margin."
+        "Problem: Header text appears to be present in the top margin area of "
+        "the Dedication page on page {page}. Remove any running header or "
+        "header text from the top margin area of the Dedication page."
     ),
     # --- P043 acknowledgements indentation ---
     ("P043", "acknowledgements_first_paragraph_indented"): (
@@ -493,23 +499,22 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P053/P054 list terminal periods ---
     ("P053", "lot_entry_has_terminal_period"): (
-        "Problem: A List of Tables entry on page {page} ends with a terminal "
-        "period. Remove the trailing period — table titles in the List of "
-        "Tables should not end with punctuation."
+        "Problem: A List of Tables entry on page {page} ends with a final "
+        "period. Remove the final period from each List of Tables entry. "
+        "Table titles should use title case without terminal punctuation."
     ),
     ("P054", "toc_entry_has_terminal_period"): (
-        "Problem: A Table of Contents entry on page {page} ends with a terminal "
-        "period. Remove the trailing period — TOC entries should not end with "
-        "punctuation."
+        "Problem: A Table of Contents entry on page {page} ends with a final "
+        "period. Remove the final period from each Table of Contents entry."
     ),
     # --- P055 misplaced list entries ---
     ("P055", "lot_entry_is_figure"): (
-        "Problem: A List of Tables entry on page {page} appears to describe a "
-        "figure rather than a table. Move this entry to the List of Figures."
+        "Problem: A table entry on page {page} appears in the List of Tables "
+        "but describes a figure. Move this entry to the List of Figures."
     ),
     ("P055", "lof_entry_is_table"): (
-        "Problem: A List of Figures entry on page {page} appears to describe a "
-        "table rather than a figure. Move this entry to the List of Tables."
+        "Problem: A figure entry on page {page} appears in the List of Figures "
+        "but describes a table. Move this entry to the List of Tables."
     ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
@@ -1613,22 +1618,22 @@ def _p042_appendix_format_comment(
     if issue_type == "single_appendix_missing_title":
         expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <title>"
         return (
-            f"Likely problem: The Table of Contents on page {page_label} lists a "
+            f"Problem: The Table of Contents on page {page_label} lists a "
             "single appendix entry that does not appear to include a title after "
-            f"'APPENDIX'. NJIT requires a single-appendix entry to follow the "
-            f"pattern '{expected_pattern}'. Check this Table of Contents entry "
-            "and add the missing appendix title."
+            f"'APPENDIX'. For one appendix, begin the TOC entry with \"APPENDIX\" "
+            f"followed by the title (pattern '{expected_pattern}'). Add the "
+            "missing appendix title to this Table of Contents entry."
         )
 
     expected_pattern = details.get("expected_pattern", "").strip() or "APPENDIX <A-Z>"
     position_clause = _p042_entry_position_clause(details)
     return (
-        f"Likely problem: The Table of Contents on page {page_label} lists "
+        f"Problem: The Table of Contents on page {page_label} lists "
         f"multiple appendix entries, but one entry{position_clause} does not "
-        "appear to include a letter identifier. NJIT requires every appendix "
-        f"entry to follow the pattern '{expected_pattern}' (e.g. 'APPENDIX A,' "
-        "'APPENDIX B') when there is more than one appendix. Check this Table of "
-        "Contents entry and add the missing letter."
+        "appear to include a letter identifier. For multiple appendices, label "
+        f"each TOC entry with a letter, such as \"APPENDIX A,\" \"APPENDIX B,\" "
+        f"and so on (pattern '{expected_pattern}'). Add the missing letter to "
+        "this Table of Contents entry."
     )
 
 
