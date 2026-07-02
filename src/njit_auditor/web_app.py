@@ -291,6 +291,7 @@ def _load_completed_job_from_disk(job_id: str) -> JobState | None:
             "page_display_label": fv.get("page_display_label", ""),
             "problem_number": fv.get("problem_number", 0),
             "problem_anchor": fv.get("problem_anchor", ""),
+            "report_finding_index": fv.get("report_finding_index", -1),
             "issue_type": fv["issue_type"],
             "category": fv["category"],
             "polished_comment": fv["polished_comment"],
@@ -485,17 +486,20 @@ def _pdf_highlight_url(
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
+    problem_number: int | None = None,
 ) -> str:
     """Return the page-focused highlighted-PDF URL for a per-finding action."""
     params: dict[str, str] = {}
+    if finding_index is not None and finding_index >= 0:
+        params["finding_index"] = str(finding_index)
+    if problem_number is not None and problem_number > 0:
+        params["problem_number"] = str(problem_number)
     if page is not None:
         params["page"] = str(page)
     if rule_id:
         params["rule_id"] = rule_id
     if issue_type:
         params["issue_type"] = issue_type
-    if finding_index is not None:
-        params["finding_index"] = str(finding_index)
     return f"/audits/{job_id}/highlighted-page.pdf?{urllib.parse.urlencode(params)}"
 
 
@@ -512,6 +516,7 @@ def _pdf_action_url(
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
+    problem_number: int | None = None,
 ) -> str:
     if action_kind == "highlight":
         return _pdf_highlight_url(
@@ -520,6 +525,7 @@ def _pdf_action_url(
             rule_id=rule_id,
             issue_type=issue_type,
             finding_index=finding_index,
+            problem_number=problem_number,
         )
     if action_kind == "original_page" and page is not None:
         return _pdf_original_page_url(job_id, page=page)
@@ -1639,6 +1645,28 @@ def _coerce_page_number(raw_page: Any) -> int | None:
         return None
 
 
+def _coerce_report_finding_index(finding: Mapping[str, Any]) -> int | None:
+    """Return the stable report.json finding index when present."""
+    raw = finding.get("report_finding_index", finding.get("finding_index"))
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        index = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return index if index >= 0 else None
+
+
+def _coerce_problem_number(raw_value: Any) -> int | None:
+    if raw_value is None or isinstance(raw_value, bool):
+        return None
+    try:
+        number = int(raw_value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
 def _student_location_text(finding: dict[str, Any]) -> str:
     """Return a simple location label for a student-facing example card."""
     page = _coerce_page_number(finding.get("page"))
@@ -1826,6 +1854,8 @@ def _problem_group_examples(
             action_kind=action_kind,
             rule_id=rule_id,
             issue_type=issue_type,
+            finding_index=_coerce_report_finding_index(finding),
+            problem_number=problem_number if isinstance(problem_number, int) else None,
         )
         problem_anchor = (
             str(finding.get("problem_anchor", "")).strip()
@@ -2342,6 +2372,7 @@ def _run_audit_task(job_id: str) -> None:
             "page_display_label": fv.get("page_display_label", ""),
             "problem_number": fv.get("problem_number", 0),
             "problem_anchor": fv.get("problem_anchor", ""),
+            "report_finding_index": fv.get("report_finding_index", -1),
             "issue_type": fv["issue_type"],
             "category": fv["category"],
             "polished_comment": fv["polished_comment"],
@@ -2850,8 +2881,15 @@ def _highlight_request_has_filters(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
 ) -> bool:
-    return page is not None or bool(rule_id) or bool(issue_type) or finding_index is not None
+    return (
+        page is not None
+        or bool(rule_id)
+        or bool(issue_type)
+        or finding_index is not None
+        or problem_number is not None
+    )
 
 
 def _highlight_version_token(
@@ -2861,6 +2899,7 @@ def _highlight_version_token(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
     artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> str | None:
     """Return the cache-version token for a highlighted artifact, if sources exist."""
@@ -2876,7 +2915,7 @@ def _highlight_version_token(
     return (
         f"{_HIGHLIGHT_RENDERER_VERSION}|kind:{artifact_kind}|upload:{upload_hash}|"
         f"report:{report_hash}|page:{page}|rule:{rule_id}|issue:{issue_type}|"
-        f"index:{finding_index}"
+        f"index:{finding_index}|problem:{problem_number}"
     )
 
 
@@ -2893,6 +2932,7 @@ def _highlight_unavailable_message(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
     generation_failed: bool = False,
 ) -> str:
     """Return the most specific user-facing unavailable message for a highlight request."""
@@ -2916,6 +2956,7 @@ def _highlight_unavailable_message(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
     ):
         return _HIGHLIGHT_UNAVAILABLE_MESSAGE
 
@@ -2925,12 +2966,75 @@ def _highlight_unavailable_message(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
     )
     if not matches or not _highlightable_boxes_for_findings(matches):
         return _HIGHLIGHT_NO_MATCHING_MESSAGE
     if generation_failed:
         return _HIGHLIGHT_NO_MATCHING_MESSAGE
     return _HIGHLIGHT_UNAVAILABLE_MESSAGE
+
+
+def _log_highlight_no_match(
+    job: JobState,
+    *,
+    page: int | None,
+    rule_id: str,
+    issue_type: str,
+    finding_index: int | None,
+    problem_number: int | None,
+    source_findings: list[dict[str, Any]],
+    matches: list[dict[str, Any]],
+) -> None:
+    """Emit debug-safe logs when a highlight request matches zero findings."""
+    candidate_pages = sorted(
+        {
+            page_no
+            for page_no in (
+                _coerce_page_number(finding.get("page")) for finding in source_findings
+            )
+            if page_no is not None
+        }
+    )
+    page_issue_types = sorted(
+        {
+            _finding_issue_type(finding)
+            for finding in source_findings
+            if page is None or _coerce_page_number(finding.get("page")) == page
+        }
+        - {""}
+    )
+    rule_issue_types = sorted(
+        {
+            _finding_issue_type(finding)
+            for finding in source_findings
+            if not rule_id or str(finding.get("rule_id", "")) == rule_id
+        }
+        - {""}
+    )
+    geometry_missing = int(bool(matches) and not _highlightable_boxes_for_findings(matches))
+    suggestion = ""
+    if issue_type and page_issue_types and issue_type not in page_issue_types:
+        suggestion = "link issue_type may differ from stored finding details issue_type"
+    elif page is not None and page not in candidate_pages:
+        suggestion = "link may use displayed page label instead of physical PDF page"
+    _logger.warning(
+        "Highlight no-match job=%s page=%s rule_id=%s issue_type=%s finding_index=%s "
+        "problem_number=%s candidate_pages=%s issue_types_on_page=%s "
+        "issue_types_for_rule=%s matched=%d geometry_missing=%d suggestion=%s",
+        job.job_id,
+        page,
+        rule_id,
+        issue_type,
+        finding_index,
+        problem_number,
+        candidate_pages,
+        page_issue_types,
+        rule_issue_types,
+        len(matches),
+        geometry_missing,
+        suggestion or "none",
+    )
 
 
 @app.get("/audits/{job_id}/pdf", response_model=None)
@@ -3032,6 +3136,25 @@ def _normalize_findings_for_highlight(raw_findings: Any) -> list[dict[str, Any]]
     return enriched
 
 
+def _finding_by_report_index(
+    source_findings: list[dict[str, Any]],
+    report_index: int,
+) -> dict[str, Any] | None:
+    if 0 <= report_index < len(source_findings):
+        return source_findings[report_index]
+    return None
+
+
+def _report_finding_index_for_problem_number(
+    job: JobState,
+    problem_number: int,
+) -> int | None:
+    for finding in job.findings:
+        if _coerce_problem_number(finding.get("problem_number")) == problem_number:
+            return _coerce_report_finding_index(finding)
+    return None
+
+
 def _matching_findings_for_highlight(
     job: JobState,
     *,
@@ -3039,63 +3162,85 @@ def _matching_findings_for_highlight(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
 ) -> list[dict[str, Any]]:
     """Return job findings matching the highlight request's filters."""
     source_findings = _report_json_findings_for_highlight(job)
-    if finding_index is not None and 0 <= finding_index < len(job.findings):
-        visible = job.findings[finding_index]
-        page_no = _coerce_page_number(visible.get("page"))
-        rule = str(visible.get("rule_id", "")).strip()
-        issue = str(visible.get("issue_type", "")).strip()
-        matches = source_findings
-        if page_no is not None:
-            matches = [f for f in matches if _coerce_page_number(f.get("page")) == page_no]
-        if rule:
-            matches = [f for f in matches if str(f.get("rule_id", "")) == rule]
-        if issue:
-            matches = [f for f in matches if _finding_issue_type(f) == issue]
-        if _highlight_request_has_filters(
-            page=page,
-            rule_id=rule_id,
-            issue_type=issue_type,
-            finding_index=finding_index,
-        ):
-            candidate_pages = sorted(
-                {
-                    page_no
-                    for page_no in (
-                        _coerce_page_number(finding.get("page")) for finding in source_findings
-                    )
-                    if page_no is not None
-                }
-            )
-            highlightable_count = len(_highlightable_boxes_for_findings(matches))
-            _logger.info(
-                "Highlight filter job=%s requested page=%s rule_id=%s issue_type=%s "
-                "finding_index=%s candidate_pages=%s matched=%d highlightable=%d",
+    matches: list[dict[str, Any]] = []
+
+    if finding_index is not None:
+        selected = _finding_by_report_index(source_findings, finding_index)
+        if selected is not None:
+            matches = [selected]
+    elif problem_number is not None:
+        report_index = _report_finding_index_for_problem_number(job, problem_number)
+        if report_index is not None:
+            selected = _finding_by_report_index(source_findings, report_index)
+            if selected is not None:
+                matches = [selected]
+
+    if not matches:
+        matches = list(source_findings)
+        if page is not None:
+            matches = [f for f in matches if _coerce_page_number(f.get("page")) == page]
+        if rule_id:
+            matches = [f for f in matches if str(f.get("rule_id", "")) == rule_id]
+        if issue_type:
+            matches = [f for f in matches if _finding_issue_type(f) == issue_type]
+
+    if (
+        not matches
+        and page is not None
+        and rule_id
+        and issue_type
+        and finding_index is None
+        and problem_number is None
+    ):
+        for visible in job.findings:
+            if (
+                _coerce_page_number(visible.get("page")) == page
+                and str(visible.get("rule_id", "")).strip() == rule_id
+                and str(visible.get("issue_type", "")).strip() == issue_type
+            ):
+                report_index = _coerce_report_finding_index(visible)
+                if report_index is None:
+                    continue
+                selected = _finding_by_report_index(source_findings, report_index)
+                if selected is not None:
+                    matches = [selected]
+                    break
+
+    if (
+        len(matches) > 1
+        and finding_index is None
+        and problem_number is None
+        and issue_type
+    ):
+        highlightable_matches = [
+            finding
+            for finding in matches
+            if _highlightable_boxes_for_findings([finding])
+        ]
+        if len(highlightable_matches) == 1:
+            matches = highlightable_matches
+        elif len(highlightable_matches) > 1:
+            _logger.warning(
+                "Ambiguous highlight filter job=%s page=%s rule_id=%s issue_type=%s "
+                "matched %d highlightable findings; using first.",
                 job.job_id,
                 page,
                 rule_id,
                 issue_type,
-                finding_index,
-                candidate_pages,
-                len(matches),
-                highlightable_count,
+                len(highlightable_matches),
             )
-        return matches
+            matches = [highlightable_matches[0]]
 
-    matches = source_findings
-    if page is not None:
-        matches = [f for f in matches if _coerce_page_number(f.get("page")) == page]
-    if rule_id:
-        matches = [f for f in matches if str(f.get("rule_id", "")) == rule_id]
-    if issue_type:
-        matches = [f for f in matches if _finding_issue_type(f) == issue_type]
     if _highlight_request_has_filters(
         page=page,
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
     ):
         candidate_pages = sorted(
             {
@@ -3109,16 +3254,29 @@ def _matching_findings_for_highlight(
         highlightable_count = len(_highlightable_boxes_for_findings(matches))
         _logger.info(
             "Highlight filter job=%s requested page=%s rule_id=%s issue_type=%s "
-            "finding_index=%s candidate_pages=%s matched=%d highlightable=%d",
+            "finding_index=%s problem_number=%s candidate_pages=%s matched=%d "
+            "highlightable=%d",
             job.job_id,
             page,
             rule_id,
             issue_type,
             finding_index,
+            problem_number,
             candidate_pages,
             len(matches),
             highlightable_count,
         )
+        if not matches or not highlightable_count:
+            _log_highlight_no_match(
+                job,
+                page=page,
+                rule_id=rule_id,
+                issue_type=issue_type,
+                finding_index=finding_index,
+                problem_number=problem_number,
+                source_findings=source_findings,
+                matches=matches,
+            )
     return matches
 
 
@@ -3160,6 +3318,7 @@ def _highlight_cache_path(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
     artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> Path:
     """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
@@ -3169,11 +3328,12 @@ def _highlight_cache_path(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
         artifact_kind=artifact_kind,
     )
     key = version_token or (
         f"{_HIGHLIGHT_RENDERER_VERSION}|{artifact_kind}|{page}|{rule_id}|"
-        f"{issue_type}|{finding_index}"
+        f"{issue_type}|{finding_index}|{problem_number}"
     )
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     prefix = (
@@ -3197,6 +3357,7 @@ def _highlight_artifact_is_current(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
     artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> bool:
     """Return True when *pdf_path* exists and matches current renderer and sources."""
@@ -3207,6 +3368,7 @@ def _highlight_artifact_is_current(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
         artifact_kind=artifact_kind,
     )
     if expected is None or not pdf_path.exists() or not version_path.exists():
@@ -3225,6 +3387,7 @@ def _write_highlight_version_marker(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
     artifact_kind: str = _HIGHLIGHT_ARTIFACT_KIND_FULL,
 ) -> None:
     """Persist the current highlight cache token for a generated artifact."""
@@ -3234,6 +3397,7 @@ def _write_highlight_version_marker(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
         artifact_kind=artifact_kind,
     )
     if token is None:
@@ -3347,6 +3511,7 @@ def _highlight_page_output_path(
     rule_id: str,
     issue_type: str,
     finding_index: int | None,
+    problem_number: int | None = None,
 ) -> Path:
     """Return the cache path for a page-focused highlighted PDF artifact."""
     return _highlight_cache_path(
@@ -3355,6 +3520,7 @@ def _highlight_page_output_path(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
         artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_PAGE,
     )
 
@@ -3366,9 +3532,12 @@ def _ensure_highlighted_page_pdf(
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
+    problem_number: int | None = None,
 ) -> Path | None:
     """Build and return a one-page highlighted PDF focused on the selected source page."""
-    if job.state != "complete" or job.audit_type != "pdf" or page is None:
+    if job.state != "complete" or job.audit_type != "pdf":
+        return None
+    if page is None and finding_index is None and problem_number is None:
         return None
 
     jdir = _job_dir(job.job_id)
@@ -3382,28 +3551,39 @@ def _ensure_highlighted_page_pdf(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
     )
     boxes_by_page = _highlight_boxes_by_page(matches)
-    page_boxes = boxes_by_page.get(page)
+    if not boxes_by_page:
+        return None
+
+    target_page = page
+    if target_page is None:
+        target_page = _coerce_page_number(matches[0].get("page"))
+    if target_page is None:
+        return None
+    page_boxes = boxes_by_page.get(target_page)
     if not page_boxes:
         return None
 
     output_path = _highlight_page_output_path(
         jdir,
-        page=page,
+        page=target_page,
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
     )
     if not _is_under_runtime(output_path):
         return None
     if _highlight_artifact_is_current(
         output_path,
         jdir=jdir,
-        page=page,
+        page=target_page,
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
         artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_PAGE,
     ):
         return output_path
@@ -3415,7 +3595,7 @@ def _ensure_highlighted_page_pdf(
     result = build_highlighted_single_page_pdf(
         pdf_path,
         output_path,
-        source_page_number=page,
+        source_page_number=target_page,
         boxes=page_boxes,
     )
     if not result.has_highlight:
@@ -3423,7 +3603,7 @@ def _ensure_highlighted_page_pdf(
             "Page-focused highlight request for job %s page=%s matched %d finding(s) "
             "but drew no visible annotation (skipped=%d).",
             job.job_id,
-            page,
+            target_page,
             len(matches),
             result.skipped_count,
         )
@@ -3433,10 +3613,11 @@ def _ensure_highlighted_page_pdf(
         _write_highlight_version_marker(
             output_path,
             jdir=jdir,
-            page=page,
+            page=target_page,
             rule_id=rule_id,
             issue_type=issue_type,
             finding_index=finding_index,
+            problem_number=problem_number,
             artifact_kind=_HIGHLIGHT_ARTIFACT_KIND_PAGE,
         )
         return output_path
@@ -3513,6 +3694,7 @@ async def _serve_job_pdf_highlighted_page(
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
+    problem_number: int | None = None,
 ) -> FileResponse | HTMLResponse | JSONResponse:
     """Serve a one-page highlighted PDF whose first page is the selected source page."""
     job = _get_job(job_id)
@@ -3533,6 +3715,7 @@ async def _serve_job_pdf_highlighted_page(
             rule_id=rule_id.strip(),
             issue_type=issue_type.strip(),
             finding_index=finding_index,
+            problem_number=problem_number,
         )
         if highlight_path is None:
             message = _highlight_unavailable_message(
@@ -3541,6 +3724,7 @@ async def _serve_job_pdf_highlighted_page(
                 rule_id=rule_id.strip(),
                 issue_type=issue_type.strip(),
                 finding_index=finding_index,
+                problem_number=problem_number,
                 generation_failed=True,
             )
             return _highlight_unavailable_response(request, message=message)
@@ -3561,6 +3745,7 @@ async def _serve_job_pdf_highlighted_page(
             rule_id=rule_id.strip(),
             issue_type=issue_type.strip(),
             finding_index=finding_index,
+            problem_number=problem_number,
             generation_failed=True,
         )
         return _highlight_unavailable_response(request, message=message)
@@ -3574,6 +3759,7 @@ async def serve_job_highlighted_page_pdf_file(
     rule_id: str = "",
     issue_type: str = "",
     finding_index: int | None = None,
+    problem_number: int | None = None,
 ) -> FileResponse | HTMLResponse | JSONResponse:
     """Serve a page-focused highlighted PDF inline for per-finding report links."""
     return await _serve_job_pdf_highlighted_page(
@@ -3583,6 +3769,7 @@ async def serve_job_highlighted_page_pdf_file(
         rule_id=rule_id,
         issue_type=issue_type,
         finding_index=finding_index,
+        problem_number=problem_number,
     )
 
 

@@ -390,6 +390,9 @@ def _inject_complete_job_with_findings(
                 "severity": fv["severity"],
                 "page": fv["page"],
                 "page_display_label": fv.get("page_display_label", ""),
+                "problem_number": fv.get("problem_number", 0),
+                "problem_anchor": fv.get("problem_anchor", ""),
+                "report_finding_index": fv.get("report_finding_index", -1),
                 "issue_type": fv["issue_type"],
                 "category": fv["category"],
                 "polished_comment": fv["polished_comment"],
@@ -3380,7 +3383,7 @@ def test_highlighted_page_pdf_returns_specific_message_when_no_match(
 def test_per_finding_highlight_links_use_page_focused_route_without_fragment(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Per-finding links must target highlighted-page.pdf without #page fragments."""
+    """Per-finding links must target highlighted-page.pdf with stable finding identity."""
     c, wa = client
     findings = [_p012_annotation_finding_with_bbox(page=3)]
     job_id = _inject_complete_job_with_findings(
@@ -3393,10 +3396,70 @@ def test_per_finding_highlight_links_use_page_focused_route_without_fragment(
     assert resp.status_code == 200
     body = resp.text
     assert "/highlighted-page.pdf?" in body
+    assert "finding_index=" in body
     assert "/highlighted.pdf?" not in body
     assert "#page=" not in body
     assert 'target="_blank"' in body
     assert "download=" not in body
+
+
+def test_highlighted_page_pdf_selects_finding_by_report_index_despite_issue_type_mismatch(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Visible issue_type may differ from report.json details; finding_index must still match."""
+    import fitz
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=10,
+            message="Page has 2 page-number-like candidate(s).",
+            details={
+                "issue_type": "page_number_candidate",
+                "bbox": "314.8,746.7,333.2,758.6",
+                "candidate_count_on_page": "2",
+                "confidence": "medium",
+            },
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=12)
+
+    page_resp = c.get(f"/audits/{job_id}/problems/rule/P013")
+    assert page_resp.status_code == 200
+
+    job = wa._get_job(job_id)
+    assert job is not None
+    visible = job.findings[0]
+    report_index = visible["report_finding_index"]
+    assert report_index >= 0
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted-page.pdf",
+        params={"finding_index": report_index},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert doc.page_count == 1
+        assert len(doc[0].get_drawings()) >= 1
+
+    legacy_resp = c.get(
+        f"/audits/{job_id}/highlighted-page.pdf",
+        params={
+            "page": 10,
+            "rule_id": "P013",
+            "issue_type": visible["issue_type"],
+        },
+    )
+    assert legacy_resp.status_code == 200
 
 
 def test_highlighted_pdf_report_link_page_rule_type_selects_intended_finding(
@@ -3445,14 +3508,21 @@ def test_highlighted_pdf_report_link_page_rule_type_selects_intended_finding(
     page_resp = c.get(f"/audits/{job_id}")
     assert page_resp.status_code == 200
     assert (
-        f"/audits/{job_id}/highlighted-page.pdf?page=4&amp;rule_id=P011"
-        "&amp;issue_type=margin_boundary_violation"
-    ) in page_resp.text
+        f"/audits/{job_id}/highlighted-page.pdf?finding_index="
+        in page_resp.text.replace("&amp;", "&")
+        or "finding_index=" in page_resp.text
+    )
+    assert "page=4" in page_resp.text
     assert f"/audits/{job_id}/highlighted.pdf?page=4" not in page_resp.text
 
+    job = wa._get_job(job_id)
+    assert job is not None
+    visible = next(
+        f for f in job.findings if f.get("rule_id") == "P011" and f.get("page") == 4
+    )
     resp = c.get(
         f"/audits/{job_id}/highlighted-page.pdf",
-        params={"page": 4, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+        params={"finding_index": visible["report_finding_index"]},
     )
     assert resp.status_code == 200
     with fitz.open(stream=resp.content, filetype="pdf") as doc:

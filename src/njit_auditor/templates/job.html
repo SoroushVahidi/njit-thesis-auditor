@@ -931,7 +931,7 @@
         <div class="grouped-problem__actions">
           {% if first_finding.action_kind in ("highlight", "original_page") %}
           <a
-            href="{{ pdf_action_url(job_id, page=first_finding.page, action_kind=first_finding.action_kind, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type) }}"
+            href="{{ pdf_action_url(job_id, page=first_finding.page, action_kind=first_finding.action_kind, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type, finding_index=first_finding.get('report_finding_index', -1), problem_number=first_finding.get('problem_number')) }}"
             class="btn btn-secondary"
             target="_blank"
             rel="noopener noreferrer"
@@ -966,14 +966,14 @@
             {% for f in problem.individual_findings %}
               <tr class="grouped-occurrence" data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
                 <td><a href="#{{ f.problem_anchor }}">{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</a></td>
-                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
+                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=f.get('report_finding_index', -1), problem_number=f.get('problem_number')) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
                 <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
                 <td class="meta-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
                 </td>
                 <td class="comment-cell">{{ f.polished_comment }}</td>
-                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
+                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=f.get('report_finding_index', -1), problem_number=f.get('problem_number')) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
               </tr>
             {% endfor %}
             </tbody>
@@ -1061,7 +1061,7 @@
               {% else %}{{ f.rule_id }}{% endif %}
             </strong></td>
             <td>
-              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
+              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=f.get('report_finding_index', -1), problem_number=f.get('problem_number')) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
             </td>
             <td>
               {{ severity_status_badge(f.severity, f.triage_tier) }}
@@ -1073,7 +1073,7 @@
               {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
             </td>
             <td class="comment-cell">{{ f.polished_comment }}</td>
-            <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
+            <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=f.get('report_finding_index', -1), problem_number=f.get('problem_number')) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>

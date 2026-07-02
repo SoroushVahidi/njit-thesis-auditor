@@ -179,6 +179,7 @@ class FindingView:
     page_display_label: str = ""
     problem_number: int = 0
     problem_anchor: str = ""
+    report_finding_index: int = -1
     suggested_fix: str = ""
     triage_tier: str = ""
     confidence: str = ""
@@ -2691,6 +2692,7 @@ def build_report_view(
             visible_view_by_index[index],
             problem_number=problem_number,
             problem_anchor=f"problem-{problem_number}",
+            report_finding_index=index,
         )
         visible_view_by_index[index] = numbered_view
         numbered_finding_views.append(numbered_view)
