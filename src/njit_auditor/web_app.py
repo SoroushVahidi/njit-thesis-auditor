@@ -670,6 +670,16 @@ _HEURISTIC_WORDING = [
 # Override just the public display text for those entries — the canonical
 # rule data on disk (used by the CLI's source audit) is left untouched.
 _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
+    "P011": {
+        "question": (
+            "Is all text contained entirely within the required page margins?"
+        ),
+        "remediation": (
+            "Set the left margin to 1.5 inches and the top, bottom, and right "
+            "margins to 1 inch. Move any text, table, or figure that extends "
+            "into the margins back inside the required page area."
+        ),
+    },
     "P021": {
         "rule_definition": (
             "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 "
@@ -678,9 +688,13 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         ),
     },
     "P023": {
+        "question": (
+            "Is body text double-spaced, except for tables, figure descriptions, "
+            "bullet points, and multi-line titles?"
+        ),
         "remediation": (
-            "Set body text to double line spacing. In Word: set paragraph line "
-            "spacing to 'Double'."
+            "Apply double spacing to body text. Keep tables, figure descriptions, "
+            "bullet points, and multi-line titles single-spaced."
         ),
     },
     "P026": {
@@ -708,8 +722,8 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P013": {
         "question": (
-            "Are all visible page numbers located exactly at the designated "
-            "bottom-center position, 0.5 inches from the bottom edge?"
+            "Are all visible page numbers located exactly in the designated "
+            "bottom-center position?"
         ),
         "rule_definition": (
             "Detect text that looks like a page number and record its position "
@@ -717,13 +731,32 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "signal, not a confirmed formatting defect by itself — see the "
             "page-number sequence/style and page-numbering-regime rules for "
             "findings that flag a specific page-numbering problem. "
-            "NJIT requires page numbers at the bottom of the page, centered, "
+            "NJIT requires page numbers at the bottom center of the page, "
             "0.5 inches from the bottom edge."
         ),
         "remediation": (
-            "Set page numbers at the bottom of the page, centered, and "
-            "0.5 inches from the bottom edge. Verify the detected page number "
-            "is visible and uses the correct numbering style for that section."
+            "Set page numbers at the bottom center of the page, 0.5 inches "
+            "from the bottom edge."
+        ),
+    },
+    "P030": {
+        "question": (
+            "Do continuation pages of a multi-page Table of Contents, List of "
+            "Tables, or List of Figures include the correct continued heading?"
+        ),
+        "remediation": (
+            "Add the correct continued heading on each continuation page, such "
+            "as \"TABLE OF CONTENTS (Continued),\" \"LIST OF TABLES "
+            "(Continued),\" or \"LIST OF FIGURES (Continued).\""
+        ),
+    },
+    "P050": {
+        "question": (
+            "Is the left-column header, \"Table\" or \"Figure,\" formatted in "
+            "bold in the List of Tables or List of Figures?"
+        ),
+        "remediation": (
+            "Format the \"Table\" or \"Figure\" column header in bold."
         ),
     },
 }

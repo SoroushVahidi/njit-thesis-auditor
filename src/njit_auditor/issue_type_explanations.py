@@ -1193,7 +1193,7 @@ def _p050_issue_type_explanation(details: Mapping[str, str]) -> str:
     verify_clause = _font_metadata_clause(details)
     return (
         f"This means the '{header_word}' column header on the {section_label} page "
-        f"does not appear to be bold.{verify_clause} Format the '{header_word}' "
+        f"is not formatted in bold.{verify_clause} Format the '{header_word}' "
         "column header in bold."
     )
 

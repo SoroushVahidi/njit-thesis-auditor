@@ -59,9 +59,10 @@ _P037_SECTION_KEY_LABELS: dict[str, str] = {
 
 _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ("P011", "margin_boundary_violation"): (
-        "Content appears to cross the required {side} boundary on page {page}. "
+        "Text on page {page} is not contained entirely within the required {side}. "
         "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
-        "No text, tables, or figures are allowed in the margins."
+        "Move any text, table, or figure that extends into the margins back inside "
+        "the required page area."
     ),
     ("P013", "p013_document_overview"): (
         "Document-level page-number pattern summary detected (informational; "
@@ -160,12 +161,14 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Compare body text size against NJIT requirements."
     ),
     ("P030", "missing_continued_heading"): (
-        "A multi-page list may be missing a continued heading on page {page}. "
-        "Verify the appropriate '(Continued)' heading appears on continuation pages."
+        "A continuation page of a multi-page Table of Contents, List of Tables, or "
+        "List of Figures on page {page} does not include the correct continued "
+        "heading. Add the correct continued heading on this continuation page."
     ),
     ("P030", "toc_missing_continued_heading"): (
-        "TABLE OF CONTENTS continuation on page {page} may be missing a continued heading. "
-        "Verify 'TABLE OF CONTENTS (Continued)' where required."
+        "A Table of Contents continuation page on page {page} does not include "
+        "'TABLE OF CONTENTS (Continued).' Add the correct continued heading on "
+        "this continuation page."
     ),
     ("P033", "title_page_mismatch"): (
         "Title-page metadata may be inconsistent on page {page}. "
@@ -277,9 +280,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P023 body spacing ---
     ("P023", "possible_body_text_not_double_spaced"): (
-        "Body text on page {page} appears to be single-spaced or less than "
-        "double-spaced. NJIT requires all body text to be double-spaced "
-        "throughout."
+        "Body text on page {page} does not appear to be double-spaced. "
+        "NJIT requires body text to be double-spaced, except for tables, figure "
+        "descriptions, bullet points, and multi-line titles."
     ),
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
@@ -551,14 +554,15 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
 
 _RULE_FALLBACKS: dict[str, str] = {
     "P011": (
-        "Content on page {page} may exceed the required page margin. "
-        "NJIT requires: left 1.5 in, top/bottom/right 1 in. "
-        "No text, tables, or figures are allowed in the margins."
+        "Text on page {page} is not contained entirely within the required page "
+        "margins. NJIT requires: left 1.5 in, top/bottom/right 1 in. Move any "
+        "text, table, or figure that extends into the margins back inside the "
+        "required page area."
     ),
     "P013": (
-        "A page-number candidate on page {page} requires manual verification. "
-        "Page numbers must appear at the bottom of the page, centered, "
-        "0.5 inches from the bottom edge."
+        "A visible page number on page {page} may not be located exactly in the "
+        "designated bottom-center position. Set page numbers at the bottom center "
+        "of the page, 0.5 inches from the bottom edge."
     ),
     "P019": (
         "Page-numbering sequence or style issue detected on page {page}. "
@@ -579,8 +583,9 @@ _RULE_FALLBACKS: dict[str, str] = {
         "Review fonts against NJIT requirements."
     ),
     "P030": (
-        "TOC or list continued-heading issue on page {page}. "
-        "Review multi-page list headings."
+        "A continuation page of a multi-page Table of Contents, List of Tables, or "
+        "List of Figures on page {page} does not include the correct continued "
+        "heading. Add the correct continued heading on each continuation page."
     ),
     "P033": (
         "Title-page consistency issue on page {page}. "
@@ -624,8 +629,8 @@ _RULE_FALLBACKS: dict[str, str] = {
 # rules-page override of the same names in web_app.py's _RULE_TEXT_OVERRIDES.
 _REMEDIATION_OVERRIDES: dict[str, str] = {
     "P023": (
-        "Set body text to double line spacing. In Word: set paragraph line "
-        "spacing to 'Double'."
+        "Apply double spacing to body text. Keep tables, figure descriptions, "
+        "bullet points, and multi-line titles single-spaced."
     ),
     "P026": (
         "Word users: set body text to Times New Roman 12pt. "
@@ -906,7 +911,7 @@ def _p013_candidate_comment(*, page: int | None, details: dict[str, str]) -> str
     position_type = details.get("position_type", "") or ""
 
     _BOTTOM_CENTER_NOTE = (
-        "NJIT requires page numbers at the bottom of the page, centered, "
+        "NJIT requires page numbers at the bottom center of the page, "
         "0.5 inches from the bottom edge."
     )
     if count > 1:
@@ -930,7 +935,7 @@ def _p013_candidate_comment(*, page: int | None, details: dict[str, str]) -> str
         return (
             f"Problem: The page number on page {page_label} appears at "
             f"{_safe_position_label(position_type)}, but NJIT expects the "
-            "page number at the bottom of the page, centered, 0.5 inches "
+            "page number at the bottom center of the page, 0.5 inches "
             "from the bottom edge. Move the page number to the required "
             "bottom-center position."
         )
@@ -1154,18 +1159,18 @@ def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
     side = _margin_side_label(details)
     _MARGIN_SPEC = (
         "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
-        "No text, tables, or figures are allowed in the margins."
+        "Move any text, table, or figure that extends into the margins back inside "
+        "the required page area."
     )
     if side == "required page margin":
         return (
-            f"Likely problem: Some content on page {page_label} appears too close to or "
-            "beyond a required page margin. The auditor could not determine the exact "
-            f"margin side from the available metadata. {_MARGIN_SPEC} "
-            "Review tables, figures, long lines, indentation, headers, and footers on this page."
+            f"Likely problem: Text on page {page_label} is not contained entirely "
+            "within the required page margins. The auditor could not determine the "
+            f"exact margin side from the available metadata. {_MARGIN_SPEC}"
         )
     return (
-        f"Likely problem: Content on page {page_label} appears to cross the required "
-        f"{side} boundary. {_MARGIN_SPEC} "
+        f"Likely problem: Text on page {page_label} is not contained entirely "
+        f"within the required {side}. {_MARGIN_SPEC} "
         "Review the highlighted area if available, or inspect "
         "tables, figures, long lines, indentation, headers, and footers on this page."
     )
@@ -1584,8 +1589,8 @@ def _p050_left_bold_comment(*, page: int | None, details: dict[str, str]) -> str
     verify_clause = _font_metadata_clause(details)
     return (
         f"Likely problem: The '{header_word}' column header on the {section_label} "
-        f"page (page {page_label}) does not appear to be bold.{verify_clause} NJIT "
-        f"requires the '{header_word}' column header to be formatted in bold."
+        f"page (page {page_label}) is not formatted in bold.{verify_clause} "
+        f"Format the \"{header_word}\" column header in bold."
     )
 
 
