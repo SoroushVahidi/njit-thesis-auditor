@@ -657,17 +657,20 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P039 TOC hierarchy indentation ---
     ("P039", "toc_l2_not_indented_relative_to_l1"): (
         "A level-2 Table of Contents entry on this page does not appear indented "
-        "to the right of its level-1 parent entry."
+        "to show hierarchy relative to level-1 entries. Indent level-2 TOC entries "
+        "to the right of level-1 entries."
     ),
     ("P039", "toc_l3_not_indented_relative_to_l2"): (
         "A level-3 Table of Contents entry on this page does not appear indented "
-        "relative to its level-2 parent entry."
+        "to show hierarchy relative to level-2 entries. Indent level-3 TOC entries "
+        "further to the right of level-2 entries."
     ),
     # --- P040 List of Figures punctuation ---
     ("P040", "lof_entry_missing_terminal_punctuation"): (
-        "A List of Figures entry on this page appears to be missing terminal "
-        "punctuation. Every figure description should end with a period, question "
-        "mark, or exclamation point."
+        "A figure description in the List of Figures on this page does not end "
+        "with terminal punctuation. Add terminal punctuation, such as a period, "
+        "question mark, or exclamation point, to every figure description in the "
+        "List of Figures."
     ),
     # --- P043 acknowledgements indentation ---
     ("P043", "acknowledgements_first_paragraph_indented"): (
@@ -1283,13 +1286,14 @@ def _p036_spacing_explanation(details: dict[str, str], *, page: int | None) -> s
         extras.append(f"about {gap_ratio}x the expected spacing")
     detail_phrase = f" ({'; '.join(extras)})" if extras else ""
     return (
-        f"Observed: The space between {entries_phrase} of the {section_label} on "
-        f"{page_phrase} appears tighter than expected{detail_phrase}. "
-        "Expected: NJIT expects consistent, comfortably readable spacing between "
+        f"Observed: {entries_phrase} of the {section_label} on "
+        f"{page_phrase} do not appear to have visible double spacing or a blank "
+        f"line between them{detail_phrase}. "
+        "Expected: NJIT expects visible double spacing or a blank line between "
         "consecutive entries. "
-        "Why this is suspicious: the gap between these two entries is noticeably "
-        "smaller than the gap NJIT's spacing rule requires. "
-        "What to check or fix: add a blank line or increase paragraph spacing "
+        "Why this is suspicious: the gap between these two entries is smaller "
+        "than the spacing NJIT's formatting rule expects. "
+        "What to check or fix: add visible double spacing or a blank line "
         "between these entries, then compare with nearby entries in the same list."
     )
 
@@ -1396,10 +1400,9 @@ def _p032_spacing_explanation(details: dict[str, str], *, page: int | None) -> s
         else ""
     )
     return (
-        f"A wrapped (continuation) line in a {entry_label} has an unusually large "
-        f"internal gap{gap_clause}. Continuation lines that belong to the same "
-        "entry should sit close together on the next line, not with extra blank "
-        "space. Review the entry and remove any extra spacing within it."
+        f"A wrapped {entry_label} does not appear to be single-spaced within the "
+        f"same entry{gap_clause}. Single-space wrapped entries so continuation "
+        "lines stay within the same entry without extra blank space."
     )
 
 
@@ -1567,17 +1570,17 @@ def _p031_column_header_explanation(
 
     if issue_type == "missing_left_column_header":
         return (
-            f"The {section_label} page appears to be missing the expected "
-            f"'{expected_left}' column header label above the entry numbers. NJIT "
-            f"requires a '{expected_left}' column header directly above the entry "
-            "numbers. Add the missing header label."
+            f"The {section_label} page does not show the required "
+            f"'{expected_left}' column header. Add the required column headers "
+            "directly below the list heading: "
+            f"'{expected_left}' on the left and 'Page' on the right."
         )
     if issue_type == "missing_page_column_header":
         return (
-            f"The {section_label} page appears to be missing the expected "
-            f"'{expected_page}' column header label above the page-number column. "
-            f"NJIT requires a '{expected_page}' column header directly above the "
-            "page numbers. Add the missing header label."
+            f"The {section_label} page does not show the required "
+            f"'{expected_page}' column header. Add the required column headers "
+            "directly below the list heading: "
+            f"'{expected_left}' on the left and '{expected_page}' on the right."
         )
     observed = _format_points(details.get("observed_x0_pt", ""))
     if issue_type == "left_column_header_misaligned":
@@ -1620,10 +1623,9 @@ def _p046_entry_alignment_explanation(details: dict[str, str], *, page: int | No
         else ""
     )
     return (
-        f"{section_label} entry numbers do not appear to be aligned in a single "
-        f"consistent left column{range_clause}. NJIT requires all {entry_noun} "
-        f"numbers in the {section_label} to line up vertically at the same left "
-        "position. Realign the entry numbers into one column."
+        f"{section_label} entry numbers do not appear to be aligned vertically in "
+        f"one left column{range_clause}. Align all {entry_noun} numbers in the "
+        f"{section_label} into one consistent left column."
     )
 
 
@@ -1639,10 +1641,9 @@ def _p048_page_number_alignment_explanation(
         else ""
     )
     return (
-        f"Page numbers in the {section_label} do not appear to be aligned in a "
-        f"single consistent right column{measure_clause}. NJIT requires all page "
-        f"numbers in the {section_label} to line up vertically at the same "
-        "right-hand position. Realign the page numbers into one column."
+        f"Page numbers in the {section_label} do not appear to be aligned "
+        f"vertically in one right column{measure_clause}. Align all page numbers "
+        f"in the {section_label} into one consistent right column."
     )
 
 
@@ -1664,15 +1665,15 @@ def _p049_page_header_style_explanation(
         )
         return (
             f"The 'Page' column header on the {section_label} page does not appear "
-            f"to be right-aligned with the page-number column{measure_clause}. NJIT "
-            "requires the 'Page' header to be right-aligned directly over the page "
-            "numbers. Right-align the header over the page-number column."
+            f"to be right-aligned over the page-number column{measure_clause}. "
+            "Format the 'Page' column header in bold and align it over the "
+            "page-number column on the right."
         )
     verify_clause = _font_metadata_clause(details)
     return (
-        f"The 'Page' column header on the {section_label} page does not appear to "
-        f"be bold.{verify_clause} NJIT requires the 'Page' column header to be "
-        "formatted in bold. Apply bold formatting to this header."
+        f"The 'Page' column header on the {section_label} page is not formatted "
+        f"in bold.{verify_clause} Format the 'Page' column header in bold and "
+        "align it over the page-number column on the right."
     )
 
 

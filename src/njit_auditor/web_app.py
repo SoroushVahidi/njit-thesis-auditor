@@ -759,6 +759,88 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Format the \"Table\" or \"Figure\" column header in bold."
         ),
     },
+    "P031": {
+        "question": (
+            "Do List of Tables and List of Figures pages show the required "
+            "\"Table\" or \"Figure\" and \"Page\" column headers?"
+        ),
+        "remediation": (
+            "Add the required column headers directly below the list heading: "
+            "\"Table\" or \"Figure\" on the left and \"Page\" on the right."
+        ),
+    },
+    "P032": {
+        "question": (
+            "Are wrapped Table of Contents, List of Tables, and List of Figures "
+            "entries single-spaced within the same entry?"
+        ),
+        "remediation": (
+            "Single-space wrapped TOC, List of Tables, and List of Figures "
+            "entries so continuation lines stay within the same entry without "
+            "extra blank space."
+        ),
+    },
+    "P036": {
+        "question": (
+            "Is there visible double spacing or a blank line between consecutive "
+            "TOC, List of Tables, or List of Figures entries?"
+        ),
+        "remediation": (
+            "Add visible double spacing or a blank line between consecutive "
+            "entries in the TOC, List of Tables, or List of Figures."
+        ),
+    },
+    "P039": {
+        "question": (
+            "Are level-2 and level-3 Table of Contents entries indented to "
+            "show hierarchy?"
+        ),
+        "remediation": (
+            "Indent level-2 TOC entries to the right of level-1 entries, and "
+            "indent level-3 entries further to the right of level-2 entries."
+        ),
+    },
+    "P040": {
+        "question": (
+            "Does every figure description in the List of Figures end with "
+            "terminal punctuation?"
+        ),
+        "remediation": (
+            "Add terminal punctuation, such as a period, question mark, or "
+            "exclamation point, to every figure description in the List of "
+            "Figures."
+        ),
+    },
+    "P046": {
+        "question": (
+            "Are all table numbers in the List of Tables and all figure numbers "
+            "in the List of Figures aligned vertically in one left column?"
+        ),
+        "remediation": (
+            "Align all table numbers in the List of Tables and all figure "
+            "numbers in the List of Figures into one consistent left column."
+        ),
+    },
+    "P048": {
+        "question": (
+            "Are all page numbers in the List of Tables and List of Figures "
+            "aligned vertically in one right column?"
+        ),
+        "remediation": (
+            "Align all page numbers in the List of Tables and List of Figures "
+            "into one consistent right column."
+        ),
+    },
+    "P049": {
+        "question": (
+            "Is the \"Page\" column header in the List of Tables or List of "
+            "Figures bold and right-aligned over the page-number column?"
+        ),
+        "remediation": (
+            "Format the \"Page\" column header in bold and align it over the "
+            "page-number column on the right."
+        ),
+    },
 }
 
 

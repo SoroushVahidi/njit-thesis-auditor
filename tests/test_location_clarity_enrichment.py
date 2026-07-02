@@ -390,7 +390,7 @@ def test_p036_distinguishes_entry_pairs_on_same_page() -> None:
     cards = [fv for fv in view.findings if fv.rule_id == "P036"]
     assert len(cards) == 2
     assert cards[0].location_label != cards[1].location_label
-    assert "too tight" in cards[0].polished_comment
+    assert "visible double spacing" in cards[0].polished_comment.lower()
     assert "observed gap 3.2pt" in cards[0].detailed_explanation
     assert "observed gap 2.1pt" in cards[1].detailed_explanation
 
@@ -412,7 +412,7 @@ def test_p036_avoids_generic_fallback_comment() -> None:
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P036")
     assert "found a possible" not in fv.polished_comment.lower()
-    assert "too tight" in fv.polished_comment.lower()
+    assert "visible double spacing" in fv.polished_comment.lower()
 
 
 def test_p036_grouping_key_is_stable_across_entry_pairs() -> None:
@@ -465,8 +465,8 @@ def test_markdown_report_distinguishes_p036_entry_pairs_on_same_page(tmp_path: P
     assert problem_lines[0] != problem_lines[1]
     assert "entries 1-2" in problem_lines[0]
     assert "entries 6-7" in problem_lines[1]
-    assert "too tight" in problem_lines[0]
-    assert "too tight" in problem_lines[1]
+    assert "visible double spacing" in problem_lines[0].lower()
+    assert "visible double spacing" in problem_lines[1].lower()
 
 
 def test_markdown_report_p036_single_finding_is_not_duplicated(tmp_path: Path) -> None:
@@ -493,7 +493,7 @@ def test_markdown_report_p036_includes_section_and_gap_metadata_when_available(
 
     assert "Table of Contents" in text
     assert "entries 2-3" in text
-    assert "too tight" in text
+    assert "visible double spacing" in text.lower()
 
 
 def test_markdown_report_p036_does_not_fall_back_to_generic_wording(
@@ -530,7 +530,7 @@ def test_markdown_report_p036_omits_gap_clause_without_measurements(
     write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
     text = output_path.read_text(encoding="utf-8")
 
-    assert "too tight" in text
+    assert "visible double spacing" in text.lower()
     assert "observed gap" not in text
 
 
@@ -883,7 +883,7 @@ def test_grouped_p036_individual_findings_are_distinguishable() -> None:
     comments = [f.polished_comment for f in gp.individual_findings]
     locations = [f.location_label for f in gp.individual_findings]
     assert len(locations) == len(set(locations)) == 3
-    assert all("too tight" in comment for comment in comments)
+    assert all("visible double spacing" in comment.lower() for comment in comments)
 
 
 def test_grouped_p035_individual_findings_are_distinguishable() -> None:

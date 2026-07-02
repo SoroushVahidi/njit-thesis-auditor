@@ -113,8 +113,8 @@ def test_p036_short_comment_does_not_repeat_suggested_fix() -> None:
         "Background and Context ....................",
     )
     fix = p036_short_suggested_fix()
-    assert "Add spacing" in fix
-    assert "Add spacing" not in comment
+    assert "Add visible double spacing" in fix
+    assert "Add visible double spacing" not in comment
     assert "2.4pt" not in comment
     assert "Background and Context" in comment
     assert "................" not in comment
@@ -214,14 +214,14 @@ def test_p018_structural_chapter_missing_page_number_suppressed() -> None:
 def test_p036_visible_card_uses_short_wording(tmp_path) -> None:
     view = build_report_view(_payload([_p036_finding()]))
     card = view.findings[0]
-    assert "too tight" in card.polished_comment
+    assert "visible double spacing" in card.polished_comment.lower()
     assert card.suggested_fix == p036_short_suggested_fix()
     assert "................" not in card.location_label
 
     md_path = tmp_path / "report.md"
     write_markdown_report([_p036_finding()], {"audit_type": "pdf"}, md_path)
     text = md_path.read_text(encoding="utf-8")
-    assert "too tight" in text
+    assert "visible double spacing" in text
     assert "................" not in text
 
 

@@ -96,8 +96,8 @@ def test_p036_finding_view_highlights_gap_with_entry_snippets(tmp_path: Path) ->
 
     assert "Chapter 3" in fv.location_label
     assert "Chapter 4" in fv.location_label
-    assert "too tight" in fv.polished_comment.lower()
-    assert "Add spacing" in fv.suggested_fix
+    assert "visible double spacing" in fv.polished_comment.lower()
+    assert "Add visible double spacing" in fv.suggested_fix
     assert "entries 1-2" not in fv.polished_comment.lower()
 
     comment = build_polished_comment(
@@ -126,7 +126,7 @@ def test_p036_fallback_wording_without_previews() -> None:
     )
     view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
     fv = view.findings[0]
-    assert "too tight" in fv.polished_comment.lower()
+    assert "visible double spacing" in fv.polished_comment.lower()
     assert fv.location_label == "Page 12 — Table of Contents, spacing between entries 5-6"
 
 
