@@ -447,20 +447,21 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P039 TOC hierarchy indentation ---
     ("P039", "toc_l2_not_indented_relative_to_l1"): (
-        "Likely problem: A level-2 Table of Contents entry on page {page} does "
-        "not appear indented to the right of its level-1 parent entry. Indent "
-        "level-2 section entries relative to chapter entries."
+        "Likely problem: A level-2 Table of Contents entry on page {page} does not "
+        "appear indented to show hierarchy relative to level-1 entries. Indent "
+        "level-2 TOC entries to the right of level-1 entries."
     ),
     ("P039", "toc_l3_not_indented_relative_to_l2"): (
-        "Likely problem: A level-3 Table of Contents entry on page {page} does "
-        "not appear indented relative to its level-2 parent entry. Indent "
-        "level-3 subsection entries further than level-2 entries."
+        "Likely problem: A level-3 Table of Contents entry on page {page} does not "
+        "appear indented to show hierarchy relative to level-2 entries. Indent "
+        "level-3 TOC entries further to the right of level-2 entries."
     ),
     # --- P040 List of Figures punctuation ---
     ("P040", "lof_entry_missing_terminal_punctuation"): (
-        "Problem: A List of Figures entry on page {page} appears to be missing "
-        "terminal punctuation. Every figure description in the List of Figures "
-        "should end with a period, question mark, or exclamation point."
+        "Problem: A figure description in the List of Figures on page {page} does "
+        "not end with terminal punctuation. Add terminal punctuation, such as a "
+        "period, question mark, or exclamation point, to every figure description "
+        "in the List of Figures."
     ),
     # --- P041 dedication header text ---
     ("P041", "dedication_top_margin_header_text"): (
@@ -1096,10 +1097,10 @@ def _p036_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
     page_label = _safe_page_label(page)
     section_label = _P036_SECTION_LABELS.get(details.get("section_type", ""), "TOC/list")
     return (
-        f"Problem: Two consecutive entries of the {section_label} on page "
-        f"{page_label} appear to have insufficient spacing between them. NJIT "
-        "expects consistent, comfortably readable spacing between consecutive "
-        "entries. Add spacing between these entries to match the rest of the list."
+        f"Problem: Consecutive entries of the {section_label} on page "
+        f"{page_label} do not appear to have visible double spacing or a blank "
+        "line between them. Add visible double spacing or a blank line between "
+        f"consecutive entries in the {section_label}."
     )
 
 
@@ -1287,10 +1288,10 @@ def _p032_wrapped_spacing_comment(*, page: int | None, details: dict[str, str]) 
         else ""
     )
     return (
-        f"Likely problem: A wrapped (continuation) line of a {entry_label} on page "
-        f"{page_label} has an unusually large internal gap{gap_clause}. Continuation "
-        "lines that belong to the same entry should sit close together, not with "
-        "extra blank space between them."
+        f"Likely problem: A wrapped {entry_label} on page "
+        f"{page_label} does not appear to be single-spaced within the same entry"
+        f"{gap_clause}. Single-space wrapped entries so continuation lines stay "
+        "within the same entry without extra blank space."
     )
 
 
@@ -1470,17 +1471,17 @@ def _p031_column_header_comment(
 
     if issue_type == "missing_left_column_header":
         return (
-            f"Likely problem: The {section_label} page (page {page_label}) appears "
-            f"to be missing the expected '{expected_left}' column header label. "
-            f"NJIT requires a '{expected_left}' column header directly above the "
-            "entry numbers."
+            f"Likely problem: The {section_label} page (page {page_label}) does not "
+            f"show the required '{expected_left}' column header. Add the required "
+            "column headers directly below the list heading: "
+            f"'{expected_left}' on the left and 'Page' on the right."
         )
     if issue_type == "missing_page_column_header":
         return (
-            f"Likely problem: The {section_label} page (page {page_label}) appears "
-            f"to be missing the expected '{expected_page}' column header label. "
-            f"NJIT requires a '{expected_page}' column header directly above the "
-            "page-number column."
+            f"Likely problem: The {section_label} page (page {page_label}) does not "
+            f"show the required '{expected_page}' column header. Add the required "
+            "column headers directly below the list heading: "
+            f"'{expected_left}' on the left and '{expected_page}' on the right."
         )
     observed = _format_points(details.get("observed_x0_pt", ""))
     if issue_type == "left_column_header_misaligned":
@@ -1526,9 +1527,9 @@ def _p046_entry_alignment_comment(*, page: int | None, details: dict[str, str]) 
     )
     return (
         f"Likely problem: {section_label} entry numbers on page {page_label} do not "
-        f"appear to be aligned in a single consistent left column{range_clause}. "
-        f"NJIT requires all {entry_noun} numbers in the {section_label} to line up "
-        "vertically at the same left position."
+        f"appear to be aligned vertically in one left column{range_clause}. Align "
+        f"all {entry_noun} numbers in the {section_label} into one consistent left "
+        "column."
     )
 
 
@@ -1545,9 +1546,9 @@ def _p048_page_number_alignment_comment(*, page: int | None, details: dict[str, 
     )
     return (
         f"Likely problem: Page numbers in the {section_label} (page {page_label}) "
-        f"do not appear to be aligned in a single consistent right column"
-        f"{measure_clause}. NJIT requires all page numbers in the {section_label} "
-        "to line up vertically at the same right-hand position."
+        f"do not appear to be aligned vertically in one right column"
+        f"{measure_clause}. Align all page numbers in the {section_label} into one "
+        "consistent right column."
     )
 
 
@@ -1570,15 +1571,16 @@ def _p049_page_header_style_comment(
         )
         return (
             f"Likely problem: The 'Page' column header on the {section_label} page "
-            f"(page {page_label}) does not appear to be right-aligned with the "
-            f"page-number column{measure_clause}. NJIT requires the 'Page' header to "
-            "be right-aligned directly over the page numbers."
+            f"(page {page_label}) does not appear to be right-aligned over the "
+            f"page-number column{measure_clause}. Format the 'Page' column header "
+            "in bold and align it over the page-number column on the right."
         )
     verify_clause = _font_metadata_clause(details)
     return (
         f"Likely problem: The 'Page' column header on the {section_label} page "
-        f"(page {page_label}) does not appear to be bold.{verify_clause} NJIT "
-        "requires the 'Page' column header to be formatted in bold."
+        f"(page {page_label}) is not formatted in bold.{verify_clause} Format the "
+        "'Page' column header in bold and align it over the page-number column on "
+        "the right."
     )
 
 

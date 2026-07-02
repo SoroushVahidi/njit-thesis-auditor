@@ -132,13 +132,20 @@ def p036_short_likely_problem(before_preview: str, after_preview: str) -> str:
     after = sanitize_toc_list_entry_preview(after_preview)
     if before and after:
         return (
-            f"Likely problem: The space between '{before}' and '{after}' is too tight."
+            f"Likely problem: There does not appear to be visible double spacing "
+            f"or a blank line between '{before}' and '{after}'."
         )
-    return "Likely problem: The space between these two TOC entries is too tight."
+    return (
+        "Likely problem: There does not appear to be visible double spacing or a "
+        "blank line between these consecutive entries."
+    )
 
 
 def p036_short_suggested_fix() -> str:
-    return "Add spacing between these entries so it matches nearby TOC entries."
+    return (
+        "Add visible double spacing or a blank line between consecutive entries in "
+        "the TOC, List of Tables, or List of Figures."
+    )
 
 
 _P018_SHORT_LIKELY: dict[str, str] = {

@@ -609,17 +609,17 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "text area."
     ),
     ("P039", "toc_l2_not_indented_relative_to_l1"): (
-        "This means a level-2 TOC entry does not appear indented to the right "
-        "of its level-1 parent entry."
+        "This means a level-2 Table of Contents entry does not appear indented "
+        "to show hierarchy relative to level-1 entries."
     ),
     ("P039", "toc_l3_not_indented_relative_to_l2"): (
-        "This means a level-3 TOC entry does not appear indented relative to "
-        "its level-2 parent entry."
+        "This means a level-3 Table of Contents entry does not appear indented "
+        "to show hierarchy relative to level-2 entries."
     ),
     ("P040", "lof_entry_missing_terminal_punctuation"): (
-        "This means a List of Figures entry is missing terminal punctuation. "
-        "Every figure description should end with a period, question mark, or "
-        "exclamation point."
+        "This means a figure description in the List of Figures is missing "
+        "terminal punctuation. Add terminal punctuation, such as a period, question "
+        "mark, or exclamation point, to every figure description."
     ),
     ("P041", "dedication_top_margin_header_text"): (
         "This means text was detected in the top margin area of the dedication "
@@ -685,19 +685,19 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "structural blocks for the committee entries present."
     ),
     ("P036", "toc_inter_entry_spacing_too_tight"): (
-        "This means consecutive Table of Contents entries appear to have "
-        "insufficient vertical spacing between them. Add consistent spacing "
-        "between TOC entries."
+        "This means consecutive Table of Contents entries do not appear to have "
+        "visible double spacing or a blank line between them. Add visible double "
+        "spacing or a blank line between consecutive TOC entries."
     ),
     ("P036", "lot_inter_entry_spacing_too_tight"): (
-        "This means consecutive List of Tables entries appear to have "
-        "insufficient vertical spacing between them. Add consistent spacing "
-        "between List of Tables entries."
+        "This means consecutive List of Tables entries do not appear to have "
+        "visible double spacing or a blank line between them. Add visible double "
+        "spacing or a blank line between consecutive List of Tables entries."
     ),
     ("P036", "lof_inter_entry_spacing_too_tight"): (
-        "This means consecutive List of Figures entries appear to have "
-        "insufficient vertical spacing between them. Add consistent spacing "
-        "between List of Figures entries."
+        "This means consecutive List of Figures entries do not appear to have "
+        "visible double spacing or a blank line between them. Add visible double "
+        "spacing or a blank line between consecutive List of Figures entries."
     ),
 }
 
@@ -917,10 +917,9 @@ def _p032_issue_type_explanation(details: Mapping[str, str]) -> str:
         else ""
     )
     return (
-        f"This means a wrapped (continuation) line of a {entry_label} has an "
-        f"unusually large internal line gap{gap_clause}. Continuation lines that "
-        "belong to the same entry should sit close together. Review the entry and "
-        "remove any extra spacing within it."
+        f"This means a wrapped {entry_label} does not appear to be single-spaced "
+        f"within the same entry{gap_clause}. Single-space wrapped entries so "
+        "continuation lines stay within the same entry without extra blank space."
     )
 
 
@@ -1085,17 +1084,17 @@ def _p031_issue_type_explanation(issue_type: str, details: Mapping[str, str]) ->
 
     if issue_type == "missing_left_column_header":
         return (
-            f"This means the {section_label} page appears to be missing the "
-            f"expected '{expected_left}' column header label above the entry "
-            f"numbers. Add a '{expected_left}' column header directly above the "
-            "entry numbers."
+            f"This means the {section_label} page does not show the required "
+            f"'{expected_left}' column header. Add the required column headers "
+            "directly below the list heading: "
+            f"'{expected_left}' on the left and 'Page' on the right."
         )
     if issue_type == "missing_page_column_header":
         return (
-            f"This means the {section_label} page appears to be missing the "
-            f"expected '{expected_page}' column header label above the "
-            f"page-number column. Add a '{expected_page}' column header directly "
-            "above the page numbers."
+            f"This means the {section_label} page does not show the required "
+            f"'{expected_page}' column header. Add the required column headers "
+            "directly below the list heading: "
+            f"'{expected_left}' on the left and '{expected_page}' on the right."
         )
     observed = _format_points(details.get("observed_x0_pt", ""))
     if issue_type == "left_column_header_misaligned":
@@ -1136,9 +1135,9 @@ def _p046_issue_type_explanation(details: Mapping[str, str]) -> str:
         else ""
     )
     return (
-        f"This means {section_label} entry numbers do not appear to be aligned in "
-        f"a single consistent left column{range_clause}. Line up all {entry_noun} "
-        f"numbers in the {section_label} vertically at the same left position."
+        f"This means {section_label} entry numbers do not appear to be aligned "
+        f"vertically in one left column{range_clause}. Align all {entry_noun} "
+        f"numbers in the {section_label} into one consistent left column."
     )
 
 
@@ -1153,9 +1152,8 @@ def _p048_issue_type_explanation(details: Mapping[str, str]) -> str:
     )
     return (
         f"This means page numbers in the {section_label} do not appear to be "
-        f"aligned in a single consistent right column{measure_clause}. Line up all "
-        f"page numbers in the {section_label} vertically at the same right-hand "
-        "position."
+        f"aligned vertically in one right column{measure_clause}. Align all page "
+        f"numbers in the {section_label} into one consistent right column."
     )
 
 
@@ -1174,16 +1172,16 @@ def _p049_issue_type_explanation(issue_type: str, details: Mapping[str, str]) ->
             else ""
         )
         return (
-            f"This means the 'Page' column header on the {section_label} page does "
-            f"not appear to be right-aligned with the page-number column"
-            f"{measure_clause}. Right-align the 'Page' header directly over the "
-            "page numbers."
+            f"This means the 'Page' column header on the {section_label} page "
+            f"does not appear to be right-aligned over the page-number column"
+            f"{measure_clause}. Format the 'Page' column header in bold and align "
+            "it over the page-number column on the right."
         )
     verify_clause = _font_metadata_clause(details)
     return (
-        f"This means the 'Page' column header on the {section_label} page does not "
-        f"appear to be bold.{verify_clause} Format the 'Page' column header in "
-        "bold."
+        f"This means the 'Page' column header on the {section_label} page is not "
+        f"formatted in bold.{verify_clause} Format the 'Page' column header in "
+        "bold and align it over the page-number column on the right."
     )
 
 
