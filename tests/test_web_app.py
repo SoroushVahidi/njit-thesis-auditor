@@ -633,6 +633,268 @@ def test_results_page_renders_confidence_badges_and_filters(
     assert "Confidence: low" not in body
 
 
+def _confidence_sort_web_findings() -> list[Any]:
+    """Three singleton problems in a deliberately non-confidence-ordered default order:
+    P037 (low), P011 (high), P026 (medium)."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    return [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=2,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=3,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "medium"},
+        ),
+    ]
+
+
+def _grouped_problem_rule_order(body: str, rule_ids: list[str]) -> list[str]:
+    """Return ``rule_ids`` re-ordered by where each first appears as a grouped-problem
+    card's ``data-rule`` attribute in the rendered results page body."""
+    positions = [(body.index(f'data-rule="{rule_id}"'), rule_id) for rule_id in rule_ids]
+    return [rule_id for _, rule_id in sorted(positions)]
+
+
+def test_results_page_renders_sort_control_with_accessible_label(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    assert '<label for="sort-problems">Sort problems</label>' in body
+    assert 'id="sort-problems"' in body
+    assert 'name="sort"' in body
+    assert "Default order" in body
+    assert "High confidence first" in body
+    assert "Low confidence first" in body
+
+
+def test_sort_query_param_confidence_desc_orders_high_confidence_first(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    default_resp = c.get(f"/audits/{job_id}")
+    assert default_resp.status_code == 200
+    default_order = _grouped_problem_rule_order(
+        default_resp.text, ["P037", "P011", "P026"]
+    )
+    assert default_order == ["P037", "P011", "P026"]
+
+    resp = c.get(f"/audits/{job_id}?sort=confidence_desc")
+    assert resp.status_code == 200
+    assert 'selected' in resp.text
+    assert _grouped_problem_rule_order(resp.text, ["P037", "P011", "P026"]) == [
+        "P011",
+        "P026",
+        "P037",
+    ]
+
+
+def test_sort_query_param_confidence_asc_orders_low_confidence_first(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}?sort=confidence_asc")
+    assert resp.status_code == 200
+    assert _grouped_problem_rule_order(resp.text, ["P037", "P011", "P026"]) == [
+        "P037",
+        "P026",
+        "P011",
+    ]
+
+
+def test_sort_query_param_missing_or_default_preserves_original_order(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    no_param_resp = c.get(f"/audits/{job_id}")
+    explicit_default_resp = c.get(f"/audits/{job_id}?sort=default")
+    assert no_param_resp.status_code == 200
+    assert explicit_default_resp.status_code == 200
+    expected = ["P037", "P011", "P026"]
+    assert _grouped_problem_rule_order(no_param_resp.text, expected) == expected
+    assert _grouped_problem_rule_order(explicit_default_resp.text, expected) == expected
+
+
+def test_invalid_sort_query_param_falls_back_to_default_order(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}?sort=not-a-real-mode")
+    assert resp.status_code == 200
+    assert _grouped_problem_rule_order(resp.text, ["P037", "P011", "P026"]) == [
+        "P037",
+        "P011",
+        "P026",
+    ]
+
+
+def test_sort_query_param_does_not_change_problem_numbers(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Problem numbers/anchors must stay stable across sort modes so links don't break."""
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    default_body = c.get(f"/audits/{job_id}").text
+    sorted_body = c.get(f"/audits/{job_id}?sort=confidence_desc").text
+    for anchor in ("problem-1", "problem-2", "problem-3"):
+        assert f'id="{anchor}"' in default_body
+        assert f'id="{anchor}"' in sorted_body
+    for label in ("Problem 1", "Problem 2", "Problem 3"):
+        assert label in default_body
+        assert label in sorted_body
+
+
+def test_sort_query_param_preserves_grouping_and_occurrence_details(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A grouped multi-occurrence card must stay grouped (not split) after sorting, and
+    its per-occurrence detail rows must still be present."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=i + 1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "medium",
+            },
+        )
+        for i in range(3)
+    ] + [
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=5,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "high"},
+        ),
+    ]
+    grouped_findings = [
+        {
+            "rule_id": "P011",
+            "issue_type": "margin_boundary_violation",
+            "individual_indexes": [0, 1, 2],
+        },
+        {
+            "rule_id": "P026",
+            "issue_type": "possible_body_font_family_issue",
+            "individual_indexes": [3],
+        },
+    ]
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+        grouped_findings=grouped_findings,
+    )
+
+    for query in ("", "?sort=confidence_desc", "?sort=confidence_asc"):
+        resp = c.get(f"/audits/{job_id}{query}")
+        assert resp.status_code == 200
+        body = resp.text
+        assert "3 occurrences" in body
+        assert "Show individual occurrences" in body
+        assert body.count('class="grouped-occurrence"') == 3
+
+
+def test_sort_query_param_keeps_pdf_highlight_links_working(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Existing "Open highlighted PDF page" buttons must still render and route
+    correctly when the results page is sorted by confidence."""
+    c, wa = client
+    findings = [_p012_annotation_finding_with_bbox(page=3)]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    for query in ("?sort=confidence_desc", "?sort=confidence_asc"):
+        resp = c.get(f"/audits/{job_id}{query}")
+        assert resp.status_code == 200
+        body = resp.text
+        assert "Open highlighted PDF page" in body
+        links = AUDIT_PDF_HREF_RE.findall(body)
+        assert links
+        for link in links:
+            link_resp = c.get(link)
+            assert link_resp.status_code != 500
+
+
 def test_results_page_omits_redundant_problem_badge_and_uses_confidence_palette(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:

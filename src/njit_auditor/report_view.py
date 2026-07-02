@@ -662,6 +662,69 @@ def _confidence_css_class(levels: Sequence[str]) -> str:
     return "confidence-badge--low"
 
 
+# Confidence sort modes for the results-page "Sort problems" control. These operate on
+# already-built GroupedProblemView dicts (one entry per displayed problem card) and never
+# touch detector confidence values, rule thresholds, or problem numbering.
+SORT_MODE_DEFAULT = "default"
+SORT_MODE_CONFIDENCE_DESC = "confidence_desc"
+SORT_MODE_CONFIDENCE_ASC = "confidence_asc"
+VALID_SORT_MODES: tuple[str, ...] = (
+    SORT_MODE_DEFAULT,
+    SORT_MODE_CONFIDENCE_DESC,
+    SORT_MODE_CONFIDENCE_ASC,
+)
+
+# A card's confidence_levels list only ever contains "high"/"medium"/"low" (see
+# _ordered_confidence_levels), pre-ordered high->low. Cards with no explicit confidence
+# (missing/unknown) always sort last in both directions, per the sort control's mapping.
+_CONFIDENCE_DESC_RANK: dict[str, int] = {"high": 0, "medium": 1, "low": 2}
+_CONFIDENCE_ASC_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2}
+_UNKNOWN_CONFIDENCE_RANK = 3
+
+
+def normalize_sort_mode(value: str) -> str:
+    """Validate a requested ``sort`` query value, falling back to default order.
+
+    Any unrecognized value (missing, typo, tampered query string) safely falls back to
+    ``SORT_MODE_DEFAULT`` rather than raising or silently misordering results.
+    """
+    candidate = (value or "").strip().lower()
+    return candidate if candidate in VALID_SORT_MODES else SORT_MODE_DEFAULT
+
+
+def _grouped_problem_confidence_rank(problem: Mapping[str, Any], sort_mode: str) -> int:
+    levels = problem.get("confidence_levels") or []
+    if not levels:
+        return _UNKNOWN_CONFIDENCE_RANK
+    if sort_mode == SORT_MODE_CONFIDENCE_DESC:
+        # levels[0] is the highest confidence present in this card (e.g. a "mixed"
+        # card containing both high- and low-confidence occurrences surfaces with
+        # the high-confidence-first cards, since it does contain a high-confidence one).
+        return _CONFIDENCE_DESC_RANK.get(levels[0], _UNKNOWN_CONFIDENCE_RANK)
+    # levels[-1] is the lowest confidence present, so a mixed card is treated as
+    # low-confidence here too: a reviewer scanning for likely false positives should
+    # not have a low-confidence occurrence hidden inside a card sorted as "high".
+    return _CONFIDENCE_ASC_RANK.get(levels[-1], _UNKNOWN_CONFIDENCE_RANK)
+
+
+def sort_grouped_problems(
+    problems: Sequence[Mapping[str, Any]], sort_mode: str
+) -> list[Mapping[str, Any]]:
+    """Reorder grouped problem cards by confidence for display.
+
+    ``sort_mode`` should already be normalized via :func:`normalize_sort_mode`. The sort
+    is stable, so cards sharing a confidence bucket keep their existing relative (default)
+    order. This only reorders the list of cards; it never mutates a card's problem
+    numbers, anchors, or grouped occurrences, so links and references stay stable.
+    """
+    if sort_mode not in (SORT_MODE_CONFIDENCE_DESC, SORT_MODE_CONFIDENCE_ASC):
+        return list(problems)
+    return sorted(
+        problems,
+        key=lambda problem: _grouped_problem_confidence_rank(problem, sort_mode),
+    )
+
+
 def _finding_view_from_item(
     item: Mapping[str, Any],
     *,

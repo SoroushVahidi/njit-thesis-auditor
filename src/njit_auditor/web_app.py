@@ -51,7 +51,13 @@ from njit_auditor.report_outputs import (
     sanitize_report_for_web_export,
     write_markdown_report,
 )
-from njit_auditor.report_view import build_report_view, report_view_to_dict
+from njit_auditor.report_view import (
+    SORT_MODE_DEFAULT,
+    build_report_view,
+    normalize_sort_mode,
+    report_view_to_dict,
+    sort_grouped_problems,
+)
 from njit_auditor.upload_handling import (
     UploadValidationError,
     sanitize_upload_filename,
@@ -1666,9 +1672,18 @@ def _render(
 
 
 
-def _job_page_context(job: JobState) -> dict[str, Any]:
-    """Build template context for the job results page (PDF audits only)."""
+def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict[str, Any]:
+    """Build template context for the job results page (PDF audits only).
+
+    ``sort_mode`` must already be normalized via ``normalize_sort_mode``. Sorting is
+    applied to a shallow copy of the cached report view so ``job.report_view`` (shared
+    across every request for this job) is never mutated.
+    """
     report_view = job.report_view or {}
+    grouped_problems = report_view.get("grouped_problems", []) or []
+    sorted_grouped_problems = sort_grouped_problems(grouped_problems, sort_mode)
+    if report_view:
+        report_view = {**report_view, "grouped_problems": sorted_grouped_problems}
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
     counts_by_category = report_view.get("counts_by_category", {}) or {}
@@ -1701,8 +1716,9 @@ def _job_page_context(job: JobState) -> dict[str, Any]:
         "error_message": job.error_message,
         "findings": job.findings,
         "grouped_summary": job.grouped_summary,
-        "report_view": job.report_view,
+        "report_view": report_view,
         "md_preview": job.md_preview,
+        "sort_mode": sort_mode,
         "problems_found_count": job.fail_count + job.warn_count,
         "pages_affected": len(pages),
         "rules_flagged": len(counts_by_rule),
@@ -2073,13 +2089,14 @@ async def get_audits_sample_guard() -> RedirectResponse:
 
 
 @app.get("/audits/{job_id}", response_class=HTMLResponse)
-async def job_page(request: Request, job_id: str) -> HTMLResponse:
+async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT) -> HTMLResponse:
     cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None:
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
-    return _render(request, "job.html", _job_page_context(job))
+    sort_mode = normalize_sort_mode(sort)
+    return _render(request, "job.html", _job_page_context(job, sort_mode=sort_mode))
 
 
 @app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)

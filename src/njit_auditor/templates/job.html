@@ -632,7 +632,26 @@
   </div>
 
   {% if findings %}
+  <script>
+    function applySortMode(value) {
+      var url = new URL(window.location.href);
+      if (value && value !== "default") {
+        url.searchParams.set("sort", value);
+      } else {
+        url.searchParams.delete("sort");
+      }
+      window.location.href = url.toString();
+    }
+  </script>
   <div class="filter-bar">
+    <div>
+      <label for="sort-problems">Sort problems</label>
+      <select id="sort-problems" name="sort" onchange="applySortMode(this.value)">
+        <option value="default" {% if sort_mode == "default" or not sort_mode %}selected{% endif %}>Default order</option>
+        <option value="confidence_desc" {% if sort_mode == "confidence_desc" %}selected{% endif %}>High confidence first</option>
+        <option value="confidence_asc" {% if sort_mode == "confidence_asc" %}selected{% endif %}>Low confidence first</option>
+      </select>
+    </div>
     <div>
       <label for="filter-rule">Rule</label>
       <select id="filter-rule">
