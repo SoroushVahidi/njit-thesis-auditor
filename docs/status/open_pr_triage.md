@@ -1,32 +1,50 @@
-# Open PR Triage (2026-07-02, PR #406 merged — cleanup still paused)
+# Open PR Triage (2026-07-02, PR #407/#408 merged — cleanup still paused)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 
-**Baseline inspected:** `main` @ `811838c4` (squash-merge of PR #406, folding in #405's `7e17232`)  
-**Live server (2026-07-02):** restarted on `main` @ `811838c4` — no longer dependent on an unmerged branch  
+**Baseline inspected:** `main` @ `70dcd952871c993814437edf1dcf1f2280b47dc7` (squash-merge of PR
+[#408](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/408) on PR
+[#407](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/407); short SHA `70dcd95`)  
+**Live server:** last documented restart at `811838c4` (post-#406) — confirm `GET /version` before
+assuming #407/#408 behavior is live  
 **Open PR count:** **6**
 
-## PR #406 merged (2026-07-02)
+## PR #407 and PR #408 merged (2026-07-02)
 
-**#406 is merged.** Live false-positive and highlight-page regressions are resolved on `main`; verified
-with a fresh post-merge live audit. **PR cleanup remains paused** — not because of the live regression
-(resolved) but because a separate warning-legitimacy review is still in progress. Do not resume
-#311/#349/#362/#375/#376/#385 review until that review concludes.
+**#407** and **#408** are merged on `main` after the older PR #406 status snapshot. **PR cleanup
+remains paused** — not because of detector regressions on `70dcd95`, but because a separate
+warning-legitimacy review is still in progress and no human instruction has resumed open-PR
+review. Do not touch #311/#349/#362/#375/#376/#385 until that review concludes (or explicit
+instruction).
+
+| PR | Summary | Regression guard |
+|---|---|---|
+| **#407** | Ester-reviewed warning precision: P044 continuation lines; P027 bold-heading requirement; P037 LoT Roman numeral; P011 margin overrun presentation; P024/P040 LoF presentation; P025 DC wrapper **notice** (not problem) | No threshold / rule-ID / schema changes outside scoped presentation fixes |
+| **#408** | Web UI sort grouped problem cards by confidence (`?sort=`); display order only | Grouping keys, problem numbers, detector output unchanged |
+
+**Preserved fixes (do not regress when resuming cleanup):** single-page `highlighted-page.pdf`
+(#406); Digital Commons wrapper filtering (#405); P015/P018/P026 ester stack (#400–#402).
+
+## PR #406 merged (2026-07-02) — historical context
+
+**#406** resolved live false-positive diagnosis (stale server) and restored single-page highlight
+artifacts. Superseded as the status baseline by #407/#408 above; fixes remain on `main`.
 
 | Finding | Cause | Action |
 |---|---|---|
 | User-visible false positives | Live server was **stale** at `fbefbb6` (PR #400 merge); 10 commits behind `main`; old audit job URLs may also show pre-#405 results | Restarted server; run **fresh** audits only |
-| Broken “Open highlighted PDF page” | Single-page artifact route from `9ca99c0` was **never merged** to `main`; links opened full PDF + `#page=` | Emergency fix PR restores `/highlighted-page.pdf` |
+| Broken “Open highlighted PDF page” | Single-page artifact route from `9ca99c0` was **never merged** to `main`; links opened full PDF + `#page=` | #406 restores `/highlighted-page.pdf` |
 | Current `main` detector regression? | **No P026 reintroduction** vs `3b4043c`; #405 slightly **reduces** P020 noise (−6 on five-PDF eval) | Do **not** port old #388/#389–#393 detector stacks without strict proof |
-
-**Emergency fix PR:** `fix/live-false-positive-and-highlight-regression` → `main` (highlight-page restore; no detector threshold changes).
 
 ## Recent cleanup (2026-07-02)
 
 | Action | Item | Reason |
 |---|---|---|
+| **Merged** | [#408](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/408) | Confidence sort for grouped problem cards (UI only) |
+| **Merged** | [#407](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/407) | Ester-reviewed warning-precision and presentation fixes |
+| **Merged** | [#406](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/406) | Single-page highlighted PDF + live regression diagnosis docs |
 | **Closed** | [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389)–[#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) | Stale presentation stack; no code merged; regression-risk vs landed #400/#402/#405 |
 | **Deleted remote branches** | presentation stack branches (top → bottom) | PRs closed; not bases of remaining open PRs |
 | **Merged** | [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) | Clean #388 replacement — Digital Commons wrapper filtering, P018/P020/P028 FP reductions, page identity enrichment |
@@ -39,29 +57,33 @@ Earlier same-day cleanup: #394/#395 closed; merged #397–#400/#402/#401; delete
 
 | PR | Branch → base | Mergeable | Verdict |
 |---|---|---|---|
-| [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | `feature/subpage-location-labels` → `main` | DIRTY | **Paused** — do not touch until live regression resolved |
+| [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | `feature/subpage-location-labels` → `main` | DIRTY | **Paused** — do not touch |
 | [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349) | `docs/protect-autonomous-policy-and-ester-status` → `main` | DIRTY | **Paused** — docs-only |
-| [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | `ux/review-needed-prefix-policy` → `main` | DIRTY | **Paused** — rebase after live fix merges |
+| [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | `ux/review-needed-prefix-policy` → `main` | DIRTY | **Paused** |
 | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375) | `docs/fix-clean-minimal-demo-baseline` → `main` | UNSTABLE | **Paused** — docs-only |
 | [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376) | `fix/p014-frontmatter-centering-false-positive` → `main` | UNSTABLE | **Paused** |
 | [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385) | `ux/rule-reference-card-declutter` → `main` | DIRTY | **Paused** — pending warning-legitimacy review |
-| ~~#406~~ | `fix/live-false-positive-and-highlight-regression` → `main` | **MERGED** | Squash-merged at `811838c4`; branch deleted; live server restarted on `main` |
+| ~~#407~~ | `fix/ester-reviewed-warning-precision` → `main` | **MERGED** | Squash-merged at `1827d8c1` |
+| ~~#408~~ | `feat/sort-problems-by-confidence` → `main` | **MERGED** | Squash-merged at `70dcd95` |
+| ~~#406~~ | `fix/live-false-positive-and-highlight-regression` → `main` | **MERGED** | Squash-merged at `811838c4`; branch deleted |
 
 **Closed (2026-07-02):** [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389)–[#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) presentation stack — no code merged.
 
 ## Dependency graph (open stacks)
 
 ```
-main (811838c4 / includes merged #406 + #405)
- └── Independent PRs (paused pending warning-legitimacy review): #311, #349, #362, #375, #376, #385
+main (70dcd95 / includes merged #408 + #407 + #406 + #405)
+ └── Independent PRs (paused): #311, #349, #362, #375, #376, #385
 ```
 
-**Ester alignment stack on `main` (complete):** #397 → #398 (P026) → #399 (P018 parser) → #400 (P015) → #402 (P018 public cards) → #405 (wrapper FP reductions). **#388 closed** — would reintroduce P026 false positives. **#389–#393 closed** — stale presentation stack.
+**Ester alignment stack on `main` (complete):** #397 → #398 (P026) → #399 (P018 parser) → #400 (P015) → #402 (P018 public cards) → #405 (wrapper FP reductions) → **#407** (Ester-reviewed precision/presentation). **#388 closed** — would reintroduce P026 false positives. **#389–#393 closed** — stale presentation stack.
 
 ## Recommended next development sequence
 
-1. ~~Merge #406 and restart live server at merged `main` SHA; confirm fresh audits + highlight-page UI.~~ **Done (2026-07-02).**
-2. Resume review of **#375**, **#376**, **#385**, **#362**, **#349**, **#311** only after the warning-legitimacy review concludes (no auto-port of old detector stacks).
+1. Confirm live server at `70dcd95` (or restart) so #407/#408 UI behavior matches local `main`.
+2. Resume review of **#375**, **#376**, **#385**, **#362**, **#349**, **#311** only after the
+   warning-legitimacy review concludes (or explicit human instruction; no auto-port of old detector
+   stacks).
 
 ## PRs requiring explicit confirmation before close
 
@@ -74,6 +96,7 @@ main (811838c4 / includes merged #406 + #405)
 ## Cleanup guardrails
 
 - Do **not** start **P084** as part of PR cleanup.
+- Do **not** merge/rebase #311, #349, #362, #375, #376, or #385 without explicit instruction.
 
 ## Historical triage
 
