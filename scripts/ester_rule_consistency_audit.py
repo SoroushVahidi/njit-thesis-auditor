@@ -223,8 +223,29 @@ def _load_public_catalog() -> dict[str, dict[str, Any]]:
             "source_q_rule_ids": list(rule.get("source_q_rule_ids", []) or []),
             "issue_types": list(rule.get("issue_types", []) or []),
         }
-    atomic_by_id = {spec.id: spec for spec in wa._ATOMIC_PUBLIC_RULE_CARDS}
-    hidden = set(wa._HIDDEN_PUBLIC_RULE_IDS)
+    atomic_by_id = (
+        {spec.id: spec for spec in wa._ATOMIC_PUBLIC_RULE_CARDS}
+        if hasattr(wa, "_ATOMIC_PUBLIC_RULE_CARDS")
+        else {
+            rid: type(
+                "AtomicSpec",
+                (),
+                {
+                    "id": rid,
+                    "parent_rule_id": rid[:-1],
+                    "issue_types": tuple(rule.get("issue_types", []) or []),
+                    "source_q_rule_ids": tuple(rule.get("source_q_rule_ids", []) or []),
+                },
+            )()
+            for rid, rule in by_id.items()
+            if re.fullmatch(r"P\d{3}[A-Z]", rid)
+        }
+    )
+    hidden = (
+        set(wa._HIDDEN_PUBLIC_RULE_IDS)
+        if hasattr(wa, "_HIDDEN_PUBLIC_RULE_IDS")
+        else {rid[:-1] for rid in by_id if re.fullmatch(r"P\d{3}[A-Z]", rid)}
+    )
     return {
         "by_id": by_id,
         "atomic_specs": atomic_by_id,
@@ -492,16 +513,40 @@ def _ester_priority_review(
         }
     )
 
-    # G. Paragraph indentation
+    # G. Paragraph indentation — derive body-indent split status from atomic cards
+    p015_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P015"
+    )
+    p043_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P043"
+    )
+    p044_atomic = sorted(
+        spec.id for spec in public["atomic_specs"].values() if spec.parent_rule_id == "P044"
+    )
+    if p015_atomic == ["P015A", "P015B"] and p043_atomic and p044_atomic:
+        indent_status = "aligned"
+        indent_detail = (
+            "Abstract (Q002/Q003) and Acknowledgements (Q044/Q045) split into "
+            f"P044A/B and P043A/B. Body indentation split into {', '.join(p015_atomic)}."
+        )
+    elif p015_atomic == ["P015A", "P015B"]:
+        indent_status = "mostly aligned"
+        indent_detail = (
+            "Body indentation split into P015A, P015B. "
+            f"Abstract/Acknowledgements atomic cards: P043={p043_atomic or 'none'}, "
+            f"P044={p044_atomic or 'none'}."
+        )
+    else:
+        indent_status = "partial"
+        indent_detail = (
+            f"Abstract/Acknowledgements atomic cards: P043={p043_atomic or 'none'}, "
+            f"P044={p044_atomic or 'none'}. Body P015 atomic cards: {p015_atomic or 'none'}."
+        )
     findings.append(
         {
             "area": "G. Paragraph indentation (P015/P043/P044)",
-            "status": "partial",
-            "detail": (
-                "Abstract (Q002/Q003) and Acknowledgements (Q044/Q045) split into P044A/B and P043A/B. "
-                "Body indentation still one broad P015 public card; Ester wants two atomic body checks "
-                "(first para after heading not indented; subsequent body paragraphs indented)."
-            ),
+            "status": indent_status,
+            "detail": indent_detail,
         }
     )
 

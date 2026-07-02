@@ -254,9 +254,9 @@
   {
     "id": "P015",
     "section": "PDF paragraph indentation",
-    "question": "Do body-text paragraphs (outside the Abstract and Acknowledgements sections) use consistent first-line indentation?",
-    "rule_definition": "Heuristically detect missing first-line indentation in body-text paragraphs. Skips Abstract pages (Q002/Q003 covered atomically by P044) and Acknowledgements pages (Q044/Q045 covered atomically by P043). Fires only when the page style has high confidence of first-line indentation and a later paragraph omits it.",
-    "remediation": "Apply consistent first-line indentation to body-text paragraphs. For Abstract indentation (Q002/Q003) see P044. For Acknowledgements indentation (Q044/Q045) see P043.",
+    "question": "Do body-text paragraphs follow NJIT indentation rules after section headings?",
+    "rule_definition": "Heuristically detect body-text paragraph indentation issues on dissertation body pages. Skips Abstract pages (Q002/Q003 covered atomically by P044) and Acknowledgements pages (Q044/Q045 covered atomically by P043). Public cards P015A checks that the first paragraph after a level 1–4 section heading is flush-left; P015B checks that later body paragraphs use first-line indentation. Ester spreadsheet question 2 mentions heading level 5; implementation applies the same first-paragraph-after-heading rule to all section headings detected by _is_section_heading_line unless Ester clarifies otherwise.",
+    "remediation": "For body indentation, see public cards P015A (remove first-line indent from the first paragraph after a heading) and P015B (apply first-line indent to later body paragraphs). For Abstract indentation (Q002/Q003) see P044. For Acknowledgements indentation (Q044/Q045) see P043.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -267,7 +267,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_indentation",
     "priority": "high",
-    "notes": "Body-text-only scope after atomic split (PRs 383/384). Abstract pages: P044 handles Q002 (first paragraph flush-left) and Q003 (subsequent paragraphs indented). Acknowledgements pages: P043 handles Q044 (first paragraph flush-left) and Q045 (subsequent paragraphs indented). P015 covers body-text chapters only: first paragraph after heading not indented; body paragraphs after first should be indented. Ester feedback: separate front-matter from body indentation — implemented: front-matter is in P043/P044."
+    "notes": "Body-text-only scope after atomic split. Abstract pages: P044 handles Q002/Q003 via P044A/P044B. Acknowledgements pages: P043 handles Q044/Q045 via P043A/P043B. Public cards P015A (unexpected_opening_indent) and P015B (missing_later_indent) cover body chapters only. Ester formatting-rules P015 question 2 references heading levels 1–5; detector treats all section headings consistently. issue_types: unexpected_opening_indent (P015A), missing_later_indent (P015B)."
   },
   {
     "id": "P016",
