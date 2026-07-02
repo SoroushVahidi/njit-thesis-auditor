@@ -7,47 +7,50 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-02 (PR/branch cleanup through PR #400)
+## Current Status — 2026-07-02 (P018 public cards through PR #402)
 
 This section is the authoritative current snapshot. Everything below it (including the
-2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context
-and should not be read as current.
+earlier 2026-07-02 cleanup snapshot, 2026-07-01, 2026-06-25, and earlier dated bullets)
+is preserved as historical context and should not be read as current.
 
-- **Baseline main for this status snapshot:** `fbefbb6432364edec07566c6bec4e744a87be7bd` (PR [#400](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/400) — clean main-based P015 Ester split).
-- **Short SHA:** `fbefbb6`.
-- **Status snapshot validation (tracked tests, 2026-07-02):** `ruff check .` clean; `mypy src` clean (107 source files); `python -m pytest` → **2375 pytest passed**, 1 warning (pre-existing duplicate-zip-member `UserWarning` in upload tests). Excludes local WIP `test_p084_*` and `test_pdf_toc_leader_consistency.py`.
-- **Recently merged (2026-07-01 – 2026-07-02):** [#397](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/397) (status docs refresh), [#398](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/398) (clean P026 replacement), [#399](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/399) (P018 list row page-number association), [#400](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/400) (clean P015 replacement).
-- **Closed as superseded (2026-07-02):** [#394](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/394) → replaced by #398; [#395](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/395) → replaced by #400.
-- **Remote branches deleted (2026-07-02):** `fix/p026-ester-consistency-mainprep`, `chore/repo-cleanup-status-refresh-20260701`, `fix/p026-font-policy-ester-consistency` (merged or superseded; not bases of open PRs). Branches for merged #399/#400 were already deleted on merge.
-- **Branches kept:** `fix/p015-body-indent-ester-split` (base of open #396), all open PR head branches, presentation-stack branches (#389–#393).
-- **Local WIP note:** This checkout may contain **untracked** local files (`tests/test_p084_biosketch_birth_information.py`, `tests/test_pdf_toc_leader_consistency.py`, and related detector stubs). They are **not on `main`** and must not be committed as part of routine cleanup. Exclude them from pytest or remove before treating pytest as green. **Do not start P084** unless explicitly instructed.
-- **Rule inventory:** P001–P083 implemented (**82** `project_added_rules.json` entries). **P084 not started** (per standing instruction).
-- **CI:** GitHub Actions on `main` still fails immediately with the account **billing/spending-limit** message. Treat local `mypy`/`pytest`/`ruff` as the merge gate until billing is resolved.
-- **Open PRs:** **14** open as of 2026-07-02. Full triage: [open_pr_triage.md](open_pr_triage.md).
+- **Baseline main for this status snapshot:** `fd295748dbf6261db0378fa123da0fecd88fd95f` (PR [#402](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/402) — clean main-based P018 public rule-reference split).
+- **Short SHA:** `fd29574`.
+- **Status snapshot validation (tracked tests, 2026-07-02):** `ruff check .` clean; `mypy src` clean (107 source files); `python -m pytest` → **2419 pytest passed**, 1 warning (pre-existing duplicate-zip-member `UserWarning` in upload tests). Excludes local WIP `test_p084_*` and `test_pdf_toc_leader_consistency.py`.
+- **Recently merged:** [#401](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/401) (status refresh), [#402](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/402) (P018A–P018Q public cards). Prior same-day merges: #397–#400.
+- **Closed as superseded:** [#396](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/396) → replaced by #402.
+- **Remote branches deleted:** `fix/p018-toc-list-rule-reference-split`, `fix/p015-body-indent-ester-split` (obsolete stacked Ester branch chain).
+- **Open PRs:** **13** as of 2026-07-02. Full triage: [open_pr_triage.md](open_pr_triage.md).
 
 ### Open PR situation (summary)
 
 | Category | PRs | Maintainer note |
 |---|---|---|
-| **Needs clean main-based replacement** | [#396](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/396) | P018 TOC/LoT/LoF public rule-reference split — do not merge stacked branch |
-| **Uncertain — keep open** | [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) | LaTeX origin-aware P026 advisory — distinct from #398; decide before merge |
-| **Ready for review** | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375), [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376), [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) | Rebase on `fbefbb6` before merge |
-| **Stacked presentation** | [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389) → … → [#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) | Compare P015 overlap with landed #400 |
+| **Uncertain — keep open** | [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) | LaTeX origin-aware P026 advisory — distinct from #398 |
+| **Ready for review** | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375), [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376), [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) | Rebase on `fd29574` before merge |
+| **Stacked presentation** | [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389) → … → [#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) | Compare with landed #400/#402 |
 | **Conflicting but valuable** | [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | Rebase after `main` / #388 |
 | **Likely superseded / confirm** | [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | Close only after explicit confirmation |
-| **Do not auto-close** | [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311), [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362), [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386), [#396](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/396) | Per cleanup guardrails |
 
-### Next recommended work (post-cleanup)
+### Next recommended work
 
-1. Create and land a **clean main-based replacement for #396** (P018 public rule-reference split).
-2. Decide whether [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) LaTeX origin-aware P026 advisories should be ported onto `main` separately from #398.
-3. Review [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) independently of the presentation stack.
-4. Rebase UX/docs PRs ([#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362), [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349)) after `main` stabilizes.
+1. Review [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) independently of the presentation stack.
+2. Decide on [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) LaTeX origin-aware P026 advisories vs #398.
+3. Presentation stack **#389–#393** — merge as a unit or cherry-pick.
+4. Rebase UX/docs PRs **#385**, **#362**, **#349**.
 5. **P084 remains out of scope** unless explicitly requested.
 
 ---
 
-## Historical — 2026-07-01 (Ester spec ingestion through PR #387)
+## Historical — 2026-07-02 early (PR/branch cleanup through PR #401)
+
+> **Superseded** by the post-#402 snapshot above.
+
+- **Baseline main:** `4ea7f8692ddf9f2136e265ff3370b7150162fb74` (PR #401).
+- **Open PRs at that time:** 14; #396 still needed clean replacement (now done via #402).
+
+---
+
+## Historical — 2026-07-02 (PR/branch cleanup through PR #400)
 
 > **Superseded** by the 2026-07-02 snapshot above.
 
