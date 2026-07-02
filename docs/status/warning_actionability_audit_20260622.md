@@ -1,5 +1,9 @@
 # Student-Facing Warning Clarity / Actionability Audit — 2026-06-22
 
+> **Historical / superseded.** Point-in-time audit from baseline `fd508cd`. Many findings
+> were addressed in PRs #351–#388. For current status see
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
 **Type:** Read-only audit / gap analysis. No product code, detector logic, tests,
 rule IDs, issue types, canonical data, stashes, branches, worktrees, or open PRs
 (#311, #349) were modified while producing this report.

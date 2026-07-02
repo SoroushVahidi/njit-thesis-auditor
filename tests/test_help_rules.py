@@ -312,8 +312,11 @@ def test_rules_cards_are_simplified(client: tuple[TestClient, Any]) -> None:
     body = resp.text
     # Class *usage* patterns (class="badge badge-X") must not appear in rule cards.
     assert 'class="badge badge-warn"' not in body, "PROBLEM badge should be removed"
-    assert 'class="badge badge-fail"' not in body or "badge-fail" not in body.split("rule-catalog")[1].split("no-results-msg")[0], \
-        "PROBLEM/FAIL badge should be removed from rule cards"
+    rule_catalog = body.split("rule-catalog")[1].split("no-results-msg")[0]
+    assert (
+        'class="badge badge-fail"' not in body
+        or "badge-fail" not in rule_catalog
+    ), "PROBLEM/FAIL badge should be removed from rule cards"
     assert 'class="badge badge-pattern"' not in body, "PATTERN-BASED badge should be removed"
     assert 'class="badge badge-deterministic"' not in body, "Exact-check badge should be removed"
     assert "Category:" not in body, "Category meta line should be removed"

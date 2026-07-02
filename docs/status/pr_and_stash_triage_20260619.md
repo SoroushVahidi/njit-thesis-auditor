@@ -1,5 +1,8 @@
 # Open PR and Stash Triage — 2026-06-19
 
+> **Historical / superseded** for open PR status. Current triage:
+> [open_pr_triage.md](open_pr_triage.md).
+
 This document records the status of the two open pull requests and the one local stash
 as of the repository stabilization work landing on `main` at/after `b4cb8cd` (PR #324).
 It is a **triage record only** — no code in PR #311, PR #305, or the stash was changed,

@@ -5,7 +5,7 @@ Use this checklist whenever the live web UI needs to be (re)started from a fresh
 `thesis-auditor-web` as an alternate convention — use whichever session already exists;
 do not create a duplicate listener on port 8000).
 
-**Last verified against host state:** 2026-06-25 (`main` at `2a7f216`).
+**Last verified against host state:** 2026-07-01 (`main` at `cdc99ea`; confirm live SHA with `GET /version` — may still be on an older deploy).
 
 ## 1. Confirm the commit being deployed
 

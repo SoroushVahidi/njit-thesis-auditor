@@ -1,5 +1,9 @@
 # Rule Coverage Audit Against Guideline Sources
 
+> **Historical / superseded.** P029-era audit (2026-05-29). See
+> [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md) and
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
 - Date: 2026-05-29
 - Auditor version: P001–P029 implemented (P022, P029 added; Q004–Q005 implemented)
 - Main branch: f30417e (P025); P022 on implement-p022-frontmatter-no-page-number branch

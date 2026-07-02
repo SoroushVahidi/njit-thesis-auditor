@@ -1,5 +1,9 @@
 # Q-Rule Coverage Audit After P044
 
+> **Historical / superseded.** P044-era inventory snapshot (2026-06-03). For current Q-rule
+> coverage see `data/specs/q_rule_coverage_report.json` and
+> [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md).
+
 - **Date:** 2026-06-03
 - **Auditor scope:** P001–P044 implemented
 - **Inventory:** `data/processed/rules/njit_rule_inventory.json` (updated during this audit)

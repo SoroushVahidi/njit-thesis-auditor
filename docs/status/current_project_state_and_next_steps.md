@@ -1,10 +1,67 @@
 # Current Project State and Next Steps
 
-## Current Status — 2026-06-25 (warning-clarity completion through PR #372)
+> **Canonical status entry point.** Start here for current `main`, validation, open PRs,
+> Q-rule coverage, and recommended next actions. Related indexes:
+> [open PR triage](open_pr_triage.md) ·
+> [Ester Q / P / public rule mapping](ester_q_p_rule_public_rule_mapping.md) ·
+> [live deployment checklist](live_deployment_checklist.md) ·
+> [evaluation data manifest](evaluation_data_manifest.md)
+
+## Current Status — 2026-07-01 (Ester spec ingestion through PR #387)
 
 This section is the authoritative current snapshot. Everything below it (including the
-2026-06-23 and earlier dated bullets) is preserved as historical context and should not
-be read as current.
+2026-06-25, 2026-06-23, and earlier dated bullets) is preserved as historical context
+and should not be read as current.
+
+- **Baseline main for this status snapshot:** `cdc99ea7216d95281042c358a8b27934e69e62b8` (PR [#387](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/387) — ingest Ester spreadsheets as JSON specs and enforce catalog wording).
+- **Short SHA:** `cdc99ea`.
+- **Latest merged PR:** [#387](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/387) (2026-06-30). Recent merges also include [#384](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/384) (P017/P018 atomic Q-rule split), [#383](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/383) / [#382](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/382) (P014/P015 Ester binary enforcement and atomic split), and [#381](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/381) (Ester YES/NO wording pass).
+- **Status snapshot validation (tracked tests only, 2026-07-01):** `mypy src` clean (107 source files); `python -m pytest` → **2331 pytest passed**, 1 warning (pre-existing duplicate-zip-member `UserWarning` in upload tests). `ruff check .` clean on this cleanup branch (one pre-existing E501 on `main` was fixed here).
+- **Local WIP note:** This checkout may contain **untracked** local files (`tests/test_p084_biosketch_birth_information.py`, `tests/test_pdf_toc_leader_consistency.py`, and related detector stubs). They are **not on `main`** and must not be committed as part of routine cleanup. If present, they cause 6 extra pytest failures — exclude them or remove them before treating pytest as green. **Do not start P084** unless explicitly instructed.
+- **Rule inventory:** P001–P083 implemented (**82** `project_added_rules.json` entries, all `implementation_status: implemented`; **P075** remains a documented non-inventory project task). **P084 not started** (per standing instruction).
+- **Ester Q-rule coverage (on `main` at `cdc99ea`):** `data/specs/ester_q_matrix.json` defines **79** Q-rules (Q001–Q079). Generated report `data/specs/q_rule_coverage_report.json` (2026-06-30): **67 implemented**, **12 manual_review_only**, **0 unimplemented**. See [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md) for the Q → P → public rule-card chain. Open PR [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) proposes a richer **partial** tier (61 implemented / 6 partial / 12 manual) — not merged yet.
+- **CI:** GitHub Actions on `main` still fails immediately with the account **billing/spending-limit** message (jobs never start). Treat local `mypy`/`pytest` as the merge gate until billing is resolved.
+- **Live website:** Deployment host/checklist in [live_deployment_checklist.md](live_deployment_checklist.md). **Last doc-verified deploy note:** 2026-06-25 at `2a7f216` — confirm the served commit with `GET /version` before assuming production matches `cdc99ea`.
+- **Open PRs:** **16** open as of 2026-07-01. Full triage: [open_pr_triage.md](open_pr_triage.md). Highest-priority stack for P026/P015/P018 Ester alignment: **#394 → #395 → #396** (merge in order; #396 currently **CONFLICTING** with its base).
+
+### Recently merged Ester-alignment work (#381–#387)
+
+| PR | Summary |
+|---|---|
+| [#381](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/381) | Align P-rule wording and remediation with Ester YES/NO audit matrix feedback |
+| [#382](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/382) | Atomic Q-rule split: P014 heading format + P015 body-text-only scope |
+| [#383](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/383) | Enforce Ester binary yes/no enforcement for P014 and P015 |
+| [#384](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/384) | Atomic Q-rule split for P017 (caption formatting) and P018 (TOC/list alignment) |
+| [#387](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/387) | Ingest Ester spreadsheets as JSON specs; enforce catalog wording in tests |
+
+### Open PR situation (summary)
+
+| Category | PRs | Maintainer note |
+|---|---|---|
+| **Ready / mergeable to `main`** | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375), [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376), [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386), [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388), [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349) | Review individually; [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) may overlap stacked P026 work in #394 |
+| **Stacked — merge in order** | [#394](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/394) → [#395](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/395) → [#396](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/396) | Ester P026 / P015 / P018 rule-reference splits; rebase #396 after #395 lands |
+| **Parallel presentation stack** | [#389](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/389) → … → [#393](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/393) | Confidence grouping through P015 wrapped-line false-positive fix; separate fork from #394 (both branch from `fix/p014-frontmatter-heading-centering-evidence`) |
+| **Conflicting but valuable** | [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362), [#396](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/396) | Rebase onto updated `main` / merged stacks before merge |
+| **Likely superseded** | [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | Sub-page labels reimplemented on `main`; **close only after explicit confirmation** |
+| **Do not auto-close** | [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311), [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | Per standing cleanup guardrails |
+
+Details, branch names, and merge-order diagram: [open_pr_triage.md](open_pr_triage.md).
+
+### Next recommended work (post-#387)
+
+1. Resolve GitHub Actions billing if CI should gate merges again.
+2. Land or rebase the **#394 → #395 → #396** Ester alignment stack (and decide whether [#386](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/386) is redundant with #394).
+3. Review [#388](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/388) (false-positive reductions + Q-rule partial-coverage tiers) independently of the presentation stack.
+4. Rebase conflicting UX/docs PRs ([#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385), [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362)) after `main` moves.
+5. Confirm live deployment SHA via [live_deployment_checklist.md](live_deployment_checklist.md) if the public site should serve `cdc99ea`.
+6. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-06-25 (warning-clarity completion through PR #372)
+
+> **Superseded** by the 2026-07-01 snapshot above. Preserved for the #367–#372 warning-clarity
+> milestone record only.
 
 - **Baseline main:** `2a7f216d2d01cbc0268661d30f4a385287506805` (PR #372 — Suppress timestamp-like TOC false positives).
 - **Baseline main for this status snapshot:** `2a7f216` (short SHA for manifest alignment).
@@ -55,11 +112,9 @@ See `docs/status/open_pr_triage.md`. **Do not** close/merge/rebase #311, #349, o
 
 ---
 
-## Current Status — 2026-06-23 (repo audit, doc cleanup, and PR triage)
+## Historical — 2026-06-23 (repo audit, doc cleanup, and PR triage)
 
-This section is the authoritative current snapshot. Everything below it (including the
-2026-06-19 and 2026-06-16 dated bullets immediately following) is preserved as historical
-context and should not be read as current.
+> **Superseded** by the 2026-07-01 snapshot above.
 
 - **Baseline main for this snapshot:** `14a2df1` (PR #357 — Clarify P018 and P046 list entry locations), the latest merged PR as of this audit.
 - **Rule inventory:** **P001–P083 implemented** (82 `project_added_rules.json` entries, all `implementation_status: implemented`; `P075` remains a documented non-inventory project task, not a rule entry). **P084 does not exist yet** — no detector module, no inventory entry, no rule ID reserved beyond the existing "next ID is P084" guard note. Per explicit standing instruction, do not start P084 implementation work without an explicit request.
