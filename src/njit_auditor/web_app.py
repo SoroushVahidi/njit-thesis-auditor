@@ -40,6 +40,7 @@ from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_highlight import (
     build_highlighted_pdf,
     build_highlighted_single_page_pdf,
+    build_single_page_pdf,
     get_pdf_page_sizes,
     is_drawable_bbox,
 )
@@ -2565,9 +2566,6 @@ async def serve_job_highlighted_page_pdf(
     headers = {
         "Content-Disposition": 'inline; filename="highlighted-page.pdf"'
     }
-    plain_response = FileResponse(
-        path=str(pdf_path), media_type="application/pdf", headers=headers
-    )
 
     try:
         matches = _matching_findings_for_highlight(
@@ -2578,9 +2576,7 @@ async def serve_job_highlighted_page_pdf(
             finding_index=finding_index,
         )
         boxes_by_page = _highlight_boxes_by_page(matches)
-        page_boxes = boxes_by_page.get(page)
-        if not page_boxes:
-            return plain_response
+        page_boxes = boxes_by_page.get(page) or []
 
         cache_path = _highlight_page_cache_path(
             jdir,
@@ -2590,36 +2586,50 @@ async def serve_job_highlighted_page_pdf(
             finding_index=finding_index,
         )
         if not _is_under_runtime(cache_path):
-            return plain_response
+            return JSONResponse({"error": "invalid cache path"}, status_code=500)
 
         if not cache_path.exists():
-            result = build_highlighted_single_page_pdf(
-                pdf_path,
-                cache_path,
-                source_page_number=page,
-                boxes=page_boxes,
-            )
-            if not result.has_highlight:
-                _logger.warning(
-                    "Page-focused highlight for job %s page=%s matched %d finding(s) "
-                    "but drew no visible annotation (skipped=%d); falling back to plain PDF.",
-                    job_id,
-                    page,
-                    len(matches),
-                    result.skipped_count,
+            if page_boxes:
+                result = build_highlighted_single_page_pdf(
+                    pdf_path,
+                    cache_path,
+                    source_page_number=page,
+                    boxes=page_boxes,
                 )
-        if not cache_path.exists():
-            return plain_response
+                if not result.has_highlight:
+                    _logger.warning(
+                        "Page-focused highlight for job %s page=%s matched %d finding(s) "
+                        "but drew no visible annotation (skipped=%d); serving single page only.",
+                        job_id,
+                        page,
+                        len(matches),
+                        result.skipped_count,
+                    )
+            if not cache_path.exists() and not build_single_page_pdf(
+                pdf_path, cache_path, source_page_number=page
+            ):
+                return JSONResponse({"error": "page not available"}, status_code=404)
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
     except Exception:
         _logger.warning(
             "Page-focused highlighted PDF generation failed for job %s; "
-            "falling back to plain PDF.",
+            "attempting single-page extract.",
             job_id,
             exc_info=True,
         )
-        return plain_response
+        cache_path = _highlight_page_cache_path(
+            jdir,
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_index=finding_index,
+        )
+        if _is_under_runtime(cache_path) and build_single_page_pdf(
+            pdf_path, cache_path, source_page_number=page
+        ):
+            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+        return JSONResponse({"error": "highlight unavailable"}, status_code=500)
 
 
 @app.get("/help", response_class=HTMLResponse)

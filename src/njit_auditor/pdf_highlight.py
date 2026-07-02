@@ -302,3 +302,25 @@ def build_highlighted_single_page_pdf(
         skipped_count=skipped,
         pages_highlighted=[1] if drawn else [],
     )
+
+
+def build_single_page_pdf(
+    source_pdf: Path,
+    output_pdf: Path,
+    *,
+    source_page_number: int,
+) -> bool:
+    """Write a one-page PDF copy of *source_page_number* from *source_pdf*.
+
+    Returns True when the output was written. Used when a finding has no
+    drawable highlight box but the UI still must not open the full document.
+    """
+    with fitz.open(source_pdf) as src:
+        page_index = source_page_number - 1
+        if page_index < 0 or page_index >= src.page_count:
+            return False
+        with fitz.open() as out:
+            out.insert_pdf(src, from_page=page_index, to_page=page_index)
+            output_pdf.parent.mkdir(parents=True, exist_ok=True)
+            out.save(output_pdf)
+    return True

@@ -2850,6 +2850,26 @@ def test_highlighted_page_pdf_endpoint_serves_single_page_with_annotation(
         assert len(list(doc[0].annots() or [])) >= 1
 
 
+def test_highlighted_page_pdf_endpoint_falls_back_to_single_page_without_bbox(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Page-focused endpoint must never return the full upload when highlight is unavailable."""
+    import fitz
+
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    _make_real_pdf(jdir / "upload.pdf", page_count=5)
+
+    resp = c.get(
+        f"/audits/{job_id}/highlighted-page.pdf",
+        params={"page": 2, "rule_id": "P011", "issue_type": "margin_boundary_violation"},
+    )
+    assert resp.status_code == 200
+    with fitz.open(stream=resp.content, filetype="pdf") as doc:
+        assert doc.page_count == 1
+
+
 def test_highlighted_pdf_endpoint_falls_back_without_bbox(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
