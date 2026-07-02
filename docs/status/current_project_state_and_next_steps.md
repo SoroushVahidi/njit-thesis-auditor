@@ -7,12 +7,46 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-02 (post-#405 merge)
+## Current Status — 2026-07-02 (live regression diagnosis — cleanup paused)
 
 This section is the authoritative current snapshot. Everything below it (including the
-post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot,
+post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot,
 earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
 preserved as historical context and should not be read as current.
+
+- **Code baseline `main`:** `7e17232a` (PR [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405)); docs tip `28a4797`.
+- **Live server before fix:** `fbefbb6432364edec07566c6bec4e744a87be7bd` (PR #400 merge) — **10 commits behind** `main`; process started `2026-07-02T03:38:34Z`.
+- **Live server after restart (2026-07-02):** `3fa862048445186d74b635e346a6ffabc660c1fa` on branch `fix/live-false-positive-and-highlight-regression` (emergency fix pending merge as [#406](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/406)); `http://10.196.93.210:8000/version`.
+- **PR cleanup:** **paused** — do not touch #311/#349/#362/#375/#376/#385 until live regressions confirmed fixed on merged `main`.
+- **Protected regression tests (2026-07-02):** 88 passed (P026, P018 row association, P015 split, P018 public cards, ester rule consistency).
+
+### Live regression diagnosis (aggregate-only)
+
+| Comparison | Total (4 built-in samples) | P026 | P018 | P020 | Notes |
+|---|---:|---:|---:|---:|---|
+| `3b4043c` (pre-#405 baseline) | 1,111 | 117 | 10 | 34 | Protected P018 LoT row tests pass |
+| `fbefbb6` (stale live server) | 1,111 | 117 | 10 | 34 | Same detector output as `3b4043c` on built-in samples |
+| `28a4797` / fix branch (`3fa8620`) | 1,109 | 117 | 11 | 31 | **No P026 reintroduction**; P020 −3 vs baseline; fresh `ester_sample_d` audit: P018 `missing_page_number` = 0 |
+
+**False-positive user report:** primarily **stale live server** (`fbefbb6`) and/or **old audit job URLs**, not a detector regression on current `main`. Five-PDF eval (from earlier session) shows `main` at 1,161 total vs `3b4043c` at 1,166 (−5); #405 reduces P020 (−6) without reintroducing P026 (+298) that #388 would have caused.
+
+**Highlight-page regression:** commit `9ca99c0` (single-page `highlighted-page.pdf` artifacts) was never merged to `main`. Links used `/pdf/highlighted` + `#page=` (full PDF). **#406** restores single-page artifacts; verified: endpoint returns 1-page PDF with highlight annotations.
+
+### Open PRs
+
+**6** independent PRs paused + **#406** emergency fix. Full triage: [open_pr_triage.md](open_pr_triage.md).
+
+### Next recommended work
+
+1. **Merge #406** → restart live at merged `main`; fresh audit + UI check for highlight links.
+2. Resume PR cleanup only after live confirmation.
+3. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-02 (post-#405 merge)
+
+> **Superseded** by the live regression diagnosis snapshot above.
 
 - **Baseline main for this status snapshot:** `7e17232a` (PR [#405](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/405) — Digital Commons wrapper false-positive reductions, clean #388 port).
 - **Short SHA:** `7e17232`.
