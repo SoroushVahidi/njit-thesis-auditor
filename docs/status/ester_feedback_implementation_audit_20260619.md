@@ -1,5 +1,8 @@
 # Ester Product-Feedback Implementation Audit — 2026-06-19
 
+> **Historical / superseded.** Pre-#387 audit. Ester specs are now in `data/specs/`; see
+> [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md).
+
 **Type:** Read-only audit / gap analysis. No code changes, no commits, no deployment,
 no PR merges/closures, no stash actions were performed while producing this report.
 

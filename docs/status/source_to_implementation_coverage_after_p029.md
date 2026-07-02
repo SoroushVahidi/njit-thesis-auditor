@@ -1,5 +1,8 @@
 # Source-to-Implementation Coverage Audit (after P001-P029)
 
+> **Historical / superseded** (2026-06-07, P029 era). See
+> [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md).
+
 - Date: 2026-06-07
 - Baseline main before this branch: `7139e76a9fe5`
 - Scope: strict source-to-implementation verification of current rule/guideline sources and implementation surface (no new rule additions)

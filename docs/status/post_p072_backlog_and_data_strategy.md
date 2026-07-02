@@ -1,5 +1,8 @@
 # Post-P072 Backlog and Data Strategy
 
+> **Historical / superseded.** P072-era backlog (2026-06-09). For current next steps see
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
 - **Date:** 2026-06-09
 - **Baseline commit:** `b889e5f` (PR #263 — P072 post-implementation evaluation and EF-overlap refresh)
 - **Validation:** P001–P072 implemented; **1014 pytest**; ruff clean; mypy 87 source files, no issues

@@ -1,5 +1,7 @@
 # Full Repository Audit — 2026-06-19
 
+> **Historical / superseded.** See [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
 Read-only audit. No code changes, no commits, no deployment actions, no stash
 applied, no branches deleted, no PRs merged/created as part of producing this
 report.

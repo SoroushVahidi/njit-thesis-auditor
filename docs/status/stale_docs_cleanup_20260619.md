@@ -1,5 +1,8 @@
 # Stale Docs Cleanup — 2026-06-19
 
+> **Historical record** of a 2026-06-19 cleanup pass. Current status:
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
 **Branch:** `fix/stale-docs-and-pr305-cleanup`  
 **Baseline:** `main` @ `5434665d7aafa94e7ba00fd5ea9ec77e3389e2bf`  
 **Scope:** Documentation and PR #305 resolution only. No detector, threshold, rule-ID, or UI-behavior changes.
