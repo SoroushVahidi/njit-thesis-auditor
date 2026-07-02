@@ -73,7 +73,16 @@ def _check_lof_terminal_punctuation_page(
                 details={
                     "page_number": str(context.page.page_number),
                     "issue_type": "lof_entry_missing_terminal_punctuation",
+                    # Document-global index (kept for existing internal dedup/
+                    # grouping consumers that expect a monotonic value across a
+                    # multi-page List of Figures).
                     "entry_index": str(page_entry_offset + idx),
+                    # Page-relative index for display: "(entry #N)" must count
+                    # only what is visible on *this* page, or a List of
+                    # Figures continuation page can be labeled with an entry
+                    # number higher than the number of entries actually shown
+                    # on that page.
+                    "page_entry_index": str(idx),
                     "line_y": f"{entry.line.bbox.y0:.1f}",
                     "terminal_punctuation_required": "., ?, or !",
                     "triage_tier": "medium",

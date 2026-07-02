@@ -16,8 +16,8 @@ def digital_commons_advisory_comment(*, page_count: int, pages_compact: str) -> 
 
 def digital_commons_advisory_suggested_fix() -> str:
     return (
-        "Remove repository-generated Digital Commons cover, copyright, and metadata pages "
-        "from the PDF before submitting your thesis manuscript, then re-run the auditor."
+        "For the most accurate audit, upload the thesis manuscript PDF without Digital "
+        "Commons cover, copyright, or metadata pages, then re-run the auditor."
     )
 
 

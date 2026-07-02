@@ -135,6 +135,14 @@ def run_pdf_margin_rule(
                         (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
                     )
 
+            # Tiny, single-line overflows are more likely measurement noise (font
+            # metric rounding, a stray descender) than a real violation. This is
+            # already reflected in `confidence` ("low"); `triage_tier` stays a
+            # constant "informational" for all P011 findings because it is part
+            # of build_grouped_findings()'s grouping key (report_outputs.py) —
+            # varying it by confidence would split identical margin problems
+            # across separate cards purely because occurrences differed in
+            # measured overflow.
             finding_details: dict[str, str] = {
                 "side": side.value,
                 "issue_type": "margin_boundary_violation",
@@ -156,7 +164,10 @@ def run_pdf_margin_rule(
                     rule_id="P011",
                     severity=Severity.WARNING,
                     page=page.page_number,
-                    message=f"Possible text crossing {side.value}.",
+                    message=(
+                        f"Possible text crossing {side.value} by approximately "
+                        f"{worst:.1f} pt."
+                    ),
                     details=finding_details,
                 )
             )

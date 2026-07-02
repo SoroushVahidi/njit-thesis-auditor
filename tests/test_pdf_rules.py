@@ -416,6 +416,43 @@ def test_grouped_violations_confidence_high_for_large_overflow(tmp_path: Path) -
     assert warning.details.get("confidence") == "high"
 
 
+def test_p011_tiny_single_line_overflow_is_low_confidence(tmp_path: Path) -> None:
+    """A tiny (just-over-tolerance), single-line overflow should still warn but
+    as a low-confidence signal — not presented with the same strength as a
+    substantial margin crossing. triage_tier stays constant across confidence
+    levels (it is part of build_grouped_findings()'s grouping key)."""
+    pdf_path = tmp_path / "margin_tiny_low_conf.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Left margin is 108pt; x=103.5 -> ~4.5pt overflow (above the 3pt tolerance,
+    # below the 5pt medium-confidence floor) on a single line.
+    page.insert_text((103.5, 120), "Barely over the left margin here", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details.get("confidence") == "low"
+    assert warning.details.get("triage_tier") == "informational"
+    overflow = float(warning.details["worst_overflow_pt"])
+    assert 3.0 < overflow < 5.0
+    assert f"{overflow:.1f} pt" in warning.message
+
+
+def test_p011_real_overflow_message_states_measured_overrun(tmp_path: Path) -> None:
+    """A substantial margin crossing must state the exact measured overrun in
+    the finding message, not a generic 'possible crossing' with no numbers."""
+    pdf_path = tmp_path / "margin_message_overrun.pdf"
+    _make_pdf_with_margin_violation(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    overflow = float(warning.details["worst_overflow_pt"])
+    assert f"{overflow:.1f} pt" in warning.message
+    assert warning.details.get("confidence") == "high"
+    assert warning.details.get("triage_tier") == "informational"
+
+
 def test_annotation_extraction_detects_comment(tmp_path: Path) -> None:
     pdf_path = tmp_path / "annot.pdf"
     _make_pdf_with_annotation(pdf_path)
@@ -2812,6 +2849,33 @@ def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
     )
 
 
+def test_p024_lof_sentence_case_identifies_exact_flagged_words(tmp_path: Path) -> None:
+    """The finding must name the specific words causing the sentence-case
+    violation, not just a generic 'multiple later words' message."""
+    pdf_path = tmp_path / "lof_flagged_words.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
+            ("Figure 2 Overview of Data Collection Pipeline for Experiments ....", 108),
+            ("Figure 3 Comparison of Training Accuracy Across Baseline Models ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_toc_list_formatting(model)
+        if f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
+    ]
+    assert findings
+    for f in findings:
+        flagged_words = f.details.get("flagged_words", "")
+        assert flagged_words
+        first_word = flagged_words.split(",")[0].strip()
+        assert first_word in f.message
+
+
 def test_p024_lof_common_nouns_in_title_case_warn(tmp_path: Path) -> None:
     """A LoF entry with obvious title-cased common nouns must trigger the warning."""
     pdf_path = tmp_path / "lof_common_nouns_bad.pdf"
@@ -3813,10 +3877,13 @@ def test_is_all_caps_phrase_false() -> None:
 # ---- integration tests ----
 
 def _make_single_page_pdf(path: Path, lines: list[tuple[float, str]]) -> None:
+    """Bold by default: NJIT numbered Level 2-5 headings are always bold
+    (Titles Examples Level 1 to 5.docx), and P027 requires bold before
+    classifying a numbered-pattern line as a heading candidate."""
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     for y, text in lines:
-        page.insert_text((108, y), text, fontsize=12)
+        page.insert_text((108, y), text, fontsize=12, fontname="Times-Bold")
     doc.save(path)
     doc.close()
 
@@ -3959,6 +4026,66 @@ def test_p027_citation_text_ignored(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_heading_level_styles(model)
     assert not any(f.rule_id == "P027" for f in findings)
+
+
+def test_p027_non_bold_statistic_sentence_not_treated_as_heading(tmp_path: Path) -> None:
+    """A body sentence starting with a decimal number (e.g. a statistic) must not
+    be classified as a Level 2 heading merely because it matches the numbered
+    pattern — real headings are bold; ordinary body text is not."""
+    pdf_path = tmp_path / "p027_statistic_not_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Real bold Level 2 heading elsewhere on the page.
+    page.insert_text((108, 150), "5.6 Summary", fontsize=12, fontname="Times-Bold")
+    # Ordinary, non-bold body sentence that happens to start with "68.4 ...".
+    page.insert_text(
+        (108, 200),
+        "68.4 percent of participants reported improved outcomes overall.",
+        fontsize=12,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    for f in findings:
+        assert "68.4" not in f.details.get("line_preview", "")
+        assert "percent" not in f.details.get("line_preview", "")
+
+
+def test_p027_level3_finding_includes_corrected_example_and_location(tmp_path: Path) -> None:
+    """A real (bold) Level 3 title-case violation must still warn, and the
+    finding must carry enough evidence to show the actual heading — not
+    generic body text — plus a concrete sentence-case rewrite."""
+    pdf_path = tmp_path / "p027_l3_example.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 200),
+        "4.4.1 Scatterplots Of Relationships With Readiness",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_heading_level_styles(model)
+        if f.details.get("issue_type") == "level3_sentence_case_issue"
+    ]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details.get("heading_pattern") == "4.4.1"
+    assert "Scatterplots Of Relationships With Readiness" in finding.details.get(
+        "line_preview", ""
+    )
+    assert finding.details.get("corrected_example") == (
+        "4.4.1 Scatterplots of relationships with readiness"
+    )
+    assert "Level 3" in finding.message
+    assert "Level 2" not in finding.message
+    assert "Level 4" not in finding.message
+    assert "Level 5" not in finding.message
 
 
 def test_p027_cli_includes_p027(tmp_path: Path) -> None:
@@ -7244,6 +7371,67 @@ def test_p037_finding_metadata_privacy_safe(tmp_path: Path) -> None:
         assert "body text" not in f.message.lower()
 
 
+def test_p037_two_page_toc_list_of_tables_ix_no_finding(tmp_path: Path) -> None:
+    """A TOC that spans two pages (ending in viii) makes ix the correct next
+    value for List of Tables — not a hard-coded viii (Q060: sequential after
+    the TOC, however many pages it takes)."""
+    pdf_path = tmp_path / "p037_toc_two_page_ok.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, None, "viii"),  # TOC "(Continued)" page
+        ("LIST OF TABLES", None, "ix"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    lot = [f for f in findings if f.details.get("section_key") == "list_of_tables"]
+    assert not lot
+
+
+def test_p037_single_page_toc_list_of_tables_ix_warns_expected_viii(
+    tmp_path: Path,
+) -> None:
+    """A single-page TOC ending in vii makes viii the correct next value; a List
+    of Tables printed as ix is a real sequence break."""
+    pdf_path = tmp_path / "p037_toc_one_page_bad.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        ("LIST OF TABLES", None, "ix"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    lot = [f for f in findings if f.details.get("section_key") == "list_of_tables"]
+    assert lot
+    assert lot[0].details.get("expected_roman") == "viii"
+    assert lot[0].details.get("observed_roman") == "ix"
+
+
+def test_p037_list_of_tables_uncertain_preceding_page_no_hardcoded_warning(
+    tmp_path: Path,
+) -> None:
+    """When the page immediately before List of Tables has no confident Roman
+    candidate, the expected value cannot be determined — do not fall back to
+    a hard-coded guess and emit a false warning."""
+    pdf_path = tmp_path / "p037_toc_uncertain_preceding.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, None, None),  # TOC continuation page with no visible page number
+        ("LIST OF TABLES", None, "ix"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    lot = [f for f in findings if f.details.get("section_key") == "list_of_tables"]
+    assert not lot
+
+
 def test_p037_cli_includes_rule(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p037_cli.pdf"
     json_out = tmp_path / "p037_report.json"
@@ -8679,6 +8867,52 @@ def test_p044_q003_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q003_findings
     assert all(f.details.get("source_q_rule_id") == "Q003" for f in q003_findings)
+
+
+def test_p044_continuation_line_after_large_gap_not_new_paragraph(tmp_path: Path) -> None:
+    """A wrapped continuation line separated by a wide, double-spacing-style gap
+    from a sentence that has not yet ended must not be misread as a new,
+    non-indented paragraph (Ester Q003 checks the *top line* of each paragraph,
+    not every line separated by a large vertical gap)."""
+    pdf_path = tmp_path / "p044_continuation_gap.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    # Para 1: flush-left (correct), ends with a period.
+    page.insert_text((108.0, 130), "Synthetic abstract body paragraph first line text here.")
+    page.insert_text((108.0, 144), "Continuation abstract first paragraph body text line here.")
+    # Para 2: correctly indented first line; the sentence does not end here and
+    # wraps onto a flush-left continuation line separated by a >14pt gap.
+    page.insert_text((140.0, 220), "Synthetic paragraph two first line continues without a")
+    page.insert_text((108.0, 252), "period yet and wraps onto this flush continuation line.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "abstract_subsequent_paragraph_not_indented" not in issue_types
+
+
+def test_p044_real_flush_left_later_paragraph_still_warns(tmp_path: Path) -> None:
+    """A genuine later paragraph that begins flush-left (no indent) after a
+    completed sentence and a real paragraph gap must still be flagged."""
+    pdf_path = tmp_path / "p044_real_flush_later.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    # Para 1: flush-left (correct for the first paragraph).
+    page.insert_text((108.0, 130), "Synthetic abstract body paragraph first line text here.")
+    page.insert_text((108.0, 144), "Continuation abstract first paragraph body text line here.")
+    # Para 2: correctly indented, ends with a completed sentence.
+    page.insert_text((140.0, 220), "Synthetic abstract body paragraph second line ends here.")
+    # Para 3: begins flush-left (violation) after a real paragraph-sized gap.
+    page.insert_text((108.0, 300), "Synthetic abstract body paragraph third line begins flush.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
+    issue_types = [f.details.get("issue_type") for f in findings]
+    assert "abstract_subsequent_paragraph_not_indented" in issue_types
 
 
 # ---------------------------------------------------------------------------

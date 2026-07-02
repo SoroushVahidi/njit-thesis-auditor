@@ -24,7 +24,11 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
-from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
+from njit_auditor.rules.pdf_headings import (
+    BOLD_FONT_HINT_RE,
+    EXPECTED_HEADINGS,
+    normalize_heading_text,
+)
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 from njit_auditor.rules.pdf_title_capitalization import (
     check_apa_title_case_phrase,
@@ -107,6 +111,49 @@ def _is_all_caps_phrase(text: str) -> bool:
     return sum(1 for c in alpha if c.isupper()) / len(alpha) >= 0.80
 
 
+def _is_bold_line(line: PdfTextLine) -> bool:
+    """Return True when the line's text is (mostly) bold.
+
+    Per Titles Examples Level 1 to 5.docx, numbered Level 2-5 headings are all
+    bold and stand on their own line — a body sentence that merely starts with
+    a decimal-looking number (e.g. a statistic like "68.4 percent...") is
+    neither. Requiring bold before treating a numbered-pattern match as a real
+    heading candidate is what keeps such sentences from being misclassified.
+    """
+    if not line.spans:
+        return False
+    return any(
+        span.bold or bool(span.font and BOLD_FONT_HINT_RE.search(span.font))
+        for span in line.spans
+    )
+
+
+def _sentence_case_example(number_prefix: str, heading_text: str) -> str:
+    """Return a conservative sentence-case rewrite of heading_text, or "" if unsafe.
+
+    Only lowercases simple Title-Case words (single leading capital, rest
+    lowercase); acronyms, hyphenated/mixed-case tokens, and numbers are left
+    untouched. Returns "" if nothing would change, so callers can skip
+    offering a misleading "example" when the safe rewrite is a no-op.
+    """
+    words = heading_text.split()
+    if not words:
+        return ""
+    rewritten = [words[0]]
+    changed = False
+    for word in words[1:]:
+        core = word.strip(".,;:!?\"'()-[]")
+        if core and core[0].isupper() and core[1:].islower() and not looks_like_acronym(core):
+            lowered = word[0].lower() + word[1:]
+            rewritten.append(lowered)
+            changed = True
+        else:
+            rewritten.append(word)
+    if not changed:
+        return ""
+    return f"{number_prefix} {' '.join(rewritten)}"
+
+
 def _is_qualified_heading(text: str) -> bool:
     """Return True when heading text looks like a real heading title (not noise/equations).
 
@@ -179,6 +226,11 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
         number_prefix, heading_text = m.group(1), m.group(2).strip()
         if not _is_qualified_heading(heading_text):
             break  # matched pattern but text is not heading-like; skip
+        if not _is_bold_line(line):
+            # A body sentence that merely starts with a decimal-looking number
+            # (e.g. "68.4 percent of participants...") matches the numbered
+            # pattern but is not a heading — NJIT numbered headings are bold.
+            break
 
         if level == 2:
             issues = check_apa_title_case_phrase(heading_text)
@@ -206,22 +258,28 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
         else:  # level 3, 4, 5
             q_rule = "Q051" if level == 3 else ""
             if _looks_like_title_case_violation(heading_text):
-                results.append(_finding(
+                example = _sentence_case_example(number_prefix, heading_text)
+                message = (
+                    f"Change this Level {level} heading to sentence case "
+                    f"(NJIT: Level {level} = Sentence Case)."
+                )
+                if example:
+                    message += f' For example: "{example}".'
+                finding = _finding(
                     page.page_number,
                     issue_type=f"level{level}_sentence_case_issue",
                     inferred_level=str(level),
                     heading_pattern=number_prefix,
-                    message=(
-                        f"Level {level} heading on page {page.page_number} may use "
-                        f"title-case style where sentence case is expected "
-                        f"(NJIT: Level {level} = Sentence Case)."
-                    ),
+                    message=message,
                     expected_or_reason="Sentence case (only first word capitalized)",
                     line_preview=preview,
                     confidence="medium",
                     source_q_rule_id=q_rule,
                     bbox=line.bbox,
-                ))
+                )
+                if example:
+                    finding.details["corrected_example"] = example
+                results.append(finding)
             # Level 4/5: heading text should end with a period.
             if level in (4, 5) and not heading_text.rstrip().endswith("."):
                 results.append(_finding(

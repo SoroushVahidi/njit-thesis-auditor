@@ -1142,6 +1142,14 @@ def _margin_side_label(details: dict[str, str]) -> str:
 
 
 def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Card-level P011 comment — kept generic (no per-occurrence overflow amount
+    or confidence wording) because this text feeds build_grouped_findings()'s
+    grouping key; embedding an instance-specific number here would split every
+    margin violation onto its own card. The exact measured overrun and a
+    low-confidence caveat are surfaced per-occurrence instead, via
+    margin_location_label() and the existing confidence badge (see
+    p027_heading_location_label's docstring pattern and
+    test_same_problem_with_different_confidence_stays_on_one_card_by_default)."""
     page_label = _safe_page_label(page)
     side = _margin_side_label(details)
     _MARGIN_SPEC = (

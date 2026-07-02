@@ -40,6 +40,24 @@ def normalize_area_phrase(bbox_label: str) -> str:
     return cleaned[0].lower() + cleaned[1:] if cleaned else cleaned
 
 
+def _margin_overflow_phrase(details: Mapping[str, str]) -> str:
+    """Return "(~X.X pt over)" for a measured overflow, or "" if unavailable.
+
+    Per-occurrence only: this must never be folded into the shared card-level
+    comment text (build_polished_comment's P011 template), since that text
+    feeds build_grouped_findings()'s grouping key and an instance-specific
+    number there would split identical margin problems across separate
+    cards. location_label is safe — it is rendered per individual finding
+    row within an already-grouped card, not used for grouping.
+    """
+    raw = str(details.get("worst_overflow_pt", "")).strip()
+    try:
+        overflow_pt = float(raw)
+    except ValueError:
+        return ""
+    return f" (~{overflow_pt:.1f} pt over)"
+
+
 def margin_location_label(
     details: Mapping[str, str],
     page: int | None,
@@ -54,6 +72,7 @@ def margin_location_label(
         area_phrase = normalize_area_phrase(bbox_label)
     else:
         area_phrase = "margin boundary"
+    area_phrase += _margin_overflow_phrase(details)
     prefix = _page_prefix(page)
     if prefix:
         return f"{prefix} — {area_phrase}"
@@ -103,6 +122,21 @@ def abstract_indent_location_label(
     if bbox_label:
         return f"Abstract, {paragraph_phrase} ({normalize_area_phrase(bbox_label)})"
     return f"Abstract, {paragraph_phrase}"
+
+
+def p027_heading_location_label(details: Mapping[str, str], *, page_prefix: str) -> str:
+    """Return a student-facing location label naming the actual heading, not
+    generic body text — e.g. 'Page 62 — Level 3 heading "4.4.1 Scatterplots..."'.
+
+    ``line_preview`` for P027 findings is the full matched line (number prefix
+    included), so it is used as-is rather than re-prefixed with
+    ``heading_pattern``.
+    """
+    level = details.get("inferred_level", "").strip()
+    heading_phrase = details.get("line_preview", "").strip()
+    if not level or not heading_phrase:
+        return f"{page_prefix}"
+    return f'{page_prefix} — Level {level} heading "{heading_phrase}"'
 
 
 def grouped_finding_display_dedup_key(
