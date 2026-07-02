@@ -548,13 +548,14 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Problem: The Approval Page on page {page} lists {role_label_count} "
         "committee role label(s), but none of them is a recognizable advisor role "
         "label (for example, 'Dissertation Advisor' or 'Major Professor'). Add the "
-        "required advisor role label."
+        "required advisor or committee role label for each committee entry on the "
+        "Approval Page."
     ),
     ("P068", "approval_page_signature_blocks_sparse"): (
         "Problem: The Approval Page on page {page} has {signature_date_indicator_count} "
         "signature/date line(s) for {role_label_count} committee role label(s), but "
-        "at least {required_indicator_count} are expected. Add a signature line and "
-        "a date line for each committee member."
+        "at least {required_indicator_count} are expected. Add the required "
+        "signature/date structural block for each committee entry on the Approval Page."
     ),
 }
 
@@ -1347,12 +1348,13 @@ def _p066_degree_order_comment(*, page: int | None, details: dict[str, str]) -> 
     inversion_count = details.get("inversion_count", "").strip() or "at least one"
     place_noun = "place" if inversion_count == "1" else "places"
     return (
-        f"Likely problem: Biographical Sketch degree entries on page {page_label} may "
-        "not be listed most-recent-first: the candidate years found (in listed order) "
-        f"run from {first_year} to {last_year}, with {inversion_count} {place_noun} "
-        "where a later-listed entry's year is more recent than the entry just before "
-        "it. NJIT requires postgraduate degrees to be listed from most recent to "
-        "oldest."
+        f"Problem: Postgraduate degree entries on the Biographical Sketch page "
+        f"(page {page_label}) may not be listed from most recent to oldest: the "
+        f"candidate years found (in listed order) run from {first_year} to "
+        f"{last_year}, with {inversion_count} {place_noun} where a later-listed "
+        "entry's year is more recent than the entry just before it. Reorder "
+        "postgraduate degree entries in the Biographical Sketch from most recent "
+        "to oldest."
     )
 
 
@@ -1363,12 +1365,13 @@ def _p067_publication_order_comment(*, page: int | None, details: dict[str, str]
     inversion_count = details.get("inversion_count", "").strip() or "at least one"
     place_noun = "place" if inversion_count == "1" else "places"
     return (
-        "Likely problem: Biographical Sketch publication/presentation entries on page "
-        f"{page_label} may not be listed most-recent-first: the comparable entry years "
-        f"found (in listed order) run from {first_year} to {last_year}, with "
-        f"{inversion_count} {place_noun} where a later-listed entry's year is more "
-        "recent than the entry just before it. NJIT requires publications/"
-        "presentations to be listed from most recent to oldest."
+        "Problem: Publication and presentation entries on the Biographical "
+        f"Sketch page (page {page_label}) may not be listed from most recent to "
+        f"oldest: the comparable entry years found (in listed order) run from "
+        f"{first_year} to {last_year}, with {inversion_count} {place_noun} where a "
+        "later-listed entry's year is more recent than the entry just before it. "
+        "Reorder publication and presentation entries in the Biographical Sketch "
+        "from most recent to oldest."
     )
 
 
@@ -1379,11 +1382,11 @@ def _p045_hanging_indent_comment(*, page: int | None, details: dict[str, str]) -
     count_clause = f" ({block_count} multi-line entries checked)" if block_count else ""
     threshold_clause = f" by at least {threshold}pt" if threshold else ""
     return (
-        "Likely problem: None of the publication/presentation entries on the "
-        f"Biographical Sketch page (page {page_label}) use hanging indentation"
+        "Problem: Publication/presentation entries on the Biographical Sketch "
+        f"page (page {page_label}) do not appear to use hanging indentation"
         f"{count_clause}: no continuation line is indented{threshold_clause} "
-        "relative to its entry's first line. NJIT requires publication/"
-        "presentation entries to use hanging indentation (first line flush left, "
+        "relative to its entry's first line. Format each publication or "
+        "presentation entry with a hanging indent (first line flush left, "
         "continuation lines indented)."
     )
 
@@ -1398,10 +1401,10 @@ def _p045_entry_spacing_comment(*, page: int | None, details: dict[str, str]) ->
         else ""
     )
     return (
-        "Likely problem: Two consecutive publication/presentation entries on the "
-        f"Biographical Sketch page (page {page_label}) appear to lack the required "
-        f"gap between them{gap_clause}. NJIT requires a blank-line gap between "
-        "publication/presentation entries."
+        "Problem: Two consecutive publication/presentation entries on the "
+        f"Biographical Sketch page (page {page_label}) do not appear to have a "
+        f"blank line between them{gap_clause}. Add a blank line between separate "
+        "entries."
     )
 
 
@@ -1424,10 +1427,10 @@ def _p047_bullet_spacing_comment(*, page: int | None, details: dict[str, str]) -
         else ""
     )
     return (
-        f"Likely problem: A {block_label} on the Biographical Sketch page (page "
-        f"{page_label}) has an internal line gap that looks double-spaced rather "
-        f"than single-spaced{gap_clause}. NJIT requires bullet/list items in the "
-        "Biographical Sketch to be single-spaced internally."
+        f"Problem: A {block_label} on the Biographical Sketch page (page "
+        f"{page_label}) appears to have extra spacing inside the bullet item"
+        f"{gap_clause}. Single-space each bullet item in the Biographical Sketch "
+        "education section, with no extra blank lines inside the same bullet item."
     )
 
 

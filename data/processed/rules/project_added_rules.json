@@ -795,9 +795,9 @@
   {
     "id": "P045",
     "section": "PDF Biographical Sketch publication paragraph layout",
-    "question": "Does the Biographical Sketch page follow the correct publication entry layout — hanging indent for all publication entries, single-spaced entries with a blank line between them, and single-spaced wrapped lines within each entry?",
+    "question": "Do publication and presentation entries in the Biographical Sketch use the required layout: hanging indent, internal single spacing, and a blank line between entries?",
     "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks. For multi-line blocks with hanging-indent pattern (continuation lines x0 > first line x0 by HANGING_THRESHOLD_PT=12pt), checks: (Q029) if no blocks have hanging indent despite >=2 multi-line blocks, emits missing_hanging_indent; (Q028) if consecutive hanging-indent blocks have inter-block gap < ENTRY_GAP_THRESHOLD_PT=20pt, emits entry_spacing_not_double; (Q026) if a hanging-indent block has internal line gap > MAX_WITHIN_ENTRY_GAP_PT=16pt, emits wrapped_line_spacing_not_single. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than 2 multi-line blocks. Findings are geometry-only — no publication text, citation content, or names.",
-    "remediation": "Ensure all publication/presentation entries on the Biographical Sketch page use hanging indentation, are single-spaced internally, and have a blank line between entries.",
+    "remediation": "Format each publication or presentation entry with a hanging indent. Keep wrapped lines within each entry single-spaced, and add a blank line between separate entries.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -831,9 +831,9 @@
   {
     "id": "P047",
     "section": "PDF Biographical Sketch bullet section single-spacing",
-    "question": "Are the bullet items in the education section of the Biographical Sketch single-spaced within each bullet?",
+    "question": "Are bullet items in the Biographical Sketch education section single-spaced within each bullet?",
     "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks using MAX_PARA_GAP_PT=20pt so wrapped or double-spaced lines remain in one candidate block. Identifies 'bullet' blocks as multi-line blocks that do NOT have hanging-indent (rest_x0 - first_x0 < HANGING_THRESHOLD_PT=12pt). For bullet blocks with >=3 lines, checks internal line gaps using BULLET_MAX_GAP_PT=12pt so distinct bullet/list entries remain separated from within-entry spacing checks. If any gap > BULLET_MAX_GAP_PT, emits biosketch_bullet_section_not_single_spaced. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than MIN_BULLET_BLOCKS=2 non-hanging-indent multi-line blocks. Findings are geometry-only — no bullet text, education content, names, or institutions.",
-    "remediation": "Ensure bullet items in the Biographical Sketch education section are single-spaced within each bullet, with no extra blank lines within a bullet item.",
+    "remediation": "Single-space each bullet item in the Biographical Sketch education section, with no extra blank lines inside the same bullet item.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -1249,7 +1249,7 @@
     "title": "Biographical Sketch degree ordering check",
     "description": "Heuristic PDF check for Q025: postgraduate degree entries in the Biographical Sketch must be listed most recent to oldest. Detects 4-digit year tokens in short education-zone candidate lines (below the BIOGRAPHICAL SKETCH heading, above any detectable Publications/Presentations sub-section boundary) and checks whether the year sequence is non-increasing (most recent first). Emits biosketch_degree_order_suspicious when a clear inversion (> 2-year gap) is found among >= 3 candidate lines. Q023 (no birthplace/date of birth), Q024 (no work experience), and the 'NJIT first' sub-requirement of Q025 are explicitly out of scope for v1 — all three require reading biographical content and/or NLP.",
     "section": "Biographical Sketch",
-    "question": "Are postgraduate degrees listed from most recent to oldest?",
+    "question": "Are postgraduate degrees in the Biographical Sketch listed from most recent to oldest?",
     "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings; (2) find Publications/Presentations boundary line if present; (3) collect short lines (<= 120 chars) with exactly one 4-digit year token (1960-2099) in the education zone; (4) skip if < 3 such candidates or all years equal; (5) emit biosketch_degree_order_suspicious if any adjacent pair has a later-listed year > earlier-listed year by > 2 years. Findings contain counts and year integers only — no bio-sketch text, degree names, institution names, or biographical prose.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -1265,7 +1265,7 @@
     "issue_types": [
       "biosketch_degree_order_suspicious"
     ],
-    "remediation": "Reorder postgraduate degree entries in the Biographical Sketch from most recent to oldest. Q023 (no birthplace/date) and Q024 (no work experience) require manual review.",
+    "remediation": "Reorder postgraduate degree entries in the Biographical Sketch from most recent to oldest. Manual review may still be needed for birthplace/date-of-birth and work-experience requirements.",
     "source_file": "project_added",
     "notes": "Conservative v1 PDF heuristic for Q025 (degree ordering) only. Q023 (no birthplace/date of birth) and Q024 (no work experience) are manual-only — require NLP and content reading; high privacy risk. Q025 'NJIT first' sub-requirement deferred — requires institution name recognition. False-positive risk: year tokens from narrative prose mitigated by line-length threshold (_MAX_DEGREE_LINE_CHARS=120), one-year-per-line gate, and 3-candidate minimum. If bio-sketch page is image-rendered, P066 returns 0 findings (expected). Companion to P045 (Q028/Q029) and P047 (Q026)."
   },
@@ -1274,7 +1274,7 @@
     "title": "Biographical Sketch publication/presentation ordering check",
     "description": "Heuristic PDF check for Q027: publication/presentation entries in the Biographical Sketch must be listed from most recent to oldest. Detects a unique BIOGRAPHICAL SKETCH page, requires a clear Publications/Presentations subsection boundary, groups citation-like entry blocks, extracts only representative 4-digit year metadata (1960-2029), and checks whether comparable entries are in non-increasing order. Emits biosketch_publication_order_suspicious when a later-listed entry year is greater than an earlier-listed year by more than 1 year among >= 3 comparable entries. Titles, venues, author names, DOI/URL strings, and citation text are out of scope and never exposed.",
     "section": "Biographical Sketch",
-    "question": "Are publication/presentation entries listed from most recent to oldest?",
+    "question": "Are publication and presentation entries in the Biographical Sketch listed from most recent to oldest?",
     "rule_definition": "Conservative year-ordering heuristic: (1) detect the unique BIOGRAPHICAL SKETCH page; (2) locate a clear Publications/Presentations subsection heading; (3) group citation-like entry blocks using Bio Sketch publication-layout geometry; (4) keep only entries with exactly one unique representative 4-digit year token (1960-2029); (5) skip ambiguous multi-year entries and sparse/flattened zones; (6) emit biosketch_publication_order_suspicious if any adjacent comparable pair has a later-listed year > earlier-listed year + 1. Findings contain counts and year integers only — no citation text, titles, names, venues, DOI strings, URLs, or bio-sketch prose.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -1290,7 +1290,7 @@
     "issue_types": [
       "biosketch_publication_order_suspicious"
     ],
-    "remediation": "Reorder publication/presentation entries in the Biographical Sketch from most recent to oldest. Manual review is still required for citation style, authorship, title correctness, venue correctness, and ambiguous multi-year entries.",
+    "remediation": "Reorder publication and presentation entries in the Biographical Sketch from most recent to oldest. Manual review may still be needed for citation style, authorship, title correctness, venue correctness, and ambiguous multi-year entries.",
     "source_file": "project_added",
     "notes": "Conservative v1 PDF heuristic for Q027 only. Requires a unique BIOGRAPHICAL SKETCH heading and a clear Publications/Presentations subsection heading on the same page. Skips image-only pages, ambiguous multiple headings, suspected multi-column layouts, DOI/URL-heavy entries, ambiguous multi-year citations, and zones with fewer than 3 comparable entries. Companion to P045 (publication layout), P047 (bullet spacing), and P066 (education ordering)."
   },
@@ -1299,7 +1299,7 @@
     "title": "Approval Page committee block structural check",
     "description": "Heuristic PDF check for the Approval Page structural extension of Q013: a uniquely detected APPROVAL PAGE should include advisor/committee role-label template phrases and sufficient date/signature structural indicators. Counts role-label lines, date labels, signature labels, and underscore blank lines only. Committee-member names, honorifics, affiliations, signature authenticity, and Q015-Q020 semantic ordering rules are out of scope.",
     "section": "Approval Page",
-    "question": "Does the Approval Page include recognizable committee role labels and signature/date structural blocks?",
+    "question": "Does the Approval Page include committee role labels and signature/date structural blocks for committee entries?",
     "rule_definition": "Conservative structural heuristic: (1) detect exactly one APPROVAL PAGE heading; (2) scan body lines below the heading; (3) count curated advisor/committee role-label phrases in line prefixes; (4) count date:, signature, and underscore-blank indicators; (5) emit approval_page_advisor_role_label_missing when no advisor-role phrase is detected among >= 2 role labels; (6) emit approval_page_signature_blocks_sparse when indicator count is below max(2, role_label_count). Findings contain counts and booleans only.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -1318,7 +1318,7 @@
       "approval_page_advisor_role_label_missing",
       "approval_page_signature_blocks_sparse"
     ],
-    "remediation": "Ensure the Approval Page includes an advisor-role label and sufficient date/signature structural blocks for each committee entry. Manual review is still required for honorifics, rank order, NJIT/external ordering, institution completeness, and signature authenticity.",
+    "remediation": "Add the required advisor or committee role label and the signature/date structural block for each committee entry on the Approval Page. Manual review may still be needed for honorifics, rank order, NJIT/external ordering, institution completeness, and signature authenticity.",
     "source_file": "project_added",
     "notes": "Conservative v1 PDF heuristic. Skips when no unique APPROVAL PAGE heading is detected, the page is image-only, body lines are sparse/noisy, or fewer than 2 role-label phrases are found. Does not duplicate P014 (heading style), P025 (sparse body line count), P038 (heading phrase presence), or P022 (no page number). Q015-Q020 remain manual-only."
   },
