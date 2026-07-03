@@ -1784,6 +1784,9 @@ def _problem_group_examples(
             problem_number = problem_number_raw
         else:
             problem_number = problem_number_by_identity.get(id(finding), 0)
+        confidence_level = str(finding.get("confidence_level", "")).strip()
+        confidence_label = str(finding.get("confidence_label", "")).strip()
+        confidence_css_class = str(finding.get("confidence_css_class", "")).strip()
         pdf_page_url = _pdf_action_url(
             job.job_id,
             page=page,
@@ -1807,6 +1810,9 @@ def _problem_group_examples(
                 "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
                 "location_text": _student_location_text(finding),
                 "page": page,
+                "confidence_level": confidence_level,
+                "confidence_label": confidence_label,
+                "confidence_css_class": confidence_css_class,
                 "pdf_page_url": pdf_page_url,
                 "highlighted": has_highlight,
                 "action_kind": action_kind,

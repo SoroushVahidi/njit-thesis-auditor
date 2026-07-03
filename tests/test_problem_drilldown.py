@@ -14,6 +14,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -117,6 +118,9 @@ def _inject_job(
                 "suggested_fix": f.suggested_fix,
                 "triage_tier": f.triage_tier,
                 "confidence": f.confidence,
+                "confidence_level": f.confidence_level,
+                "confidence_label": f.confidence_label,
+                "confidence_css_class": f.confidence_css_class,
                 "source_file": f.source_file,
                 "source_line": f.source_line,
                 "location_label": f.location_label,
@@ -775,3 +779,186 @@ def test_all_drilldown_routes_return_non_500(
     for path in routes:
         resp = c.get(path, headers=_DESKTOP_HEADERS)
         assert resp.status_code != 500, f"Route {path!r} returned 500"
+
+
+# ---------------------------------------------------------------------------
+# H. Confidence badge display guarantee (student-facing problem cards)
+# ---------------------------------------------------------------------------
+#
+# Regression coverage for a bug where "All examples in this category" / rule /
+# issue-type drill-down pages (problem_group.html) rendered example cards with
+# no confidence badge at all -- _problem_group_examples() built each example
+# dict without confidence_level/confidence_label/confidence_css_class, so the
+# confidence_badge() macro never received real data for those pages.
+#
+# Confidence-sorting and page-order-sorting regression coverage for the main
+# job page already exists in test_web_app.py
+# (test_sort_query_param_page_order_orders_by_earliest_page,
+# test_sort_query_param_confidence_desc_orders_high_confidence_first,
+# test_sort_query_param_confidence_asc_orders_low_confidence_first) and none
+# of that sorting logic is touched by this template-only fix, so it isn't
+# duplicated here -- the full suite passing is the regression guard for it.
+
+
+def _make_confidence_badge_findings() -> list[AuditFinding]:
+    """Four P026 font-formatting findings sharing one issue type, with
+    high/medium/low/missing confidence respectively. Because they share a
+    rule_id and issue_type, the main job page groups them into a single card
+    with mixed confidence_levels (proving mixed collapses to Low there), while
+    every drill-down view renders them as four separate example cards, each
+    with its own real confidence (proving per-example granularity there)."""
+    findings: list[AuditFinding] = []
+    for pg, confidence in [(1, "high"), (2, "medium"), (3, "low"), (4, "")]:
+        details: dict[str, str] = {"issue_type": "possible_body_font_family_issue"}
+        if confidence:
+            details["confidence"] = confidence
+        findings.append(
+            AuditFinding(
+                rule_id="P026",
+                severity=Severity.WARNING,
+                page=pg,
+                message="Possible font family issue.",
+                details=details,
+            )
+        )
+    return findings
+
+
+@pytest.fixture()
+def confidence_badge_job(app: tuple[TestClient, Any]) -> tuple[TestClient, Any, str]:
+    c, wa = app
+    findings = _make_confidence_badge_findings()
+    job_id = _inject_job(wa, findings)
+    return c, wa, job_id
+
+
+def _extract_example_cards(text: str) -> list[str]:
+    return re.findall(
+        r'<article[^>]*class="card example-card"[^>]*>(.*?)</article>', text, re.DOTALL
+    )
+
+
+def test_main_job_page_each_problem_card_has_exactly_one_confidence_badge(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    c, _, job_id = confidence_badge_job
+    text = _get_html(c, f"/audits/{job_id}")
+    summaries = re.findall(
+        r'<div class="grouped-problem__summary">(.*?)</div>', text, re.DOTALL
+    )
+    assert summaries, "expected at least one grouped-problem card on the job page"
+    for summary in summaries:
+        assert summary.count('class="confidence-badge') == 1, summary
+
+
+def test_main_job_page_mixed_confidence_group_shows_low_not_mixed(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    """The P026 group has high/medium/low/missing confidence occurrences --
+    it must show as a single Low-confidence card, never "Mixed confidence" or
+    "Needs review", even though the raw occurrence table nested underneath
+    (a separate, already-covered surface) does show each real value."""
+    c, _, job_id = confidence_badge_job
+    text = _get_html(c, f"/audits/{job_id}")
+    assert "Mixed confidence" not in text
+    assert "Needs review" not in text
+    summary = re.search(
+        r'<div class="grouped-problem__summary">(.*?)</div>', text, re.DOTALL
+    )
+    assert summary is not None
+    assert "Low confidence" in summary.group(1)
+
+
+def test_category_page_each_example_card_has_exactly_one_confidence_badge(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    c, _, job_id = confidence_badge_job
+    text = _get_html(c, f"/audits/{job_id}/problems/category/font-format")
+    cards = _extract_example_cards(text)
+    assert len(cards) == 4, f"expected 4 example cards, found {len(cards)}"
+    for card in cards:
+        assert card.count('class="confidence-badge') == 1, card
+
+
+def test_rule_page_each_example_card_has_exactly_one_confidence_badge(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    c, _, job_id = confidence_badge_job
+    text = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
+    cards = _extract_example_cards(text)
+    assert len(cards) == 4, f"expected 4 example cards, found {len(cards)}"
+    for card in cards:
+        assert card.count('class="confidence-badge') == 1, card
+
+
+def test_issue_type_page_each_example_card_has_exactly_one_confidence_badge(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    c, _, job_id = confidence_badge_job
+    path = f"/audits/{job_id}/problems/rule/P026/issue-type/possible-body-font-family-issue"
+    text = _get_html(c, path)
+    cards = _extract_example_cards(text)
+    assert len(cards) == 4, f"expected 4 example cards, found {len(cards)}"
+    for card in cards:
+        assert card.count('class="confidence-badge') == 1, card
+
+
+def test_drilldown_pages_show_per_example_confidence_not_group_mixed(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    """Unlike the main job page's single mixed-confidence group card, each
+    drill-down example card shows its own real confidence: High once, Medium
+    once, and Low twice (one explicit low, one from the missing-confidence
+    finding)."""
+    c, _, job_id = confidence_badge_job
+    text = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
+    cards = _extract_example_cards(text)
+    assert len(cards) == 4
+    label_counts = {"High confidence": 0, "Medium confidence": 0, "Low confidence": 0}
+    for card in cards:
+        matched = [label for label in label_counts if label in card]
+        assert len(matched) == 1, f"expected exactly one confidence label, found {matched}"
+        label_counts[matched[0]] += 1
+    assert label_counts == {"High confidence": 1, "Medium confidence": 1, "Low confidence": 2}
+
+
+def test_drilldown_pages_never_show_needs_review_or_mixed_confidence(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    c, _, job_id = confidence_badge_job
+    for path in (
+        f"/audits/{job_id}/problems/category/font-format",
+        f"/audits/{job_id}/problems/rule/P026",
+        f"/audits/{job_id}/problems/rule/P026/issue-type/possible-body-font-family-issue",
+    ):
+        text = _get_html(c, path)
+        assert "Needs review" not in text, path
+        assert "Mixed confidence" not in text, path
+
+
+def test_drilldown_pages_confidence_badges_use_only_three_public_values(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    c, _, job_id = confidence_badge_job
+    for path in (
+        f"/audits/{job_id}/problems/category/font-format",
+        f"/audits/{job_id}/problems/rule/P026",
+        f"/audits/{job_id}/problems/rule/P026/issue-type/possible-body-font-family-issue",
+    ):
+        text = _get_html(c, path)
+        badge_classes = set(re.findall(r"confidence-badge--(\S+?)[\"' ]", text))
+        assert badge_classes, f"expected at least one confidence badge on {path}"
+        assert badge_classes <= {"high", "medium", "low"}, (path, badge_classes)
+
+
+def test_drilldown_page_anchors_and_problem_links_still_render(
+    confidence_badge_job: tuple[TestClient, Any, str],
+) -> None:
+    """Adding the confidence badge to the example-card header must not
+    disturb the pre-existing anchor ids, "back to results" link, or rule
+    reference link on the same drill-down page."""
+    c, _, job_id = confidence_badge_job
+    text = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
+    assert re.search(r'<article id="[^"]+"', text), "expected example cards to have anchor ids"
+    assert "Back to all results" in text
+    assert "P026" in text
