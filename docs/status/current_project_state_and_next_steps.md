@@ -7,13 +7,97 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-02 (PR #409 merged — status docs synced on main)
+## Current Status — 2026-07-03 (PR #433 merged — Ester wording/presentation/highlight stack landed; 4 new PRs open)
 
 This section is the authoritative current snapshot. Everything below it (including the
-PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis / cleanup-paused
-snapshot, post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018
-public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated
-bullets) is preserved as historical context and should not be read as current.
+2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot, live
+regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
+snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
+2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
+not be read as current.
+
+- **Code baseline `main`:** `07db2fa30b457006cf7524309c8eabcca6ff64c8` (merge of PR
+  [#433](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/433)). Short SHA: `07db2fa`.
+- **Merged since the 2026-07-02/PR #409 snapshot below (24 PRs, #410→#433):**
+  - **#410** — live deployment verification after #409 (docs only).
+  - **#411–#413** — Ester feedback source-of-truth snapshot, language alignment audit, current
+    wording inventory (docs/planning only, no behavior change).
+  - **#414–#420** — Ester wording alignment **Slices 1–6**: wording/remediation text only for 29
+    rules (P011, P013, P023, P028–P032, P036, P039–P050, P053–P055, P066–P068, P074, P078). No
+    detector thresholds, rule IDs, issue types, grouping keys, or report schema changed in any
+    slice.
+  - **#421** — wording alignment checkpoint (docs).
+  - **#422** — P021/P026 policy-review questions recorded (docs only; **P021/P026 policy remains
+    unresolved and unimplemented** — word-count limits and accepted font families still need a
+    human/Ester decision before any detector change).
+  - **#423–#424** — broad Ester-style presentation-split plan and atomic issue_type→card mapping
+    for P014/P015/P017/P018/P019/P020/P024/P025/P027 (docs/planning only; **no splits
+    implemented**).
+  - **#425** — student-facing presentation cleanup plan (docs/planning).
+  - **#426** — **feat:** page-order sorting for audit problems (additive `?sort=page` mode;
+    existing confidence-sort default preserved).
+  - **#427** — **chore:** confidence display simplified to exactly High/Medium/Low; "Priority"
+    filter label renamed to "Severity" to stop conflating it with the confidence badge.
+  - **#428** — highlight quality improvement plan (docs/planning).
+  - **#429** — highlight-target baseline tests (test-only, pins pre-change highlight geometry).
+  - **#430** — **fix:** P011 highlight now unions every violating line's box (not just the worst
+    offender) for multi-line same-side violations.
+  - **#431** — **fix:** confidence badge now renders on every problem card, including the
+    category/rule/issue-type drill-down pages that previously showed none.
+  - **#432** — Ester current-consistency audit vs. latest available Ester source files (docs).
+  - **#433** — **chore:** removed stale unreachable `("P025", "title_page_graduation_month_invalid")`
+    dict entries (P074 is the only rule that actually emits this issue_type).
+- **Open PRs awaiting review/merge (all `mergeStateStatus: CLEAN` as of this snapshot):**
+  - **#434** `docs: inventory repository polish tasks` — repository baseline/cleanup inventory
+    (docs only).
+  - **#435** `fix: ignore statistical notation in title-case checks` — P020/P024/P027 shared
+    title-case helper no longer flags single-letter statistical notation (e.g. `n` in `(n = 97)`);
+    real lowercase-major-word violations still flag.
+  - **#436** `fix: highlight affected list entries for punctuation warnings` — P040/P053/P054 now
+    store a `bbox` for the offending entry line so the highlighted-PDF button works; no entry text
+    added to details (existing privacy-safe contract preserved).
+  - **#437** `fix: polish P011 margin warning evidence` — separated same-side violations get
+    distinct tight highlight boxes instead of one union spanning unaffected lines; a margin
+    boundary guide line is drawn; mixed-side pages keep one rolled-up card but gain a per-side
+    overflow/line-count breakdown.
+  - See [open_pr_triage.md](open_pr_triage.md) for the full triage, including the still-paused
+    older PRs.
+- **Old paused PRs — unchanged, still paused:** #311, #349, #362, #375, #376, #385. **Do not**
+  merge, close, rebase, or delete these without explicit instruction.
+- **P021/P026 policy:** still unresolved (word-count limits, accepted font families). Not
+  implemented by any PR in this range.
+- **P084:** not started; out of scope unless explicitly requested.
+- **Live server:** last confirmed at `commit=425f14442a4dca3701676b4c66db368d7aab46c1` (PR #430) —
+  **3 merges behind** current `main` (`07db2fa`, PR #433). Not restarted by this status refresh
+  (this is a documentation-only pass); see [live_deployment_checklist.md](live_deployment_checklist.md)
+  for the restart procedure when next doing behavior-affecting work.
+- **Full validation on `main` @ `07db2fa` (2026-07-03, clean worktree, no local WIP):**
+  `ruff check .` clean; `mypy src` clean (105 source files); `python -m pytest` → **2512 pytest
+  passed**, 1 warning (pre-existing duplicate-zip-member warning in upload tests).
+
+### Next recommended work
+
+1. Review and merge the docs-only PR **#434** first (lowest risk), then the three detector/
+   presentation fix PRs **#435**, **#436**, **#437** independently once each is reviewed — they
+   are unrelated to each other and can merge in any order.
+2. Optionally restart the live server after merging so `/version.commit` matches current `main`.
+3. Resume review of the older paused PRs (#311, #349, #362, #375, #376, #385) only after explicit
+   human instruction — they are unrelated to the current cleanup and carry their own review
+   history (see [open_pr_triage.md](open_pr_triage.md)).
+4. **P021/P026 policy resolution** — send the drafted policy-confirmation questions
+   (`docs/status/ester_policy_review_p021_p026.md`) to Ester/a policy owner before any detector
+   change to word-count limits or accepted font families.
+5. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-02 (PR #409 merged — status docs synced on main)
+
+> **Superseded** by the 2026-07-03 snapshot above. Everything below this point (including the
+> PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis /
+> cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure snapshot,
+> post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01,
+> 2026-06-25, and earlier dated bullets) is preserved as historical context only.
 
 - **Code baseline `main`:** `921d0df0dd0507ea816d57851d27f3d1b849762a` (merge of PR
   [#409](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/409) docs/status sync on top of

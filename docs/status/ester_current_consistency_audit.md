@@ -346,6 +346,8 @@ display" above.)
 3. **P021/P026 policy-confirmation message to Ester / policy owner** — the draft message already exists in `ester_policy_review_p021_p026.md`; send it and record the answer before any detector change.
 4. **Highlight metadata planning for one table/list/figure family at a time** (e.g., P046/P048 column-region union, following the P035 `_union_bbox()` precedent) — each needs its own golden-output comparison since it touches a detector's `details` dict.
 
+**Status update (2026-07-03):** open PRs now act on some of these, pending review/merge: **#435** (title-case/statistical-notation false-positive fix, e.g. `n` in `(n = 97)` no longer flagged), **#436** (P040/P053/P054 punctuation-list findings now carry a `bbox` so the highlighted-PDF button works), **#437** (P011 highlight now draws tight per-group boxes plus a margin-boundary guide line instead of one union spanning unaffected content, and mixed-side pages get a per-side overflow breakdown). See [open_pr_triage.md](open_pr_triage.md) for current status. P014 presentation-split and the P021/P026 policy-confirmation message remain not started.
+
 ---
 
 ## Non-goals

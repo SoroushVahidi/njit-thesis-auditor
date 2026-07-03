@@ -1,15 +1,75 @@
-# Open PR Triage (2026-07-02, PR #407/#408 merged — cleanup still paused)
+# Open PR Triage (2026-07-03, PR #433 merged — 4 new PRs open, older cleanup still paused)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
+>
+> **Superseded:** the 2026-07-02 snapshot below (baseline `70dcd95`, PR #407/#408) is preserved as
+> historical context only — see the "Historical" sections further down. Everything above that
+> point is current.
 
-**Baseline inspected:** `main` @ `70dcd952871c993814437edf1dcf1f2280b47dc7` (squash-merge of PR
-[#408](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/408) on PR
-[#407](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/407); short SHA `70dcd95`)  
-**Live server:** last documented restart at `811838c4` (post-#406) — confirm `GET /version` before
-assuming #407/#408 behavior is live  
-**Open PR count:** **6**
+**Baseline inspected:** `main` @ `07db2fa30b457006cf7524309c8eabcca6ff64c8` (merge of PR
+[#433](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/433); short SHA `07db2fa`)  
+**Live server:** last confirmed at `425f144` (PR #430) — **3 merges behind** current `main`;
+confirm `GET /version` before assuming #431–#433 behavior is live  
+**Open PR count:** **10** (4 new, mergeable; 6 older, paused)
+
+## Current open PRs (2026-07-03)
+
+| PR | Title | Kind | `mergeStateStatus` | Verdict |
+|---|---|---|---|---|
+| [#434](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/434) | `docs: inventory repository polish tasks` | docs-only | CLEAN | **Safe to merge first** — no code/template/test changes |
+| [#435](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/435) | `fix: ignore statistical notation in title-case checks` | detector fix (P020/P024/P027 shared helper) | CLEAN | **Safe candidate** — narrow, tested false-positive fix; no threshold/rule-ID/schema change |
+| [#436](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/436) | `fix: highlight affected list entries for punctuation warnings` | presentation/evidence fix (P040/P053/P054) | CLEAN | **Safe candidate** — additive `bbox` metadata only, no detector semantics change |
+| [#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437) | `fix: polish P011 margin warning evidence` | presentation/evidence fix (P011) | CLEAN | **Safe candidate** — additive highlight/guide metadata + wording only; thresholds/strictness unchanged |
+
+All four are independent of each other and of the older paused PRs below — they can be reviewed
+and merged in any order, though **#434 first** is lowest-risk since it touches no source files.
+
+**Not touched by this triage refresh (policy judgment, not implementation):**
+
+| Item | Why it's a policy question, not a PR |
+|---|---|
+| P021 abstract word-count limits | Ester sheet (200/400) conflicts with current detector constants (150/350) — needs a human/Ester decision, recorded in `ester_policy_review_p021_p026.md`, before any PR is opened |
+| P026 accepted font families | Detector accepts more families (Latin Modern, serif aliases) than Ester's literal 3-name list — same policy-review doc, same "confirm before changing" status |
+
+## Older open PRs — unchanged, still paused
+
+| PR | Branch → base | Mergeable | Kind | Verdict |
+|---|---|---|---|---|
+| [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | `feature/subpage-location-labels` → `main` | DIRTY | presentation | **Paused** — do not touch without explicit instruction |
+| [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349) | `docs/protect-autonomous-policy-and-ester-status` → `main` | DIRTY | docs-only | **Paused** — do not touch without explicit instruction |
+| [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | `ux/review-needed-prefix-policy` → `main` | DIRTY | wording/policy | **Paused** — open product-policy question |
+| [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375) | `docs/fix-clean-minimal-demo-baseline` → `main` | UNSTABLE | docs-only | **Paused** — do not touch without explicit instruction |
+| [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376) | `fix/p014-frontmatter-centering-false-positive` → `main` | UNSTABLE | detector fix | **Paused** — do not touch without explicit instruction |
+| [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385) | `ux/rule-reference-card-declutter` → `main` | DIRTY | presentation | **Paused** — pending warning-legitimacy review |
+
+These six PRs predate the current Ester wording/presentation/highlight work (PRs #411–#437) and
+have not been re-triaged against the current `main`. **Do not merge, close, rebase, or delete any
+of them without explicit human instruction** — several are likely stale against current `main` and
+need a fresh conflict/relevance check before any action, not just a rebase.
+
+## Current cleanup queue (recommended order)
+
+1. **#434** (docs-only inventory) — merge first, zero behavior risk.
+2. **#435, #436, #437** (independent detector/presentation fixes) — review and merge in any order;
+   each has its own passing test suite and does not depend on the others.
+3. **P021/P026 policy resolution** — not a PR yet; send the drafted questions in
+   `ester_policy_review_p021_p026.md` to Ester/a policy owner. Only after an answer should a
+   wording-or-detector PR be scoped.
+4. **Older paused PRs (#311/#349/#362/#375/#376/#385)** — re-triage only after explicit human
+   instruction to resume that review; expect most to need a fresh rebase/conflict check against
+   `main` @ `07db2fa` given how far they now trail.
+5. **P084** — remains out of scope; do not start without explicit instruction.
+
+---
+
+## Historical — 2026-07-02 (baseline `70dcd95`, PR #407/#408 merged)
+
+> **Superseded** by the 2026-07-03 sections above. The "Quick verdict table" and "Recommended
+> next development sequence" below reflect the 6-PR, `70dcd95`-baseline world and do **not**
+> include #434–#437 — use the "Current open PRs" and "Current cleanup queue" sections above
+> instead. Preserved here for historical context only.
 
 ## PR #407 and PR #408 merged (2026-07-02)
 
