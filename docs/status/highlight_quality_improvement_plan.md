@@ -295,6 +295,16 @@ P011 and P046/P048's `worst_bbox` selection — this is the closest thing to
 `max()` (pick one) is changed to a union (combine all/affected), guided by
 a proven, already-shipped precedent in the same codebase.
 
+**Status update (2026-07-03):** the baseline tests landed as PR #429, and the
+P011 union fix landed as PR #430. A **further** refinement is now open as PR
+[#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437),
+pending review/merge: the PR #430 union sometimes over-highlighted when
+violating lines were separated by unaffected content, so #437 groups only
+*adjacent* violating lines into tight boxes and adds a margin-boundary guide
+line, while keeping the original union in `details["bbox"]` as a
+backward-compatible fallback. P046/P048's `worst_bbox`→union follow-up
+described above is **not** part of #437 and remains open future work.
+
 ---
 
 ## Safety guardrails
