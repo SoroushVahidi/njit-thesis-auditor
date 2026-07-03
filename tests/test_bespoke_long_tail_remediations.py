@@ -11,7 +11,10 @@ from njit_auditor.finding_explanations import (
     get_action_label,
 )
 from njit_auditor.issue_type_explanations import explain_issue_type
-from njit_auditor.polished_comments import build_polished_comment
+from njit_auditor.polished_comments import (
+    build_polished_comment,
+    resolve_suggested_fix_for_display,
+)
 
 _GENERIC_COMMENT_MARKERS = (
     "This check (",
@@ -187,3 +190,11 @@ def test_p068_advisor_and_signature_remediations_are_distinct() -> None:
     assert "advisor role label" in advisor.lower()
     assert "signature" in sparse.lower() and "date" in sparse.lower()
     assert advisor != sparse
+
+
+def test_p024_lot_title_case_suggested_fix_mentions_technical_notation() -> None:
+    """The List of Tables title-case suggested fix should tell students that
+    valid statistical notation (e.g. "n = 97") is preserved, not flagged."""
+    fix = resolve_suggested_fix_for_display("P024", "list_of_tables_title_case")
+    assert "title case" in fix.lower()
+    assert "n = 97" in fix or "p < .05" in fix

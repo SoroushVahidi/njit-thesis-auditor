@@ -623,7 +623,9 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P024", "list_of_tables_title_case"): (
         "A List of Tables entry on this page may not use Title Case or may include "
-        "terminal punctuation. Table titles should use Title Case with no ending period."
+        "terminal punctuation. Table titles should use Title Case with no ending "
+        "period. Valid technical notation, such as \"n = 97\" or \"p < .05,\" is not "
+        "affected by this check."
     ),
     ("P024", "list_of_figures_sentence_case"): (
         "A List of Figures entry on this page may not use sentence case. Figure "

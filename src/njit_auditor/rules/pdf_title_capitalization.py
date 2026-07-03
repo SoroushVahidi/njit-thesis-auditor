@@ -144,21 +144,46 @@ def _should_skip_word(word: str) -> bool:
     return bool(_SKIP_WORD_RE.search(word))
 
 
-def _words_with_sep_info(text: str) -> list[tuple[str, bool]]:
+# A relational/equals operator immediately after a word (allowing whitespace)
+# marks that word as a statistical/mathematical variable, e.g. "n =", "p <",
+# "r = .36", not an English word — regardless of position in the phrase.
+# No leading `^`: matched via Pattern.match(text, pos) which already anchors
+# at `pos`, and `^` alone (without MULTILINE) only matches index 0 of `text`.
+_RELATIONAL_OPERATOR_AFTER_RE = re.compile(r"\s*[=<>≤≥≈≠±]")
+
+
+def _is_statistical_notation_word(word: str, followed_by_operator: bool) -> bool:
+    """Return True if `word` is a single-letter statistical/mathematical variable.
+
+    Conservative: only a single alphabetic character (e.g. n, p, r, d, t)
+    immediately followed by a relational/equals operator qualifies — this
+    matches common APA-style statistical notation such as "(n = 97)" or
+    "(p < .05)" without exempting genuine English words of any other length.
     """
-    Return (word, after_subtitle_sep) pairs for each word token.
+    return len(word) == 1 and followed_by_operator
+
+
+def _words_with_sep_info(text: str) -> list[tuple[str, bool, bool]]:
+    """
+    Return (word, after_subtitle_sep, followed_by_operator) triples for each word token.
 
     after_subtitle_sep is True when a subtitle separator (colon, em/en dash,
     double-hyphen) appears in the gap between the previous word and this word.
+
+    followed_by_operator is True when a relational/equals operator (=, <, >,
+    ≤, ≥, ≈, ≠, ±) immediately follows this word (allowing whitespace) —
+    a signal that the word is statistical/mathematical notation rather than
+    an English title word.
     """
-    result: list[tuple[str, bool]] = []
+    result: list[tuple[str, bool, bool]] = []
     last_end = 0
     after_sep = False
     for m in _WORD_RE.finditer(text):
         gap = text[last_end : m.start()]
         if _SUBTITLE_SEP_RE.search(gap):
             after_sep = True
-        result.append((m.group(), after_sep))
+        followed_by_operator = bool(_RELATIONAL_OPERATOR_AFTER_RE.match(text, m.end()))
+        result.append((m.group(), after_sep, followed_by_operator))
         after_sep = False
         last_end = m.end()
     return result
@@ -171,8 +196,9 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
     Returns list of issue dicts: {word, position, reason, confidence, expected}.
     An empty list means no issues detected.
 
-    Conservative: skips hyphenated words, all-caps acronyms, and words with
-    digits or special characters. Only flags clear under-capitalization.
+    Conservative: skips hyphenated words, all-caps acronyms, words with
+    digits or special characters, and single-letter statistical/mathematical
+    variables (e.g. "n" in "n = 97"). Only flags clear under-capitalization.
     Does not flag over-capitalization (e.g. 'The' in the middle).
     """
     words_with_info = _words_with_sep_info(text)
@@ -182,12 +208,16 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     n = len(words_with_info)
 
-    for idx, (word, after_sep) in enumerate(words_with_info):
+    for idx, (word, after_sep, followed_by_operator) in enumerate(words_with_info):
         is_first = idx == 0
         is_last = idx == n - 1
 
         # Skip math/digit/equation tokens.
         if _should_skip_word(word):
+            continue
+
+        # Skip single-letter statistical/mathematical variables (n, p, r, d, ...).
+        if _is_statistical_notation_word(word, followed_by_operator):
             continue
 
         # Preserve all-caps acronyms — never flag these.

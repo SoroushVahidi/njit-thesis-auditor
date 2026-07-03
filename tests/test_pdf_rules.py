@@ -1903,6 +1903,46 @@ def test_p020_phrase_too_short_no_issues() -> None:
     assert check_apa_title_case_phrase("Single") == []
 
 
+def test_p020_phrase_statistical_notation_not_flagged() -> None:
+    # Single-letter statistical/mathematical variables (n, p, r, d, ...) directly
+    # followed by a relational/equals operator are notation, not English title
+    # words, and must not be flagged as needing capitalization.
+    statistical_examples = [
+        "Multiple Linear Regression Predicting Readiness (n = 97)",
+        "Regression Model Fit (R² = .42)",
+        "Group Difference Test (p < .05)",
+        "Reliability Analysis (α = .91)",
+        "Sample Characteristics (N = 120)",
+        "Correlation Matrix (r = .36)",
+        "Effect Size Estimates (Cohen's d = 0.45)",
+        "Readiness Scores (M = 3.41, SD = 0.72)",
+    ]
+    for text in statistical_examples:
+        issues = check_apa_title_case_phrase(text)
+        assert issues == [], f"{text!r} should not be flagged, got {issues!r}"
+
+
+def test_p020_phrase_lowercase_major_word_still_flagged_near_parens() -> None:
+    # The statistical-notation exemption must not swallow real lowercase major
+    # words, even when a parenthetical statistical aside follows in the same phrase.
+    negative_controls = [
+        "Multiple linear Regression Predicting Readiness",
+        "multiple Linear Regression Predicting Readiness",
+        "Multiple Linear regression Predicting Readiness",
+        "Readiness analysis Results",
+    ]
+    for text in negative_controls:
+        issues = check_apa_title_case_phrase(text)
+        assert issues, f"{text!r} should still be flagged as a title-case violation"
+
+
+def test_p020_phrase_english_words_in_parentheses_still_flagged() -> None:
+    # Normal English words inside parentheses are still part of the title and
+    # must still be checked — only statistical/mathematical notation is exempt.
+    issues = check_apa_title_case_phrase("Regression Results (pilot study)")
+    assert any(i["word"] == "pilot" for i in issues)
+
+
 # ---------------------------------------------------------------------------
 # P020: Title-case capitalization — PDF integration tests
 # ---------------------------------------------------------------------------
@@ -2762,6 +2802,38 @@ def test_p024_lot_lowercase_major_word_warns(tmp_path: Path) -> None:
     assert any(
         f.rule_id == "P024" and f.details.get("issue_type") == "list_of_tables_title_case"
         for f in findings
+    )
+
+
+def test_p024_lot_statistical_notation_not_flagged(tmp_path: Path) -> None:
+    """LoT entry with a valid statistical-notation aside must not be flagged,
+    while a genuine lowercase-major-word entry on the same page still is."""
+    pdf_path = tmp_path / "lot_statistical_notation.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            (
+                "Table 4.4 Multiple Linear Regression Predicting Readiness (n = 97) ....",
+                108,
+            ),
+            (
+                "Table 4.5 Multiple linear Regression Predicting Readiness ....",
+                108,
+            ),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    lot_title_case = [
+        f for f in findings if f.details.get("issue_type") == "list_of_tables_title_case"
+    ]
+    assert not any(
+        "(n = 97)" in f.details.get("line_preview", "") for f in lot_title_case
+    )
+    assert any(
+        f.details.get("expected_or_reason") == "major_word_requires_capital"
+        for f in lot_title_case
     )
 
 
