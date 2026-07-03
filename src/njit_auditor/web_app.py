@@ -716,8 +716,18 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P028": {
         "remediation": (
-            "Use lowercase Roman numerals (i, ii, iii) for front-matter "
-            "numbered pages and Arabic numerals (1, 2, 3) for body pages."
+            "Use lowercase Roman numerals for numbered front-matter pages, "
+            "and use Arabic numerals for body pages."
+        ),
+    },
+    "P029": {
+        "question": (
+            "Do visible lowercase Roman numerals in the front matter appear "
+            "in a continuous increasing sequence?"
+        ),
+        "remediation": (
+            "Correct the front-matter Roman numeral page numbers so they "
+            "increase continuously in order."
         ),
     },
     "P013": {

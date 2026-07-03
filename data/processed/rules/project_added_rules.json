@@ -507,9 +507,9 @@
   {
     "id": "P029",
     "section": "PDF front-matter Roman numeral sequence",
-    "question": "Do visible lowercase Roman numerals in front-matter appear in a continuous increasing sequence (i, ii, iii…)?",
+    "question": "Do visible lowercase Roman numerals in the front matter appear in a continuous increasing sequence?",
     "rule_definition": "Conservative heuristic that validates ordering of visible lowercase Roman numeral page numbers on front-matter pages. Flags repeated, decreasing, or skipped Roman numerals across consecutive visible numbered front-matter pages. Skips explicitly identified no-number pages and ambiguous region classifications.",
-    "remediation": "Verify and correct front-matter Roman numeral ordering so visible page numbers form a continuous ascending sequence (i, ii, iii, …).",
+    "remediation": "Correct the front-matter Roman numeral page numbers so they increase continuously in order.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",

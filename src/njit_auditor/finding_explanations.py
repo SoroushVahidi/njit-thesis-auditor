@@ -397,15 +397,17 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P028", "arabic_number_on_frontmatter_page"): (
         "Problem: This page appears to use Arabic numerals, but front matter "
-        "should use lowercase Roman numerals."
+        "should use lowercase Roman numerals. Use lowercase Roman numerals "
+        "for numbered front-matter pages."
     ),
     ("P028", "uppercase_roman_on_frontmatter_page"): (
         "Problem: This page appears to use uppercase Roman numerals, but front "
-        "matter should use lowercase Roman numerals."
+        "matter should use lowercase Roman numerals. Use lowercase Roman "
+        "numerals for numbered front-matter pages."
     ),
     ("P028", "roman_number_on_body_page"): (
         "Problem: This page appears to use Roman numerals, but the main body "
-        "should use Arabic numerals."
+        "should use Arabic numerals. Use Arabic numerals for body pages."
     ),
     # --- P029 roman sequence ---
     ("P029", "roman_sequence_gap"): (
@@ -821,13 +823,14 @@ _RULE_FALLBACKS: dict[str, str] = {
     ),
     "P028": (
         "Page numbering on this page may not follow the required NJIT regime. "
-        "Use lowercase Roman numerals (i, ii, iii) for front-matter numbered pages "
-        "and Arabic numerals (1, 2, 3) for body pages."
+        "Use lowercase Roman numerals for numbered front-matter pages and "
+        "Arabic numerals for body pages."
     ),
     "P029": (
         "The Roman numeral page-number sequence in the front matter may be "
         "inconsistent. "
-        "Front-matter numbered pages should use consecutive lowercase Roman numerals."
+        "Correct the front-matter Roman numeral page numbers so they increase "
+        "continuously in order."
     ),
     "P030": (
         "Problem: A continuation page of a multi-page Table of Contents, List of "
