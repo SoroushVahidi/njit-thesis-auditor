@@ -633,11 +633,6 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A TOC or list entry on this page ends with terminal punctuation where "
         "NJIT expects none for that list type."
     ),
-    # --- P025 title page graduation month ---
-    ("P025", "title_page_graduation_month_invalid"): (
-        "The graduation month on the title page may not match the expected NJIT "
-        "format. NJIT expects a spelled-out month and year (for example, 'May 2025')."
-    ),
     # --- P074 title page graduation month (PDF) ---
     ("P074", "title_page_graduation_month_invalid"): (
         "The graduation month detected on the Title Page is not August, December, "

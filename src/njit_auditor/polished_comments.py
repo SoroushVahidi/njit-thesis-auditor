@@ -422,12 +422,6 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "punctuation where NJIT expects none for that list type. Remove the "
         "trailing period unless the entry is intentionally written as a sentence."
     ),
-    # --- P025 title page graduation month ---
-    ("P025", "title_page_graduation_month_invalid"): (
-        "Problem: The graduation month on the title page may not match the "
-        "expected NJIT format. NJIT expects a spelled-out month and year on "
-        "the title page (for example, 'May 2025'). Correct the graduation date line."
-    ),
     # --- P074 title page graduation month (PDF) ---
     ("P074", "title_page_graduation_month_invalid"): (
         "Problem: The graduation month on the Title Page is not August, "
@@ -695,10 +689,6 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Correct this heading to use the exact canonical NJIT phrase."
     ),
     ("P021", "abstract_word_count_exceeded"): "",
-    ("P025", "title_page_graduation_month_invalid"): (
-        "Correct the graduation month and year on the title page to use a "
-        "spelled-out month and four-digit year."
-    ),
     ("P017", "unexpected_terminal_period"): "",
     ("P017", "missing_terminal_punctuation"): "",
     ("P017", "possible_sentence_case_issue"): "",

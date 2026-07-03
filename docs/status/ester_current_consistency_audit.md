@@ -135,7 +135,7 @@ This audit covers:
 | P011 highlight coverage | Now unions **all violating lines'** boxes (PR #430), not just the single worst line | mostly consistent | medium | Still not a true `table_bbox` (only unions lines that individually violate, not the full table region including compliant cells) — flagged in `highlight_quality_improvement_plan.md` as future detector-metadata work. |
 | Table/list/figure highlight gaps | P035 already unions a full region (`body_bbox`/`caption_bbox`); P031/P040/P045/P046/P048/P053/P054/P068 still store no bbox or only a single worst-entry bbox | partially consistent | medium | Scope one rule family at a time per `highlight_quality_improvement_plan.md`; requires small `details` additions (detector work), not presentation-only. |
 | P014 presentation-split candidate | Fully mapped (`ester_broad_rule_atomic_mapping.md`) as the lowest-risk first prototype; not implemented | not implemented | low (once implemented) | Implement as the first presentation-split prototype. |
-| Stale dead-code catalog entries | `("P025","title_page_graduation_month_invalid")` still present in `finding_explanations.py`, `polished_comments.py`, `issue_type_explanations.py` (issue now emitted exclusively under P074) | inconsistent (dead code, unreachable) | low | Clean up in a future wording-only PR; does not affect current student output since P074 path is used exclusively. |
+| Stale dead-code catalog entries | `("P025","title_page_graduation_month_invalid")` **removed** from `finding_explanations.py`, `polished_comments.py` (both dicts), `issue_type_explanations.py`; `tests/test_bespoke_long_tail_remediations.py` updated to cover `("P074", ...)` instead | consistent | low | None — cleanup landed. |
 
 ---
 
@@ -160,7 +160,7 @@ presentation-split-needed / metadata-gap / source-freshness / duplicate-risk.
 | P022 | Per-page no-number binaries (Abstract, Title, Approval, Copyright) | Single question naming all 4 page types | One rule, per-`page_type` findings already | mostly consistent | presentation-split-needed | low | Low-priority consolidation | Already page-specific in job layer. |
 | P023 | Double-spaced Ch.1–References, with named exceptions | "Is body text double-spaced, except for tables, figure descriptions, bullet points, and multi-line titles?" | Median-line-gap heuristic; exceptions excluded from sampling | consistent | none | low | Keep as-is | Wording-aligned since Slice 1. |
 | P024 | Atomic TOC/List capitalization/punctuation questions | "Do TOC/LoT/LoF entries follow expected capitalization and punctuation style?" | 4 distinct issue_types; some already delegated to P018A–C | partially consistent | presentation-split-needed | medium | Split `list_of_tables_title_case`/`list_of_figures_sentence_case`/`unexpected_terminal_punctuation` next | PR #407 flagged-word presentation preserved. |
-| P025 | Page-level structural binaries; DC wrapper = notice | Single umbrella question for 4 structural checks | 5 real issue_types + DC-wrapper notice (kept as notice, PR #407) | partially consistent | presentation-split-needed | medium | Split into 5 page-level cards | Stale dead `title_page_graduation_month_invalid` entries under P025 are unreachable (see duplicate-risk note below). |
+| P025 | Page-level structural binaries; DC wrapper = notice | Single umbrella question for 4 structural checks | 5 real issue_types + DC-wrapper notice (kept as notice, PR #407) | partially consistent | presentation-split-needed | medium | Split into 5 page-level cards | Stale dead `title_page_graduation_month_invalid` entries under P025 have been removed (see cleanup note below) — no longer a duplicate-risk item. |
 | P026 | TNR, Arial, Computer Modern Typeface family; 12pt except tables/figures | "Does the body text use Times New Roman 12pt (or an accepted equivalent)?" | Accepts TNR/Arial/Computer Modern/**Latin Modern**/near-equivalent serif aliases; 11–13pt tolerance; page-level majority-of-page violation rule | needs policy review | policy-unclear | high | Confirm accepted-family scope and table/figure exemption mechanism with Ester | Detector is more permissive than the literal 3-family list; lowers FP risk but is an unconfirmed policy expansion. |
 | P027 | Separate binary per heading level (L2–L5) | Single question | issue_type already **is** the split (`level1_not_all_caps` … `level5_...`) | mostly consistent | presentation-split-needed | low (PR407-sensitive) | Cleanest split candidate after P014; do not weaken bold-gate | PR #407 bold-heading gate must be preserved exactly. |
 | P028 | Front matter=Roman, body=Arabic | "Do front-matter numbered pages use lowercase Roman numerals and body pages use Arabic numerals?" | Region-based style check | consistent | none | low | Keep as-is | Wording-aligned since Slice 5. |
@@ -298,17 +298,27 @@ consistent.**
 
 ---
 
-## Duplicate-risk / metadata-gap note (new this session)
+## Duplicate-risk / metadata-gap note — resolved
 
+**Update (`fix/ester-safe-consistency-fixes`):** the
 `("P025", "title_page_graduation_month_invalid")` dead-code catalog entries
-remain present (and unreachable) in `finding_explanations.py`,
-`polished_comments.py`, and `issue_type_explanations.py`. The detector now
-emits this issue_type exclusively under `rule_id="P074"`
-(`check_pdf_title_page_graduation_month`, already atomic and
-wording-aligned since Slice 3 / PR #417). These entries do not affect
-current student-facing output (the P074 code path is used exclusively),
-but they are stale references that should be removed in a future
-wording-only cleanup PR — flagged here, not removed by this audit.
+flagged in the original audit have been **removed** from
+`finding_explanations.py` (`_EXPLANATION_TEMPLATES`), `polished_comments.py`
+(both `_ISSUE_TEMPLATES` and `_ISSUE_REMEDIATION_OVERRIDES`), and
+`issue_type_explanations.py` (`_RULE_ISSUE_EXPLANATIONS`). This was
+confirmed truly unreachable before removal: a repo-wide search
+(`grep -rn "title_page_graduation_month_invalid" src/`) shows the issue_type
+string is emitted by exactly one detector function,
+`check_pdf_title_page_graduation_month` in
+`src/njit_auditor/rules/pdf_frontmatter_structure.py`, and it always
+constructs its `AuditFinding` with `rule_id="P074"` — no code path ever
+pairs this issue_type with `rule_id="P025"`. The corresponding `("P025", ...)`
+entry in `tests/test_bespoke_long_tail_remediations.py`'s
+`UPGRADED_ISSUE_TYPES`/`_EXPECTED_COMMENT_SIGNALS` was replaced with
+`("P074", "title_page_graduation_month_invalid")` so the same wording-quality
+coverage now exercises the rule that actually emits this finding. No
+detector behavior, rule_id, issue_type, threshold, or template file changed;
+only three plain string-keyed dicts lost one unreachable key each.
 
 ---
 
@@ -318,7 +328,10 @@ wording-only cleanup PR — flagged here, not removed by this audit.
 2. **Broad-rule presentation splits, starting with P014** — the largest remaining wording/behavior gap; fully scoped and ready to implement.
 3. **Table/list/figure highlight metadata gaps** — P031/P040/P045/P046/P048/P053/P054/P055/P068 still lack a full-region bbox; P011's table-in-margin case is improved (PR #430) but still line-union, not table-union.
 4. **P037/P044 wording safeguards** — no regression found, but any future wording pass must keep describing computed (not fixed) Roman-numeral expectations and must not touch the continuation-line presentation machinery.
-5. **Stale dead-code catalog entries** (`P025`/`title_page_graduation_month_invalid`) — low risk, but worth a cleanup pass.
+
+(The stale `P025`/`title_page_graduation_month_invalid` dead-code entries
+previously listed here were removed by `fix/ester-safe-consistency-fixes` —
+see "Duplicate-risk / metadata-gap note — resolved" above.)
 
 (The confidence-badge drill-down gap previously listed here was resolved by
 PR #431, merged `ad9ddada7a82fd1552c97f3e4e9bd9d6b16c1728` — see "Confidence
