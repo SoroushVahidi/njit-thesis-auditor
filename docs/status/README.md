@@ -11,6 +11,7 @@
 | Ester next wording slice plan | [ester_next_wording_slice_plan.md](ester_next_wording_slice_plan.md) |
 | Ester wording alignment checkpoint (Slices 1–6 complete) | [ester_wording_alignment_checkpoint.md](ester_wording_alignment_checkpoint.md) |
 | P021/P026 policy review questions (word-count limits, accepted fonts) | [ester_policy_review_p021_p026.md](ester_policy_review_p021_p026.md) |
+| Broad Ester-style presentation-split plan (P014/P015/P017/P018/P019/P020/P024/P025/P027) | [ester_broad_presentation_split_plan.md](ester_broad_presentation_split_plan.md) |
 | Ester Q → P → public rule cards | [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md) |
 | Live server deploy / verify | [live_deployment_checklist.md](live_deployment_checklist.md) |
 | Evaluation data index | [evaluation_data_manifest.md](evaluation_data_manifest.md) |
