@@ -1,0 +1,35 @@
+{#
+  Shared Jinja macros for student-facing problem cards.
+
+  This file intentionally has no {% extends %} and no top-level logic that
+  depends on route-specific context variables (job_id, state, etc.), so it can
+  be safely imported with {% from "_macros.html" import ... %} from any
+  template without pulling in job.html's or base.html's full render context.
+  Importing a macro from a template that itself extends another template
+  forces Jinja to evaluate that template's entire inheritance chain, which
+  fails if the importing template doesn't have the same context variables --
+  this file exists specifically to avoid that trap.
+#}
+
+{% macro confidence_badge(level, label="", css_class="") -%}
+  {% set normalized = (level or "") | lower %}
+  {% if label %}
+    {% set badge_label = label %}
+  {% elif normalized == "high" %}
+    {% set badge_label = "High confidence" %}
+  {% elif normalized == "medium" %}
+    {% set badge_label = "Medium confidence" %}
+  {% elif normalized == "low" %}
+    {% set badge_label = "Low confidence" %}
+  {% else %}
+    {% set badge_label = "Low confidence" %}
+  {% endif %}
+  {% if css_class %}
+    {% set badge_class = css_class %}
+  {% elif normalized in ("high", "medium", "low") %}
+    {% set badge_class = "confidence-badge--" ~ normalized %}
+  {% else %}
+    {% set badge_class = "confidence-badge--low" %}
+  {% endif %}
+  <span class="confidence-badge {{ badge_class }}">{{ badge_label }}</span>
+{%- endmacro %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import confidence_badge %}
 {% block title %}{{ group_title }} — NJIT Thesis Auditor{% endblock %}
 
 {% block head_extra %}
@@ -87,9 +88,45 @@
   .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.2rem 0; }
   .issue-type-help summary:hover { text-decoration: underline; }
   .issue-type-help p { margin: 0.35rem 0 0; color: var(--color-text-muted, #555); font-size: 0.89rem; }
+  .confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.2;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+  /* Kept in sync with the identical block in job.html -- see the comment there
+     for why this isn't shared via base.html. */
+  .confidence-badge--low {
+    background: #dbeafe;
+    border-color: #60a5fa;
+    color: #1e3a8a;
+  }
+  .confidence-badge--medium {
+    background: #fef3c7;
+    border-color: #fbbf24;
+    color: #92400e;
+  }
+  .confidence-badge--high {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #991b1b;
+  }
   @media (max-width: 640px) {
     .example-card__header {
       align-items: flex-start;
+    }
+    .confidence-badge {
+      font-size: 0.74rem;
+      padding: 0.18rem 0.55rem;
     }
   }
 </style>
@@ -157,13 +194,16 @@
             {% endif %}
           </p>
         </div>
-        {% if example.page is not none %}
-        <span class="badge badge-info">Page {{ example.page }}</span>
-        {% elif example.location_text and example.location_text.startswith("Document-wide") %}
-        <span class="badge badge-muted">Document-wide</span>
-        {% else %}
-        <span class="badge badge-muted">No page number</span>
-        {% endif %}
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
+          {% if example.page is not none %}
+          <span class="badge badge-info">Page {{ example.page }}</span>
+          {% elif example.location_text and example.location_text.startswith("Document-wide") %}
+          <span class="badge badge-muted">Document-wide</span>
+          {% else %}
+          <span class="badge badge-muted">No page number</span>
+          {% endif %}
+          {{ confidence_badge(example.confidence_level, example.confidence_label, example.confidence_css_class) }}
+        </div>
       </div>
       <div class="example-card__meta">
         <div><strong>Location:</strong> {{ example.location_text }}</div>
