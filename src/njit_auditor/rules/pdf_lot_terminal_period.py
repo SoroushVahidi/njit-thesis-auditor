@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
@@ -64,6 +64,17 @@ def _check_lot_terminal_period_page(
             continue
         if not _TERMINAL_PERIOD_RE.search(entry_text):
             continue
+        details = {
+            "issue_type": "lot_entry_has_terminal_period",
+            "page": str(context.page.page_number),
+            "section_type": "list_of_tables",
+            "entry_index": str(page_entry_offset + idx),
+            "terminal_punctuation": ".",
+            "page_number_token_present": "true",
+            "bbox": format_bbox_detail(entry.line.bbox),
+            "triage_tier": "medium",
+            "source_q_rule_id": "Q065",
+        }
         findings.append(
             AuditFinding(
                 rule_id="P053",
@@ -74,16 +85,7 @@ def _check_lot_terminal_period_page(
                     "NJIT guidelines (Q065) require that table titles use "
                     "title case with no terminal period."
                 ),
-                details={
-                    "issue_type": "lot_entry_has_terminal_period",
-                    "page": str(context.page.page_number),
-                    "section_type": "list_of_tables",
-                    "entry_index": str(page_entry_offset + idx),
-                    "terminal_punctuation": ".",
-                    "page_number_token_present": "true",
-                    "triage_tier": "medium",
-                    "source_q_rule_id": "Q065",
-                },
+                details=details,
             )
         )
     return findings
