@@ -662,16 +662,18 @@ def _confidence_css_class(levels: Sequence[str]) -> str:
     return "confidence-badge--low"
 
 
-# Confidence sort modes for the results-page "Sort problems" control. These operate on
+# Sort modes for the results-page "Sort problems" control. These operate on
 # already-built GroupedProblemView dicts (one entry per displayed problem card) and never
 # touch detector confidence values, rule thresholds, or problem numbering.
 SORT_MODE_DEFAULT = "default"
 SORT_MODE_CONFIDENCE_DESC = "confidence_desc"
 SORT_MODE_CONFIDENCE_ASC = "confidence_asc"
+SORT_MODE_PAGE = "page_order"
 VALID_SORT_MODES: tuple[str, ...] = (
     SORT_MODE_DEFAULT,
     SORT_MODE_CONFIDENCE_DESC,
     SORT_MODE_CONFIDENCE_ASC,
+    SORT_MODE_PAGE,
 )
 
 # A card's confidence_levels list only ever contains "high"/"medium"/"low" (see
@@ -680,6 +682,11 @@ VALID_SORT_MODES: tuple[str, ...] = (
 _CONFIDENCE_DESC_RANK: dict[str, int] = {"high": 0, "medium": 1, "low": 2}
 _CONFIDENCE_ASC_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2}
 _UNKNOWN_CONFIDENCE_RANK = 3
+
+# Sentinel rank for page-order sort: a card with no page-specific occurrence (a
+# document-level finding) sorts after every page-specific card, regardless of how many
+# pages exist in the audited document.
+_NO_PAGE_SORT_RANK = 10**9
 
 
 def normalize_sort_mode(value: str) -> str:
@@ -707,16 +714,35 @@ def _grouped_problem_confidence_rank(problem: Mapping[str, Any], sort_mode: str)
     return _CONFIDENCE_ASC_RANK.get(levels[-1], _UNKNOWN_CONFIDENCE_RANK)
 
 
+def _grouped_problem_earliest_page(problem: Mapping[str, Any]) -> int:
+    """Return a card's earliest affected page, or a sentinel that sorts it last.
+
+    Reads ``page`` directly from each occurrence in ``individual_findings`` (present on
+    every grouped-problem dict; see ``GroupedProblemView.individual_findings``), so a
+    multi-page card sorts by the earliest page any of its occurrences appears on.
+    """
+    findings = problem.get("individual_findings") or []
+    pages = [
+        int(finding["page"])
+        for finding in findings
+        if isinstance(finding, Mapping) and finding.get("page") is not None
+    ]
+    return min(pages) if pages else _NO_PAGE_SORT_RANK
+
+
 def sort_grouped_problems(
     problems: Sequence[Mapping[str, Any]], sort_mode: str
 ) -> list[Mapping[str, Any]]:
-    """Reorder grouped problem cards by confidence for display.
+    """Reorder grouped problem cards by confidence or page for display.
 
     ``sort_mode`` should already be normalized via :func:`normalize_sort_mode`. The sort
-    is stable, so cards sharing a confidence bucket keep their existing relative (default)
-    order. This only reorders the list of cards; it never mutates a card's problem
-    numbers, anchors, or grouped occurrences, so links and references stay stable.
+    is stable, so cards sharing a confidence bucket (or the same earliest page) keep
+    their existing relative (default) order. This only reorders the list of cards; it
+    never mutates a card's problem numbers, anchors, or grouped occurrences, so links
+    and references stay stable.
     """
+    if sort_mode == SORT_MODE_PAGE:
+        return sorted(problems, key=_grouped_problem_earliest_page)
     if sort_mode not in (SORT_MODE_CONFIDENCE_DESC, SORT_MODE_CONFIDENCE_ASC):
         return list(problems)
     return sorted(

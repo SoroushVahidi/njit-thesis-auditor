@@ -611,6 +611,134 @@ def test_sort_grouped_problems_preserves_grouping_and_occurrence_details() -> No
         assert len(sorted_problems[0]["individual_findings"]) == 3
 
 
+def _page_sort_fixture_grouped_problems() -> list[dict[str, Any]]:
+    """Five cards in a deliberately non-page-ordered default order.
+
+    Default order (by rule_id): P037 (page 8), P011 (page 3), P026 (page 3),
+    P030 (no page), P044 (grouped occurrences on pages 10 and 1 -- earliest page 1).
+    P011/P026 share page 3 so page-order tests can also confirm stability within a
+    page bucket. P044's earliest page (1) is lower than every singleton card's page,
+    confirming a multi-page grouped card sorts by its minimum affected page even
+    though it is listed last by default and has a higher page among its occurrences.
+    """
+    findings = [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=8,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=3,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "medium"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=None,
+            message="Missing continued heading.",
+            details={"issue_type": "missing_continued_heading"},
+        ),
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=10,
+            message="Abstract indentation issue.",
+            details={
+                "issue_type": "abstract_subsequent_paragraph_not_indented",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=1,
+            message="Abstract indentation issue.",
+            details={
+                "issue_type": "abstract_subsequent_paragraph_not_indented",
+                "confidence": "high",
+            },
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    return report_view_to_dict(view)["grouped_problems"]
+
+
+def test_page_order_sort_orders_grouped_problems_by_earliest_page() -> None:
+    problems = _page_sort_fixture_grouped_problems()
+    default_order = [p["rule_id"] for p in problems]
+    assert default_order == ["P037", "P011", "P026", "P030", "P044"]
+
+    sorted_problems = sort_grouped_problems(problems, "page_order")
+    # P044's earliest occurrence (page 1) sorts first even though it is a multi-page
+    # grouped card also touching page 10 and is listed last by default. P011 and P026
+    # share page 3 and keep their original relative order (stability). P037 (page 8)
+    # comes next, and P030 (no page at all) sorts last.
+    assert [p["rule_id"] for p in sorted_problems] == ["P044", "P011", "P026", "P037", "P030"]
+
+
+def test_page_order_sort_same_page_findings_preserve_stable_order() -> None:
+    problems = _page_sort_fixture_grouped_problems()
+    sorted_problems = sort_grouped_problems(problems, "page_order")
+    same_page_ids = [p["rule_id"] for p in sorted_problems if p["rule_id"] in ("P011", "P026")]
+    # Both share earliest page 3; P011 preceded P026 in the original default order.
+    assert same_page_ids == ["P011", "P026"]
+
+
+def test_page_order_sort_no_page_findings_appear_after_page_specific_findings() -> None:
+    problems = _page_sort_fixture_grouped_problems()
+    sorted_problems = sort_grouped_problems(problems, "page_order")
+    assert sorted_problems[-1]["rule_id"] == "P030"
+
+
+def test_page_order_sort_multipage_card_uses_earliest_affected_page() -> None:
+    problems = _page_sort_fixture_grouped_problems()
+    p044 = next(p for p in problems if p["rule_id"] == "P044")
+    assert p044["occurrence_count"] == 2
+    pages = sorted(int(f["page"]) for f in p044["individual_findings"])
+    assert pages == [1, 10]
+
+    sorted_problems = sort_grouped_problems(problems, "page_order")
+    assert sorted_problems[0]["rule_id"] == "P044"
+
+
+def test_page_order_sort_does_not_change_problem_numbers_or_card_contents() -> None:
+    """Sorting only reorders the list; it must never renumber or rewrite cards."""
+    problems = _page_sort_fixture_grouped_problems()
+    before_by_rule = {p["rule_id"]: p for p in problems}
+
+    sorted_problems = sort_grouped_problems(problems, "page_order")
+    assert len(sorted_problems) == len(problems)
+    for problem in sorted_problems:
+        original = before_by_rule[problem["rule_id"]]
+        assert problem["problem_numbers"] == original["problem_numbers"]
+        assert problem["problem_number_label"] == original["problem_number_label"]
+        assert problem["problem_anchor"] == original["problem_anchor"]
+        assert problem["individual_findings"] == original["individual_findings"]
+
+
+def test_normalize_sort_mode_accepts_page_order() -> None:
+    assert normalize_sort_mode("page_order") == "page_order"
+    assert normalize_sort_mode("PAGE_ORDER") == "page_order"
+    assert normalize_sort_mode("  page_order  ") == "page_order"
+
+
 def test_same_problem_with_different_confidence_stays_on_one_card_by_default() -> None:
     """End-to-end: the default (non-overridden) grouping pipeline must not split
     an identical problem into separate cards just because confidence differs —
