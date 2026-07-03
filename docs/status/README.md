@@ -15,6 +15,7 @@
 | Broad-rule atomic mapping (issue_type → Ester-style card, implementation-ready) | [ester_broad_rule_atomic_mapping.md](ester_broad_rule_atomic_mapping.md) |
 | Student-facing presentation cleanup plan (sorting, confidence/priority labels, highlight quality) | [student_facing_presentation_cleanup_plan.md](student_facing_presentation_cleanup_plan.md) |
 | Highlight quality improvement plan (table/list/figure region highlighting) | [highlight_quality_improvement_plan.md](highlight_quality_improvement_plan.md) |
+| Current consistency audit vs. latest available Ester files (wording + behavior) | [ester_current_consistency_audit.md](ester_current_consistency_audit.md) |
 | Ester Q → P → public rule cards | [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md) |
 | Live server deploy / verify | [live_deployment_checklist.md](live_deployment_checklist.md) |
 | Evaluation data index | [evaluation_data_manifest.md](evaluation_data_manifest.md) |
