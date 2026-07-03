@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import confidence_badge %}
 {% block title %}Audit {{ job_id[:8] }} — NJIT Thesis Auditor{% endblock %}
 
 {% block head_extra %}
@@ -52,7 +53,10 @@
   }
   /* Confidence palette is separate from category tags (.badge-info) and severity
      labels. Public display supports exactly three values: low=blue, medium=yellow,
-     high=red. Missing/mixed confidence displays as low (see report_view.py). */
+     high=red. Missing/mixed confidence displays as low (see report_view.py). This
+     block is duplicated in problem_group.html (not shared via base.html) so pages
+     that never show a confidence badge, like /help, don't pick up the CSS class
+     name incidentally. */
   .confidence-badge--low {
     background: #dbeafe;
     border-color: #60a5fa;
@@ -313,29 +317,6 @@
 </script>
 {% endif %}
 {% endblock %}
-
-{% macro confidence_badge(level, label="", css_class="") -%}
-  {% set normalized = (level or "") | lower %}
-  {% if label %}
-    {% set badge_label = label %}
-  {% elif normalized == "high" %}
-    {% set badge_label = "High confidence" %}
-  {% elif normalized == "medium" %}
-    {% set badge_label = "Medium confidence" %}
-  {% elif normalized == "low" %}
-    {% set badge_label = "Low confidence" %}
-  {% else %}
-    {% set badge_label = "Low confidence" %}
-  {% endif %}
-  {% if css_class %}
-    {% set badge_class = css_class %}
-  {% elif normalized in ("high", "medium", "low") %}
-    {% set badge_class = "confidence-badge--" ~ normalized %}
-  {% else %}
-    {% set badge_class = "confidence-badge--low" %}
-  {% endif %}
-  <span class="confidence-badge {{ badge_class }}">{{ badge_label }}</span>
-{%- endmacro %}
 
 {% macro severity_status_badge(severity, triage_tier="") -%}
   {% if severity == "PASS" %}
