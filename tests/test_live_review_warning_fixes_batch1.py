@@ -180,6 +180,24 @@ def test_p020_short_main_card_wording() -> None:
     assert "A Study of perceptions" in fix
 
 
+def test_p020_suggested_fix_never_edits_inside_larger_word() -> None:
+    # Regression: replacing the flagged token "n" -> "N" must never alter the
+    # "n" inside "Linear" (which previously produced "LiNear").
+    fix = p020_short_suggested_fix(
+        "n",
+        "N",
+        "Multiple Linear Regression Predicting Readiness (n = 97)",
+    )
+    assert "LiNear" not in fix
+    assert "Linear" in fix
+
+
+def test_p020_suggested_fix_replaces_only_whole_word_token() -> None:
+    # "with" must be capitalized without touching "within" if it appeared.
+    fix = p020_short_suggested_fix("with", "With", "Comparison with Prior Studies")
+    assert fix == 'Change "Comparison with Prior Studies" to "Comparison With Prior Studies".'
+
+
 def test_p018_short_main_card_and_location_label() -> None:
     label = enriched_pdf_location_label(
         "P018",

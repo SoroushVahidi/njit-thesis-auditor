@@ -9,6 +9,22 @@ from njit_auditor.pdf_highlight import is_drawable_bbox
 from njit_auditor.pdf_models import BBox, PdfTextLine, format_bbox_detail
 
 _BBOX_PARTS = 4
+
+
+def _whole_word_match(target: str, haystack: str) -> re.Match[str] | None:
+    """Find *target* as a standalone token in *haystack*.
+
+    When *target* begins or ends with a letter, letter lookarounds are required
+    so a short/single-letter token is never matched inside a larger word (the
+    flagged "n" in "(n = 97)" must never resolve to the "n" in "Linear"). A plain
+    search is used only for fully non-alphabetic targets (e.g. numbers/symbols).
+    """
+    escaped = re.escape(target)
+    if target[:1].isalpha() or target[-1:].isalpha():
+        return re.search(
+            rf"(?<![A-Za-z]){escaped}(?![A-Za-z])", haystack, flags=re.IGNORECASE
+        )
+    return re.search(escaped, haystack, flags=re.IGNORECASE)
 _TOKEN_HIGHLIGHT_RULES: frozenset[tuple[str, str]] = frozenset(
     {
         ("P020", "possible_title_capitalization_issue"),
@@ -62,7 +78,7 @@ def word_bbox_in_line(line: PdfTextLine, word: str) -> BBox | None:
         return None
 
     haystack = line.text
-    match = re.search(re.escape(target), haystack, flags=re.IGNORECASE)
+    match = _whole_word_match(target, haystack)
     if match is None:
         return None
     start, end = match.start(), match.end()
@@ -104,7 +120,7 @@ def estimate_word_bbox_in_line_bbox(
     cleaned = line_text.strip()
     if not target or not cleaned or not is_drawable_bbox(line_bbox):
         return None
-    match = re.search(re.escape(target), cleaned, flags=re.IGNORECASE)
+    match = _whole_word_match(target, cleaned)
     if match is None:
         return None
     start, end = match.start(), match.end()

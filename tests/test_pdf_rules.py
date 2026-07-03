@@ -1903,6 +1903,35 @@ def test_p020_phrase_too_short_no_issues() -> None:
     assert check_apa_title_case_phrase("Single") == []
 
 
+def test_p020_phrase_statistical_sample_size_not_flagged() -> None:
+    # Regression: "(n = 97)" is statistical notation, not an English word.
+    # The lowercase "n" must NOT be flagged for capitalization.
+    issues = check_apa_title_case_phrase(
+        "Multiple Linear Regression Predicting Readiness (n = 97)"
+    )
+    assert issues == []
+    assert not any(i["word"] == "n" for i in issues)
+
+
+def test_p020_phrase_statistical_notation_variants_not_flagged() -> None:
+    # None of these statistical expressions should produce a capitalization issue.
+    for phrase in (
+        "Correlation of Readiness (p < .001)",
+        "Correlation of Readiness (r = 0.22)",
+        "Variance Explained by the Model R² = 0.684",
+        "Unstandardized Coefficient B = 0.65 for Readiness",
+        "Standard Error SE and Degrees of Freedom df",
+    ):
+        assert check_apa_title_case_phrase(phrase) == [], phrase
+
+
+def test_p020_phrase_comparison_with_prior_studies_still_flags_with() -> None:
+    # The strict title-case policy still treats "with" (4 letters) as a major
+    # word that must be capitalized. This behavior must be preserved.
+    issues = check_apa_title_case_phrase("Comparison with Prior Studies")
+    assert any(i["word"] == "with" and i["expected"] == "With" for i in issues)
+
+
 # ---------------------------------------------------------------------------
 # P020: Title-case capitalization — PDF integration tests
 # ---------------------------------------------------------------------------
@@ -2102,6 +2131,24 @@ def test_p020_table_title_lowercase_major_word_warns(tmp_path: Path) -> None:
     warning = next((f for f in findings if f.rule_id == "P020"), None)
     assert warning is not None
     assert warning.details.get("source") == "caption"
+
+
+def test_p020_table_title_with_sample_size_notation_not_flagged(tmp_path: Path) -> None:
+    """Regression: a table title carrying "(n = 97)" must not warn about the
+    lowercase "n", and must never corrupt "Linear" into "LiNear"."""
+    pdf_path = tmp_path / "p020_table_stat.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 4.4 Multiple Linear Regression Predicting Readiness (n = 97)",
+        fontsize=12,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    assert not findings, f"statistical notation must not trigger P020; got: {findings}"
 
 
 def test_p020_cli_pdf_run_includes_p020(tmp_path: Path) -> None:
@@ -4086,6 +4133,38 @@ def test_p027_level3_finding_includes_corrected_example_and_location(tmp_path: P
     assert "Level 2" not in finding.message
     assert "Level 4" not in finding.message
     assert "Level 5" not in finding.message
+
+
+def test_p027_level3_message_uses_exact_change_replacement(tmp_path: Path) -> None:
+    """A safe sentence-case rewrite must appear as an exact 'Change X to Y'
+    instruction (not a generic style reminder) and record corrected_from."""
+    pdf_path = tmp_path / "p027_l3_change.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 200),
+        "4.4.1 Scatterplots Of Relationships With Readiness",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_heading_level_styles(model)
+        if f.details.get("issue_type") == "level3_sentence_case_issue"
+    ]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details.get("corrected_from") == (
+        "4.4.1 Scatterplots Of Relationships With Readiness"
+    )
+    assert finding.message == (
+        'Change "4.4.1 Scatterplots Of Relationships With Readiness" to '
+        '"4.4.1 Scatterplots of relationships with readiness" '
+        "(Level 3 heading; NJIT: Level 3 = Sentence case)."
+    )
 
 
 def test_p027_cli_includes_p027(tmp_path: Path) -> None:

@@ -209,6 +209,28 @@ def test_p027_level3_sentence_case_shrinks_to_flagged_word() -> None:
     assert resolved == (220.0, 100.0, 270.0, 112.0)
 
 
+def test_word_bbox_never_matches_inside_a_larger_word() -> None:
+    """Regression: a single-letter flagged token ("n") must resolve to a
+    standalone token, never the "n" buried inside "Linear". Here the only
+    standalone "n" lives in the "(n = 97)" span, so that span is returned."""
+    line = PdfTextLine(
+        text="Linear Regression (n = 97)",
+        bbox=BBox(x0=72.0, y0=100.0, x1=300.0, y1=112.0),
+        spans=[
+            PdfTextSpan(
+                text="Linear Regression (",
+                bbox=BBox(x0=72.0, y0=100.0, x1=200.0, y1=112.0),
+            ),
+            PdfTextSpan(text="n", bbox=BBox(x0=200.0, y0=100.0, x1=208.0, y1=112.0)),
+            PdfTextSpan(text=" = 97)", bbox=BBox(x0=208.0, y0=100.0, x1=300.0, y1=112.0)),
+        ],
+    )
+    token_bbox = word_bbox_in_line(line, "n")
+    assert token_bbox is not None
+    # The returned box must be the standalone "n", not the "n" inside "Linear".
+    assert token_bbox.x0 >= 200.0
+
+
 # ---------------------------------------------------------------------------
 # 6. P011 highlight coverage: the union of every violating line's box, not
 #    just the single worst offender -- fixed from the prior baseline by

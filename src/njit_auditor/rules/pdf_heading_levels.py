@@ -259,12 +259,19 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
             q_rule = "Q051" if level == 3 else ""
             if _looks_like_title_case_violation(heading_text):
                 example = _sentence_case_example(number_prefix, heading_text)
-                message = (
-                    f"Change this Level {level} heading to sentence case "
-                    f"(NJIT: Level {level} = Sentence Case)."
-                )
+                original = f"{number_prefix} {heading_text}"
                 if example:
-                    message += f' For example: "{example}".'
+                    # Prefer an exact, safe token-level replacement over a
+                    # generic style reminder when one can be computed.
+                    message = (
+                        f'Change "{original}" to "{example}" '
+                        f"(Level {level} heading; NJIT: Level {level} = Sentence case)."
+                    )
+                else:
+                    message = (
+                        f"Change this Level {level} heading to sentence case "
+                        f"(NJIT: Level {level} = Sentence Case)."
+                    )
                 finding = _finding(
                     page.page_number,
                     issue_type=f"level{level}_sentence_case_issue",
@@ -279,6 +286,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                 )
                 if example:
                     finding.details["corrected_example"] = example
+                    finding.details["corrected_from"] = original
                 results.append(finding)
             # Level 4/5: heading text should end with a period.
             if level in (4, 5) and not heading_text.rstrip().endswith("."):

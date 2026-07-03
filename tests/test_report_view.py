@@ -993,6 +993,41 @@ def test_p027_location_label_names_the_actual_heading() -> None:
     )
 
 
+def test_p027_level3_card_shows_exact_sentence_case_replacement() -> None:
+    """A P027 Level 3 sentence-case card must present the exact corrected
+    heading as the suggested fix, not only a generic style reminder."""
+    findings = [
+        AuditFinding(
+            rule_id="P027",
+            severity=Severity.WARNING,
+            page=62,
+            message="(detector message)",
+            details={
+                "issue_type": "level3_sentence_case_issue",
+                "inferred_level": "3",
+                "heading_pattern": "4.4.1",
+                "line_preview": "4.4.1 Scatterplots Of Relationships With Readiness",
+                "corrected_from": "4.4.1 Scatterplots Of Relationships With Readiness",
+                "corrected_example": "4.4.1 Scatterplots of relationships with readiness",
+                "confidence": "medium",
+            },
+        )
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+
+    finding = next(f for f in view.findings if f.rule_id == "P027")
+    # The display finalizer trims the trailing period from the comment.
+    assert finding.polished_comment == (
+        "Likely problem: This Level-3 heading appears to use Title Case, "
+        "but Level-3 headings should use sentence case"
+    )
+    assert finding.suggested_fix == (
+        'Change "4.4.1 Scatterplots Of Relationships With Readiness" to '
+        '"4.4.1 Scatterplots of relationships with readiness".'
+    )
+
+
 def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
     findings = [
         _p024_finding(

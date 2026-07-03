@@ -101,6 +101,8 @@ from njit_auditor.title_case_student_preview import (
     consume_p020_display_slot,
     p020_short_likely_problem,
     p020_short_suggested_fix,
+    p027_sentence_case_likely_problem,
+    p027_sentence_case_suggested_fix,
     sanitize_title_case_line_preview,
 )
 from njit_auditor.toc_list_student_preview import (
@@ -1994,6 +1996,42 @@ def _apply_title_case_presentation(
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 
+_P027_SENTENCE_CASE_ISSUE_TYPES: frozenset[str] = frozenset(
+    {
+        "level3_sentence_case_issue",
+        "level4_sentence_case_issue",
+        "level5_sentence_case_issue",
+    }
+)
+
+
+def _apply_sentence_case_heading_presentation(
+    finding: FindingView,
+    details: Mapping[str, str],
+) -> tuple[FindingView, bool]:
+    """Surface the exact sentence-case replacement for P027 heading findings.
+
+    When the detector computed a safe token-level rewrite (corrected_example),
+    the student sees the precise "Change X to Y" fix rather than only a generic
+    style reminder. Findings without a safe rewrite keep their default wording.
+    """
+    if (
+        finding.rule_id != "P027"
+        or finding.issue_type not in _P027_SENTENCE_CASE_ISSUE_TYPES
+    ):
+        return finding, True
+    corrected_example = details.get("corrected_example", "").strip()
+    corrected_from = details.get("corrected_from", "").strip()
+    if not corrected_example or not corrected_from:
+        return finding, True
+    suggested_fix = p027_sentence_case_suggested_fix(corrected_from, corrected_example)
+    if not suggested_fix:
+        return finding, True
+    level = details.get("inferred_level", "").strip()
+    comment = p027_sentence_case_likely_problem(level)
+    return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
+
+
 _P036_SPACING_ISSUE_TYPES: frozenset[str] = frozenset(
     {
         "toc_inter_entry_spacing_too_tight",
@@ -2626,6 +2664,10 @@ def build_report_view(
                 page=visible_view.page,
             ):
                 is_problem = False
+        elif visible_view.rule_id == "P027":
+            visible_view, is_problem = _apply_sentence_case_heading_presentation(
+                visible_view, details
+            )
         elif visible_view.rule_id == "P036":
             visible_view, is_problem = _apply_spacing_presentation(visible_view, details)
         elif visible_view.rule_id == "P035":
