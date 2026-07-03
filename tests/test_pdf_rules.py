@@ -844,6 +844,66 @@ def test_pdf_cli_command_runs_with_p016(tmp_path: Path) -> None:
     assert "P016" in result.output
 
 
+def test_biographical_sketch_page_skipped_for_p016(tmp_path: Path) -> None:
+    """Biographical Sketch special-layout pages must not trigger P016.
+
+    The intentional large blank area after the centered BIOGRAPHICAL SKETCH
+    heading (before the author/degree/date block) is template layout, not an
+    accidental blank line. The identical geometry on an ABSTRACT page is still
+    flagged (see test_obvious_large_blank_gap_warns_for_p016).
+    """
+    pdf_path = tmp_path / "biosketch_p016.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((225, 90), "BIOGRAPHICAL SKETCH", fontsize=16, fontname="Times-Bold")
+    # Large intentional gap after the heading, then the author/degree/date block.
+    _draw_spacing_lines(page, [320, 334, 430, 444, 540])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_spacing(model)
+    assert not any(f.rule_id == "P016" for f in findings)
+
+
+def test_approval_page_skipped_for_p016(tmp_path: Path) -> None:
+    """Approval Page committee-signature template layout must not trigger P016."""
+    pdf_path = tmp_path / "approval_p016.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((240, 90), "APPROVAL PAGE", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [320, 334, 430, 444, 540])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_spacing(model)
+    assert not any(f.rule_id == "P016" for f in findings)
+
+
+def test_p016_heading_gap_reported_as_after_heading(tmp_path: Path) -> None:
+    """A suspicious heading blank gap is measured AFTER the heading, and both the
+    finding message and the recorded position detail must say so."""
+    pdf_path = tmp_path / "heading_gap_after.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    # First content sits far below the heading -> gap AFTER the heading.
+    _draw_spacing_lines(page, [320, 334, 348, 362])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    gap_findings = [
+        f
+        for f in check_pdf_spacing(model)
+        if f.rule_id == "P016"
+        and f.details.get("issue_type") == "suspicious_heading_blank_gap"
+    ]
+    assert gap_findings
+    finding = gap_findings[0]
+    assert finding.details.get("heading_gap_position") == "after"
+    assert "after" in finding.message.lower()
+    assert "before a heading" not in finding.message.lower()
+
+
 def test_figure_caption_with_terminal_punctuation_does_not_warn_p017(tmp_path: Path) -> None:
     pdf_path = tmp_path / "caption_figure_ok.pdf"
     doc = fitz.open()
@@ -2688,6 +2748,142 @@ def test_p023_body_single_spaced_still_flagged_after_chapter(tmp_path: Path) -> 
     p023 = [f for f in findings if f.rule_id == "P023"]
     assert len(p023) == 1
     assert p023[0].page == 2, "P023 should fire on page 2 (body), not page 1 (front matter)"
+
+
+# Single-spaced table rows: 12pt pitch → tight spacing that lives only inside the
+# table region and must be excluded from body-text measurement.
+_TABLE_ROW_Y = [126, 138, 150, 162, 174, 186, 198, 210, 222, 234, 246]
+_TABLE_CAPTION_TEXT = "Table 4.1 Alignment of Research Questions and Survey Items"
+
+
+def _draw_table_rows(page: fitz.Page, y_positions: list[float], x: float = 108) -> None:
+    for idx, y in enumerate(y_positions):
+        page.insert_text(
+            (x, y),
+            f"Research question {idx} aligned with survey item set for the study.",
+            fontsize=12,
+        )
+
+
+def test_p023_table_region_tight_spacing_not_flagged(tmp_path: Path) -> None:
+    """When the only tight spacing is inside a captioned table, P023 must not fire.
+
+    All single-spaced lines belong to the table region anchored by the
+    ``Table 4.1 ...`` caption, so no body-text lines remain to measure.
+    """
+    pdf_path = tmp_path / "table_only_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 110), _TABLE_CAPTION_TEXT, fontsize=12)
+    _draw_table_rows(page, _TABLE_ROW_Y)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_table_borders_not_treated_as_body_evidence(tmp_path: Path) -> None:
+    """Drawn table borders (graphic lines) must not drive a body-spacing warning.
+
+    Border strokes are not text and never enter the measurement; combined with a
+    captioned single-spaced table, the page yields no P023 finding.
+    """
+    pdf_path = tmp_path / "table_borders_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 110), _TABLE_CAPTION_TEXT, fontsize=12)
+    _draw_table_rows(page, _TABLE_ROW_Y)
+    for border_y in (118, 258):
+        page.draw_line((108, border_y), (504, border_y))
+    page.draw_line((108, 118), (108, 258))
+    page.draw_line((504, 118), (504, 258))
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_table_plus_body_measures_only_body(tmp_path: Path) -> None:
+    """With a table above and ordinary prose below, P023 measures only the prose.
+
+    The single-spaced table rows are excluded via the caption-anchored region;
+    the single-spaced body prose beneath the table is still measured and warns,
+    and the finding counts only the body lines (not the table rows).
+    """
+    pdf_path = tmp_path / "table_plus_body_p023.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 110), _TABLE_CAPTION_TEXT, fontsize=12)
+    _draw_table_rows(page, _TABLE_ROW_Y)
+    # Clear separation, then 11 single-spaced ordinary body lines below the table.
+    body_y = [320 + i * 12 for i in range(11)]
+    for idx, y in enumerate(body_y):
+        page.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    p023 = [f for f in check_pdf_body_spacing(model) if f.rule_id == "P023"]
+    assert len(p023) == 1
+    finding = p023[0]
+    assert finding.details.get("measured_body_line_count") == str(len(body_y))
+    # Evidence bbox must cover the body region below the table, not the table rows.
+    bbox = finding.details.get("bbox")
+    assert bbox is not None
+    measured_y0 = float(bbox.split(",")[1])
+    assert measured_y0 > max(_TABLE_ROW_Y), "measured region must be below the table"
+
+
+def test_p023_references_continuation_page_not_flagged(tmp_path: Path) -> None:
+    """References continuation pages (no repeated heading) must be excluded from P023.
+
+    Reference-entry spacing has its own dedicated rule (P064); it must not be
+    surfaced as ordinary "body text not double-spaced".
+    """
+    from njit_auditor.rules.pdf_references_citations_structural import (
+        references_section_page_numbers,
+    )
+
+    pdf_path = tmp_path / "references_continuation_p023.pdf"
+    doc = fitz.open()
+
+    # Page 1: body page (Chapter 1) with double-spaced prose -> sets body start.
+    page1 = doc.new_page(width=612, height=792)
+    page1.insert_text((200, 90), "CHAPTER 1 INTRODUCTION", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_DOUBLE_SPACED_Y):
+        page1.insert_text((108, y), _BODY_TEXT_TEMPLATE.format(idx=idx), fontsize=12)
+
+    # Page 2: REFERENCES heading + single-spaced reference entries.
+    page2 = doc.new_page(width=612, height=792)
+    page2.insert_text((240, 90), "REFERENCES", fontsize=16, fontname="Times-Bold")
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page2.insert_text(
+            (108, y + 40),
+            f"Author {idx}, A. (2020). Title of reference entry number {idx} here.",
+            fontsize=12,
+        )
+
+    # Page 3: references continuation, single-spaced, NO repeated heading.
+    page3 = doc.new_page(width=612, height=792)
+    for idx, y in enumerate(_SINGLE_SPACED_Y):
+        page3.insert_text(
+            (108, y),
+            f"Writer {idx}, B. (2019). Continued reference entry number {idx} listed.",
+            fontsize=12,
+        )
+
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    ref_pages = references_section_page_numbers(model)
+    assert 3 in ref_pages, "continuation page must be recognized as references section"
+
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings), (
+        "References pages (including continuation) must not be flagged as body text"
+    )
 
 
 # ---------------------------------------------------------------------------

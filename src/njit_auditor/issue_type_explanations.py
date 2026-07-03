@@ -310,7 +310,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "overrides."
     ),
     ("P016", "suspicious_heading_blank_gap"): (
-        "This means an unusually large blank gap was detected just before a "
+        "This means an unusually large blank gap was detected just after a "
         "heading on this page. Verify this is intentional heading spacing and "
         "not an extra blank line or page-break artifact."
     ),
@@ -786,7 +786,7 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
         "Paragraph spacing should be consistent with double-spaced body text."
     ),
     "suspicious_heading_blank_gap": (
-        "An unusually large blank gap was detected just before a heading on "
+        "An unusually large blank gap was detected just after a heading on "
         "this page. Verify this is intentional heading spacing."
     ),
     "frontmatter_page_number_style_issue": (
@@ -879,7 +879,7 @@ def _p016_issue_type_explanation(issue_type: str, details: Mapping[str, str]) ->
             "paragraph-spacing overrides."
         )
     return (
-        f"This means an unusually large blank gap{gap_clause} was detected just before "
+        f"This means an unusually large blank gap{gap_clause} was detected just after "
         "a heading on this page. Verify this is intentional heading spacing and not an "
         "extra blank line or page-break artifact."
     )

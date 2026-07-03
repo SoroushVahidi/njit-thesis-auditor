@@ -20,6 +20,14 @@ REFERENCES_LIKE_HEADINGS = {
     "BIBLIOGRAPHY",
     "WORKS CITED",
 }
+# Front-matter template pages whose layout intentionally contains large blank
+# gaps (centered author/degree/date and committee-signature blocks). These are
+# not ordinary chapter/body pages, so their intentional spacing must not be
+# treated as an accidental blank-line problem.
+SPECIAL_LAYOUT_HEADINGS = {
+    "BIOGRAPHICAL SKETCH",
+    "APPROVAL PAGE",
+}
 CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
 MIN_TEXT_LEN = 12
 CAPTION_HEAVY_PAGE_RATIO = 0.35
@@ -91,6 +99,12 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
         if _page_has_heading_in(page, TOC_LIKE_HEADINGS):
             continue
         if _page_has_heading_in(page, REFERENCES_LIKE_HEADINGS):
+            continue
+        # Biographical Sketch / Approval Page are special front-matter templates
+        # whose large blank areas (before the author/degree/date or committee
+        # blocks) are intentional layout, not accidental blank lines. Skip them
+        # so ordinary heading-blank-gap and paragraph-gap warnings do not fire.
+        if _page_has_heading_in(page, SPECIAL_LAYOUT_HEADINGS):
             continue
         if not _front_matter_page(page):
             continue
@@ -182,6 +196,9 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "largest_gap_pt": f"{heading_gap:.1f}",
                             "affected_gap_count": "1",
                             "context": "front_matter",
+                            # The measured gap is between the heading and the first
+                            # content line below it, i.e. AFTER the heading.
+                            "heading_gap_position": "after",
                         },
                     )
 

@@ -299,9 +299,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P016", "suspicious_heading_blank_gap"): (
         "An unusually large blank gap (about {largest_gap_pt}pt) was detected just "
-        "before a heading on page {page}. Verify this is intentional spacing "
-        "(such as a necessary page break before a new chapter) and not an extra "
-        "blank line. If unnecessary, delete the blank line."
+        "after a heading on page {page}. Verify this is intentional spacing "
+        "(such as a necessary page break or a heading kept with the text that "
+        "follows it) and not an extra blank line. If unnecessary, delete the blank line."
     ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
         "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "
