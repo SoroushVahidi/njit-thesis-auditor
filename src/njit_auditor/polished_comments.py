@@ -478,24 +478,24 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P043 acknowledgements indentation ---
     ("P043", "acknowledgements_first_paragraph_indented"): (
         "Problem: The first paragraph on the Acknowledgements page (page "
-        "{page}) appears to be indented. NJIT requires the first paragraph "
-        "to begin flush with the left margin."
+        "{page}) appears to be indented. Remove any first-line indent from "
+        "the first Acknowledgements paragraph."
     ),
     ("P043", "acknowledgements_subsequent_paragraph_not_indented"): (
         "Problem: A paragraph after the first on the Acknowledgements page (page "
-        "{page}) appears flush-left where NJIT expects a first-line indent. Indent "
-        "each paragraph after the first."
+        "{page}) appears flush-left where NJIT expects a first-line indent. Apply "
+        "a first-line indent to each subsequent Acknowledgements paragraph."
     ),
     # --- P044 abstract indentation ---
     ("P044", "abstract_first_paragraph_indented"): (
         "Problem: The first paragraph on the Abstract page (page {page}) "
-        "appears to be indented. NJIT requires the first abstract paragraph "
-        "to begin flush with the left margin."
+        "appears to be indented. Remove any first-line indent from the "
+        "first Abstract paragraph."
     ),
     ("P044", "abstract_subsequent_paragraph_not_indented"): (
         "Likely problem: An Abstract paragraph after the first (page {page}) appears "
-        "flush-left where NJIT expects a first-line indent. Indent each Abstract "
-        "paragraph after the first."
+        "flush-left where NJIT expects a first-line indent. Apply a first-line "
+        "indent to each subsequent Abstract paragraph."
     ),
     # --- P053/P054 list terminal periods ---
     ("P053", "lot_entry_has_terminal_period"): (

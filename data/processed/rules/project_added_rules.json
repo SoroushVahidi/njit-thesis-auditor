@@ -759,9 +759,9 @@
   {
     "id": "P043",
     "section": "PDF Acknowledgements paragraph indentation",
-    "question": "Does the Acknowledgements page follow the correct paragraph indentation style — first paragraph flush-left, subsequent paragraphs indented?",
+    "question": "Does the Acknowledgements page follow the correct paragraph indentation style: first paragraph flush-left and subsequent paragraphs indented?",
     "rule_definition": "Conservative heuristic: detects the ACKNOWLEDGEMENTS page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q044) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q045) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ACKNOWLEDGEMENTS page not detected or fewer than 2 paragraph blocks found. Complements P015 (general indentation), which may miss short Acknowledgements pages due to conservative thresholds. Findings contain only geometry metadata — no paragraph text.",
-    "remediation": "Ensure the first paragraph on the Acknowledgements page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
+    "remediation": "Remove any first-line indent from the first Acknowledgements paragraph, and apply a first-line indent to each subsequent Acknowledgements paragraph.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -777,9 +777,9 @@
   {
     "id": "P044",
     "section": "PDF Abstract paragraph indentation",
-    "question": "Does the Abstract page follow the correct paragraph indentation style — first paragraph flush-left, subsequent paragraphs indented?",
+    "question": "Does the Abstract page follow the correct paragraph indentation style: first paragraph flush-left and subsequent paragraphs indented?",
     "rule_definition": "Conservative heuristic: detects the ABSTRACT page via find_named_frontmatter_headings. Extracts body text lines below the heading, groups them into paragraph blocks by vertical gap, and derives the local left text margin from the minimum x0 across all body lines. Checks: (Q002) the first paragraph block first line is flush-left (x0 within INDENT_THRESHOLD_PT of left_margin); (Q003) each subsequent paragraph block first line is indented (x0 > left_margin + INDENT_THRESHOLD_PT). Gate: skip if ABSTRACT page not detected; skip Q003 if fewer than 2 paragraph blocks found. Complements P015 (general indentation), which partially covers abstract opening but not subsequent paragraphs. Findings contain only geometry metadata — no paragraph text.",
-    "remediation": "Ensure the first paragraph on the Abstract page begins flush with the left margin, and all subsequent paragraphs begin with a visible indent.",
+    "remediation": "Remove any first-line indent from the first Abstract paragraph, and apply a first-line indent to each subsequent Abstract paragraph.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",

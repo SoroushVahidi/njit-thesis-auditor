@@ -730,6 +730,30 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "increase continuously in order."
         ),
     },
+    "P043": {
+        "question": (
+            "Does the Acknowledgements page follow the correct paragraph "
+            "indentation style: first paragraph flush-left and subsequent "
+            "paragraphs indented?"
+        ),
+        "remediation": (
+            "Remove any first-line indent from the first Acknowledgements "
+            "paragraph, and apply a first-line indent to each subsequent "
+            "Acknowledgements paragraph."
+        ),
+    },
+    "P044": {
+        "question": (
+            "Does the Abstract page follow the correct paragraph "
+            "indentation style: first paragraph flush-left and subsequent "
+            "paragraphs indented?"
+        ),
+        "remediation": (
+            "Remove any first-line indent from the first Abstract "
+            "paragraph, and apply a first-line indent to each subsequent "
+            "Abstract paragraph."
+        ),
+    },
     "P013": {
         "question": (
             "Are all visible page numbers located exactly in the designated "

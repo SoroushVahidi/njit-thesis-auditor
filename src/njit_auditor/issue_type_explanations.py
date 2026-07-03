@@ -632,19 +632,22 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ),
     ("P043", "acknowledgements_first_paragraph_indented"): (
         "This means the first paragraph on the Acknowledgements page appears "
-        "indented. NJIT requires the first paragraph to begin flush-left."
+        "indented. Remove any first-line indent from the first "
+        "Acknowledgements paragraph."
     ),
     ("P043", "acknowledgements_subsequent_paragraph_not_indented"): (
-        "This means a later Acknowledgements paragraph appears flush-left where "
-        "NJIT expects a first-line indent."
+        "This means a later Acknowledgements paragraph appears flush-left "
+        "where NJIT expects a first-line indent. Apply a first-line indent "
+        "to each subsequent Acknowledgements paragraph."
     ),
     ("P044", "abstract_first_paragraph_indented"): (
         "This means the first paragraph on the Abstract page appears indented. "
-        "NJIT requires the first abstract paragraph to begin flush-left."
+        "Remove any first-line indent from the first Abstract paragraph."
     ),
     ("P044", "abstract_subsequent_paragraph_not_indented"): (
-        "This means an Abstract paragraph after the first appears flush-left where NJIT "
-        "expects a first-line indent."
+        "This means an Abstract paragraph after the first appears flush-left "
+        "where NJIT expects a first-line indent. Apply a first-line indent "
+        "to each subsequent Abstract paragraph."
     ),
     ("P053", "lot_entry_has_terminal_period"): (
         "This means a List of Tables entry ends with a final period. Remove the "
