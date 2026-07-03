@@ -51,7 +51,8 @@
     text-align: center;
   }
   /* Confidence palette is separate from category tags (.badge-info) and severity
-     labels. Low=blue, medium=yellow, high=red, mixed high states=orange. */
+     labels. Public display supports exactly three values: low=blue, medium=yellow,
+     high=red. Missing/mixed confidence displays as low (see report_view.py). */
   .confidence-badge--low {
     background: #dbeafe;
     border-color: #60a5fa;
@@ -66,16 +67,6 @@
     background: #fee2e2;
     border-color: #f87171;
     color: #991b1b;
-  }
-  .confidence-badge--mixed-orange {
-    background: #ffedd5;
-    border-color: #fb923c;
-    color: #9a3412;
-  }
-  .confidence-badge--unknown {
-    background: #f3f4f6;
-    border-color: #d1d5db;
-    color: #4b5563;
   }
   .confidence-filter {
     display: grid;
@@ -334,14 +325,14 @@
   {% elif normalized == "low" %}
     {% set badge_label = "Low confidence" %}
   {% else %}
-    {% set badge_label = "Needs review" %}
+    {% set badge_label = "Low confidence" %}
   {% endif %}
   {% if css_class %}
     {% set badge_class = css_class %}
   {% elif normalized in ("high", "medium", "low") %}
     {% set badge_class = "confidence-badge--" ~ normalized %}
   {% else %}
-    {% set badge_class = "confidence-badge--unknown" %}
+    {% set badge_class = "confidence-badge--low" %}
   {% endif %}
   <span class="confidence-badge {{ badge_class }}">{{ badge_label }}</span>
 {%- endmacro %}
@@ -475,7 +466,7 @@
       {% if fail_count > 0 %}
       <li>
         <span class="ro-label">Fix these first</span> —
-        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Filter by priority → Needs fixing</a> and verify each one against NJIT guidelines.
+        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Filter by severity → Needs fixing</a> and verify each one against NJIT guidelines.
       </li>
       {% endif %}
       {% if report_view and report_view.triage_panels %}
@@ -663,7 +654,7 @@
       </select>
     </div>
     <div>
-      <label for="filter-severity">Priority</label>
+      <label for="filter-severity">Severity</label>
       <select id="filter-severity">
         <option value="">All</option>
         {% for sev in filter_severities %}
@@ -877,7 +868,7 @@
             <th>Problem</th>
             <th>Rule</th>
             <th>Page</th>
-            <th>Priority</th>
+            <th>Severity</th>
             <th>Confidence</th>
             <th>Category</th>
             <th>Details</th>

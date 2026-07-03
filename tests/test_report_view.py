@@ -251,19 +251,21 @@ def test_report_view_adds_confidence_display_metadata() -> None:
     assert group.confidence_css_class == "confidence-badge--medium"
 
 
-def test_finding_with_missing_confidence_shows_needs_review_badge() -> None:
-    """Missing confidence must render a neutral 'Needs review' badge, never blank,
-    and must not be confused with a low-severity or low-confidence judgement."""
+def test_finding_with_missing_confidence_shows_low_confidence_badge() -> None:
+    """Missing confidence must render the public Low confidence badge, never blank
+    and never a separate "Needs review" category -- public display supports exactly
+    three confidence values (High/Medium/Low), so an uncertain/missing case is the
+    conservative Low bucket rather than a fourth category."""
     view = build_report_view(_sample_report())
 
     finding = next(f for f in view.findings if f.rule_id == "P030")
     assert finding.confidence == ""
-    assert finding.confidence_label == "Needs review"
-    assert finding.confidence_css_class == "confidence-badge--unknown"
+    assert finding.confidence_label == "Low confidence"
+    assert finding.confidence_css_class == "confidence-badge--low"
 
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P030")
-    assert group.confidence_label == "Needs review"
-    assert group.confidence_css_class == "confidence-badge--unknown"
+    assert group.confidence_label == "Low confidence"
+    assert group.confidence_css_class == "confidence-badge--low"
 
 
 def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
@@ -304,13 +306,15 @@ def test_grouped_problem_views_track_mixed_confidence_levels() -> None:
 
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
     assert group.is_grouped is True
+    # Internal tracking of which levels are present is preserved exactly (still drives
+    # confidence-based sorting); only the public display label/class is normalized.
     assert group.confidence_levels == ["high", "low"]
     assert group.confidence_level == "mixed"
-    assert group.confidence_label == "Mixed confidence: High, Low"
-    assert group.confidence_css_class == "confidence-badge--mixed-orange"
+    assert group.confidence_label == "Low confidence"
+    assert group.confidence_css_class == "confidence-badge--low"
 
 
-def test_mixed_high_medium_confidence_uses_orange_badge() -> None:
+def test_mixed_high_medium_confidence_displays_as_low() -> None:
     findings = [
         AuditFinding(
             rule_id="P011",
@@ -346,11 +350,12 @@ def test_mixed_high_medium_confidence_uses_orange_badge() -> None:
 
     view = build_report_view(report)
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P011")
-    assert group.confidence_label == "Mixed confidence: High, Medium"
-    assert group.confidence_css_class == "confidence-badge--mixed-orange"
+    assert group.confidence_levels == ["high", "medium"]
+    assert group.confidence_label == "Low confidence"
+    assert group.confidence_css_class == "confidence-badge--low"
 
 
-def test_mixed_medium_low_confidence_uses_yellow_badge() -> None:
+def test_mixed_medium_low_confidence_displays_as_low() -> None:
     findings = [
         AuditFinding(
             rule_id="P037",
@@ -378,8 +383,9 @@ def test_mixed_medium_low_confidence_uses_yellow_badge() -> None:
 
     view = build_report_view(report)
     group = next(problem for problem in view.grouped_problems if problem.rule_id == "P037")
-    assert group.confidence_label == "Mixed confidence: Medium, Low"
-    assert group.confidence_css_class == "confidence-badge--medium"
+    assert group.confidence_levels == ["medium", "low"]
+    assert group.confidence_label == "Low confidence"
+    assert group.confidence_css_class == "confidence-badge--low"
 
 
 def _confidence_sort_fixture_grouped_problems() -> list[dict[str, Any]]:

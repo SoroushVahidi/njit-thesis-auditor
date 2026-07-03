@@ -379,6 +379,9 @@ def _inject_complete_job_with_findings(
                 "suggested_fix": fv.get("suggested_fix", ""),
                 "triage_tier": fv.get("triage_tier", ""),
                 "confidence": fv.get("confidence", ""),
+                "confidence_level": fv.get("confidence_level", ""),
+                "confidence_label": fv.get("confidence_label", ""),
+                "confidence_css_class": fv.get("confidence_css_class", ""),
                 "source_file": fv.get("source_file", ""),
                 "source_line": fv.get("source_line", ""),
                 "location_label": fv.get("location_label", ""),
@@ -919,6 +922,123 @@ def test_sort_query_param_keeps_pdf_highlight_links_working(
             assert link_resp.status_code != 500
 
 
+def test_results_page_confidence_badges_use_only_three_public_values(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Every rendered confidence-badge CSS class must be high/medium/low -- no
+    mixed-orange, unknown, or other extra category -- and the visible page must
+    never show Priority, Needs review, or Mixed confidence text, covering a
+    missing-confidence finding (P030) alongside ordinary high/medium/low ones."""
+    import re
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=2,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "medium"},
+        ),
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=3,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=4,
+            message="Missing continued heading.",
+            details={"issue_type": "missing_continued_heading"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+
+    badge_classes = set(re.findall(r"confidence-badge--(\S+?)[\"' ]", body))
+    assert badge_classes, "expected at least one confidence badge on the page"
+    assert badge_classes <= {"high", "medium", "low"}, badge_classes
+
+    # Student-facing problem cards show Confidence only -- Priority is never a
+    # visible label, and no fourth/fifth confidence category leaks into the badge
+    # text either.
+    assert "Priority" not in body
+    assert "Needs review" not in body
+    assert "Mixed confidence" not in body
+    assert "Low confidence" in body  # from the missing-confidence P030 card
+
+
+def test_individual_findings_table_confidence_badge_matches_data_confidence(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The raw individual-findings table (behind the grouped/individual toggle) must
+    show a confidence badge that actually matches each row's real confidence, not a
+    fallback -- regression guard for a bug where the row's serialized dict carried
+    ``confidence`` but not ``confidence_level``/``confidence_label``/
+    ``confidence_css_class``, so the template silently rendered the macro's own
+    default badge regardless of the finding's real confidence."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=4,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+
+    row_start = body.index('id="individual-findings-panel"')
+    row = body[row_start : row_start + 4000]
+    assert 'data-confidence="high"' in row
+    assert "confidence-badge--high" in row
+    assert "High confidence" in row
+    assert "confidence-badge--low" not in row
+    assert "Low confidence" not in row
+
+
 def test_results_page_omits_redundant_problem_badge_and_uses_confidence_palette(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -982,8 +1102,11 @@ def test_results_page_omits_redundant_problem_badge_and_uses_confidence_palette(
     assert "confidence-badge--medium" in body
     assert "confidence-badge--high" in body
     assert "confidence-badge--low" in body
-    assert "confidence-badge--mixed-orange" in body
-    assert "Mixed confidence: High, Low" in body
+    # Public confidence display supports exactly three values (High/Medium/Low); a
+    # mixed-confidence grouped card (P011 here) displays as Low, not a separate
+    # "mixed" category or label.
+    assert "confidence-badge--mixed-orange" not in body
+    assert "Mixed confidence" not in body
 
 
 def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
@@ -1062,6 +1185,9 @@ def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
                 "suggested_fix": fv.suggested_fix,
                 "triage_tier": fv.triage_tier,
                 "confidence": fv.confidence,
+                "confidence_level": fv.confidence_level,
+                "confidence_label": fv.confidence_label,
+                "confidence_css_class": fv.confidence_css_class,
                 "source_file": fv.source_file,
                 "source_line": fv.source_line,
                 "location_label": fv.location_label,
@@ -1081,7 +1207,11 @@ def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
 
     assert resp.status_code == 200
     body = resp.text
-    assert "Mixed confidence: High, Low" in body
+    # Public display normalizes the mixed high+low card to Low confidence, but the
+    # raw per-occurrence filter metadata below must still expose both real levels
+    # unchanged, since that token list (not the display label) drives filtering.
+    assert "Mixed confidence" not in body
+    assert "Low confidence" in body
     assert 'data-confidence-levels="|high|low|"' in body
     assert 'class="grouped-occurrence" data-confidence="high"' in body
     assert 'class="grouped-occurrence" data-confidence="low"' in body

@@ -211,7 +211,7 @@ def test_rules_page_excludes_internal_and_experimental_rule_ids(
 # ---------------------------------------------------------------------------
 
 
-def test_results_page_uses_simple_priority_labels_not_raw_severity(
+def test_results_page_uses_simple_severity_labels_not_raw_severity(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
@@ -226,13 +226,17 @@ def test_results_page_uses_simple_priority_labels_not_raw_severity(
     assert ">WARNING<" not in body
     assert ">PASS<" not in body
     assert "Pass / Warning / Error" not in body
+    # The severity filter must never be mislabeled "Priority" -- confidence is the
+    # only reliability-style label on student-facing problem cards.
+    assert "Priority" not in body
 
 
-def test_rules_page_uses_simple_priority_labels(client: tuple[TestClient, Any]) -> None:
+def test_rules_page_uses_simple_severity_labels(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    assert "Priority" in body
+    assert "Severity" in body
+    assert "Priority" not in body
     assert ">FAIL<" not in body
     assert ">WARNING<" not in body
 
