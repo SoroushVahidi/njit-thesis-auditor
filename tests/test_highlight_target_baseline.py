@@ -275,15 +275,21 @@ def test_p011_grouped_violation_highlights_union_of_all_affected_lines(
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    # Exactly one box reaches the highlight layer (a single unioned region, not
-    # three separate boxes) -- but it now spans all three violating lines.
-    assert len(boxes) == 1
+    # Two boxes reach the highlight layer: the affected-line region (a single
+    # tight group, since these three lines are adjacent with nothing between
+    # them) and the margin-boundary guide line -- but no more than two, since
+    # the three violating lines are not split into three separate boxes.
+    assert len(boxes) == 2
     x0, y0, x1, y1 = boxes[0]
     # A single 12pt line is roughly 14pt tall. These three lines span 40pt of
     # insertion points (120 to 160) plus a line's own height, so a genuine
     # union is well beyond one line's height -- proving this covers all three
     # lines, not just the worst offender's.
     assert y1 - y0 > 30.0, "expected a union spanning all three lines, not one line's height"
+    # The second box is the thin left-margin boundary guide (allowed x0 = 108pt).
+    gx0, gy0, gx1, gy1 = boxes[1]
+    assert gx1 - gx0 < 5.0, "boundary guide must be a thin line, not a wide region"
+    assert gx0 < 108.0 < gx1, "left-margin guide must straddle the required boundary at x=108"
 
 
 def test_p011_single_violation_still_highlights_a_single_line_bbox(
@@ -309,9 +315,12 @@ def test_p011_single_violation_still_highlights_a_single_line_bbox(
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    assert len(boxes) == 1
+    # The single line's tight box, plus the new margin-boundary guide line.
+    assert len(boxes) == 2
     x0, y0, x1, y1 = boxes[0]
     assert y1 - y0 < 20.0, "a single-line finding must still highlight one line's height"
+    gx0, gy0, gx1, gy1 = boxes[1]
+    assert gx1 - gx0 < 5.0, "boundary guide must be a thin line, not a wide region"
 
 
 def test_p011_highlight_union_does_not_invent_table_row_or_column_bbox(
