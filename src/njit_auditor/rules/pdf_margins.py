@@ -124,6 +124,20 @@ def run_pdf_margin_rule(
                 continue
             confidence = _group_confidence(worst, count)
 
+            # Highlight the union of every violating line's box, not just the worst
+            # offender's -- a multi-row table overflowing the margin should show a
+            # region covering all of its affected rows, not one arbitrary row. This
+            # only changes which region is drawn; it does not add a new box concept
+            # (see docs/status/highlight_quality_improvement_plan.md) and every other
+            # field below (worst_overflow_pt, affected_line_count, confidence, side)
+            # still reflects the single worst offender exactly as before.
+            highlight_bbox = BBox(
+                x0=min(v.line.bbox.x0 for v in violations),
+                y0=min(v.line.bbox.y0 for v in violations),
+                x1=max(v.line.bbox.x1 for v in violations),
+                y1=max(v.line.bbox.y1 for v in violations),
+            )
+
             # Collect truncated text previews of all violating lines for student-facing wording.
             _MAX_PREVIEW_LEN = 60
             _MAX_PREVIEW_LINES = 5
@@ -150,7 +164,7 @@ def run_pdf_margin_rule(
                 "affected_line_count": str(count),
                 "confidence": confidence,
                 "triage_tier": "informational",
-                "bbox": format_bbox_detail(worst_violation.line.bbox),
+                "bbox": format_bbox_detail(highlight_bbox),
                 "suggested_fix": (
                     "Set the left margin to 1.5 inches and the top, bottom, and right "
                     "margins to 1 inch. Move all content inside the required margin bounds."
