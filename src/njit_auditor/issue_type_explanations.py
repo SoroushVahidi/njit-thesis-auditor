@@ -385,19 +385,18 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "numeral. Front-matter pages must use lowercase Roman numerals (i, ii, iii)."
     ),
     ("P028", "arabic_number_on_frontmatter_page"): (
-        "A front-matter page is numbered with an Arabic numeral instead of a "
-        "Roman numeral. Front-matter pages must use lowercase Roman numerals "
-        "(i, ii, iii)."
+        "A front-matter page appears to be numbered with an Arabic numeral "
+        "instead of a Roman numeral. Use lowercase Roman numerals for "
+        "numbered front-matter pages."
     ),
     ("P028", "uppercase_roman_on_frontmatter_page"): (
-        "A front-matter page is numbered with an uppercase Roman numeral. "
-        "Front-matter pages must use lowercase Roman numerals (i, ii, iii), "
-        "not uppercase (I, II, III)."
+        "A front-matter page appears to be numbered with an uppercase Roman "
+        "numeral. Use lowercase Roman numerals for numbered front-matter "
+        "pages."
     ),
     ("P028", "roman_number_on_body_page"): (
-        "A body page is numbered with a Roman numeral instead of an Arabic "
-        "numeral. Body pages (starting from the main text) must use Arabic "
-        "numerals (1, 2, 3). Only front-matter pages use Roman numerals."
+        "A body page appears to be numbered with a Roman numeral instead of "
+        "an Arabic numeral. Use Arabic numerals for body pages."
     ),
     ("P029", "roman_sequence_gap"): (
         "A front-matter page skips one or more Roman numerals in the sequence "

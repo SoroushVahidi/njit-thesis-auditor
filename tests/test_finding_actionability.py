@@ -2050,8 +2050,8 @@ def test_unhandled_issue_type_fallback_has_no_banned_phrase_but_keeps_rule_remed
     fix = resolve_suggested_fix_for_display("P029", "roman_sequence_gap")
     assert _OLD_BANNED_FALLBACK_PHRASE not in comment
     assert "Formatting check" not in comment
-    assert "roman numeral ordering" in fix.lower()
-    assert "ascending sequence" in fix.lower()
+    assert "roman numeral" in fix.lower()
+    assert "increase continuously in order" in fix.lower()
 
 
 def test_unhandled_issue_type_fallback_document_level_has_no_banned_phrase() -> None:

@@ -104,18 +104,18 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P028", "arabic_number_on_frontmatter_page"): (
         "Problem: The page number on page {page} appears to use {observed_style}, "
-        "but this section is expected to use {expected_style}. Update the "
-        "page-numbering style for this section."
+        "but this section is expected to use {expected_style}. Use lowercase "
+        "Roman numerals for numbered front-matter pages."
     ),
     ("P028", "uppercase_roman_on_frontmatter_page"): (
         "Problem: The page number on page {page} appears to use {observed_style}, "
-        "but this section is expected to use {expected_style}. Update the "
-        "page-numbering style for this section."
+        "but this section is expected to use {expected_style}. Use lowercase "
+        "Roman numerals for numbered front-matter pages."
     ),
     ("P028", "roman_number_on_body_page"): (
         "Problem: The page number on page {page} appears to use {observed_style}, "
-        "but this section is expected to use {expected_style}. Update the "
-        "page-numbering style for this section."
+        "but this section is expected to use {expected_style}. Use Arabic "
+        "numerals for body pages."
     ),
     ("P029", "roman_sequence_gap"): (
         "Problem: Page {page} is numbered '{observed_sequence}', but the previous "
@@ -645,8 +645,8 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
         "if flagged, verify with your advisor."
     ),
     "P028": (
-        "Use lowercase Roman numerals (i, ii, iii) for front-matter numbered "
-        "pages and Arabic numerals (1, 2, 3) for body pages."
+        "Use lowercase Roman numerals for numbered front-matter pages, and "
+        "use Arabic numerals for body pages."
     ),
     # P013's comment body already states the verification action for every
     # branch (see _p013_candidate_comment); appending the canonical
