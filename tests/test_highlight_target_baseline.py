@@ -210,23 +210,24 @@ def test_p027_level3_sentence_case_shrinks_to_flagged_word() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 6. P011 current limitation: worst-line bbox only, not a full table/region
-#    union, even when several lines violate the same margin together.
+# 6. P011 highlight coverage: the union of every violating line's box, not
+#    just the single worst offender -- fixed from the prior baseline by
+#    docs/status/highlight_quality_improvement_plan.md's first targeted
+#    improvement. `worst_overflow_pt`/`affected_line_count`/`side`/`confidence`
+#    still describe the single worst offender exactly as before; only which
+#    region gets drawn changed.
 # ---------------------------------------------------------------------------
 
 
-def test_p011_grouped_violation_highlights_only_worst_line_not_full_region(
+def test_p011_grouped_violation_highlights_union_of_all_affected_lines(
     tmp_path: Path,
 ) -> None:
-    """Baseline limitation, matching the user-observed complaint documented in
-    docs/status/highlight_quality_improvement_plan.md: when several lines on a
-    page violate the same margin (as a multi-row table extending into the
-    margin would), P011 groups them into one finding and reports
-    `affected_line_count` > 1, but `bbox` is only the single worst-offending
-    line's box -- never a union covering the other violating lines. A future
-    highlight-quality PR may change this to a full-region union (following the
-    P035 precedent in test 3 above); when it does, this test should be updated
-    to assert the new unioned behavior instead."""
+    """Current behavior: when several lines on a page violate the same margin
+    (as a multi-row table extending into the margin would), P011 groups them
+    into one finding, and the highlight bbox is the union of every violating
+    line's box -- not only the single worst offender's -- so a multi-row
+    table-like overflow is highlighted as one coherent region instead of one
+    arbitrary row. This follows the P035 `body_bbox` precedent (test 3 above)."""
     pdf_path = tmp_path / "margin_three_different_overflows.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -244,18 +245,76 @@ def test_p011_grouped_violation_highlights_only_worst_line_not_full_region(
     warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
     assert len(warnings) == 1
     details = warnings[0].details
+    # Diagnostic/wording metadata for the worst offender is unchanged.
     assert details.get("affected_line_count") == "3"
+    assert details.get("side") == "left_margin"
+    assert float(details.get("worst_overflow_pt", "0")) > 0.0
 
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    # Exactly one box reaches the highlight layer today -- the worst offender's
-    # line, not a union spanning all three violating lines.
+    # Exactly one box reaches the highlight layer (a single unioned region, not
+    # three separate boxes) -- but it now spans all three violating lines.
     assert len(boxes) == 1
     x0, y0, x1, y1 = boxes[0]
-    # The worst-offending line ("...line two worst") is the one starting at
-    # x=20, roughly at y=140 (PyMuPDF's insertion baseline; the extracted line
-    # bbox sits a little above/below that depending on font metrics). It must
-    # not cover the y-range of all three lines (120 to 160+line-height), which
-    # is what a real full-region union would look like.
-    assert y1 - y0 < 30.0, "expected a single line's height, not a union of all three lines"
+    # A single 12pt line is roughly 14pt tall. These three lines span 40pt of
+    # insertion points (120 to 160) plus a line's own height, so a genuine
+    # union is well beyond one line's height -- proving this covers all three
+    # lines, not just the worst offender's.
+    assert y1 - y0 > 30.0, "expected a union spanning all three lines, not one line's height"
+
+
+def test_p011_single_violation_still_highlights_a_single_line_bbox(
+    tmp_path: Path,
+) -> None:
+    """The union logic must not inflate a single-line finding: when only one
+    line violates the margin, the highlight bbox is exactly that one line's
+    box, the same as before this change."""
+    pdf_path = tmp_path / "margin_single_violation.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((60, 120), "Only one overflowing line here", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
+    assert len(warnings) == 1
+    details = warnings[0].details
+    assert details.get("affected_line_count") == "1"
+
+    boxes = parse_highlight_bboxes_from_details(
+        details, rule_id="P011", issue_type="margin_boundary_violation"
+    )
+    assert len(boxes) == 1
+    x0, y0, x1, y1 = boxes[0]
+    assert y1 - y0 < 20.0, "a single-line finding must still highlight one line's height"
+
+
+def test_p011_highlight_union_does_not_invent_table_row_or_column_bbox(
+    tmp_path: Path,
+) -> None:
+    """The P011 highlight-coverage fix only unions the *line* boxes it already
+    detects internally; it does not introduce or infer a `table_bbox`,
+    `row_bbox`, or `column_bbox` concept, matching the metadata-gap findings
+    in docs/status/highlight_quality_improvement_plan.md. A true full-table
+    bounding box (e.g. including unaffected columns/cells in the same table
+    that don't individually violate the margin) is explicitly out of scope
+    for this change."""
+    pdf_path = tmp_path / "margin_grouped_no_table_bbox.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((60, 120), "Left overflow line one", fontsize=12)
+    page.insert_text((20, 140), "Left overflow line two worst", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_margin_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
+    assert len(warnings) == 1
+    details = warnings[0].details
+    assert "table_bbox" not in details
+    assert "row_bbox" not in details
+    assert "column_bbox" not in details
