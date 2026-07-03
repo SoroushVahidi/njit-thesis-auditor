@@ -93,7 +93,7 @@
 <p class="rules-intro">
   This page lists the automated formatting checks used for PDF audits in this website.
   Click a rule ID in your audit results to jump directly to its entry.
-  Use the filters below to find checks by topic or priority.
+  Use the filters below to find checks by topic or severity.
   <a href="/help">How to read these results</a>
 </p>
 
@@ -112,8 +112,8 @@
     </select>
   </div>
   <div>
-    <label for="rule-filter-severity">Priority</label>
-    <select id="rule-filter-severity" aria-label="Filter by priority">
+    <label for="rule-filter-severity">Severity</label>
+    <select id="rule-filter-severity" aria-label="Filter by severity">
       <option value="">All</option>
       {% for sev in severities %}
       <option value="{{ sev }}">{{ sev }}</option>

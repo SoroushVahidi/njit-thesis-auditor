@@ -638,27 +638,26 @@ def _confidence_level(levels: Sequence[str]) -> str:
     return ""
 
 
+# Public confidence display supports exactly three values: High, Medium, Low. A card
+# with no confidence value at all (missing/unknown), or with occurrences at more than
+# one confidence level (a "mixed" grouped card), always displays as Low -- the most
+# conservative of the three, consistent with the ascending sort-rank philosophy below
+# (a mixed or uncertain card should never be visually mistaken for a more-confident
+# one). This collapses the older "Needs review" / "Mixed confidence: ..." labels and
+# the "confidence-badge--mixed-orange" / "--unknown" CSS classes; internal tracking of
+# which levels are actually present (``confidence_levels``, ``_confidence_level``) is
+# unchanged and still drives confidence-based sorting.
 def _confidence_label(levels: Sequence[str]) -> str:
     ordered = _ordered_confidence_levels(levels)
     if len(ordered) == 1:
         return f"{_CONFIDENCE_LABELS[ordered[0]]} confidence"
-    if ordered:
-        joined = ", ".join(_CONFIDENCE_LABELS[level] for level in ordered)
-        return f"Mixed confidence: {joined}"
-    return "Needs review"
+    return f"{_CONFIDENCE_LABELS['low']} confidence"
 
 
 def _confidence_css_class(levels: Sequence[str]) -> str:
     ordered = _ordered_confidence_levels(levels)
     if len(ordered) == 1:
         return f"confidence-badge--{ordered[0]}"
-    if not ordered:
-        return "confidence-badge--unknown"
-    level_set = set(ordered)
-    if "high" in level_set:
-        return "confidence-badge--mixed-orange"
-    if "medium" in level_set:
-        return "confidence-badge--medium"
     return "confidence-badge--low"
 
 
