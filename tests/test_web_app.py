@@ -695,6 +695,7 @@ def test_results_page_renders_sort_control_with_accessible_label(
     assert "Default order" in body
     assert "High confidence first" in body
     assert "Low confidence first" in body
+    assert "Page order" in body
 
 
 def test_sort_query_param_confidence_desc_orders_high_confidence_first(
@@ -744,6 +745,29 @@ def test_sort_query_param_confidence_asc_orders_low_confidence_first(
         "P037",
         "P026",
         "P011",
+    ]
+
+
+def test_sort_query_param_page_order_orders_by_earliest_page(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}?sort=page_order")
+    assert resp.status_code == 200
+    assert 'selected' in resp.text
+    # Pages: P037=2, P011=1, P026=3 -- page order should surface P011 (page 1) first.
+    assert _grouped_problem_rule_order(resp.text, ["P037", "P011", "P026"]) == [
+        "P011",
+        "P037",
+        "P026",
     ]
 
 
