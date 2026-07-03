@@ -681,21 +681,24 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P043 acknowledgements indentation ---
     ("P043", "acknowledgements_first_paragraph_indented"): (
-        "The first paragraph on the Acknowledgements page appears to be indented. "
-        "NJIT requires the first paragraph to begin flush with the left margin."
+        "The first paragraph on the Acknowledgements page appears to be "
+        "indented. Remove any first-line indent from the first "
+        "Acknowledgements paragraph."
     ),
     ("P043", "acknowledgements_subsequent_paragraph_not_indented"): (
-        "A later paragraph on the Acknowledgements page appears flush-left where "
-        "NJIT expects a first-line indent."
+        "A later paragraph on the Acknowledgements page appears flush-left "
+        "where NJIT expects a first-line indent. Apply a first-line indent "
+        "to each subsequent Acknowledgements paragraph."
     ),
     # --- P044 abstract indentation ---
     ("P044", "abstract_first_paragraph_indented"): (
         "The first paragraph on the Abstract page appears to be indented. "
-        "NJIT requires the first abstract paragraph to begin flush-left."
+        "Remove any first-line indent from the first Abstract paragraph."
     ),
     ("P044", "abstract_subsequent_paragraph_not_indented"): (
         "A later paragraph on the Abstract page appears flush-left where NJIT "
-        "expects a first-line indent."
+        "expects a first-line indent. Apply a first-line indent to each "
+        "subsequent Abstract paragraph."
     ),
     # --- P053/P054 list terminal periods ---
     ("P053", "lot_entry_has_terminal_period"): (
