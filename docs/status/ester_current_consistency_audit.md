@@ -7,7 +7,8 @@
 > presentation split.
 >
 > **Recorded:** 2026-07-03 (base `origin/main` @ `425f14442a4dca3701676b4c66db368d7aab46c1`,
-> merge of PR #430)
+> merge of PR #430; **updated 2026-07-03 after PR #431 merged**, `origin/main` @
+> `ad9ddada7a82fd1552c97f3e4e9bd9d6b16c1728`)
 >
 > **Related:** [ester_feedback_source_of_truth.md](ester_feedback_source_of_truth.md) ·
 > [ester_language_alignment_audit.md](ester_language_alignment_audit.md) ·
@@ -54,29 +55,33 @@ as independently re-verified against a live Drive fetch today.
 
 ## Part A — Open PR status
 
+**Update (2026-07-03):** PR #431 (`fix: show confidence badge on every
+problem card`) was CI-clean, was confirmed to touch only display-layer
+files (`src/njit_auditor/web_app.py`, `src/njit_auditor/templates/job.html`,
+`src/njit_auditor/templates/problem_group.html`,
+`src/njit_auditor/templates/_macros.html` (new),
+`tests/test_problem_drilldown.py` — no `src/njit_auditor/rules/`, no
+detector constants, no thresholds, no sorting/highlight-selection logic),
+and was **merged** (merge commit `ad9ddada7a82fd1552c97f3e4e9bd9d6b16c1728`).
+The section below is preserved as a historical record of the pre-merge
+open-PR snapshot; see "Confidence display" further down for the current,
+post-merge status.
+
 ```
 gh pr list --state open --json number,title,headRefName,baseRefName,mergeStateStatus,updatedAt
 ```
 
+(as of the original audit pass, before #431 merged)
+
 | # | Title | Base | Merge state | Updated |
 |---|---|---|---|---|
-| **431** | fix: show confidence badge on every problem card | main | CLEAN | 2026-07-03T03:35:53Z |
+| ~~431~~ | ~~fix: show confidence badge on every problem card~~ | main | CLEAN → **MERGED** | 2026-07-03T03:35:53Z |
 | 385 | Remove per-card repeated metadata from rule reference page | main | UNKNOWN | 2026-06-30 |
 | 376 | Fix P014 frontmatter heading centering false positive | main | UNKNOWN | 2026-06-26 |
 | 375 | Align clean_minimal demo fixture docs with actual audit output | main | UNKNOWN | 2026-06-26 |
 | 362 | Clarify Review needed warning prefix policy | main | UNKNOWN | 2026-06-24 |
 | 349 | Preserve autonomous policy and Ester feedback audit | main | UNKNOWN | 2026-06-22 |
 | 311 | Add sub-page location labels for PDF findings | main | UNKNOWN | 2026-06-15 |
-
-**PR #431 is open, CI-clean, not merged.** It fixes the one confirmed gap
-in the confidence-badge guarantee: the main job page already showed exactly
-one High/Medium/Low badge per card as of PR #427, but the category/rule/
-issue-type drill-down pages (`problem_group.html`) rendered **no** confidence
-badge at all because `_problem_group_examples()` never populated
-`confidence_level`/`confidence_label`/`confidence_css_class` for example
-rows. Per the hard constraints for this audit, **#431 was not merged** — it
-is reported as pending. The confidence-badge guarantee should be treated as
-**not yet universal** on current `origin/main` until #431 merges.
 
 Old open PRs (#311, #349, #362, #375, #376, #385) remain paused per existing
 policy; this audit does not merge or rebase any of them.
@@ -88,8 +93,13 @@ git fetch origin
 git rev-parse origin/main
 ```
 
-Base SHA: **`425f14442a4dca3701676b4c66db368d7aab46c1`** (merge of PR #430,
-`fix/p011-highlight-coverage`).
+Original base SHA: **`425f14442a4dca3701676b4c66db368d7aab46c1`** (merge of
+PR #430, `fix/p011-highlight-coverage`).
+
+**Updated base SHA after PR #431:** **`ad9ddada7a82fd1552c97f3e4e9bd9d6b16c1728`**
+(merge of PR #431, `fix/confidence-badge-every-card`). This document and its
+branch were updated to merge `origin/main` at this SHA so the audit reflects
+current `main`.
 
 ---
 
@@ -120,7 +130,7 @@ This audit covers:
 | Broad umbrella rules (P014/P015/P017/P018/P019/P020/P024/P025/P027) | Wording aligned at umbrella level; atomic public-card mapping fully planned (docs only) but **not implemented** except P015A/B, P018A–Q (pre-existing) | partially consistent | medium–high | Implement P014 presentation-split prototype (lowest risk per mapping doc) once other UI cleanup settles. |
 | Page-order sorting | `SORT_MODE_PAGE` implemented and merged (PR #426) | consistent | low | None — verify test coverage stays current. |
 | Confidence labels | `_confidence_label()` returns only "High/Medium/Low confidence" (PR #427); "Needs review"/"Mixed confidence" strings removed | consistent | low | None on main job page. |
-| Confidence badge — every card | Present on main job page (PR #427); **missing on drill-down pages pending PR #431** | mostly consistent (pending #431) | medium | Merge/verify #431 once explicitly approved; do not merge as part of this audit. |
+| Confidence badge — every card | Present on main job page (PR #427) **and** on category/rule/issue-type drill-down pages (PR #431, merged) | consistent | low | Live verification/restart after #431 if not already done. |
 | Priority/Severity filter label | Renamed from "Priority" to "Severity" on both `job.html` and `rules.html` (PR #427) | consistent | low | None. |
 | P011 highlight coverage | Now unions **all violating lines'** boxes (PR #430), not just the single worst line | mostly consistent | medium | Still not a true `table_bbox` (only unions lines that individually violate, not the full table region including compliant cells) — flagged in `highlight_quality_improvement_plan.md` as future detector-metadata work. |
 | Table/list/figure highlight gaps | P035 already unions a full region (`body_bbox`/`caption_bbox`); P031/P040/P045/P046/P048/P053/P054/P068 still store no bbox or only a single worst-entry bbox | partially consistent | medium | Scope one rule family at a time per `highlight_quality_improvement_plan.md`; requires small `details` additions (detector work), not presentation-only. |
@@ -231,14 +241,35 @@ session.**
 
 ### Confidence display
 
-- Main job page: every card shows exactly one of **High confidence /
-  Medium confidence / Low confidence** — verified in `report_view.py`'s
-  `_confidence_label()` and `job.html`'s `confidence_badge()` macro. "Needs
-  review" and "Mixed confidence: ..." strings were removed by PR #427.
-- **Drill-down pages (`problem_group.html`) do not yet show a confidence
-  badge at all** — this is exactly what open PR #431 fixes. **#431 is not
-  merged as of this audit.** Status: **pending**, not consistent, until
-  #431 merges.
+**Status: consistent (as of PR #431, merged `ad9ddada7a82fd1552c97f3e4e9bd9d6b16c1728`).**
+
+- Main job page: every visible problem card shows exactly one of **High
+  confidence / Medium confidence / Low confidence** — verified in
+  `report_view.py`'s `_confidence_label()` and `job.html`'s
+  `confidence_badge()` macro. "Needs review" and "Mixed confidence: ..."
+  strings were removed by PR #427.
+- Category/rule/issue-type drill-down pages (`problem_group.html`): PR #431
+  plumbed `confidence_level`/`confidence_label`/`confidence_css_class`
+  through `_problem_group_examples()` in `web_app.py` and added the same
+  `confidence_badge()` macro (extracted into a shared `_macros.html`) to
+  each example card. Every visible example card on these pages now shows
+  exactly one confidence badge, restricted to the same three public labels.
+  PR #431's own validation notes a live end-to-end check (fresh sample PDF,
+  not a cached job) confirming exactly one badge per card on the main job
+  page and all three drill-down views, with no "Needs review"/"Mixed
+  confidence" text anywhere; this audit did not independently re-run that
+  live check.
+- **Current expected behavior (verified in source, both surfaces):**
+  - every visible problem card on the main job page has exactly one confidence badge;
+  - every visible problem card on category/rule/issue-type drill-down pages has exactly one confidence badge;
+  - allowed public labels are only High confidence / Medium confidence / Low confidence;
+  - "Needs review" and "Mixed confidence" do not appear publicly on either surface.
+- **Live verification caveat:** source-level plumbing and PR #431's own
+  described live check both confirm this, but no fresh live-server
+  verification was performed independently in this update. If the deployed
+  live server has not been restarted since PR #431 merged, a live
+  restart/verification pass is still recommended before treating the
+  deployed site (as opposed to `origin/main` source) as confirmed.
 
 ### Page-order sorting
 
@@ -285,20 +316,22 @@ wording-only cleanup PR — flagged here, not removed by this audit.
 
 1. **P021/P026 policy confirmation** — highest-impact open item; blocks any further wording or detector work on these two rules.
 2. **Broad-rule presentation splits, starting with P014** — the largest remaining wording/behavior gap; fully scoped and ready to implement.
-3. **Confidence-badge guarantee on drill-down pages** — PR #431 is CI-clean but not merged; the "every card shows one badge" guarantee is not yet universal on `origin/main`.
-4. **Table/list/figure highlight metadata gaps** — P031/P040/P045/P046/P048/P053/P054/P055/P068 still lack a full-region bbox; P011's table-in-margin case is improved (PR #430) but still line-union, not table-union.
-5. **P037/P044 wording safeguards** — no regression found, but any future wording pass must keep describing computed (not fixed) Roman-numeral expectations and must not touch the continuation-line presentation machinery.
-6. **Stale dead-code catalog entries** (`P025`/`title_page_graduation_month_invalid`) — low risk, but worth a cleanup pass.
+3. **Table/list/figure highlight metadata gaps** — P031/P040/P045/P046/P048/P053/P054/P055/P068 still lack a full-region bbox; P011's table-in-margin case is improved (PR #430) but still line-union, not table-union.
+4. **P037/P044 wording safeguards** — no regression found, but any future wording pass must keep describing computed (not fixed) Roman-numeral expectations and must not touch the continuation-line presentation machinery.
+5. **Stale dead-code catalog entries** (`P025`/`title_page_graduation_month_invalid`) — low risk, but worth a cleanup pass.
+
+(The confidence-badge drill-down gap previously listed here was resolved by
+PR #431, merged `ad9ddada7a82fd1552c97f3e4e9bd9d6b16c1728` — see "Confidence
+display" above.)
 
 ---
 
 ## Recommended next PRs (not implemented here)
 
-1. If PR #431 remains unmerged when work resumes: get it explicitly reviewed and merged (out of scope for this audit to merge itself).
-2. Once #431 is merged: a short live-verification pass from a clean checkout of `origin/main` confirming the badge appears on all drill-down views.
-3. **P014 presentation-split prototype** — implement the six page-level cards mapped in `ester_broad_rule_atomic_mapping.md`, with structural-invariant tests (rule_id/issue_type/grouping/anchors/highlight unchanged).
-4. **P021/P026 policy-confirmation message to Ester** — the draft message already exists in `ester_policy_review_p021_p026.md`; send it and record the answer before any detector change.
-5. **Highlight metadata planning for one table/list/figure family at a time** (e.g., P046/P048 column-region union, following the P035 `_union_bbox()` precedent) — each needs its own golden-output comparison since it touches a detector's `details` dict.
+1. **Live verification/restart after PR #431**, if not already done — confirm on the actual deployed live server (not just `origin/main` source) that every problem card on the main job page and all three drill-down views shows exactly one confidence badge with no "Needs review"/"Mixed confidence" text.
+2. **P014 presentation-split prototype** — implement the six page-level cards mapped in `ester_broad_rule_atomic_mapping.md`, with structural-invariant tests (rule_id/issue_type/grouping/anchors/highlight unchanged).
+3. **P021/P026 policy-confirmation message to Ester / policy owner** — the draft message already exists in `ester_policy_review_p021_p026.md`; send it and record the answer before any detector change.
+4. **Highlight metadata planning for one table/list/figure family at a time** (e.g., P046/P048 column-region union, following the P035 `_union_bbox()` precedent) — each needs its own golden-output comparison since it touches a detector's `details` dict.
 
 ---
 
@@ -312,4 +345,9 @@ This audit does **not**:
 - change rule IDs, issue types, grouping keys, confidence labels, sorting behavior, or highlight behavior;
 - commit Ester's raw Excel/Google Sheet exports, private student documents, generated reports, screenshots, or highlighted PDFs;
 - implement P021, P026, broad presentation splits, P084, or TOC-leader WIP;
-- merge or rebase any open PR (including #431).
+- merge or rebase any of the old paused PRs (#311, #349, #362, #375, #376, #385).
+
+(PR #431 was reviewed, confirmed display-only, and merged as an explicitly
+authorized follow-up step — see "Confidence display" above and Part A. This
+audit document was then updated to reflect that merge; the update itself
+remains docs-only.)
