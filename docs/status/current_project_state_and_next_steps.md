@@ -7,14 +7,67 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-03 (PR #433 merged — Ester wording/presentation/highlight stack landed; 4 new PRs open)
+## Current Status — 2026-07-04 (full open-PR/branch backlog triage — #441–#444 + #434 merged, 4 stale PRs closed)
 
 This section is the authoritative current snapshot. Everything below it (including the
-2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot, live
-regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
-snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
-2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
-not be read as current.
+2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406
+merge snapshot, live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot,
+post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier
+2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical
+context and should not be read as current.
+
+- **Code baseline `main`:** `b17cbb62f384b3c8514937b52c6c95917b18e01a` (merge of PR
+  [#444](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/444)). Short SHA: `b17cbb6`.
+- **Merged this pass (5 PRs, in dependency order):**
+  - **#441** — decluttered the student-facing report summary: merged "Summary by problem type" and
+    "Most common issues" into one set of root-cause cards, collapsed the rule-by-rule table behind
+    an "Advanced" `<details>`, de-emphasized informational-only counts, cleaned category labels.
+  - **#442** — fixed a real mobile horizontal-overflow bug in the Findings section's grouped-problem
+    cards (`min-width: 0` on the CSS grid item + a new wrapping `.detail-cell` class instead of
+    reusing the nowrap `.meta-cell` for sentence-length text).
+  - **#443** — simplified the top Summary cards: "Problems found" → "Items to review", dropped the
+    always-redundant "Worth checking" card, "Needs fixing" only renders when there's a real
+    fail-level finding.
+  - **#444** — simplified the nav chips: primary chips (Summary/Review order/Most common
+    issues/Findings/Downloads) grouped first, the rule-by-rule table and detected-candidates chips
+    renamed "Advanced details"/"Advanced candidates" and visually demoted.
+  - **#434** — docs-only repository polish inventory.
+  - Each PR after #441 was rebased onto the new `main` (not just fast-forwarded) since every merge
+    was a squash, and re-validated (`ruff`, `mypy`, `pytest`) before merging the next one. No
+    detector logic, rule IDs, thresholds, JSON/Markdown export, or highlight generation changed in
+    any of the four — presentation-layer only.
+- **Closed this pass (4 PRs, all confirmed superseded by direct comparison against current `main`,
+  not just because they were old; no branches deleted):**
+  - **#311** (sub-page location labels) — `main` already has a far more complete per-rule
+    location-label system.
+  - **#349** (autonomous policy + Ester audit doc) — both changes already on `main`; the audit doc
+    is explicitly marked historical there.
+  - **#362** ("Review needed:" prefix policy) — `main` took the opposite, already-implemented
+    direction (unconditional prefix + one global caveat, not per-rule removal).
+  - **#385** (rule-reference card declutter) — `main`'s cards are already simpler than this PR's
+    proposed end state.
+- **Still open (7 PRs) — left for human/Ester review, not merged:**
+  - **#435, #436, #437, #439, #440** — all touch `src/njit_auditor/rules/*.py` (real
+    detector-behavior changes: false-positive suppressions, highlight/evidence polish). CI passes
+    on all five, but this project treats any change to what gets flagged as a human/Ester sign-off
+    decision, not a blind agent merge. **#435 and #439 overlap** — both fix the same `(n = 97)`
+    statistical-notation false positive in `pdf_title_capitalization.py` via different techniques;
+    commented on both cross-linking the conflict rather than picking a winner.
+  - **#375, #376** — CI is currently **failing** on both (stale against current `main`); left open
+    rather than closed since neither is clearly superseded, but both need a rebase and a fresh CI
+    run before anyone merges them.
+- **P021/P026 policy:** still unresolved — see `ester_policy_review_p021_p026.md`. Not touched.
+- **P084:** not started. Not touched.
+- **Live server:** last confirmed at `425f144` (PR #430) — now several merges behind `main`
+  (`b17cbb6`); **restart required** before the new summary/nav/mobile-fix UI is live for real users.
+- **Validation on final `main` (`b17cbb6`):** `ruff check .` — all checks passed; `mypy src` — no
+  issues in 105 files; `python -m pytest` — **2529 passed**.
+
+---
+
+## Historical — 2026-07-03 (PR #433 merged — Ester wording/presentation/highlight stack landed; 4 new PRs open)
+
+> **Superseded** by the 2026-07-04 section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `07db2fa30b457006cf7524309c8eabcca6ff64c8` (merge of PR
   [#433](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/433)). Short SHA: `07db2fa`.

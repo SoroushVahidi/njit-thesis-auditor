@@ -1,12 +1,82 @@
-# Open PR Triage (2026-07-03, PR #433 merged — 4 new PRs open, older cleanup still paused)
+# Open PR Triage (2026-07-04, full backlog triage — stacked UI PRs #441-#444 merged, 4 stale PRs closed)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-02 snapshot below (baseline `70dcd95`, PR #407/#408) is preserved as
+> **Superseded:** the 2026-07-03 snapshot below (baseline `07db2fa`, PR #433) is preserved as
 > historical context only — see the "Historical" sections further down. Everything above that
 > point is current.
+
+**Baseline inspected:** `main` @ `b17cbb62f384b3c8514937b52c6c95917b18e01a` (merge of PR
+[#444](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/444); short SHA `b17cbb6`)  
+**Live server:** last confirmed at `425f144` (PR #430) — now well behind current `main`; restart
+before assuming any #434–#444 behavior is live  
+**Open PR count:** **7** (5 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
+needing a fresh rebase before any merge decision)
+
+## What happened in this pass (2026-07-04)
+
+Full open-PR/branch backlog triage. Merged the four stacked student-facing UI PRs in dependency
+order — each was rebased onto the new `main` after its predecessor merged (since each predecessor
+was squash-merged, the base had to be retargeted and the branch rebased, not just fast-forwarded):
+
+1. [#441](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/441) — declutter summary sections into root-cause cards
+2. [#442](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/442) — mobile-safe findings cards
+3. [#443](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/443) — simplified summary counts (Items to review / Needs fixing)
+4. [#444](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/444) — simplified nav chips (Advanced details / Advanced candidates)
+
+Also merged [#434](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/434) (docs-only repo
+polish inventory).
+
+Closed four PRs confirmed superseded by later mainline work, each with a comment citing the
+specific current-`main` evidence (no branches deleted):
+
+| PR | Why closed |
+|---|---|
+| [#311](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/311) | Sub-page location labels — `main` has since grown a far more complete per-rule location-label system (`enriched_pdf_location_label` + per-rule student-preview modules) |
+| [#349](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/349) | Both of its changes (AGENTS.md autonomous-policy section, Ester feedback audit doc) are already on `main`; the audit doc is marked "Historical / superseded" there |
+| [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | "Review needed:" prefix policy — `main` deliberately kept the unconditional prefix plus one global automated-review caveat instead (see #443's summary note) |
+| [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385) | Rule-reference card declutter — `main`'s `rules.html` cards are already simpler than what this PR proposes |
+
+## Remaining 7 open PRs (2026-07-04)
+
+| PR | Title | Kind | CI | Verdict |
+|---|---|---|---|---|
+| [#435](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/435) | `fix: ignore statistical notation in title-case checks` | detector fix (P020/P024/P027) | passing | **Needs human/Ester review** — overlaps #439, see below |
+| [#436](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/436) | `fix: highlight affected list entries for punctuation warnings` | detector/highlight fix (P040/P053/P054) | passing | **Needs human/Ester review** — touches rule files |
+| [#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437) | `fix: polish P011 margin warning evidence` | detector/highlight fix (P011) | passing | **Needs human/Ester review** — touches rule files |
+| [#439](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/439) | `fix(P020/P027): exclude statistical notation from title-case checks and make suggested fixes token-safe` | detector fix (P020/P027) | passing | **Needs human/Ester review** — overlaps #435 (both edit the same tokenizer; both PRs commented cross-linking the conflict) |
+| [#440](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/440) | `fix(P016,P023): stop flagging non-body content as body spacing` | detector fix (P016/P023) | passing | **Needs human/Ester review** — touches rule files |
+| [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375) | `Align clean_minimal demo fixture docs with actual audit output` | docs/test only | **failing** | **Stale** — needs rebase + fresh CI run before any merge decision; not clearly superseded, so left open rather than closed |
+| [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376) | `Fix P014 frontmatter heading centering false positive` | detector fix (P014) | **failing** | **Needs human/Ester review** (detector change) **and** a rebase — CI is failing |
+
+**Why #435–#437, #439, #440 weren't auto-merged despite passing CI:** all five touch
+`src/njit_auditor/rules/*.py` — real detector-behavior changes (false-positive suppressions,
+highlight/evidence polish), not presentation-only. This project's own culture (Ester wording/policy
+review, the P021/P026 policy doc) treats any change to what gets flagged as requiring human
+sign-off, not a blind agent merge, even when the fix looks correct and well-tested.
+
+**#435 vs #439:** both fix the identical root cause (statistical notation like `n` in `(n = 97)`
+being flagged by title-case checks) via different techniques, and both edit the same
+tokenizer/exemption logic in `pdf_title_capitalization.py`. #439 is broader (also fixes a
+suggested-fix substring-corruption bug — `Linear` → `LiNear` — and adds P027 sentence-case
+replacement wording). Commented on both PRs cross-linking them; left both open since choosing
+between them is a policy/design call, not a mechanical one.
+
+## Cleanup guardrails (unchanged)
+
+- Do **not** start **P084**.
+- Do **not** merge #435, #436, #437, #439, or #440 without explicit human/Ester sign-off — they
+  change what gets flagged.
+- Do **not** merge #375 or #376 as-is — rebase and get a clean CI run first.
+- No remote branches were deleted in this pass (merged and closed PRs' branches all still exist).
+
+---
+
+## Historical — 2026-07-03 (baseline `07db2fa`, PR #433 merged)
+
+> **Superseded** by the 2026-07-04 sections above. Preserved here for historical context only.
 
 **Baseline inspected:** `main` @ `07db2fa30b457006cf7524309c8eabcca6ff64c8` (merge of PR
 [#433](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/433); short SHA `07db2fa`)  
