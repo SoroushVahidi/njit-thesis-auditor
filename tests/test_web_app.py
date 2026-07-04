@@ -1513,6 +1513,83 @@ def test_results_page_review_action_labels_present_on_mobile_and_desktop(
         assert "Review" in html
 
 
+def test_occurrence_table_long_issue_and_fix_text_uses_detail_cell(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The individual-occurrences table's issue-type/suggested-fix column
+    must use the wrapping .detail-cell class, not the short, nowrap
+    .meta-cell class — reusing .meta-cell there is what originally forced
+    the table (and the whole grouped-problem card) wider than the mobile
+    viewport."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=page,
+            message="Multiple page-number-like tokens detected.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "candidate_count_on_page": "2",
+                "confidence": "medium",
+            },
+        )
+        for page in (10, 11)
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Show individual occurrences" in html
+    assert 'class="detail-cell"' in html
+    # The long issue-type label + suggested-fix sentence must render fully.
+    assert "Duplicate or ambiguous page number" in html
+    assert "Verify which token is the printed page number" in html
+
+
+def test_grouped_problem_long_page_list_still_renders_fully(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A grouped problem repeated across many non-contiguous pages must still
+    render its full "Pages: ..." list (in the wrapping .meta-cell), not a
+    truncated or hidden value, even though that string can grow long."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    scattered_pages = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=page,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "medium",
+            },
+        )
+        for page in scattered_pages
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    for page in scattered_pages:
+        assert str(page) in html
+
+
 def test_results_page_renders_polished_comments(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
