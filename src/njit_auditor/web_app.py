@@ -30,6 +30,7 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.issue_type_explanations import (
     explain_issue_type,
@@ -1965,10 +1966,37 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
     counts_by_category = report_view.get("counts_by_category", {}) or {}
+
+    category_pages: dict[str, list[int]] = {}
+    for finding in job.findings:
+        cat = str(finding.get("category", "")).strip()
+        page = finding.get("page")
+        if cat and page is not None:
+            category_pages.setdefault(cat, []).append(int(page))
+
     category_summary = sorted(
-        [{"category": cat, "count": count} for cat, count in counts_by_category.items()],
+        [
+            {
+                "category": cat,
+                "count": count,
+                "pages_compact": compact_page_list(sorted(set(category_pages.get(cat, [])))),
+                "explanation": _category_explanation(cat),
+            }
+            for cat, count in counts_by_category.items()
+        ],
         key=lambda r: (-r["count"], r["category"]),
     )
+
+    # Categories already represented by a rich triage panel (e.g. margin_or_overflow
+    # via P011) get a detailed card there; avoid a second, plainer card for the same
+    # root cause in the merged "Most common issues" section.
+    triage_panels = report_view.get("triage_panels", []) or []
+    covered_categories = {
+        map_finding_rule_to_category(str(panel.get("rule_id", ""))) for panel in triage_panels
+    }
+    secondary_category_cards = [
+        row for row in category_summary if row["category"] not in covered_categories
+    ]
 
     filter_rules = sorted({str(f.get("rule_id", "")) for f in job.findings if f.get("rule_id")})
     filter_severities = sorted(
@@ -2007,6 +2035,7 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,
         "category_summary": category_summary,
+        "secondary_category_cards": secondary_category_cards,
         "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
     }
 

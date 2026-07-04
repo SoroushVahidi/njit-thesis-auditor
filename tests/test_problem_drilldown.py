@@ -238,12 +238,16 @@ def drilldown_job(app: tuple[TestClient, Any]) -> tuple[TestClient, Any, str]:
 # ---------------------------------------------------------------------------
 
 
-def test_result_page_has_summary_by_problem_type_heading(
+def test_result_page_has_most_common_issues_heading(
     drilldown_job: tuple[TestClient, Any, str],
 ) -> None:
+    """The old standalone "Summary by problem type" table was merged into the
+    "Most common issues" root-cause cards, so it should no longer render as its
+    own duplicate table — but category information must still surface there."""
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "Summary by problem type" in text or "By category" in text or "By problem type" in text
+    assert "Most common issues" in text
+    assert "Summary by problem type" not in text
 
 
 def test_result_page_shows_font_format_category(
@@ -278,12 +282,14 @@ def test_result_page_category_links_present(
     assert f"/audits/{job_id}/problems/category/" in text
 
 
-def test_result_page_view_all_present_in_category_summary(
+def test_result_page_review_action_present_in_category_cards(
     drilldown_job: tuple[TestClient, Any, str],
 ) -> None:
+    """Root-cause cards use a clear, non-repetitive action label instead of a
+    "View all" button repeated in every summary row."""
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "View all" in text
+    assert "Review examples" in text
 
 
 def test_result_page_category_counts_nonzero(
