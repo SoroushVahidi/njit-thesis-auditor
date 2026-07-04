@@ -169,7 +169,7 @@ def test_routine_p013_bottom_area_candidate_is_not_a_problem(
 
     assert view.total_findings == 0
     assert len(view.inventory_findings) == 1
-    assert _summary_value(text, "Problems found") == "0"
+    assert _summary_value(text, "Items to review") == "0"
     assert "Page number candidate" not in text
     assert "Wrong page-number location" not in text
     assert f"/audits/{job_id}/problems/rule/P013" not in text
@@ -325,8 +325,7 @@ def test_counts_are_honest_when_only_routine_p013_candidates_exist(
     text = _get_html(c, f"/audits/{job_id}")
 
     assert view.total_findings == 0
-    assert _summary_value(text, "Problems found") == "0"
-    assert _summary_value(text, "Worth checking") == "0"
+    assert _summary_value(text, "Items to review") == "0"
     assert "Page numbering" not in text or "/problems/category/page-numbering" not in text
 
 
@@ -382,8 +381,8 @@ def test_mobile_desktop_parity_for_page_number_actionability(
 
     main_mobile = _get_html(c, f"/audits/{job_id}", headers=_MOBILE_HEADERS)
     main_desktop = _get_html(c, f"/audits/{job_id}", headers=_DESKTOP_HEADERS)
-    assert _summary_value(main_mobile, "Problems found") == _summary_value(
-        main_desktop, "Problems found"
+    assert _summary_value(main_mobile, "Items to review") == _summary_value(
+        main_desktop, "Items to review"
     )
 
     for path in (
@@ -483,7 +482,7 @@ def test_p013_duplicate_candidate_is_folded_into_matching_p019_defect(
     assert len(duplicate_cards) == 1
     assert duplicate_cards[0].rule_id == "P019"
     assert view.total_findings == 1
-    assert _summary_value(text, "Problems found") == "1"
+    assert _summary_value(text, "Items to review") == "1"
 
     assert len(view.inventory_findings) == 1
     redundant = view.inventory_findings[0]

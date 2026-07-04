@@ -380,7 +380,7 @@ def test_routine_page_number_candidate_remains_suppressed(app: tuple[TestClient,
     text = _get_html(client, f"/audits/{job_id}")
     assert view.total_findings == 0
     assert len(view.inventory_findings) == 1
-    assert _summary_value(text, "Problems found") == "0"
+    assert _summary_value(text, "Items to review") == "0"
 
 
 def test_real_page_number_defect_keeps_exact_wording(app: tuple[TestClient, Any]) -> None:
