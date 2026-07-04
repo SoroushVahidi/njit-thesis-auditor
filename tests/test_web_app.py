@@ -1380,6 +1380,139 @@ def test_results_page_p013_triage_panel_splits_problems_from_candidates(
     assert b"Multiple page-number-like tokens" in rule_resp.content
 
 
+def test_results_page_p013_all_routine_informational_not_prominent_badge(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Purely informational page-number candidates (no real P013 problems) must
+    not be displayed as a prominent badge in the primary "Most common issues"
+    section — they should read as a subdued supporting-info line instead."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=page,
+            message="Page has one page-number-like candidate.",
+            details={
+                "issue_type": "page_number_candidate",
+                "position_type": "bottom_center",
+                "number_style": "arabic",
+                "confidence": "medium",
+            },
+        )
+        for page in range(1, 4)
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    # The count is still visible as supporting text...
+    assert "3 informational candidate" in html
+    assert "not counted as problems" in html
+    # ...but never as a prominent pill-style badge competing with real problems.
+    assert 'badge-muted">3 informational' not in html
+    assert 'badge-warn">3 informational' not in html
+
+
+def test_category_labels_have_no_underscores_in_summary_cards(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Root-cause category cards must show clean 'Word / word' labels, never
+    the raw snake_case category key with stray underscores (e.g. the label
+    must read "Spacing / blank lines", not "Spacing_/blank lines")."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P020",
+            severity=Severity.WARNING,
+            page=3,
+            message="Possible title-capitalization issue.",
+            details={"issue_type": "possible_title_capitalization_issue", "flagged_word": "The"},
+        ),
+        AuditFinding(
+            rule_id="P016",
+            severity=Severity.WARNING,
+            page=8,
+            message="Excessive line gap.",
+            details={"issue_type": "excessive_line_gap", "largest_gap_pt": "48.0"},
+        ),
+        AuditFinding(
+            rule_id="P063",
+            severity=Severity.WARNING,
+            page=40,
+            message="Multiple-appendix body heading missing letter identifier.",
+            details={
+                "issue_type": "multiple_appendix_missing_letter",
+                "page": "40",
+                "appendix_count": "2",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Capitalization" in html
+    assert "Spacing / blank lines" in html
+    assert "Front matter / appendix structure" in html
+    assert "Spacing_/blank lines" not in html
+    assert "Front matter_/appendix" not in html
+    for raw_key in ("capitalization_case", "spacing_blank_lines", "frontmatter_structure"):
+        assert f">{raw_key}<" not in html
+
+
+def test_results_page_advanced_rule_summary_is_collapsed(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The rule-by-rule technical table stays available for maintainers, but
+    is tucked behind a collapsed <details> "Advanced" section rather than
+    shown as a second primary summary table."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "Advanced: rule-by-rule technical summary" in html
+    assert "Click a rule ID for rule reference" in html
+    idx_heading = html.index("Advanced: rule-by-rule technical summary")
+    idx_details = html.index("<details", idx_heading)
+    idx_rule_id = html.index(">P011<", idx_details)
+    assert idx_details != -1 and idx_rule_id > idx_details
+
+
+def test_results_page_review_action_labels_present_on_mobile_and_desktop(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Action buttons in the merged summary use short, distinct labels
+    ("Review examples", "Review") instead of a "View all" repeated in every
+    row, and this holds for both mobile and desktop viewports."""
+    mobile_headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        ),
+    }
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
+    desktop_html = c.get(f"/audits/{job_id}").content.decode()
+    mobile_html = c.get(f"/audits/{job_id}", headers=mobile_headers).content.decode()
+    for html in (desktop_html, mobile_html):
+        assert "Examples for this rule" in html
+        assert "Review" in html
+
+
 def test_results_page_renders_polished_comments(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -1403,10 +1536,12 @@ def test_results_page_wraps_tables_for_mobile_horizontal_scroll(
     assert resp.status_code == 200
     html = resp.content.decode()
     assert "Show individual occurrences" in html
-    # One wrapper each for: problem-type summary, rule summary, and the
+    # One wrapper each for: the collapsed advanced rule summary, and the
     # grouped occurrence table (the individual-findings table also renders
     # server-side even though it starts hidden behind a client-side toggle).
-    assert html.count('class="table-scroll"') >= 4
+    # The old standalone problem-type summary table was merged into the
+    # "Most common issues" root-cause cards, which don't use a table.
+    assert html.count('class="table-scroll"') >= 3
 
 
 def test_results_page_has_client_side_filters(
