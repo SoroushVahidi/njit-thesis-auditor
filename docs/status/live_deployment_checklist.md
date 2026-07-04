@@ -1,5 +1,122 @@
 # Live Deployment Checklist
 
+## Current supervision: systemd user service (as of 2026-07-04)
+
+The live web UI is supervised by a **user-level systemd service**, not a manual `nohup`
+process or a tmux session anyone has to keep alive. This replaced a manual `nohup uvicorn ...`
+process launched inside a `thesis-auditor-web` tmux session, which caused an outage on
+2026-07-04: the process received a clean `SIGTERM`, exited gracefully, and nothing restarted
+it — the site was down until an operator noticed and manually relaunched it.
+
+- **Service name:** `thesis-auditor-web.service` (user unit — do not confuse with a system-wide
+  unit; it is only visible via `systemctl --user`, not `systemctl`/`sudo systemctl`).
+- **Unit file:** `~/.config/systemd/user/thesis-auditor-web.service` (host-specific, not
+  committed to this repo — see "Generic unit template" below for a version to adapt on a new
+  host).
+- **Live worktree it serves from:** the dedicated deployment worktree (a
+  `njit-thesis-auditor-clean-worktrees/live-current-main`-style checkout), *not* the `main`
+  working copy any engineer might have open for day-to-day development. Keeping deploy and
+  dev checkouts separate avoids the live server picking up someone else's in-progress edits.
+- **Reboot persistence:** requires `loginctl enable-linger <user>` (already enabled on this
+  host) so the user's systemd instance — and this service — starts at boot without requiring
+  an interactive login.
+
+### Check status
+
+```bash
+systemctl --user status thesis-auditor-web.service
+journalctl --user -u thesis-auditor-web.service -n 100 --no-pager   # recent logs
+curl -s http://127.0.0.1:8000/version
+```
+
+### Restart (intentional maintenance)
+
+```bash
+systemctl --user restart thesis-auditor-web.service
+sleep 3
+curl -s http://127.0.0.1:8000/version   # confirm commit + fresh process_start_time
+```
+
+### Stop / start
+
+```bash
+systemctl --user stop thesis-auditor-web.service
+systemctl --user start thesis-auditor-web.service
+```
+
+`systemctl --user stop` is the only way to intentionally take the service down without it
+restarting itself — a bare `kill -TERM <pid>` on the worker process will **not** stay down;
+the unit's `Restart=always` policy relaunches it (bounded by `StartLimitBurst=5` per
+`StartLimitIntervalSec=60` to avoid an infinite crash loop if the app is genuinely broken).
+
+### Update the deployed worktree safely
+
+1. In the live worktree, fetch and check out the new target commit (fast-forward only;
+   confirm `ruff check .`, `mypy src`, and `python -m pytest` are green on that exact SHA
+   first — see the validation checklist further down this file).
+2. `systemctl --user restart thesis-auditor-web.service`.
+3. Confirm `/version` reports the new SHA on both `127.0.0.1:8000` and the LAN address.
+
+Do not edit files inside the live worktree directly to "hotfix" something — merge the fix to
+`main` through a normal PR, then update the worktree to that merged commit and restart.
+
+### Avoiding orphan/manual uvicorn processes
+
+- Never start the app with a bare `nohup ... &` or inside a tmux pane "just for now" — that
+  process has no supervisor, and killing/losing it (a `SIGTERM`, a host reboot, a closed
+  terminal) will silently take the site down with nothing to bring it back.
+- Before starting anything manually for local debugging, always check
+  `systemctl --user status thesis-auditor-web.service` and `ss -ltnp | grep 8000` first —
+  if the service already owns port 8000, do not launch a second process on it.
+- If you must run an ad hoc instance for testing, use a different port and a scratch
+  `NJIT_AUDITOR_WEB_RUNTIME_DIR`, never port 8000.
+
+### Generic unit template
+
+The host-specific unit at `~/.config/systemd/user/thesis-auditor-web.service` follows this
+shape (substitute the absolute paths for the live worktree and venv on your host; nothing
+here is secret):
+
+```ini
+[Unit]
+Description=NJIT Thesis Auditor Web GUI
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/live-worktree
+Environment=PYTHONPATH=/path/to/live-worktree/src
+Environment=NJIT_AUDITOR_WEB_RUNTIME_DIR=/path/to/live-worktree/.runtime/web_audits
+ExecStart=/path/to/venv/bin/python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target
+```
+
+After creating or editing this file: `systemctl --user daemon-reload`, then
+`systemctl --user enable --now thesis-auditor-web.service`, then
+`loginctl enable-linger <user>` for reboot persistence.
+
+**Why `Restart=always` and not `Restart=on-failure`:** `on-failure` does not restart a
+service that exits on `SIGTERM` — systemd treats `SIGTERM` as its own default graceful-stop
+signal, so a clean `SIGTERM` exit looks identical to an intentional `systemctl stop`, whether
+or not that's what actually happened. This was verified directly on this host: sending a bare
+`SIGTERM` to the worker PID under `Restart=on-failure` left the service `inactive (dead)`
+with the port free, reproducing the original outage. Switching to `Restart=always` (which
+still respects an explicit `systemctl stop`) restarted the service within `RestartSec` after
+the same test.
+
+## Manual / tmux fallback (historical, superseded by the systemd service above)
+
+The steps below describe the previous manual tmux-based process. They are kept for hosts
+where a user-level systemd instance is not available (see the incident-response task that
+introduced the service above for the `systemctl --user status` / `loginctl` checks to run
+first). Prefer the systemd service on any host where it's already set up.
+
 Use this checklist whenever the live web UI needs to be (re)started from a freshly merged
 `main`. On this host the persistent tmux session is named **`web`** (README also documents
 `thesis-auditor-web` as an alternate convention — use whichever session already exists;
