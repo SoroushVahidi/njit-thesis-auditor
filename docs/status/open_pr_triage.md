@@ -8,10 +8,14 @@
 > historical context only — see the "Historical" sections further down. Everything above that
 > point is current.
 
-**Baseline inspected:** `main` @ `b17cbb62f384b3c8514937b52c6c95917b18e01a` (merge of PR
-[#444](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/444); short SHA `b17cbb6`)  
-**Live server:** last confirmed at `425f144` (PR #430) — now well behind current `main`; restart
-before assuming any #434–#444 behavior is live  
+**Baseline inspected:** `main` @ `991e683e87f51b3032be0bcab71f7f611c0be394` (merge of PR
+[#445](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/445), docs-only; short SHA
+`991e683`)  
+**Live server:** restarted and confirmed serving `991e683` via `/version` — no longer behind
+`main`  
+**Branch cleanup:** the 10 remote branches behind the merged/closed PRs listed below (#441–#445
+merged set, #311/#349/#362/#385 closed set) have been deleted; the 7 branches for still-open PRs
+were left untouched  
 **Open PR count:** **7** (5 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
 needing a fresh rebase before any merge decision)
 
