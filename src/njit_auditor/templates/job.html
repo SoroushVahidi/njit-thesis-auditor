@@ -547,6 +547,34 @@
     </div>
   </div>
   {% endfor %}
+  {% if category_summary %}
+  <div class="section-header" style="margin-top:1.5rem;">
+    <h3 style="margin:0;font-size:1rem;">Problem categories</h3>
+    <span class="section-note">Every category at a glance, sorted by count — the cards above give more detail for high-volume patterns.</span>
+  </div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Findings</th><th>Affected pages</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for row in category_summary %}
+        <tr>
+          <td>
+            <a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a>
+            {% if row.explanation %}<br><span class="file-hint" style="margin:0">{{ row.explanation }}</span>{% endif %}
+          </td>
+          <td>{{ row.count }}</td>
+          <td>{{ row.pages_compact if row.pages_compact else "—" }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block;white-space:nowrap">Review</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 

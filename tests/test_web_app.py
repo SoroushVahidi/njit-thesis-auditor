@@ -601,6 +601,103 @@ def test_summary_export_endpoints_unaffected_by_card_presentation(
     assert md_resp.status_code == 200
 
 
+def test_problem_categories_table_visible_sorted_and_clean(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The restored "Problem categories" table must be visible under Most
+    common issues, list every category sorted by finding count descending,
+    with clean (underscore-free) labels and a working per-row action link."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = (
+        [
+            AuditFinding(
+                rule_id="P016",
+                severity=Severity.WARNING,
+                page=i + 1,
+                message="Excessive line gap.",
+                details={"issue_type": "excessive_line_gap", "largest_gap_pt": "48.0"},
+            )
+            for i in range(5)
+        ]
+        + [
+            AuditFinding(
+                rule_id="P020",
+                severity=Severity.WARNING,
+                page=20,
+                message="Possible title-capitalization issue.",
+                details={
+                    "issue_type": "possible_title_capitalization_issue",
+                    "flagged_word": "The",
+                },
+            )
+            for _ in range(2)
+        ]
+    )
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+
+    assert "Problem categories" in html
+    # Clean labels, no raw snake_case categories leaking through.
+    assert "Spacing / blank lines" in html
+    assert "Capitalization" in html
+    assert "spacing_blank_lines" not in html.split("Problem categories", 1)[1][:4000]
+
+    # Sorted by count descending: the 5-finding category must appear before
+    # the 2-finding category in the table.
+    table_html = html.split("Problem categories", 1)[1]
+    idx_spacing = table_html.index("Spacing / blank lines")
+    idx_capitalization = table_html.index("Capitalization")
+    assert idx_spacing < idx_capitalization
+
+    # Each row's action link targets the real category drilldown route.
+    assert f"/audits/{job_id}/problems/category/spacing-blank-lines" in html
+    assert f"/audits/{job_id}/problems/category/capitalization-case" in html
+    category_resp = c.get(f"/audits/{job_id}/problems/category/spacing-blank-lines")
+    assert category_resp.status_code == 200
+    assert "Excessive line gap" in category_resp.text or "spacing" in category_resp.text.lower()
+
+
+def test_problem_categories_table_not_grouped_by_rule_id(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The restored table groups by category, not by rule ID — rule IDs stay
+    confined to the collapsed Advanced details table."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    table_html = html.split("Problem categories", 1)[1].split("</table>", 1)[0]
+    assert "<th>Category</th>" in table_html
+    assert "<th>Rule</th>" not in table_html
+
+
+def test_problem_categories_table_coexists_with_simplified_summary_and_nav(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Restoring the category table must not undo the other recent UI work:
+    simplified top Summary cards, decluttered nav, and the collapsed
+    Advanced rule-by-rule table all remain intact."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+
+    assert "Problem categories" in html
+    assert "Items to review" in html
+    assert '<div class="summary-card__label">Worth checking</div>' not in html
+    assert "Advanced details" in html
+    assert "Advanced: rule-by-rule technical summary" in html
+    assert "<details class=\"card collapsible\">" in html
+
+
 def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
