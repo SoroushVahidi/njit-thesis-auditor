@@ -7,7 +7,7 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-04 (full open-PR/branch backlog triage — #441–#444 + #434 merged, 4 stale PRs closed)
+## Current Status — 2026-07-04 (post-merge cleanup — branches deleted, live server restarted on `991e683`)
 
 This section is the authoritative current snapshot. Everything below it (including the
 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406
@@ -16,8 +16,29 @@ post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapsh
 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical
 context and should not be read as current.
 
-- **Code baseline `main`:** `b17cbb62f384b3c8514937b52c6c95917b18e01a` (merge of PR
-  [#444](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/444)). Short SHA: `b17cbb6`.
+- **Code baseline `main`:** `991e683e87f51b3032be0bcab71f7f611c0be394` (merge of PR
+  [#445](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/445), the docs-only triage
+  write-up — no behavior change since `b17cbb6`/#444). Short SHA: `991e683`.
+- **Post-merge branch cleanup (this pass):** deleted the 10 remote branches behind the merged/closed
+  PRs from the previous triage pass — verified each PR was `MERGED`/`CLOSED`, not the head of any
+  open PR, before deleting:
+  - Merged: `feature/student-summary-declutter` (#441), `fix/findings-cards-mobile-safe` (#442),
+    `refactor/simplify-summary-counts` (#443), `refactor/simplify-nav-chips` (#444),
+    `docs/repo-polish-inventory` (#434), `docs/pr-triage-status-update` (#445).
+  - Closed/superseded: `feature/subpage-location-labels` (#311),
+    `docs/protect-autonomous-policy-and-ester-status` (#349), `ux/review-needed-prefix-policy`
+    (#362), `ux/rule-reference-card-declutter` (#385).
+  - Branches for the 7 still-open PRs (#435–#437, #439, #440, #375, #376) were left untouched.
+- **Live server:** updated and restarted — now serving `991e683` (confirmed via `/version` on both
+  `127.0.0.1:8000` and the host's external address). Previously stale at `425f144` (PR #430). The
+  old process had been orphaned (reparented to init, detached from its original tmux shell) rather
+  than a live job of the `thesis-auditor-web` tmux session; it was stopped with `SIGTERM` and the
+  replacement was started fresh inside that same tmux session so it's supervisable again.
+  Post-restart smoke test (Playwright, real sample audit): "Items to review" card present, no
+  "Problems found"/"Worth checking" summary cards, nav chips show the primary flow first with
+  "Advanced details"/"Advanced candidates" demoted, rule-by-rule table confirmed collapsed under
+  `<details>`, and mobile `document.body.scrollWidth` stayed at exactly 390px (no overflow) at a
+  390px viewport.
 - **Merged this pass (5 PRs, in dependency order):**
   - **#441** — decluttered the student-facing report summary: merged "Summary by problem type" and
     "Most common issues" into one set of root-cause cards, collapsed the rule-by-rule table behind
@@ -58,9 +79,7 @@ context and should not be read as current.
     run before anyone merges them.
 - **P021/P026 policy:** still unresolved — see `ester_policy_review_p021_p026.md`. Not touched.
 - **P084:** not started. Not touched.
-- **Live server:** last confirmed at `425f144` (PR #430) — now several merges behind `main`
-  (`b17cbb6`); **restart required** before the new summary/nav/mobile-fix UI is live for real users.
-- **Validation on final `main` (`b17cbb6`):** `ruff check .` — all checks passed; `mypy src` — no
+- **Validation on final `main` (`991e683`):** `ruff check .` — all checks passed; `mypy src` — no
   issues in 105 files; `python -m pytest` — **2529 passed**.
 
 ---
