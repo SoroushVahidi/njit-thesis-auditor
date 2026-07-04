@@ -323,6 +323,35 @@ def test_mobile_section_header_css_rule_exists(client: tuple[TestClient, Any]) -
 
 
 # ---------------------------------------------------------------------------
+# 10. Nav chips wrap on mobile instead of overflowing
+# ---------------------------------------------------------------------------
+
+
+def test_jump_links_css_wraps_instead_of_overflowing(client: tuple[TestClient, Any]) -> None:
+    """.jump-links must stay a wrapping flex row so a full chip set (up to 7
+    chips across primary + advanced) wraps onto new lines on a narrow
+    viewport instead of forcing horizontal scroll."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+    assert ".jump-links {" in body
+    start = body.index(".jump-links {")
+    rule = body[start : start + 200]
+    assert "flex-wrap: wrap;" in rule
+
+
+def test_jump_links_advanced_chips_are_visually_demoted(client: tuple[TestClient, Any]) -> None:
+    """Reviewer-facing chips (rule table, detected candidates) use a quieter
+    style than the primary student-facing chips, so they read as optional."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+    assert ".jump-links__advanced" in body
+
+
+# ---------------------------------------------------------------------------
 # 9. Findings-section grouped-problem cards are mobile-safe
 # ---------------------------------------------------------------------------
 #
