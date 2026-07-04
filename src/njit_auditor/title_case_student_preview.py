@@ -64,6 +64,25 @@ def p020_display_dedup_key(details: Mapping[str, str], *, page: int | None = Non
     )
 
 
+def _replace_whole_word(text: str, flagged_word: str, corrected_word: str) -> str | None:
+    """Replace the first *whole-word* occurrence of flagged_word in text.
+
+    Returns the updated string, or None when flagged_word is not present as a
+    standalone token. Word boundaries are enforced with letter lookarounds so
+    a single-letter or short token is never substituted inside a larger word
+    (e.g. the "n" in "Linear" must never become "N", producing "LiNear").
+    """
+    if not text or not flagged_word:
+        return None
+    pattern = re.compile(
+        rf"(?<![A-Za-z]){re.escape(flagged_word)}(?![A-Za-z])",
+        re.IGNORECASE,
+    )
+    if pattern.search(text) is None:
+        return None
+    return pattern.sub(corrected_word, text, count=1)
+
+
 def p020_short_suggested_fix(
     flagged_word: str,
     corrected_word: str,
@@ -71,9 +90,8 @@ def p020_short_suggested_fix(
 ) -> str:
     preview = sanitize_title_case_line_preview(line_preview)
     if preview and flagged_word:
-        pattern = re.compile(re.escape(flagged_word), re.IGNORECASE)
-        if pattern.search(preview):
-            updated = pattern.sub(corrected_word, preview, count=1)
+        updated = _replace_whole_word(preview, flagged_word, corrected_word)
+        if updated is not None:
             return f'Change "{preview}" to "{updated}".'
     if flagged_word and corrected_word:
         return f'Change "{flagged_word}" to "{corrected_word}" in this heading.'
@@ -87,6 +105,24 @@ def p020_short_likely_problem(flagged_word: str, corrected_word: str) -> str:
             f"capitalized as '{corrected_word}'."
         )
     return "Likely problem: A word in this heading may not follow Title Case."
+
+
+def p027_sentence_case_likely_problem(level: str) -> str:
+    """Return the student-facing 'Likely problem' line for a P027 sentence-case issue."""
+    level_label = f"Level-{level}" if level else "This"
+    return (
+        f"Likely problem: This {level_label} heading appears to use Title Case, "
+        f"but {level_label} headings should use sentence case."
+    )
+
+
+def p027_sentence_case_suggested_fix(corrected_from: str, corrected_example: str) -> str:
+    """Return an exact 'Change X to Y' fix when a safe replacement is available."""
+    original = " ".join(corrected_from.split())
+    corrected = " ".join(corrected_example.split())
+    if original and corrected and original != corrected:
+        return f'Change "{original}" to "{corrected}".'
+    return ""
 
 
 def consume_p020_display_slot(

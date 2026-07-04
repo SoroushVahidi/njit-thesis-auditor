@@ -92,6 +92,29 @@ _SUBTITLE_SEP_RE = re.compile(r"[:–—]|--+")
 # Word token: letter-started run, optionally joined by single hyphens.
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
 
+# Statistical / mathematical notation must never be forced to title case.
+# Comparison and (in)equality operators that mark a variable=value expression.
+_STAT_OPERATOR_RE = re.compile(r"[=<>≤≥±≈~∼]")
+# Common statistical variable / table-header abbreviations (case-insensitive).
+# These are notation, not English words, so title-case rules do not apply.
+_STAT_ABBREVIATIONS: frozenset[str] = frozenset(
+    {
+        "n",
+        "p",
+        "r",
+        "r2",
+        "r²",
+        "b",
+        "se",
+        "sd",
+        "df",
+        "t",
+        "f",
+        "m",
+        "ci",
+    }
+)
+
 _BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold|cmbx)", re.IGNORECASE)
 
 MIN_WORDS_FOR_TITLE_CHECK = 3
@@ -144,24 +167,59 @@ def _should_skip_word(word: str) -> bool:
     return bool(_SKIP_WORD_RE.search(word))
 
 
-def _words_with_sep_info(text: str) -> list[tuple[str, bool]]:
+def _words_with_sep_info(text: str) -> list[tuple[str, bool, int, int]]:
     """
-    Return (word, after_subtitle_sep) pairs for each word token.
+    Return (word, after_subtitle_sep, start, end) tuples for each word token.
 
     after_subtitle_sep is True when a subtitle separator (colon, em/en dash,
     double-hyphen) appears in the gap between the previous word and this word.
+    start/end are the token's character offsets within *text*, so callers can
+    inspect the surrounding context (e.g. statistical notation) without doing
+    unsafe substring searches.
     """
-    result: list[tuple[str, bool]] = []
+    result: list[tuple[str, bool, int, int]] = []
     last_end = 0
     after_sep = False
     for m in _WORD_RE.finditer(text):
         gap = text[last_end : m.start()]
         if _SUBTITLE_SEP_RE.search(gap):
             after_sep = True
-        result.append((m.group(), after_sep))
+        result.append((m.group(), after_sep, m.start(), m.end()))
         after_sep = False
         last_end = m.end()
     return result
+
+
+def _is_statistical_notation_word(text: str, word: str, start: int, end: int) -> bool:
+    """Return True when *word* is a statistical/mathematical notation token.
+
+    Title/heading capitalization checks must not require statistical variables,
+    formula symbols, or table-column abbreviations to follow English title case.
+    This covers compact notation such as ``(n = 97)``, ``(p < .001)``,
+    ``(r = 0.22)``, ``adjusted R² = 0.673``, ``B = 0.65``, and bare
+    table-header abbreviations like ``SE``, ``df``, ``t``, and ``F``.
+
+    A token qualifies when either:
+      * it matches a known statistical abbreviation (case-insensitive), or
+      * it is a single letter adjacent to a comparison/assignment operator or
+        wrapped as a parenthesized ``(x = ...)`` style variable marker.
+    """
+    if word.casefold() in _STAT_ABBREVIATIONS:
+        return True
+    if len(word) != 1:
+        return False
+    # Single-letter variable next to an operator/comparator (p < .001, r = 0.22).
+    window = text[max(0, start - 6) : min(len(text), end + 10)]
+    if _STAT_OPERATOR_RE.search(window):
+        return True
+    # Parenthesized compact variable marker, e.g. "(n = 97)" or "(p)".
+    left = text[:start].rstrip()
+    right = text[end:].lstrip()
+    return bool(
+        left.endswith("(")
+        and right
+        and (right[0].isdigit() or right[0] in ".=<>≤≥±≈~∼)")
+    )
 
 
 def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
@@ -182,12 +240,18 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     n = len(words_with_info)
 
-    for idx, (word, after_sep) in enumerate(words_with_info):
+    for idx, (word, after_sep, start, end) in enumerate(words_with_info):
         is_first = idx == 0
         is_last = idx == n - 1
 
         # Skip math/digit/equation tokens.
         if _should_skip_word(word):
+            continue
+
+        # Skip statistical/math notation (n, p, r, R², B, SE, t, F, df, …).
+        # These are variables/abbreviations, not English words, so title-case
+        # capitalization rules do not apply to them.
+        if _is_statistical_notation_word(text, word, start, end):
             continue
 
         # Preserve all-caps acronyms — never flag these.
