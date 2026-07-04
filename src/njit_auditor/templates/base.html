@@ -125,6 +125,15 @@
       padding: 0.2rem 0.65rem;
     }
     .jump-links a:hover { background: #d8eaf8; }
+    /* Reviewer/maintainer-facing destinations (rule-by-rule table, detected
+       candidates) — visually quieter than the primary student-facing chips
+       so they read as optional, not part of the main reading path. */
+    .jump-links a.jump-links__advanced {
+      color: var(--color-muted);
+      background: var(--color-bg);
+      border-color: var(--color-border);
+    }
+    .jump-links a.jump-links__advanced:hover { background: var(--color-border); }
     .review-order-list {
       margin: 0;
       padding-left: 1.4rem;

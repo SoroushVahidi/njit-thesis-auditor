@@ -368,10 +368,10 @@
   <a href="#section-summary">Summary</a>
   <a href="#section-review-order">Review order</a>
   {% if report_view and (report_view.triage_panels or secondary_category_cards) %}<a href="#section-triage">Most common issues</a>{% endif %}
-  {% if grouped_summary %}<a href="#section-rule-summary">Advanced: by rule</a>{% endif %}
-  {% if report_view and report_view.inventory_findings %}<a href="#section-inventory">Detected candidates</a>{% endif %}
   <a href="#section-findings">Findings</a>
   <a href="#section-downloads">Downloads</a>
+  {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Advanced details</a>{% endif %}
+  {% if report_view and report_view.inventory_findings %}<a href="#section-inventory" class="jump-links__advanced">Advanced candidates</a>{% endif %}
 </nav>
 {% endif %}
 

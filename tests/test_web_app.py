@@ -3283,6 +3283,121 @@ def test_results_page_shows_jump_links(
     assert b"#section-findings" in resp.content
 
 
+def _nav_block(html: str) -> str:
+    start = html.index('<nav class="jump-links"')
+    end = html.index("</nav>", start)
+    return html[start:end]
+
+
+def test_nav_chips_reflect_decluttered_report_structure(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The top nav must match the decluttered report from #441-#443: no
+    standalone "By problem type" chip (merged into "Most common issues"),
+    and the rule-by-rule table is a demoted "Advanced details" chip, not a
+    primary "By rule" chip."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=i + 1,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        )
+        for i in range(2)
+    ] + [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=5,
+            message="Page number candidate.",
+            details={"issue_type": "page_number_candidate", "position_type": "bottom_center"},
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    nav = _nav_block(resp.content.decode())
+
+    # Core, always-primary chips.
+    for label in ("Summary", "Review order", "Most common issues", "Findings", "Downloads"):
+        assert f">{label}<" in nav, f"Missing core chip: {label!r}"
+
+    # The old repetitive/technical labels must not appear as chip text.
+    assert "By problem type" not in nav
+    assert ">By rule<" not in nav
+    assert ">Detected candidates<" not in nav
+
+    # Reviewer-facing destinations are present but clearly demoted.
+    assert ">Advanced details<" in nav
+    assert ">Advanced candidates<" in nav
+    assert nav.count("jump-links__advanced") == 2
+
+
+def test_nav_chip_targets_all_resolve_to_real_section_anchors(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Every visible nav chip must point at a section anchor that actually
+    exists on the page — clicking a chip should always land somewhere real."""
+    import re
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=i + 1,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        )
+        for i in range(2)
+    ] + [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=5,
+            message="Page number candidate.",
+            details={"issue_type": "page_number_candidate", "position_type": "bottom_center"},
+        )
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    nav = _nav_block(html)
+
+    hrefs = re.findall(r'href="#([\w-]+)"', nav)
+    assert len(hrefs) >= 5
+    for anchor_id in hrefs:
+        assert f'id="{anchor_id}"' in html, f"Nav chip links to missing anchor #{anchor_id}"
+
+
+def test_nav_advanced_candidates_chip_omitted_when_no_inventory_findings(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A report with real problems but no informational page-number
+    candidates has nothing to show in "Detected candidates", so the
+    "Advanced candidates" chip must not render — while "Advanced details"
+    (the rule-by-rule table) still does, since rule summaries always exist
+    whenever there are findings."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    nav = _nav_block(resp.content.decode())
+    assert ">Advanced details<" in nav
+    assert ">Advanced candidates<" not in nav
+
+
 def test_results_page_review_order_uses_simple_priority_labels(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
