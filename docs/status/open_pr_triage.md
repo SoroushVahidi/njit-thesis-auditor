@@ -1,4 +1,4 @@
-# Open PR Triage (2026-07-04, full backlog triage — stacked UI PRs #441-#444 merged, 4 stale PRs closed)
+# Open PR Triage (2026-07-04, #435/#439 statistical-notation title-case fix reconciled — #439 merged, #435 closed)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
@@ -8,7 +8,47 @@
 > historical context only — see the "Historical" sections further down. Everything above that
 > point is current.
 
-**Baseline inspected:** `main` @ `991e683e87f51b3032be0bcab71f7f611c0be394` (merge of PR
+**Baseline inspected:** `main` @ `82f2d901bd20a52231088f861f9d75a4e9105fc6` (merge of PR
+[#439](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/439); short SHA `82f2d90`)  
+**Live server:** last confirmed serving `991e683` (before this pass's #439 merge) — this pass's
+change is detector-only (P020/P027 title-case), not UI, so it does not need a live-server restart
+to be "correct" for the API/web behavior most students would notice, but the live server will not
+serve the `82f2d90` fix until it is next restarted  
+**Open PR count:** **6** (4 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
+needing a fresh rebase before any merge decision)
+
+## What happened in this pass (2026-07-04, #2)
+
+Reconciled the two overlapping statistical-notation title-case PRs flagged in the previous triage
+pass. Both fixed the same `(n = 97)` false positive in `check_apa_title_case_phrase()`
+(P020/P024/P027's shared helper), so they were compared empirically (a probe script run against
+both branches, not just inspection) against the required-behavior list from manual review:
+
+- Both preserve the strict `Comparison with Prior Studies` → `With` policy and still flag real
+  lowercase words inside parentheses (`pilot` in `(pilot study)`).
+- **#435** only exempted a single letter immediately followed by a relational operator. It still
+  flagged bare abbreviations without an adjacent operator (`t` in "Test Statistic t Value", `df`
+  in "Degrees of Freedom df"), and never touched the suggested-fix substring-replacement
+  mechanism, so the `Linear`→`LiNear`-style corruption bug remained latent for other short flagged
+  words.
+- **#439** exempts a fixed statistical-abbreviation set (`n, p, r, r², b, se, sd, df, t, f, m,
+  ci`) case-insensitively (correctly handles bare `t`/`df`/`SE`/`F`), makes suggested-fix
+  generation token/span-safe via whole-word regex matching (verified: `LiNear` never appears),
+  and adds the required P027 exact sentence-case "Change X to Y" replacement.
+
+**Merged #439** (rebased onto `main` first). **Closed #435** as superseded, with a comment citing
+the specific gaps above — no piece of #435 was worth cherry-picking separately since #439 is a
+strict superset. Neither branch was deleted (not authorized this round; report branch status,
+don't delete).
+
+Validation on final `main` (`82f2d90`): `ruff check .` — passed; `mypy src` — no issues in 105
+files; `python -m pytest` — **2538 passed**.
+
+---
+
+## Previous pass (2026-07-04, #1) — full backlog triage, stacked UI PRs #441-#444 merged, 4 stale PRs closed
+
+**Baseline inspected then:** `main` @ `991e683e87f51b3032be0bcab71f7f611c0be394` (merge of PR
 [#445](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/445), docs-only; short SHA
 `991e683`)  
 **Live server:** restarted and confirmed serving `991e683` via `/version` — no longer behind
@@ -16,8 +56,8 @@
 **Branch cleanup:** the 10 remote branches behind the merged/closed PRs listed below (#441–#445
 merged set, #311/#349/#362/#385 closed set) have been deleted; the 7 branches for still-open PRs
 were left untouched  
-**Open PR count:** **7** (5 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
-needing a fresh rebase before any merge decision)
+**Open PR count then:** **7** (5 detector-behavior fixes awaiting human/Ester review, 2
+stale/CI-failing needing a fresh rebase before any merge decision)
 
 ## What happened in this pass (2026-07-04)
 
@@ -43,38 +83,34 @@ specific current-`main` evidence (no branches deleted):
 | [#362](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/362) | "Review needed:" prefix policy — `main` deliberately kept the unconditional prefix plus one global automated-review caveat instead (see #443's summary note) |
 | [#385](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/385) | Rule-reference card declutter — `main`'s `rules.html` cards are already simpler than what this PR proposes |
 
-## Remaining 7 open PRs (2026-07-04)
+## Remaining 6 open PRs (2026-07-04, updated)
 
 | PR | Title | Kind | CI | Verdict |
 |---|---|---|---|---|
-| [#435](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/435) | `fix: ignore statistical notation in title-case checks` | detector fix (P020/P024/P027) | passing | **Needs human/Ester review** — overlaps #439, see below |
 | [#436](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/436) | `fix: highlight affected list entries for punctuation warnings` | detector/highlight fix (P040/P053/P054) | passing | **Needs human/Ester review** — touches rule files |
 | [#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437) | `fix: polish P011 margin warning evidence` | detector/highlight fix (P011) | passing | **Needs human/Ester review** — touches rule files |
-| [#439](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/439) | `fix(P020/P027): exclude statistical notation from title-case checks and make suggested fixes token-safe` | detector fix (P020/P027) | passing | **Needs human/Ester review** — overlaps #435 (both edit the same tokenizer; both PRs commented cross-linking the conflict) |
 | [#440](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/440) | `fix(P016,P023): stop flagging non-body content as body spacing` | detector fix (P016/P023) | passing | **Needs human/Ester review** — touches rule files |
 | [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375) | `Align clean_minimal demo fixture docs with actual audit output` | docs/test only | **failing** | **Stale** — needs rebase + fresh CI run before any merge decision; not clearly superseded, so left open rather than closed |
 | [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376) | `Fix P014 frontmatter heading centering false positive` | detector fix (P014) | **failing** | **Needs human/Ester review** (detector change) **and** a rebase — CI is failing |
 
-**Why #435–#437, #439, #440 weren't auto-merged despite passing CI:** all five touch
+**#435 and #439 (statistical-notation title-case fix) — resolved this pass:** #439 merged, #435
+closed as superseded. See "What happened in this pass" above.
+
+**Why #436, #437, #440 weren't auto-merged despite passing CI:** all three touch
 `src/njit_auditor/rules/*.py` — real detector-behavior changes (false-positive suppressions,
 highlight/evidence polish), not presentation-only. This project's own culture (Ester wording/policy
 review, the P021/P026 policy doc) treats any change to what gets flagged as requiring human
 sign-off, not a blind agent merge, even when the fix looks correct and well-tested.
 
-**#435 vs #439:** both fix the identical root cause (statistical notation like `n` in `(n = 97)`
-being flagged by title-case checks) via different techniques, and both edit the same
-tokenizer/exemption logic in `pdf_title_capitalization.py`. #439 is broader (also fixes a
-suggested-fix substring-corruption bug — `Linear` → `LiNear` — and adds P027 sentence-case
-replacement wording). Commented on both PRs cross-linking them; left both open since choosing
-between them is a policy/design call, not a mechanical one.
-
 ## Cleanup guardrails (unchanged)
 
 - Do **not** start **P084**.
-- Do **not** merge #435, #436, #437, #439, or #440 without explicit human/Ester sign-off — they
-  change what gets flagged.
+- Do **not** merge #436, #437, or #440 without explicit human/Ester sign-off — they change what
+  gets flagged.
 - Do **not** merge #375 or #376 as-is — rebase and get a clean CI run first.
-- No remote branches were deleted in this pass (merged and closed PRs' branches all still exist).
+- No remote branches were deleted in this pass (merged and closed PRs' branches all still exist,
+  including `fix/p020-stat-notation-capitalization` (#439, merged) and
+  `fix/titlecase-technical-notation` (#435, closed) — deletion wasn't authorized this round).
 
 ---
 

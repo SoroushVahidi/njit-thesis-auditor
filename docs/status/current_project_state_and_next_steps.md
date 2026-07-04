@@ -7,14 +7,50 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-04 (post-merge cleanup — branches deleted, live server restarted on `991e683`)
+## Current Status — 2026-07-04 (reconciled #435/#439 statistical-notation title-case fixes — #439 merged, #435 closed)
 
-This section is the authoritative current snapshot. Everything below it (including the
-2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406
-merge snapshot, live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot,
-post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier
-2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical
-context and should not be read as current.
+This section is the authoritative current snapshot. Everything below it (including the earlier
+2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot,
+PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis /
+cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure snapshot,
+post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01,
+2026-06-25, and earlier dated bullets) is preserved as historical context and should not be read
+as current.
+
+- **Code baseline `main`:** `82f2d901bd20a52231088f861f9d75a4e9105fc6` (merge of PR
+  [#439](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/439)). Short SHA: `82f2d90`.
+- **Resolved the overlapping #435/#439 statistical-notation title-case PRs.** Both fixed the same
+  false positive (lowercase `n` in `(n = 97)` flagged as a capitalization violation in
+  `check_apa_title_case_phrase()`, shared by P020/P024/P027), but differed in completeness — verified
+  empirically with a probe script run against both branches, not just by inspection:
+  - Both correctly preserve the strict `Comparison with Prior Studies` → `With` policy and still
+    flag real lowercase words inside parentheses (e.g. `pilot` in `(pilot study)`).
+  - **#435** only exempted a single letter immediately followed by a relational operator (`n =`,
+    `p <`, ...). Empirically, it still flagged bare statistical abbreviations without an adjacent
+    operator — e.g. `t` in "Test Statistic t Value" and `df` in "Degrees of Freedom df" — and it
+    never touched the suggested-fix substring-replacement mechanism, so the underlying
+    `Linear`→`LiNear`-style corruption bug remained latent for any other short flagged word.
+  - **#439** exempts a fixed set of statistical abbreviations (`n, p, r, r², b, se, sd, df, t, f,
+    m, ci`) case-insensitively, correctly leaving bare `t`/`df`/`SE`/`F` unflagged; makes
+    suggested-fix generation token/span-safe via whole-word regex matching in
+    `title_case_student_preview.py` and `highlight_targeting.py` (verified: `LiNear` never
+    appears); and adds the required P027 exact sentence-case "Change X to Y" replacement (e.g.
+    `4.4.1 Scatterplots Of Relationships With Readiness` → `4.4.1 Scatterplots of relationships
+    with readiness`).
+  - **Merged #439** (rebased onto `main` first — its branch predated the #441–#446 UI stack).
+    **Closed #435** as superseded, with a comment citing the specific empirical gaps above. No
+    piece of #435 was worth cherry-picking separately since #439 is a strict superset. Neither
+    branch was deleted (not authorized this round).
+  - Validation on final `main` (`82f2d90`): `ruff check .` — passed; `mypy src` — no issues in 105
+    files; `python -m pytest` — **2538 passed**. Does not touch P021, P026, rule IDs, thresholds
+    beyond the narrow statistical-notation exemption, or unrelated spacing/margin/font/
+    page-numbering/TOC/title-page behavior.
+
+---
+
+## Historical — 2026-07-04 (post-merge cleanup — branches deleted, live server restarted on `991e683`)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `991e683e87f51b3032be0bcab71f7f611c0be394` (merge of PR
   [#445](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/445), the docs-only triage
