@@ -320,3 +320,52 @@ def test_mobile_section_header_css_rule_exists(client: tuple[TestClient, Any]) -
     assert "max-width: 640px" in body
     assert "flex-direction: column" in body
     assert ".section-header" in body
+
+
+# ---------------------------------------------------------------------------
+# 9. Findings-section grouped-problem cards are mobile-safe
+# ---------------------------------------------------------------------------
+#
+# A grid item's default min-width: auto refuses to shrink below its widest
+# descendant's intrinsic size (e.g. the collapsed "individual occurrences"
+# table), which pushes the whole page wider than the viewport on mobile.
+# These guard the CSS fix so it isn't silently dropped in a later edit.
+
+
+def test_grouped_problem_card_can_shrink_below_content_width(
+    client: tuple[TestClient, Any],
+) -> None:
+    """.grouped-problem-card is a CSS grid item; it must set min-width: 0 so
+    it can shrink to the grid track width instead of stretching to fit a wide
+    descendant (like the individual-occurrences table)."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+    assert ".grouped-problem-card {" in body
+    assert "min-width: 0;" in body
+
+
+def test_detail_cell_wraps_long_issue_and_fix_text(client: tuple[TestClient, Any]) -> None:
+    """The issue-type/suggested-fix column in the individual-occurrences
+    table must wrap (not nowrap) since that text can run to a full sentence;
+    reusing the short, intentionally-nowrap .meta-cell class here is what
+    originally caused the table (and the whole card) to overflow on mobile."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+    assert ".detail-cell {" in body
+    assert "overflow-wrap: anywhere;" in body
+
+
+def test_meta_cell_no_longer_forces_nowrap(client: tuple[TestClient, Any]) -> None:
+    """.meta-cell (used for the "Pages: ..." line) must wrap for a long,
+    non-contiguous page list instead of forcing one unbroken line."""
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+    meta_cell_start = body.index(".meta-cell {")
+    meta_cell_rule = body[meta_cell_start : meta_cell_start + 200]
+    assert "white-space: nowrap" not in meta_cell_rule

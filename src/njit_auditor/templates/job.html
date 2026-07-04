@@ -783,7 +783,7 @@
                 <td><a href="#{{ f.problem_anchor }}">{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</a></td>
                 <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
                 <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
-                <td class="meta-cell">
+                <td class="detail-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
                 </td>
@@ -879,7 +879,7 @@
             </td>
             <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
             <td>{{ f.category | humanize_cat }}</td>
-            <td class="meta-cell">
+            <td class="detail-cell">
               {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
               {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
             </td>

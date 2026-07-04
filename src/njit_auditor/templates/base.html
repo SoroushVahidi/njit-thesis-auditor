@@ -268,6 +268,11 @@
       border-left: 4px solid var(--color-primary);
       padding-top: 1rem;
       padding-bottom: 1rem;
+      /* Grid items default to min-width: auto, which refuses to shrink below
+         the widest descendant's intrinsic content size (e.g. a wide table).
+         Without this, that content pushes the whole page wider on mobile
+         instead of scrolling within its own .table-scroll wrapper. */
+      min-width: 0;
     }
     .grouped-problem-card--single {
       border-left-color: var(--color-border);
@@ -285,6 +290,7 @@
       font-weight: 700;
       font-size: 1rem;
       margin: 0 0 0.15rem;
+      overflow-wrap: anywhere;
     }
     .grouped-problem__summary {
       display: flex;
@@ -298,7 +304,7 @@
       font-size: 0.88rem;
       margin-top: 0.45rem;
     }
-    .grouped-problem__meta-line { color: var(--color-text); }
+    .grouped-problem__meta-line { color: var(--color-text); overflow-wrap: anywhere; }
     .grouped-problem__details {
       margin-top: 0.8rem;
       border-top: 1px dashed var(--color-border);
@@ -334,8 +340,23 @@
     td { padding: 0.55rem 0.7rem; border-bottom: 1px solid #edf1f5; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     tr.finding-row--hidden { display: none; }
-    .comment-cell { max-width: 420px; line-height: 1.45; }
-    .meta-cell { font-size: 0.8rem; color: var(--color-muted); white-space: nowrap; }
+    .comment-cell { max-width: 420px; line-height: 1.45; overflow-wrap: anywhere; }
+    /* Short meta labels (e.g. "Pages: 10-11"). A page range can still grow
+       long for a heavily-repeated finding (e.g. "Pages: 1, 6, 10-11, 15,
+       22, ..."), so this must wrap rather than force one unbroken line that
+       pushes the card wider than the viewport. Do not reuse this class for
+       sentence-length text; see .detail-cell below for that. */
+    .meta-cell { font-size: 0.8rem; color: var(--color-muted); overflow-wrap: anywhere; }
+    /* Issue-type label + suggested-fix text in the individual-occurrences
+       table: can run to a full sentence, so it must wrap instead of forcing
+       the table (and the whole card) wider than the viewport. */
+    .detail-cell {
+      font-size: 0.8rem;
+      color: var(--color-muted);
+      max-width: 260px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
     .spinner {
       display: inline-block;
       width: 1.1rem; height: 1.1rem;
