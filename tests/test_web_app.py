@@ -516,9 +516,89 @@ def test_results_page_shows_summary_cards(client: tuple[TestClient, Any], tmp_pa
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Problems found" in resp.content
+    assert b"Items to review" in resp.content
     assert b"Pages affected" in resp.content
     assert b"Rules flagged" in resp.content
+
+
+def test_summary_all_warning_report_hides_needs_fixing_and_worth_checking_cards(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """When every finding is a warning (no hard failures), the Summary should
+    read "Items to review", "Pages affected", "Rules flagged" — never a
+    redundant "Worth checking" card duplicating the same total, and never a
+    "Needs fixing" card claiming 0 fixes are needed."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert '<div class="summary-card__label">Items to review</div>' in html
+    assert '<div class="summary-card__value">3</div>' in html
+    assert '<div class="summary-card__label">Needs fixing</div>' not in html
+    assert '<div class="summary-card__label">Worth checking</div>' not in html
+    assert "These are automated review signals, not confirmed formatting defects." in html
+
+
+def test_summary_shows_needs_fixing_card_when_fail_count_positive(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """When a report has real fail/error-level findings, "Needs fixing" must
+    be shown clearly, alongside — not duplicated by — "Items to review"."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.FAIL,
+            page=1,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=2,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert '<div class="summary-card__label">Needs fixing</div>' in html
+    assert '<div class="summary-card__value">1</div>' in html
+    assert '<div class="summary-card__label">Items to review</div>' in html
+    assert '<div class="summary-card__value">3</div>' in html
+    assert '<div class="summary-card__label">Worth checking</div>' not in html
+
+
+def test_summary_export_endpoints_unaffected_by_card_presentation(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The Summary card relabeling/hiding is presentation-only: JSON/Markdown
+    exports must still report the real fail/warning counts unchanged."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    json_resp = c.get(f"/audits/{job_id}/download/json")
+    assert json_resp.status_code == 200
+    payload = json_resp.json()
+    assert payload["metadata"]["counts_by_severity"]["WARNING"] == 3
+    assert payload["metadata"]["counts_by_severity"]["FAIL"] == 0
+
+    md_resp = c.get(f"/audits/{job_id}/download/markdown")
+    assert md_resp.status_code == 200
 
 
 def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(

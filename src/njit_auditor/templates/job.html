@@ -412,17 +412,15 @@
     <span class="section-note">Problem counts exclude non-problem page-number inventory candidates &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
-    <div class="summary-card">
-      <div class="summary-card__label">Problems found</div>
-      <div class="summary-card__value">{{ problems_found_count }}</div>
-    </div>
+    {% if fail_count > 0 %}
     <div class="summary-card">
       <div class="summary-card__label">Needs fixing</div>
       <div class="summary-card__value">{{ fail_count }}</div>
     </div>
+    {% endif %}
     <div class="summary-card">
-      <div class="summary-card__label">Worth checking</div>
-      <div class="summary-card__value">{{ warn_count }}</div>
+      <div class="summary-card__label">Items to review</div>
+      <div class="summary-card__value">{{ problems_found_count }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card__label">Pages affected</div>
@@ -433,6 +431,7 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
   </div>
+  <p class="file-hint" style="margin-top:0.75rem;margin-bottom:0;">These are automated review signals, not confirmed formatting defects. All findings require manual verification against NJIT guidelines.</p>
 </section>
 
 {% if findings %}

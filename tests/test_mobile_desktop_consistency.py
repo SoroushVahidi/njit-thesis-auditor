@@ -354,6 +354,7 @@ def test_result_page_content_parity(client: tuple[TestClient, Any]) -> None:
     common_tokens = [
         "Audit complete",
         "Problems found",
+        "Items to review",
         "Needs fixing",
         "Worth checking",
         "Pages affected",
