@@ -5,8 +5,11 @@ import fitz
 from typer.testing import CliRunner
 
 from njit_auditor.cli import app
+from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
+from njit_auditor.pdf_highlight import has_visible_highlight
 from njit_auditor.pdf_layout import _style_flags_from_font_name, load_pdf_layout
 from njit_auditor.pdf_models import BBox, PdfTextLine, PdfTextSpan
+from njit_auditor.report_view import enriched_pdf_location_label
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
 from njit_auditor.rules.pdf_acknowledgements_indentation import (
@@ -8247,12 +8250,115 @@ def test_p040_findings_metadata_no_private_content(tmp_path: Path) -> None:
             assert "punctuation" not in str(value).lower() or key in (
                 "issue_type", "terminal_punctuation_required"
             ), f"Unexpected entry text in details[{key!r}]"
-            assert "figure" not in str(value).lower() or key == "issue_type", (
-                f"Entry text may have leaked into details[{key!r}]"
-            )
+            assert "figure" not in str(value).lower() or key in (
+                "issue_type", "page_type"
+            ), f"Entry text may have leaked into details[{key!r}]"
         assert f.details.get("source_q_rule_id") == "Q075"
         assert "line_y" in f.details
-        assert "entry_index" in f.details
+
+
+def test_p040_finding_includes_reliable_bbox(tmp_path: Path) -> None:
+    """P040 findings must carry a bbox so the UI can highlight the affected entry.
+
+    Regression test for the "Open original PDF page" fallback: without a bbox
+    in details, has_visible_highlight() has nothing to work with and the UI
+    can't offer a highlighted-page action even though the affected line is
+    known internally.
+    """
+    pdf_path = tmp_path / "p040_bbox.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1.1 Biomechanical representation of trunk support.", "6"),
+        ("Figure 1.2 Labeled components of a lower-body exoskeleton", "7"),
+        ("Figure 1.3 Scatterplot for perceptions and readiness.", "38"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) == 1
+    finding = findings[0]
+    bbox_detail = finding.details.get("bbox", "")
+    assert bbox_detail, "P040 finding is missing bbox evidence for the affected entry"
+    x0, y0, x1, y1 = (float(v) for v in bbox_detail.split(","))
+    assert x1 > x0
+    assert y1 > y0
+
+
+def test_p040_finding_bbox_is_highlightable(tmp_path: Path) -> None:
+    """The bbox stored on a P040 finding must resolve to a visible highlight."""
+    pdf_path = tmp_path / "p040_highlightable.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1.1 Biomechanical representation of trunk support.", "6"),
+        ("Figure 1.2 Labeled components of a lower-body exoskeleton", "7"),
+        ("Figure 1.3 Scatterplot for perceptions and readiness.", "38"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) == 1
+    finding = findings[0]
+    bbox = resolve_primary_highlight_bbox(
+        finding.details, rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+    )
+    assert bbox is not None
+    assert has_visible_highlight(bbox, page=finding.page)
+
+
+def test_p040_only_missing_entry_flagged_others_clean(tmp_path: Path) -> None:
+    """Only the entry lacking terminal punctuation is flagged; the rest are not."""
+    pdf_path = tmp_path / "p040_mixed.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1.1 Biomechanical representation of trunk support.", "6"),
+        ("Figure 1.2 Labeled components of a lower-body exoskeleton", "7"),
+        ("Figure 1.3 Scatterplot for perceptions and readiness.", "38"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) == 1
+    # Entry 1.2 is the second entry on the page (page-relative index 1).
+    assert findings[0].details.get("page_entry_index") == "1"
+
+
+def test_p040_location_label_shows_list_of_figures_section(tmp_path: Path) -> None:
+    """Location text should read "List of Figures", not the generic "list" fallback.
+
+    Regression test: before page_type was added to P040's details, the shared
+    report_view location-label helper had no page_type to key off of and fell
+    back to the generic noun "list" instead of naming the actual section.
+    """
+    pdf_path = tmp_path / "p040_location.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1.1 Biomechanical representation of trunk support.", "6"),
+        ("Figure 1.2 Labeled components of a lower-body exoskeleton", "7"),
+        ("Figure 1.3 Scatterplot for perceptions and readiness.", "38"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) == 1
+    finding = findings[0]
+    label = enriched_pdf_location_label(
+        finding.rule_id,
+        finding.details.get("issue_type", ""),
+        finding.details,
+        finding.page,
+    )
+    assert "List of Figures" in label
+    assert label != "list"
+
+
+def test_p040_rule_id_and_issue_type_unchanged(tmp_path: Path) -> None:
+    """The bbox/location fix must not change rule_id, issue_type, or finding count."""
+    pdf_path = tmp_path / "p040_semantics.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1.1 Biomechanical representation of trunk support.", "6"),
+        ("Figure 1.2 Labeled components of a lower-body exoskeleton", "7"),
+        ("Figure 1.3 Scatterplot for perceptions and readiness.", "38"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lof_terminal_punctuation(model)
+    p040_findings = [f for f in findings if f.rule_id == "P040"]
+    assert len(p040_findings) == 1
+    assert p040_findings[0].rule_id == "P040"
+    assert p040_findings[0].details.get("issue_type") == "lof_entry_missing_terminal_punctuation"
+    assert "entry_index" in p040_findings[0].details
 
 
 def test_p040_cli_includes_rule(tmp_path: Path) -> None:
@@ -8400,6 +8506,26 @@ def test_p053_finding_metadata_privacy_safe(tmp_path: Path) -> None:
         assert "table" not in str(value).lower() or key in ("issue_type", "section_type"), (
             f"Entry text may have leaked into details[{key!r}]"
         )
+
+
+def test_p053_finding_includes_reliable_bbox(tmp_path: Path) -> None:
+    """P053 findings must carry a bbox so the UI can highlight the offending entry."""
+    pdf_path = tmp_path / "p053_bbox.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 A Table Entry That Ends With Period And Should Warn.", "5"),
+        ("Table 2 Another Entry Without Period", "12"),
+        ("Table 3 Third Entry Also Without Period", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert findings
+    finding = findings[0]
+    bbox = resolve_primary_highlight_bbox(
+        finding.details, rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+    )
+    assert bbox is not None
+    assert has_visible_highlight(bbox, page=finding.page)
 
 
 def test_p053_import_and_wiring(tmp_path: Path) -> None:
@@ -8559,6 +8685,26 @@ def test_p054_finding_metadata_privacy_safe(tmp_path: Path) -> None:
     assert finding.details["section_type"] == "table_of_contents"
     assert finding.details.get("source_q_rule_id") == "Q050"
     assert finding.details.get("triage_tier") == "medium"
+
+
+def test_p054_finding_includes_reliable_bbox(tmp_path: Path) -> None:
+    """P054 findings must carry a bbox so the UI can highlight the offending entry."""
+    pdf_path = tmp_path / "p054_bbox.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 A Chapter Title That Ends With Period.", "1"),
+        ("Chapter 2 Another Chapter Without Period Here", "15"),
+        ("Chapter 3 Third Chapter Also Without Period", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert findings
+    finding = findings[0]
+    bbox = resolve_primary_highlight_bbox(
+        finding.details, rule_id=finding.rule_id,
+        issue_type=finding.details.get("issue_type", ""),
+    )
+    assert bbox is not None
+    assert has_visible_highlight(bbox, page=finding.page)
 
 
 def test_p054_import_and_wiring(tmp_path: Path) -> None:

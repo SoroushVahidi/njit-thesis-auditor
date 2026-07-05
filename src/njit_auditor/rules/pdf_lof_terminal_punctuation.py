@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
@@ -60,6 +60,26 @@ def _check_lof_terminal_punctuation_page(
             continue
         if _TERMINAL_PUNCT_RE.search(description):
             continue
+        details = {
+            "page_number": str(context.page.page_number),
+            "page_type": "list_of_figures",
+            "issue_type": "lof_entry_missing_terminal_punctuation",
+            # Document-global index (kept for existing internal dedup/
+            # grouping consumers that expect a monotonic value across a
+            # multi-page List of Figures).
+            "entry_index": str(page_entry_offset + idx),
+            # Page-relative index for display: "(entry #N)" must count
+            # only what is visible on *this* page, or a List of
+            # Figures continuation page can be labeled with an entry
+            # number higher than the number of entries actually shown
+            # on that page.
+            "page_entry_index": str(idx),
+            "line_y": f"{entry.line.bbox.y0:.1f}",
+            "bbox": format_bbox_detail(entry.line.bbox),
+            "terminal_punctuation_required": "., ?, or !",
+            "triage_tier": "medium",
+            "source_q_rule_id": "Q075",
+        }
         findings.append(
             AuditFinding(
                 rule_id="P040",
@@ -70,24 +90,7 @@ def _check_lof_terminal_punctuation_page(
                     "(period, question mark, or exclamation point) as required by "
                     "NJIT guidelines (Q075)."
                 ),
-                details={
-                    "page_number": str(context.page.page_number),
-                    "issue_type": "lof_entry_missing_terminal_punctuation",
-                    # Document-global index (kept for existing internal dedup/
-                    # grouping consumers that expect a monotonic value across a
-                    # multi-page List of Figures).
-                    "entry_index": str(page_entry_offset + idx),
-                    # Page-relative index for display: "(entry #N)" must count
-                    # only what is visible on *this* page, or a List of
-                    # Figures continuation page can be labeled with an entry
-                    # number higher than the number of entries actually shown
-                    # on that page.
-                    "page_entry_index": str(idx),
-                    "line_y": f"{entry.line.bbox.y0:.1f}",
-                    "terminal_punctuation_required": "., ?, or !",
-                    "triage_tier": "medium",
-                    "source_q_rule_id": "Q075",
-                },
+                details=details,
             )
         )
     return findings

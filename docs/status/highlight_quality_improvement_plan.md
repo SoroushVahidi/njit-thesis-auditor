@@ -209,7 +209,7 @@ families yet.
 | **P024** TOC capitalization / entry issues | Full entry line bbox (`entry.line.bbox`) | Already line-level; acceptable as-is | Yes | yes (already correct) | low | No change needed. |
 | **P031/P049/P050** column header issues | **No bbox stored at all** (`pdf_lot_lof_column_headers.py`, `pdf_lot_lof_column_header_style_alignment.py`) — findings fall back to "open original page," not a highlight | Full header-row or column-label region | No — `line.bbox` is used for internal geometric comparisons but never written to `details` | no (needs a new `details["bbox"]` key added, using geometry the detector already computes) | medium | Bigger lift than P011: goes from **no highlight** to a highlight, not "small" to "full." |
 | **P032/P036/P039** wrapped/list spacing and indentation | Gap-region bbox between two lines (`gap_bbox_between_boxes()` in `pdf_toc_list_entry_spacing.py`) | Already appropriately scoped to the specific gap being flagged | Yes | yes (already correct) | low | No change needed. |
-| **P040/P053/P054** punctuation in lists | **No bbox stored at all** (`pdf_lof_terminal_punctuation.py`, `pdf_lot_terminal_period.py`, `pdf_toc_terminal_period.py`) | Full entry line | No — `entry.line.bbox.y0` is read for a text field (`line_y`) but the box itself is never stored as `details["bbox"]` | no (trivial: store `entry.line.bbox` instead of just its `y0`) | low | Very close to done — the bbox is already one attribute access away; nothing else about the detector changes. |
+| **P040/P053/P054** punctuation in lists | **Fixed** (`fix/list-entry-highlight-polish`) — `details["bbox"] = format_bbox_detail(entry.line.bbox)` now stored on every finding, matching the full offending entry line | Full entry line | Done | done | low | Previously flagged as "trivial: store `entry.line.bbox` instead of just its `y0`" — implemented exactly that, plus `page_type` on P040 so its location label reads "List of Figures" instead of the generic "list" fallback. **`affected_entry_preview` (full entry text, used by P018/P046) was deliberately not added** — `test_p040_findings_metadata_no_private_content` / `test_p053_finding_metadata_privacy_safe` explicitly assert no LoF/LoT/TOC entry text may appear in `details`, a stricter contract than P018/P046 (whose catalog "no entry text" claims are themselves already stale relative to their code). Location clarity for these three rules is achieved via `page_type`/`section_type` + `page_entry_index` only, not text reproduction. |
 | **P046/P048** column alignment (entry-number / page-number columns) | Single worst-offending entry's line bbox (`worst_bbox` in `pdf_lot_lof_entry_number_alignment.py`) | Full column region spanning all compared entries (or at minimum, all *affected* entries, not just the worst one) | Partial — `entries_by_section`/`affected` already hold every compared entry's line bbox before the `max()` pick | no (requires unioning the already-collected bboxes instead of selecting one) | medium | Same shape of fix as P011 — expose already-computed geometry, no new detection. |
 | **P055** wrong list entry (Figure in LoT / Table in LoF) | **No bbox stored at all** (`pdf_lot_lof_entry_type.py`) | Full entry line | Not confirmed during this inspection — needs a targeted look at how this detector accesses entry geometry | unknown | medium | Flagged for a closer look before scoping a fix; not confirmed to be as trivial as P040/P053/P054. |
 | **P045/P047** Biographical Sketch list/entry spacing | **No bbox stored at all** (`pdf_biosketch_publication_layout.py`, `pdf_biosketch_bullet_spacing.py`) | Full affected entry or bullet block | No — line/block geometry is used internally for gap/threshold comparisons but never written to `details` | no (needs a new `details["bbox"]` key, e.g. a block union) | medium | Same "no highlight today" situation as P031/P049/P050. |
@@ -259,10 +259,11 @@ today, except where noted:
    done via P035; revisit only if a non-P035 figure-related rule is found
    to need it later.
 6. **Add new detector metadata only where no bbox exists at all today**
-   (P031/P049/P050 column headers, P040/P053/P054 punctuation — trivial,
-   P045/P047 Biographical Sketch, P068 Approval Page, and P055 pending
-   confirmation) — in a later, separately-scoped PR per rule family, each
-   with its own golden-output comparison, since these add a `details` key
+   (P031/P049/P050 column headers, **P040/P053/P054 punctuation — done, see
+   `fix/list-entry-highlight-polish`**, P045/P047 Biographical Sketch, P068
+   Approval Page, and P055 pending confirmation) — in a later,
+   separately-scoped PR per rule family, each with its own golden-output
+   comparison, since these add a `details` key
    that didn't exist before rather than just re-exposing existing
    geometry.
 
