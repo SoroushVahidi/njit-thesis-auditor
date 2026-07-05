@@ -328,7 +328,7 @@
 
 {% if state in ("pending", "running") %}
 <div class="status-banner status-banner--pending">
-  <div>
+  <div class="status-banner__body">
     <p class="status-banner__title"><span class="spinner"></span> Processing audit&hellip;</p>
     <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
   </div>
@@ -340,7 +340,7 @@
 
 {% elif state == "failed" %}
 <div class="status-banner status-banner--failed">
-  <div>
+  <div class="status-banner__body">
     <p class="status-banner__title">Audit could not complete</p>
     <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
   </div>
@@ -370,7 +370,7 @@
 {% endif %}
 
 <div class="status-banner status-banner--complete">
-  <div>
+  <div class="status-banner__body">
     <p class="status-banner__title">Audit complete</p>
     <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Automated review signals — verify all findings manually before submission</p>
     <p class="status-banner__meta">

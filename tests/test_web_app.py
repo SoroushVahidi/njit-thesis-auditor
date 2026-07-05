@@ -3614,6 +3614,81 @@ def test_results_page_verify_wording_in_status_banner(
     assert b"heuristic" not in resp.content.lower()
 
 
+def test_status_banner_renders_long_unbroken_filename_safely(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A long filename with no spaces/hyphens (common in EF-style uploads, e.g.
+    "Yin_H_4th_Review_with_EF_comments_compressed.pdf") must still render in full
+    inside the status banner, and the banner's text wrapper must carry the
+    mobile-safe wrapping hooks (status-banner__body / overflow-wrap: anywhere)
+    instead of forcing the page wider than the viewport. This covers the flexbox
+    min-width:auto overflow found live on 2026-07-05 via ester_sample_d."""
+    c, wa = client
+    long_name = "Yin_H_4th_Review_with_EF_comments_compressed_and_also_quite_long.pdf"
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=[],
+        file_name=long_name,
+        audit_type="pdf",
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.text
+    # The full filename must still be present -- wrapping/scrolling fixes must
+    # not truncate or hide it.
+    assert long_name in html
+    # The flex-item wrapper needs min-width:0 so it can shrink below its
+    # content's natural (unbroken) width instead of stretching the banner.
+    assert 'class="status-banner__body"' in html
+    assert ".status-banner__body { min-width: 0; }" in html
+    # The text itself needs a break opportunity so the wrapper's min-content
+    # size is actually small once min-width:0 allows it to shrink.
+    assert ".status-banner__meta" in html and "overflow-wrap: anywhere;" in html
+
+
+def test_status_banner_mobile_safe_css_present_for_all_states(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The mobile-safe status-banner CSS must ship on pending/failed pages too,
+    not just the completed-report page, since all three states render a
+    student-controlled file_name in .status-banner__meta."""
+    c, wa = client
+    job = wa.JobState(
+        job_id="pendingjob123",
+        state="pending",
+        created_at="2026-07-05T00:00:00+00:00",
+        file_name="A_Very_Long_Unbroken_Uploaded_Filename_Example.pdf",
+    )
+    wa._set_job(job)
+    resp = c.get("/audits/pendingjob123")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'class="status-banner__body"' in html
+    assert "A_Very_Long_Unbroken_Uploaded_Filename_Example.pdf" in html
+
+
+def test_results_page_ui_intact_alongside_status_banner_fix(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Guard against regressions in the recently-simplified findings UI while
+    touching the shared base.html/job.html status-banner markup: topic summary
+    stays, the old root-cause cards stay removed, sort defaults to page order,
+    and there's no severity filter."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Findings by topic" in html
+    assert "Most common issues" not in html
+    assert '<option value="default" selected>Page order</option>' in html
+    assert b"filter-severity" not in resp.content
+    assert '<div class="summary-card__label">Items to review</div>' in html
+    assert '<div class="summary-card__label">Pages affected</div>' in html
+    assert '<div class="summary-card__label">Rules flagged</div>' in html
+
+
 # ---------------------------------------------------------------------------
 # PDF serve route (/audits/{job_id}/pdf)
 # ---------------------------------------------------------------------------
