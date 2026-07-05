@@ -1,21 +1,40 @@
-# Open PR Triage (2026-07-05, #6: #375 clean_minimal demo baseline docs merged)
+# Open PR Triage (2026-07-05, #7: #375 confirmed merged — no action required)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #5 snapshot below (baseline `d883e9e`, #437 merge) is preserved
-> as historical context only — see the "What happened in this pass (2026-07-05, #5)" section
+> **Superseded:** the 2026-07-05 #6 snapshot below (baseline `d89f4ce`, #375 merge) is preserved
+> as historical context only — see the "What happened in this pass (2026-07-05, #6)" section
 > further down. Everything above that point is current.
 
-**Baseline inspected:** `main` @ `d89f4cef082bafc71a0e8dcb18fc37f05e53fed8` (squash-merge of PR
-[#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375)). Short SHA: `d89f4ce`.  
-**Live server:** still serving `95e3aa5` (#459 page-order UI refactor) — unchanged; this pass did
-not touch the live deployment/systemd service.  
-**Open PR count:** **1** — #376 only. #375 is merged and its remote branch
-(`docs/fix-clean-minimal-demo-baseline`) already deleted.
+**Baseline inspected:** `main` @ `b6cc8dbc6fb2b2a2f96a84bf59c648322161dfa4` (squash-merge of PR
+[#460](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/460), on top of `#375` at
+`d89f4ce`). Short SHA: `b6cc8db`.  
+**Live server:** serving `b6cc8db` (#460 compact individual-findings cards) — unchanged in this
+pass (no deployment/systemd action taken).  
+**Open PR count:** **1** — #376 only. #375 is **merged** (`d89f4ce`, 2026-07-05); remote branch
+already deleted.
 
-## What happened in this pass (2026-07-05, #6)
+## What happened in this pass (2026-07-05, #7)
+
+Re-triaged **#375** per explicit instruction. **No merge, rebase, or close action was needed** — the
+PR was already squash-merged to `main` on 2026-07-05 (`d89f4cef082bafc71a0e8dcb18fc37f05e53fed8`).
+
+- **Confirmed on current `main`:** all five #375 files/changes are present, including
+  `test_clean_minimal_pdf_produces_expected_residual_findings` and updated
+  `docs/planning/synthetic_web_demo_fixtures.md` §3.1 (residual P011/P013/P027 outputs, not
+  zero-finding baseline).
+- **Still useful / not superseded:** documentation and test alignment remain correct; later #459/#460
+  UI work did not replace this demo-fixture baseline cleanup.
+- **Prior CI failure (historical):** stale branch ~122 commits behind `main`; not a defect in the
+  narrow docs/test diff (original 2026-06-26 CI logs expired).
+- **Validation re-run on `b6cc8db`:** `ruff check .` — passed; `mypy src` — no issues in 105 files;
+  `test_clean_minimal_pdf_produces_expected_residual_findings` — passed.
+- **#376** left open and untouched.
+- No live deployment/systemd action taken in this pass.
+
+## Historical — what happened in the previous pass (2026-07-05, #6)
 
 Reviewed and merged **#375** (`Align clean_minimal demo fixture docs with actual audit output`):
 docs/test-only cleanup aligning `clean_minimal.pdf` documentation and smoke-test expectations with
