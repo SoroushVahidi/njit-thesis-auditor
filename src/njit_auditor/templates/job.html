@@ -451,7 +451,7 @@
       {% if category_summary %}
       <li>
         <span class="ro-label">Findings by topic</span> —
-        <a href="#section-topics">The table below</a> ranks every category by finding count. Start with the largest and click Review to see every example in that category.
+        <a href="#section-topics">The table below</a> ranks every category by finding count. Start with the largest and click Review all to see every example in that category.
       </li>
       {% endif %}
       {% if report_view and (report_view.triage_panels or secondary_category_cards) %}
@@ -479,24 +479,20 @@
 <section id="section-topics" class="section" aria-label="Findings by topic">
   <div class="section-header">
     <h2>Findings by topic</h2>
-    <span class="section-note">Every category at a glance, sorted by count — start with the largest and click Review to see every finding in it.</span>
+    <span class="section-note">Every category at a glance, sorted by count — start with the largest and click Review all to see every finding in it.</span>
   </div>
   <div class="card" style="padding:0.5rem 0.75rem">
     <div class="table-scroll">
     <table>
       <thead>
-        <tr><th>Category</th><th>Findings</th><th>Affected pages</th><th></th></tr>
+        <tr><th>Topic</th><th>Findings</th><th></th></tr>
       </thead>
       <tbody>
       {% for row in category_summary %}
         <tr>
-          <td>
-            <a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a>
-            {% if row.explanation %}<br><span class="file-hint" style="margin:0">{{ row.explanation }}</span>{% endif %}
-          </td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
           <td>{{ row.count }}</td>
-          <td>{{ row.pages_compact if row.pages_compact else "—" }}</td>
-          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block;white-space:nowrap">Review</a></td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block;white-space:nowrap">Review all</a></td>
         </tr>
       {% endfor %}
       </tbody>
