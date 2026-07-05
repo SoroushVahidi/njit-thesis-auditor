@@ -7,16 +7,62 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #2 (#440 P016/P023 non-body-spacing fix reviewed and merged)
+## Current Status — 2026-07-05, #3 (#454 findings-controls simplification merged)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#1 branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation snapshot, the earlier
-2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot,
-PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis /
-cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure snapshot,
-post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01,
-2026-06-25, and earlier dated bullets) is preserved as historical context and should not be read
-as current.
+#2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation
+snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot,
+2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot, live
+regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
+snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
+2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
+not be read as current.
+
+- **Code baseline `main`:** `013c836103d635e26375d85b7ce4ef9363a5d684` (squash merge of PR
+  [#454](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/454), `refactor: simplify
+  findings controls and default to page order`). Short SHA: `013c836`.
+- **Reviewed and merged #454** (presentation/sorting-only, no detector/threshold/rule-ID/export
+  change):
+  - Removed the student-facing **Severity** filter dropdown from the Findings control bar
+    (`job.html`) — severity was already redundant with the per-card status badge, and most
+    findings are review signals rather than confirmed defects. Removed the now-unused
+    `filter-severity` JS filtering logic, `data-severity` dataset attributes, and the
+    `filter_severities` context variable in `web_app.py`. Severity badges (Fail/Review/Info) on
+    finding cards are unchanged.
+  - Made **page order** the default grouped-problem order: `sort_grouped_problems()`'s `"default"`
+    mode now sorts by earliest affected page (same output as the existing `"page_order"` value),
+    matching front-to-back dissertation review instead of an arbitrary insertion order. Multi-page
+    cards sort by their minimum affected page; pageless findings sort last; same-page cards keep
+    stable relative order.
+  - Renamed the "Sort problems" dropdown's default option from "Default order" to **"Page order"**
+    and folded the now-redundant standalone `page_order` `<option>` into it — an explicit
+    `?sort=page_order` query string still resolves identically.
+  - Kept Rule, Category, Page, and Confidence filters and Reset filters unchanged; no JSON/Markdown
+    export, grouping-key, or confidence-logic change.
+  - Verified directly from the diff (7 files, +92/−54): `report_view.py`, `templates/job.html`,
+    `web_app.py`, and four test files only — no `src/njit_auditor/rules/*.py` touched.
+  - Manually verified mobile behavior: started the app locally on a scratch port (not the live
+    systemd/tmux service), ran a real audit against
+    `tests/fixtures/web_demo/issues_pdf.pdf`, and inspected the rendered results page in headless
+    Chromium at 390px width — filter bar height dropped from ~304px to ~243px (less crowded), no
+    horizontal overflow (`scrollWidth == clientWidth == 390`), "Page order" selected by default,
+    severity badge still rendered on cards.
+  - Merged with squash (`013c836`); deleted the remote branch
+    `refactor/findings-controls-page-order`.
+- **Live server:** still serving `55149ac`/`a5f6c74`-era code — **not** updated in this pass (no
+  deployment action taken); `013c836` will be picked up by a future deploy pass.
+- **Open PR count:** **4**, unchanged — #436, #437 (detector/highlight fixes awaiting
+  human/Ester review), #375, #376 (stale, need rebase + fresh CI before any merge decision). #454
+  was not one of the tracked open-PR-triage items (opened and merged within this same pass).
+- Validation on the merged commit (`013c836`): `ruff check .` — passed; `mypy src` — no issues in
+  105 files; `python -m pytest` — **2550 passed**. Does not touch P021, P026, rule IDs, or
+  detector/threshold behavior; P084 not started.
+
+---
+
+## Historical — 2026-07-05, #2 (#440 P016/P023 non-body-spacing fix reviewed and merged)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `a5f6c7428f5de1b6afb8311f737a0b9de691bd3f` (merge of PR
   [#440](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/440), P016/P023 non-body-content

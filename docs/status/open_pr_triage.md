@@ -1,12 +1,69 @@
-# Open PR Triage (2026-07-05, #2: #440 P016/P023 non-body-spacing fix reviewed and merged)
+# Open PR Triage (2026-07-05, #3: #454 findings-controls simplification merged)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #1 snapshot below (baseline `55149ac`, branch cleanup) is
-> preserved as historical context only — see the "Historical"/"Previous pass" sections further
-> down. Everything above that point is current.
+> **Superseded:** the 2026-07-05 #2 snapshot below (baseline `a5f6c74`, #440 merge) is preserved
+> as historical context only — see the "Historical"/"Previous pass" sections further down.
+> Everything above that point is current.
+
+**Baseline inspected:** `main` @ `013c836103d635e26375d85b7ce4ef9363a5d684` (squash merge of PR
+[#454](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/454)). Short SHA: `013c836`.  
+**Live server:** still serving pre-`a5f6c74` code (unchanged — this pass did not touch the live
+deployment/systemd or tmux service; `013c836` is not yet deployed)  
+**Open PR count:** **4**, unchanged (2 detector-behavior fixes awaiting human/Ester review, 2
+stale/CI-failing needing a fresh rebase before any merge decision) — #454 was not itself one of
+the tracked open-PR-triage items; it was opened and merged within this same pass.
+
+## What happened in this pass (2026-07-05, #3)
+
+Reviewed and merged **#454** (`refactor: simplify findings filters and default to page order`),
+opened earlier this same pass: removed the student-facing **Severity** filter dropdown from the
+Findings control bar (redundant with the per-card status badge; most findings are review signals,
+not confirmed defects) and made **page order** the default grouped-problem sort (earliest affected
+page; matches front-to-back dissertation review instead of arbitrary insertion order). Renamed the
+sort dropdown's default option from "Default order" to "Page order," folding the now-redundant
+standalone `page_order` option into it (`?sort=page_order` still resolves identically).
+
+- Confirmed the diff was narrow and presentation-only: 7 files (`report_view.py`,
+  `templates/job.html`, `web_app.py`, 4 test files), no `src/njit_auditor/rules/*.py` touched, no
+  rule-ID/threshold/grouping-key/confidence-logic/export changes.
+- Confirmed no unused JS, empty layout columns, or stale context variables were left behind: the
+  `filter-severity` JS filtering branches, `data-severity` dataset attributes, and the
+  `filter_severities` web_app.py context variable were all removed together with the dropdown.
+- Confirmed severity badges (Fail/Review/Info) still render on grouped-problem cards via a new
+  regression test (`test_grouped_problem_cards_still_show_severity_badge`).
+- Confirmed origin/main had not moved since the PR was branched (`b3e7ae1`, unchanged) — no rebase
+  needed.
+- Manually verified mobile behavior: started the app locally on a scratch port with `PYTHONPATH`
+  exported first (this repo's shared venv otherwise silently resolves `njit_auditor` from a
+  different worktree — caught and corrected this exact issue mid-pass), ran a real audit against
+  `tests/fixtures/web_demo/issues_pdf.pdf`, and inspected the rendered page in headless Chromium at
+  390px width: filter bar height dropped from ~304px to ~243px, no horizontal overflow
+  (`scrollWidth == clientWidth == 390`), "Page order" selected by default, severity badge still
+  visible on cards.
+- **Also, separately, an accidental shared-resource side effect was caught and reverted:** running
+  `pip install -e ".[dev]"` (the first step of this repo's default validation workflow) inside this
+  feature worktree repointed the **shared** modal-venv's editable install
+  (`__editable__.njit_thesis_auditor-0.1.0.pth`) from `main/src` to this worktree's `src` — which
+  would have silently broken every other worktree/session relying on that shared venv. Reverted the
+  `.pth` file back to `main/src` immediately; all subsequent validation in this pass used an
+  explicit `PYTHONPATH` export instead of relying on the shared editable install.
+- Merged with squash (`013c836`); deleted the remote branch
+  `refactor/findings-controls-page-order`.
+
+Validation on the merged commit (`013c836`): `ruff check .` — passed; `mypy src` — no issues in
+105 files; `python -m pytest` — **2550 passed**.
+
+**No live deployment change** — the live server remains on pre-`a5f6c74` code; a future deploy pass
+will pick up `013c836`.
+
+---
+
+## Historical — 2026-07-05, #2 (#440 P016/P023 non-body-spacing fix reviewed and merged)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 **Baseline inspected:** `main` @ `a5f6c7428f5de1b6afb8311f737a0b9de691bd3f` (merge of PR
 [#440](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/440)). Short SHA: `a5f6c74`.  
