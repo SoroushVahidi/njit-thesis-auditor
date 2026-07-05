@@ -166,19 +166,6 @@ def test_no_all_findings_are_heuristic(
 # 3. Summary card / triage panel titles use "summary", not "triage"
 # ---------------------------------------------------------------------------
 
-def test_triage_panel_titles_use_summary_not_triage(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    c, wa = client
-    job_id = _inject_job_with_triage(wa, tmp_path)
-    resp = c.get(f"/audits/{job_id}")
-    assert resp.status_code == 200
-    body = resp.text
-    # Panel title must contain "summary", not "triage"
-    assert "Margin / overflow summary" in body
-    assert "Margin / overflow triage" not in body
-
-
 def test_page_number_panel_title_uses_summary(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:

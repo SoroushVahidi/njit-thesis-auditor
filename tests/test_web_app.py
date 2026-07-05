@@ -750,25 +750,24 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
     assert "<th>Rule</th>" not in table_html
 
 
-def test_findings_by_topic_precedes_most_common_issues(
+def test_findings_by_topic_is_the_main_category_overview(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """The compact "Findings by topic" table and the richer "Most common
-    issues" cards both cover categories, but must keep distinct, non-
-    overlapping roles: the compact table comes first (right after Summary /
-    Recommended review order) and the rich cards follow it."""
+    """Findings by topic is now the only category overview on the main
+    report: it sits right after Recommended review order and directly
+    before the detailed Findings section, with no separate "Most common
+    issues" section repeating the same categories/counts in between."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     html = resp.content.decode()
 
+    idx_review_order = html.index('id="section-review-order"')
     idx_topics = html.index('id="section-topics"')
-    idx_triage = html.index('id="section-triage"')
-    assert idx_topics < idx_triage
-    # The rich cards section no longer repeats a second "at a glance" table.
-    triage_html = html[idx_triage:]
-    assert "Problem categories" not in triage_html
+    idx_findings = html.index('id="section-findings"')
+    assert idx_review_order < idx_topics < idx_findings
+    assert 'id="section-triage"' not in html
 
 
 def test_findings_by_topic_coexists_with_simplified_summary_and_nav(
@@ -1524,13 +1523,23 @@ def test_results_page_groups_source_locations_compactly(
     assert b"Show individual occurrences" in resp.content
 
 
-def test_results_page_shows_triage_panels(client: tuple[TestClient, Any], tmp_path: Path) -> None:
+def test_results_page_no_longer_shows_most_common_issues_section(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The "Most common issues" root-cause cards were removed as repetitive
+    now that "Findings by topic" is the main category overview: same counts
+    and categories, one compact table instead of two competing summaries."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Most common issues" in resp.content
-    assert b"Margin" in resp.content or b"P011" in resp.content
+    html = resp.content.decode()
+    assert "Most common issues" not in html
+    assert 'id="section-triage"' not in html
+    assert "Examples for this rule" not in html
+    # The category overview students actually use is still present.
+    assert 'id="section-topics"' in html
+    assert "Findings by topic" in html
 
 
 def test_results_page_category_chips_link_to_problem_pages(
@@ -1543,23 +1552,12 @@ def test_results_page_category_chips_link_to_problem_pages(
     assert f'/audits/{job_id}/problems/category/margin-or-overflow'.encode() in resp.content
 
 
-def test_results_page_triage_cards_link_to_rule_problem_pages(
+def test_results_page_p013_all_routine_candidates_absent_from_topic_table(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    c, wa = client
-    job_id = _inject_complete_job(wa, tmp_path, finding_count=6)
-    resp = c.get(f"/audits/{job_id}")
-    assert resp.status_code == 200
-    assert f'/audits/{job_id}/problems/rule/P011'.encode() in resp.content
-    assert b"Examples for this rule" in resp.content
-
-
-def test_results_page_p013_triage_panel_shows_when_all_candidates_routine(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    """When every P013 candidate is routine (no visible problems), the panel must
-    show 0 problems / N informational candidates and link to the inventory section
-    instead of the (otherwise 404-ing) rule examples page."""
+    """When every P013 candidate is routine (no visible problems), it must not
+    appear in Findings by topic at all — it's supporting inventory data, not a
+    problem category — and the rule drilldown correctly has nothing to show."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -1581,26 +1579,27 @@ def test_results_page_p013_triage_panel_shows_when_all_candidates_routine(
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
     )
+    job = wa._get_job(job_id)
+    assert len(job.report_view.get("inventory_findings", [])) == 3
+    assert not job.report_view.get("category_summary")
 
     resp = c.get(f"/audits/{job_id}")
 
     assert resp.status_code == 200
     html = resp.content.decode()
-    assert "Page-number candidates summary" in html
-    assert "3 informational candidate" in html
-    assert "See detected candidates" in html
-    assert f'/audits/{job_id}/problems/rule/P013"' not in html
+    assert 'id="section-topics"' not in html
+    assert "Page numbering" not in html
 
     rule_resp = c.get(f"/audits/{job_id}/problems/rule/P013")
     assert rule_resp.status_code == 404
 
 
-def test_results_page_p013_triage_panel_splits_problems_from_candidates(
+def test_results_page_p013_real_problem_appears_in_topic_table(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """A real P013 problem (multiple candidates on one page) must show an
-    "Examples for this rule" link and a problem-count badge alongside the
-    informational-candidate badge, while routine pages stay informational."""
+    """A real P013 problem (multiple candidates on one page) must surface in
+    Findings by topic with a working Review all link to a drilldown page that
+    shows the actual problem, distinct from the routine candidates."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -1640,54 +1639,13 @@ def test_results_page_p013_triage_panel_splits_problems_from_candidates(
 
     assert resp.status_code == 200
     html = resp.content.decode()
-    assert "1 problem" in html
-    assert "3 informational candidate" in html
-    assert f'/audits/{job_id}/problems/rule/P013' in html
-    assert "Examples for this rule" in html
+    assert "3 detected candidate" in html
+    topics_html = html.split('id="section-topics"', 1)[1].split("</section>", 1)[0]
+    assert "Page numbering" in topics_html
 
     rule_resp = c.get(f"/audits/{job_id}/problems/rule/P013")
     assert rule_resp.status_code == 200
     assert b"Multiple page-number-like tokens" in rule_resp.content
-
-
-def test_results_page_p013_all_routine_informational_not_prominent_badge(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    """Purely informational page-number candidates (no real P013 problems) must
-    not be displayed as a prominent badge in the primary "Most common issues"
-    section — they should read as a subdued supporting-info line instead."""
-    from njit_auditor.models import AuditFinding, Severity
-
-    c, wa = client
-    findings = [
-        AuditFinding(
-            rule_id="P013",
-            severity=Severity.WARNING,
-            page=page,
-            message="Page has one page-number-like candidate.",
-            details={
-                "issue_type": "page_number_candidate",
-                "position_type": "bottom_center",
-                "number_style": "arabic",
-                "confidence": "medium",
-            },
-        )
-        for page in range(1, 4)
-    ]
-    job_id = _inject_complete_job_with_findings(
-        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
-    )
-
-    resp = c.get(f"/audits/{job_id}")
-
-    assert resp.status_code == 200
-    html = resp.content.decode()
-    # The count is still visible as supporting text...
-    assert "3 informational candidate" in html
-    assert "not counted as problems" in html
-    # ...but never as a prominent pill-style badge competing with real problems.
-    assert 'badge-muted">3 informational' not in html
-    assert 'badge-warn">3 informational' not in html
 
 
 def test_category_labels_have_no_underscores_in_summary_cards(
@@ -1765,9 +1723,8 @@ def test_results_page_advanced_rule_summary_is_collapsed(
 def test_results_page_review_action_labels_present_on_mobile_and_desktop(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Action buttons in the merged summary use short, distinct labels
-    ("Review examples", "Review") instead of a "View all" repeated in every
-    row, and this holds for both mobile and desktop viewports."""
+    """Findings by topic's "Review all" action label is present regardless of
+    viewport (the server renders identical markup; layout is handled by CSS)."""
     mobile_headers = {
         "User-Agent": (
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -1779,8 +1736,7 @@ def test_results_page_review_action_labels_present_on_mobile_and_desktop(
     desktop_html = c.get(f"/audits/{job_id}").content.decode()
     mobile_html = c.get(f"/audits/{job_id}", headers=mobile_headers).content.decode()
     for html in (desktop_html, mobile_html):
-        assert "Examples for this rule" in html
-        assert "Review" in html
+        assert "Review all" in html
 
 
 def test_occurrence_table_long_issue_and_fix_text_uses_detail_cell(
@@ -3482,9 +3438,11 @@ def _nav_block(html: str) -> str:
 def test_nav_chips_reflect_decluttered_report_structure(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """The top nav must match the decluttered report from #441-#443: no
-    standalone "By problem type" chip (merged into "Most common issues"),
-    and the rule-by-rule table is a demoted "Advanced details" chip, not a
+    """The top nav must match the decluttered report from #441-#450: no
+    standalone "By problem type" chip (superseded by "Findings by topic"),
+    no "Most common issues" chip (that section was removed as repetitive
+    once "Findings by topic" became the main category overview), and the
+    rule-by-rule table is a demoted "Advanced details" chip, not a
     primary "By rule" chip."""
     from njit_auditor.models import AuditFinding, Severity
 
@@ -3515,13 +3473,14 @@ def test_nav_chips_reflect_decluttered_report_structure(
     nav = _nav_block(resp.content.decode())
 
     # Core, always-primary chips.
-    for label in ("Summary", "Review order", "Most common issues", "Findings", "Downloads"):
+    for label in ("Summary", "Review order", "Findings by topic", "Findings", "Downloads"):
         assert f">{label}<" in nav, f"Missing core chip: {label!r}"
 
     # The old repetitive/technical labels must not appear as chip text.
     assert "By problem type" not in nav
     assert ">By rule<" not in nav
     assert ">Detected candidates<" not in nav
+    assert ">Most common issues<" not in nav
 
     # Reviewer-facing destinations are present but clearly demoted.
     assert ">Advanced details<" in nav
@@ -4337,3 +4296,4 @@ def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:
         assert "Soroush Vahidi" in body, f"{path} missing author name"
         assert "mailto:sv96@njit.edu" in body, f"{path} missing mailto link"
         assert "soroush.vahidi@njit.edu" not in body, f"{path} contains wrong email address"
+

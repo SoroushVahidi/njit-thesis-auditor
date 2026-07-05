@@ -367,7 +367,7 @@
 <nav class="jump-links" aria-label="Jump to section">
   <a href="#section-summary">Summary</a>
   <a href="#section-review-order">Review order</a>
-  {% if report_view and (report_view.triage_panels or secondary_category_cards) %}<a href="#section-triage">Most common issues</a>{% endif %}
+  {% if category_summary %}<a href="#section-topics">Findings by topic</a>{% endif %}
   <a href="#section-findings">Findings</a>
   <a href="#section-downloads">Downloads</a>
   {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Advanced details</a>{% endif %}
@@ -451,13 +451,7 @@
       {% if category_summary %}
       <li>
         <span class="ro-label">Findings by topic</span> —
-        <a href="#section-topics">The table below</a> ranks every category by finding count. Start with the largest and click Review all to see every example in that category.
-      </li>
-      {% endif %}
-      {% if report_view and (report_view.triage_panels or secondary_category_cards) %}
-      <li>
-        <span class="ro-label">Most common issues</span> —
-        <a href="#section-triage">The cards below</a> group findings by root cause. Check each card's affected-page range and open its action button; a single underlying issue often explains dozens of findings.
+        <a href="#section-topics">The table below</a> ranks every category by finding count. Start with the largest categories and click Review all to see every example in that category.
       </li>
       {% endif %}
       {% if warn_count > 0 %}
@@ -499,87 +493,6 @@
     </table>
     </div>
   </div>
-</section>
-{% endif %}
-
-{% if report_view and (report_view.triage_panels or secondary_category_cards) %}
-<section id="section-triage" class="section" aria-label="Most common issues">
-  <div class="section-header">
-    <h2>Most common issues</h2>
-    <span class="section-note">Richer examples and explanations for the highest-impact root causes — see <a href="#section-topics">Findings by topic</a> above for every category at a glance.</span>
-  </div>
-  {% for panel in report_view.triage_panels %}
-  {% set has_examples = panel.problem_count > 0 %}
-  <div class="card triage-panel{% if has_examples %} triage-panel--clickable js-card-link{% endif %}"
-       {% if has_examples %}
-       data-href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}"
-       tabindex="0"
-       role="link"
-       aria-label="Open examples for {{ panel.title }}"
-       {% endif %}>
-    <div class="triage-panel__header">
-      <span class="triage-panel__title">{{ panel.title }}</span>
-      <span class="badge badge-info">
-        {% if is_p_rule_id(panel.rule_id) %}
-        <a href="/rules#{{ panel.rule_id }}" class="rule-link" style="color:inherit;" aria-label="{{ panel.rule_id }}: see rule reference">{{ panel.rule_id }}</a>
-        {% else %}{{ panel.rule_id }}{% endif %}
-      </span>
-      {% if panel.problem_count > 0 %}
-      <span class="badge badge-warn">{{ panel.problem_count }} problem{{ "" if panel.problem_count == 1 else "s" }}</span>
-      {% elif not panel.informational_count %}
-      <span class="badge badge-warn">{{ panel.raw_finding_count }} findings</span>
-      {% endif %}
-    </div>
-    {% if panel.triage_note %}
-    <p style="font-size:0.9rem;margin:0 0 0.5rem">{{ panel.triage_note }}</p>
-    {% endif %}
-    {% if panel.affected_pages_compact %}
-    <p class="file-hint" style="margin:0 0 0.5rem"><strong>Affected pages:</strong> {{ panel.affected_pages_compact }}</p>
-    {% endif %}
-    {% if panel.highlights %}
-    <ul class="bullet-list" style="margin:0">
-      {% for label, value in panel.highlights %}
-      <li><strong>{{ label }}:</strong> {{ value }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-    {% if panel.informational_count > 0 %}
-    <p class="file-hint" style="margin:0.4rem 0 0">
-      {{ panel.informational_count }} informational candidate{{ "" if panel.informational_count == 1 else "s" }} — supporting data, not counted as problems. <a href="#section-inventory">See detected candidates</a>
-    </p>
-    {% endif %}
-    {% if has_examples %}
-    <div class="triage-panel__actions">
-      <a href="/audits/{{ job_id }}/problems/rule/{{ panel.rule_id }}" class="btn btn-secondary">Examples for this rule</a>
-    </div>
-    {% elif report_view.inventory_findings %}
-    <div class="triage-panel__actions">
-      <a href="#section-inventory" class="btn btn-secondary">See detected candidates</a>
-    </div>
-    {% endif %}
-  </div>
-  {% endfor %}
-  {% for card in secondary_category_cards %}
-  <div class="card triage-panel triage-panel--clickable js-card-link"
-       data-href="/audits/{{ job_id }}/problems/category/{{ card.category | category_slug }}"
-       tabindex="0"
-       role="link"
-       aria-label="Open examples for {{ card.category | humanize_cat }}">
-    <div class="triage-panel__header">
-      <span class="triage-panel__title">{{ card.category | humanize_cat }}</span>
-      <span class="badge badge-warn">{{ card.count }} finding{{ "" if card.count == 1 else "s" }}</span>
-    </div>
-    {% if card.explanation %}
-    <p style="font-size:0.9rem;margin:0 0 0.5rem">{{ card.explanation }}</p>
-    {% endif %}
-    {% if card.pages_compact %}
-    <p class="file-hint" style="margin:0 0 0.5rem"><strong>Affected pages:</strong> {{ card.pages_compact }}</p>
-    {% endif %}
-    <div class="triage-panel__actions">
-      <a href="/audits/{{ job_id }}/problems/category/{{ card.category | category_slug }}" class="btn btn-secondary">Review examples</a>
-    </div>
-  </div>
-  {% endfor %}
 </section>
 {% endif %}
 

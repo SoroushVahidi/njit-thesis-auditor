@@ -238,16 +238,18 @@ def drilldown_job(app: tuple[TestClient, Any]) -> tuple[TestClient, Any, str]:
 # ---------------------------------------------------------------------------
 
 
-def test_result_page_has_most_common_issues_heading(
+def test_result_page_has_no_duplicate_category_summary(
     drilldown_job: tuple[TestClient, Any, str],
 ) -> None:
-    """The old standalone "Summary by problem type" table was merged into the
-    "Most common issues" root-cause cards, so it should no longer render as its
-    own duplicate table — but category information must still surface there."""
+    """Neither the old standalone "Summary by problem type" table nor the
+    later "Most common issues" root-cause cards should render — "Findings by
+    topic" is now the single category overview, so category information must
+    still surface there without a second, duplicate summary alongside it."""
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "Most common issues" in text
+    assert "Findings by topic" in text
     assert "Summary by problem type" not in text
+    assert "Most common issues" not in text
 
 
 def test_result_page_shows_font_format_category(
@@ -282,14 +284,14 @@ def test_result_page_category_links_present(
     assert f"/audits/{job_id}/problems/category/" in text
 
 
-def test_result_page_review_action_present_in_category_cards(
+def test_result_page_review_action_present_in_category_rows(
     drilldown_job: tuple[TestClient, Any, str],
 ) -> None:
-    """Root-cause cards use a clear, non-repetitive action label instead of a
-    "View all" button repeated in every summary row."""
+    """Findings by topic rows use a clear, non-repetitive "Review all" action
+    label instead of a "View all" button repeated in every summary row."""
     c, _, job_id = drilldown_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "Review examples" in text
+    assert "Review all" in text
 
 
 def test_result_page_category_counts_nonzero(
