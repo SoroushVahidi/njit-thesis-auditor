@@ -448,6 +448,12 @@
         {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Filter by severity → Needs fixing</a> and verify each one against NJIT guidelines.
       </li>
       {% endif %}
+      {% if category_summary %}
+      <li>
+        <span class="ro-label">Findings by topic</span> —
+        <a href="#section-topics">The table below</a> ranks every category by finding count. Start with the largest and click Review to see every example in that category.
+      </li>
+      {% endif %}
       {% if report_view and (report_view.triage_panels or secondary_category_cards) %}
       <li>
         <span class="ro-label">Most common issues</span> —
@@ -469,11 +475,42 @@
 </section>
 {% endif %}
 
+{% if category_summary %}
+<section id="section-topics" class="section" aria-label="Findings by topic">
+  <div class="section-header">
+    <h2>Findings by topic</h2>
+    <span class="section-note">Every category at a glance, sorted by count — start with the largest and click Review to see every finding in it.</span>
+  </div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Findings</th><th>Affected pages</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for row in category_summary %}
+        <tr>
+          <td>
+            <a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a>
+            {% if row.explanation %}<br><span class="file-hint" style="margin:0">{{ row.explanation }}</span>{% endif %}
+          </td>
+          <td>{{ row.count }}</td>
+          <td>{{ row.pages_compact if row.pages_compact else "—" }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block;white-space:nowrap">Review</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
 {% if report_view and (report_view.triage_panels or secondary_category_cards) %}
 <section id="section-triage" class="section" aria-label="Most common issues">
   <div class="section-header">
     <h2>Most common issues</h2>
-    <span class="section-note">What to fix first — one root cause often explains many findings. Open a card's action button to review examples.</span>
+    <span class="section-note">Richer examples and explanations for the highest-impact root causes — see <a href="#section-topics">Findings by topic</a> above for every category at a glance.</span>
   </div>
   {% for panel in report_view.triage_panels %}
   {% set has_examples = panel.problem_count > 0 %}
