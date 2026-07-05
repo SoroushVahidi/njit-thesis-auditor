@@ -1,23 +1,69 @@
-# Open PR Triage (2026-07-05, #439/#435 branches deleted; live server confirmed at 55149ac)
+# Open PR Triage (2026-07-05, #2: #440 P016/P023 non-body-spacing fix reviewed and merged)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-04 snapshot below (baseline `82f2d90`, PR #439) is preserved as
-> historical context only — see the "Historical" sections further down. Everything above that
-> point is current.
+> **Superseded:** the 2026-07-05 #1 snapshot below (baseline `55149ac`, branch cleanup) is
+> preserved as historical context only — see the "Historical"/"Previous pass" sections further
+> down. Everything above that point is current.
 
-**Baseline inspected:** `main` @ `55149ac2b662c455a67c636489239e6af4a60062` (merge of PR
-[#451](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/451); short SHA `55149ac`)  
-**Live server:** confirmed serving `55149ac` via `/version` on both `127.0.0.1:8000` and
-`10.196.93.210:8000` — up to date with `main`; the UI-decluttering PRs #448–#451 (Findings by
-topic table, its mobile simplification, and removal of the redundant Most common issues section)
-were deployed in prior passes, and this pass made no deployment change (docs/branch cleanup only)  
-**Open PR count:** **5** (3 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
+**Baseline inspected:** `main` @ `a5f6c7428f5de1b6afb8311f737a0b9de691bd3f` (merge of PR
+[#440](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/440)). Short SHA: `a5f6c74`.  
+**Live server:** still serving `55149ac` (unchanged — this pass did not touch the live
+deployment/systemd service; `a5f6c74` is not yet deployed)  
+**Open PR count:** **4** (2 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
 needing a fresh rebase before any merge decision)
 
-## What happened in this pass (2026-07-05)
+## What happened in this pass (2026-07-05, #2)
+
+Reviewed, rebased, and merged **#440** (`fix(P016,P023): stop flagging non-body content as body
+spacing`) after manual review found P016/P023 treating non-body content (front-matter template
+layout, table cells, references entries) as ordinary body text:
+
+- **P016** (`pdf_spacing.py`): skips `BIOGRAPHICAL SKETCH`/`APPROVAL PAGE` pages (special-layout
+  front-matter templates whose large author/degree/date or committee-signature gaps are
+  intentional) from the ordinary heading-blank-gap/paragraph-gap checks. Corrected student-facing
+  wording from "before a heading" to "after a heading" in `polished_comments.py`,
+  `finding_explanations.py`, and `issue_type_explanations.py` (the detector always measured the
+  gap *after* the heading; only the wording was wrong). `ABSTRACT`/`ACKNOWLEDGEMENTS` pages remain
+  fully checked — this rule is scoped to front matter only, and the exclusion only covers the two
+  pages with a genuinely different, intentional template layout.
+- **P023** (`pdf_body_spacing.py`): excludes captioned table regions (a new caption-anchored
+  band — reuses the existing `detect_caption_lines()` utility — spanning the caption plus the
+  contiguous run of tightly packed rows) and the entire References/Bibliography section including
+  continuation pages that don't repeat the heading (via a new public
+  `references_section_page_numbers()` helper in `pdf_references_citations_structural.py`, purely
+  additive, reuses existing private heading-localization logic). Findings now carry a `bbox`
+  covering the measured body-text region plus `measured_body_line_count`/`measured_gap_count`
+  detail fields, so evidence points at the actual measured lines.
+- Verified narrow scope directly from the diff: no rule IDs changed, no existing threshold
+  constants modified (only two new constants added for table-band detection), no grouping/
+  sorting/confidence/export code touched (`report_view.py`, `web_app.py`, `report_outputs.py` not
+  in the diff). Table detection uses real table captions only (not figure captions), so
+  figure-caption pages are unaffected. Confirmed empirically that table borders (graphic strokes)
+  were never part of the text-line measurement in the first place — nothing to fix there
+  structurally, but the new tests assert it explicitly.
+- Rebased cleanly from its original base (`c8a1043`, ~40 commits behind) onto `main` @ `5835ca6`
+  with zero conflicts; force-pushed the rebase to the PR branch.
+- All 7 of the PR's new regression tests pass (biosketch/approval P016 suppression, after-heading
+  wording + position detail, table-only suppression, table borders as non-evidence, table+body
+  measuring only the body region, references continuation-page suppression) alongside the full
+  2542-test baseline (2549 total).
+- Merged with squash (`a5f6c74`) and deleted the remote branch
+  `fix/p016-p023-nonbody-spacing`. (A local, non-rebased copy of this branch remains checked out
+  in an unrelated pre-existing worktree, `wt-spacing`, on the host — left untouched; deleting the
+  remote branch does not affect it.)
+
+Validation on the merged commit (`a5f6c74`): `ruff check .` — passed; `mypy src` — no issues in
+105 files; `python -m pytest` — **2549 passed**.
+
+**No live deployment change** — the live server remains on `55149ac`; a future deploy pass will
+pick up `a5f6c74`.
+
+---
+
+## Previous pass (2026-07-05, #1) — #439/#435 branches deleted; live server confirmed at 55149ac
 
 Narrow docs/branch cleanup pass — no code or deployment changes:
 
@@ -118,8 +164,10 @@ specific current-`main` evidence (no branches deleted):
 
 **#435 and #439 (statistical-notation title-case fix) — resolved this pass:** #439 merged, #435
 closed as superseded. See "What happened in this pass" above.
+**Update (2026-07-05, #2 pass, above):** #440 has since been reviewed, rebased, and merged
+(`a5f6c74`) — the "needs human/Ester review" verdict below no longer applies to it.
 
-**Why #436, #437, #440 weren't auto-merged despite passing CI:** all three touch
+**Why #436, #437, #440 weren't auto-merged despite passing CI (at the time of this pass):** all three touch
 `src/njit_auditor/rules/*.py` — real detector-behavior changes (false-positive suppressions,
 highlight/evidence polish), not presentation-only. This project's own culture (Ester wording/policy
 review, the P021/P026 policy doc) treats any change to what gets flagged as requiring human
@@ -129,7 +177,8 @@ sign-off, not a blind agent merge, even when the fix looks correct and well-test
 
 - Do **not** start **P084**.
 - Do **not** merge #436, #437, or #440 without explicit human/Ester sign-off — they change what
-  gets flagged.
+  gets flagged. **Update (2026-07-05, #2 pass, above):** #440 was explicitly reviewed and merged
+  per direct task instruction; this bullet no longer applies to it.
 - Do **not** merge #375 or #376 as-is — rebase and get a clean CI run first.
 - No remote branches were deleted in this pass (merged and closed PRs' branches all still exist,
   including `fix/p020-stat-notation-capitalization` (#439, merged) and

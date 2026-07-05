@@ -7,15 +7,57 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05 (#439/#435 branches deleted; live server confirmed at `55149ac`)
+## Current Status — 2026-07-05, #2 (#440 P016/P023 non-body-spacing fix reviewed and merged)
 
-This section is the authoritative current snapshot. Everything below it (including the 2026-07-04
-#435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR
-#433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot,
-live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
-snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
-2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
-not be read as current.
+This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
+#1 branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation snapshot, the earlier
+2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot,
+PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis /
+cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure snapshot,
+post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01,
+2026-06-25, and earlier dated bullets) is preserved as historical context and should not be read
+as current.
+
+- **Code baseline `main`:** `a5f6c7428f5de1b6afb8311f737a0b9de691bd3f` (merge of PR
+  [#440](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/440), P016/P023 non-body-content
+  spacing false-positive fix). Short SHA: `a5f6c74`.
+- **Reviewed, rebased, and merged #440** (`fix(P016,P023): stop flagging non-body content as body
+  spacing`) after manual review found both rules treating non-body content as ordinary body text:
+  - **P016:** skips `BIOGRAPHICAL SKETCH`/`APPROVAL PAGE` special-layout front-matter pages (their
+    large author/degree/date or committee-signature gaps are intentional template layout);
+    `ABSTRACT`/`ACKNOWLEDGEMENTS` remain fully checked. Corrected wording from "before a heading"
+    to "after a heading" (the detector always measured the gap after the heading; only the wording
+    was wrong).
+  - **P023:** excludes captioned table regions (caption-anchored band spanning the caption plus
+    contiguous tightly packed rows, via the existing `detect_caption_lines()` utility) and the
+    entire References/Bibliography section including continuation pages (via a new, purely
+    additive `references_section_page_numbers()` helper). Findings now carry a `bbox` plus
+    `measured_body_line_count`/`measured_gap_count` so evidence points at the actual measured
+    lines.
+  - Verified directly from the diff: no rule IDs changed, no existing threshold constants
+    modified, no grouping/sorting/confidence/export code touched. Table detection uses real table
+    captions only, so figure-caption pages are unaffected; table borders were never part of the
+    text-line measurement (graphic strokes, not text).
+  - Rebased cleanly (zero conflicts) from its original stale base (`c8a1043`) onto `main` @
+    `5835ca6`; force-pushed to the PR branch.
+  - All 7 of the PR's regression tests pass alongside the full 2542-test baseline (2549 total).
+  - Merged with squash (`a5f6c74`); deleted the remote branch `fix/p016-p023-nonbody-spacing`. (A
+    local, non-rebased copy remains checked out in an unrelated pre-existing worktree
+    (`wt-spacing`) on the host — left untouched; this doesn't affect that worktree.)
+- **Live server:** still serving `55149ac` — **not** updated in this pass (no deployment action
+  taken); `a5f6c74` will be picked up by a future deploy pass.
+- **Open PR count:** **4** — #436, #437 (detector/highlight fixes awaiting human/Ester review),
+  #375, #376 (stale, need rebase + fresh CI before any merge decision). Down from 5 now that #440
+  is resolved.
+- Validation on the merged commit (`a5f6c74`): `ruff check .` — passed; `mypy src` — no issues in
+  105 files; `python -m pytest` — **2549 passed**. Does not touch P021, P026, rule IDs, unrelated
+  thresholds, or unrelated capitalization/margin/font/page-numbering/TOC/title-page behavior.
+
+---
+
+## Historical — 2026-07-05, #1 (#439/#435 branches deleted; live server confirmed at `55149ac`)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `55149ac2b662c455a67c636489239e6af4a60062` (merge of PR
   [#451](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/451), removal of the redundant
