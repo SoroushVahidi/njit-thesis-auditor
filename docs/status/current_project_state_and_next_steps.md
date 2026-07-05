@@ -7,16 +7,90 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #4 (#436 list-entry highlight/bbox fix merged)
+## Current Status — 2026-07-05, #5 (#437 P011 margin visual polish merged)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#3 snapshot, the 2026-07-05 #2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot, the 2026-07-04
-#435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR
-#433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot,
-live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
-snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
-2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
-not be read as current.
+#4 snapshot, the 2026-07-05 #3 snapshot, the 2026-07-05 #2 snapshot, the 2026-07-05 #1
+branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation snapshot, the earlier 2026-07-04
+post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408
+behavior snapshot, PR #406 merge snapshot, live regression diagnosis / cleanup-paused snapshot,
+post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards
+snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
+preserved as historical context and should not be read as current.
+
+- **Code baseline `main`:** `d883e9e49fa02fe73f7fd18849265d628f5453a1` (squash-merge of PR
+  [#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437), `fix: polish P011 margin
+  warning evidence`, on top of `#457` at `77f4f46`). Short SHA: `d883e9e`.
+- **Reviewed, rebased, and merged #437** (P011 margin-warning visual evidence/clarity polish only —
+  strictness, thresholds, rule ID, issue type, confidence, sorting, and export schema all confirmed
+  unchanged):
+  - `pdf_margins.py`: each violating line now carries its `line_index` (position in the page's
+    top-to-bottom block/line enumeration order). Same-side violations are grouped into tight
+    highlight boxes only when no other line (violating or not) separates them in that order —
+    separated violations now draw as separate boxes instead of one union spanning unrelated clean
+    content between them. A new `margin_boundary_bbox` detail field draws a thin guide rectangle at
+    the exact required margin boundary (vertical for left/right, horizontal for top/bottom), scoped
+    to the affected region. The pre-existing `bbox` union field is unchanged (kept as a
+    backward-compatible fallback); `OVERFLOW_TOLERANCE_PT`, `ARTIFACT_GUARD_*`, and the four margin
+    constants are untouched.
+  - `highlight_targeting.py`: `parse_highlight_bboxes_from_details()` returns the new precise
+    per-group boxes plus the boundary guide for P011 findings (`rule_id == "P011"` and
+    `issue_type == "margin_boundary_violation"`), instead of falling back to the single union
+    `bbox`. The existing per-page aggregation in `web_app._highlight_boxes_by_page` already handles
+    multiple boxes per finding with no further changes needed, so a mixed-side page (e.g. top +
+    right) automatically gets separate box+guide pairs per side.
+  - `p011_student_preview.py`: `P011PagePresentationStats` gained an additive `side_stats` field; the
+    combined-card (mixed-side) comment now appends a concrete "Side detail: right margin (~X pt
+    over, N line(s) affected); ..." breakdown instead of only a vague count.
+  - `polished_comments.py`: the single-side P011 comment (Markdown/export pipeline) now states the
+    rule is strict and applies "even by a small amount" — wording only, no behavior change.
+  - **Known limitation (not a regression):** the adjacency grouping uses PDF content-stream
+    block/line order as a proxy for visual top-to-bottom position. For a typical born-digital
+    dissertation PDF (single-column, text emitted in reading order) this holds and produces tight,
+    correctly separated highlight boxes. In a synthetic adversarial case built during this review
+    (violating lines emitted out of visual order in the content stream), the grouping fell back to
+    unioning across intervening clean content — but this is never worse than pre-PR behavior, which
+    always unioned every same-side violation into one box regardless of position. Documented here
+    rather than blocking the merge.
+  - **Rebase:** the PR's remote branch was based on an older `main` (`07db2fa`, ~22 commits behind
+    the merge baseline); rebasing via `git rebase` was blocked by a pre-existing, repo-wide git-LFS
+    smudge-filter artifact (pointer/binary mismatch on `data/raw/**` and `tests/fixtures/web_demo/**`
+    files, present in every worktree checked, unrelated to this PR and never committed). Worked
+    around by creating a new branch directly from `origin/main` and cherry-picking the PR's single
+    commit onto it (`git cherry-pick`, not `git rebase`) — applied with zero conflicts; diff stat
+    identical to the original PR. Force-pushed the result to the PR branch (explicitly authorized by
+    the task's own "Rebase/update #437 onto latest origin/main if needed" instruction).
+  - **Manual verification:** ran the app on a scratch port (`127.0.0.1:8917`, not the live systemd
+    service) with `PYTHONPATH` pointing at the review worktree, uploaded a synthetic PDF with two
+    separated right-margin overflow lines, confirmed via the real `/audits/{id}/highlighted-page.pdf`
+    endpoint that the two violating lines get separate tight highlight boxes plus one thin vertical
+    boundary guide at the right-margin line — clean intervening body text is not highlighted.
+    Confirmed JSON export is additive (`bbox` unchanged, `highlight_bboxes`/`margin_boundary_bbox`
+    new). Confirmed original-PDF and Markdown/JSON download endpoints all return 200. Rendered the
+    report page in headless Chromium (Playwright) at a 390px viewport: no horizontal overflow
+    (`scrollWidth == clientWidth == 390`), P011 card renders cleanly.
+  - Validation: `ruff check .` — passed; `mypy src` — no issues in 105 source files; `python -m
+    pytest` — **2568 passed** (2512 pre-PR baseline claimed by the PR + 22 commits' worth of tests
+    added to `main` since + 8 new P011 tests). Re-confirmed on the merged `main` commit itself.
+  - Remote branch `fix/p011-margin-visual-polish` deleted at merge time.
+- **Live server:** still serving pre-`d883e9e` code — **not** updated in this pass (no deployment
+  action taken, per task scope); `d883e9e` will be picked up by a future deploy pass.
+- **Open PR count:** **2** — #375, #376 (both stale, need rebase + fresh CI before any merge
+  decision). #437 is no longer open.
+
+### Next recommended work
+
+1. Resume review of **#375**/**#376** only after a fresh rebase and CI run; both are stale relative
+   to current `main`.
+2. Optionally restart the live server after merging so `/version.commit` matches current `main`
+   (not done in this pass).
+3. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-05, #4 (#436 list-entry highlight/bbox fix merged)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `5c37a115a1313028225b28faa9765bb615eeb2ad` (squash-merge of PR
   [#436](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/436), `fix: highlight affected
