@@ -82,7 +82,8 @@ synthetic fixtures (install, run, step-by-step upload flow, privacy statement, c
 
 **Demo fixtures:** The directory `tests/fixtures/web_demo/` contains committed synthetic
 test files for manual QA and automated smoke tests. For the public web UI, use the PDF fixtures
-(`clean_minimal.pdf` and `issues_pdf.pdf`). The TeX/ZIP fixtures remain for CLI/internal
+(`clean_minimal.pdf` — minimal upload demo with known residual P011/P013/P027 outputs;
+`issues_pdf.pdf` — more obvious margin/page-number warnings). The TeX/ZIP fixtures remain for CLI/internal
 source-audit coverage only. All content is synthetic placeholder text — no real dissertation
 content. See
 [docs/planning/synthetic_web_demo_fixtures.md](docs/planning/synthetic_web_demo_fixtures.md)

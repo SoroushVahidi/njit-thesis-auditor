@@ -63,6 +63,9 @@ Verify `/` shows:
    - issue-type labels
    - JSON and Markdown download links
    - PDF-opening links
+5. **Expected findings:** This fixture is a minimal demo input, not a zero-warning baseline.
+   The current audit produces residual outputs for **P011**, **P013**, and **P027** (see
+   `docs/planning/synthetic_web_demo_fixtures.md` §3.1). Do not expect an empty results page.
 
 ### Step 2: Upload `issues_pdf.pdf`
 

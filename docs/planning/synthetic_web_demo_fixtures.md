@@ -12,13 +12,13 @@
 
 | Fixture | Path | Size | Notes |
 |---|---|---|---|
-| Clean minimal PDF | `tests/fixtures/web_demo/clean_minimal.pdf` | ~2 KB | Generated with PyMuPDF; synthetic text only |
+| Minimal demo PDF | `tests/fixtures/web_demo/clean_minimal.pdf` | ~2 KB | Minimal web-demo PDF; synthetic text only; currently yields P011, P013, P027 (not zero findings) |
 | Issues PDF | `tests/fixtures/web_demo/issues_pdf.pdf` | ~2.4 KB | Triggers P011 (margin overflow) and P013; synthetic text only |
 | Clean minimal TeX | `tests/fixtures/web_demo/clean_minimal.tex` | ~400 B | Minimal TeX; no risky commands; few/no source findings |
 | Issues TeX | `tests/fixtures/web_demo/issues_tex.tex` | ~900 B | Triggers P001, P002, P004, P005, P007, P008; synthetic only |
 | Demo ZIP | `tests/fixtures/web_demo/demo_project.zip` | ~350 B | ZIP with `main.tex`; safe extraction; produces source report |
 
-All fixtures are covered by 21 automated tests in `tests/test_web_demo_fixtures.py`.
+All fixtures are covered by automated tests in `tests/test_web_demo_fixtures.py`.
 
 ---
 
@@ -59,13 +59,17 @@ These rules apply to both committed fixtures and dynamically generated test fixt
 
 ## 3. Proposed Fixtures
 
-### 3.1 Clean minimal PDF (passes all checks)
+### 3.1 Minimal demo PDF (`clean_minimal.pdf`)
 
-- **Purpose:** Baseline "no findings expected" demo; shows a clean audit result page.
-- **Description:** A minimal multi-page PDF with generic text, correct margins (1.5" left,
-  1" right, top/bottom 1"), Times New Roman 12pt body text, double-spacing, correct front-matter
-  heading order, lowercase Roman numerals on front-matter pages, Arabic page numbers on body pages.
-- **Expected audit outcome:** Zero or very few findings; demonstrates a healthy result page.
+- **Purpose:** Small, privacy-safe PDF for upload-flow demos and smoke tests — **not** a
+  zero-finding “fully compliant thesis” baseline.
+- **Description:** A minimal synthetic PDF generated with PyMuPDF. The filename is historical;
+  treat it as a **minimal web-demo fixture** rather than a specimen that passes every NJIT check.
+- **Expected audit outcome (current, as of `main`):** Exactly three detector outputs:
+  - **P011** (`margin_boundary_violation`, WARNING) — left-margin boundary advisory.
+  - **P013** (PASS) — informational page-number candidate check (no margin-zone candidates).
+  - **P027** (`level1_not_all_caps`, WARNING) — chapter/appendix heading capitalization advisory.
+  Use `issues_pdf.pdf` when demos need more obvious, triage-friendly margin/page-number warnings.
 - **Fixture path:** `tests/fixtures/web_demo/clean_minimal.pdf`
 - **Commit:** Safe to commit — no private content.
 - **Generation:** Create with PyMuPDF (`fitz`) using a helper script or test fixture factory.
@@ -158,7 +162,7 @@ These rules apply to both committed fixtures and dynamically generated test fixt
 
 | Fixture | Path | Safe to commit? |
 |---|---|---|
-| Clean minimal PDF | `tests/fixtures/web_demo/clean_minimal.pdf` | Yes |
+| Minimal demo PDF | `tests/fixtures/web_demo/clean_minimal.pdf` | Yes |
 | Issues PDF | `tests/fixtures/web_demo/issues_pdf.pdf` | Yes |
 | Clean minimal .tex | `tests/fixtures/web_demo/clean_minimal.tex` | Yes |
 | Issues .tex | `tests/fixtures/web_demo/issues_tex.tex` | Yes |
@@ -239,8 +243,8 @@ A PR implementing these fixtures is ready to merge when all of the following are
    real thesis titles, or real bibliographic content.
 
 3. Each committed fixture is verified to produce the expected audit outcome described in
-   Section 3 (clean fixtures produce zero/near-zero findings; issues fixtures produce
-   the expected rule IDs).
+   Section 3 (`clean_minimal.pdf` produces the documented residual P011/P013/P027 outputs;
+   issues fixtures produce the expected rule IDs).
 
 4. At least one new automated test in `tests/test_web_app.py` or a new
    `tests/test_web_demo_fixtures.py` uses the committed fixtures via `TestClient`
