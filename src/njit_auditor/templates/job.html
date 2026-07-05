@@ -115,6 +115,95 @@
       padding: 0.18rem 0.55rem;
     }
   }
+  .individual-findings-list {
+    display: grid;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+  .finding-card {
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius);
+    background: #fff;
+    padding: 0.65rem 0.85rem;
+    min-width: 0;
+  }
+  .finding-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+  .finding-card__rule {
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+  }
+  .finding-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.55rem;
+    font-size: 0.86rem;
+    line-height: 1.35;
+    margin-bottom: 0.3rem;
+    overflow-wrap: anywhere;
+  }
+  .finding-card__problem {
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .finding-card__page {
+    font-weight: 600;
+  }
+  .finding-card__location {
+    color: var(--color-muted);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+  }
+  .finding-card__issue {
+    font-size: 0.88rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    margin-bottom: 0.25rem;
+  }
+  .finding-card__fix {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    overflow-wrap: anywhere;
+  }
+  .finding-card__note {
+    margin: 0.35rem 0 0.45rem;
+  }
+  .finding-card__action {
+    margin-top: 0.35rem;
+  }
+  .finding-card__action .btn {
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+  }
+  @media (min-width: 720px) {
+    .finding-card {
+      display: grid;
+      grid-template-columns: minmax(4.5rem, auto) minmax(7rem, 1.1fr) minmax(8rem, 1.6fr) auto auto;
+      gap: 0.55rem 0.85rem;
+      align-items: start;
+      padding: 0.55rem 0.85rem;
+    }
+    .finding-card__header { display: contents; }
+    .finding-card__rule { grid-column: 1; margin: 0; }
+    .finding-card__confidence { grid-column: 4; justify-self: end; }
+    .finding-card__meta { grid-column: 2; margin: 0; }
+    .finding-card__issue { grid-column: 3; margin: 0; }
+    .finding-card__note { grid-column: 3 / 5; margin: 0; }
+    .finding-card__action { grid-column: 5; margin: 0; justify-self: end; }
+    .finding-card__action .btn { white-space: nowrap; }
+  }
 </style>
 {% if state in ("pending", "running") %}
 <script>
@@ -498,31 +587,17 @@
   </div>
 
   <div id="individual-findings-panel">
-    <div class="card" style="padding:0.5rem 0.75rem">
-      <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Problem</th>
-            <th>Rule</th>
-            <th>Page</th>
-            <th>Severity</th>
-            <th>Confidence</th>
-            <th>Category</th>
-            <th>Details</th>
-            <th>Polished comment</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for f in findings %}
-          <tr id="{{ f.problem_anchor if f.problem_anchor else '' }}" class="finding-row"
-              data-rule="{{ f.rule_id }}"
-              data-category="{{ f.category }}"
-              data-page="{{ f.page if f.page is not none else '' }}"
-              data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
-            <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
-            <td><strong>
+    <div class="individual-findings-list">
+      {% for f in findings %}
+      <article id="{{ f.problem_anchor if f.problem_anchor else '' }}"
+               data-rule="{{ f.rule_id }}"
+               data-category="{{ f.category }}"
+               data-page="{{ f.page if f.page is not none else '' }}"
+               data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}"
+               class="finding-row finding-card">
+        <div class="finding-card__header">
+          <div class="finding-card__rule">
+            <strong>
               {% if f.public_rule_reference_id %}
               <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id }}: see rule reference">{{ f.public_rule_reference_id }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
@@ -530,26 +605,32 @@
               {% elif is_p_rule_id(f.rule_id) %}
               <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
               {% else %}{{ f.rule_id }}{% endif %}
-            </strong></td>
-            <td>
-              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
-            </td>
-            <td>
-              {{ severity_status_badge(f.severity, f.triage_tier) }}
-            </td>
-            <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
-            <td>{{ f.category | humanize_cat }}</td>
-            <td class="detail-cell">
-              {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
-              {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
-            </td>
-            <td class="comment-cell">{{ f.polished_comment }}</td>
-            <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      </div>
+            </strong>
+          </div>
+          <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
+        </div>
+        <div class="finding-card__meta">
+          {% if f.problem_number %}<span class="finding-card__problem">Problem {{ f.problem_number }}</span>{% endif %}
+          <span class="finding-card__page">
+            {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">Page {{ f.page }}</a>{% elif f.page is not none %}Page {{ f.page }}{% else %}No page{% endif %}
+          </span>
+          {% if f.location_label %}<span class="finding-card__location">{{ f.location_label }}</span>{% endif %}
+        </div>
+        <div class="finding-card__issue">
+          {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}Review this finding{% endif %}
+          {% if f.suggested_fix %}<span class="finding-card__fix">Suggested fix: {{ f.suggested_fix }}</span>{% endif %}
+        </div>
+        {% if f.polished_comment %}
+        <details class="finding-explanation finding-card__note">
+          <summary>Review note</summary>
+          <p>{{ f.polished_comment }}</p>
+        </details>
+        {% endif %}
+        <div class="finding-card__action">
+          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
     </div>
   </div>
   {% else %}
