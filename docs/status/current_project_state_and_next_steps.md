@@ -7,15 +7,41 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-04 (reconciled #435/#439 statistical-notation title-case fixes — #439 merged, #435 closed)
+## Current Status — 2026-07-05 (#439/#435 branches deleted; live server confirmed at `55149ac`)
 
-This section is the authoritative current snapshot. Everything below it (including the earlier
-2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot,
-PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis /
-cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure snapshot,
-post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01,
-2026-06-25, and earlier dated bullets) is preserved as historical context and should not be read
-as current.
+This section is the authoritative current snapshot. Everything below it (including the 2026-07-04
+#435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR
+#433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot,
+live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
+snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
+2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
+not be read as current.
+
+- **Code baseline `main`:** `55149ac2b662c455a67c636489239e6af4a60062` (merge of PR
+  [#451](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/451), removal of the redundant
+  "Most common issues" section — presentation-only, no detector change). Short SHA: `55149ac`.
+- **Live server:** confirmed serving `55149ac` via `GET /version` on both `127.0.0.1:8000` and the
+  host's external LAN address (`10.196.93.210:8000`) — current with `main`. The UI-decluttering
+  PRs #448 (restore "Findings by topic" table), #450 (simplify it to a compact 3-column table:
+  Topic/Findings/Review all), and #451 (remove the now-redundant "Most common issues" section)
+  were deployed across prior passes; this pass made **no** deployment or code change, docs/branch
+  cleanup only.
+- **Branch cleanup:** re-confirmed #439 (`fix/p020-stat-notation-capitalization`) is `MERGED` and
+  #435 (`fix/titlecase-technical-notation`) is `CLOSED`, and neither branch is the head of any open
+  PR (both had been deliberately left undeleted since the 2026-07-04 reconciliation pass below,
+  pending explicit authorization). **Deleted both remote branches** in this pass.
+- **Open PR count:** **5** — #436, #437, #440 (detector/highlight fixes awaiting human/Ester
+  review), #375, #376 (stale, need rebase + fresh CI before any merge decision). Unchanged from the
+  previous pass other than the count dropping from 6 now that #435 is resolved.
+- No `ruff`/`mypy`/`pytest` run was required for this pass beyond the docs update itself, since no
+  source files changed. No detector logic, rule IDs, thresholds, P021/P026, or UI behavior were
+  touched.
+
+---
+
+## Historical — 2026-07-04 (reconciled #435/#439 statistical-notation title-case fixes — #439 merged, #435 closed)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `82f2d901bd20a52231088f861f9d75a4e9105fc6` (merge of PR
   [#439](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/439)). Short SHA: `82f2d90`.

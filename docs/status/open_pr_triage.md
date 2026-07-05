@@ -1,23 +1,46 @@
-# Open PR Triage (2026-07-04, #435/#439 statistical-notation title-case fix reconciled — #439 merged, #435 closed)
+# Open PR Triage (2026-07-05, #439/#435 branches deleted; live server confirmed at 55149ac)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-03 snapshot below (baseline `07db2fa`, PR #433) is preserved as
+> **Superseded:** the 2026-07-04 snapshot below (baseline `82f2d90`, PR #439) is preserved as
 > historical context only — see the "Historical" sections further down. Everything above that
 > point is current.
 
-**Baseline inspected:** `main` @ `82f2d901bd20a52231088f861f9d75a4e9105fc6` (merge of PR
-[#439](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/439); short SHA `82f2d90`)  
-**Live server:** last confirmed serving `991e683` (before this pass's #439 merge) — this pass's
-change is detector-only (P020/P027 title-case), not UI, so it does not need a live-server restart
-to be "correct" for the API/web behavior most students would notice, but the live server will not
-serve the `82f2d90` fix until it is next restarted  
-**Open PR count:** **6** (4 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
+**Baseline inspected:** `main` @ `55149ac2b662c455a67c636489239e6af4a60062` (merge of PR
+[#451](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/451); short SHA `55149ac`)  
+**Live server:** confirmed serving `55149ac` via `/version` on both `127.0.0.1:8000` and
+`10.196.93.210:8000` — up to date with `main`; the UI-decluttering PRs #448–#451 (Findings by
+topic table, its mobile simplification, and removal of the redundant Most common issues section)
+were deployed in prior passes, and this pass made no deployment change (docs/branch cleanup only)  
+**Open PR count:** **5** (3 detector-behavior fixes awaiting human/Ester review, 2 stale/CI-failing
 needing a fresh rebase before any merge decision)
 
-## What happened in this pass (2026-07-04, #2)
+## What happened in this pass (2026-07-05)
+
+Narrow docs/branch cleanup pass — no code or deployment changes:
+
+- Re-confirmed #439 (`fix/p020-stat-notation-capitalization`) is **MERGED** and #435
+  (`fix/titlecase-technical-notation`) is **CLOSED**, and neither branch is the head of any open
+  PR (both had been left undeleted since the 2026-07-04 reconciliation pass below, pending
+  explicit authorization to delete).
+- **Deleted both remote branches:** `fix/p020-stat-notation-capitalization` and
+  `fix/titlecase-technical-notation`.
+- Confirmed the live server (systemd-supervised `thesis-auditor-web.service`) is already serving
+  `55149ac` (`GET /version` on both `127.0.0.1:8000` and the LAN address) — current with `main`,
+  no restart was needed or performed in this pass.
+- Remaining **5 open PRs** are unchanged from the previous pass's 6 (now 5 now that #435/#439 are
+  resolved): #436, #437, #440 (detector/highlight fixes awaiting human/Ester review), #375, #376
+  (stale, need rebase + fresh CI before any merge decision) — see the table in the previous pass
+  below, still accurate.
+
+No `ruff`/`mypy`/`pytest` run was required for this pass beyond the docs update itself, since no
+source files changed.
+
+---
+
+## Previous pass (2026-07-04, #2) — #435/#439 statistical-notation title-case fix reconciled
 
 Reconciled the two overlapping statistical-notation title-case PRs flagged in the previous triage
 pass. Both fixed the same `(n = 97)` false positive in `check_apa_title_case_phrase()`
@@ -111,6 +134,7 @@ sign-off, not a blind agent merge, even when the fix looks correct and well-test
 - No remote branches were deleted in this pass (merged and closed PRs' branches all still exist,
   including `fix/p020-stat-notation-capitalization` (#439, merged) and
   `fix/titlecase-technical-notation` (#435, closed) — deletion wasn't authorized this round).
+  **Update (2026-07-05 pass, above):** both branches have since been deleted.
 
 ---
 
