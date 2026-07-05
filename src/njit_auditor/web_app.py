@@ -1987,9 +1987,6 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     )
 
     filter_rules = sorted({str(f.get("rule_id", "")) for f in job.findings if f.get("rule_id")})
-    filter_severities = sorted(
-        {str(f.get("severity", "")) for f in job.findings if f.get("severity")}
-    )
     filter_categories = sorted(
         {str(f.get("category", "")) for f in job.findings if f.get("category")}
     )
@@ -2018,7 +2015,6 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
         "rules_flagged": len(counts_by_rule),
         "grouped_problem_count": len(report_view.get("grouped_problems", []) or []),
         "filter_rules": filter_rules,
-        "filter_severities": filter_severities,
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,

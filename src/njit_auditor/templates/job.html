@@ -162,13 +162,12 @@
       });
     }
 
-    function applyFiltersToGrouped(rule, severity, category, pageVal, locationVal, confidenceVal) {
+    function applyFiltersToGrouped(rule, category, pageVal, locationVal, confidenceVal) {
       var cards = document.querySelectorAll(".grouped-problem");
       var visible = 0;
       cards.forEach(function(card) {
         var show = true;
         if (rule && card.dataset.rule !== rule) show = false;
-        if (severity && card.dataset.severity !== severity) show = false;
         if (category && card.dataset.category !== category) show = false;
         if (pageVal && !matchesTokenList(card.dataset.pages || "", pageVal)) show = false;
         if (locationVal && !matchesTokenList(card.dataset.locations || "", locationVal)) show = false;
@@ -182,13 +181,12 @@
       return { visible: visible, total: cards.length };
     }
 
-    function applyFiltersToRaw(rule, severity, category, pageVal, locationVal, confidenceVal) {
+    function applyFiltersToRaw(rule, category, pageVal, locationVal, confidenceVal) {
       var rows = document.querySelectorAll(".finding-row");
       var visible = 0;
       rows.forEach(function(row) {
         var show = true;
         if (rule && row.dataset.rule !== rule) show = false;
-        if (severity && row.dataset.severity !== severity) show = false;
         if (category && row.dataset.category !== category) show = false;
         if (pageVal && row.dataset.page !== pageVal) show = false;
         if (locationVal && row.dataset.location !== locationVal) show = false;
@@ -213,21 +211,18 @@
 
     function applyFilters() {
       var ruleEl = document.getElementById("filter-rule");
-      var severityEl = document.getElementById("filter-severity");
       var categoryEl = document.getElementById("filter-category");
       var page = document.getElementById("filter-page");
       var location = document.getElementById("filter-location");
-      if (!ruleEl || !severityEl || !categoryEl) {
+      if (!ruleEl || !categoryEl) {
         return;
       }
       var rule = ruleEl.value;
-      var severity = severityEl.value;
       var category = categoryEl.value;
       var pageVal = page ? page.value : "";
       var locationVal = location ? location.value : "";
       var groupedState = applyFiltersToGrouped(
         rule,
-        severity,
         category,
         pageVal,
         locationVal,
@@ -235,7 +230,6 @@
       );
       var rawState = applyFiltersToRaw(
         rule,
-        severity,
         category,
         pageVal,
         locationVal,
@@ -261,14 +255,14 @@
       applyFilters();
     }
 
-    ["filter-rule", "filter-severity", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
+    ["filter-rule", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener("change", applyFilters);
     });
     var reset = document.getElementById("filter-reset");
     if (reset) {
       reset.addEventListener("click", function() {
-        ["filter-rule", "filter-severity", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
+        ["filter-rule", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
           var el = document.getElementById(id);
           if (el) el.value = "";
         });
@@ -445,7 +439,7 @@
       {% if fail_count > 0 %}
       <li>
         <span class="ro-label">Fix these first</span> —
-        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Filter by severity → Needs fixing</a> and verify each one against NJIT guidelines.
+        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Jump to findings → Needs fixing</a> and verify each one against NJIT guidelines.
       </li>
       {% endif %}
       {% if category_summary %}
@@ -560,10 +554,9 @@
     <div>
       <label for="sort-problems">Sort problems</label>
       <select id="sort-problems" name="sort" onchange="applySortMode(this.value)">
-        <option value="default" {% if sort_mode == "default" or not sort_mode %}selected{% endif %}>Default order</option>
+        <option value="default" {% if sort_mode == "default" or not sort_mode %}selected{% endif %}>Page order</option>
         <option value="confidence_desc" {% if sort_mode == "confidence_desc" %}selected{% endif %}>High confidence first</option>
         <option value="confidence_asc" {% if sort_mode == "confidence_asc" %}selected{% endif %}>Low confidence first</option>
-        <option value="page_order" {% if sort_mode == "page_order" %}selected{% endif %}>Page order</option>
       </select>
     </div>
     <div>
@@ -572,21 +565,6 @@
         <option value="">All rules</option>
         {% for rule in filter_rules %}
         <option value="{{ rule }}">{{ rule }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label for="filter-severity">Severity</label>
-      <select id="filter-severity">
-        <option value="">All</option>
-        {% for sev in filter_severities %}
-        <option value="{{ sev }}">
-          {% if sev == "FAIL" %}Needs fixing
-          {% elif sev == "WARNING" %}Worth checking
-          {% elif sev == "PASS" %}Information
-          {% else %}{{ sev }}
-          {% endif %}
-        </option>
         {% endfor %}
       </select>
     </div>
@@ -627,7 +605,6 @@
       {% for problem in report_view.grouped_problems %}
       <div id="{{ problem.problem_anchor if problem.problem_anchor else '' }}" class="card grouped-problem-card {% if not problem.is_grouped %}grouped-problem-card--single{% endif %} grouped-problem"
            data-rule="{{ problem.rule_id }}"
-           data-severity="{{ problem.severity }}"
            data-category="{{ problem.category }}"
            data-pages="{% if problem.page_tokens %}|{{ problem.page_tokens|join('|') }}|{% endif %}"
            data-locations="{% if problem.location_tokens %}|{{ problem.location_tokens|join('|') }}|{% endif %}"
@@ -802,7 +779,6 @@
         {% for f in findings %}
           <tr id="{{ f.problem_anchor if f.problem_anchor else '' }}" class="finding-row"
               data-rule="{{ f.rule_id }}"
-              data-severity="{{ f.severity }}"
               data-category="{{ f.category }}"
               data-page="{{ f.page if f.page is not none else '' }}"
               data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">

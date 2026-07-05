@@ -666,6 +666,12 @@ def _confidence_css_class(levels: Sequence[str]) -> str:
 # Sort modes for the results-page "Sort problems" control. These operate on
 # already-built GroupedProblemView dicts (one entry per displayed problem card) and never
 # touch detector confidence values, rule thresholds, or problem numbering.
+#
+# SORT_MODE_DEFAULT is the "Page order" option shown in the dropdown and the order
+# applied on first page load (no ?sort= query param): students read a dissertation
+# front-to-back, so problems should surface in document order, not an arbitrary
+# insertion order. SORT_MODE_PAGE is kept as a distinct value purely so an explicit
+# ?sort=page_order query string keeps working; both produce identical ordering.
 SORT_MODE_DEFAULT = "default"
 SORT_MODE_CONFIDENCE_DESC = "confidence_desc"
 SORT_MODE_CONFIDENCE_ASC = "confidence_asc"
@@ -741,8 +747,13 @@ def sort_grouped_problems(
     their existing relative (default) order. This only reorders the list of cards; it
     never mutates a card's problem numbers, anchors, or grouped occurrences, so links
     and references stay stable.
+
+    ``SORT_MODE_DEFAULT`` and ``SORT_MODE_PAGE`` produce identical output: page order
+    *is* the default order students see on first load, per the "Page order" sort
+    control. ``SORT_MODE_PAGE`` remains a distinct, explicitly selectable value (and a
+    valid ``?sort=page_order`` query value) so existing links keep working.
     """
-    if sort_mode == SORT_MODE_PAGE:
+    if sort_mode in (SORT_MODE_DEFAULT, SORT_MODE_PAGE):
         return sorted(problems, key=_grouped_problem_earliest_page)
     if sort_mode not in (SORT_MODE_CONFIDENCE_DESC, SORT_MODE_CONFIDENCE_ASC):
         return list(problems)
