@@ -601,12 +601,12 @@ def test_summary_export_endpoints_unaffected_by_card_presentation(
     assert md_resp.status_code == 200
 
 
-def test_problem_categories_table_visible_sorted_and_clean(
+def test_findings_by_topic_table_visible_sorted_and_clean(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """The restored "Problem categories" table must be visible under Most
-    common issues, list every category sorted by finding count descending,
-    with clean (underscore-free) labels and a working per-row action link."""
+    """The restored "Findings by topic" table must be visible as its own
+    section, list every category sorted by finding count descending, with
+    clean (underscore-free) labels and a working per-row action link."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -642,28 +642,29 @@ def test_problem_categories_table_visible_sorted_and_clean(
     assert resp.status_code == 200
     html = resp.content.decode()
 
-    assert "Problem categories" in html
+    assert 'id="section-topics"' in html
+    assert "Findings by topic" in html
     # Clean labels, no raw snake_case categories leaking through.
     assert "Spacing / blank lines" in html
     assert "Capitalization" in html
-    assert "spacing_blank_lines" not in html.split("Problem categories", 1)[1][:4000]
+    topics_html = html.split('id="section-topics"', 1)[1].split("</section>", 1)[0]
+    assert "spacing_blank_lines" not in topics_html
 
     # Sorted by count descending: the 5-finding category must appear before
     # the 2-finding category in the table.
-    table_html = html.split("Problem categories", 1)[1]
-    idx_spacing = table_html.index("Spacing / blank lines")
-    idx_capitalization = table_html.index("Capitalization")
+    idx_spacing = topics_html.index("Spacing / blank lines")
+    idx_capitalization = topics_html.index("Capitalization")
     assert idx_spacing < idx_capitalization
 
     # Each row's action link targets the real category drilldown route.
-    assert f"/audits/{job_id}/problems/category/spacing-blank-lines" in html
-    assert f"/audits/{job_id}/problems/category/capitalization-case" in html
+    assert f"/audits/{job_id}/problems/category/spacing-blank-lines" in topics_html
+    assert f"/audits/{job_id}/problems/category/capitalization-case" in topics_html
     category_resp = c.get(f"/audits/{job_id}/problems/category/spacing-blank-lines")
     assert category_resp.status_code == 200
     assert "Excessive line gap" in category_resp.text or "spacing" in category_resp.text.lower()
 
 
-def test_problem_categories_table_not_grouped_by_rule_id(
+def test_findings_by_topic_table_not_grouped_by_rule_id(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     """The restored table groups by category, not by rule ID — rule IDs stay
@@ -673,12 +674,33 @@ def test_problem_categories_table_not_grouped_by_rule_id(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     html = resp.content.decode()
-    table_html = html.split("Problem categories", 1)[1].split("</table>", 1)[0]
+    table_html = html.split('id="section-topics"', 1)[1].split("</table>", 1)[0]
     assert "<th>Category</th>" in table_html
     assert "<th>Rule</th>" not in table_html
 
 
-def test_problem_categories_table_coexists_with_simplified_summary_and_nav(
+def test_findings_by_topic_precedes_most_common_issues(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The compact "Findings by topic" table and the richer "Most common
+    issues" cards both cover categories, but must keep distinct, non-
+    overlapping roles: the compact table comes first (right after Summary /
+    Recommended review order) and the rich cards follow it."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+
+    idx_topics = html.index('id="section-topics"')
+    idx_triage = html.index('id="section-triage"')
+    assert idx_topics < idx_triage
+    # The rich cards section no longer repeats a second "at a glance" table.
+    triage_html = html[idx_triage:]
+    assert "Problem categories" not in triage_html
+
+
+def test_findings_by_topic_coexists_with_simplified_summary_and_nav(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     """Restoring the category table must not undo the other recent UI work:
@@ -690,7 +712,7 @@ def test_problem_categories_table_coexists_with_simplified_summary_and_nav(
     assert resp.status_code == 200
     html = resp.content.decode()
 
-    assert "Problem categories" in html
+    assert "Findings by topic" in html
     assert "Items to review" in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
     assert "Advanced details" in html
