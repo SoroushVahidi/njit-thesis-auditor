@@ -1,21 +1,46 @@
-# Open PR Triage (2026-07-05, #5: #437 P011 margin visual polish merged)
+# Open PR Triage (2026-07-05, #6: #375 clean_minimal demo baseline docs merged)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #4 snapshot below (baseline `5c37a11`, #436 merge) is preserved
-> as historical context only — see the "What happened in this pass (2026-07-05, #4)" section
+> **Superseded:** the 2026-07-05 #5 snapshot below (baseline `d883e9e`, #437 merge) is preserved
+> as historical context only — see the "What happened in this pass (2026-07-05, #5)" section
 > further down. Everything above that point is current.
 
-**Baseline inspected:** `main` @ `d883e9e49fa02fe73f7fd18849265d628f5453a1` (squash-merge of PR
-[#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437)). Short SHA: `d883e9e`.  
-**Live server:** still serving pre-`d883e9e` code (unchanged — this pass did not touch the live
-deployment/systemd service; `d883e9e` is not yet deployed)  
-**Open PR count:** **2** — #375, #376 (both stale, need rebase + fresh CI). #437 is merged and its
-remote branch (`fix/p011-margin-visual-polish`) already deleted.
+**Baseline inspected:** `main` @ `d89f4cef082bafc71a0e8dcb18fc37f05e53fed8` (squash-merge of PR
+[#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375)). Short SHA: `d89f4ce`.  
+**Live server:** still serving `95e3aa5` (#459 page-order UI refactor) — unchanged; this pass did
+not touch the live deployment/systemd service.  
+**Open PR count:** **1** — #376 only. #375 is merged and its remote branch
+(`docs/fix-clean-minimal-demo-baseline`) already deleted.
 
-## What happened in this pass (2026-07-05, #5)
+## What happened in this pass (2026-07-05, #6)
+
+Reviewed and merged **#375** (`Align clean_minimal demo fixture docs with actual audit output`):
+docs/test-only cleanup aligning `clean_minimal.pdf` documentation and smoke-test expectations with
+the fixture's actual residual audit outputs (P011/P013/P027), not a zero-finding baseline.
+
+- **Still needed:** `main` still described `clean_minimal.pdf` as "passes all checks" / zero findings
+  in `docs/planning/synthetic_web_demo_fixtures.md` §3.1; not superseded by later demo/status work.
+- **Diff scope (5 files, +44/−14):** `README.md`, `docs/planning/synthetic_web_demo_fixtures.md`,
+  `docs/web_ui_demo_guide.md`, `scripts/web_demo_smoke.sh`, `tests/test_web_demo_fixtures.py` (new
+  `test_clean_minimal_pdf_produces_expected_residual_findings`). No detector/rule/threshold/UI/export
+  changes; no PDF/binary/LFS fixture changes.
+- **Prior CI failure root cause:** branch was stale (~122 commits behind `main` at rebase time;
+  original CI logs from 2026-06-26 have expired). Failure was almost certainly stale-base drift, not
+  a defect in the PR's narrow docs/test diff.
+- **Rebase:** `git rebase` blocked by the repo-wide git-LFS smudge-filter artifact (pointer/binary
+  mismatch on `data/raw/**` and `tests/fixtures/web_demo/**`, present in every worktree checked,
+  unrelated to this PR). Worked around by cherry-picking the PR's single commit onto `origin/main` @
+  `95e3aa5` — applied cleanly with zero conflicts; force-pushed to the PR branch.
+- **Validation:** `ruff check .` — passed; `mypy src` — no issues in 105 files; `python -m pytest` —
+  **2580 passed** (2579 pre-merge + 1 new fixture test).
+- Merged with squash (`d89f4ce`); deleted the remote branch `docs/fix-clean-minimal-demo-baseline`.
+- No live deployment/systemd action taken in this pass.
+- **#376** left open and untouched.
+
+## Historical — what happened in the previous pass (2026-07-05, #5)
 
 Inspected **#437** (`fix: polish P011 margin warning evidence`) against the task's evidence/visual
 scope: separates non-adjacent same-side margin violations into distinct tight highlight boxes

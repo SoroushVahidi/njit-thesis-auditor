@@ -7,16 +7,50 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #5 (#437 P011 margin visual polish merged)
+## Current Status — 2026-07-05, #6 (#375 clean_minimal demo baseline docs merged)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#4 snapshot, the 2026-07-05 #3 snapshot, the 2026-07-05 #2 snapshot, the 2026-07-05 #1
-branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation snapshot, the earlier 2026-07-04
-post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408
-behavior snapshot, PR #406 merge snapshot, live regression diagnosis / cleanup-paused snapshot,
-post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards
-snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
-preserved as historical context and should not be read as current.
+#5 snapshot, the 2026-07-05 #4 snapshot, the 2026-07-05 #3 snapshot, the 2026-07-05 #2 snapshot,
+the 2026-07-05 #1 branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation snapshot, the
+earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409
+snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot, live regression diagnosis /
+cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure
+snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and
+earlier dated bullets) is preserved as historical context and should not be read as current.
+
+- **Code baseline `main`:** `d89f4cef082bafc71a0e8dcb18fc37f05e53fed8` (squash-merge of PR
+  [#375](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/375), `Align clean_minimal demo
+  docs and tests with actual audit output`, on top of `#459` at `95e3aa5`). Short SHA: `d89f4ce`.
+- **Reviewed, rebased, and merged #375** (docs/test-only demo-baseline alignment — no detector,
+  threshold, rule-ID, UI, or export changes):
+  - Corrected stale documentation that described `tests/fixtures/web_demo/clean_minimal.pdf` as a
+    zero-finding / "passes all checks" baseline. The fixture is a minimal web-demo input with known
+    residual outputs: **P011** (WARNING), **P013** (PASS), **P027** (WARNING).
+  - Updated `docs/planning/synthetic_web_demo_fixtures.md` §3.1, `docs/web_ui_demo_guide.md`,
+    `scripts/web_demo_smoke.sh`, and `README.md`; added
+    `test_clean_minimal_pdf_produces_expected_residual_findings` in
+    `tests/test_web_demo_fixtures.py`.
+  - Prior CI was failing on a stale branch (~122 commits behind current `main`); rebased via
+    cherry-pick onto `95e3aa5` (LFS smudge-filter artifact blocked `git rebase` in worktrees).
+  - Validation: `ruff check .` — passed; `mypy src` — no issues in 105 source files; `python -m
+    pytest` — **2580 passed**.
+  - Remote branch `docs/fix-clean-minimal-demo-baseline` deleted at merge time.
+- **Live server:** still serving `95e3aa5` (#459) — **not** updated in this pass (no deployment
+  action taken, per task scope); `d89f4ce` will be picked up by a future deploy pass.
+- **Open PR count:** **1** — #376 only. #375 is no longer open.
+
+### Next recommended work
+
+1. Review **#376** (P014 frontmatter centering false positive) on its own merits after a fresh
+   rebase and CI run.
+2. Optionally deploy `d89f4ce` to the live server when ready (not done in this pass).
+3. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-05, #5 (#437 P011 margin visual polish merged)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `d883e9e49fa02fe73f7fd18849265d628f5453a1` (squash-merge of PR
   [#437](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/437), `fix: polish P011 margin
