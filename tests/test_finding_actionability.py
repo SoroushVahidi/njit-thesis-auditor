@@ -1718,11 +1718,13 @@ def test_document_level_structure_finding_no_pdf_button_explanation_only(
     job_id = _inject_job(wa, findings)
     main_html = _get_html(c, f"/audits/{job_id}")
 
-    # Scope the check to this finding's own grouped-problem card — the page
-    # legitimately has one whole-document "Open PDF" download button
-    # elsewhere (#open-pdf-btn), which is not the misleading per-finding
-    # button this policy targets.
-    card_start = main_html.index('data-rule="P025"')
+    # Scope the check to this finding's own grouped-problem card (in the
+    # collapsed Advanced: grouped problem summaries section, which comes after
+    # the primary individual-findings row's own `data-rule="P025"` attribute --
+    # hence rindex, not index) — the page legitimately has one whole-document
+    # "Open PDF" download button elsewhere (#open-pdf-btn), which is not the
+    # misleading per-finding button this policy targets.
+    card_start = main_html.rindex('data-rule="P025"')
     actions_end = main_html.index("Examples of this exact problem", card_start)
     card_section = main_html[card_start:actions_end]
     assert f'href="/audits/{job_id}/pdf"' not in card_section

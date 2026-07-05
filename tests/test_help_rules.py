@@ -594,20 +594,30 @@ def test_drag_and_drop_still_present(client: tuple[TestClient, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Regression: grouped/raw findings behavior unchanged
+# Regression: grouped/individual toggle removed from the main student flow
 # ---------------------------------------------------------------------------
 
-def test_grouped_raw_toggle_still_present(
+def test_grouped_individual_toggle_removed_from_main_flow(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
+    """The main Findings section shows individual findings directly -- no
+    "Grouped problems" / "All individual findings" toggle to choose between two
+    mental models. The individual-findings table is the primary, always-visible
+    panel; any grouped-problem summaries live only in the collapsed Advanced
+    section further down the page."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Grouped problems" in resp.content
-    assert b"All individual findings" in resp.content
-    assert b'id="grouped-problems-panel"' in resp.content
+    assert b"Grouped problems" not in resp.content
+    assert b"All individual findings" not in resp.content
+    assert b'id="grouped-problems-panel"' not in resp.content
     assert b'id="individual-findings-panel"' in resp.content
+    # The primary panel is never hidden behind a client-side toggle anymore.
+    body = resp.text
+    panel_start = body.index('id="individual-findings-panel"')
+    panel_tag = body[panel_start - 40 : panel_start + 40]
+    assert "results-panel--hidden" not in panel_tag
 
 
 # ---------------------------------------------------------------------------
@@ -617,14 +627,16 @@ def test_grouped_raw_toggle_still_present(
 def test_dom_ready_filter_script_unchanged(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Filter/toggle script must still wait for DOMContentLoaded."""
+    """Filter script must still wait for DOMContentLoaded and drive the rule/
+    category/page/confidence filters -- the removed grouped/individual mode
+    toggle is no longer part of this script."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"DOMContentLoaded" in resp.content
-    assert b'setMode("grouped")' in resp.content
     assert b"getElementById(\"filter-rule\")" in resp.content
+    assert b"setMode(" not in resp.content
 
 
 # ---------------------------------------------------------------------------

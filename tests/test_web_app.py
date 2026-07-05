@@ -790,9 +790,13 @@ def test_findings_by_topic_coexists_with_simplified_summary_and_nav(
     assert "<details class=\"card collapsible\">" in html
 
 
-def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
+def test_results_page_defaults_to_individual_findings_with_advanced_grouped_summary(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
+    """The main Findings section is the individual findings table by default (no
+    grouped/individual toggle); the same 9 occurrences are still summarized as one
+    card with expandable per-occurrence detail, but only inside the collapsed
+    Advanced: grouped problem summaries section further down the page."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -822,21 +826,21 @@ def test_results_page_defaults_to_grouped_problems_with_expandable_occurrences(
     resp = c.get(f"/audits/{job_id}")
 
     assert resp.status_code == 200
-    assert b"Grouped problems" in resp.content
-    assert b"All individual findings" in resp.content
+    assert b"Grouped problems" not in resp.content
+    assert b"All individual findings" not in resp.content
     assert b"Show individual occurrences" in resp.content
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Grouped problems"
-        in resp.content
-    )
-    assert (
         b"Inventory-only page-number candidates appear in their own section"
         in resp.content
     )
-    assert b'id="grouped-problems-panel"' in resp.content
+    assert b'id="grouped-problems-panel"' not in resp.content
     assert b'id="individual-findings-panel"' in resp.content
+    assert b'id="section-grouped-summary"' in resp.content
+    assert b"Advanced: grouped problem summaries" in resp.content
+    # The 9 individual finding rows (one per page) are the primary table's content.
+    assert resp.content.count(b'class="finding-row"') == 9
 
 
 def test_results_page_renders_confidence_badges_and_filters(
@@ -1069,6 +1073,110 @@ def test_sort_query_param_missing_or_default_orders_by_page(
     assert _grouped_problem_rule_order(explicit_default_resp.text, expected) == expected
 
 
+def _finding_row_rule_order(body: str, rule_ids: list[str]) -> list[str]:
+    """Return the rule IDs of every ``.finding-row`` in the primary, always-visible
+    individual-findings table (not the advanced grouped summary), in render order."""
+    import re
+
+    panel_start = body.index('id="individual-findings-panel"')
+    panel_end = body.index("</table>", panel_start)
+    panel = body[panel_start:panel_end]
+    row_order = re.findall(r'class="finding-row"\s+data-rule="([^"]+)"', panel)
+    return [rule_id for rule_id in row_order if rule_id in rule_ids]
+
+
+def test_individual_findings_are_sorted_by_page_order_on_initial_render(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The primary Findings table (not just the advanced grouped summary) must
+    render individual findings in page order by default, matching the "Page
+    order" default in the Sort problems dropdown."""
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=_confidence_sort_web_findings(),
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    # Default order is page order: P011=page 1, P037=page 2, P026=page 3.
+    expected = ["P011", "P037", "P026"]
+    assert _finding_row_rule_order(resp.text, expected) == expected
+
+
+def test_detected_page_number_candidates_excluded_from_main_findings_list(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A redundant page-number candidate (already claimed by a real page-numbering
+    problem elsewhere) must never appear as a row in the primary, page-ordered
+    individual-findings table -- it belongs only in the separate, clearly-labeled
+    "Detected page-number candidates" inventory section, so it can never look like
+    an out-of-order normal finding."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Left margin too narrow.",
+            details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=5,
+            message="Page number candidate.",
+            details={"issue_type": "page_number_candidate", "position_type": "bottom_center"},
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+
+    findings_start = body.index('id="section-findings"')
+    findings_end = body.index("</section>", findings_start)
+    findings_section = body[findings_start:findings_end]
+    assert 'data-rule="P011"' in findings_section
+    assert 'data-rule="P013"' not in findings_section
+
+    assert 'id="section-inventory"' in body
+    inventory_start = body.index('id="section-inventory"')
+    assert "Detected page-number candidates" in body[inventory_start : inventory_start + 200]
+
+
+def test_advanced_grouped_summary_is_collapsed_and_outside_main_flow(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The "Advanced: grouped problem summaries" section is a collapsed <details>
+    (no ``open`` attribute) and sits after the primary Findings section (and after
+    Downloads), not inside the main student-facing Findings flow."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+
+    assert 'id="section-grouped-summary"' in body
+    idx_findings = body.index('id="section-findings"')
+    idx_downloads = body.index('id="section-downloads"')
+    idx_grouped_summary = body.index('id="section-grouped-summary"')
+    assert idx_findings < idx_downloads < idx_grouped_summary
+
+    section_start = body.index('aria-label="Advanced: grouped problem summaries"')
+    details_start = body.index("<details", section_start)
+    details_tag = body[details_start : body.index(">", details_start) + 1]
+    assert "open" not in details_tag
+
+
 def test_invalid_sort_query_param_falls_back_to_default_order(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -1271,8 +1379,8 @@ def test_results_page_confidence_badges_use_only_three_public_values(
 def test_individual_findings_table_confidence_badge_matches_data_confidence(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """The raw individual-findings table (behind the grouped/individual toggle) must
-    show a confidence badge that actually matches each row's real confidence, not a
+    """The primary individual-findings table must show a confidence badge that
+    actually matches each row's real confidence, not a
     fallback -- regression guard for a bug where the row's serialized dict carried
     ``confidence`` but not ``confidence_level``/``confidence_label``/
     ``confidence_css_class``, so the template silently rendered the macro's own
@@ -1845,9 +1953,8 @@ def test_results_page_wraps_tables_for_mobile_horizontal_scroll(
     assert resp.status_code == 200
     html = resp.content.decode()
     assert "Show individual occurrences" in html
-    # One wrapper each for: the collapsed advanced rule summary, and the
-    # grouped occurrence table (the individual-findings table also renders
-    # server-side even though it starts hidden behind a client-side toggle).
+    # One wrapper each for: the primary individual-findings table, the collapsed
+    # advanced rule summary, and the collapsed advanced grouped-occurrence table.
     # The old standalone problem-type summary table was merged into the
     # "Most common issues" root-cause cards, which don't use a table.
     assert html.count('class="table-scroll"') >= 3
@@ -1906,14 +2013,14 @@ def test_grouped_problem_cards_still_show_severity_badge(
 def test_results_page_filter_script_defers_until_dom_ready(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Findings filter/toggle script must wait for DOMContentLoaded (head vs body)."""
+    """Findings filter script must wait for DOMContentLoaded (head vs body)."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"DOMContentLoaded" in resp.content
-    assert b'setMode("grouped")' in resp.content
     assert b"getElementById(\"filter-rule\")" in resp.content
+    assert b"setMode(" not in resp.content
 
 
 def test_results_page_shows_privacy_note(client: tuple[TestClient, Any], tmp_path: Path) -> None:

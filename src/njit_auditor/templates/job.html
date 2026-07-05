@@ -139,46 +139,13 @@
 {% if state == "complete" and findings %}
 <script>
   document.addEventListener("DOMContentLoaded", function() {
-    var currentMode = "grouped";
     var currentConfidenceFilter = "";
-
-    function matchesTokenList(value, selected) {
-      return !selected || value.indexOf("|" + selected + "|") !== -1;
-    }
 
     function setConfidenceButtons(value) {
       document.querySelectorAll("[data-confidence-filter]").forEach(function(button) {
         var isActive = (button.dataset.confidenceFilter || "") === value;
         button.setAttribute("aria-pressed", isActive ? "true" : "false");
       });
-    }
-
-    function applyConfidenceFilterToOccurrences(card, confidenceVal) {
-      var rows = card.querySelectorAll(".grouped-occurrence");
-      rows.forEach(function(row) {
-        var rowConfidence = row.dataset.confidence || "";
-        var show = !confidenceVal || rowConfidence === confidenceVal;
-        row.hidden = !show;
-      });
-    }
-
-    function applyFiltersToGrouped(rule, category, pageVal, locationVal, confidenceVal) {
-      var cards = document.querySelectorAll(".grouped-problem");
-      var visible = 0;
-      cards.forEach(function(card) {
-        var show = true;
-        if (rule && card.dataset.rule !== rule) show = false;
-        if (category && card.dataset.category !== category) show = false;
-        if (pageVal && !matchesTokenList(card.dataset.pages || "", pageVal)) show = false;
-        if (locationVal && !matchesTokenList(card.dataset.locations || "", locationVal)) show = false;
-        if (confidenceVal && !matchesTokenList(card.dataset.confidenceLevels || "", confidenceVal)) {
-          show = false;
-        }
-        applyConfidenceFilterToOccurrences(card, confidenceVal);
-        card.classList.toggle("grouped-problem-card--hidden", !show);
-        if (show) visible += 1;
-      });
-      return { visible: visible, total: cards.length };
     }
 
     function applyFiltersToRaw(rule, category, pageVal, locationVal, confidenceVal) {
@@ -197,16 +164,12 @@
       return { visible: visible, total: rows.length };
     }
 
-    function updateCounter(groupedState, rawState) {
+    function updateCounter(rawState) {
       var counter = document.getElementById("filter-count");
       if (!counter) {
         return;
       }
-      if (currentMode === "individual") {
-        counter.textContent = "Showing " + rawState.visible + " of " + rawState.total + " individual findings";
-      } else {
-        counter.textContent = "Showing " + groupedState.visible + " of " + groupedState.total + " grouped problems";
-      }
+      counter.textContent = "Showing " + rawState.visible + " of " + rawState.total + " findings";
     }
 
     function applyFilters() {
@@ -221,13 +184,6 @@
       var category = categoryEl.value;
       var pageVal = page ? page.value : "";
       var locationVal = location ? location.value : "";
-      var groupedState = applyFiltersToGrouped(
-        rule,
-        category,
-        pageVal,
-        locationVal,
-        currentConfidenceFilter
-      );
       var rawState = applyFiltersToRaw(
         rule,
         category,
@@ -235,24 +191,7 @@
         locationVal,
         currentConfidenceFilter
       );
-      updateCounter(groupedState, rawState);
-    }
-
-    function setMode(mode) {
-      currentMode = mode;
-      var groupedPanel = document.getElementById("grouped-problems-panel");
-      var rawPanel = document.getElementById("individual-findings-panel");
-      if (groupedPanel) {
-        groupedPanel.classList.toggle("results-panel--hidden", mode !== "grouped");
-      }
-      if (rawPanel) {
-        rawPanel.classList.toggle("results-panel--hidden", mode !== "individual");
-      }
-      document.querySelectorAll("[data-results-mode]").forEach(function(button) {
-        var isActive = button.dataset.resultsMode === mode;
-        button.setAttribute("aria-pressed", isActive ? "true" : "false");
-      });
-      applyFilters();
+      updateCounter(rawState);
     }
 
     ["filter-rule", "filter-category", "filter-page", "filter-location"].forEach(function(id) {
@@ -278,11 +217,6 @@
         applyFilters();
       });
     });
-    document.querySelectorAll("[data-results-mode]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        setMode(button.dataset.resultsMode || "grouped");
-      });
-    });
     document.querySelectorAll(".js-card-link").forEach(function(card) {
       var href = card.dataset.href;
       if (!href) {
@@ -306,7 +240,7 @@
       });
     });
     setConfidenceButtons(currentConfidenceFilter);
-    setMode("grouped");
+    applyFilters();
   });
 </script>
 {% endif %}
@@ -451,7 +385,7 @@
       {% if warn_count > 0 %}
       <li>
         <span class="ro-label">Other items to check</span> —
-        {{ warn_count }} {{ "item" if warn_count == 1 else "items" }} need your judgment: some may be expected formatting choices. Scan the <a href="#section-findings">grouped problems view</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
+        {{ warn_count }} {{ "item" if warn_count == 1 else "items" }} need your judgment: some may be expected formatting choices. Scan the <a href="#section-findings">findings list</a> and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
       </li>
       {% endif %}
       <li>
@@ -490,51 +424,14 @@
 </section>
 {% endif %}
 
-{% if grouped_summary %}
-<section id="section-rule-summary" class="section" aria-label="Advanced: rule-by-rule technical summary">
-  <div class="section-header">
-    <h2>Advanced: rule-by-rule technical summary</h2>
-    <span class="section-note">For reviewers and maintainers &middot; Click a rule ID for rule reference, or Review to see every finding for that rule.</span>
-  </div>
-  <details class="card collapsible">
-    <summary>{{ grouped_summary|length }} rule{{ "" if grouped_summary|length == 1 else "s" }} flagged — rule IDs, counts, and categories</summary>
-    <div class="table-scroll" style="margin-top:0.75rem;">
-    <table>
-      <thead>
-        <tr><th>Rule</th><th>Count</th><th>Category</th><th></th></tr>
-      </thead>
-      <tbody>
-      {% for row in grouped_summary %}
-        <tr>
-          <td><strong>
-            {% if is_p_rule_id(row.rule_id) %}
-            <a href="/rules#{{ row.rule_id }}" class="rule-link" aria-label="{{ row.rule_id }}: see rule reference">{{ row.rule_id }}</a>
-            {% else %}{{ row.rule_id }}{% endif %}
-          </strong></td>
-          <td>{{ row.count }}</td>
-          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
-          <td><a href="/audits/{{ job_id }}/problems/rule/{{ row.rule_id }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">Review</a></td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    </div>
-  </details>
-</section>
-{% endif %}
-
 <section id="section-findings" class="section" aria-label="Findings">
   <div class="section-header">
     <div>
-      <h2>Findings</h2>
-      <span class="section-note"><strong>Grouped problems</strong> combines matching problem findings into one card per issue and lists all affected pages; <strong>All individual findings</strong> lists every counted problem finding separately. Inventory-only page-number candidates appear in their own section and are not counted as problems.</span>
+      <h2>Findings in page order</h2>
+      <span class="section-note">Every counted problem finding, in page order by default — use Sort problems to reorder by confidence instead. Inventory-only page-number candidates appear in their own section below and are not counted as problems.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
-      <div class="results-toggle" role="group" aria-label="Results display mode">
-        <button type="button" class="btn btn-secondary" data-results-mode="grouped" aria-pressed="true" title="Combines substantially identical findings; lists all affected pages">Grouped problems</button>
-        <button type="button" class="btn btn-secondary" data-results-mode="individual" aria-pressed="false" title="Every raw finding listed separately">All individual findings</button>
-      </div>
     </div>
   </div>
 
@@ -554,7 +451,7 @@
     <div>
       <label for="sort-problems">Sort problems</label>
       <select id="sort-problems" name="sort" onchange="applySortMode(this.value)">
-        <option value="default" {% if sort_mode == "default" or not sort_mode %}selected{% endif %}>Page order</option>
+        <option value="default" {% if sort_mode in ("default", "page_order") or not sort_mode %}selected{% endif %}>Page order</option>
         <option value="confidence_desc" {% if sort_mode == "confidence_desc" %}selected{% endif %}>High confidence first</option>
         <option value="confidence_asc" {% if sort_mode == "confidence_asc" %}selected{% endif %}>Low confidence first</option>
       </select>
@@ -600,8 +497,136 @@
     </div>
   </div>
 
-  <div id="grouped-problems-panel">
-    <div class="grouped-problem-list">
+  <div id="individual-findings-panel">
+    <div class="card" style="padding:0.5rem 0.75rem">
+      <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Problem</th>
+            <th>Rule</th>
+            <th>Page</th>
+            <th>Severity</th>
+            <th>Confidence</th>
+            <th>Category</th>
+            <th>Details</th>
+            <th>Polished comment</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for f in findings %}
+          <tr id="{{ f.problem_anchor if f.problem_anchor else '' }}" class="finding-row"
+              data-rule="{{ f.rule_id }}"
+              data-category="{{ f.category }}"
+              data-page="{{ f.page if f.page is not none else '' }}"
+              data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
+            <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
+            <td><strong>
+              {% if f.public_rule_reference_id %}
+              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id }}: see rule reference">{{ f.public_rule_reference_id }}</a>
+              {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
+              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
+              {% elif is_p_rule_id(f.rule_id) %}
+              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
+              {% else %}{{ f.rule_id }}{% endif %}
+            </strong></td>
+            <td>
+              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
+            </td>
+            <td>
+              {{ severity_status_badge(f.severity, f.triage_tier) }}
+            </td>
+            <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
+            <td>{{ f.category | humanize_cat }}</td>
+            <td class="detail-cell">
+              {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
+              {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
+            </td>
+            <td class="comment-cell">{{ f.polished_comment }}</td>
+            <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card"><p>No issues detected. This does not guarantee full compliance. Review the <a href="/help">Help page</a> for limitations and checks that may not apply to every document.</p></div>
+  {% endif %}
+</section>
+
+<section id="section-downloads" class="section export-section" aria-label="Downloads">
+  <h2 style="margin-top:0;">Download reports</h2>
+  <p class="file-hint" style="margin-top:0">
+    Download the full results as a JSON file (for use with other tools) or a Markdown file (easy to read or share).
+  </p>
+  <div class="dl-links">
+    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View original PDF &#8599;</a>
+    <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a>
+    <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
+    <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
+  </div>
+</section>
+
+{% if md_preview %}
+<section class="section">
+  <details class="collapsible card card-compact">
+    <summary>Markdown report preview</summary>
+    <textarea class="report-box" readonly>{{ md_preview }}</textarea>
+  </details>
+</section>
+{% endif %}
+
+<div class="privacy-note">
+  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, and detected layout or measurement details).
+  No dissertation body text, titles, author names, committee names, or captions are shown.
+  Automated findings require manual verification against NJIT guidelines. Routine page-number candidates in the inventory section are not counted as problems.
+</div>
+
+{% if grouped_summary %}
+<section id="section-rule-summary" class="section" aria-label="Advanced: rule-by-rule technical summary">
+  <div class="section-header">
+    <h2>Advanced: rule-by-rule technical summary</h2>
+    <span class="section-note">For reviewers and maintainers &middot; Click a rule ID for rule reference, or Review to see every finding for that rule.</span>
+  </div>
+  <details class="card collapsible">
+    <summary>{{ grouped_summary|length }} rule{{ "" if grouped_summary|length == 1 else "s" }} flagged — rule IDs, counts, and categories</summary>
+    <div class="table-scroll" style="margin-top:0.75rem;">
+    <table>
+      <thead>
+        <tr><th>Rule</th><th>Count</th><th>Category</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for row in grouped_summary %}
+        <tr>
+          <td><strong>
+            {% if is_p_rule_id(row.rule_id) %}
+            <a href="/rules#{{ row.rule_id }}" class="rule-link" aria-label="{{ row.rule_id }}: see rule reference">{{ row.rule_id }}</a>
+            {% else %}{{ row.rule_id }}{% endif %}
+          </strong></td>
+          <td>{{ row.count }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
+          <td><a href="/audits/{{ job_id }}/problems/rule/{{ row.rule_id }}" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">Review</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</section>
+{% endif %}
+
+{% if report_view.grouped_problems %}
+<section id="section-grouped-summary" class="section" aria-label="Advanced: grouped problem summaries">
+  <div class="section-header">
+    <h2>Advanced: grouped problem summaries</h2>
+    <span class="section-note">For reviewers and maintainers &middot; the same findings above, combined into one card per matching issue with every affected page listed together.</span>
+  </div>
+  <details class="card collapsible">
+    <summary>{{ report_view.grouped_problems|length }} grouped problem card{{ "" if report_view.grouped_problems|length == 1 else "s" }}</summary>
+    <div class="grouped-problem-list" style="margin-top:0.75rem;">
       {% for problem in report_view.grouped_problems %}
       <div id="{{ problem.problem_anchor if problem.problem_anchor else '' }}" class="card grouped-problem-card {% if not problem.is_grouped %}grouped-problem-card--single{% endif %} grouped-problem"
            data-rule="{{ problem.rule_id }}"
@@ -721,130 +746,44 @@
       </div>
       {% endfor %}
     </div>
-  </div>
-
-  {% if report_view.inventory_findings %}
-  <section id="section-inventory" class="section" aria-label="Detected page-number candidates">
-    <div class="section-header">
-      <h2>Detected page-number candidates</h2>
-      <span class="section-note">Not counted as problems</span>
-    </div>
-    <details class="card collapsible">
-      <summary>{{ report_view.inventory_findings|length }} detected candidate{{ "" if report_view.inventory_findings|length == 1 else "s" }}</summary>
-      <p class="file-hint" style="margin-top:0.75rem;">
-        These are page-number-like tokens detected for internal verification. They are not formatting problems unless another rule reports a specific defect such as missing, misplaced, duplicate, wrong-style, or wrong-sequence numbering.
-      </p>
-      <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Page</th>
-            <th>Details</th>
-            <th>Why it is not a problem</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for f in report_view.inventory_findings %}
-          <tr>
-            <td>{{ f.page if f.page is not none else "—" }}</td>
-            <td>{{ f.issue_type_label if f.issue_type_label else "Detected page-number candidate" }}</td>
-            <td>{{ f.polished_comment }}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      </div>
-    </details>
-  </section>
-  {% endif %}
-
-  <div id="individual-findings-panel" class="results-panel--hidden">
-    <div class="card" style="padding:0.5rem 0.75rem">
-      <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Problem</th>
-            <th>Rule</th>
-            <th>Page</th>
-            <th>Severity</th>
-            <th>Confidence</th>
-            <th>Category</th>
-            <th>Details</th>
-            <th>Polished comment</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for f in findings %}
-          <tr id="{{ f.problem_anchor if f.problem_anchor else '' }}" class="finding-row"
-              data-rule="{{ f.rule_id }}"
-              data-category="{{ f.category }}"
-              data-page="{{ f.page if f.page is not none else '' }}"
-              data-confidence="{{ f.confidence_level if f.confidence_level else f.confidence }}">
-            <td><strong>{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</strong></td>
-            <td><strong>
-              {% if f.public_rule_reference_id %}
-              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id }}: see rule reference">{{ f.public_rule_reference_id }}</a>
-              {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
-              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
-              {% elif is_p_rule_id(f.rule_id) %}
-              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
-              {% else %}{{ f.rule_id }}{% endif %}
-            </strong></td>
-            <td>
-              {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">{{ f.page }}</a>{% elif f.page is not none %}{{ f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}
-            </td>
-            <td>
-              {{ severity_status_badge(f.severity, f.triage_tier) }}
-            </td>
-            <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
-            <td>{{ f.category | humanize_cat }}</td>
-            <td class="detail-cell">
-              {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
-              {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
-            </td>
-            <td class="comment-cell">{{ f.polished_comment }}</td>
-            <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      </div>
-    </div>
-  </div>
-  {% else %}
-  <div class="card"><p>No issues detected. This does not guarantee full compliance. Review the <a href="/help">Help page</a> for limitations and checks that may not apply to every document.</p></div>
-  {% endif %}
-</section>
-
-<section id="section-downloads" class="section export-section" aria-label="Downloads">
-  <h2 style="margin-top:0;">Download reports</h2>
-  <p class="file-hint" style="margin-top:0">
-    Download the full results as a JSON file (for use with other tools) or a Markdown file (easy to read or share).
-  </p>
-  <div class="dl-links">
-    <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View original PDF &#8599;</a>
-    <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a>
-    <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
-    <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
-  </div>
-</section>
-
-{% if md_preview %}
-<section class="section">
-  <details class="collapsible card card-compact">
-    <summary>Markdown report preview</summary>
-    <textarea class="report-box" readonly>{{ md_preview }}</textarea>
   </details>
 </section>
 {% endif %}
 
-<div class="privacy-note">
-  <strong>Privacy note:</strong> Polished comments use rule metadata only (page, issue type, and detected layout or measurement details).
-  No dissertation body text, titles, author names, committee names, or captions are shown.
-  Automated findings require manual verification against NJIT guidelines. Routine page-number candidates in the inventory section are not counted as problems.
-</div>
+{% if report_view.inventory_findings %}
+<section id="section-inventory" class="section" aria-label="Detected page-number candidates">
+  <div class="section-header">
+    <h2>Detected page-number candidates</h2>
+    <span class="section-note">Not counted as problems</span>
+  </div>
+  <details class="card collapsible">
+    <summary>{{ report_view.inventory_findings|length }} detected candidate{{ "" if report_view.inventory_findings|length == 1 else "s" }}</summary>
+    <p class="file-hint" style="margin-top:0.75rem;">
+      These are page-number-like tokens detected for internal verification. They are not formatting problems unless another rule reports a specific defect such as missing, misplaced, duplicate, wrong-style, or wrong-sequence numbering.
+    </p>
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Page</th>
+          <th>Details</th>
+          <th>Why it is not a problem</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for f in report_view.inventory_findings %}
+        <tr>
+          <td>{{ f.page if f.page is not none else "—" }}</td>
+          <td>{{ f.issue_type_label if f.issue_type_label else "Detected page-number candidate" }}</td>
+          <td>{{ f.polished_comment }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</section>
+{% endif %}
 
 {% endif %}
 {% endblock %}

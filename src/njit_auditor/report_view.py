@@ -763,6 +763,48 @@ def sort_grouped_problems(
     )
 
 
+def _finding_page_rank(finding: Mapping[str, Any]) -> int:
+    """Return a single finding's page, or a sentinel that sorts it last.
+
+    Mirrors :func:`_grouped_problem_earliest_page` for the flat individual-findings
+    list: a finding with no page (a document-level finding) sorts after every
+    page-specific finding, regardless of how many pages exist in the document.
+    """
+    page = finding.get("page")
+    return int(page) if page is not None else _NO_PAGE_SORT_RANK
+
+
+def _finding_confidence_rank(finding: Mapping[str, Any], sort_mode: str) -> int:
+    level = str(finding.get("confidence_level") or "")
+    if sort_mode == SORT_MODE_CONFIDENCE_DESC:
+        return _CONFIDENCE_DESC_RANK.get(level, _UNKNOWN_CONFIDENCE_RANK)
+    return _CONFIDENCE_ASC_RANK.get(level, _UNKNOWN_CONFIDENCE_RANK)
+
+
+def sort_findings(
+    findings: Sequence[Mapping[str, Any]], sort_mode: str
+) -> list[Mapping[str, Any]]:
+    """Reorder individual findings by page or confidence for the main Findings list.
+
+    ``sort_mode`` should already be normalized via :func:`normalize_sort_mode`. Mirrors
+    :func:`sort_grouped_problems` exactly, but operates on the flat per-occurrence
+    finding dicts (each with a single scalar ``page``/``confidence_level``, unlike a
+    grouped card's lists) that back the main student-facing Findings table. The sort is
+    stable, so findings sharing a page (or confidence bucket) keep their existing
+    relative order -- and it only reorders the list for display; it never mutates a
+    finding's ``problem_number`` or ``problem_anchor``, so links and highlight actions
+    stay stable across sort modes.
+    """
+    if sort_mode in (SORT_MODE_DEFAULT, SORT_MODE_PAGE):
+        return sorted(findings, key=_finding_page_rank)
+    if sort_mode not in (SORT_MODE_CONFIDENCE_DESC, SORT_MODE_CONFIDENCE_ASC):
+        return list(findings)
+    return sorted(
+        findings,
+        key=lambda finding: _finding_confidence_rank(finding, sort_mode),
+    )
+
+
 def _finding_view_from_item(
     item: Mapping[str, Any],
     *,
