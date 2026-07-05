@@ -1,22 +1,51 @@
-# Open PR Triage (2026-07-05, #3: #454 findings-controls simplification merged)
+# Open PR Triage (2026-07-05, #4: #436 list-entry highlight/bbox fix merged)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #2 snapshot below (baseline `a5f6c74`, #440 merge) is preserved
+> **Superseded:** the 2026-07-05 #3 snapshot below (baseline `013c836`, #454 merge) is preserved
 > as historical context only — see the "Historical"/"Previous pass" sections further down.
 > Everything above that point is current.
 
-**Baseline inspected:** `main` @ `013c836103d635e26375d85b7ce4ef9363a5d684` (squash merge of PR
-[#454](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/454)). Short SHA: `013c836`.  
-**Live server:** still serving pre-`a5f6c74` code (unchanged — this pass did not touch the live
-deployment/systemd or tmux service; `013c836` is not yet deployed)  
-**Open PR count:** **4**, unchanged (2 detector-behavior fixes awaiting human/Ester review, 2
-stale/CI-failing needing a fresh rebase before any merge decision) — #454 was not itself one of
-the tracked open-PR-triage items; it was opened and merged within this same pass.
+**Baseline inspected:** `main` @ `5c37a115a1313028225b28faa9765bb615eeb2ad` (squash-merge of PR
+[#436](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/436)). Short SHA: `5c37a11`.  
+**Live server:** still serving pre-`013c836` code (unchanged — this pass did not touch the live
+deployment/systemd or tmux service; `5c37a11` is not yet deployed)  
+**Open PR count:** **3** — #437 (P011 margin visual polish), #375, #376. #436 is merged and its
+remote branch (`fix/list-entry-highlight-polish`) already deleted.
 
-## What happened in this pass (2026-07-05, #3)
+## What happened in this pass (2026-07-05, #4)
+
+Inspected **#436** (`fix: highlight affected list entries for punctuation warnings`) against the
+task's evidence/highlight-only scope for P040/P053/P054 and confirmed it was already merged to
+`main` (squash-merge `5c37a11`, merged by `SoroushVahidi`) with the remote branch already deleted —
+no further merge action was needed. Re-verified the merged diff and re-ran full validation from a
+clean worktree to confirm the merge was safe:
+
+- **Diff scope (6 files, +205/−51):** `pdf_lof_terminal_punctuation.py`, `pdf_lot_terminal_period.py`,
+  `pdf_toc_terminal_period.py` each gained exactly one behavior: `details["bbox"] =
+  format_bbox_detail(entry.line.bbox)` (P040 also gained `details["page_type"] =
+  "list_of_figures"`). No condition, threshold, rule ID, issue type, grouping key, confidence
+  label, sorting, or export-schema change anywhere in the diff. `tests/test_pdf_rules.py` (+150/−4)
+  and two `docs/status/*` files (`ester_current_consistency_audit.md`,
+  `highlight_quality_improvement_plan.md`, both already correctly updated) round out the diff.
+- **Regression coverage confirmed:** new tests assert (a) each rule's finding now carries a `bbox`
+  that resolves to a visible highlight via `has_visible_highlight`; (b) only the truly offending
+  entry is flagged on a mixed-content page, not neighboring clean entries; (c) P040's location
+  label now reads "List of Figures" instead of the generic "list" fallback; (d) rule ID, issue
+  type, and finding counts are unchanged by the fix. Existing privacy tests
+  (`test_p040_findings_metadata_no_private_content`, `test_p053_finding_metadata_privacy_safe`)
+  were updated only to allow `page_type`'s category-label value (not entry text) through the
+  no-entry-text-leak assertion.
+- **Re-validated from a fresh worktree** (not the shared `main` checkout, which had unrelated
+  in-progress uncommitted changes from other work — left untouched): `ruff check .` passed; `mypy
+  src` — no issues in 105 files; `python -m pytest` — **2557 passed** (2550 at `013c836` + 7 new
+  P040/P053/P054 tests).
+- No detector-threshold or policy change introduced; P021/P026 untouched; P084 not started.
+- No live deployment/systemd action taken in this pass.
+
+## Historical — what happened in the previous pass (2026-07-05, #3)
 
 Reviewed and merged **#454** (`refactor: simplify findings filters and default to page order`),
 opened earlier this same pass: removed the student-facing **Severity** filter dropdown from the

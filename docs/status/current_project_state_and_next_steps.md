@@ -7,16 +7,71 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #3 (#454 findings-controls simplification merged)
+## Current Status — 2026-07-05, #4 (#436 list-entry highlight/bbox fix merged)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot, the 2026-07-04 #435/#439 reconciliation
-snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR #433 snapshot,
-2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot, live
-regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
+#3 snapshot, the 2026-07-05 #2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot, the 2026-07-04
+#435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot, 2026-07-03/PR
+#433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406 merge snapshot,
+live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot, post-#388-closure
 snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier 2026-07-02 cleanup,
 2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical context and should
 not be read as current.
+
+- **Code baseline `main`:** `5c37a115a1313028225b28faa9765bb615eeb2ad` (squash-merge of PR
+  [#436](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/436), `fix: highlight affected
+  list entries for punctuation warnings`, on top of `#454` at `3fba82e`). Short SHA: `5c37a11`.
+- **Reviewed and confirmed #436** (evidence/highlight-only, no detector/threshold/rule-ID/export
+  change): P040 (List of Figures missing terminal punctuation), P053 (List of Tables entry ends
+  with a period), and P054 (Table of Contents entry ends with a period) findings previously stored
+  no `bbox`, so `highlight_targeting.resolve_primary_highlight_bbox()` had nothing to work with and
+  the UI fell back to "Open original PDF page" instead of a highlighted page, even though the
+  offending entry's line geometry (`entry.line.bbox`) was already computed internally.
+  - Added `details["bbox"] = format_bbox_detail(entry.line.bbox)` to all three rules — no new
+    geometry, just exposing what each detector already computed.
+  - Added `details["page_type"] = "list_of_figures"` to P040 only, so the shared `report_view`
+    location-label helper resolves "List of Figures" instead of the generic "list" fallback. P053/
+    P054 already set `section_type` and needed no equivalent change.
+  - Deliberately did **not** add full entry-text reproduction (`affected_entry_preview`, used by
+    P018/P046): existing tests (`test_p040_findings_metadata_no_private_content`,
+    `test_p053_finding_metadata_privacy_safe`) assert no LoF/LoT/TOC entry text may appear in
+    `details` — a stricter privacy contract than P018/P046. Location clarity comes from
+    `page_type`/`section_type` + `page_entry_index` only.
+  - Verified directly from the diff (6 files, +205/−51): `pdf_lof_terminal_punctuation.py`,
+    `pdf_lot_terminal_period.py`, `pdf_toc_terminal_period.py`, `tests/test_pdf_rules.py`, and two
+    `docs/status/*` files — no rule ID, issue type, threshold, grouping key, confidence label,
+    sorting behavior, or JSON/Markdown export schema changed; finding counts unchanged.
+  - New regression tests confirm: bbox present and resolves to a visible highlight
+    (`has_visible_highlight`) for all three rules; only the truly offending entry is flagged
+    (others on the same page stay clean); the P040 location label reads "List of Figures" (not the
+    generic fallback); rule ID/issue type/finding count are unchanged by the fix.
+  - Remote branch `fix/list-entry-highlight-polish` already deleted at merge time.
+- **Live server:** still serving pre-`013c836` code — **not** updated in this pass (no deployment
+  action taken); `5c37a11` will be picked up by a future deploy pass.
+- **Open PR count:** **3** — #437 (P011 margin visual polish, detector/highlight fix awaiting
+  human/Ester review), #375, #376 (stale, need rebase + fresh CI before any merge decision). #436
+  is no longer open.
+- Validation re-run on `5c37a11` in a fresh worktree (not the shared `main` checkout, which had
+  unrelated in-progress uncommitted changes left by other work): `ruff check .` — passed; `mypy
+  src` — no issues in 105 source files; `python -m pytest` — **2557 passed** (7 more than the
+  2550 recorded at `013c836`, matching the 7 new P040/P053/P054 regression tests added by #436).
+  Does not touch P021, P026, rule IDs, or detector/threshold behavior; P084 not started.
+
+### Next recommended work
+
+1. Review **#437** (P011 margin visual polish) on its own merits — unrelated to #436, no shared
+   files.
+2. Resume review of **#375**/**#376** only after a fresh rebase and CI run; both are stale relative
+   to current `main`.
+3. Optionally restart the live server after merging so `/version.commit` matches current `main`
+   (not done in this pass).
+4. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-05, #3 (#454 findings-controls simplification merged)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `013c836103d635e26375d85b7ce4ef9363a5d684` (squash merge of PR
   [#454](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/454), `refactor: simplify
