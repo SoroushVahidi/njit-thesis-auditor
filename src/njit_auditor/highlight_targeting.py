@@ -46,6 +46,9 @@ _P035_PLACEMENT_ISSUES: frozenset[str] = frozenset(
 _EXTRA_BBOX_KEYS: tuple[str, ...] = ("body_bbox", "caption_bbox", "token_bbox", "word_bbox", "rect")
 
 
+_P011_MARGIN_ISSUE = "margin_boundary_violation"
+
+
 def _parse_bbox_text(raw: str) -> tuple[float, float, float, float] | None:
     parts = [part.strip() for part in raw.split(",")]
     if len(parts) != _BBOX_PARTS:
@@ -55,6 +58,16 @@ def _parse_bbox_text(raw: str) -> tuple[float, float, float, float] | None:
     except ValueError:
         return None
     return box if is_drawable_bbox(box) else None
+
+
+def _parse_bbox_list(raw: str) -> list[tuple[float, float, float, float]]:
+    """Parse a " | "-separated list of "x0,y0,x1,y1" boxes (see pdf_margins.py)."""
+    boxes: list[tuple[float, float, float, float]] = []
+    for chunk in raw.split("|"):
+        parsed = _parse_bbox_text(chunk.strip())
+        if parsed is not None:
+            boxes.append(parsed)
+    return boxes
 
 
 def _union_boxes(
@@ -167,6 +180,14 @@ def parse_highlight_bboxes_from_details(
     issue_type: str = "",
 ) -> list[tuple[float, float, float, float]]:
     """Return every drawable highlight box encoded in finding details."""
+    if rule_id == "P011" and issue_type == _P011_MARGIN_ISSUE:
+        precise_boxes = _parse_bbox_list(str(details.get("highlight_bboxes", "")).strip())
+        if precise_boxes:
+            guide_box = _parse_bbox_text(str(details.get("margin_boundary_bbox", "")).strip())
+            if guide_box is not None:
+                precise_boxes.append(guide_box)
+            return precise_boxes
+
     boxes: list[tuple[float, float, float, float]] = []
     line_bbox = _parse_bbox_text(str(details.get("bbox", "")).strip())
     if line_bbox is None:

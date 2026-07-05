@@ -1157,7 +1157,8 @@ def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
     _MARGIN_SPEC = (
         "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
         "Move any text, table, or figure that extends into the margins back inside "
-        "the required page area."
+        "the required page area. This rule is strict: no text, table, or figure may "
+        "cross the required boundary, even by a small amount."
     )
     if side == "required page margin":
         return (

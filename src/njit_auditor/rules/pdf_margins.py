@@ -22,6 +22,18 @@ OVERFLOW_TOLERANCE_PT = 3.0
 ARTIFACT_GUARD_MIN_COUNT = 5
 ARTIFACT_GUARD_MAX_OVERFLOW_PT = 8.0
 
+# Half-thickness of the drawn margin-boundary guide rectangle. Presentation-only:
+# does not affect detection, thresholds, or confidence -- purely how wide the
+# guide line is once rendered in the highlighted PDF.
+MARGIN_GUIDE_HALF_THICKNESS_PT = 1.5
+
+# Two violating lines on the same side are grouped into one tight highlight
+# region only when no other line (violating or not) separates them in the
+# page's top-to-bottom reading order. This is presentation-only: it decides
+# how many highlight boxes are drawn for an already-decided finding, never
+# whether a violation is flagged.
+_ADJACENT_LINE_INDEX_GAP = 1
+
 
 class MarginSide(str, Enum):
     LEFT = "left_margin"
@@ -35,6 +47,7 @@ class LineViolation:
     side: MarginSide
     overflow_pt: float
     line: PdfTextLine
+    line_index: int
 
 
 def _likely_page_number_text(text: str, y0: float, y1: float, page_height: float) -> bool:
@@ -48,6 +61,7 @@ def _line_violation(
     allowed_y0: float,
     allowed_x1: float,
     allowed_y1: float,
+    line_index: int,
 ) -> LineViolation | None:
     text = line.text.strip()
     if not text:
@@ -73,7 +87,7 @@ def _line_violation(
     side, overflow = max(overflow_by_side.items(), key=lambda item: item[1])
     if overflow <= OVERFLOW_TOLERANCE_PT:
         return None
-    return LineViolation(side=side, overflow_pt=overflow, line=line)
+    return LineViolation(side=side, overflow_pt=overflow, line=line, line_index=line_index)
 
 
 def _group_confidence(worst_overflow_pt: float, count: int) -> str:
@@ -85,6 +99,63 @@ def _group_confidence(worst_overflow_pt: float, count: int) -> str:
     if worst_overflow_pt >= 5.0 or count >= 2:
         return "medium"
     return "low"
+
+
+def _union_bbox_of(violations: list[LineViolation]) -> BBox:
+    return BBox(
+        x0=min(v.line.bbox.x0 for v in violations),
+        y0=min(v.line.bbox.y0 for v in violations),
+        x1=max(v.line.bbox.x1 for v in violations),
+        y1=max(v.line.bbox.y1 for v in violations),
+    )
+
+
+def _group_adjacent_violations(violations: list[LineViolation]) -> list[list[LineViolation]]:
+    """Split same-side violations into tight groups with no line between them.
+
+    Presentation-only: groups violating lines for highlight geometry so a
+    highlighted PDF shows tight boxes around each cluster of affected lines
+    instead of one region spanning unrelated content between separated
+    violations. Two violations land in the same group only when their
+    position in the page's top-to-bottom line order is consecutive (no other
+    line -- violating or not -- separates them); this never changes which
+    lines are flagged, only how many highlight boxes are drawn for them.
+    """
+    ordered = sorted(violations, key=lambda v: v.line_index)
+    groups: list[list[LineViolation]] = []
+    for violation in ordered:
+        if groups and violation.line_index - groups[-1][-1].line_index <= _ADJACENT_LINE_INDEX_GAP:
+            groups[-1].append(violation)
+        else:
+            groups.append([violation])
+    return groups
+
+
+def _margin_boundary_guide_bbox(
+    side: MarginSide,
+    violations: list[LineViolation],
+    *,
+    allowed_x0: float,
+    allowed_y0: float,
+    allowed_x1: float,
+    allowed_y1: float,
+) -> BBox:
+    """Return a thin rectangle marking the required margin boundary line.
+
+    Spans only the vertical (for left/right) or horizontal (for top/bottom)
+    extent of the affected lines, not the full page, so the guide stays
+    contextual to the violation instead of drawing a page-length line.
+    """
+    thickness = MARGIN_GUIDE_HALF_THICKNESS_PT
+    if side in (MarginSide.LEFT, MarginSide.RIGHT):
+        y0 = min(v.line.bbox.y0 for v in violations)
+        y1 = max(v.line.bbox.y1 for v in violations)
+        boundary_x = allowed_x0 if side is MarginSide.LEFT else allowed_x1
+        return BBox(x0=boundary_x - thickness, y0=y0, x1=boundary_x + thickness, y1=y1)
+    x0 = min(v.line.bbox.x0 for v in violations)
+    x1 = max(v.line.bbox.x1 for v in violations)
+    boundary_y = allowed_y0 if side is MarginSide.TOP else allowed_y1
+    return BBox(x0=x0, y0=boundary_y - thickness, x1=x1, y1=boundary_y + thickness)
 
 
 def run_pdf_margin_rule(
@@ -105,11 +176,13 @@ def run_pdf_margin_rule(
         allowed_y1 = page.height - BOTTOM_MARGIN_PT
 
         grouped: dict[MarginSide, list[LineViolation]] = {}
+        line_index = 0
         for block in page.text_blocks:
             for line in block.lines:
                 violation = _line_violation(
-                    line, page.height, allowed_x0, allowed_y0, allowed_x1, allowed_y1
+                    line, page.height, allowed_x0, allowed_y0, allowed_x1, allowed_y1, line_index
                 )
+                line_index += 1
                 if not violation:
                     continue
                 grouped.setdefault(violation.side, []).append(violation)
@@ -124,18 +197,32 @@ def run_pdf_margin_rule(
                 continue
             confidence = _group_confidence(worst, count)
 
-            # Highlight the union of every violating line's box, not just the worst
-            # offender's -- a multi-row table overflowing the margin should show a
-            # region covering all of its affected rows, not one arbitrary row. This
-            # only changes which region is drawn; it does not add a new box concept
-            # (see docs/status/highlight_quality_improvement_plan.md) and every other
-            # field below (worst_overflow_pt, affected_line_count, confidence, side)
-            # still reflects the single worst offender exactly as before.
-            highlight_bbox = BBox(
-                x0=min(v.line.bbox.x0 for v in violations),
-                y0=min(v.line.bbox.y0 for v in violations),
-                x1=max(v.line.bbox.x1 for v in violations),
-                y1=max(v.line.bbox.y1 for v in violations),
+            # `bbox` stays the union of every violating line's box, unchanged, for
+            # backward compatibility with any consumer reading a single box (e.g.
+            # the has_highlight availability check). It does not add a new box
+            # concept on its own (see docs/status/highlight_quality_improvement_plan.md)
+            # and every other field below (worst_overflow_pt, affected_line_count,
+            # confidence, side) still reflects the single worst offender exactly
+            # as before.
+            highlight_bbox = _union_bbox_of(violations)
+
+            # Precise per-region highlight boxes: violating lines are grouped so
+            # that only lines with nothing (violating or not) between them share
+            # one tight box, instead of one region spanning unrelated content
+            # between separated violations.
+            adjacent_groups = _group_adjacent_violations(violations)
+            highlight_bboxes = [_union_bbox_of(group) for group in adjacent_groups]
+
+            # A thin guide rectangle marking the exact required margin boundary
+            # line the content must not cross, scoped to the affected region's
+            # extent rather than spanning the full page.
+            margin_boundary_bbox = _margin_boundary_guide_bbox(
+                side,
+                violations,
+                allowed_x0=allowed_x0,
+                allowed_y0=allowed_y0,
+                allowed_x1=allowed_x1,
+                allowed_y1=allowed_y1,
             )
 
             # Collect truncated text previews of all violating lines for student-facing wording.
@@ -165,6 +252,10 @@ def run_pdf_margin_rule(
                 "confidence": confidence,
                 "triage_tier": "informational",
                 "bbox": format_bbox_detail(highlight_bbox),
+                "highlight_bboxes": " | ".join(
+                    format_bbox_detail(box) for box in highlight_bboxes
+                ),
+                "margin_boundary_bbox": format_bbox_detail(margin_boundary_bbox),
                 "suggested_fix": (
                     "Set the left margin to 1.5 inches and the top, bottom, and right "
                     "margins to 1 inch. Move all content inside the required margin bounds."

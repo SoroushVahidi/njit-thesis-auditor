@@ -32,11 +32,21 @@ def _join_margin_labels(labels: Sequence[str]) -> str:
 
 
 @dataclass(frozen=True)
+class P011SideStats:
+    """Per-side overflow/line-count detail for one margin-boundary finding."""
+
+    side: str
+    worst_overflow_pt: float
+    affected_line_count: int
+
+
+@dataclass(frozen=True)
 class P011PagePresentationStats:
     page: int
     sides: tuple[str, ...]
     raw_finding_count: int
     highlight_bboxes: tuple[tuple[float, float, float, float], ...] = ()
+    side_stats: tuple[P011SideStats, ...] = ()
 
 
 @dataclass
@@ -57,15 +67,40 @@ def p011_page_location_label(page: int, sides: Sequence[str]) -> str:
     return f"Page {page} — {_join_margin_labels(short_labels)}"
 
 
+def _side_breakdown_phrase(side_stats: Sequence[P011SideStats]) -> str:
+    """Return a per-side "side (~X pt over, N line(s))" breakdown, or "" if unavailable.
+
+    This replaces vague "N separate margin-boundary warnings" phrasing with the
+    exact overflow amount and affected-line count for each side, so a mixed-side
+    page (e.g. top + right) reads as clearly separated evidence per side rather
+    than one undifferentiated count.
+    """
+    if not side_stats:
+        return ""
+    parts = []
+    for stat in sorted(side_stats, key=lambda s: _side_short_label(s.side)):
+        label = _side_short_label(stat.side)
+        line_word = "line" if stat.affected_line_count == 1 else "lines"
+        parts.append(
+            f"{label} margin (~{stat.worst_overflow_pt:.1f} pt over, "
+            f"{stat.affected_line_count} {line_word} affected)"
+        )
+    return "Side detail: " + "; ".join(parts) + "."
+
+
 def p011_combined_rolled_up_comment(stats: P011PagePresentationStats) -> str:
     side_phrase = _join_margin_labels([_side_short_label(side) for side in stats.sides])
-    return (
+    base = (
         f"Likely problem: Page {stats.page} has content that may be too close to the "
         f"{side_phrase}. The auditor flagged {stats.raw_finding_count} separate "
-        "margin-boundary warnings on this page. Review the highlighted areas if "
-        "available, or inspect the full page layout including headers, footers, page "
-        "numbers, tables, figures, captions, and long lines."
+        "margin-boundary warnings on this page. NJIT's margin rule is strict: no text, "
+        "tables, or figures should cross a required margin boundary, even by a small "
+        "amount. Review the highlighted areas if available, or inspect the full page "
+        "layout including headers, footers, page numbers, tables, figures, captions, "
+        "and long lines."
     )
+    breakdown = _side_breakdown_phrase(stats.side_stats)
+    return f"{base} {breakdown}" if breakdown else base
 
 
 def p011_combined_suggested_fix(stats: P011PagePresentationStats) -> str:
@@ -88,11 +123,14 @@ def p011_combined_rolled_up_explanation(stats: P011PagePresentationStats) -> str
             "No exact text span could be highlighted for every affected side, so this is "
             "a page-level layout review."
         )
+    breakdown = _side_breakdown_phrase(stats.side_stats)
+    breakdown_clause = f" {breakdown}" if breakdown else ""
     return (
         f"Observed: {location}. The auditor flagged {stats.raw_finding_count} separate "
         "margin-boundary warnings on this page because text crosses more than one required "
         "margin side. Expected: body content should stay inside NJIT page margins on every "
-        f"side. What to check or fix: inspect the whole page, not just one area. {highlight_note}"
+        f"side, even by a small amount. What to check or fix: inspect the whole page, not "
+        f"just one area. {highlight_note}{breakdown_clause}"
     )
 
 
@@ -106,12 +144,34 @@ def p011_combined_no_highlight_reason(stats: P011PagePresentationStats) -> str:
     )
 
 
+@dataclass(frozen=True)
+class P011SerializedEntry:
+    """One P011 finding's presentation-relevant fields, extracted from JSON."""
+
+    index: int
+    side: str
+    bbox: tuple[float, float, float, float] | None
+    highlight_bboxes: tuple[tuple[float, float, float, float], ...]
+    worst_overflow_pt: float
+    affected_line_count: int
+
+
+def _parse_bbox_field(raw: str) -> tuple[float, float, float, float] | None:
+    if not raw:
+        return None
+    parts = [part.strip() for part in raw.split(",")]
+    if len(parts) != 4:
+        return None
+    try:
+        return tuple(float(part) for part in parts)  # type: ignore[return-value]
+    except ValueError:
+        return None
+
+
 def collect_p011_margin_pages_from_serialized(
     serialized_findings: Sequence[Mapping[str, object]],
-) -> dict[int, list[tuple[int, str, tuple[float, float, float, float] | None]]]:
-    by_page: dict[int, list[tuple[int, str, tuple[float, float, float, float] | None]]] = (
-        defaultdict(list)
-    )
+) -> dict[int, list[P011SerializedEntry]]:
+    by_page: dict[int, list[P011SerializedEntry]] = defaultdict(list)
     for index, finding in enumerate(serialized_findings):
         rule_id = str(finding.get("rule_id", "")).strip()
         if rule_id != P011_RULE_ID:
@@ -129,38 +189,66 @@ def collect_p011_margin_pages_from_serialized(
         except ValueError:
             continue
         side = str(details.get("side", "")).strip()
-        bbox_raw = str(details.get("bbox", "")).strip()
-        bbox: tuple[float, float, float, float] | None = None
-        if bbox_raw:
-            parts = [part.strip() for part in bbox_raw.split(",")]
-            if len(parts) == 4:
-                try:
-                    bbox = tuple(float(part) for part in parts)  # type: ignore[assignment]
-                except ValueError:
-                    bbox = None
-        by_page[page_int].append((index, side, bbox))
+        bbox = _parse_bbox_field(str(details.get("bbox", "")).strip())
+        precise_boxes = tuple(
+            box
+            for chunk in str(details.get("highlight_bboxes", "")).strip().split("|")
+            if (box := _parse_bbox_field(chunk.strip())) is not None
+        )
+        guide_box = _parse_bbox_field(str(details.get("margin_boundary_bbox", "")).strip())
+        entry_boxes = precise_boxes + ((guide_box,) if guide_box is not None else ())
+        try:
+            worst_overflow_pt = float(str(details.get("worst_overflow_pt", "0")).strip())
+        except ValueError:
+            worst_overflow_pt = 0.0
+        try:
+            affected_line_count = int(str(details.get("affected_line_count", "0")).strip())
+        except ValueError:
+            affected_line_count = 0
+        by_page[page_int].append(
+            P011SerializedEntry(
+                index=index,
+                side=side,
+                bbox=bbox,
+                highlight_bboxes=entry_boxes,
+                worst_overflow_pt=worst_overflow_pt,
+                affected_line_count=affected_line_count,
+            )
+        )
     return dict(by_page)
 
 
 def init_p011_display_state(
-    page_entries: Mapping[int, Sequence[tuple[int, str, tuple[float, float, float, float] | None]]],
+    page_entries: Mapping[int, Sequence[P011SerializedEntry]],
 ) -> P011DisplayState:
     state = P011DisplayState()
     for page, entries in page_entries.items():
-        sides = tuple(sorted({side for _, side, _ in entries if side}))
+        sides = tuple(sorted({entry.side for entry in entries if entry.side}))
         highlight_bboxes = tuple(
-            bbox for _, _, bbox in entries if bbox is not None
+            box
+            for entry in entries
+            for box in (entry.highlight_bboxes or ((entry.bbox,) if entry.bbox else ()))
+        )
+        side_stats = tuple(
+            P011SideStats(
+                side=entry.side,
+                worst_overflow_pt=entry.worst_overflow_pt,
+                affected_line_count=entry.affected_line_count,
+            )
+            for entry in entries
+            if entry.side
         )
         stats = P011PagePresentationStats(
             page=page,
             sides=sides,
             raw_finding_count=len(entries),
             highlight_bboxes=highlight_bboxes,
+            side_stats=side_stats,
         )
         state.page_stats[page] = stats
         if len(entries) > 1:
             state.multi_side_pages.add(page)
-            anchor_index = min(entries, key=lambda item: item[0])[0]
+            anchor_index = min(entry.index for entry in entries)
             state.page_anchors[page] = anchor_index
     return state
 
