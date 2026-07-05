@@ -664,6 +664,77 @@ def test_findings_by_topic_table_visible_sorted_and_clean(
     assert "Excessive line gap" in category_resp.text or "spacing" in category_resp.text.lower()
 
 
+def test_findings_by_topic_table_compact_no_affected_pages_column(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The top-level table is a compact navigation index: topic, count, and a
+    "Review all" action only. Affected pages and per-category description text
+    are dropped here (they made the category column too narrow on mobile) and
+    belong on the category drilldown page instead."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    table_html = html.split('id="section-topics"', 1)[1].split("</table>", 1)[0]
+
+    assert "<th>Topic</th>" in table_html
+    assert "<th>Findings</th>" in table_html
+    assert "Affected pages" not in table_html
+    assert "Review all" in table_html
+    # No inline category description/explanation text in the compact table —
+    # that text used to wrap word-by-word in a narrow mobile column.
+    assert "file-hint" not in table_html
+
+
+def test_findings_by_topic_review_all_link_targets_category_drilldown(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Each row's "Review all" action must be a working link to the existing
+    category drilldown route, not a dead link or placeholder."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    topics_html = html.split('id="section-topics"', 1)[1].split("</section>", 1)[0]
+
+    import re
+
+    hrefs = re.findall(
+        rf'href="(/audits/{job_id}/problems/category/[^"]+)"[^>]*>Review all</a>',
+        topics_html,
+    )
+    assert hrefs, "expected at least one 'Review all' link in the topics table"
+    for href in hrefs:
+        category_resp = c.get(href)
+        assert category_resp.status_code == 200
+
+
+def test_category_drilldown_page_shows_affected_pages(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Affected pages were removed from the compact Findings by topic table;
+    the category drilldown page must still surface them so nothing is lost."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    topics_html = html.split('id="section-topics"', 1)[1].split("</section>", 1)[0]
+
+    import re
+
+    href_match = re.search(
+        rf'href="(/audits/{job_id}/problems/category/[^"]+)"[^>]*>Review all</a>',
+        topics_html,
+    )
+    assert href_match is not None
+    category_resp = c.get(href_match.group(1))
+    assert category_resp.status_code == 200
+    assert "Pages to review" in category_resp.text
+
+
 def test_findings_by_topic_table_not_grouped_by_rule_id(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -675,7 +746,7 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
     assert resp.status_code == 200
     html = resp.content.decode()
     table_html = html.split('id="section-topics"', 1)[1].split("</table>", 1)[0]
-    assert "<th>Category</th>" in table_html
+    assert "<th>Topic</th>" in table_html
     assert "<th>Rule</th>" not in table_html
 
 
