@@ -764,3 +764,23 @@ def check_pdf_references_citations_structural(
         findings.append(spacing_finding)
 
     return findings
+
+
+def references_section_page_numbers(pdf_doc: PdfDocument) -> frozenset[int]:
+    """Return the page numbers that belong to the References/Bibliography section.
+
+    Reuses this module's heading localization and section-span logic so other
+    rules (e.g. P023 body double-spacing) can exclude the entire references
+    section — including continuation pages that do not repeat the heading —
+    rather than only the single page carrying the heading. Returns an empty set
+    when no references section can be confidently located.
+    """
+    if not pdf_doc.pages:
+        return frozenset()
+    body_start = _find_body_start_page(pdf_doc)
+    located = _localize_references_heading(pdf_doc, body_start)
+    if located is None:
+        return frozenset()
+    heading_page, _ = located
+    section_pages = _collect_references_section_pages(pdf_doc, heading_page)
+    return frozenset(page.page_number for page in section_pages)

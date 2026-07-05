@@ -47,13 +47,17 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.rules.pdf_captions import detect_caption_lines
 from njit_auditor.rules.pdf_headings import (
     EXPECTED_HEADINGS,
     find_body_start_page,
     normalize_heading_text,
 )
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, TOP_BOTTOM_ZONE_RATIO
+from njit_auditor.rules.pdf_references_citations_structural import (
+    references_section_page_numbers,
+)
 
 DOUBLE_SPACING_RATIO_THRESHOLD = 1.55
 PARAGRAPH_BREAK_RATIO = 4.0
@@ -65,6 +69,16 @@ MIN_GAPS_FOR_CHECK = 5
 MIN_LINE_TEXT_LEN = 30
 MIN_ALPHA_RATIO = 0.45
 MIN_ALPHA_COUNT = 15
+
+# Table-region detection: a text line that follows a table caption with a row
+# pitch (top-to-top distance) at or below this multiple of the body font size
+# is treated as a table row and excluded from body-spacing measurement. The
+# limit sits just above the single-spacing band so tightly packed table rows
+# are captured while genuinely double-spaced body prose (ratio ≈ 2.0) ends the
+# table region instead of being swallowed by it.
+_TABLE_ROW_PITCH_RATIO = 1.7
+# Tolerance for treating a line as "below" a caption despite tiny bbox overlap.
+_CAPTION_OVERLAP_TOL_PT = 2.0
 
 _ALL_NAMED_HEADINGS = frozenset(EXPECTED_HEADINGS)
 
@@ -145,6 +159,62 @@ def _estimate_font_size(lines: list[PdfTextLine]) -> float:
     return median(sizes)
 
 
+def _table_caption_bboxes_by_page(pdf_doc: PdfDocument) -> dict[int, list[BBox]]:
+    """Return table-caption line bboxes keyed by page number.
+
+    Only real table captions (``Table N ...``) are used to anchor table-region
+    detection; figure captions and List-of-* entries are ignored here.
+    """
+    result: dict[int, list[BBox]] = {}
+    for caption in detect_caption_lines(pdf_doc):
+        if caption.caption_type != "table" or caption.bbox is None:
+            continue
+        result.setdefault(caption.page_number, []).append(caption.bbox)
+    return result
+
+
+def _table_band_ranges(
+    caption_bboxes: list[BBox],
+    all_lines: list[PdfTextLine],
+    font_size: float,
+) -> list[tuple[float, float]]:
+    """Return vertical (y0, y1) bands covering table captions and their rows.
+
+    Each band starts at a table caption and extends downward across the
+    contiguous run of tightly packed rows (single-spacing-like pitch), stopping
+    at the first line whose pitch indicates ordinary (double-spaced) body text.
+    Lines whose vertical center falls inside any band are table content and must
+    not be measured as body text.
+    """
+    if not caption_bboxes:
+        return []
+    pitch_limit = max(font_size, 1.0) * _TABLE_ROW_PITCH_RATIO
+    ordered = sorted(all_lines, key=lambda ln: (ln.bbox.y0, ln.bbox.x0))
+    bands: list[tuple[float, float]] = []
+    for caption_bbox in caption_bboxes:
+        band_bottom = caption_bbox.y1
+        prev_top = caption_bbox.y0
+        for line in ordered:
+            if line.bbox.y0 < caption_bbox.y1 - _CAPTION_OVERLAP_TOL_PT:
+                continue  # at or above the caption line itself
+            pitch = line.bbox.y0 - prev_top
+            if pitch <= 0:
+                # Cell on the same row (side-by-side) — part of the table row.
+                band_bottom = max(band_bottom, line.bbox.y1)
+                continue
+            if pitch > pitch_limit:
+                break  # ordinary body spacing resumed — table region ended
+            band_bottom = max(band_bottom, line.bbox.y1)
+            prev_top = line.bbox.y0
+        bands.append((caption_bbox.y0, band_bottom))
+    return bands
+
+
+def _line_in_bands(line: PdfTextLine, bands: list[tuple[float, float]]) -> bool:
+    center_y = (line.bbox.y0 + line.bbox.y1) / 2.0
+    return any(y0 <= center_y <= y1 for y0, y1 in bands)
+
+
 def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P023 warnings when body text appears not to be double-spaced.
 
@@ -159,8 +229,20 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     # pages, etc.) that are legitimately single-spaced or tightly formatted.
     body_start = find_body_start_page(pdf_doc)
 
+    # Exclude the entire References/Bibliography section, including continuation
+    # pages that do not repeat the heading. Reference-entry spacing has its own
+    # dedicated check (P064) and must not be mislabeled as "body text not
+    # double-spaced".
+    references_pages = references_section_page_numbers(pdf_doc)
+
+    # Anchor table regions from their captions so table cell text and tightly
+    # packed table rows are not measured as ordinary body text.
+    table_caption_bboxes = _table_caption_bboxes_by_page(pdf_doc)
+
     for page in pdf_doc.pages:
         if body_start is not None and page.page_number < body_start:
+            continue
+        if page.page_number in references_pages:
             continue
         if _page_has_heading_in(page, TOC_LIKE_HEADINGS):
             continue
@@ -173,9 +255,21 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
         for block in page.text_blocks:
             all_lines.extend(block.lines)
 
+        table_bands = _table_band_ranges(
+            table_caption_bboxes.get(page.page_number, []),
+            all_lines,
+            _estimate_font_size(all_lines) if all_lines else FALLBACK_FONT_SIZE_PT,
+        )
+
         body_lines = [
-            line for line in all_lines if _is_body_text_line(line, page.height)
+            line
+            for line in all_lines
+            if _is_body_text_line(line, page.height)
+            and not _line_in_bands(line, table_bands)
         ]
+        # Only warn when actual body-text lines remain to be measured. If all
+        # tight spacing lives inside a table region, body_lines is now too small
+        # and the page is skipped rather than mislabeled.
         if len(body_lines) < MIN_BODY_LINES_FOR_CHECK:
             continue
 
@@ -209,6 +303,30 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if suspicious_fraction < MIN_SUSPICIOUS_FRACTION:
             continue
 
+        measured_bbox = _union_bbox(body_lines)
+
+        details = {
+            "page_number": str(page.page_number),
+            "issue_type": "possible_body_text_not_double_spaced",
+            "median_body_gap_pt": f"{median_spacing:.1f}",
+            "estimated_body_font_size_pt": f"{font_size:.1f}",
+            "gap_to_font_ratio": f"{median_ratio:.2f}",
+            "affected_gap_count": str(suspicious_count),
+            "measured_body_line_count": str(len(body_lines)),
+            "measured_gap_count": str(len(spacings)),
+            "confidence": "medium",
+            "suggested_fix": (
+                "Ensure body text paragraphs use double line spacing "
+                "(\\setstretch{2} or \\doublespacing in LaTeX, "
+                "or 'Double' in word processor line spacing settings)."
+            ),
+        }
+        if measured_bbox is not None:
+            # Highlight the measured body-text region (table regions are already
+            # excluded) so the evidence points at the lines that were measured
+            # rather than only showing the original page.
+            details["bbox"] = format_bbox_detail(measured_bbox)
+
         findings.append(
             AuditFinding(
                 rule_id="P023",
@@ -220,21 +338,19 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     f"ratio {median_ratio:.2f}× font size). "
                     f"NJIT requires double-spaced body text."
                 ),
-                details={
-                    "page_number": str(page.page_number),
-                    "issue_type": "possible_body_text_not_double_spaced",
-                    "median_body_gap_pt": f"{median_spacing:.1f}",
-                    "estimated_body_font_size_pt": f"{font_size:.1f}",
-                    "gap_to_font_ratio": f"{median_ratio:.2f}",
-                    "affected_gap_count": str(suspicious_count),
-                    "confidence": "medium",
-                    "suggested_fix": (
-                        "Ensure body text paragraphs use double line spacing "
-                        "(\\setstretch{2} or \\doublespacing in LaTeX, "
-                        "or 'Double' in word processor line spacing settings)."
-                    ),
-                },
+                details=details,
             )
         )
 
     return findings
+
+
+def _union_bbox(lines: list[PdfTextLine]) -> BBox | None:
+    if not lines:
+        return None
+    return BBox(
+        x0=min(line.bbox.x0 for line in lines),
+        y0=min(line.bbox.y0 for line in lines),
+        x1=max(line.bbox.x1 for line in lines),
+        y1=max(line.bbox.y1 for line in lines),
+    )

@@ -276,7 +276,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "overrides."
     ),
     ("P016", "suspicious_heading_blank_gap"): (
-        "An unusually large blank gap was detected just before a heading on this "
+        "An unusually large blank gap was detected just after a heading on this "
         "page. Verify this is an intentional necessary page break (for example, "
         "starting a new chapter). If it is just an extra blank line, delete it."
     ),
@@ -1362,7 +1362,7 @@ def _p016_spacing_explanation(
             "overrides."
         )
     return (
-        f"An unusually large blank gap{gap_clause} was detected just before a "
+        f"An unusually large blank gap{gap_clause} was detected just after a "
         "heading on this page. Verify this is intentional heading spacing and not "
         "an extra blank line or page-break artifact."
     )
