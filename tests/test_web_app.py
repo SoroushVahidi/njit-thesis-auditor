@@ -839,8 +839,11 @@ def test_results_page_defaults_to_individual_findings_with_advanced_grouped_summ
     assert b'id="individual-findings-panel"' in resp.content
     assert b'id="section-grouped-summary"' in resp.content
     assert b"Advanced: grouped problem summaries" in resp.content
-    # The 9 individual finding rows (one per page) are the primary table's content.
-    assert resp.content.count(b'class="finding-row"') == 9
+    # The 9 individual finding cards (one per page) are the primary panel's content.
+    panel_start = resp.text.index('id="individual-findings-panel"')
+    panel_end = resp.text.index('id="section-downloads"', panel_start)
+    panel = resp.text[panel_start:panel_end]
+    assert panel.count('class="finding-row finding-card"') == 9
 
 
 def test_results_page_renders_confidence_badges_and_filters(
@@ -1081,7 +1084,7 @@ def _finding_row_rule_order(body: str, rule_ids: list[str]) -> list[str]:
     panel_start = body.index('id="individual-findings-panel"')
     panel_end = body.index("</table>", panel_start)
     panel = body[panel_start:panel_end]
-    row_order = re.findall(r'class="finding-row"\s+data-rule="([^"]+)"', panel)
+    row_order = re.findall(r'data-rule="([^"]+)"[^>]*class="finding-row', panel)
     return [rule_id for rule_id in row_order if rule_id in rule_ids]
 
 
@@ -1937,7 +1940,7 @@ def test_results_page_renders_polished_comments(
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Polished comment" in resp.content
+    assert b"Review note" in resp.content
     assert b"Likely problem" in resp.content
 
 
@@ -1953,11 +1956,10 @@ def test_results_page_wraps_tables_for_mobile_horizontal_scroll(
     assert resp.status_code == 200
     html = resp.content.decode()
     assert "Show individual occurrences" in html
-    # One wrapper each for: the primary individual-findings table, the collapsed
-    # advanced rule summary, and the collapsed advanced grouped-occurrence table.
-    # The old standalone problem-type summary table was merged into the
-    # "Most common issues" root-cause cards, which don't use a table.
-    assert html.count('class="table-scroll"') >= 3
+    # One wrapper each for the collapsed advanced rule summary and the collapsed
+    # advanced grouped-occurrence table. The primary individual-findings list
+    # now uses compact cards instead of a wide table.
+    assert html.count('class="table-scroll"') >= 2
 
 
 def test_results_page_has_client_side_filters(
@@ -2010,6 +2012,42 @@ def test_grouped_problem_cards_still_show_severity_badge(
     assert 'class="badge badge-fail">Fail' in body
 
 
+def test_individual_findings_panel_omits_severity_column(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """The primary individual-findings list is student-facing: confidence, not severity."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    panel_start = body.index('id="individual-findings-panel"')
+    panel_end = body.index('id="section-downloads"', panel_start)
+    panel = body[panel_start:panel_end]
+    assert ">Severity<" not in panel
+    assert "confidence-badge" in panel
+    assert "individual-findings-list" in panel
+    assert "finding-card" in panel
+
+
+def test_individual_findings_panel_has_mobile_safe_layout_classes(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Compact card layout hooks must be present for mobile-friendly wrapping."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    for css_class in (
+        "individual-findings-list",
+        "finding-card",
+        "finding-card__location",
+        "finding-card__issue",
+    ):
+        assert css_class in body
+
+
 def test_results_page_filter_script_defers_until_dom_ready(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -2060,7 +2098,7 @@ def test_results_page_does_not_leak_raw_latex_in_comments_or_fixes(
     resp = c.get(f"/audits/{job_id}")
 
     assert resp.status_code == 200
-    assert b"Polished comment" in resp.content
+    assert b"Review note" in resp.content
     assert b"Likely problem" in resp.content
     assert b"double-spaced" in resp.content or b"double spacing" in resp.content
     assert b"Times New Roman" in resp.content
