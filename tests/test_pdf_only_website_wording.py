@@ -220,7 +220,10 @@ def test_results_page_uses_simple_severity_labels_not_raw_severity(
     body = resp.text
     assert "Problem" in body
     assert "Needs fixing" in body
-    assert "Worth checking" in body
+    # The student-facing Severity *filter* (which used to spell out "Worth checking"
+    # for WARNING findings as a dropdown option) has been removed in favor of the
+    # per-card status badge and existing Confidence filter; there is no longer a
+    # WARNING-specific plain-language string to assert on this page.
     # Raw severity tokens must not appear as standalone visible badge text.
     assert ">FAIL<" not in body
     assert ">WARNING<" not in body

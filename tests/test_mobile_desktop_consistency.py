@@ -356,7 +356,6 @@ def test_result_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Problems found",
         "Items to review",
         "Needs fixing",
-        "Worth checking",
         "Pages affected",
         "Rules flagged",
         "Grouped problems",

@@ -964,10 +964,13 @@ def test_results_page_renders_sort_control_with_accessible_label(
     assert '<label for="sort-problems">Sort problems</label>' in body
     assert 'id="sort-problems"' in body
     assert 'name="sort"' in body
-    assert "Default order" in body
+    assert "Default order" not in body
     assert "High confidence first" in body
     assert "Low confidence first" in body
-    assert "Page order" in body
+    # "Page order" is the default option's visible label, and it must appear exactly
+    # once now that the old separate "page_order" dropdown entry has been folded into
+    # the (renamed) default option.
+    assert body.count("Page order") == 1
 
 
 def test_sort_query_param_confidence_desc_orders_high_confidence_first(
@@ -987,7 +990,8 @@ def test_sort_query_param_confidence_desc_orders_high_confidence_first(
     default_order = _grouped_problem_rule_order(
         default_resp.text, ["P037", "P011", "P026"]
     )
-    assert default_order == ["P037", "P011", "P026"]
+    # Default order is page order: P011=page 1, P037=page 2, P026=page 3.
+    assert default_order == ["P011", "P037", "P026"]
 
     resp = c.get(f"/audits/{job_id}?sort=confidence_desc")
     assert resp.status_code == 200
@@ -1043,7 +1047,7 @@ def test_sort_query_param_page_order_orders_by_earliest_page(
     ]
 
 
-def test_sort_query_param_missing_or_default_preserves_original_order(
+def test_sort_query_param_missing_or_default_orders_by_page(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
@@ -1059,7 +1063,8 @@ def test_sort_query_param_missing_or_default_preserves_original_order(
     explicit_default_resp = c.get(f"/audits/{job_id}?sort=default")
     assert no_param_resp.status_code == 200
     assert explicit_default_resp.status_code == 200
-    expected = ["P037", "P011", "P026"]
+    # Default order is page order: P011=page 1, P037=page 2, P026=page 3.
+    expected = ["P011", "P037", "P026"]
     assert _grouped_problem_rule_order(no_param_resp.text, expected) == expected
     assert _grouped_problem_rule_order(explicit_default_resp.text, expected) == expected
 
@@ -1078,9 +1083,10 @@ def test_invalid_sort_query_param_falls_back_to_default_order(
 
     resp = c.get(f"/audits/{job_id}?sort=not-a-real-mode")
     assert resp.status_code == 200
+    # Falls back to default order, i.e. page order.
     assert _grouped_problem_rule_order(resp.text, ["P037", "P011", "P026"]) == [
-        "P037",
         "P011",
+        "P037",
         "P026",
     ]
 
@@ -1855,9 +1861,46 @@ def test_results_page_has_client_side_filters(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"filter-rule" in resp.content
-    assert b"filter-severity" in resp.content
     assert b"filter-category" in resp.content
     assert b"filter-page" in resp.content
+    assert b'id="filter-reset"' in resp.content
+    assert b"Confidence" in resp.content
+    # The severity filter control has been removed from the student-facing filter
+    # bar: severity is already surfaced per-card via the status badge, and most
+    # findings are review signals rather than confirmed defects.
+    assert b"filter-severity" not in resp.content
+    assert b'<label for="filter-severity">' not in resp.content
+
+
+def test_grouped_problem_cards_still_show_severity_badge(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Removing the Severity *filter* control must not remove the severity *badge*
+    rendered on each grouped-problem card -- that badge is still a useful at-a-glance
+    signal even without a dropdown to filter by it."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.FAIL,
+            page=1,
+            message="Left margin too narrow.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+    assert 'class="badge badge-fail">Fail' in body
 
 
 def test_results_page_filter_script_defers_until_dom_ready(

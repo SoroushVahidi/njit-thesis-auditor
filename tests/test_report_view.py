@@ -453,16 +453,20 @@ def test_normalize_sort_mode_accepts_known_values_and_falls_back_for_unknown() -
     assert normalize_sort_mode("newest") == "default"
 
 
-def test_sort_grouped_problems_default_mode_preserves_existing_order() -> None:
+def test_sort_grouped_problems_default_mode_orders_by_page() -> None:
+    """"default" is the "Page order" option shown in the UI and the order applied on
+    first page load, so it must sort by earliest affected page, not preserve
+    insertion order (P037 is inserted first but is on page 2, after P011's page 1)."""
     problems = _confidence_sort_fixture_grouped_problems()
-    default_order = [p["rule_id"] for p in problems]
-    assert default_order == ["P037", "P011", "P026", "P030", "P044"]
+    insertion_order = [p["rule_id"] for p in problems]
+    assert insertion_order == ["P037", "P011", "P026", "P030", "P044"]
 
+    # Pages: P037=2, P011=1, P026=3, P030=4, P044=5.
+    expected_page_order = ["P011", "P037", "P026", "P030", "P044"]
     sorted_problems = sort_grouped_problems(problems, "default")
-    assert [p["rule_id"] for p in sorted_problems] == default_order
-    # "default" must not even be treated as a no-op copy that could mask a bug: it
-    # should be the literal same relative order as the unsorted input list.
-    assert sorted_problems == problems
+    assert [p["rule_id"] for p in sorted_problems] == expected_page_order
+    # "default" and the explicit "page_order" value must produce identical output.
+    assert sort_grouped_problems(problems, "page_order") == sorted_problems
 
 
 def test_sort_grouped_problems_high_first_orders_high_before_medium_before_low() -> None:
@@ -496,11 +500,17 @@ def test_sort_grouped_problems_low_first_orders_low_before_medium_before_high() 
 
 def test_sort_grouped_problems_invalid_mode_falls_back_to_default_order() -> None:
     problems = _confidence_sort_fixture_grouped_problems()
-    default_order = [p["rule_id"] for p in problems]
     mode = normalize_sort_mode("not-a-real-mode")
     assert mode == "default"
     sorted_problems = sort_grouped_problems(problems, mode)
-    assert [p["rule_id"] for p in sorted_problems] == default_order
+    # Falls back to "default", i.e. page order: P011(1), P037(2), P026(3), P030(4), P044(5).
+    assert [p["rule_id"] for p in sorted_problems] == [
+        "P011",
+        "P037",
+        "P026",
+        "P030",
+        "P044",
+    ]
 
 
 def test_sort_grouped_problems_does_not_change_problem_numbers_or_card_contents() -> None:
