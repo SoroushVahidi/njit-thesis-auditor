@@ -56,6 +56,7 @@ from njit_auditor.report_view import (
     build_report_view,
     normalize_sort_mode,
     report_view_to_dict,
+    sort_findings,
     sort_grouped_problems,
 )
 from njit_auditor.upload_handling import (
@@ -1962,6 +1963,7 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     sorted_grouped_problems = sort_grouped_problems(grouped_problems, sort_mode)
     if report_view:
         report_view = {**report_view, "grouped_problems": sorted_grouped_problems}
+    sorted_findings = sort_findings(job.findings, sort_mode)
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
     counts_by_category = report_view.get("counts_by_category", {}) or {}
@@ -2005,7 +2007,7 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
         "warn_count": job.warn_count,
         "fail_count": job.fail_count,
         "error_message": job.error_message,
-        "findings": job.findings,
+        "findings": sorted_findings,
         "grouped_summary": job.grouped_summary,
         "report_view": report_view,
         "md_preview": job.md_preview,

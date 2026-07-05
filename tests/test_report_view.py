@@ -22,6 +22,7 @@ from njit_auditor.report_view import (
     build_report_view,
     normalize_sort_mode,
     report_view_to_dict,
+    sort_findings,
     sort_grouped_problems,
 )
 
@@ -753,6 +754,199 @@ def test_normalize_sort_mode_accepts_page_order() -> None:
     assert normalize_sort_mode("page_order") == "page_order"
     assert normalize_sort_mode("PAGE_ORDER") == "page_order"
     assert normalize_sort_mode("  page_order  ") == "page_order"
+
+
+# ---------------------------------------------------------------------------
+# sort_findings: the flat individual-findings list is now the primary,
+# student-facing Findings table, so it gets the exact same sort-mode behavior
+# as sort_grouped_problems (page order default, confidence asc/desc, stable
+# tie-breaking, never touching problem_number/problem_anchor).
+# ---------------------------------------------------------------------------
+
+
+def _confidence_sort_fixture_findings() -> list[dict[str, Any]]:
+    """Five findings in a deliberately non-confidence-ordered default order.
+
+    Default order (by rule_id): P037 (low), P011 (high), P026 (medium), P030 (missing),
+    P044 (high). Two "high" findings (P011, P044) are included non-adjacently so sorting
+    tests can also confirm stability within a confidence bucket.
+    """
+    findings = [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=2,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=3,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "medium"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=4,
+            message="Missing continued heading.",
+            details={"issue_type": "missing_continued_heading"},
+        ),
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            page=5,
+            message="Table centering issue.",
+            details={"issue_type": "table_not_centered", "confidence": "high"},
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    return report_view_to_dict(view)["findings"]
+
+
+def test_sort_findings_default_mode_orders_by_page() -> None:
+    findings = _confidence_sort_fixture_findings()
+    insertion_order = [f["rule_id"] for f in findings]
+    assert insertion_order == ["P037", "P011", "P026", "P030", "P044"]
+
+    # Pages: P037=2, P011=1, P026=3, P030=4, P044=5.
+    expected_page_order = ["P011", "P037", "P026", "P030", "P044"]
+    sorted_findings = sort_findings(findings, "default")
+    assert [f["rule_id"] for f in sorted_findings] == expected_page_order
+    # "default" and the explicit "page_order" value must produce identical output.
+    assert sort_findings(findings, "page_order") == sorted_findings
+
+
+def test_sort_findings_high_first_orders_high_before_medium_before_low() -> None:
+    findings = _confidence_sort_fixture_findings()
+    sorted_findings = sort_findings(findings, "confidence_desc")
+    assert [f["rule_id"] for f in sorted_findings] == [
+        "P011",
+        "P044",
+        "P026",
+        "P037",
+        "P030",
+    ]
+
+
+def test_sort_findings_low_first_orders_low_before_medium_before_high() -> None:
+    findings = _confidence_sort_fixture_findings()
+    sorted_findings = sort_findings(findings, "confidence_asc")
+    assert [f["rule_id"] for f in sorted_findings] == [
+        "P037",
+        "P026",
+        "P011",
+        "P044",
+        "P030",
+    ]
+
+
+def test_sort_findings_invalid_mode_falls_back_to_default_order() -> None:
+    findings = _confidence_sort_fixture_findings()
+    mode = normalize_sort_mode("not-a-real-mode")
+    assert mode == "default"
+    sorted_findings = sort_findings(findings, mode)
+    assert [f["rule_id"] for f in sorted_findings] == [
+        "P011",
+        "P037",
+        "P026",
+        "P030",
+        "P044",
+    ]
+
+
+def test_sort_findings_does_not_change_problem_numbers() -> None:
+    """Sorting only reorders the list; it must never renumber or rewrite findings."""
+    findings = _confidence_sort_fixture_findings()
+    before_by_rule = {f["rule_id"]: f for f in findings}
+
+    for mode in ("confidence_desc", "confidence_asc"):
+        sorted_findings = sort_findings(findings, mode)
+        assert len(sorted_findings) == len(findings)
+        for finding in sorted_findings:
+            original = before_by_rule[finding["rule_id"]]
+            assert finding["problem_number"] == original["problem_number"]
+            assert finding["problem_anchor"] == original["problem_anchor"]
+
+
+def _page_sort_fixture_findings() -> list[dict[str, Any]]:
+    """Four findings in a deliberately non-page-ordered default order, with two
+    sharing the same page so page-order tests can also confirm stability within a
+    page bucket, and one with no page at all."""
+    findings = [
+        AuditFinding(
+            rule_id="P037",
+            severity=Severity.WARNING,
+            page=8,
+            message="Page number issue.",
+            details={"issue_type": "wrong_page_number_sequence", "confidence": "low"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=3,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+        AuditFinding(
+            rule_id="P026",
+            severity=Severity.WARNING,
+            page=3,
+            message="Font issue.",
+            details={"issue_type": "possible_body_font_family_issue", "confidence": "medium"},
+        ),
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=None,
+            message="Missing continued heading.",
+            details={"issue_type": "missing_continued_heading"},
+        ),
+    ]
+    report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(report)
+    return report_view_to_dict(view)["findings"]
+
+
+def test_sort_findings_page_order_orders_by_page() -> None:
+    findings = _page_sort_fixture_findings()
+    default_order = [f["rule_id"] for f in findings]
+    assert default_order == ["P037", "P011", "P026", "P030"]
+
+    sorted_findings = sort_findings(findings, "page_order")
+    # P011 and P026 share page 3 and keep their original relative order
+    # (stability); P037 (page 8) comes next; P030 (no page) sorts last.
+    assert [f["rule_id"] for f in sorted_findings] == ["P011", "P026", "P037", "P030"]
+
+
+def test_sort_findings_same_page_findings_preserve_stable_order() -> None:
+    findings = _page_sort_fixture_findings()
+    sorted_findings = sort_findings(findings, "page_order")
+    same_page_ids = [f["rule_id"] for f in sorted_findings if f["rule_id"] in ("P011", "P026")]
+    assert same_page_ids == ["P011", "P026"]
+
+
+def test_sort_findings_no_page_findings_appear_after_page_specific_findings() -> None:
+    findings = _page_sort_fixture_findings()
+    sorted_findings = sort_findings(findings, "page_order")
+    assert sorted_findings[-1]["rule_id"] == "P030"
 
 
 def test_same_problem_with_different_confidence_stays_on_one_card_by_default() -> None:
