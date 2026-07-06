@@ -1,5 +1,9 @@
 # Sub-Page Location Labels — Salvage/Rebase Audit
 
+> **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
+> UI references (for example "All individual findings" panel) describe the pre-cleanup layout.
+> For the current report flow, see [current_project_state_and_next_steps.md](../status/current_project_state_and_next_steps.md).
+
 **Date:** 2026-06-19
 **Branch:** `fix/sub-page-location-labels-current-ui` (from `main` @ `47be2ab`, PR #325)
 **Source PR reviewed:** #311, `feature/subpage-location-labels` (opened 2026-06-15, head `a65d480`)

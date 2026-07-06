@@ -1,5 +1,10 @@
 # Repository Polish Inventory
 
+> **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
+> Baseline tables, open-PR counts, and live-SHA figures below are preserved as a 2026-07-03
+> inventory record. For the current state, see
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
 > **Purpose:** Document the current repository cleanup/polish state — baseline,
 > what is already clean, known organization issues, and a recommended
 > sequence for future low-risk cleanup PRs. This document is

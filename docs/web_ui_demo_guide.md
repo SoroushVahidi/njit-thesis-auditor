@@ -56,13 +56,14 @@ Verify `/` shows:
 3. Wait for completion.
 4. Verify the completed page shows:
    - summary cards
-   - grouped problems
-   - access to individual findings
+   - Findings by topic (category overview)
+   - Findings in page order (compact cards — the main review list)
    - polished comments
    - suggested fixes
    - issue-type labels
    - JSON and Markdown download links
    - PDF-opening links
+   - Advanced sections collapsed after Downloads (grouped summaries, rule-by-rule summary, detected candidates)
 5. **Expected findings:** This fixture is a minimal demo input, not a zero-warning baseline.
    The current audit produces residual outputs for **P011**, **P013**, and **P027** (see
    `docs/planning/synthetic_web_demo_fixtures.md` §3.1). Do not expect an empty results page.
@@ -71,8 +72,8 @@ Verify `/` shows:
 
 1. Return to `/`.
 2. Upload `tests/fixtures/web_demo/issues_pdf.pdf`.
-3. Verify the result shows repeated/grouped findings and PDF links that open the relevant page.
-4. Open at least one grouped problem and one individual finding path.
+3. Verify the result shows repeated findings and PDF links that open the relevant page.
+4. Open at least one Findings by topic drill-down and one Findings in page order card.
 
 ### Step 3: Test URL Audit
 
@@ -93,7 +94,8 @@ If built-in samples are available on the server:
 For at least one completed job, verify:
 
 - the same totals and rule/category counts appear on mobile and desktop
-- grouped problems and individual findings are both reachable
+- Findings by topic and Findings in page order are both reachable
+- the main findings list uses compact cards (no legacy grouped/individual toggle)
 - issue-type explanations are visible on both viewports
 - JSON/Markdown downloads are present on both viewports
 - PDF links are present on both viewports

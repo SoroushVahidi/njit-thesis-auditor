@@ -35,7 +35,7 @@ Open `http://localhost:8000` in a browser. The public web UI is **PDF-only**:
 - **Audit a public PDF URL** — paste a direct public PDF link and submit.
 - **Audit a built-in sample PDF** — select a locally available sample on servers where the repository is checked out.
 
-PDF uploads run the current implemented PDF layout audit surface (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, P077, P079, and P081 reporting/infrastructure refinements). The results page keeps the same substantive content and actions across mobile and desktop: summary cards, grouped problems, individual findings, issue explanations, PDF links, and JSON/Markdown downloads. PDF routes are served with inline `Content-Disposition` where possible, but final preview-vs-download behavior can still vary by browser or device settings.
+PDF uploads run the current implemented PDF layout audit surface (P011–P068, P074, and P078 standalone checks plus P069–P073, P076, P077, P079, and P081 reporting/infrastructure refinements). The results page keeps the same substantive content and actions across mobile and desktop: summary cards, Findings by topic, Findings in page order (compact cards), issue explanations, PDF links, and JSON/Markdown downloads. Advanced grouped summaries and technical tables are collapsed by default. PDF routes are served with inline `Content-Disposition` where possible, but final preview-vs-download behavior can still vary by browser or device settings.
 
 CLI/source-audit support is separate from the public web UI. Use `njit-audit tex ...` for TeX source audits and `njit-audit docx-comments extract ...` for DOCX comment extraction.
 
@@ -51,8 +51,8 @@ Three web audit entrypoints are available:
   is checked out. Do not expose built-in samples on a public site unless authorized.
 
 Download JSON or Markdown reports from the results page. The results page shows a status
-banner, summary cards, severity/category overview, high-volume triage panels (P011/P013/P026),
-client-side finding filters (rule, severity, category, page), and privacy-safe polished
+banner, summary cards, Findings by topic, Findings in page order (compact cards),
+client-side finding filters (rule, category, page, confidence), and privacy-safe polished
 comments per finding. Web-generated JSON/Markdown use basename-only paths (CLI exports are
 unchanged). Completed jobs and runtime files are removed automatically after 24 hours by default
 (`NJIT_AUDITOR_WEB_JOB_TTL_SECONDS`). The upload page explains local privacy-safe processing
@@ -221,7 +221,7 @@ Repository progress: **P001–P083** implemented (82 project-added inventory ent
 | P071 localization eval | `docs/evaluation/p071_references_section_localization_recall_current_dataset_evaluation.md` |
 | P072 detection-mode eval | `docs/evaluation/p072_approval_page_heading_gate_recall_current_dataset_evaluation.md` |
 | P036–P063 gap-fill eval | `docs/evaluation/p036_p063_current_dataset_gap_fill_evaluation.md` |
-| Status snapshot validation | **2512 pytest passed** on tracked tests at `07db2fa` (2026-07-03, PR #433 baseline); see [docs/status/current_project_state_and_next_steps.md](docs/status/current_project_state_and_next_steps.md) for the current snapshot and up-to-date open-PR list |
+| Status snapshot validation | **2512 pytest passed** on tracked tests at `07db2fa` (2026-07-03, PR #433 baseline); see [docs/status/current_project_state_and_next_steps.md](docs/status/current_project_state_and_next_steps.md) for the current snapshot and open-PR count |
 | Ester Q / P / public rule mapping | [docs/status/ester_q_p_rule_public_rule_mapping.md](docs/status/ester_q_p_rule_public_rule_mapping.md) |
 | Status doc index | [docs/status/README.md](docs/status/README.md) |
 

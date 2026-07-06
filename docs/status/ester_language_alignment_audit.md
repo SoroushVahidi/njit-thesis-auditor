@@ -8,6 +8,9 @@
 > **Source of truth:** [ester_feedback_source_of_truth.md](ester_feedback_source_of_truth.md)
 >
 > **Recorded:** 2026-07-02 (post–PR #411; behavior baseline PR #408 @ `70dcd95`)
+>
+> **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
+> For the current state, see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
 **Inspection basis (read-only):**
 

@@ -7,6 +7,10 @@
 > **Canonical live status:** [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 >
 > **Related mapping doc:** [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md)
+>
+> **Historical note:** Recorded dates, SHAs, and open-PR references below predate the final #9
+> cleanup snapshot (2026-07-05). For the current state, see
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
 **Recorded:** 2026-07-02 (post–PR #409/#410 status sync; behavior baseline PR #408 @ `70dcd95`)
 
