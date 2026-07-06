@@ -47,8 +47,8 @@ _SOURCE_RULE_IDS = frozenset(
     {"P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009", "P010"}
 )
 
-# P037 checks specific front-matter sections against a fixed NJIT template
-# value; this maps the detector's internal section_key to a display name.
+# P037 checks front-matter section Roman numerals; List of Tables continues
+# after the TOC (Q060) while other sections use fixed template slots.
 _P037_SECTION_KEY_LABELS: dict[str, str] = {
     "biographical_sketch": "Biographical Sketch",
     "dedication": "Dedication",

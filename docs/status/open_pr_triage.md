@@ -1,15 +1,41 @@
-# Open PR Triage (2026-07-05, #15: Ester source-of-truth consistency audit)
+# Open PR Triage (2026-07-05, #16: unambiguous Ester-consistency wording fixes)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
+**Baseline inspected:** `main` @ `69ef2f7184965045d0f4fd4c08c989fd60429269`. Short SHA: `69ef2f7`.  
+**Live server:** serving `c0d1199` — **untouched**.  
+**Open PR count:** **0** until unambiguous Ester-consistency PR merges.
+
+## What happened in this pass (2026-07-05, #16)
+
+Narrow wording/catalog fixes aligned with existing Ester source data and implemented behavior — no detector, threshold, or deployment changes.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `fix/unambiguous-ester-consistency` |
+| **Fixed** | P037 catalog/README (dynamic LoT after TOC, Q060); P019 catalog + `_RULE_FALLBACKS` (remove internal candidate language); `ester_rule_consistency_audit.py` matrix path + JSON fallback |
+| **Deferred** | P011 remediation/thresholds; P013/P019 hiding; P021/P026; umbrella cards; P035; P068; references citation-style |
+| **Tests** | `test_ester_unambiguous_wording_fixes.py` + audit-script loader tests (**2601 pytest** total) |
+| **Esther email/packet** | Not prepared |
+| **Live deployment** | Untouched |
+
+### Branches retained (4 — unchanged)
+
+| Branch | Recommendation |
+|---|---|
+| `fix/confidence-grouping-sorting` | Cherry-pick later — broadest WIP tip |
+| `fix/p015-equation-continuation-indent` | Cherry-pick later |
+| `fix/p035-table-centering-presentation` | Cherry-pick later |
+| `fix/page-numbering-false-positives` | Cherry-pick later — aligns with P013/P019 audit findings |
+
+## Historical — what happened in the previous pass (2026-07-05, #15)
+
+Ester source-of-truth consistency audit (docs-only).
+
 **Baseline inspected:** `main` @ `668aa1bf265ca4fdff74c4ddd59e0b145d9c2300`. Short SHA: `668aa1b`.  
 **Live server:** serving `c0d1199` — untouched (may lag `main`).  
-**Open PR count:** **0** until Ester audit docs PR merges.
-
-## What happened in this pass (2026-07-05, #15)
-
-Audit-only comparison of current auditor vs Ester source materials (no code/detector/UI changes).
+**Open PR count:** **0** (Ester audit docs PR #469 merged).
 
 | Item | Detail |
 |---|---|

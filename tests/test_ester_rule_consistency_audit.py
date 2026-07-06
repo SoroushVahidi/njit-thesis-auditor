@@ -64,3 +64,23 @@ def test_ester_priority_review_font_section_derives_from_mismatch_check(audit_mo
     assert font_section["status"] == "aligned"
     assert "still flags" not in font_section["detail"].lower()
     assert "contradiction" not in font_section["status"]
+
+
+def test_load_matrix_q_rules_uses_tracked_repo_xlsx(audit_module):
+    rules = audit_module.load_matrix_q_rules()
+    assert any(rule["id"] == "Q060" for rule in rules)
+
+
+def test_parse_formatting_json_includes_p011(audit_module):
+    records = audit_module.parse_formatting_json(audit_module._P_FEEDBACK_JSON)
+    p011 = next(item for item in records if item["id"] == "P011")
+    assert "entirely within the required page margins" in p011["proposed_question"]
+
+
+def test_load_formatting_p_rules_falls_back_to_json_without_xlsx(
+    audit_module, monkeypatch, tmp_path
+):
+    missing = tmp_path / "missing-formatting.xlsx"
+    monkeypatch.setattr(audit_module, "_FORMATTING_XLSX", missing)
+    records = audit_module.load_formatting_p_rules()
+    assert any(item["id"] == "P011" for item in records)
