@@ -16,7 +16,10 @@
   .disclaimer-box p { margin: 0 0 0.35rem; font-size: 0.93rem; }
   .disclaimer-box p:last-child { margin-bottom: 0; }
   .glossary-table td, .glossary-table th { vertical-align: top; padding: 0.55rem 0.8rem; }
-  .glossary-table td:first-child { font-weight: 700; white-space: nowrap; }
+  .glossary-table td:first-child { font-weight: 700; }
+  @media (min-width: 641px) {
+    .glossary-table td:first-child { white-space: nowrap; }
+  }
   .toc-list { list-style: none; padding: 0; margin: 0 0 1.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; }
   .toc-list a { color: var(--color-primary); font-size: 0.9rem; }
 </style>
@@ -58,11 +61,11 @@
   <p>After the audit finishes, the results page shows either <strong>"No problems found"</strong> or <strong>"Problems found"</strong>, followed by sections in this order:</p>
   <ol>
     <li><strong>Summary</strong> — quick totals and links to the main parts of the report.</li>
-    <li><strong>Review order</strong> — a suggested reading order when many topics are flagged.</li>
+    <li><strong>Recommended review order</strong> — a suggested reading order when many topics are flagged.</li>
     <li><strong>Findings by topic</strong> — the category overview (for example margins, headings, or page numbering), with counts and links to review each topic.</li>
     <li><strong>Findings in page order</strong> — the main student review list: every finding in PDF page order as compact cards. Use the filters to narrow by rule, category, page, or confidence.</li>
     <li><strong>Downloads</strong> — JSON and Markdown exports.</li>
-    <li><strong>Advanced sections</strong> (collapsed by default) — grouped problem summaries, a rule-by-rule technical summary, and detected candidate inventory for deeper inspection.</li>
+    <li><strong>Advanced sections</strong> (collapsed by default) — grouped problem summaries, a rule-by-rule technical summary, and detected page-number inventory for deeper inspection.</li>
   </ol>
   <p><strong>Findings by topic</strong> is the best place to see how many issues fall under each category. <strong>Findings in page order</strong> is the list most students use to work through the document page by page. Confidence labels help you spot items that may need extra manual review; severity is not offered as a main filter on this list.</p>
   <p>Every item is a signal to review, not a confirmed error. The tool can sometimes flag things that are actually fine, and it can also miss real problems. Always check each item against the official NJIT formatting guidelines before deciding whether to make a change.</p>
@@ -84,6 +87,7 @@
 <!-- Glossary -->
 <section class="help-section" id="glossary">
   <h2>Glossary of terms</h2>
+  <div class="table-scroll">
   <table class="glossary-table" style="width:100%;font-size:0.9rem;">
     <thead>
       <tr>
@@ -130,7 +134,7 @@
       </tr>
       <tr>
         <td>High-volume triage</td>
-        <td>Some checks (such as margin and font checks) can produce hundreds of findings in a typical dissertation. The <strong>Review order</strong> section and the advanced grouped summaries help you understand the overall pattern before working through individual cards in <strong>Findings in page order</strong>.</td>
+        <td>Some checks (such as margin and font checks) can produce hundreds of findings in a typical dissertation. The <strong>Recommended review order</strong> section and the advanced grouped summaries help you understand the overall pattern before working through individual cards in <strong>Findings in page order</strong>.</td>
       </tr>
       <tr>
         <td>Experimental check</td>
@@ -142,6 +146,7 @@
       </tr>
     </tbody>
   </table>
+  </div>
 </section>
 
 <!-- Why Manual Review -->
