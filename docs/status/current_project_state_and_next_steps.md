@@ -7,17 +7,39 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #8 (#376 P014 centering false-positive fix merged)
+## Current Status — 2026-07-05, #9 (cleanup cycle complete — live current with main)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#7 snapshot, the 2026-07-05 #6 snapshot, the 2026-07-05 #5 snapshot, the 2026-07-05 #4 snapshot,
-the 2026-07-05 #3 snapshot, the 2026-07-05 #2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot,
-the 2026-07-04 #435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup
-snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior
-snapshot, PR #406 merge snapshot, live regression diagnosis / cleanup-paused snapshot,
-post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards
-snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
-preserved as historical context and should not be read as current.
+#8 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+current.
+
+- **Code baseline `main`:** `cd2771a5aa35b84eb54441ad61750164cad6d53b` (status docs after #376 merge;
+  includes #376 detector fix at `72b8736`, #460 UI at `b6cc8db`, #375 docs at `d89f4ce`, full stack
+  back through #459). Short SHA: `cd2771a`.
+- **Live server:** serving `cd2771a` via user-level systemd (`thesis-auditor-web.service`) — confirmed
+  by `/version` on `127.0.0.1:8000` and LAN `10.196.93.210:8000` after deploy pass (2026-07-05).
+- **Open PR count:** **0** — cleanup cycle complete; no remaining open PRs.
+- **Validation (latest `main`):** `ruff check .` — passed; `mypy src` — no issues in 105 files;
+  `python -m pytest` — **2585 passed**.
+- **Student-facing report flow (current UI):**
+  Summary → Review order → Findings by topic → Findings in page order (compact cards) → Downloads →
+  Advanced sections (grouped summaries, rule-by-rule summary, detected candidates — collapsed).
+  No Most common issues section; no Grouped problems / All individual findings toggle; no Severity
+  filter or Severity column in the main findings view; default sort is Page order.
+- **Recent merged fixes now live:** #376 P014 page-centering false-positive tolerance; #460 compact
+  individual-findings cards; #459 individual findings as primary page-order view; #375 demo-fixture
+  baseline docs.
+
+### Next recommended work
+
+1. **P084 remains out of scope** unless explicitly requested.
+2. Optional: prune very old remote feature branches (non-blocking; many predate the cleanup cycle).
+
+---
+
+## Historical — 2026-07-05, #8 (#376 P014 centering false-positive fix merged)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `72b8736` (squash-merge of PR
   [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376), `Fix P014 frontmatter

@@ -101,6 +101,21 @@ After creating or editing this file: `systemctl --user daemon-reload`, then
 `systemctl --user enable --now thesis-auditor-web.service`, then
 `loginctl enable-linger <user>` for reboot persistence.
 
+### Current deployment snapshot (2026-07-05, post–cleanup cycle)
+
+| Check | Result |
+|---|---|
+| **`origin/main` SHA** | `cd2771a5aa35b84eb54441ad61750164cad6d53b` |
+| **Live `/version` SHA** | `cd2771a5aa35b84eb54441ad61750164cad6d53b` (matches `main`) |
+| **Supervision** | `systemctl --user` → `thesis-auditor-web.service` (active) |
+| **Live worktree** | `njit-thesis-auditor-clean-worktrees/live-current-main` @ `cd2771a` |
+| **Open PRs** | 0 |
+| **Validation** | ruff/mypy/pytest — **2585 passed** on deployed SHA |
+| **Report flow** | Summary → Review order → Findings by topic → Findings in page order (compact cards) → Downloads → Advanced (collapsed) |
+
+Recent merged behavior now live includes: #376 P014 page-centering fix, #460 compact findings cards,
+#459 individual findings as primary page-order view, #375 demo-fixture baseline docs.
+
 **Why `Restart=always` and not `Restart=on-failure`:** `on-failure` does not restart a
 service that exits on `SIGTERM` — systemd treats `SIGTERM` as its own default graceful-stop
 signal, so a clean `SIGTERM` exit looks identical to an intentional `systemctl stop`, whether
@@ -122,7 +137,11 @@ Use this checklist whenever the live web UI needs to be (re)started from a fresh
 `thesis-auditor-web` as an alternate convention — use whichever session already exists;
 do not create a duplicate listener on port 8000).
 
-**Last verified against host state:** 2026-07-02 (`main` at `921d0df` after PR #409 merge; live
+**Historical — last verified against host state (2026-07-02):** superseded by the
+**Current deployment snapshot** section above (2026-07-05, `cd2771a`). Preserved below for
+archive only.
+
+**Last verified against host state (2026-07-02):** `main` at `921d0df` after PR #409 merge; live
 `/version` still reports `70dcd95` — behavior baseline from PR #408, docs-only delta in #409).
 
 ### 2026-07-02 verification snapshot (post–PR #409 merge)
