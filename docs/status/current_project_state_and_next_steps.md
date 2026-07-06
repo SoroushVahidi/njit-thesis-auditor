@@ -13,9 +13,9 @@ This section is the authoritative current snapshot. Everything below it (includi
 #15 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `69ef2f7184965045d0f4fd4c08c989fd60429269` (pre-merge; unambiguous Ester wording PR pending).
+- **Code baseline `main`:** `20ed7c1db822688649018d20bbbaf7da6ffba377` (PR [#470](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/470) — unambiguous Ester wording fixes).
 - **Live server:** serving `c0d1199` via user-level systemd — **untouched**.
-- **Open PR count:** **0** until unambiguous Ester-consistency PR merges.
+- **Open PR count:** **0**.
 - **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
 - **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2601 passed**.
 
