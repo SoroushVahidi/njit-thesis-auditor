@@ -1,18 +1,44 @@
-# Open PR Triage (2026-07-05, #9: cleanup cycle complete — zero open PRs, live current)
+# Open PR Triage (2026-07-05, #10: stale remote branch cleanup)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #8 snapshot below is preserved as historical context only — see
-> the "What happened in this pass (2026-07-05, #8)" section further down. Everything above that
+> **Superseded:** the 2026-07-05 #9 snapshot below is preserved as historical context only — see
+> the "What happened in this pass (2026-07-05, #9)" section further down. Everything above that
 > point is current.
 
-**Baseline inspected:** `main` @ `cd2771a5aa35b84eb54441ad61750164cad6d53b`. Short SHA: `cd2771a`.  
-**Live server:** serving `cd2771a` via user-level systemd — matches `origin/main`.  
+**Baseline inspected:** `main` @ `bdfbbc4ca42050eb408358b9831ebb715feac524`. Short SHA: `bdfbbc4`.  
+**Live server:** serving `bdfbbc4` via user-level systemd — matches `origin/main`.  
 **Open PR count:** **0**.
 
-## What happened in this pass (2026-07-05, #9)
+## What happened in this pass (2026-07-05, #10)
+
+Safe stale remote-branch cleanup after help/docs deploy (#462 live at `bdfbbc4`).
+
+- **Inspected:** 102 remote branches (excluding `origin/main`).
+- **Deleted:** **89** branches — each either fully merged into `origin/main`, an ancestor of
+  `origin/main` (squash-merge), or the head of a **merged** GitHub PR with no open-PR conflict.
+- **Retained:** **13** branches with unique commits not in `main` and/or no merged PR — manual review
+  recommended before any future deletion:
+  - `docs/pdf-finding-location-clarity-audit` (1 unique commit, no PR)
+  - `feature/example-thesis-url` (closed PR #305, 1 unique commit)
+  - `fix/confidence-grouping-sorting` (16 unique commits, no PR)
+  - `fix/p011-margin-warning-presentation` (12 unique commits, no PR)
+  - `fix/p015-equation-continuation-indent` (15 unique commits, no PR)
+  - `fix/p035-table-centering-presentation` (10 unique commits, no PR)
+  - `fix/p068-approval-page-thesis-advisor` (14 unique commits, no PR)
+  - `fix/page-numbering-false-positives` (13 unique commits, no PR)
+  - `implement-frontmatter-no-visible-page-number` (1 unique commit, no PR)
+  - `organize-ester-materials` (1 unique commit, no PR)
+  - `phase1-tex-source-auditor` (2 unique commits, no PR)
+  - `phase2-pdf-apa-title-capitalization` (1 unique commit, no PR)
+  - `refine-p020-font-size-fallback` (1 unique commit, no PR)
+- **Not deleted:** any branch with ambiguous purpose, unique unmerged work, or possible WIP value.
+- **Live deployment:** untouched in this pass (branch housekeeping + docs only).
+- **Open PR count:** still **0**.
+
+## Historical — what happened in the previous pass (2026-07-05, #9)
 
 Final health/status-consistency pass after the full cleanup cycle (#375–#376, #459–#460, live deploy).
 
