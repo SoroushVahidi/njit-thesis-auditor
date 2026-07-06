@@ -1,43 +1,38 @@
-# Open PR Triage (2026-07-05, #17: UI quality / mobile-desktop consistency audit)
+# Open PR Triage (2026-07-05, #18: minor UI wording consistency)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `c9ae73eddb0183ee734a4c0a1b47c1f6424985dd`. Short SHA: `c9ae73e`.  
-**Live server:** serving `c9ae73e` — **untouched in this audit pass**.  
-**Open PR count:** **0** until UI audit PR merges.
+**Baseline inspected:** `main` @ `0c71a7a1f9afee24b7a2662f06711937f479e352`. Short SHA: `0c71a7a`.  
+**Live server:** serving `0c71a7a` — **untouched in this pass**.  
+**Open PR count:** **0** until minor UI wording PR merges.
 
-## What happened in this pass (2026-07-05, #17)
+## What happened in this pass (2026-07-05, #18)
 
-UI QA across desktop/tablet/phone viewports; docs + narrow Help mobile/wording fixes.
+Mechanical UI/help/docs wording alignment from the PR #472 audit follow-up.
 
 | Item | Detail |
 |---|---|
-| **Branch** | `test/ui-mobile-desktop-consistency-audit` |
-| **New doc** | [ui_quality_mobile_desktop_consistency_audit.md](ui_quality_mobile_desktop_consistency_audit.md) |
-| **Samples** | `ester_sample_a` (39), `ester_sample_b` (70), `ester_sample_d` (246), `clean_minimal` (2) |
-| **Parity** | Finding counts, summary cards, filters, downloads match at 1400/768/390/360 px |
-| **Safe fixes** | Help glossary `.table-scroll`; “Recommended review order” + page-number inventory wording |
-| **Deferred** | Advanced “page-number candidates” rename; inventory-note candidate language |
-| **Tests** | `test_ui_help_mobile_overflow.py` + Help wording tests (**2604 pytest**) |
+| **Branch** | `fix/minor-ui-wording-consistency` |
+| **Changed** | Jump chip → Recommended review order; Markdown `## Advanced grouped summaries`; demo guide |
+| **Tests** | `test_ui_minor_wording_consistency.py` + updated nav/export tests (**2608 pytest**) |
 | **Live deployment** | Untouched |
 
 ### Branches retained (4 — unchanged)
 
 | Branch | Recommendation |
 |---|---|
-| `fix/confidence-grouping-sorting` | Cherry-pick later — broadest WIP tip |
+| `fix/confidence-grouping-sorting` | Cherry-pick later |
 | `fix/p015-equation-continuation-indent` | Cherry-pick later |
 | `fix/p035-table-centering-presentation` | Cherry-pick later |
 | `fix/page-numbering-false-positives` | Cherry-pick later |
 
-## Historical — what happened in the previous pass (2026-07-05, #16)
+## Historical — what happened in the previous pass (2026-07-05, #17)
 
-Unambiguous Ester-consistency wording fixes.
+UI/mobile-desktop consistency audit + Help mobile fixes; deployed as `0c71a7a`.
 
-**Baseline inspected:** `main` @ `c9ae73eddb0183ee734a4c0a1b47c1f6424985dd`. Short SHA: `c9ae73e`.  
-**Live server:** serving `c9ae73e` after deployment pass.  
-**Open PR count:** **0** (PR [#470](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/470) / [#471](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/471) merged).
+**Baseline inspected:** `main` @ `0c71a7a1f9afee24b7a2662f06711937f479e352`. Short SHA: `0c71a7a`.  
+**Open PR count:** **0** (PR [#472](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/472) merged and deployed).
 
 ## What happened in this pass (2026-07-05, #16)
 

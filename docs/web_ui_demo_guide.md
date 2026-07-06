@@ -56,6 +56,7 @@ Verify `/` shows:
 3. Wait for completion.
 4. Verify the completed page shows:
    - summary cards
+   - Recommended review order
    - Findings by topic (category overview)
    - Findings in page order (compact cards — the main review list)
    - polished comments
@@ -63,7 +64,7 @@ Verify `/` shows:
    - issue-type labels
    - JSON and Markdown download links
    - PDF-opening links
-   - Advanced sections collapsed after Downloads (grouped summaries, rule-by-rule summary, detected candidates)
+   - Advanced sections collapsed after Downloads (grouped summaries, rule-by-rule summary, detected page-number inventory)
 5. **Expected findings:** This fixture is a minimal demo input, not a zero-warning baseline.
    The current audit produces residual outputs for **P011**, **P013**, and **P027** (see
    `docs/planning/synthetic_web_demo_fixtures.md` §3.1). Do not expect an empty results page.
@@ -94,7 +95,7 @@ If built-in samples are available on the server:
 For at least one completed job, verify:
 
 - the same totals and rule/category counts appear on mobile and desktop
-- Findings by topic and Findings in page order are both reachable
+- Recommended review order, Findings by topic, and Findings in page order are all reachable
 - the main findings list uses compact cards (no legacy grouped/individual toggle)
 - issue-type explanations are visible on both viewports
 - JSON/Markdown downloads are present on both viewports

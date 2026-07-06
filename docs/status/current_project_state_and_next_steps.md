@@ -7,13 +7,32 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #17 (UI quality / mobile-desktop consistency audit)
+## Current Status — 2026-07-05, #18 (minor UI wording consistency)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#16 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#17 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `c9ae73eddb0183ee734a4c0a1b47c1f6424985dd` (pre-merge; UI audit PR pending).
+- **Code baseline `main`:** `0c71a7a1f9afee24b7a2662f06711937f479e352` (pre-merge; minor UI wording PR pending).
+- **Live server:** serving `0c71a7a` via user-level systemd — **untouched in this pass**.
+- **Open PR count:** **0** until minor UI wording PR merges.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2608 passed**.
+
+### Minor UI wording consistency (2026-07-05)
+
+- Jump chip → **Recommended review order** (matches section H2).
+- Markdown export/preview grouped heading → **## Advanced grouped summaries** (was `## Grouped Problems`).
+- `docs/web_ui_demo_guide.md` flow wording aligned.
+- JSON export schema unchanged; live deployment untouched.
+
+---
+
+## Historical — 2026-07-05, #17 (UI quality / mobile-desktop consistency audit)
+
+> **Superseded** by the section above. Preserved here for historical context only.
+
+- **Code baseline `main`:** `0c71a7a1f9afee24b7a2662f06711937f479e352` (PR [#472](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/472)).
 - **Live server:** serving `c9ae73e` via user-level systemd — **untouched in this audit pass**.
 - **Open PR count:** **0** until UI audit PR merges.
 - **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
