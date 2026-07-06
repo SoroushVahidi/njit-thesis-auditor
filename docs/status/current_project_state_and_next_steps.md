@@ -7,17 +7,52 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #18 (minor UI wording consistency)
+## Current Status — 2026-07-06, #19 (highlight quality & correctness audit)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#17 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#18 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
+- **Code baseline `main`:** `e6973cb0326e5a3c47ef5a91e4aaeaaf87659a98` (PR #473) at audit start;
+  pending merge of this audit's PR.
+- **Live server:** serving `e6973cb` via user-level systemd — **untouched in this audit pass** (no
+  restart; audit ran against a scratch worktree + scratch uvicorn on port 8020, never port 8000).
+- **Open PR count:** **0** at audit start; **0** again after this audit's PR merges.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged, not touched).
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2610 passed**.
+
+### Highlight quality & correctness audit (2026-07-06)
+
+Full report: [`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md).
+
+- **Headline fix (shipped in this PR):** the main results page's individual-findings list
+  (default page-order view) built every "Open highlighted/original PDF page" link using the
+  *displayed* (page-sorted) list position (`finding_index=loop.index0` in `job.html`), but the
+  server resolved that position against the *storage* order of `job.findings`, which is not
+  page-sorted (introduced by PR #459, 2026-07-05). This silently served a plain, non-highlighted
+  page instead of the claimed highlight for a large fraction of findings on the default view.
+  Fixed by dropping `finding_index` from the two affected links, matching the already-correct
+  pattern used by drill-down pages and the grouped-occurrences table. New regression test:
+  `tests/test_finding_index_page_order_consistency.py` (confirmed to fail pre-fix, pass post-fix).
+- P011 (margins) and P035 (figure/table placement) confirmed as good reference highlight
+  implementations: tight, accurate regions, not page-wide guesses.
+- Documented (not fixed — narrow follow-up slices, no detector/threshold/confidence changes made):
+  P019 Roman `sequence_gap` missing a bbox its Arabic sibling already has; P023 highlighting the
+  entire measured body-text block for a page-wide statistical finding; P064 (References
+  hanging-indent) has no geometry and its reported page may not be where the actual problem lives.
+- Mobile/desktop parity confirmed unaffected (identical action content at 390px vs. 1440px).
+- Live deployment untouched throughout; no detector logic, thresholds, confidence, rule IDs, or
+  warning counts changed.
+
+---
+
+## Historical — 2026-07-05, #18 (minor UI wording consistency)
+
 - **Code baseline `main`:** `0c71a7a1f9afee24b7a2662f06711937f479e352` (pre-merge; minor UI wording PR pending).
-- **Live server:** serving `0c71a7a` via user-level systemd — **untouched in this pass**.
-- **Open PR count:** **0** until minor UI wording PR merges.
+- **Live server:** serving `0c71a7a` via user-level systemd — untouched in that pass.
+- **Open PR count:** **0** until minor UI wording PR merged.
 - **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
-- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2608 passed**.
+- **Validation (that pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2608 passed**.
 
 ### Minor UI wording consistency (2026-07-05)
 
