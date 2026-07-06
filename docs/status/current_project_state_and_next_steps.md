@@ -7,36 +7,28 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #14 (P011 margin-warning presentation isolated)
+## Current Status — 2026-07-05, #15 (Ester source-of-truth consistency audit)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#13 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#14 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `454fd13dee5a453b8216261b6361c10c00943ace` (squash-merge of PR
-  [#467](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/467), P011 presentation slice).
-- **Live server:** serving `c0d1199` via user-level systemd — untouched in this pass.
-- **Open PR count:** **0**.
-- **Remote branches:** **4** after deleting `fix/p011-margin-warning-presentation` (superseded by PR #467);
-  four other stacked `fix/*` WIP branches retained.
-- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2594 passed**.
+- **Code baseline `main`:** `668aa1bf265ca4fdff74c4ddd59e0b145d9c2300` (post–PR #467/#468; no code changes in this pass).
+- **Live server:** serving `c0d1199` via user-level systemd — **untouched** (may lag `origin/main`).
+- **Open PR count:** **0** until Ester audit docs PR merges.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
+- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2594 passed** (unchanged; docs-only pass).
 
-### P011 disposition (2026-07-05)
+### Ester consistency audit (2026-07-05)
 
-- Inspected retained branch `fix/p011-margin-warning-presentation` (12 commits; only `4c8c541` + `adbb034`
-  were P011-relevant; rest was unrelated stacked Jun-2026 WIP).
-- **Superseded on `main`:** WIP regressed later P011 visual evidence (`margin_boundary_bbox`, adjacent
-  `highlight_bboxes`, `line_index` grouping) already on `main`; WIP `margin_confidence` calibration excluded.
-- **Narrow slice:** context-aware page labels/remediation (`p011_margin_presentation.py`), references
-  continuation-page inference from line previews, additive `page_context`/`margin_content_kind` details;
-  margin thresholds, confidence logic, and highlight geometry unchanged.
-- **Before:** generic “body content” margin warnings and inch-setting suggested fixes on all pages.
-- **After:** abstract/approval/references/body-specific labels and remediation (e.g. hanging-indent fix on
-  bibliography continuation pages); strict NJIT margin messaging preserved.
+- **New doc:** [ester_source_consistency_audit_current.md](ester_source_consistency_audit_current.md) — rule-by-rule matrix vs Ester YES/NO matrix, Formatting Rules transcription, and EF comment examples.
+- **Scope:** criteria, language, strictness, evidence/highlights, UI/report flow; special focus on P011 post–PR #467.
+- **Top gaps:** P021/P026 policy conflicts; P013/P019 page-numbering noise; broad umbrella cards (P014/P018/P019/P020); P011 point-level strictness vs visual review; missing `formatting_rules.xlsx` mirror for automated audit script.
+- **Action:** audit-only — no detector, threshold, UI, or deployment changes.
 
 ---
 
-## Historical — 2026-07-05, #13 (P068 Thesis Advisor recognition fix)
+## Historical — 2026-07-05, #14 (P011 margin-warning presentation isolated)
 
 > **Superseded** by the section above. Preserved here for historical context only.
 

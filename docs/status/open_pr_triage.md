@@ -1,63 +1,59 @@
-# Open PR Triage (2026-07-05, #14: P011 margin-warning presentation isolated)
+# Open PR Triage (2026-07-05, #15: Ester source-of-truth consistency audit)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+
+**Baseline inspected:** `main` @ `668aa1bf265ca4fdff74c4ddd59e0b145d9c2300`. Short SHA: `668aa1b`.  
+**Live server:** serving `c0d1199` — untouched (may lag `main`).  
+**Open PR count:** **0** until Ester audit docs PR merges.
+
+## What happened in this pass (2026-07-05, #15)
+
+Audit-only comparison of current auditor vs Ester source materials (no code/detector/UI changes).
+
+| Item | Detail |
+|---|---|
+| **New doc** | [ester_source_consistency_audit_current.md](ester_source_consistency_audit_current.md) |
+| **Sources used** | `260330_YESNO_audit_logic_matrix.xlsx`, `ester_q_matrix.json`, `ester_p_rule_feedback.json`, prior Ester status audits, `ester_feedback_examples.json`, implementation/wording layers |
+| **Sources missing** | Live Google Sheet, Gmail threads, `results/ester_feedback_raw/formatting_rules.xlsx` |
+| **Focus areas** | P011 post–PR #467, page numbering (P013/P019/P037), broad-rule presentation, P021/P026 policy, references, P068, P035 |
+| **Top findings** | P021/P026 policy conflicts; P013 noise; umbrella cards; P011 pt-level strictness; references citation-style gap |
+| **Live deployment** | Untouched |
+
+### Branches retained (4 — unchanged)
+
+| Branch | Recommendation |
+|---|---|
+| `fix/confidence-grouping-sorting` | Cherry-pick later — broadest WIP tip |
+| `fix/p015-equation-continuation-indent` | Cherry-pick later |
+| `fix/p035-table-centering-presentation` | Cherry-pick later |
+| `fix/page-numbering-false-positives` | Cherry-pick later — aligns with P013/P019 audit findings |
+
+## Historical — what happened in the previous pass (2026-07-05, #14)
+
+Isolated P011 presentation work from retained `fix/p011-margin-warning-presentation`.
 
 **Baseline inspected:** `main` @ `454fd13dee5a453b8216261b6361c10c00943ace`. Short SHA: `454fd13`.  
 **Live server:** serving `c0d1199` — untouched in this pass.  
 **Open PR count:** **0** (P011 presentation PR #467 merged).
 
-## What happened in this pass (2026-07-05, #14)
-
-Isolated P011 presentation work from retained `fix/p011-margin-warning-presentation`.
-
 | Item | Detail |
 |---|---|
 | **Branch inspected** | `fix/p011-margin-warning-presentation` — 12 unique commits, 39 files in full diff |
-| **P011-relevant commits** | `4c8c541` (context-aware wording/highlights/confidence) + `adbb034` (references continuation inference); rest stacked Jun-2026 WIP (P015/P018/P020/P028/P035/confidence UI) |
-| **Superseded on current `main`** | WIP removed `margin_boundary_bbox`, adjacent `highlight_bboxes` grouping, and `line_index` — all already landed via later P011 visual-polish cycle; WIP `margin_confidence` calibration excluded |
-| **Narrow slice merged** | PR [#467](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/467) — context-aware page labels + remediation (`p011_margin_presentation.py`), `page_context`/`margin_content_kind` metadata in P011 details, references continuation inference from line previews; detection thresholds/confidence/highlight geometry unchanged |
-| **Tests added** | `tests/test_p011_margin_presentation.py` (7 focused presentation tests) |
-| **Old branch action** | **Deleted** `fix/p011-margin-warning-presentation` (superseded + unsafe to merge wholesale) |
+| **P011-relevant commits** | `4c8c541` + `adbb034`; rest stacked Jun-2026 WIP |
+| **Narrow slice merged** | PR [#467](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/467) |
+| **Old branch action** | **Deleted** `fix/p011-margin-warning-presentation` |
 
-### Branches retained (4)
+### Branches retained after #14 (4)
 
 | Branch | Recommendation |
 |---|---|
-| `fix/confidence-grouping-sorting` | Cherry-pick later — broadest WIP tip |
+| `fix/confidence-grouping-sorting` | Cherry-pick later |
 | `fix/p015-equation-continuation-indent` | Cherry-pick later |
 | `fix/p035-table-centering-presentation` | Cherry-pick later |
 | `fix/page-numbering-false-positives` | Cherry-pick later |
 
 ## Historical — what happened in the previous pass (2026-07-05, #13)
-
-Isolated P068 work from retained `fix/p068-approval-page-thesis-advisor`.
-
-**Baseline inspected:** `main` @ `a52354f15679298a4f7c28f1de28b5d96a6fa440`. Short SHA: `a52354f`.  
-**Live server:** serving `bdfbbc4` — untouched.  
-**Open PR count:** **0** (P068 fix PR pending merge at time of commit).
-
-| Item | Detail |
-|---|---|
-| **Branch inspected** | `fix/p068-approval-page-thesis-advisor` — 14 unique commits, 49 files in full diff |
-| **P068-relevant commit** | `fb83fd4` only (8 files); rest was stacked Jun-2026 WIP (P011/P013/P015/P035/UI) |
-| **Gap on `main`** | `Thesis Advisor` approval-page role label not recognized → false `approval_page_advisor_role_label_missing` |
-| **Fix scope** | Narrow detector-only: thesis/co-advisor phrases + full-line advisor matching |
-| **Excluded from fix** | bbox highlights, presentation/wording changes, unrelated rule edits from old branch |
-| **Tests added** | `test_thesis_advisor_label_no_finding`, `test_thesis_advisor_on_name_line_no_finding` |
-| **Old branch action** | Delete after fix PR merges (superseded) |
-
-### Branches retained after #13 (5)
-
-| Branch | Recommendation |
-|---|---|
-| `fix/confidence-grouping-sorting` | Cherry-pick later — broadest WIP tip |
-| `fix/p011-margin-warning-presentation` | Cherry-pick later |
-| `fix/p015-equation-continuation-indent` | Cherry-pick later |
-| `fix/p035-table-centering-presentation` | Cherry-pick later |
-| `fix/page-numbering-false-positives` | Cherry-pick later |
-
-## Historical — what happened in the previous pass (2026-07-05, #12)
 
 Finalized the retained docs-only branch `docs/pdf-finding-location-clarity-audit`.
 
