@@ -1152,25 +1152,17 @@ def _p011_margin_comment(*, page: int | None, details: dict[str, str]) -> str:
     margin_location_label() and the existing confidence badge (see
     p027_heading_location_label's docstring pattern and
     test_same_problem_with_different_confidence_stays_on_one_card_by_default)."""
+    from njit_auditor.p011_margin_presentation import margin_comment_body, page_context_from_details
+
     page_label = _safe_page_label(page)
     side = _margin_side_label(details)
-    _MARGIN_SPEC = (
-        "NJIT requires: left margin 1.5 inches; top, bottom, and right margins 1 inch. "
-        "Move any text, table, or figure that extends into the margins back inside "
-        "the required page area. This rule is strict: no text, table, or figure may "
-        "cross the required boundary, even by a small amount."
-    )
-    if side == "required page margin":
-        return (
-            f"Likely problem: Text on page {page_label} is not contained entirely "
-            "within the required page margins. The auditor could not determine the "
-            f"exact margin side from the available metadata. {_MARGIN_SPEC}"
-        )
-    return (
-        f"Likely problem: Text on page {page_label} is not contained entirely "
-        f"within the required {side}. {_MARGIN_SPEC} "
-        "Review the highlighted area if available, or inspect "
-        "tables, figures, long lines, indentation, headers, and footers on this page."
+    page_context = page_context_from_details(details)
+    return margin_comment_body(
+        page_label=page_label,
+        side_label=side,
+        page_context=page_context,
+        overflow_detail="",
+        lines_clause="",
     )
 
 

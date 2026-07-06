@@ -34,7 +34,20 @@ def test_p011_margin_wording_mentions_1_5_inches() -> None:
         page=3,
         details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
     )
-    assert "1.5 inches" in comment or "1.5 in" in comment
+    # Inch requirements appear in detailed explanations and suggested fixes, not
+    # necessarily the grouped card comment.
+    from njit_auditor.finding_explanations import build_detailed_explanation
+
+    explanation = build_detailed_explanation(
+        rule_id="P011",
+        issue_type="margin_boundary_violation",
+        details={"side": "left_margin"},
+        page=3,
+        has_highlight=False,
+        location_label="Page 3 — left margin",
+    )
+    assert "1.5 inches" in explanation or "1.5 in" in explanation
+    assert "left margin" in comment
 
 
 def test_p011_margin_wording_no_content_in_margins() -> None:
@@ -44,7 +57,8 @@ def test_p011_margin_wording_no_content_in_margins() -> None:
         page=3,
         details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
     )
-    assert "Move any text, table, or figure" in comment
+    assert "strict" in comment.lower()
+    assert "even by a small amount" in comment.lower()
 
 
 def test_p011_margin_right_mentions_right_boundary() -> None:
