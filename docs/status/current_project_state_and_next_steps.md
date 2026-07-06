@@ -7,17 +7,46 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #7 (#375 confirmed merged — no action required)
+## Current Status — 2026-07-05, #8 (#376 P014 centering false-positive fix merged)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#6 snapshot, the 2026-07-05 #5 snapshot, the 2026-07-05 #4 snapshot, the 2026-07-05 #3 snapshot,
-the 2026-07-05 #2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot, the 2026-07-04
-#435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup snapshot,
-2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior snapshot, PR #406
-merge snapshot, live regression diagnosis / cleanup-paused snapshot, post-#405-merge snapshot,
-post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards snapshot, earlier
-2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is preserved as historical
-context and should not be read as current.
+#7 snapshot, the 2026-07-05 #6 snapshot, the 2026-07-05 #5 snapshot, the 2026-07-05 #4 snapshot,
+the 2026-07-05 #3 snapshot, the 2026-07-05 #2 snapshot, the 2026-07-05 #1 branch-cleanup snapshot,
+the 2026-07-04 #435/#439 reconciliation snapshot, the earlier 2026-07-04 post-merge-cleanup
+snapshot, 2026-07-03/PR #433 snapshot, 2026-07-02 PR #409 snapshot, PR #407/#408 behavior
+snapshot, PR #406 merge snapshot, live regression diagnosis / cleanup-paused snapshot,
+post-#405-merge snapshot, post-#388-closure snapshot, post-#386-closure snapshot, P018 public-cards
+snapshot, earlier 2026-07-02 cleanup, 2026-07-01, 2026-06-25, and earlier dated bullets) is
+preserved as historical context and should not be read as current.
+
+- **Code baseline `main`:** `72b8736` (squash-merge of PR
+  [#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376), `Fix P014 frontmatter
+  heading centering false positive`, on top of `#375`/`#460` stack ending at `1b6f8d5`). Short SHA:
+  `72b8736`.
+- **Reviewed, rebased, and merged #376** (narrow P014 centering false-positive fix only):
+  - `_line_centering()` now accepts headings within existing tolerance of **either** text-area
+    midpoint or physical page midpoint (asymmetric NJIT margins: 18pt offset between the two on
+    letter paper).
+  - `CENTER_TOLERANCE_PT` (18pt) and `BORDERLINE_CENTER_TOLERANCE_PT` (26pt) **unchanged** — not a
+    broad policy loosening.
+  - Page-centered `BIOGRAPHICAL SKETCH` no longer warns; flush-left still warns.
+  - Validation: `ruff check .` — passed; `mypy src` — no issues in 105 files; `python -m pytest` —
+    **2585 passed**; GitHub CI — passed.
+  - Remote branch `fix/p014-frontmatter-centering-false-positive` deleted at merge time.
+- **Live server:** serving `b6cc8db` (#460) — **not** updated in this pass (no deployment action
+  taken); `72b8736` will be picked up by a future deploy pass.
+- **Open PR count:** **0** — no remaining open PRs.
+
+### Next recommended work
+
+1. Deploy `72b8736` to the live server when ready (not done in this pass).
+2. **P084 remains out of scope** unless explicitly requested.
+
+---
+
+## Historical — 2026-07-05, #7 (#375 confirmed merged — no action required)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `b6cc8dbc6fb2b2a2f96a84bf59c648322161dfa4` (squash-merge of PR
   [#460](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/460), on top of `#375` at

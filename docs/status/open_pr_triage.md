@@ -1,22 +1,46 @@
-# Open PR Triage (2026-07-05, #7: #375 confirmed merged — no action required)
+# Open PR Triage (2026-07-05, #8: #376 P014 centering false-positive fix merged)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #6 snapshot below (baseline `d89f4ce`, #375 merge) is preserved
-> as historical context only — see the "What happened in this pass (2026-07-05, #6)" section
+> **Superseded:** the 2026-07-05 #7 snapshot below (baseline `b6cc8db`, #375 triage) is preserved
+> as historical context only — see the "What happened in this pass (2026-07-05, #7)" section
 > further down. Everything above that point is current.
 
-**Baseline inspected:** `main` @ `b6cc8dbc6fb2b2a2f96a84bf59c648322161dfa4` (squash-merge of PR
-[#460](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/460), on top of `#375` at
-`d89f4ce`). Short SHA: `b6cc8db`.  
-**Live server:** serving `b6cc8db` (#460 compact individual-findings cards) — unchanged in this
-pass (no deployment/systemd action taken).  
-**Open PR count:** **1** — #376 only. #375 is **merged** (`d89f4ce`, 2026-07-05); remote branch
-already deleted.
+**Baseline inspected:** `main` @ `72b8736` (squash-merge of PR
+[#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376)). Short SHA: `72b8736`.  
+**Live server:** serving `b6cc8db` (#460) — unchanged in this pass (no deployment/systemd action
+taken).  
+**Open PR count:** **0** — #376 merged; no remaining open PRs.
 
-## What happened in this pass (2026-07-05, #7)
+## What happened in this pass (2026-07-05, #8)
+
+Reviewed, rebased, and merged **#376** (`Fix P014 frontmatter heading centering false positive`):
+narrow P014 detector fix for asymmetric NJIT margins.
+
+- **Root cause:** `_line_centering()` compared heading center only against the text-area midpoint.
+  With 1.5" left / 1" right margins, page center and text-area center differ by 18pt on letter
+  paper — visually page-centered front-matter headings (e.g. `BIOGRAPHICAL SKETCH`) could fail
+  even when centered on the page face.
+- **Fix:** accept either text-area center **or** physical page center when within the existing
+  18pt/26pt tolerances (`CENTER_TOLERANCE_PT` / `BORDERLINE_CENTER_TOLERANCE_PT` unchanged).
+  `page_width` passed only from P014 front-matter heading paths (`pdf_headings.py`,
+  `pdf_frontmatter_heading_gate.py`).
+- **Diff scope (3 files, +104/−6):** `pdf_headings.py`, `pdf_frontmatter_heading_gate.py`,
+  `tests/test_web_audit_warning_fixes_batch3.py`. No rule-ID/threshold/UI/export/grouping changes.
+- **Prior CI failure (historical):** stale branch ~122 commits behind `main`; fresh CI after
+  cherry-pick onto `1b6f8d5` — all matrix jobs passed.
+- **Rebase:** cherry-picked onto `origin/main` @ `1b6f8d5` (LFS smudge-filter artifact blocked
+  `git rebase` in worktrees); force-pushed to PR branch.
+- **Regression tests added:** page-centered `BIOGRAPHICAL SKETCH` geometry passes; flush-left still
+  warns; optional live-sample skip-if-missing test preserved.
+- **Validation:** `ruff check .` — passed; `mypy src` — no issues in 105 files; `python -m pytest`
+  — **2585 passed** locally; GitHub CI — passed (3.10/3.11/3.12).
+- Merged with squash (`72b8736`); deleted remote branch `fix/p014-frontmatter-centering-false-positive`.
+- No live deployment/systemd action taken in this pass.
+
+## Historical — what happened in the previous pass (2026-07-05, #7)
 
 Re-triaged **#375** per explicit instruction. **No merge, rebase, or close action was needed** — the
 PR was already squash-merged to `main` on 2026-07-05 (`d89f4cef082bafc71a0e8dcb18fc37f05e53fed8`).
