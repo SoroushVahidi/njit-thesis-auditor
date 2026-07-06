@@ -1,13 +1,36 @@
-# Open PR Triage (2026-07-05, #18: minor UI wording consistency)
+# Open PR Triage (2026-07-06, #19: highlight quality & correctness audit)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `0c71a7a1f9afee24b7a2662f06711937f479e352`. Short SHA: `0c71a7a`.  
-**Live server:** serving `0c71a7a` — **untouched in this pass**.  
-**Open PR count:** **0** until minor UI wording PR merges.
+**Baseline inspected:** `main` @ `e6973cb0326e5a3c47ef5a91e4aaeaaf87659a98`. Short SHA: `e6973cb`.  
+**Live server:** serving `e6973cb` — **untouched in this pass**.  
+**Open PR count:** **0** at audit start; **0** again after this pass's PR merges.
 
-## What happened in this pass (2026-07-05, #18)
+## What happened in this pass (2026-07-06, #19)
+
+Highlight quality/correctness audit — see
+[`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md) for the full
+report. Not detector-policy work, not branch cleanup.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `docs/highlight-quality-correctness-audit` |
+| **Changed** | Fixed a live `finding_index` display/storage-order mismatch that silently broke "Open highlighted PDF page" links on the main results page's default (page-order) view (`templates/job.html`); added the audit document |
+| **Tests** | `tests/test_finding_index_page_order_consistency.py` (new, 2 tests) + full suite (**2610 pytest**) |
+| **Live deployment** | Untouched — audit ran on a scratch worktree + scratch uvicorn (port 8020), never port 8000 |
+| **Follow-ups documented (not implemented)** | P019 Roman `sequence_gap` missing bbox; P023 over-broad highlight region (needs Ester/policy input); P064 References missing geometry + possibly-wrong page; P011 guide-vs-violation visual legend |
+
+### Branches retained (4 — unchanged, not touched)
+
+| Branch | Recommendation |
+|---|---|
+| `fix/confidence-grouping-sorting` | Cherry-pick later |
+| `fix/p015-equation-continuation-indent` | Cherry-pick later |
+| `fix/p035-table-centering-presentation` | Cherry-pick later |
+| `fix/page-numbering-false-positives` | Cherry-pick later |
+
+## Historical — what happened in the previous pass (2026-07-05, #18)
 
 Mechanical UI/help/docs wording alignment from the PR #472 audit follow-up.
 

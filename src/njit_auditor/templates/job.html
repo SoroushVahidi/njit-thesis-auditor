@@ -612,7 +612,7 @@
         <div class="finding-card__meta">
           {% if f.problem_number %}<span class="finding-card__problem">Problem {{ f.problem_number }}</span>{% endif %}
           <span class="finding-card__page">
-            {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">Page {{ f.page }}</a>{% elif f.page is not none %}Page {{ f.page }}{% else %}No page{% endif %}
+            {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page }}">Page {{ f.page }}</a>{% elif f.page is not none %}Page {{ f.page }}{% else %}No page{% endif %}
           </span>
           {% if f.location_label %}<span class="finding-card__location">{{ f.location_label }}</span>{% endif %}
         </div>
@@ -627,7 +627,7 @@
         </details>
         {% endif %}
         <div class="finding-card__action">
-          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_index=loop.index0) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
         </div>
       </article>
       {% endfor %}
