@@ -7,19 +7,48 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #19 (highlight quality & correctness audit)
+## Current Status — 2026-07-06, #20 (highlight/original PDF button wording fix)
 
-This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#18 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+This section is the authoritative current snapshot. Everything below it (including the 2026-07-06
+#19 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `e6973cb0326e5a3c47ef5a91e4aaeaaf87659a98` (PR #473) at audit start;
-  pending merge of this audit's PR.
-- **Live server:** serving `e6973cb` via user-level systemd — **untouched in this audit pass** (no
-  restart; audit ran against a scratch worktree + scratch uvicorn on port 8020, never port 8000).
-- **Open PR count:** **0** at audit start; **0** again after this audit's PR merges.
+- **Code baseline `main`:** `affae795ebc4365ee9ddf6170e91a04aa6cb7ea4` (PR #474, deployed) at the
+  start of this pass; pending merge of this pass's PR.
+- **Live server:** serving `affae79` via user-level systemd — **untouched in this pass** (no
+  restart; investigation and fix done in a scratch worktree, never port 8000).
+- **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
 - **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged, not touched).
-- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2610 passed**.
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2617 passed**.
+
+### Highlight/original PDF button wording fix (2026-07-06)
+
+Follow-up to the highlight quality audit — full detail appended to
+[`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md).
+
+- A live mobile report showed a "Open highlighted PDF page"-family button that, for a
+  no-highlight finding, opened what looked like the full multi-page PDF instead of an isolated
+  page. Root cause: `action_kind == "original_page"` findings resolved through
+  `/audits/{job_id}/pdf#page=N` (the full PDF + a `#page=N` fragment, which mobile PDF viewers do
+  not reliably honor), while `action_kind == "highlight"` findings already used a true
+  single-page-extraction endpoint (`/highlighted-page.pdf`).
+- Fix: both action kinds now resolve through the same true single-page endpoint (no new
+  PDF-generation pipeline — reused the existing, already-tested single-page extract/fallback); the
+  now-dead `_pdf_original_page_url` helper was removed. Visible button text now includes the page
+  number (e.g. "Open highlighted PDF page 4"), not just the mobile-invisible tooltip.
+- No detector, threshold, confidence, rule ID, or JSON-export change. New test file
+  `tests/test_pdf_action_button_wording.py` (7 tests); 10 pre-existing tests updated to assert the
+  new, intentional URL pattern.
+- Live deployment untouched throughout.
+
+## Historical — 2026-07-06, #19 (highlight quality & correctness audit)
+
+- **Code baseline `main`:** `e6973cb0326e5a3c47ef5a91e4aaeaaf87659a98` (PR #473) at audit start.
+- **Live server:** serving `e6973cb` via user-level systemd — untouched in that pass (no restart;
+  audit ran against a scratch worktree + scratch uvicorn on port 8020, never port 8000).
+- **Open PR count:** **0** at audit start; **0** again after that audit's PR merged.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged, not touched).
+- **Validation (that pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2610 passed**.
 
 ### Highlight quality & correctness audit (2026-07-06)
 

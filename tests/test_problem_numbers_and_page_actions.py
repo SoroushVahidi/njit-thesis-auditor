@@ -309,7 +309,14 @@ def test_highlighted_and_original_page_actions_are_distinct(
     p026_rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P026")
     assert "Open original PDF page" in p026_rule_html
     assert "Open highlighted PDF page" not in p026_rule_html
-    assert f"/audits/{job_id}/pdf#page=4" in p026_rule_html
+    # "original_page" resolves through the same true single-page endpoint as
+    # "highlight" (falls back to a plain single-page extract with no bbox)
+    # rather than a #page=N fragment into the full PDF.
+    assert (
+        f"/audits/{job_id}/highlighted-page.pdf?page=4"
+        "&rule_id=P026&issue_type=possible_body_font_family_issue" in p026_rule_html
+    )
+    assert f"/audits/{job_id}/pdf#page=4" not in p026_rule_html
     assert "/pdf/highlighted" not in p026_rule_html
     original_resp = c.get(f"/audits/{job_id}/pdf")
     assert original_resp.status_code == 200

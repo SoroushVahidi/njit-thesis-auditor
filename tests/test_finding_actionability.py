@@ -304,7 +304,15 @@ def test_page_known_no_bbox_finding_renders_original_page_action(
 
     assert "Open highlighted PDF page" not in page_html
     assert "Open original PDF page" in page_html
-    assert f"/audits/{job_id}/pdf#page=3" in page_html
+    # "original_page" now resolves through the same true single-page endpoint as
+    # "highlight" (falls back to a plain, unhighlighted single-page extract when
+    # no bbox exists) rather than a #page=N fragment into the full PDF, which
+    # mobile PDF viewers do not reliably honor.
+    assert (
+        f"/audits/{job_id}/highlighted-page.pdf?page=3"
+        "&rule_id=P026&issue_type=possible_body_font_family_issue" in page_html
+    )
+    assert f"/audits/{job_id}/pdf#page=3" not in page_html
     assert "/pdf/highlighted" not in page_html
     assert (
         "No exact highlight is available" in page_html

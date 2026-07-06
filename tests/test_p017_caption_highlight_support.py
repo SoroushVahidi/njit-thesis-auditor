@@ -256,7 +256,14 @@ def test_p017_without_bbox_stays_explanation_only(app: tuple[TestClient, Any]) -
     assert status == 200
     assert "Open highlighted PDF page" not in text
     assert "Open original PDF page" in text
-    assert f"/audits/{job_id}/pdf#page=4" in text
+    # "original_page" resolves through the same true single-page endpoint as
+    # "highlight" (falls back to a plain single-page extract with no bbox)
+    # rather than a #page=N fragment into the full PDF.
+    assert (
+        f"/audits/{job_id}/highlighted-page.pdf?page=4"
+        "&rule_id=P017&issue_type=missing_terminal_punctuation" in text
+    )
+    assert f"/audits/{job_id}/pdf#page=4" not in text
     assert "Open first example page" not in text
     # Explanation is still present and correct.
     assert fv.detailed_explanation in text

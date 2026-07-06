@@ -232,7 +232,7 @@
       <div class="example-card__actions">
         {% if example.action_kind in ("highlight", "original_page") and example.pdf_page_url %}
         <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
-          {{ example.action_label }}
+          {{ example.action_label }} {{ example.page }}
         </a>
         {% else %}
         <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>
