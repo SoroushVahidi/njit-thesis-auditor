@@ -358,8 +358,15 @@ def run_pdf_page_number_candidates_rule(
 
     for page in sorted(candidates_by_page):
         page_candidates = candidates_by_page[page]
-        primary = max(page_candidates, key=_candidate_rank)
-        distinct_texts = sorted({c.text for c in page_candidates})
+        plausible = _plausible_candidates(page_candidates)
+        if not plausible:
+            # Every token in the margin zone on this page is implausible (e.g. a
+            # long numeric ID, protocol number, or decimal section number) --
+            # nothing here actually looks like a printed page number, so this
+            # page has no P013 candidate to report.
+            continue
+        primary = max(plausible, key=_candidate_rank)
+        distinct_texts = sorted({c.text for c in plausible})
         sample_text = ", ".join(distinct_texts[:3])
         if len(distinct_texts) > 3:
             sample_text += ", ..."
@@ -370,7 +377,7 @@ def run_pdf_page_number_candidates_rule(
             "candidate_position_label": _position_label(primary.position_type),
             "number_style": primary.number_style,
             "candidate_style_label": _style_label(primary.number_style),
-            "candidate_count_on_page": str(len(page_candidates)),
+            "candidate_count_on_page": str(len(plausible)),
             "candidate_sample": sample_text,
             "observed_summary": f"{primary.position_type}/{primary.number_style}",
             "confidence": _candidate_confidence(primary),
@@ -386,7 +393,7 @@ def run_pdf_page_number_candidates_rule(
                 rule_id="P013",
                 severity=Severity.WARNING,
                 page=page,
-                message=f"Page has {len(page_candidates)} page-number-like candidate(s).",
+                message=f"Page has {len(plausible)} page-number-like candidate(s).",
                 details=details,
             )
         )
