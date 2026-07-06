@@ -3,9 +3,9 @@
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `69ef2f7184965045d0f4fd4c08c989fd60429269`. Short SHA: `69ef2f7`.  
+**Baseline inspected:** `main` @ `20ed7c1db822688649018d20bbbaf7da6ffba377`. Short SHA: `20ed7c1`.  
 **Live server:** serving `c0d1199` — **untouched**.  
-**Open PR count:** **0** until unambiguous Ester-consistency PR merges.
+**Open PR count:** **0** (PR [#470](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/470) merged).
 
 ## What happened in this pass (2026-07-05, #16)
 
@@ -13,7 +13,7 @@ Narrow wording/catalog fixes aligned with existing Ester source data and impleme
 
 | Item | Detail |
 |---|---|
-| **Branch** | `fix/unambiguous-ester-consistency` |
+| **PR** | [#470](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/470) merged |
 | **Fixed** | P037 catalog/README (dynamic LoT after TOC, Q060); P019 catalog + `_RULE_FALLBACKS` (remove internal candidate language); `ester_rule_consistency_audit.py` matrix path + JSON fallback |
 | **Deferred** | P011 remediation/thresholds; P013/P019 hiding; P021/P026; umbrella cards; P035; P068; references citation-style |
 | **Tests** | `test_ester_unambiguous_wording_fixes.py` + audit-script loader tests (**2601 pytest** total) |
