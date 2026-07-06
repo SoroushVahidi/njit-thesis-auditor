@@ -776,11 +776,10 @@ _RULE_FALLBACKS: dict[str, str] = {
         "bottom edge."
     ),
     "P019": (
-        "This finding concerns page-numbering style, placement, sequence, or "
-        "presence. "
-        "Check whether the page number appears in the required position and whether "
-        "front matter uses lowercase Roman numerals while the main body uses "
-        "Arabic numerals."
+        "Visible page numbers may not follow the expected style, position, or "
+        "sequence for their section. "
+        "Front matter should use lowercase Roman numerals in sequence; the main "
+        "body should use Arabic numerals starting at 1."
     ),
     "P021": (
         "The abstract appears to exceed the allowed word count for the detected "

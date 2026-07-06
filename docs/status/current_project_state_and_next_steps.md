@@ -7,11 +7,45 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #15 (Ester source-of-truth consistency audit)
+## Current Status — 2026-07-05, #16 (unambiguous Ester-consistency wording fixes)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#14 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#15 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `69ef2f7184965045d0f4fd4c08c989fd60429269` (pre-merge; unambiguous Ester wording PR pending).
+- **Live server:** serving `c0d1199` via user-level systemd — **untouched**.
+- **Open PR count:** **0** until unambiguous Ester-consistency PR merges.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2601 passed**.
+
+### Unambiguous Ester-consistency fixes (2026-07-05)
+
+Wording-only alignment with existing Ester source materials and implemented detector behavior — **no** detector thresholds, warning counts, or policy changes.
+
+| Fixed now | Detail |
+|---|---|
+| **P037 catalog** | List of Tables described as continuing after the last TOC page (Q060), not a fixed `viii` slot |
+| **P019 catalog + fallback** | Removed internal “candidate/obvious” language; Ester-style section guidance |
+| **Audit script** | `ester_rule_consistency_audit.py` reads tracked matrix xlsx + JSON fallback for formatting rules |
+| **README P037** | Matches dynamic LoT behavior |
+
+| Deferred (Esther/policy) | Why |
+|---|---|
+| P011 pt-level strictness, inch vs context remediation, image geometry | Presentation/threshold judgment |
+| P013/P019 candidate hiding and noise policy | Student-facing policy |
+| P021/P026 limits and font permissiveness | Documented policy conflict |
+| P014/P018/P019/P020 umbrella splits | Larger presentation work |
+| P035, P068 honorifics, references citation-style | Scope/semantic judgment |
+
+- **No Esther email or feedback packet** prepared in this pass.
+- **Live deployment:** untouched.
+
+---
+
+## Historical — 2026-07-05, #15 (Ester source-of-truth consistency audit)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `668aa1bf265ca4fdff74c4ddd59e0b145d9c2300` (post–PR #467/#468; no code changes in this pass).
 - **Live server:** serving `c0d1199` via user-level systemd — **untouched** (may lag `origin/main`).

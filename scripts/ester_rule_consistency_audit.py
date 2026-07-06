@@ -30,7 +30,8 @@ if str(_REPO_ROOT) not in sys.path:
 from njit_auditor.specs.q_rule_coverage import build_coverage_report, coverage_summary
 
 _FORMATTING_XLSX = _REPO_ROOT / "results/ester_feedback_raw/formatting_rules.xlsx"
-_MATRIX_XLSX = _REPO_ROOT / "results/ester_feedback_raw/yesno_audit_matrix.xlsx"
+_MATRIX_XLSX = _REPO_ROOT / "data/raw/ester/260330_YESNO_audit_logic_matrix.xlsx"
+_MATRIX_XLSX_LEGACY = _REPO_ROOT / "results/ester_feedback_raw/yesno_audit_matrix.xlsx"
 _P_FEEDBACK_JSON = _REPO_ROOT / "data/specs/ester_p_rule_feedback.json"
 _Q_MATRIX_JSON = _REPO_ROOT / "data/specs/ester_q_matrix.json"
 _CATALOG_PATH = _REPO_ROOT / "data/processed/rules/project_added_rules.json"
@@ -110,6 +111,51 @@ def parse_formatting_xlsx(path: Path) -> list[dict[str, str]]:
             }
         )
     return records
+
+
+def parse_formatting_json(path: Path) -> list[dict[str, str]]:
+    """Load P-rule Ester feedback from the repo JSON mirror when xlsx is absent."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    records: list[dict[str, str]] = []
+    for item in data.get("feedback", []):
+        rid = str(item.get("id", "")).strip()
+        if not re.match(r"^P\d+", rid):
+            continue
+        proposed_question = str(item.get("proposed_question_edit", "")).strip()
+        proposed_remediation = str(item.get("proposed_remediation_edit", "")).strip()
+        records.append(
+            {
+                "id": rid,
+                "original_question": str(item.get("original_question", "")).strip(),
+                "proposed_question": proposed_question,
+                "original_remediation": str(item.get("original_remediation", "")).strip(),
+                "proposed_remediation": proposed_remediation,
+                "ester_split_requested": any(
+                    kw in _norm(proposed_question) for kw in _SPLIT_REQUEST_KEYWORDS
+                ),
+                "ester_q_refs": sorted(
+                    {f"Q{int(m):03d}" for m in re.findall(r"Q\s*(\d+)", proposed_question, re.I)}
+                ),
+                "comments": proposed_question,
+            }
+        )
+    return records
+
+
+def load_formatting_p_rules() -> list[dict[str, str]]:
+    if _FORMATTING_XLSX.exists():
+        return parse_formatting_xlsx(_FORMATTING_XLSX)
+    return parse_formatting_json(_P_FEEDBACK_JSON)
+
+
+def load_matrix_q_rules() -> list[dict[str, str]]:
+    if _MATRIX_XLSX.exists():
+        return parse_matrix_xlsx(_MATRIX_XLSX)
+    if _MATRIX_XLSX_LEGACY.exists():
+        return parse_matrix_xlsx(_MATRIX_XLSX_LEGACY)
+    raise FileNotFoundError(
+        f"Missing YES/NO matrix xlsx: tried {_MATRIX_XLSX} and {_MATRIX_XLSX_LEGACY}"
+    )
 
 
 def parse_matrix_xlsx(path: Path) -> list[dict[str, str]]:
@@ -788,13 +834,8 @@ def _recent_fix_checks(impl_rules: dict[str, ImplementationRule], public: dict[s
 
 
 def generate_report(output_dir: Path) -> dict[str, Any]:
-    if not _FORMATTING_XLSX.exists():
-        raise FileNotFoundError(f"Missing formatting rules xlsx: {_FORMATTING_XLSX}")
-    if not _MATRIX_XLSX.exists():
-        raise FileNotFoundError(f"Missing YES/NO matrix xlsx: {_MATRIX_XLSX}")
-
-    ester_p = parse_formatting_xlsx(_FORMATTING_XLSX)
-    ester_q = parse_matrix_xlsx(_MATRIX_XLSX)
+    ester_p = load_formatting_p_rules()
+    ester_q = load_matrix_q_rules()
     enrich_q_sections(ester_q)
 
     p_feedback = json.loads(_P_FEEDBACK_JSON.read_text(encoding="utf-8"))
