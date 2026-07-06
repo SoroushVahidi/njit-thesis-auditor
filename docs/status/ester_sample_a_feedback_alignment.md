@@ -1,8 +1,10 @@
 # Sample A Feedback Alignment Status
 
-**Recorded:** 2026-07-06  
-**Baseline `main`:** `1b5fd306764c197450e26596d162cece3fc7546a` (before this PR)  
+**Recorded:** 2026-07-06 (updated after Sample A correctness pass)  
+**Baseline `main`:** `f323b57380865a94cb0e59de514335aa8a25eb5b`  
 **Ester claim:** only **1 of 39** comments on Sample A (Cibaku first review) was correct.
+
+**Follow-up:** [`ester_sample_a_correctness_alignment.md`](ester_sample_a_correctness_alignment.md) — reproduced 39→35 problem findings; fixed 4 P038 concatenated-heading false positives.
 
 ## Source document access
 

@@ -7,20 +7,31 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #24 (Ester Column C/E wording + page-order-first UI)
+## Current Status — 2026-07-06, #25 (Sample A correctness alignment)
 
-This section is the authoritative current snapshot. Everything below it (including the 2026-07-06
-#23 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
-current.
+This section is the authoritative current snapshot. Everything below it is preserved as historical context.
 
-- **Code baseline `main`:** `1b5fd306764c197450e26596d162cece3fc7546a` (PR #478) at the start of
-  this pass; pending merge of this pass's PR.
-- **Live server:** serving `2835510` via user-level systemd — **untouched during this pass** (no
-  restart; vllm on port 8010 also untouched).
-- **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
-- **Remote branches:** retained stacked `fix/*` WIP branches, unchanged — not touched.
-- **Stray stash:** `stash@{0}` still present — not popped, applied, created, or dropped.
-- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2643 passed**.
+- **Code baseline `main`:** `f323b57380865a94cb0e59de514335aa8a25eb5b` at pass start; pending merge of this pass's PR.
+- **Live server:** `f323b57380865a94cb0e59de514335aa8a25eb5b` — **untouched during this pass**.
+- **Open PR count:** **0** at pass start.
+- **Stray stash:** `stash@{0}` still present — not touched.
+- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2648 passed**.
+
+### Sample A correctness (2026-07-06)
+
+Ester's 1/39 benchmark drives detector/UI correctness work. Live Google Sheet and Sample A feedback Doc **not accessible** (sign-in).
+
+- **Audit:** [`ester_sample_a_correctness_alignment.md`](ester_sample_a_correctness_alignment.md)
+- **Reproduced baseline:** 39 student problem findings on `ester_sample_a` @ `f323b57`
+- **Fix:** P038 `required_heading_missing` false positives when PDF text lines concatenate heading words (`APPROVALPAGE`, etc.) — P038-local variant map only (not global gate/TOC map)
+- **After fix:** **35** problem findings (−4 P038); raw findings unchanged (211)
+- **Deferred:** P011 margin strictness (19 cards), page-number FPs, heading-case mismatches, per-item Ester judgments (needs Google Doc)
+
+## Historical — 2026-07-06, #24 (Ester Column C/E wording + page-order-first UI)
+
+- **Code baseline `main`:** `f323b57380865a94cb0e59de514335aa8a25eb5b` (PR #479 merged).
+- **Live server:** deployed `f323b57` in separate deployment task — untouched in #24 code pass.
+- **Validation (#24):** **2643 passed**.
 
 ### Ester wording + page-order UI (2026-07-06)
 
@@ -30,15 +41,10 @@ main correctness benchmark for deferred detector work.
 
 - **Source map:** `data/specs/ester_warning_wording_map.json` (live Google Sheet/Docs required
   sign-in — repo mirror + email P011 example used; extraction date 2026-07-06).
-- **Wording slice:** P011, P012, P013, P019, P021, P026, P035, P036, P040, P053, P054, P068 —
-  student card titles use Ester questions where mapped; P011 remediation leads with 1.5" left /
-  1" other margins and includes tables/figures in the question.
-- **UI order:** Summary → Recommended review order → **Findings in page order** → **Findings by
-  topic** (collapsed secondary index) → Downloads → Advanced.
+- **Wording slice:** P011, P012, P013, P019, P021, P026, P035, P036, P040, P053, P054, P068.
+- **UI order:** page-order findings before collapsed topic index.
 - **Sample A status doc:** [`ester_sample_a_feedback_alignment.md`](ester_sample_a_feedback_alignment.md).
-- **Deferred:** detector false positives/negatives, atomic splits (P014–P018), P011 same-page card
-  merge, P084, confidence recalibration.
-- No detector, threshold, confidence, rule ID, warning-count, or JSON export schema changes.
+- No detector threshold, confidence, rule ID, or JSON export schema changes in #24.
 
 ## Historical — 2026-07-06, #23 (confidence calibration audit)
 
