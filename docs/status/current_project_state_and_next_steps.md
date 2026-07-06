@@ -7,19 +7,52 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #20 (highlight/original PDF button wording fix)
+## Current Status — 2026-07-06, #21 (P013 body-text-ID page-number false positive)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-06
-#19 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#20 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `affae795ebc4365ee9ddf6170e91a04aa6cb7ea4` (PR #474, deployed) at the
-  start of this pass; pending merge of this pass's PR.
-- **Live server:** serving `affae79` via user-level systemd — **untouched in this pass** (no
-  restart; investigation and fix done in a scratch worktree, never port 8000).
+- **Code baseline `main`:** `3cbbfde38c6d5daa1a373476c8292985a7c65100` (PR #475, squash-merged) at
+  the start of this pass; pending merge of this pass's PR.
+- **Live server:** still serving `affae795ebc4365ee9ddf6170e91a04aa6cb7ea4` (PR #474) via
+  user-level systemd — **untouched in this pass** (no restart; PR #475 and this pass's fix were
+  both done without a deploy, per each task's own scope; investigation and fix done in a scratch
+  worktree, never port 8000).
 - **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
-- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged, not touched).
-- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2617 passed**.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches, unchanged —
+  `fix/page-numbering-false-positives` specifically **kept** (see below), not deleted.
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2623 passed**.
+
+### P013 body-text-ID page-number false positive (2026-07-06)
+
+- Reproduced the reported live bug: a page with a real footer page number ("27") plus a long
+  numeric body-text ID (e.g. a protocol ID like "2503052525") landing in a margin zone produced
+  "Page has 2 page-number-like candidate(s)," surfacing to students as "Page 42 — multiple
+  page-number-like tokens (e.g. 2503052525., 27)".
+- Root cause: `is_plausible_page_number_candidate()` / `_plausible_candidates()` (added earlier for
+  P019's sequence-gap logic, and already correctly rejecting long numeric IDs via
+  `LONG_NUMERIC_ID_RE` / `MAX_ARABIC_PAGE_NUMBER_DIGITS`) were never wired into P013's own
+  `run_pdf_page_number_candidates_rule()` in `rules/pdf_page_numbers.py`, which built its candidate
+  count/sample/primary from the raw, unfiltered per-page list. P019 was already unaffected (it
+  already used the filtered list).
+- Fix: P013 now filters through the same existing, already-tested `_plausible_candidates()` before
+  counting/sampling/reporting, and skips a page entirely when it has no plausible candidate at all.
+  A 2-line, narrowly-scoped diff — no detector threshold, confidence policy, rule ID, or JSON
+  export change.
+- Verified zero warning-count change across all 4 built-in Ester samples (P013/P019/P037 counts
+  identical before/after on real data) — the fix only changes the targeted false-positive shape.
+- A complementary block-vs-line margin-zone-check change was prototyped (matching one idea in the
+  retained `fix/page-numbering-false-positives` branch) but **not included**: on real sample data it
+  surfaced a separate, pre-existing false-positive pattern (a lone ambiguous Roman-numeral letter
+  like "M." at a header position) that is out of scope for this fix and changed warning counts.
+  Documented as a follow-up, not implemented.
+- `fix/page-numbering-false-positives` (10 commits, 44 files, includes substantial unrelated P011/
+  P035/P020/P015/P018/P028/digital_commons_wrapper work) is **kept, not deleted** — only its
+  narrow, safe P013-filtering idea was reimplemented fresh here; its P019 document-wide
+  `mixed_numbering_style` removal, P037 Biographical-Sketch-anchor restriction, and all unrelated
+  rule work remain outstanding and un-reviewed.
+- New tests: `tests/test_page_number_body_id_false_positive.py` (6 tests).
 
 ### Highlight/original PDF button wording fix (2026-07-06)
 

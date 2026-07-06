@@ -1,25 +1,26 @@
-# Open PR Triage (2026-07-06, #20: highlight/original PDF button wording fix)
+# Open PR Triage (2026-07-06, #21: P013 body-text-ID page-number false positive)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `affae795ebc4365ee9ddf6170e91a04aa6cb7ea4`. Short SHA: `affae79`.  
-**Live server:** serving `affae79` — **untouched in this pass**.  
+**Baseline inspected:** `main` @ `3cbbfde38c6d5daa1a373476c8292985a7c65100`. Short SHA: `3cbbfde`.  
+**Live server:** still serving `affae79` — **untouched in this pass**.  
 **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
 
-## What happened in this pass (2026-07-06, #20)
+## What happened in this pass (2026-07-06, #21)
 
-Narrow investigation/fix of "Open highlighted/original PDF page" button behavior — see the
-follow-up section appended to
-[`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md) for full
-detail. Not the warning-clarity/actionability audit (separate, later task).
+Narrow fix for a P013 page-number false positive: a long numeric body-text ID (e.g. a protocol
+ID) landing in a margin zone was counted alongside a real footer page number as a competing
+"page-number-like candidate," producing a confusing "multiple page-number-like tokens (e.g.
+2503052525., 27)" warning. See the current-status entry above for full detail.
 
 | Item | Detail |
 |---|---|
-| **Branch** | `fix/highlight-pdf-button-wording` |
-| **Changed** | `action_kind == "original_page"` findings (page known, no bbox) previously opened the full PDF via a `#page=N` fragment (unreliable on mobile PDF viewers); now resolve through the same true single-page endpoint already used by `action_kind == "highlight"`. Visible button text now includes the page number (`web_app.py`, `templates/job.html`, `templates/problem_group.html`) |
-| **Tests** | `tests/test_pdf_action_button_wording.py` (new, 7 tests); 10 pre-existing tests updated to assert the new URL pattern; full suite (**2617 pytest**) |
+| **Branch** | `fix/page-number-body-id-false-positive` |
+| **Changed** | `run_pdf_page_number_candidates_rule()` (`rules/pdf_page_numbers.py`) now filters through the existing `_plausible_candidates()` before counting/sampling/reporting a page's P013 candidate(s), instead of using the raw, unfiltered list |
+| **Tests** | `tests/test_page_number_body_id_false_positive.py` (new, 6 tests); full suite (**2623 pytest**) |
 | **Live deployment** | Untouched — investigation and fix done in a scratch worktree, never port 8000 |
+| **Retained branch `fix/page-numbering-false-positives`** | **Kept, not deleted** — only its narrow, safe P013-filtering idea was reimplemented; its P019 document-wide `mixed_numbering_style` removal, P037 anchor restriction, and unrelated P011/P035/P020/P015/P018/P028/digital_commons_wrapper work remain outstanding |
 
 ### Branches retained (4 — unchanged, not touched)
 
@@ -28,7 +29,21 @@ detail. Not the warning-clarity/actionability audit (separate, later task).
 | `fix/confidence-grouping-sorting` | Cherry-pick later |
 | `fix/p015-equation-continuation-indent` | Cherry-pick later |
 | `fix/p035-table-centering-presentation` | Cherry-pick later |
-| `fix/page-numbering-false-positives` | Cherry-pick later |
+| `fix/page-numbering-false-positives` | Kept — partially superseded (see above); remaining P019/P037/unrelated-rule work not yet reviewed |
+
+## Historical — what happened in the previous pass (2026-07-06, #20)
+
+Narrow investigation/fix of "Open highlighted/original PDF page" button behavior — see the
+follow-up section appended to
+[`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md) for full
+detail.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `fix/highlight-pdf-button-wording` |
+| **Changed** | `action_kind == "original_page"` findings (page known, no bbox) previously opened the full PDF via a `#page=N` fragment (unreliable on mobile PDF viewers); now resolve through the same true single-page endpoint already used by `action_kind == "highlight"`. Visible button text now includes the page number (`web_app.py`, `templates/job.html`, `templates/problem_group.html`) |
+| **Tests** | `tests/test_pdf_action_button_wording.py` (new, 7 tests); 10 pre-existing tests updated to assert the new URL pattern; full suite (**2617 pytest**) |
+| **Live deployment** | Untouched — investigation and fix done in a scratch worktree, never port 8000 |
 
 ## Historical — what happened in the previous pass (2026-07-06, #19)
 
