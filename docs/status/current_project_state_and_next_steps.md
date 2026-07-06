@@ -7,11 +7,34 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #11 (retained-branch triage — 7 remote branches remain)
+## Current Status — 2026-07-05, #12 (location-clarity planning doc merged — 6 remote branches remain)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#10 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#11 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `017c9e10fa3e4f1b5efd68194b842cce53bc94eb` (squash-merge of PR
+  [#464](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/464), retained-branch triage docs,
+  on top of #463 branch-cleanup docs). Short SHA: `017c9e1`.
+- **Live server:** serving `bdfbbc4` via user-level systemd — untouched in docs-only passes after
+  #462 deploy.
+- **Open PR count:** **0**.
+- **Remote branches:** **6** retained (six stacked Jun-2026 `fix/*` detector WIP branches); the
+  docs-only `docs/pdf-finding-location-clarity-audit` branch was merged to `main` and deleted.
+- **Validation (latest `main`):** `ruff check .` — passed; `mypy src` — no issues in 105 files;
+  `python -m pytest` — **2585 passed**.
+
+### Next recommended work
+
+1. **P084 remains out of scope** unless explicitly requested.
+2. Review the **6 stacked `fix/*` detector branches** — cherry-pick narrow slices onto current `main`
+   only after explicit approval; do not merge whole branches.
+
+---
+
+## Historical — 2026-07-05, #11 (retained-branch triage — 7 remote branches remain)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `c2fc8e4d11fe61c10fe6fe5595d020d525515b6e` (squash-merge of PR
   [#463](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/463), remote branch cleanup docs,
