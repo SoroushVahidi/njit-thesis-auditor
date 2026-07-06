@@ -37,16 +37,24 @@ _ROLE_PREFIX_CHARS = 60
 _ADVISOR_ROLE_PHRASES: tuple[str, ...] = (
     "dissertation advisor",
     "doctoral dissertation advisor",
+    "thesis advisor",
+    "thesis co-advisor",
+    "dissertation co-advisor",
     "major professor",
+    "co-advisor",
 )
 
 _ROLE_LABEL_PHRASES: tuple[str, ...] = (
     "dissertation advisor",
     "doctoral dissertation advisor",
+    "thesis advisor",
+    "thesis co-advisor",
+    "dissertation co-advisor",
     "committee member",
     "doctoral committee member",
     "major professor",
     "departmental graduate committee",
+    "co-advisor",
 )
 
 _DATE_LABEL_RE = re.compile(r"^\s*date\s*:", re.IGNORECASE)
@@ -83,21 +91,34 @@ def _mostly_single_token_noise(lines: list[str]) -> bool:
     return single_token > len(lines) / 2
 
 
+def _phrase_in_line(line: str, phrase: str) -> bool:
+    return phrase in _normalized_line(line)
+
+
 def _phrase_in_prefix(line: str, phrase: str) -> bool:
     prefix = _normalized_line(line)[:_ROLE_PREFIX_CHARS]
     return phrase in prefix
 
 
 def _is_role_label_line(line: str) -> bool:
-    return any(_phrase_in_prefix(line, phrase) for phrase in _ROLE_LABEL_PHRASES)
+    normalized = _normalized_line(line)
+    if any(_phrase_in_prefix(line, phrase) for phrase in _ROLE_LABEL_PHRASES):
+        return True
+    if any(_phrase_in_line(line, phrase) for phrase in _ROLE_LABEL_PHRASES):
+        return True
+    return bool(re.search(r"\b(thesis|dissertation)\s+advisor\b", normalized))
 
 
 def _advisor_role_present(lines: list[str]) -> bool:
-    return any(
-        _phrase_in_prefix(line, phrase)
-        for line in lines
-        for phrase in _ADVISOR_ROLE_PHRASES
-    )
+    for line in lines:
+        normalized = _normalized_line(line)
+        if any(_phrase_in_line(line, phrase) for phrase in _ADVISOR_ROLE_PHRASES):
+            return True
+        if re.search(r"\b(thesis|dissertation)\s+advisor\b", normalized):
+            return True
+        if re.search(r"\bmajor\s+professor\b", normalized):
+            return True
+    return False
 
 
 def _is_date_label(line: str) -> bool:

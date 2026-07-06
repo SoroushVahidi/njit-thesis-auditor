@@ -1,16 +1,37 @@
-# Open PR Triage (2026-07-05, #12: location-clarity planning doc finalized)
+# Open PR Triage (2026-07-05, #13: P068 Thesis Advisor recognition isolated)
 
 > **Canonical open-PR index.** Pair with
-> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
-> for baseline `main`, validation, and next actions.
->
-> **Superseded:** the 2026-07-05 #11 snapshot below is preserved as historical context only.
+> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `017c9e10fa3e4f1b5efd68194b842cce53bc94eb`. Short SHA: `017c9e1`.  
-**Live server:** serving `bdfbbc4` via user-level systemd — untouched in this pass.  
-**Open PR count:** **0**.
+**Baseline inspected:** `main` @ `a52354f15679298a4f7c28f1de28b5d96a6fa440`. Short SHA: `a52354f`.  
+**Live server:** serving `bdfbbc4` — untouched.  
+**Open PR count:** **0** (P068 fix PR pending merge at time of commit).
 
-## What happened in this pass (2026-07-05, #12)
+## What happened in this pass (2026-07-05, #13)
+
+Isolated P068 work from retained `fix/p068-approval-page-thesis-advisor`.
+
+| Item | Detail |
+|---|---|
+| **Branch inspected** | `fix/p068-approval-page-thesis-advisor` — 14 unique commits, 49 files in full diff |
+| **P068-relevant commit** | `fb83fd4` only (8 files); rest was stacked Jun-2026 WIP (P011/P013/P015/P035/UI) |
+| **Gap on `main`** | `Thesis Advisor` approval-page role label not recognized → false `approval_page_advisor_role_label_missing` |
+| **Fix scope** | Narrow detector-only: thesis/co-advisor phrases + full-line advisor matching |
+| **Excluded from fix** | bbox highlights, presentation/wording changes, unrelated rule edits from old branch |
+| **Tests added** | `test_thesis_advisor_label_no_finding`, `test_thesis_advisor_on_name_line_no_finding` |
+| **Old branch action** | Delete after fix PR merges (superseded) |
+
+### Branches retained (5)
+
+| Branch | Recommendation |
+|---|---|
+| `fix/confidence-grouping-sorting` | Cherry-pick later — broadest WIP tip |
+| `fix/p011-margin-warning-presentation` | Cherry-pick later |
+| `fix/p015-equation-continuation-indent` | Cherry-pick later |
+| `fix/p035-table-centering-presentation` | Cherry-pick later |
+| `fix/page-numbering-false-positives` | Cherry-pick later |
+
+## Historical — what happened in the previous pass (2026-07-05, #12)
 
 Finalized the retained docs-only branch `docs/pdf-finding-location-clarity-audit`.
 
