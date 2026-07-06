@@ -7,11 +7,32 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #12 (location-clarity planning doc merged — 6 remote branches remain)
+## Current Status — 2026-07-05, #13 (P068 Thesis Advisor recognition fix)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#11 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#12 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `a52354f15679298a4f7c28f1de28b5d96a6fa440` + P068 fix PR (narrow detector slice).
+- **Live server:** serving `bdfbbc4` via user-level systemd — untouched in this pass.
+- **Open PR count:** **0** until P068 fix PR merges.
+- **Remote branches:** **5** after deleting `fix/p068-approval-page-thesis-advisor` (superseded by
+  narrow fix PR); five other stacked `fix/*` WIP branches retained.
+- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2587 passed**.
+
+### P068 disposition (2026-07-05)
+
+- Inspected retained branch `fix/p068-approval-page-thesis-advisor` (14 commits; only `fb83fd4` was
+  P068-relevant; rest was unrelated stacked WIP).
+- **Before:** `Thesis Advisor` labels falsely triggered `approval_page_advisor_role_label_missing`.
+- **After:** thesis/dissertation/co-advisor phrases accepted via full-line matching; missing advisor
+  still warns; no bbox/UI/wording changes from old branch.
+
+---
+
+## Historical — 2026-07-05, #12 (location-clarity planning doc merged — 6 remote branches remain)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `017c9e10fa3e4f1b5efd68194b842cce53bc94eb` (squash-merge of PR
   [#464](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/464), retained-branch triage docs,

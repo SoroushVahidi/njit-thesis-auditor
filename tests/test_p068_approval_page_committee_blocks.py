@@ -180,6 +180,47 @@ def test_underscore_blanks_count_as_indicators() -> None:
     assert check_pdf_approval_page_committee_blocks(pdf_doc) == []
 
 
+def test_thesis_advisor_label_no_finding() -> None:
+    lines = [
+        "Thesis Advisor",
+        f"{_PLACEHOLDER_ADVISOR}",
+        "Signature: ____________________",
+        "Date: ____________________",
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+        "Signature: ____________________",
+        "Date: ____________________",
+        "Committee Member",
+        "Placeholder Member Two Synthetic",
+        "Signature: ____________________",
+        "Date: ____________________",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    findings = check_pdf_approval_page_committee_blocks(pdf_doc)
+    assert "approval_page_advisor_role_label_missing" not in _issue_types(findings)
+
+
+def test_thesis_advisor_on_name_line_no_finding() -> None:
+    lines = [
+        "Dr. Placeholder Advisor Synthetic, Thesis Advisor",
+        "Signature: ____________________",
+        "Date: ____________________",
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+        "Signature: ____________________",
+        "Date: ____________________",
+        "Committee Member",
+        "Placeholder Member Two Synthetic",
+        "Signature: ____________________",
+        "Date: ____________________",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    findings = check_pdf_approval_page_committee_blocks(pdf_doc)
+    assert "approval_page_advisor_role_label_missing" not in _issue_types(findings)
+
+
 def test_major_professor_counts_as_advisor_label() -> None:
     lines = [
         "Major Professor",
