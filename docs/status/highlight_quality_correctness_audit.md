@@ -366,3 +366,42 @@ python -m pytest → 2610 passed, 3 warnings (all pre-existing/unrelated)
 Live deployment (port 8000) was not touched, restarted, or otherwise affected by this
 audit. All testing used a scratch worktree (`wt-highlight-audit`) and a scratch uvicorn
 instance on port 8020.
+
+---
+
+## Follow-up (2026-07-06): "Open highlighted/original PDF page" button honesty
+
+**Baseline:** `origin/main` @ `affae79` (PR #474 merged and deployed).
+
+A live mobile report showed a "Open highlighted PDF page"-family button that, for a
+no-highlight finding, opened what looked like the full multi-page PDF rather than an
+isolated page. Investigation found:
+
+- `action_kind == "highlight"` findings already resolved through
+  `/audits/{job_id}/highlighted-page.pdf` — a route that always extracts a genuine
+  single page (drawing a highlight box when available, or a plain single-page copy
+  otherwise via `build_single_page_pdf`). This tier was already correct.
+- `action_kind == "original_page"` findings (page known, no bbox) instead resolved
+  through `/audits/{job_id}/pdf#page=N` — the **full original PDF** with a `#page=N`
+  fragment anchor. `build_highlighted_single_page_pdf`'s own docstring already notes
+  browsers should avoid such fragments, since mobile PDF viewers do not reliably honor
+  them — exactly matching the reported symptom.
+
+**Fix:** `_pdf_action_url` (`web_app.py`) now routes both action kinds through the same
+true single-page endpoint; the now-unused `_pdf_original_page_url` helper was removed.
+The visible button text (job.html ×3, problem_group.html ×1, plus the hero action in
+`_problem_group_context`) now includes the finding's page number (e.g. "Open
+highlighted PDF page 4" / "Open original PDF page 4") — previously the page number
+only appeared in the (mobile-invisible) `title` tooltip attribute, so the button text
+alone did not make clear that only one specific page would open.
+
+No detector, threshold, confidence, rule ID, or JSON-export change. `finding_index` is
+still never used in any rendered link (unaffected by this change, verified again in the
+new test file). New tests: `tests/test_pdf_action_button_wording.py` (7 tests) —
+button text includes the page number, both action kinds resolve to a true single-page
+PDF, explanation-only findings render no PDF action, mobile/desktop parity, no
+`finding_index` leakage. 10 pre-existing tests updated to assert the new (intentional)
+URL pattern instead of the old `#page=N` fragment for `original_page` findings.
+
+Validation: `ruff check .` clean, `mypy src` clean, `python -m pytest` → 2617 passed.
+Live deployment untouched (investigation and fix done in a scratch worktree).

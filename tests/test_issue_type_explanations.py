@@ -14,6 +14,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -460,8 +461,11 @@ def test_unknown_type_shows_readable_label(
 ) -> None:
     c, _, job_id = unknown_type_job
     text = _get_html(c, f"/audits/{job_id}")
-    # Should not show raw snake_case
-    assert "some_new_internal_issue" not in text
+    # The raw issue_type may appear inside a PDF-page link's query string (an
+    # implementation detail identifying which finding to serve, not visible to
+    # the student), but must never be rendered as visible card text.
+    visible_text = re.sub(r'href="[^"]*"', "", text)
+    assert "some_new_internal_issue" not in visible_text
     # Should show capitalized version
     assert "Some new internal issue" in text or "some-new-internal-issue" not in text
 

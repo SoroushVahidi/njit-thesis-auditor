@@ -1,13 +1,36 @@
-# Open PR Triage (2026-07-06, #19: highlight quality & correctness audit)
+# Open PR Triage (2026-07-06, #20: highlight/original PDF button wording fix)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `e6973cb0326e5a3c47ef5a91e4aaeaaf87659a98`. Short SHA: `e6973cb`.  
-**Live server:** serving `e6973cb` — **untouched in this pass**.  
-**Open PR count:** **0** at audit start; **0** again after this pass's PR merges.
+**Baseline inspected:** `main` @ `affae795ebc4365ee9ddf6170e91a04aa6cb7ea4`. Short SHA: `affae79`.  
+**Live server:** serving `affae79` — **untouched in this pass**.  
+**Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
 
-## What happened in this pass (2026-07-06, #19)
+## What happened in this pass (2026-07-06, #20)
+
+Narrow investigation/fix of "Open highlighted/original PDF page" button behavior — see the
+follow-up section appended to
+[`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md) for full
+detail. Not the warning-clarity/actionability audit (separate, later task).
+
+| Item | Detail |
+|---|---|
+| **Branch** | `fix/highlight-pdf-button-wording` |
+| **Changed** | `action_kind == "original_page"` findings (page known, no bbox) previously opened the full PDF via a `#page=N` fragment (unreliable on mobile PDF viewers); now resolve through the same true single-page endpoint already used by `action_kind == "highlight"`. Visible button text now includes the page number (`web_app.py`, `templates/job.html`, `templates/problem_group.html`) |
+| **Tests** | `tests/test_pdf_action_button_wording.py` (new, 7 tests); 10 pre-existing tests updated to assert the new URL pattern; full suite (**2617 pytest**) |
+| **Live deployment** | Untouched — investigation and fix done in a scratch worktree, never port 8000 |
+
+### Branches retained (4 — unchanged, not touched)
+
+| Branch | Recommendation |
+|---|---|
+| `fix/confidence-grouping-sorting` | Cherry-pick later |
+| `fix/p015-equation-continuation-indent` | Cherry-pick later |
+| `fix/p035-table-centering-presentation` | Cherry-pick later |
+| `fix/page-numbering-false-positives` | Cherry-pick later |
+
+## Historical — what happened in the previous pass (2026-07-06, #19)
 
 Highlight quality/correctness audit — see
 [`highlight_quality_correctness_audit.md`](highlight_quality_correctness_audit.md) for the full
@@ -20,15 +43,6 @@ report. Not detector-policy work, not branch cleanup.
 | **Tests** | `tests/test_finding_index_page_order_consistency.py` (new, 2 tests) + full suite (**2610 pytest**) |
 | **Live deployment** | Untouched — audit ran on a scratch worktree + scratch uvicorn (port 8020), never port 8000 |
 | **Follow-ups documented (not implemented)** | P019 Roman `sequence_gap` missing bbox; P023 over-broad highlight region (needs Ester/policy input); P064 References missing geometry + possibly-wrong page; P011 guide-vs-violation visual legend |
-
-### Branches retained (4 — unchanged, not touched)
-
-| Branch | Recommendation |
-|---|---|
-| `fix/confidence-grouping-sorting` | Cherry-pick later |
-| `fix/p015-equation-continuation-indent` | Cherry-pick later |
-| `fix/p035-table-centering-presentation` | Cherry-pick later |
-| `fix/page-numbering-false-positives` | Cherry-pick later |
 
 ## Historical — what happened in the previous pass (2026-07-05, #18)
 

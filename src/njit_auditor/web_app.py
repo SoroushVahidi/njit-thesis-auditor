@@ -380,7 +380,15 @@ def _pdf_highlight_url(
     issue_type: str = "",
     finding_index: int | None = None,
 ) -> str:
-    """Return the highlighted-PDF URL for a finding."""
+    """Return the one-page PDF URL for a finding (highlighted, or plain if no bbox).
+
+    ``/highlighted-page.pdf`` always extracts a true single page -- it draws a
+    highlight box when one is available and otherwise falls back to a plain
+    single-page extract (see ``serve_job_highlighted_page_pdf``) -- so this same
+    URL builder is correct for both the "highlight" and "original_page" action
+    kinds. This deliberately avoids ``#page=N`` fragment navigation into the
+    full multi-page PDF, which mobile PDF viewers do not reliably honor.
+    """
     params: dict[str, str] = {}
     if page is not None:
         params["page"] = str(page)
@@ -393,11 +401,6 @@ def _pdf_highlight_url(
     return f"/audits/{job_id}/highlighted-page.pdf?{urllib.parse.urlencode(params)}"
 
 
-def _pdf_original_page_url(job_id: str, *, page: int | None) -> str:
-    fragment = f"#page={page}" if page is not None else ""
-    return f"/audits/{job_id}/pdf{fragment}"
-
-
 def _pdf_action_url(
     job_id: str,
     *,
@@ -407,7 +410,7 @@ def _pdf_action_url(
     issue_type: str = "",
     finding_index: int | None = None,
 ) -> str:
-    if action_kind == "highlight":
+    if action_kind in ("highlight", "original_page") and page is not None:
         return _pdf_highlight_url(
             job_id,
             page=page,
@@ -415,8 +418,6 @@ def _pdf_action_url(
             issue_type=issue_type,
             finding_index=finding_index,
         )
-    if action_kind == "original_page" and page is not None:
-        return _pdf_original_page_url(job_id, page=page)
     return ""
 
 
@@ -1749,6 +1750,18 @@ def _with_multi_issue_type_note(
     return explanation
 
 
+def _action_label_with_page(example: dict[str, Any]) -> str:
+    """Append the finding's page number to its action label (e.g. "...page 4").
+
+    Both "highlighted-page.pdf" and the plain "/pdf#page=N" route open a single,
+    specific page -- appending the number makes that unambiguous on mobile
+    viewers, which don't show a hover tooltip.
+    """
+    label = str(example.get("action_label", "")).strip()
+    page = example.get("page")
+    return f"{label} {page}" if page is not None else label
+
+
 def _problem_group_examples(
     job: JobState,
     *,
@@ -1903,14 +1916,14 @@ def _problem_group_context(
     for example in examples:
         if example.get("action_kind") == "highlight" and example.get("pdf_page_url"):
             hero_action_kind = "highlight"
-            hero_action_label = str(example.get("action_label", "")).strip()
+            hero_action_label = _action_label_with_page(example)
             hero_action_url = str(example["pdf_page_url"])
             break
     if hero_action_kind == "none":
         for example in examples:
             if example.get("action_kind") == "original_page" and example.get("pdf_page_url"):
                 hero_action_kind = "original_page"
-                hero_action_label = str(example.get("action_label", "")).strip()
+                hero_action_label = _action_label_with_page(example)
                 hero_action_url = str(example["pdf_page_url"])
                 break
     if hero_action_kind == "none" and examples:

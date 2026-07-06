@@ -2190,7 +2190,14 @@ def test_category_problem_page_route_returns_200(
     # Both matching findings share one issue type, so the page title narrows
     # to that issue type rather than staying at the broad category label.
     assert b"Margin boundary violation (P011)" in resp.content
-    assert f"/audits/{job_id}/pdf#page=2".encode() in resp.content
+    # "original_page" resolves through the same true single-page endpoint as
+    # "highlight" rather than a #page=N fragment into the full PDF.
+    assert (
+        f"/audits/{job_id}/highlighted-page.pdf?page=2"
+        "&amp;rule_id=P011&amp;issue_type=margin_boundary_violation".encode()
+        in resp.content
+    )
+    assert f"/audits/{job_id}/pdf#page=2".encode() not in resp.content
     assert b"Open original PDF page" in resp.content
     assert b"No exact highlight is available" in resp.content
 
@@ -2229,7 +2236,14 @@ def test_rule_problem_page_route_returns_200(
 
     assert resp.status_code == 200
     assert b"Pages to review" in resp.content
-    assert f"/audits/{job_id}/pdf#page=7".encode() in resp.content
+    # "original_page" resolves through the same true single-page endpoint as
+    # "highlight" rather than a #page=N fragment into the full PDF.
+    assert (
+        f"/audits/{job_id}/highlighted-page.pdf?page=7"
+        "&amp;rule_id=P011&amp;issue_type=margin_boundary_violation".encode()
+        in resp.content
+    )
+    assert f"/audits/{job_id}/pdf#page=7".encode() not in resp.content
     assert b"Open original PDF page" in resp.content
     assert b"No exact highlight is available" in resp.content
     assert b"Back to all results" in resp.content
@@ -3954,7 +3968,10 @@ def test_results_page_uses_original_page_link_for_known_page_without_highlight(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert f"/audits/{job_id}/pdf#page=" in body
+    # "original_page" resolves through the same true single-page endpoint as
+    # "highlight" rather than a #page=N fragment into the full PDF.
+    assert f"/audits/{job_id}/highlighted-page.pdf?page=" in body
+    assert f"/audits/{job_id}/pdf#page=" not in body
     assert "/pdf/highlighted" not in body
     assert "Open original PDF page" in body
 
@@ -4318,8 +4335,12 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     body = resp.text
     assert "Open highlighted PDF page" not in body
     assert "Open PDF page" not in body
-    assert f"/audits/{job_id}/pdf#page=" in body
-    assert f"/audits/{job_id}/highlighted-page.pdf?" not in body
+    # "original_page" resolves through the same true single-page endpoint as
+    # "highlight" (falls back to a plain single-page extract with no bbox)
+    # rather than a #page=N fragment into the full PDF, which mobile PDF
+    # viewers do not reliably honor.
+    assert f"/audits/{job_id}/pdf#page=" not in body
+    assert f"/audits/{job_id}/highlighted-page.pdf?" in body
     assert "Open original PDF page" in body
     assert "No exact highlight is available" in body
 
