@@ -7,11 +7,57 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #21 (P013 body-text-ID page-number false positive)
+## Current Status — 2026-07-06, #22 (warning clarity, location & actionability audit)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-06
-#20 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#21 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `d465c52c43f06161c837926c2032b0556771963b` (PR #476, squash-merged) at
+  the start of this pass; pending merge of this pass's PR.
+- **Live server:** now serving `d465c52c43f06161c837926c2032b0556771963b` via user-level systemd
+  (deployed in a separate deployment-only task after PR #476 merged, prior to this audit) —
+  **untouched during this audit pass** (audit ran entirely against a scratch worktree
+  `warning-clarity-audit` + scratch uvicorn on port 8020, never port 8000; vllm on port 8010 also
+  untouched).
+- **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches, unchanged — not touched.
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2631 passed**
+  (2623 baseline + 8 new/strengthened tests).
+
+### Warning clarity, location & actionability audit (2026-07-06)
+
+Full report: [`warning_clarity_location_actionability_audit.md`](warning_clarity_location_actionability_audit.md).
+
+- Surveyed ~50 rules across P011 margins, P013/P019/P037 page numbering, P014/P038 headings,
+  P016/P023 spacing, P021 abstract length, P026 fonts, P035 table/figure centering, P040/P053/P054
+  list entries, P064 references, P068 approval page, and P025 Digital Commons wrapper wording, using
+  all 4 built-in Ester samples plus targeted synthetic fixtures for rules none of the samples
+  trigger (P021, P025 multi-page).
+- **Fix 1 (P021 abstract word count):** the detector never sets `details["issue_type"]`;
+  `polished_comments.build_polished_comment()` and `report_view._finding_view_from_item()` both
+  lacked the issue-type resolution that `finding_explanations._resolve_issue_type()` already had,
+  so the card's title rendered as the literal `"Review this finding"` fallback and the review note
+  rendered as the fully generic `"This check (P021) found a possible formatting issue on page N"` —
+  despite the exact word count/limit/degree already being available and an already-tested,
+  already-correct template for this exact case sitting unreachable in the same file. Fixed by
+  adding the same small resolution to both functions; no detector, threshold, confidence, rule ID,
+  or export-schema change.
+- **Fix 2 (P025 wrapper location text):** the "Findings by topic" drill-down page
+  (`web_app._student_location_text()`) recomputed its own location string instead of reusing
+  `location_label` verbatim, and only recognized labels starting with the singular `"page "` as
+  already containing a page reference — so P025's plural `"Pages starting at N ..."` multi-page
+  wrapper label rendered doubled/garbled (`"Page 3 - Pages starting at 3 — ..."`) on that view only.
+  Fixed by recognizing the plural prefix too.
+- All other surveyed rules already have working, rule-specific, student-legible wording with no
+  internal jargon leaking through; remaining gaps (P011 borderline-overflow wording, P016/P023/P064
+  location precision, `original_page` cards' missing no-highlight explanation on the primary list)
+  are documented as deferred follow-ups requiring detector/geometry/policy work, not wording fixes.
+- New/updated tests: `tests/test_student_location_text_no_duplication.py` (6 tests, new);
+  `tests/test_finding_actionability.py` (2 new tests + 1 strengthened assertion).
+- Live deployment untouched throughout.
+
+## Historical — 2026-07-06, #21 (P013 body-text-ID page-number false positive)
 
 - **Code baseline `main`:** `3cbbfde38c6d5daa1a373476c8292985a7c65100` (PR #475, squash-merged) at
   the start of this pass; pending merge of this pass's PR.

@@ -830,6 +830,13 @@ def _finding_view_from_item(
     page_raw = item.get("page")
     page = int(page_raw) if page_raw is not None else None
     issue_type = str(details.get("issue_type", ""))
+    if (
+        rule_id == "P021"
+        and not issue_type
+        and details.get("word_count")
+        and details.get("limit")
+    ):
+        issue_type = "abstract_word_count_exceeded"
     source_file = str(item.get("source_file", "")) or _source_location_basename(details)
     source_line = str(item.get("source_line", "")) or details.get("line", "")
     location_key = (source_file, source_line) if (source_file or source_line) else None
