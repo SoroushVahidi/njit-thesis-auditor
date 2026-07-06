@@ -1,14 +1,26 @@
-# Open PR Triage (2026-07-06, #24: Ester Column C/E wording + page-order UI)
+# Open PR Triage (2026-07-06, #25: Sample A correctness alignment)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `1b5fd306764c197450e26596d162cece3fc7546a`. Short SHA: `1b5fd30`.  
-**Live server:** serving `2835510` — **untouched in this pass**.  
-**Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.  
+**Baseline inspected:** `main` @ `f323b57380865a94cb0e59de514335aa8a25eb5b`.  
+**Live server:** `f323b57` — **untouched in this pass**.  
+**Open PR count:** **0** at pass start.  
 **Stray stash:** `stash@{0}` still present — not touched.
 
-## What happened in this pass (2026-07-06, #24)
+## What happened in this pass (2026-07-06, #25)
+
+Sample A correctness audit: reproduced 39 problem findings; fixed 4 P038 false positives from concatenated PDF heading text. Live Google Doc/Sheet inaccessible.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `fix/ester-sample-a-correctness-alignment` |
+| **Audit doc** | [`ester_sample_a_correctness_alignment.md`](ester_sample_a_correctness_alignment.md) |
+| **Changed** | P038-local concatenated heading presence map; Sample A 39→35 problem findings |
+| **Tests** | `tests/test_ester_sample_a_correctness.py` |
+| **Deferred** | P011 margins, page-number FPs, per-item Ester judgments (needs Google Doc) |
+
+## Historical — what happened in the previous pass (2026-07-06, #24)
 
 Ester email reprioritized wording alignment over confidence. Column C (yes/no questions) and Column E
 (how to fix) are now the student-facing source of truth via `data/specs/ester_warning_wording_map.json`.

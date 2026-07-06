@@ -6,6 +6,7 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_frontmatter_heading_gate import FRONTMATTER_HEADING_VARIANTS
 from njit_auditor.rules.pdf_headings import (
+    EXPECTED_HEADINGS,
     find_named_frontmatter_headings,
     normalize_heading_text,
 )
@@ -29,8 +30,33 @@ _OPTIONAL_HEADINGS: tuple[str, ...] = (
     "LIST OF FIGURES",
 )
 
-# Shared curated variant map (P069 gate resolver + P038 phrase checks).
-_KNOWN_VARIANTS: dict[str, str] = FRONTMATTER_HEADING_VARIANTS
+# Concatenated heading lines from PDF text extraction (no spaces between words).
+# P038-only: do not add to FRONTMATTER_HEADING_VARIANTS — that map is shared with
+# gate/TOC localization and would unlock broad TOC rules on Sample A.
+_P038_CONCATENATED_HEADING_VARIANTS: dict[str, str] = {
+    "ACKNOWLEDGMENT": "ACKNOWLEDGEMENTS",
+    "APPROVALPAGE": "APPROVAL PAGE",
+    "BIOGRAPHICALSKETCH": "BIOGRAPHICAL SKETCH",
+    "TABLEOFCONTENTS": "TABLE OF CONTENTS",
+}
+
+
+def _p038_detected_heading_set(pdf_doc: PdfDocument) -> set[str]:
+    """Headings considered present for P038 missing-section checks only."""
+    detected = {m.heading for m in find_named_frontmatter_headings(pdf_doc)}
+    for page in pdf_doc.pages:
+        for block in page.text_blocks:
+            for line in block.lines:
+                normalized_upper = normalize_heading_text(line.text).upper()
+                if normalized_upper in EXPECTED_HEADINGS:
+                    detected.add(normalized_upper)
+                canonical = _P038_CONCATENATED_HEADING_VARIANTS.get(normalized_upper)
+                if canonical is not None:
+                    detected.add(canonical)
+                canonical = FRONTMATTER_HEADING_VARIANTS.get(normalized_upper)
+                if canonical is not None:
+                    detected.add(canonical)
+    return detected
 
 _SECTION_KEYS: dict[str, str] = {
     "APPROVAL PAGE": "approval_page",
@@ -58,9 +84,8 @@ def check_pdf_frontmatter_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
     if not has_front:
         return []
 
-    # Detect all named headings (exact canonical matches via P014 helper).
-    detected_matches = find_named_frontmatter_headings(pdf_doc)
-    detected_set = {m.heading for m in detected_matches}
+    # Detect named headings for missing-section checks (strict + P038-local variants).
+    detected_set = _p038_detected_heading_set(pdf_doc)
 
     # Gate: if no headings detected at all, the PDF is likely flattened/image-only.
     # Skip all checks to avoid false positives on every required section.
@@ -101,7 +126,7 @@ def check_pdf_frontmatter_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
         for block in page.text_blocks:
             for line in block.lines:
                 normalized_upper = normalize_heading_text(line.text).upper()
-                canonical = _KNOWN_VARIANTS.get(normalized_upper)
+                canonical = FRONTMATTER_HEADING_VARIANTS.get(normalized_upper)
                 if canonical is None:
                     continue
                 # Avoid duplicates and skip if canonical is already correctly detected.
