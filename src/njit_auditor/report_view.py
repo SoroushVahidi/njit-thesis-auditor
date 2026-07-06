@@ -29,7 +29,11 @@ from njit_auditor.high_volume_student_preview import (
     p027_heading_location_label,
 )
 from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
-from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
+from njit_auditor.issue_type_explanations import (
+    explain_issue_type,
+    humanize_issue_type,
+    student_facing_issue_label,
+)
 from njit_auditor.p011_margin_presentation import (
     content_kind_from_details,
     margin_comment_body,
@@ -923,7 +927,7 @@ def _finding_view_from_item(
                 has_highlight=has_highlight,
                 location_label=location_label,
             ),
-            issue_type_label=humanize_issue_type(issue_type),
+            issue_type_label=student_facing_issue_label(rule_id, issue_type),
             issue_type_explanation=explain_issue_type(rule_id, issue_type, details=details),
         ),
         location_key,
@@ -1722,7 +1726,7 @@ def _apply_page_number_presentation(
         replace(
             finding,
             issue_type=visible_issue_type,
-            issue_type_label=humanize_issue_type(visible_issue_type),
+            issue_type_label=student_facing_issue_label(finding.rule_id, visible_issue_type),
             issue_type_explanation=issue_type_explanation,
             polished_comment=comment,
             suggested_fix=suggested_fix,

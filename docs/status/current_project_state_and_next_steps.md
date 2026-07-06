@@ -7,23 +7,40 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #23 (confidence calibration audit)
+## Current Status — 2026-07-06, #24 (Ester Column C/E wording + page-order-first UI)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-06
-#22 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#23 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `2835510b3d330f6a8156d56ce72eb0a29f825ca1` (PR #477) at the start of
+- **Code baseline `main`:** `1b5fd306764c197450e26596d162cece3fc7546a` (PR #478) at the start of
   this pass; pending merge of this pass's PR.
 - **Live server:** serving `2835510` via user-level systemd — **untouched during this pass** (no
   restart; vllm on port 8010 also untouched).
 - **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
 - **Remote branches:** retained stacked `fix/*` WIP branches, unchanged — not touched.
 - **Stray stash:** `stash@{0}` still present — not popped, applied, created, or dropped.
-- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2632 passed**
-  (2631 baseline + 1 new test).
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2643 passed**.
 
-### Confidence calibration audit (2026-07-06)
+### Ester wording + page-order UI (2026-07-06)
+
+Ester's latest email reprioritized **wording/source-of-truth alignment** (Google Sheet Column C
+yes/no questions, Column E remediations) over confidence work. Sample A (1/39 correct) remains the
+main correctness benchmark for deferred detector work.
+
+- **Source map:** `data/specs/ester_warning_wording_map.json` (live Google Sheet/Docs required
+  sign-in — repo mirror + email P011 example used; extraction date 2026-07-06).
+- **Wording slice:** P011, P012, P013, P019, P021, P026, P035, P036, P040, P053, P054, P068 —
+  student card titles use Ester questions where mapped; P011 remediation leads with 1.5" left /
+  1" other margins and includes tables/figures in the question.
+- **UI order:** Summary → Recommended review order → **Findings in page order** → **Findings by
+  topic** (collapsed secondary index) → Downloads → Advanced.
+- **Sample A status doc:** [`ester_sample_a_feedback_alignment.md`](ester_sample_a_feedback_alignment.md).
+- **Deferred:** detector false positives/negatives, atomic splits (P014–P018), P011 same-page card
+  merge, P084, confidence recalibration.
+- No detector, threshold, confidence, rule ID, warning-count, or JSON export schema changes.
+
+## Historical — 2026-07-06, #23 (confidence calibration audit)
 
 Full report: [`confidence_calibration_audit.md`](confidence_calibration_audit.md).
 

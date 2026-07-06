@@ -1,14 +1,29 @@
-# Open PR Triage (2026-07-06, #23: confidence calibration audit)
+# Open PR Triage (2026-07-06, #24: Ester Column C/E wording + page-order UI)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `2835510b3d330f6a8156d56ce72eb0a29f825ca1`. Short SHA: `2835510`.  
+**Baseline inspected:** `main` @ `1b5fd306764c197450e26596d162cece3fc7546a`. Short SHA: `1b5fd30`.  
 **Live server:** serving `2835510` — **untouched in this pass**.  
 **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.  
 **Stray stash:** `stash@{0}` still present — not touched.
 
-## What happened in this pass (2026-07-06, #23)
+## What happened in this pass (2026-07-06, #24)
+
+Ester email reprioritized wording alignment over confidence. Column C (yes/no questions) and Column E
+(how to fix) are now the student-facing source of truth via `data/specs/ester_warning_wording_map.json`.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `fix/ester-wording-and-page-order` |
+| **Status doc** | [`ester_sample_a_feedback_alignment.md`](ester_sample_a_feedback_alignment.md) |
+| **Changed** | P011+ priority rule questions/remediations; `student_facing_issue_label()`; UI section order (page order before topic); topic table collapsed as secondary index |
+| **Source access** | Live Google Sheet and Sample A Google Doc **not accessible** (sign-in); repo mirrors + Ester email P011 example |
+| **Tests** | `tests/test_ester_wording_and_page_order.py` (new); nav/section order test updates |
+| **Live deployment** | Untouched |
+| **Deferred** | Sample A detector correctness (1/39), atomic splits, P011 same-page merge, confidence work |
+
+## Historical — what happened in the previous pass (2026-07-06, #23)
 
 Confidence calibration audit across data flow, rule inventory, Ester sample distributions, UI/filter
 behavior, and retained branch `fix/confidence-grouping-sorting`. One narrow mechanical fix applied.

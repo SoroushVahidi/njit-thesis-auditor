@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "title": "Ester student-facing warning wording (Column C questions, Column E remediations)",
+    "source_documents": [
+      {
+        "name": "NJIT Thesis Auditor Formatting Rules (Google Sheet)",
+        "url": "https://docs.google.com/spreadsheets/d/1IohAmbslfX1orMDr7gx6oJyGGTqAV_AAtF31GP-57Gc/edit",
+        "columns": {
+          "question": "C",
+          "remediation": "E"
+        },
+        "live_accessible": false,
+        "repo_mirror": "data/specs/ester_p_rule_feedback.json",
+        "note": "Live sheet required Google sign-in during extraction; mirror plus task email used."
+      }
+    ],
+    "extraction_date": "2026-07-06",
+    "scope_note": "Only rules with clear, directly mappable Column C/E text in this pass. Broad atomic-split rules (P014, P015, P017, P018) are deferred."
+  },
+  "rules": {
+    "P011": {
+      "status": "approved",
+      "question": "Is all text (including tables and figures) contained entirely within the required page margins?",
+      "remediation": "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch.",
+      "apply_question_to_issue_types": ["margin_boundary_violation"],
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "P011 example from Ester's latest email; extends tracked mirror wording with tables/figures."
+    },
+    "P012": {
+      "status": "approved",
+      "question": "Does the PDF contain annotations/comments?",
+      "remediation": "Resolve or delete all annotations",
+      "apply_question_to_issue_types": ["pdf_annotation_detected"],
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "ester_p_rule_feedback.json proposed edits; question unchanged from catalog."
+    },
+    "P013": {
+      "status": "approved",
+      "question": "Are all visible page numbers located exactly in the designated bottom-center position?",
+      "remediation": "Set page numbers on the bottom of the page, centered and 0.5 inches from margin",
+      "apply_question_to_issue_types": ["page_number_candidate"],
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "ester_p_rule_feedback.json; remediation normalized punctuation only."
+    },
+    "P019": {
+      "status": "approved",
+      "question": "Do visible page numbers show inconsistent style, position, or sequence across the document?",
+      "remediation": "Review page-number placement and numbering style for each section: front matter should use lowercase Roman numerals in sequence; the main body should use Arabic numerals starting at 1.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog; no separate P019 row in ester_p_rule_feedback.json."
+    },
+    "P021": {
+      "status": "approved",
+      "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
+      "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
+      "apply_question_to_issue_types": ["abstract_word_count_exceeded"],
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog; detector limits unchanged."
+    },
+    "P026": {
+      "status": "approved",
+      "question": "Does the body text use Times New Roman 12pt (or an accepted equivalent)?",
+      "remediation": "Word users: set body text to Times New Roman or Arial at 12pt. Overleaf/LaTeX users: Computer Modern or Latin Modern are accepted body fonts.",
+      "apply_question_to_issue_types": [
+        "possible_body_font_family_issue",
+        "possible_body_font_size_issue"
+      ],
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json plus web_app PDF-facing remediation override."
+    },
+    "P035": {
+      "status": "approved",
+      "question": "Do body-page figure/table floats appear centered with captions in the expected position?",
+      "remediation": "Center figure/table body blocks within the text area; place table captions above the table body and figure captions below the figure body per NJIT formatting guidance.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog."
+    },
+    "P036": {
+      "status": "approved",
+      "question": "Is there visible double spacing or a blank line between consecutive TOC, List of Tables, or List of Figures entries?",
+      "remediation": "Add visible double spacing or a blank line between consecutive entries in the TOC, List of Tables, or List of Figures.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog."
+    },
+    "P040": {
+      "status": "approved",
+      "question": "Does every figure description in the List of Figures end with terminal punctuation?",
+      "remediation": "Add terminal punctuation, such as a period, question mark, or exclamation point, to every figure description in the List of Figures.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog."
+    },
+    "P053": {
+      "status": "approved",
+      "question": "Are all List of Tables entries free of a final period?",
+      "remediation": "Remove the final period from each List of Tables entry. Table titles should use title case without terminal punctuation.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog."
+    },
+    "P054": {
+      "status": "approved",
+      "question": "Are all Table of Contents entries free of a final period?",
+      "remediation": "Remove the final period from each Table of Contents entry.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json catalog."
+    },
+    "P068": {
+      "status": "approved",
+      "question": "Does the Approval Page include committee role labels and signature/date structural blocks for committee entries?",
+      "remediation": "Ensure the Approval Page includes an advisor-role label and sufficient date/signature structural blocks for each committee entry. Manual review is still required for honorifics and rank order.",
+      "source_column_question": "C",
+      "source_column_remediation": "E",
+      "source_note": "project_added_rules.json question; remediation composed from catalog notes (no proposed edit in ester_p_rule_feedback.json)."
+    }
+  }
+}

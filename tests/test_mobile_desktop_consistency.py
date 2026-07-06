@@ -441,7 +441,7 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Open highlighted PDF page",
         "Page 3",
         "Issue type:",
-        "PDF annotation detected",
+        "Does the PDF contain annotations/comments?",
     ]
     for comment in {f.polished_comment for f in view.findings if f.category == "page_numbering"}:
         category_tokens.append(comment)

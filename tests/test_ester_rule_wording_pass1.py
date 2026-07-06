@@ -74,7 +74,10 @@ def test_p011_margin_right_mentions_right_boundary() -> None:
 def test_p011_catalog_question_is_binary() -> None:
     rules = _load_rule_catalog()
     p011 = next(r for r in rules if r["id"] == "P011")
-    assert "Is all text contained entirely within" in p011["question"]
+    assert (
+        "Is all text (including tables and figures) contained entirely within"
+        in p011["question"]
+    )
 
 
 def test_p011_catalog_remediation_specifies_measurements() -> None:
