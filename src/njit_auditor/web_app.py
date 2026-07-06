@@ -1654,7 +1654,7 @@ def _student_location_text(finding: dict[str, Any]) -> str:
     if page is not None:
         if not location_label or location_label == str(page):
             return f"Page {page}"
-        if location_label.lower().startswith("page "):
+        if location_label.lower().startswith(("page ", "pages ")):
             return location_label
         return f"Page {page} - {location_label}"
     if location_label:

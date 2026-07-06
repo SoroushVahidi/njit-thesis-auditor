@@ -497,6 +497,49 @@ def test_abstract_no_fake_highlight(app: tuple[TestClient, Any]) -> None:
     assert "400" in page_html or "What does this mean?" in page_html
 
 
+def test_abstract_word_count_title_and_comment_are_specific_without_issue_type_key() -> None:
+    """P021's detector never sets details["issue_type"]; the presentation layer
+    must still resolve a specific title/comment instead of falling back to the
+    generic "Review this finding" / "This check (P021) found a possible
+    formatting issue" wording."""
+    findings = [
+        AuditFinding(
+            rule_id="P021",
+            severity=Severity.WARNING,
+            page=3,
+            message="Abstract too long.",
+            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = view.findings[0]
+    assert fv.issue_type_label == "Abstract word count exceeded"
+    assert fv.polished_comment != "" and "This check (" not in fv.polished_comment
+    assert "found a possible" not in fv.polished_comment
+    assert "400" in fv.polished_comment
+    assert "350" in fv.polished_comment
+
+
+def test_abstract_word_count_card_does_not_show_generic_review_title(
+    app: tuple[TestClient, Any],
+) -> None:
+    c, wa = app
+    findings = [
+        AuditFinding(
+            rule_id="P021",
+            severity=Severity.WARNING,
+            page=3,
+            message="Abstract too long.",
+            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+        )
+    ]
+    job_id = _inject_job(wa, findings)
+    page_html = _get_html(c, f"/audits/{job_id}")
+    assert "Review this finding" not in page_html
+    assert "Abstract word count exceeded" in page_html
+
+
 # ---------------------------------------------------------------------------
 # 5. Font explanation is detailed
 # ---------------------------------------------------------------------------

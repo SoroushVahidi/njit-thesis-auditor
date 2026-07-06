@@ -1,13 +1,29 @@
-# Open PR Triage (2026-07-06, #21: P013 body-text-ID page-number false positive)
+# Open PR Triage (2026-07-06, #22: warning clarity, location & actionability audit)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `3cbbfde38c6d5daa1a373476c8292985a7c65100`. Short SHA: `3cbbfde`.  
-**Live server:** still serving `affae79` — **untouched in this pass**.  
+**Baseline inspected:** `main` @ `d465c52c43f06161c837926c2032b0556771963b`. Short SHA: `d465c52`.  
+**Live server:** serving `d465c52` (deployed in a separate deployment-only task before this audit) —
+**untouched in this pass**.  
 **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
 
-## What happened in this pass (2026-07-06, #21)
+## What happened in this pass (2026-07-06, #22)
+
+Warning clarity, location, and student-actionability audit across ~50 rules. Two narrow,
+mechanical wording fixes found and applied — full detail in
+[`warning_clarity_location_actionability_audit.md`](warning_clarity_location_actionability_audit.md)
+and the current-status entry above.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `docs/warning-clarity-actionability-audit` |
+| **Changed** | (1) `polished_comments.build_polished_comment()` and `report_view._finding_view_from_item()` now resolve P021's `abstract_word_count_exceeded` issue type from `word_count`/`limit` details when the detector left `issue_type` unset (previously fell back to the literal "Review this finding" title / fully generic review note). (2) `web_app._student_location_text()` now recognizes the plural `"pages "` prefix (not just singular `"page "`), fixing a doubled location string for P025's multi-page Digital Commons wrapper notice on the "Findings by topic" drill-down view. |
+| **Tests** | `tests/test_student_location_text_no_duplication.py` (new, 6 tests); `tests/test_finding_actionability.py` (2 new + 1 strengthened); full suite (**2631 pytest**) |
+| **Live deployment** | Untouched — audit and fixes done in a scratch worktree + scratch uvicorn on port 8020, never port 8000; vllm on port 8010 also untouched |
+| **Deferred** | P011 borderline-overflow wording (flagged for Esther/policy input), P016/P023/P064 location-precision gaps (need new highlight geometry, detector-touching), `original_page` cards' missing no-highlight explanation on the primary list (candidate for next UI slice) — see audit doc for full list |
+
+## Historical — what happened in the previous pass (2026-07-06, #21)
 
 Narrow fix for a P013 page-number false positive: a long numeric body-text ID (e.g. a protocol
 ID) landing in a margin zone was counted alongside a real footer page number as a competing

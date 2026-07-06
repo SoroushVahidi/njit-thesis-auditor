@@ -1714,6 +1714,13 @@ def build_polished_comment(
     issue = issue_type or safe_details.get("issue_type", "")
     if rule_id in _SOURCE_RULE_IDS and not issue:
         issue = derive_source_issue_type(rule_id, safe_details)
+    if (
+        rule_id == "P021"
+        and not issue
+        and safe_details.get("word_count")
+        and safe_details.get("limit")
+    ):
+        issue = "abstract_word_count_exceeded"
 
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
