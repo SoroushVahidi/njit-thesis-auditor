@@ -7,11 +7,37 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #13 (P068 Thesis Advisor recognition fix)
+## Current Status — 2026-07-05, #14 (P011 margin-warning presentation isolated)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#12 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#13 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `c0d11990ddc865e1be76a69a206bb6b5b0b4ebf9` + P011 presentation PR (narrow wording slice).
+- **Live server:** serving `c0d1199` via user-level systemd — untouched in this pass.
+- **Open PR count:** **0** until P011 presentation PR merges.
+- **Remote branches:** **4** after deleting `fix/p011-margin-warning-presentation` (superseded by narrow slice);
+  four other stacked `fix/*` WIP branches retained.
+- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2594 passed**.
+
+### P011 disposition (2026-07-05)
+
+- Inspected retained branch `fix/p011-margin-warning-presentation` (12 commits; only `4c8c541` + `adbb034`
+  were P011-relevant; rest was unrelated stacked Jun-2026 WIP).
+- **Superseded on `main`:** WIP regressed later P011 visual evidence (`margin_boundary_bbox`, adjacent
+  `highlight_bboxes`, `line_index` grouping) already on `main`; WIP `margin_confidence` calibration excluded.
+- **Narrow slice:** context-aware page labels/remediation (`p011_margin_presentation.py`), references
+  continuation-page inference from line previews, additive `page_context`/`margin_content_kind` details;
+  margin thresholds, confidence logic, and highlight geometry unchanged.
+- **Before:** generic “body content” margin warnings and inch-setting suggested fixes on all pages.
+- **After:** abstract/approval/references/body-specific labels and remediation (e.g. hanging-indent fix on
+  bibliography continuation pages); strict NJIT margin messaging preserved.
+
+---
+
+## Historical — 2026-07-05, #13 (P068 Thesis Advisor recognition fix)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `a52354f15679298a4f7c28f1de28b5d96a6fa440` + P068 fix PR (narrow detector slice).
 - **Live server:** serving `bdfbbc4` via user-level systemd — untouched in this pass.

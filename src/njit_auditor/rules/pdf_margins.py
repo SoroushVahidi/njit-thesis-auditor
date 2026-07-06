@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from enum import Enum
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.p011_margin_presentation import (
+    infer_margin_content_kind,
+    infer_page_margin_context,
+    margin_suggested_fix,
+)
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, _is_top_or_bottom_zone
 
 INCH_TO_PT = 72.0
@@ -48,6 +53,20 @@ class LineViolation:
     overflow_pt: float
     line: PdfTextLine
     line_index: int
+
+
+def _page_text(page: PdfPage) -> str:
+    return " ".join(block.text for block in page.text_blocks)
+
+
+def _margin_side_label_for_fix(side: MarginSide) -> str:
+    labels = {
+        MarginSide.LEFT: "left margin",
+        MarginSide.RIGHT: "right margin",
+        MarginSide.TOP: "top margin",
+        MarginSide.BOTTOM: "bottom margin",
+    }
+    return labels.get(side, "required page margin")
 
 
 def _likely_page_number_text(text: str, y0: float, y1: float, page_height: float) -> bool:
@@ -256,13 +275,19 @@ def run_pdf_margin_rule(
                     format_bbox_detail(box) for box in highlight_bboxes
                 ),
                 "margin_boundary_bbox": format_bbox_detail(margin_boundary_bbox),
-                "suggested_fix": (
-                    "Set the left margin to 1.5 inches and the top, bottom, and right "
-                    "margins to 1 inch. Move all content inside the required margin bounds."
-                ),
             }
             if line_previews:
                 finding_details["affected_line_texts"] = " | ".join(line_previews)
+
+            page_context = infer_page_margin_context(_page_text(page), line_previews)
+            content_kind = infer_margin_content_kind(page_context, line_previews)
+            finding_details["page_context"] = page_context
+            finding_details["margin_content_kind"] = content_kind
+            finding_details["suggested_fix"] = margin_suggested_fix(
+                page_context=page_context,
+                content_kind=content_kind,
+                side_label=_margin_side_label_for_fix(side),
+            )
 
             findings.append(
                 AuditFinding(

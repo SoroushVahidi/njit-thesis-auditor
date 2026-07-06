@@ -341,7 +341,7 @@ def test_p011_comment_includes_overflow_and_line_count() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P011")
-    assert "page 2 is not contained entirely within the required left margin" in fv.polished_comment
+    assert "page 2 appears to cross the required left margin boundary" in fv.polished_comment
     assert "67.3pt beyond the boundary" in fv.polished_comment
     assert "4 text lines affected" in fv.polished_comment
 
@@ -353,7 +353,7 @@ def test_p011_comment_without_overflow_metadata_is_unchanged_shape() -> None:
         page=2,
         details={"side": "left_margin", "confidence": "high"},
     )
-    assert "page 2 is not contained entirely within the required left margin" in comment
+    assert "page 2 appears to cross the required left margin boundary" in comment
     assert "beyond the boundary" not in comment
 
 

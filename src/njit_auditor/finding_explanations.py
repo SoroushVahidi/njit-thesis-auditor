@@ -929,16 +929,29 @@ def _margin_side_label(details: dict[str, str]) -> str:
 
 
 def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> str:
+    from njit_auditor.p011_margin_presentation import (
+        content_kind_from_details,
+        margin_content_label,
+        margin_detailed_fix_guidance,
+        margin_expected_phrase,
+        page_context_from_details,
+    )
+
     side = _margin_side_label(details)
     overflow = details.get("worst_overflow_pt", "").strip()
     line_count = details.get("affected_line_count", "").strip()
+    page_context = page_context_from_details(details)
+    content_kind = content_kind_from_details(details)
     if side == "required page margin":
         observed = (
             "Some content appears too close to or beyond a required page margin, "
             "but the exact side is unavailable"
         )
     else:
-        observed = f"Content appears to cross the required {side} boundary"
+        observed = (
+            f"{margin_content_label(page_context)} appears to cross the required "
+            f"{side} boundary"
+        )
     extras: list[str] = []
     if overflow:
         extras.append(f"about {overflow}pt beyond the boundary")
@@ -947,13 +960,17 @@ def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> st
         extras.append(f"{line_count} affected text {noun}")
     if extras:
         observed = f"{observed} ({'; '.join(extras)})"
+    fix_guidance = margin_detailed_fix_guidance(
+        page_context=page_context,
+        content_kind=content_kind,
+        side_label=side,
+    )
     return (
         f"Observed: {observed}. "
-        "Expected: Content should stay inside NJIT's required page margins "
+        f"Expected: {margin_expected_phrase(page_context)} "
         "(left 1.5 inches; right, top, and bottom 1 inch). "
-        "Why this is suspicious: layout content appears outside the printable body area. "
-        "What to check or fix: inspect tables, figures, long lines, indentation, headers, "
-        "and footers on this page."
+        "Why this is suspicious: layout content appears outside the printable area. "
+        f"{fix_guidance}"
     )
 
 

@@ -201,9 +201,9 @@ def test_p011_margin_with_bbox_renders_real_highlight_and_keeps_wording(
     text, status = _get_html(c, f"/audits/{job_id}")
     assert status == 200
 
-    # Wording is unchanged from the pre-bbox baseline.
-    assert "page 2 is not contained entirely within the required right margin" in text
-    assert "Move any text, table, or figure" in text
+    # Wording uses context-aware margin remediation.
+    assert "page 2 appears to cross the required right margin boundary" in text
+    assert "highlighted text" in text.lower() or "paragraph" in text.lower()
 
     # A real highlight is now offered, and it must not contradict itself.
     assert "Open highlighted PDF page" in text

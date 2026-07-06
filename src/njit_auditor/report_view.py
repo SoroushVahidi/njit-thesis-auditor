@@ -30,6 +30,15 @@ from njit_auditor.high_volume_student_preview import (
 )
 from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
 from njit_auditor.issue_type_explanations import explain_issue_type, humanize_issue_type
+from njit_auditor.p011_margin_presentation import (
+    content_kind_from_details,
+    margin_comment_body,
+    margin_content_label,
+    margin_detailed_fix_guidance,
+    margin_expected_phrase,
+    margin_suggested_fix,
+    page_context_from_details,
+)
 from njit_auditor.p011_student_preview import (
     P011PagePresentationStats,
     collect_p011_margin_pages_from_serialized,
@@ -1009,15 +1018,18 @@ def _margin_detailed_explanation(
 ) -> str:
     side = _margin_side_label(details.get("side", ""))
     observed = _margin_observed_phrase(details)
+    page_context = page_context_from_details(details)
+    content_kind = content_kind_from_details(details)
+    expected = margin_expected_phrase(page_context)
     if side == "required page margin":
         why = (
-            "the detector found layout content outside the expected body area, but the "
+            "the detector found layout content outside the expected printable area, but the "
             "stored metadata does not identify which margin side was crossed"
         )
     else:
         why = (
-            f"body content should stay inside the {side}, not extend beyond the required "
-            "page boundary"
+            f"{margin_content_label(page_context)} should stay inside the {side}, not extend "
+            "beyond the required page boundary"
         )
     page_text = f" on page {page}" if page is not None else ""
     no_highlight_text = (
@@ -1032,14 +1044,17 @@ def _margin_detailed_explanation(
             location_label=location_label,
         )
     )
+    fix_guidance = margin_detailed_fix_guidance(
+        page_context=page_context,
+        content_kind=content_kind,
+        side_label=side,
+    )
     return (
         f"Observed: {observed}{page_text}. "
-        "Expected: Content should stay inside NJIT's required page margins "
+        f"Expected: {expected} "
         "(left 1.5 inches; right, top, and bottom 1 inch). "
         f"Why this is suspicious: {why}. "
-        "What to check or fix: inspect tables, figures, long lines, indentation, "
-        "headers, and footers on this page."
-        f"{no_highlight_text}"
+        f"{fix_guidance}{no_highlight_text}"
     )
 
 
@@ -1049,34 +1064,22 @@ def _margin_comment_and_fix(
     page_label = str(page) if page is not None else "this page"
     prefix = _problem_prefix(confidence)
     side = _margin_side_label(details.get("side", ""))
-    if side == "required page margin":
-        comment = (
-            f"{prefix}: Text on page {page_label} is not contained entirely within "
-            "the required page margins. The auditor could not determine the exact "
-            "margin side from the available metadata. NJIT requires: left margin "
-            "1.5 inches; top, bottom, and right margins 1 inch. Move any text, "
-            "table, or figure that extends into the margins back inside the "
-            "required page area."
-        )
-        fix = (
-            f"Set the left margin to 1.5 inches and the top, bottom, and right "
-            f"margins to 1 inch on page {page_label}. Move any text, table, or "
-            "figure that extends into the margins back inside the required page area."
-        )
-        return comment, fix
+    page_context = page_context_from_details(details)
+    content_kind = content_kind_from_details(details)
     overflow_detail = _margin_overflow_detail_phrase(details)
     lines_clause = _margin_affected_lines_clause(details)
-    comment = (
-        f"{prefix}: Text on page {page_label} is not contained entirely within "
-        f"the required {side}{overflow_detail}. NJIT requires: left margin 1.5 "
-        "inches; top, bottom, and right margins 1 inch. Move any text, table, or "
-        "figure that extends into the margins back inside the required page area."
-        f"{lines_clause}"
+    body = margin_comment_body(
+        page_label=page_label,
+        side_label=side,
+        page_context=page_context,
+        overflow_detail=overflow_detail,
+        lines_clause=lines_clause,
     )
-    fix = (
-        f"Set the left margin to 1.5 inches and the top, bottom, and right "
-        f"margins to 1 inch on page {page_label}. Move any text, table, or "
-        "figure that extends into the margins back inside the required page area."
+    comment = body.replace("Likely problem:", f"{prefix}:", 1)
+    fix = margin_suggested_fix(
+        page_context=page_context,
+        content_kind=content_kind,
+        side_label=side,
     )
     return comment, fix
 
