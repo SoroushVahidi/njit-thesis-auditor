@@ -7,11 +7,37 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #9 (cleanup cycle complete — live current with main)
+## Current Status — 2026-07-05, #10 (remote branch cleanup — live unchanged at bdfbbc4)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#8 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#9 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `bdfbbc4ca42050eb408358b9831ebb715feac524` (squash-merge of PR
+  [#462](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/462), help/report-flow docs refresh,
+  on top of #461 status docs and the full cleanup stack through #376/#459/#460). Short SHA: `bdfbbc4`.
+- **Live server:** serving `bdfbbc4` via user-level systemd (`thesis-auditor-web.service`) — confirmed
+  by `/version` on `127.0.0.1:8000` and LAN `10.196.93.210:8000` after deploy pass (2026-07-05).
+- **Open PR count:** **0**.
+- **Remote branch cleanup (2026-07-05):** inspected **102** non-`main` remote branches; deleted **89**
+  fully merged or merged-PR heads; **13 retained** (unique unmerged commits or unclear purpose — see
+  retained list in [open_pr_triage.md](open_pr_triage.md) #10 pass). No live restart in branch-only pass.
+- **Validation (latest `main`):** `ruff check .` — passed; `mypy src` — no issues in 105 files;
+  `python -m pytest` — **2585 passed**.
+- **Student-facing report flow (current UI):**
+  Summary → Review order → Findings by topic → Findings in page order (compact cards) → Downloads →
+  Advanced sections (grouped summaries, rule-by-rule summary, detected candidates — collapsed).
+
+### Next recommended work
+
+1. **P084 remains out of scope** unless explicitly requested.
+2. Manual review of the **13 retained** remote branches with unique/unmerged commits (listed in open PR triage).
+
+---
+
+## Historical — 2026-07-05, #9 (cleanup cycle complete — live current with main)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `cd2771a5aa35b84eb54441ad61750164cad6d53b` (status docs after #376 merge;
   includes #376 detector fix at `72b8736`, #460 UI at `b6cc8db`, #375 docs at `d89f4ce`, full stack
