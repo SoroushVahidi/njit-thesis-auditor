@@ -1,5 +1,9 @@
 # Problem Drill-Down Audit
 
+> **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
+> Section names such as "Summary by problem type" describe the pre-cleanup layout.
+> For the current report flow, see [current_project_state_and_next_steps.md](../status/current_project_state_and_next_steps.md).
+
 **Date:** 2026-06-16  
 **Baseline:** main after PR #321 (issue-type explanations)
 

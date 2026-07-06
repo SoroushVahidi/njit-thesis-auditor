@@ -98,22 +98,25 @@ def test_help_contains_high_volume_triage_explanation(client: tuple[TestClient, 
     assert "high-volume" in body or "triage" in body
 
 
-def test_help_contains_grouped_problems_explanation(client: tuple[TestClient, Any]) -> None:
+def test_help_describes_current_report_flow(client: tuple[TestClient, Any]) -> None:
+    """Help text should describe the post-cleanup report flow and avoid legacy toggle language."""
     c, _ = client
     resp = c.get("/help")
-    body = resp.text.lower()
-    assert "grouped" in body or "repeated-problem" in body
+    body = resp.text
+    assert "Findings by topic" in body
+    assert "Findings in page order" in body
+    assert "Grouped problems" not in body
+    assert "All individual findings" not in body
+    assert "confidence" in body.lower()
 
 
-def test_help_omits_confidence_and_review_priority_glossary_entries(
+def test_help_omits_review_priority_glossary_entry(
     client: tuple[TestClient, Any],
 ) -> None:
-    """The Confidence/Review priority glossary rows were removed along with the
-    triage badges they described; the help page should not mention them."""
+    """The Review priority glossary row was removed along with the triage badges it described."""
     c, _ = client
     resp = c.get("/help")
     body = resp.text.lower()
-    assert "confidence" not in body
     assert "review priority" not in body
 
 

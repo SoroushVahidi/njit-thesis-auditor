@@ -8,6 +8,9 @@
 > **Related:** [ester_feedback_source_of_truth.md](ester_feedback_source_of_truth.md) ·
 > [ester_language_alignment_audit.md](ester_language_alignment_audit.md) ·
 > [ester_current_wording_inventory.md](ester_current_wording_inventory.md)
+>
+> **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
+> For the current state, see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
 **Inspection basis (read-only; no source edits in this planning PR):**
 
