@@ -13,10 +13,11 @@ This section is the authoritative current snapshot. Everything below it (includi
 #13 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
 
-- **Code baseline `main`:** `c0d11990ddc865e1be76a69a206bb6b5b0b4ebf9` + P011 presentation PR (narrow wording slice).
+- **Code baseline `main`:** `454fd13dee5a453b8216261b6361c10c00943ace` (squash-merge of PR
+  [#467](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/467), P011 presentation slice).
 - **Live server:** serving `c0d1199` via user-level systemd — untouched in this pass.
-- **Open PR count:** **0** until P011 presentation PR merges.
-- **Remote branches:** **4** after deleting `fix/p011-margin-warning-presentation` (superseded by narrow slice);
+- **Open PR count:** **0**.
+- **Remote branches:** **4** after deleting `fix/p011-margin-warning-presentation` (superseded by PR #467);
   four other stacked `fix/*` WIP branches retained.
 - **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2594 passed**.
 
