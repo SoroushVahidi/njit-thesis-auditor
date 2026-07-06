@@ -7,11 +7,40 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #22 (warning clarity, location & actionability audit)
+## Current Status — 2026-07-06, #23 (confidence calibration audit)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-06
-#21 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#22 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `2835510b3d330f6a8156d56ce72eb0a29f825ca1` (PR #477) at the start of
+  this pass; pending merge of this pass's PR.
+- **Live server:** serving `2835510` via user-level systemd — **untouched during this pass** (no
+  restart; vllm on port 8010 also untouched).
+- **Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
+- **Remote branches:** retained stacked `fix/*` WIP branches, unchanged — not touched.
+- **Stray stash:** `stash@{0}` still present — not popped, applied, created, or dropped.
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2632 passed**
+  (2631 baseline + 1 new test).
+
+### Confidence calibration audit (2026-07-06)
+
+Full report: [`confidence_calibration_audit.md`](confidence_calibration_audit.md).
+
+- Mapped confidence data flow from `details.confidence` through grouping, `report_view.py`, web UI,
+  and JSON/Markdown export across all four Ester samples.
+- **Finding:** missing canonical confidence (39% of warnings on sample A) displays as **Low
+  confidence** but previously had `data-confidence=""`, so the Low filter chip hid those rows.
+- **Fix (mechanical, UI-only):** `job.html` now sets `data-confidence` to `low` when both
+  `confidence_level` and `confidence` are empty — no detector, JSON, export, or view-model change.
+- **Deferred:** broad recalibration, P014 `centering_confidence` migration, P026 always-medium,
+  mixed-confidence sort/badge policy, grouped-card filtering, fourth “Needs review” bucket.
+- **Retained branch `fix/confidence-grouping-sorting`:** assessed, not merged (superseded 4-bucket
+  UI conflicts with current main).
+- New test: `test_missing_confidence_finding_data_confidence_matches_low_filter`.
+- Live deployment untouched throughout.
+
+## Historical — 2026-07-06, #22 (warning clarity, location & actionability audit)
 
 - **Code baseline `main`:** `d465c52c43f06161c837926c2032b0556771963b` (PR #476, squash-merged) at
   the start of this pass; pending merge of this pass's PR.

@@ -261,6 +261,7 @@ def test_finding_with_missing_confidence_shows_low_confidence_badge() -> None:
 
     finding = next(f for f in view.findings if f.rule_id == "P030")
     assert finding.confidence == ""
+    assert finding.confidence_level == ""
     assert finding.confidence_label == "Low confidence"
     assert finding.confidence_css_class == "confidence-badge--low"
 

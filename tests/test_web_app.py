@@ -1379,6 +1379,60 @@ def test_results_page_confidence_badges_use_only_three_public_values(
     assert "Low confidence" in body  # from the missing-confidence P030 card
 
 
+def test_missing_confidence_finding_data_confidence_matches_low_filter(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Missing canonical confidence shows a Low badge; data-confidence must be low too.
+
+    Otherwise the Low filter chip hides rows that still display as Low confidence."""
+    import re
+
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = [
+        AuditFinding(
+            rule_id="P030",
+            severity=Severity.WARNING,
+            page=4,
+            message="Missing continued heading.",
+            details={"issue_type": "missing_continued_heading"},
+        ),
+        AuditFinding(
+            rule_id="P011",
+            severity=Severity.WARNING,
+            page=1,
+            message="Margin issue.",
+            details={
+                "issue_type": "margin_boundary_violation",
+                "side": "left_margin",
+                "confidence": "high",
+            },
+        ),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=findings,
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    body = resp.text
+
+    p030_row = re.search(
+        r'data-rule="P030"[^>]*data-confidence="([^"]*)"',
+        body,
+    )
+    assert p030_row is not None, "expected P030 finding row with data-confidence"
+    assert p030_row.group(1) == "low"
+
+    assert 'data-confidence="high"' in body
+    assert 'data-confidence=""' not in body
+
+
 def test_individual_findings_table_confidence_badge_matches_data_confidence(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -1593,9 +1647,10 @@ def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
 
     assert resp.status_code == 200
     body = resp.text
-    # Public display normalizes the mixed high+low card to Low confidence, but the
-    # raw per-occurrence filter metadata below must still expose both real levels
-    # unchanged, since that token list (not the display label) drives filtering.
+    # Public display normalizes the mixed high+low card to Low confidence. The
+    # data-confidence-levels token list preserves both real levels for possible
+    # future grouped-card filtering; current confidence chips filter only the
+    # individual findings list (.finding-row), not grouped summary cards.
     assert "Mixed confidence" not in body
     assert "Low confidence" in body
     assert 'data-confidence-levels="|high|low|"' in body

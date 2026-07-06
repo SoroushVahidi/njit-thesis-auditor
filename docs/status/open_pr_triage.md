@@ -1,14 +1,29 @@
-# Open PR Triage (2026-07-06, #22: warning clarity, location & actionability audit)
+# Open PR Triage (2026-07-06, #23: confidence calibration audit)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `d465c52c43f06161c837926c2032b0556771963b`. Short SHA: `d465c52`.  
-**Live server:** serving `d465c52` (deployed in a separate deployment-only task before this audit) —
-**untouched in this pass**.  
-**Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.
+**Baseline inspected:** `main` @ `2835510b3d330f6a8156d56ce72eb0a29f825ca1`. Short SHA: `2835510`.  
+**Live server:** serving `2835510` — **untouched in this pass**.  
+**Open PR count:** **0** at the start of this pass; **0** again after this pass's PR merges.  
+**Stray stash:** `stash@{0}` still present — not touched.
 
-## What happened in this pass (2026-07-06, #22)
+## What happened in this pass (2026-07-06, #23)
+
+Confidence calibration audit across data flow, rule inventory, Ester sample distributions, UI/filter
+behavior, and retained branch `fix/confidence-grouping-sorting`. One narrow mechanical fix applied.
+
+| Item | Detail |
+|---|---|
+| **Branch** | `docs/confidence-calibration-audit` |
+| **Audit doc** | [`confidence_calibration_audit.md`](confidence_calibration_audit.md) |
+| **Changed** | `job.html`: missing-confidence findings now emit `data-confidence="low"` so the Low filter chip includes rows that already display a Low confidence badge |
+| **Tests** | `test_missing_confidence_finding_data_confidence_matches_low_filter` (new); grouped-card filter comment corrected; full suite (**2632 pytest**) |
+| **Live deployment** | Untouched |
+| **Retained branches** | Unchanged — `fix/confidence-grouping-sorting` assessed, not merged |
+| **Deferred** | Broad recalibration, P014/P026/P011 policy, grouped-card filtering, Needs review bucket |
+
+## Historical — what happened in the previous pass (2026-07-06, #22)
 
 Warning clarity, location, and student-actionability audit across ~50 rules. Two narrow,
 mechanical wording fixes found and applied — full detail in
