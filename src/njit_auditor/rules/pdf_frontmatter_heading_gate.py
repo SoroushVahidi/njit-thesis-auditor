@@ -145,7 +145,7 @@ def find_frontmatter_headings_for_gates(
                 canonical, match_path, match_confidence = resolved
                 normalized = normalize_heading_text(line.text)
                 centered, center_offset, centering_confidence = _line_centering(
-                    line, text_area_x0, text_area_x1
+                    line, text_area_x0, text_area_x1, page_width=page.width
                 )
                 text_area_center = (text_area_x0 + text_area_x1) / 2.0
                 matches.append(
