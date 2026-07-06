@@ -1,18 +1,50 @@
-# Open PR Triage (2026-07-05, #10: stale remote branch cleanup)
+# Open PR Triage (2026-07-05, #11: retained unique-branch triage)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #9 snapshot below is preserved as historical context only — see
-> the "What happened in this pass (2026-07-05, #9)" section further down. Everything above that
-> point is current.
+> **Superseded:** the 2026-07-05 #10 snapshot below is preserved as historical context only. Everything
+> above the #10 section is current.
 
-**Baseline inspected:** `main` @ `bdfbbc4ca42050eb408358b9831ebb715feac524`. Short SHA: `bdfbbc4`.  
-**Live server:** serving `bdfbbc4` via user-level systemd — matches `origin/main`.  
+**Baseline inspected:** `main` @ `c2fc8e4d11fe61c10fe6fe5595d020d525515b6e`. Short SHA: `c2fc8e4`.  
+**Live server:** serving `bdfbbc4` via user-level systemd — untouched in this pass.  
 **Open PR count:** **0**.
 
-## What happened in this pass (2026-07-05, #10)
+## What happened in this pass (2026-07-05, #11)
+
+Triage of the **13** remote branches retained after the #10 cleanup. **6** were deleted as clearly
+superseded; **7** remain for future narrow work or docs import.
+
+### Branches deleted in this pass (6 — superseded by current `main`)
+
+| Branch | Unique commits | Verdict | Action |
+|---|---|---|---|
+| `feature/example-thesis-url` | 1 | **Superseded** — closed PR #305; example NJIT thesis URL UI already on `main` (`index.html`); branch also predates PDF-only public UI | **Deleted** |
+| `implement-frontmatter-no-visible-page-number` | 1 | **Superseded** — early P022 implementation; P022 fully present and evolved on `main` (`pdf_frontmatter_no_page_number.py`) | **Deleted** |
+| `phase2-pdf-apa-title-capitalization` | 1 | **Superseded** — early P020; `pdf_title_capitalization.py` on `main` is substantially newer | **Deleted** |
+| `refine-p020-font-size-fallback` | 1 | **Superseded** — P020 font-size fallback refinements absorbed/evolved on `main` | **Deleted** |
+| `phase1-tex-source-auditor` | 2 | **Superseded** — early TeX auditor MVP (May 2025); full P001–P010 TeX surface on `main` | **Deleted** |
+| `organize-ester-materials` | 1 | **Superseded** — early Ester import/rule-loader prototype; `rule_loader.py` and current `data/raw/ester/` layout on `main` | **Deleted** |
+
+### Branches retained (7)
+
+| Branch | Unique commits | File areas | Risk | Recommendation | Action |
+|---|---|---|---|---|---|
+| `docs/pdf-finding-location-clarity-audit` | 1 | `docs/planning/pdf_finding_location_clarity_audit.md` only | **Low** | **Future docs PR** — planning audit not on `main`; no detector/UI impact | **Retained** |
+| `fix/confidence-grouping-sorting` | 16 | 13 detector rules, UI (`web_app`, templates), 21 tests, presentation helpers | **High** | **Keep + cherry-pick later** — stacked Jun-2026 WIP tip; includes confidence grouping/sorting plus P011/P015/P035/P068/P013 changes; conflicts with post-cleanup UI; do not merge whole branch | **Retained** |
+| `fix/p011-margin-warning-presentation` | 12 | 9 detector rules, UI, 13 tests | **High** | **Keep + cherry-pick later** — P011 margin wording/highlights/confidence + related stack commits; subset of confidence-grouping branch | **Retained** |
+| `fix/p015-equation-continuation-indent` | 15 | 13 detector rules, UI, 19 tests | **High** | **Keep + cherry-pick later** — P015 post-equation indent suppression; detector threshold/policy change needs explicit approval | **Retained** |
+| `fix/p035-table-centering-presentation` | 10 | 8 detector rules, UI, 9 tests | **High** | **Keep + cherry-pick later** — P035 table-centering highlight/remediation presentation; rebase against current highlight/UI stack first | **Retained** |
+| `fix/p068-approval-page-thesis-advisor` | 14 | 13 detector rules incl. P068, UI, 18 tests | **High** | **Keep + cherry-pick later** — “Thesis Advisor” recognition not present on `main`; useful but needs isolated PR + eval | **Retained** |
+| `fix/page-numbering-false-positives` | 13 | 12 detector rules (P013/P019/P037), UI, 14 tests | **High** | **Keep + cherry-pick later** — page-number FP suppression bundle; detector-policy sensitive | **Retained** |
+
+**Stack note:** the six `fix/*` branches share a common 2026-06-30 WIP stack (`fix/p035-*` is an ancestor of several others; `fix/confidence-grouping-sorting` is the broadest tip). Treat as **one forked effort**, not six independent merge candidates.
+
+- **Live deployment:** untouched (no systemd restart).
+- **Open PR count:** still **0**.
+
+## Historical — what happened in the previous pass (2026-07-05, #10)
 
 Safe stale remote-branch cleanup after help/docs deploy (#462 live at `bdfbbc4`).
 
