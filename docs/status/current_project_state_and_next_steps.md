@@ -7,11 +7,33 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #16 (unambiguous Ester-consistency wording fixes)
+## Current Status — 2026-07-05, #17 (UI quality / mobile-desktop consistency audit)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#15 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#16 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `c9ae73eddb0183ee734a4c0a1b47c1f6424985dd` (pre-merge; UI audit PR pending).
+- **Live server:** serving `c9ae73e` via user-level systemd — **untouched in this audit pass**.
+- **Open PR count:** **0** until UI audit PR merges.
+- **Remote branches:** **4** retained stacked `fix/*` WIP branches (unchanged).
+- **Validation (this pass):** `ruff check .` / `mypy src` / `python -m pytest` — **2604 passed**.
+
+### UI / mobile-desktop audit (2026-07-05)
+
+- **New doc:** [ui_quality_mobile_desktop_consistency_audit.md](ui_quality_mobile_desktop_consistency_audit.md)
+- **Samples:** `ester_sample_a`, `ester_sample_b`, `ester_sample_d`, `clean_minimal.pdf`
+- **Viewports:** 1400 / 768 / 390 / 360 px
+- **Parity:** report counts, filters, downloads, and advanced availability match across viewports
+- **Safe fixes:** Help glossary `.table-scroll` wrapper (mobile overflow); Help wording aligned to “Recommended review order” and “page-number inventory”
+- **Deferred:** rename advanced “page-number candidates” section; soften inventory “candidate” notes (Esther/policy)
+- **Live deployment:** untouched
+
+---
+
+## Historical — 2026-07-05, #16 (unambiguous Ester-consistency wording fixes)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `20ed7c1db822688649018d20bbbaf7da6ffba377` (PR [#470](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/470) — unambiguous Ester wording fixes).
 - **Live server:** serving `c0d1199` via user-level systemd — **untouched**.

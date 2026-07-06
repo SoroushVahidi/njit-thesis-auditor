@@ -105,9 +105,28 @@ def test_help_describes_current_report_flow(client: tuple[TestClient, Any]) -> N
     body = resp.text
     assert "Findings by topic" in body
     assert "Findings in page order" in body
+    assert "Recommended review order" in body
     assert "Grouped problems" not in body
     assert "All individual findings" not in body
     assert "confidence" in body.lower()
+
+
+def test_help_glossary_uses_table_scroll_wrapper(client: tuple[TestClient, Any]) -> None:
+    """Glossary must scroll inside .table-scroll on narrow screens instead of widening the page."""
+    c, _ = client
+    resp = c.get("/help")
+    body = resp.text
+    assert 'class="glossary-table"' in body
+    assert body.index('<div class="table-scroll">') < body.index('class="glossary-table"')
+
+
+def test_help_advanced_sections_describe_page_number_inventory(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    body = c.get("/help").text
+    assert "detected page-number inventory" in body
+    assert "detected candidate inventory" not in body
 
 
 def test_help_omits_review_priority_glossary_entry(
