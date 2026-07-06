@@ -105,11 +105,15 @@ def p011_combined_rolled_up_comment(stats: P011PagePresentationStats) -> str:
 
 def p011_combined_suggested_fix(stats: P011PagePresentationStats) -> str:
     side_phrase = _join_margin_labels([_side_short_label(side) for side in stats.sides])
-    return (
-        f"Check the page header, page number, tables, figures, captions, and any long "
-        f"lines on page {stats.page}. Move any content that crosses the required "
-        f"{side_phrase} back inside the allowed page area."
+    primary = (
+        "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch."
     )
+    secondary = (
+        f"Then check page {stats.page} for headers, page numbers, tables, figures, "
+        f"captions, and long lines that cross the required {side_phrase}, and move "
+        "any text, table, or figure back inside the allowed page area."
+    )
+    return f"{primary} {secondary}"
 
 
 def p011_combined_rolled_up_explanation(stats: P011PagePresentationStats) -> str:

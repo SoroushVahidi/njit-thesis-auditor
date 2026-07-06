@@ -514,7 +514,9 @@ def test_abstract_word_count_title_and_comment_are_specific_without_issue_type_k
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = view.findings[0]
-    assert fv.issue_type_label == "Abstract word count exceeded"
+    assert fv.issue_type_label == (
+        "Does the abstract exceed the NJIT word-count limit for the detected degree type?"
+    )
     assert fv.polished_comment != "" and "This check (" not in fv.polished_comment
     assert "found a possible" not in fv.polished_comment
     assert "400" in fv.polished_comment
@@ -537,7 +539,7 @@ def test_abstract_word_count_card_does_not_show_generic_review_title(
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
     assert "Review this finding" not in page_html
-    assert "Abstract word count exceeded" in page_html
+    assert "Does the abstract exceed the NJIT word-count limit" in page_html
 
 
 # ---------------------------------------------------------------------------
@@ -955,10 +957,11 @@ def test_main_category_rule_parity(app: tuple[TestClient, Any]) -> None:
     assert "Open highlighted PDF page" not in rule_p026_html
     assert "/pdf/highlighted" not in rule_p026_html
 
-    # issue types appear on all pages
-    assert "pdf annotation detected" in main_html.lower()
-    assert "pdf annotation detected" in cat_html.lower()
-    assert "pdf annotation detected" in rule_p012_html.lower()
+    # Ester yes/no questions appear on all pages
+    p012_question = "does the pdf contain annotations/comments?"
+    assert p012_question in main_html.lower()
+    assert p012_question in cat_html.lower()
+    assert p012_question in rule_p012_html.lower()
 
     # explanation present everywhere
     assert "What does this mean?" in main_html

@@ -676,7 +676,8 @@ def test_findings_by_topic_table_compact_no_affected_pages_column(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     html = resp.content.decode()
-    table_html = html.split('id="section-topics"', 1)[1].split("</table>", 1)[0]
+    topics_section = html.split('id="section-topics"', 1)[1].split("</section>", 1)[0]
+    table_html = topics_section.split("<table>", 1)[1].split("</table>", 1)[0]
 
     assert "<th>Topic</th>" in table_html
     assert "<th>Findings</th>" in table_html
@@ -750,13 +751,11 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
     assert "<th>Rule</th>" not in table_html
 
 
-def test_findings_by_topic_is_the_main_category_overview(
+def test_findings_in_page_order_precedes_findings_by_topic(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Findings by topic is now the only category overview on the main
-    report: it sits right after Recommended review order and directly
-    before the detailed Findings section, with no separate "Most common
-    issues" section repeating the same categories/counts in between."""
+    """Findings in page order is the primary student workflow section and appears
+    before the secondary Findings by topic index."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
@@ -764,9 +763,9 @@ def test_findings_by_topic_is_the_main_category_overview(
     html = resp.content.decode()
 
     idx_review_order = html.index('id="section-review-order"')
-    idx_topics = html.index('id="section-topics"')
     idx_findings = html.index('id="section-findings"')
-    assert idx_review_order < idx_topics < idx_findings
+    idx_topics = html.index('id="section-topics"')
+    assert idx_review_order < idx_findings < idx_topics
     assert 'id="section-triage"' not in html
 
 
@@ -832,7 +831,7 @@ def test_results_page_defaults_to_individual_findings_with_advanced_grouped_summ
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Inventory-only page-number candidates appear in their own section"
+        b"Inventory-only page-number candidates appear in Advanced below"
         in resp.content
     )
     assert b'id="grouped-problems-panel"' not in resp.content
@@ -2244,7 +2243,8 @@ def test_category_problem_page_route_returns_200(
     assert b"Problems in this category" in resp.content
     # Both matching findings share one issue type, so the page title narrows
     # to that issue type rather than staying at the broad category label.
-    assert b"Margin boundary violation (P011)" in resp.content
+    assert b"including tables and figures" in resp.content
+    assert b"(P011)" in resp.content
     # "original_page" resolves through the same true single-page endpoint as
     # "highlight" rather than a #page=N fragment into the full PDF.
     assert (
@@ -3733,8 +3733,8 @@ def test_nav_chips_reflect_decluttered_report_structure(
     for label in (
         "Summary",
         "Recommended review order",
+        "Findings in page order",
         "Findings by topic",
-        "Findings",
         "Downloads",
     ):
         assert f">{label}<" in nav, f"Missing core chip: {label!r}"

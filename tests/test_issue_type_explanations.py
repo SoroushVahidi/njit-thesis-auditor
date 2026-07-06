@@ -313,8 +313,8 @@ def test_main_page_shows_readable_issue_type_label(
 ) -> None:
     c, _, job_id = p012_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "PDF annotation detected" in text, (
-        "Expected 'PDF annotation detected' in main result page"
+    assert "Does the PDF contain annotations/comments?" in text, (
+        "Expected Ester yes/no question in main result page"
     )
 
 
@@ -366,7 +366,7 @@ def test_category_page_shows_readable_issue_type(
 ) -> None:
     c, _, job_id = p012_job
     text = _get_html(c, f"/audits/{job_id}/problems/category/annotations")
-    assert "PDF annotation detected" in text
+    assert "Does the PDF contain annotations/comments?" in text
 
 
 def test_category_page_shows_issue_type_explanation(
@@ -404,7 +404,7 @@ def test_rule_page_shows_readable_issue_type(
 ) -> None:
     c, _, job_id = p012_job
     text = _get_html(c, f"/audits/{job_id}/problems/rule/P012")
-    assert "PDF annotation detected" in text
+    assert "Does the PDF contain annotations/comments?" in text
 
 
 def test_rule_page_shows_issue_type_explanation(
@@ -535,8 +535,8 @@ def test_mobile_desktop_readable_label_present(
     c, _, job_id = p012_job
     for headers, name in [(_MOBILE_HEADERS, "mobile"), (_DESKTOP_HEADERS, "desktop")]:
         text = _get_html(c, f"/audits/{job_id}", headers=headers)
-        assert "PDF annotation detected" in text, (
-            f"Expected readable issue type label on {name}"
+        assert "Does the PDF contain annotations/comments?" in text, (
+            f"Expected Ester yes/no question on {name}"
         )
 
 
@@ -548,8 +548,8 @@ def test_mobile_desktop_explanation_parity_rule_page(
                             headers=_MOBILE_HEADERS)
     desktop_text = _get_html(c, f"/audits/{job_id}/problems/rule/P012",
                              headers=_DESKTOP_HEADERS)
-    assert "PDF annotation detected" in mobile_text
-    assert "PDF annotation detected" in desktop_text
+    assert "Does the PDF contain annotations/comments?" in mobile_text
+    assert "Does the PDF contain annotations/comments?" in desktop_text
     assert "issue-type-help" in mobile_text
     assert "issue-type-help" in desktop_text
 
@@ -679,7 +679,7 @@ def test_multi_rule_font_issue_label_on_main_page(
 ) -> None:
     c, _, job_id = multi_rule_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "Possible body font family issue" in text
+    assert "Does the body text use Times New Roman 12pt" in text
 
 
 def test_multi_rule_margin_issue_label_on_main_page(
@@ -687,7 +687,7 @@ def test_multi_rule_margin_issue_label_on_main_page(
 ) -> None:
     c, _, job_id = multi_rule_job
     text = _get_html(c, f"/audits/{job_id}")
-    assert "Margin boundary violation" in text
+    assert "including tables and figures" in text
 
 
 def test_multi_rule_spacing_issue_label_on_main_page(
@@ -714,8 +714,8 @@ def test_multi_rule_no_raw_snake_case_on_main_page(
         # We check that readable label IS present, not that raw key is absent everywhere
         pass
     # The readable labels should be present
-    assert "Possible body font family issue" in text
-    assert "Margin boundary violation" in text
+    assert "Does the body text use Times New Roman 12pt" in text
+    assert "including tables and figures" in text
     assert "Body text not double-spaced" in text
 
 

@@ -674,12 +674,12 @@ _HEURISTIC_WORDING = [
 _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     "P011": {
         "question": (
-            "Is all text contained entirely within the required page margins?"
+            "Is all text (including tables and figures) contained entirely within "
+            "the required page margins?"
         ),
         "remediation": (
-            "Set the left margin to 1.5 inches and the top, bottom, and right "
-            "margins to 1 inch. Move any text, table, or figure that extends "
-            "into the margins back inside the required page area."
+            "Set left margin to 1.5 inches and top, bottom, and right margin to "
+            "1 inch."
         ),
     },
     "P021": {

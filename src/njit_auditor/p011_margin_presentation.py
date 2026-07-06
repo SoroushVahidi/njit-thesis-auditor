@@ -15,6 +15,10 @@ _PAGE_CONTEXT_CONTENT_LABELS: dict[str, str] = {
     "general": "thesis content",
 }
 
+_ESTER_MARGIN_REMEDIATION = (
+    "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch."
+)
+
 _TEXT_PARAGRAPH_FIX = (
     "Adjust the paragraph, text wrapping, or line spacing so the highlighted text "
     "stays within the required margin."
@@ -100,7 +104,7 @@ def infer_margin_content_kind(page_context: str, line_previews: Sequence[str]) -
     return "text_paragraph"
 
 
-def margin_suggested_fix(
+def _secondary_margin_fix(
     *,
     page_context: str,
     content_kind: str,
@@ -115,6 +119,23 @@ def margin_suggested_fix(
     if content_kind == "text_paragraph":
         return _TEXT_PARAGRAPH_FIX
     return _GENERIC_SIDE_FIX.format(side=side_label)
+
+
+def margin_suggested_fix(
+    *,
+    page_context: str,
+    content_kind: str,
+    side_label: str,
+) -> str:
+    primary = _ESTER_MARGIN_REMEDIATION
+    secondary = _secondary_margin_fix(
+        page_context=page_context,
+        content_kind=content_kind,
+        side_label=side_label,
+    )
+    if secondary:
+        return f"{primary} {secondary}"
+    return primary
 
 
 def margin_comment_body(

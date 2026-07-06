@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from njit_auditor.ester_warning_wording import student_warning_label
+
 # ---------------------------------------------------------------------------
 # Explicit humanized labels for known issue types
 # ---------------------------------------------------------------------------
@@ -163,6 +165,14 @@ _ISSUE_TYPE_TITLES: dict[tuple[str, str], str] = {
 }
 
 
+def student_facing_issue_label(rule_id: str, issue_type: str) -> str:
+    """Prefer Ester yes/no questions over internal issue-type labels when mapped."""
+    ester = student_warning_label(rule_id, issue_type)
+    if ester:
+        return ester
+    return humanize_issue_type(issue_type)
+
+
 def issue_type_title(rule_id: str, issue_type: str) -> str:
     """Return a precise, issue-specific page title for a (rule_id, issue_type) pair.
 
@@ -173,6 +183,9 @@ def issue_type_title(rule_id: str, issue_type: str) -> str:
     explicit = _ISSUE_TYPE_TITLES.get((rule_id, issue_type))
     if explicit is not None:
         return explicit
+    ester = student_warning_label(rule_id, issue_type)
+    if ester:
+        return f"{ester} ({rule_id})"
     label = humanize_issue_type(issue_type)
     if label and rule_id:
         return f"{label} ({rule_id})"

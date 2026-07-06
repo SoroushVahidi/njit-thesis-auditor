@@ -629,6 +629,9 @@ _RULE_FALLBACKS: dict[str, str] = {
 # web/GUI-facing comment swaps in student-friendly wording. Mirrors the
 # rules-page override of the same names in web_app.py's _RULE_TEXT_OVERRIDES.
 _REMEDIATION_OVERRIDES: dict[str, str] = {
+    "P011": (
+        "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch."
+    ),
     "P023": (
         "Apply double spacing to body text. Keep tables, figure descriptions, "
         "bullet points, and multi-line titles single-spaced."
