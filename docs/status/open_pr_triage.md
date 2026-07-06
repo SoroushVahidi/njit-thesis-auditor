@@ -3,9 +3,9 @@
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
-**Baseline inspected:** `main` @ `c0d11990ddc865e1be76a69a206bb6b5b0b4ebf9`. Short SHA: `c0d1199`.  
+**Baseline inspected:** `main` @ `454fd13dee5a453b8216261b6361c10c00943ace`. Short SHA: `454fd13`.  
 **Live server:** serving `c0d1199` — untouched in this pass.  
-**Open PR count:** **0** until P011 presentation PR merges.
+**Open PR count:** **0** (P011 presentation PR #467 merged).
 
 ## What happened in this pass (2026-07-05, #14)
 
@@ -16,9 +16,9 @@ Isolated P011 presentation work from retained `fix/p011-margin-warning-presentat
 | **Branch inspected** | `fix/p011-margin-warning-presentation` — 12 unique commits, 39 files in full diff |
 | **P011-relevant commits** | `4c8c541` (context-aware wording/highlights/confidence) + `adbb034` (references continuation inference); rest stacked Jun-2026 WIP (P015/P018/P020/P028/P035/confidence UI) |
 | **Superseded on current `main`** | WIP removed `margin_boundary_bbox`, adjacent `highlight_bboxes` grouping, and `line_index` — all already landed via later P011 visual-polish cycle; WIP `margin_confidence` calibration excluded |
-| **Narrow slice merged** | Context-aware page labels + remediation (`p011_margin_presentation.py`), `page_context`/`margin_content_kind` metadata in P011 details, references continuation inference from line previews; detection thresholds/confidence/highlight geometry unchanged |
+| **Narrow slice merged** | PR [#467](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/467) — context-aware page labels + remediation (`p011_margin_presentation.py`), `page_context`/`margin_content_kind` metadata in P011 details, references continuation inference from line previews; detection thresholds/confidence/highlight geometry unchanged |
 | **Tests added** | `tests/test_p011_margin_presentation.py` (7 focused presentation tests) |
-| **Old branch action** | Delete `fix/p011-margin-warning-presentation` after PR merges (superseded + unsafe to merge wholesale) |
+| **Old branch action** | **Deleted** `fix/p011-margin-warning-presentation` (superseded + unsafe to merge wholesale) |
 
 ### Branches retained (4)
 
