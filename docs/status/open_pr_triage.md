@@ -1,20 +1,33 @@
-# Open PR Triage (2026-07-05, #8: #376 P014 centering false-positive fix merged)
+# Open PR Triage (2026-07-05, #9: cleanup cycle complete — zero open PRs, live current)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #7 snapshot below (baseline `b6cc8db`, #375 triage) is preserved
-> as historical context only — see the "What happened in this pass (2026-07-05, #7)" section
-> further down. Everything above that point is current.
+> **Superseded:** the 2026-07-05 #8 snapshot below is preserved as historical context only — see
+> the "What happened in this pass (2026-07-05, #8)" section further down. Everything above that
+> point is current.
 
-**Baseline inspected:** `main` @ `72b8736` (squash-merge of PR
-[#376](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/376)). Short SHA: `72b8736`.  
-**Live server:** serving `b6cc8db` (#460) — unchanged in this pass (no deployment/systemd action
-taken).  
-**Open PR count:** **0** — #376 merged; no remaining open PRs.
+**Baseline inspected:** `main` @ `cd2771a5aa35b84eb54441ad61750164cad6d53b`. Short SHA: `cd2771a`.  
+**Live server:** serving `cd2771a` via user-level systemd — matches `origin/main`.  
+**Open PR count:** **0**.
 
-## What happened in this pass (2026-07-05, #8)
+## What happened in this pass (2026-07-05, #9)
+
+Final health/status-consistency pass after the full cleanup cycle (#375–#376, #459–#460, live deploy).
+
+- **GitHub:** `gh pr list --state open` → 0 open PRs; `git fetch --prune` removed stale remote heads
+  for already-deleted merged branches (e.g. `fix/p014-frontmatter-centering-false-positive`,
+  `refactor/simplify-individual-findings-table`, `docs/fix-clean-minimal-demo-baseline`).
+- **Live deployment:** confirmed `GET /version` → `cd2771a` on localhost and LAN; systemd service
+  `thesis-auditor-web.service` active; sample audit smoke-test passes current UI structure.
+- **Docs updated:** canonical status entries now record live SHA, zero open PRs, and current report
+  flow (no Most common issues, no grouped/individual toggle, no Severity filter/column in main
+  findings, compact cards, Advanced sections collapsed after Downloads).
+- **Validation on `cd2771a`:** ruff/mypy/pytest green (**2585 passed**).
+- No code/detector/UI changes in this pass; no live restart (already current).
+
+## Historical — what happened in the previous pass (2026-07-05, #8)
 
 Reviewed, rebased, and merged **#376** (`Fix P014 frontmatter heading centering false positive`):
 narrow P014 detector fix for asymmetric NJIT margins.
