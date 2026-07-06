@@ -1707,6 +1707,9 @@ def _format_grouped_summary_section(grouped: dict[str, Any]) -> list[str]:
     return lines
 
 
+_MARKDOWN_GROUPED_SUMMARIES_HEADING = "Advanced grouped summaries"
+
+
 def _format_grouped_findings_section(
     grouped_findings: list[dict[str, Any]],
 ) -> list[str]:
@@ -1720,7 +1723,7 @@ def _format_grouped_findings_section(
         return []
 
     lines: list[str] = []
-    lines.append("## Grouped Problems")
+    lines.append(f"## {_MARKDOWN_GROUPED_SUMMARIES_HEADING}")
     lines.append("")
     lines.append(
         "Repeated findings with the same rule, issue type, severity, user-facing problem, "

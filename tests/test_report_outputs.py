@@ -1116,7 +1116,7 @@ def test_markdown_report_grouped_summary_before_findings_by_rule(tmp_path: Path)
     write_markdown_report(_p026_findings(10), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     summary_pos = text.index("Repeated Findings Summary")
-    grouped_pos = text.index("Grouped Problems")
+    grouped_pos = text.index("Advanced grouped summaries")
     findings_pos = text.index("Findings by Rule")
     assert summary_pos < findings_pos
     assert grouped_pos < findings_pos
@@ -1128,10 +1128,10 @@ def test_markdown_report_low_volume_repeats_skip_high_volume_summary_only(tmp_pa
     write_markdown_report(_p026_findings(3), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "Repeated Findings Summary" not in text
-    assert "Grouped Problems" in text
+    assert "Advanced grouped summaries" in text
 
 
-# ---- "## Grouped Problems" student-facing wording (no raw confidence/triage labels) ----
+# ---- "## Advanced grouped summaries" student-facing wording (no raw confidence/triage labels) ----
 
 
 def _repeated_synthetic_findings(
@@ -1261,8 +1261,8 @@ def test_markdown_grouped_section_shows_suggested_fix_for_every_group(
     output_path = tmp_path / "report.md"
     write_markdown_report(_two_repeated_synthetic_groups(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    section_start = text.index("## Grouped Problems")
-    section_end = text.index("\n## ", section_start + len("## Grouped Problems"))
+    section_start = text.index("## Advanced grouped summaries")
+    section_end = text.index("\n## ", section_start + len("## Advanced grouped summaries"))
     grouped_section = text[section_start:section_end]
 
     first_heading = grouped_section.index("### P099")
@@ -1314,7 +1314,7 @@ def test_markdown_report_p020_and_p036_individual_clarity_unaffected_by_grouped_
     tmp_path: Path,
 ) -> None:
     """Per-occurrence P020/P036 word-level clarity (added separately) must keep working
-    alongside the reworded "## Grouped Problems" section."""
+    alongside the reworded "## Advanced grouped summaries" section."""
     findings = [
         AuditFinding(
             rule_id="P020",

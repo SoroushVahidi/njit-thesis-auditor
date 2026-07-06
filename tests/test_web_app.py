@@ -3661,7 +3661,13 @@ def test_nav_chips_reflect_decluttered_report_structure(
     nav = _nav_block(resp.content.decode())
 
     # Core, always-primary chips.
-    for label in ("Summary", "Review order", "Findings by topic", "Findings", "Downloads"):
+    for label in (
+        "Summary",
+        "Recommended review order",
+        "Findings by topic",
+        "Findings",
+        "Downloads",
+    ):
         assert f">{label}<" in nav, f"Missing core chip: {label!r}"
 
     # The old repetitive/technical labels must not appear as chip text.
