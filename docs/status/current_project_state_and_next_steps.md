@@ -7,11 +7,35 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-05, #10 (remote branch cleanup — live unchanged at bdfbbc4)
+## Current Status — 2026-07-05, #11 (retained-branch triage — 7 remote branches remain)
 
 This section is the authoritative current snapshot. Everything below it (including the 2026-07-05
-#9 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
+#10 snapshot and earlier dated bullets) is preserved as historical context and should not be read as
 current.
+
+- **Code baseline `main`:** `c2fc8e4d11fe61c10fe6fe5595d020d525515b6e` (squash-merge of PR
+  [#463](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/463), remote branch cleanup docs,
+  on top of #462 help refresh at `bdfbbc4`). Short SHA: `c2fc8e4`.
+- **Live server:** serving `bdfbbc4` via user-level systemd — unchanged in branch-triage pass (docs
+  on `main` advanced to `c2fc8e4`; no redeploy required for status docs).
+- **Open PR count:** **0**.
+- **Remote branches:** **7** retained after triage of the original 13 (6 superseded branches deleted;
+  full per-branch recommendations in [open_pr_triage.md](open_pr_triage.md) #11 pass).
+- **Validation (latest `main`):** `ruff check .` — passed; `mypy src` — no issues in 105 files;
+  `python -m pytest` — **2585 passed**.
+
+### Next recommended work
+
+1. **P084 remains out of scope** unless explicitly requested.
+2. Review the **6 stacked `fix/*` detector branches** (2026-06-30 WIP) — cherry-pick narrow slices
+   onto current `main` only after explicit approval; do not merge whole branches.
+3. Optional: open a small docs-only PR for `docs/pdf-finding-location-clarity-audit` planning content.
+
+---
+
+## Historical — 2026-07-05, #10 (remote branch cleanup — live unchanged at bdfbbc4)
+
+> **Superseded** by the section above. Preserved here for historical context only.
 
 - **Code baseline `main`:** `bdfbbc4ca42050eb408358b9831ebb715feac524` (squash-merge of PR
   [#462](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/462), help/report-flow docs refresh,
