@@ -1,17 +1,41 @@
-# Open PR Triage (2026-07-05, #11: retained unique-branch triage)
+# Open PR Triage (2026-07-05, #12: location-clarity planning doc finalized)
 
 > **Canonical open-PR index.** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
 > for baseline `main`, validation, and next actions.
 >
-> **Superseded:** the 2026-07-05 #10 snapshot below is preserved as historical context only. Everything
-> above the #10 section is current.
+> **Superseded:** the 2026-07-05 #11 snapshot below is preserved as historical context only.
 
-**Baseline inspected:** `main` @ `c2fc8e4d11fe61c10fe6fe5595d020d525515b6e`. Short SHA: `c2fc8e4`.  
+**Baseline inspected:** `main` @ `017c9e10fa3e4f1b5efd68194b842cce53bc94eb`. Short SHA: `017c9e1`.  
 **Live server:** serving `bdfbbc4` via user-level systemd — untouched in this pass.  
 **Open PR count:** **0**.
 
-## What happened in this pass (2026-07-05, #11)
+## What happened in this pass (2026-07-05, #12)
+
+Finalized the retained docs-only branch `docs/pdf-finding-location-clarity-audit`.
+
+- **Inspection:** 1 unique commit; single file `docs/planning/pdf_finding_location_clarity_audit.md`
+  (341 lines); docs-only; no private PDFs, raw guidelines, or sensitive content.
+- **Verdict:** **Still useful** as historical planning reference — rule-by-rule privacy matrix and
+  Phase 2 detector-metadata gaps remain relevant. Phase 1 pipeline/UI statements are baseline
+  (2026-06-15); subsequent PR #326+ location-label work largely implemented that phase.
+- **Action:** imported to `main` with a historical header note; merged via docs-only PR; deleted
+  remote branch `docs/pdf-finding-location-clarity-audit`.
+- **Remote branches remaining:** **6** (all stacked Jun-2026 `fix/*` detector WIP — unchanged).
+- **Live deployment:** untouched.
+
+### Branches retained (6 — detector WIP, unchanged)
+
+| Branch | Risk | Recommendation |
+|---|---|---|
+| `fix/confidence-grouping-sorting` | High | Cherry-pick later — broadest WIP tip |
+| `fix/p011-margin-warning-presentation` | High | Cherry-pick later — P011 presentation |
+| `fix/p015-equation-continuation-indent` | High | Cherry-pick later — P015 policy-sensitive |
+| `fix/p035-table-centering-presentation` | High | Cherry-pick later — P035 presentation |
+| `fix/p068-approval-page-thesis-advisor` | High | Cherry-pick later — P068 Thesis Advisor |
+| `fix/page-numbering-false-positives` | High | Cherry-pick later — P013/P019/P037 FP bundle |
+
+## Historical — what happened in the previous pass (2026-07-05, #11)
 
 Triage of the **13** remote branches retained after the #10 cleanup. **6** were deleted as clearly
 superseded; **7** remain for future narrow work or docs import.
