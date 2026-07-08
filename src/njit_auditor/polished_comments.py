@@ -6,6 +6,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.report_outputs import derive_source_issue_type
 
@@ -730,6 +731,9 @@ def _resolve_remediation(rule_id: str, issue_type: str) -> str:
         text = str(override).strip()
         if text:
             return text
+    ester = student_warning_remediation(rule_id)
+    if ester:
+        return ester
     return _remediation_by_rule().get(rule_id, "")
 
 
