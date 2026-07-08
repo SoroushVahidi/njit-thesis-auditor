@@ -141,6 +141,17 @@ These remain intentionally deferred:
 - `P051` copyright year
   - failure mode not yet clear enough for a safe fix
 
+## Sample B side effects / regression coverage
+
+This pass was built for Sample A, but the `docs/status/ester_sample_b_feedback_audit.md` audit (PR #483) found that the same fixes also resolve documented Sample B false positives. Regression tests for the Sample B wins were added in this pass so they don't silently regress:
+
+- **P013 / P028** — the front-matter candidate-selection fix also clears the Sample B TOC page-number false positives on pages 10-11 (same failure family as Sample A). Covered by `test_ester_sample_b_page_number_false_positives_resolved`.
+- **P015** — the continuation/split-heading suppression also clears Sample B mid-paragraph and section-opening false positives on pages 24, 26, 27, and 38. Covered by `test_ester_sample_b_p015_mid_paragraph_false_positives_resolved`.
+- **P015 page 23** — remains unresolved on Sample B (`missing_later_indent` still fires on a mid-paragraph line). This is intentionally locked as a **deferred** case, not silently hidden, by `test_ester_sample_b_p015_page_23_remains_deferred`. A follow-up branch should target this page specifically.
+- **P012 / P038** — Sample B document-level rollup (`P012`, 44 affected pages) and the page-9 `ACKNOWLEDGEMENTS` highlight (`P038`, still a known false positive) are unchanged by this pass. Covered by `test_ester_sample_b_p012_p038_visibility_stable` so a future change to either rule surfaces here.
+
+Broader Sample B work — `P011` low-overflow margin false positives, `P019` highlight targeting, `P038` Acknowledgements false positive itself, `P023` figure-description spacing, `P020` heading-level/table-title wording, the duplicate `P016` spacing section, the `P026` page-5 font finding, and the `P051` category label — remains out of scope for this pass and is tracked in `docs/status/ester_sample_b_feedback_audit.md`.
+
 ## Files Changed
 
 - `src/njit_auditor/rules/pdf_abstract_indentation.py`

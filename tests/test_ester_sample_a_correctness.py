@@ -129,3 +129,73 @@ def test_ester_sample_a_json_export_schema_unchanged() -> None:
             "message",
             "details",
         }
+
+
+# --- Sample B side effects (see docs/status/ester_sample_b_feedback_audit.md) ---
+# These fixes were built for Sample A but also resolve documented Sample B
+# false positives. Page assertions are used instead of exact totals, which
+# are sensitive to unrelated rules and drift as other branches land.
+
+
+def test_ester_sample_b_page_number_false_positives_resolved() -> None:
+    """P013/P028 no longer misfire on Sample B TOC pages 10-11."""
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+    by_rule = Counter(f.rule_id for f in view.findings)
+
+    assert by_rule["P013"] == 0
+    assert by_rule["P028"] == 0
+
+
+def test_ester_sample_b_p015_mid_paragraph_false_positives_resolved() -> None:
+    """P015 no longer fires on Sample B pages 24, 26, 27, 38 (Ester false positives)."""
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+    p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
+
+    assert p015_pages.isdisjoint({24, 26, 27, 38})
+
+
+def test_ester_sample_b_p015_page_23_remains_deferred() -> None:
+    """Documents a known gap: page 23 is not yet fixed by this pass.
+
+    If this assertion starts failing because page 23 was fixed, update this
+    test and the deferred note in docs/status/ester_sample_a_correctness_pass1.md
+    rather than deleting the coverage.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+    p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
+
+    assert 23 in p015_pages
+
+
+def test_ester_sample_b_p012_p038_visibility_stable() -> None:
+    """P012 document-level rollup and P038 page-9 highlight are unchanged by this pass."""
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    p012 = next(f for f in view.findings if f.rule_id == "P012")
+    assert p012.has_highlight is False
+    assert "pages total" in p012.polished_comment
+
+    p038 = [f for f in view.findings if f.rule_id == "P038"]
+    assert len(p038) == 1
+    assert p038[0].page == 9
+    assert p038[0].has_highlight is True
