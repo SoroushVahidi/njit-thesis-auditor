@@ -10,11 +10,14 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from njit_auditor.ester_warning_wording import student_warning_question, student_warning_remediation
+from njit_auditor.ester_warning_wording import (
+    student_warning_question,
+    student_warning_remediation,
+)
 from njit_auditor.issue_type_explanations import student_facing_issue_label
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.p012_student_preview import p012_rolled_up_comment
 from njit_auditor.p011_margin_presentation import margin_suggested_fix
+from njit_auditor.p012_student_preview import p012_rolled_up_comment
 from njit_auditor.polished_comments import resolve_suggested_fix_for_display
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
