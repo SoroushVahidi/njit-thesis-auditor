@@ -820,10 +820,26 @@ def test_p015_first_paragraph_after_split_numbered_heading_not_flagged(tmp_path:
     _draw_paragraph(page, first_x=190, rest_x=108, y=210)
     page.insert_text((246, 300), "4.3", fontsize=12)
     page.insert_text((276, 300), "Problem Formulation", fontsize=12)
-    page.insert_text((108, 340), "This paragraph should be flush left after the heading line.", fontsize=12)
-    page.insert_text((108, 354), "Continuation text for the same synthetic paragraph block.", fontsize=12)
-    page.insert_text((108, 368), "Another continuation line for the same paragraph block.", fontsize=12)
-    page.insert_text((108, 382), "Final continuation line for the same paragraph block.", fontsize=12)
+    page.insert_text(
+        (108, 340),
+        "This paragraph should be flush left after the heading line.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 354),
+        "Continuation text for the same synthetic paragraph block.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 368),
+        "Another continuation line for the same paragraph block.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 382),
+        "Final continuation line for the same paragraph block.",
+        fontsize=12,
+    )
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
@@ -9379,12 +9395,36 @@ def test_p044_centered_title_preamble_after_heading_ignored(tmp_path: Path) -> N
     page.insert_text((170, 130), "Synthetic dissertation title line for testing.", fontsize=12)
     page.insert_text((290, 150), "by", fontsize=12)
     page.insert_text((250, 170), "Student Name", fontsize=12)
-    page.insert_text((108, 220), "Synthetic abstract body paragraph first line text here.", fontsize=12)
-    page.insert_text((108, 234), "Continuation abstract first paragraph body text line here.", fontsize=12)
-    page.insert_text((108, 248), "Another line in first abstract paragraph body text here.", fontsize=12)
-    page.insert_text((140, 320), "Synthetic abstract body paragraph second line here.", fontsize=12)
-    page.insert_text((108, 334), "Continuation abstract second paragraph body text line.", fontsize=12)
-    page.insert_text((108, 348), "Another line in second abstract paragraph body text.", fontsize=12)
+    page.insert_text(
+        (108, 220),
+        "Synthetic abstract body paragraph first line text here.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 234),
+        "Continuation abstract first paragraph body text line here.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 248),
+        "Another line in first abstract paragraph body text here.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (140, 320),
+        "Synthetic abstract body paragraph second line here.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 334),
+        "Continuation abstract second paragraph body text line.",
+        fontsize=12,
+    )
+    page.insert_text(
+        (108, 348),
+        "Another line in second abstract paragraph body text.",
+        fontsize=12,
+    )
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
