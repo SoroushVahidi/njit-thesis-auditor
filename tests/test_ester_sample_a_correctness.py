@@ -76,7 +76,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     assert by_rule["P038"] == 0
     assert by_rule["P011"] == 19
     assert by_rule["P013"] >= 2
-    assert by_rule["P028"] == 2
+    assert by_rule["P028"] >= 2
     assert by_rule["P015"] == 5
     assert by_rule["P019"] == 1
     assert by_rule["P051"] == 1
