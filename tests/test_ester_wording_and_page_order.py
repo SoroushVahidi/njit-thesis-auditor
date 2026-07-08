@@ -13,7 +13,9 @@ from fastapi.testclient import TestClient
 from njit_auditor.ester_warning_wording import student_warning_question, student_warning_remediation
 from njit_auditor.issue_type_explanations import student_facing_issue_label
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.p012_student_preview import p012_rolled_up_comment
 from njit_auditor.p011_margin_presentation import margin_suggested_fix
+from njit_auditor.polished_comments import resolve_suggested_fix_for_display
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
 
@@ -58,6 +60,12 @@ def test_p011_student_facing_label_uses_ester_question() -> None:
     assert label.endswith("?")
 
 
+def test_p012_student_facing_label_uses_ester_question() -> None:
+    label = student_facing_issue_label("P012", "pdf_annotation_detected")
+    assert label == student_warning_question("P012")
+    assert label == "Does the PDF contain annotations/comments?"
+
+
 def test_p011_remediation_includes_margin_inches_and_content_types() -> None:
     remediation = student_warning_remediation("P011")
     assert "1.5 inches" in remediation
@@ -81,6 +89,39 @@ def test_p013_wording_from_ester_map() -> None:
     assert "bottom" in question.lower()
     assert "center" in question.lower()
     assert "0.5 inches" in remediation
+
+
+@pytest.mark.parametrize(
+    ("rule_id", "issue_type", "expected_fix"),
+    [
+        ("P012", "pdf_annotation_detected", "Resolve or delete all annotations"),
+        (
+            "P013",
+            "page_number_candidate",
+            "Set page numbers on the bottom of the page, centered and 0.5 inches from margin",
+        ),
+        (
+            "P068",
+            "approval_page_advisor_role_label_missing",
+            (
+                "Ensure the Approval Page includes an advisor-role label and sufficient "
+                "date/signature structural blocks for each committee entry. Manual review "
+                "is still required for honorifics and rank order."
+            ),
+        ),
+    ],
+)
+def test_suggested_fix_prefers_ester_map_when_available(
+    rule_id: str, issue_type: str, expected_fix: str
+) -> None:
+    assert resolve_suggested_fix_for_display(rule_id, issue_type) == expected_fix
+
+
+def test_p012_page_level_comment_does_not_claim_affected_pages_when_unlisted() -> None:
+    comment = p012_rolled_up_comment(page=4, annotation_count=1)
+    lowered = comment.lower()
+    assert "affected pages include" not in lowered
+    assert "affected pages listed above" not in lowered
 
 
 def test_report_section_order_page_before_topic(
