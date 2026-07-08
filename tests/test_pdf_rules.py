@@ -273,6 +273,36 @@ def test_page_number_candidates_grouped_per_page(tmp_path: Path) -> None:
     assert page2.details.get("candidate_count_on_page") == "1"
 
 
+def test_p013_frontmatter_toc_right_column_numbers_filtered(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p013_toc_column_filtered.pdf"
+    doc = fitz.open()
+
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((108, 180), "Introduction", fontsize=12)
+    p1.insert_text((528, 180), "29", fontsize=12)
+    p1.insert_text((108, 200), "Literature Review", fontsize=12)
+    p1.insert_text((528, 200), "34", fontsize=12)
+    p1.insert_text((300, 760), "viii", fontsize=12)
+
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p2.insert_text((220, 120), "INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    p2.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in run_pdf_page_number_candidates_rule(model) if f.page == 1]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details.get("issue_type") == "page_number_candidate"
+    assert finding.details.get("candidate_count_on_page") == "1"
+    assert finding.details.get("position_type") == "bottom_center"
+    assert finding.details.get("number_style") == "roman_lower"
+
+
 def test_margin_violation_detected(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_bad.pdf"
     _make_pdf_with_margin_violation(pdf_path)
@@ -746,6 +776,59 @@ def test_later_paragraph_missing_indent_low_style_confidence_is_ignored(tmp_path
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_indentation(model)
     assert not any(f.rule_id == "P015" for f in findings)
+
+
+def test_p015_algorithm_block_not_treated_as_missing_indent(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_algorithm_block.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    page.insert_text((108, 300), "Input: n, epsilon, psi, omega.")
+    page.insert_text((108, 314), "for i in range(0, N) do")
+    page.insert_text((108, 328), "{accept candidate}")
+    page.insert_text((108, 342), "until t < T")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not findings
+
+
+def test_p015_lowercase_continuation_split_not_treated_as_new_paragraph(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_lowercase_continuation.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    page.insert_text((108, 300), "approaches produce a continuation-style split paragraph line.")
+    page.insert_text((108, 314), "Continuation text for the same synthetic paragraph line.")
+    page.insert_text((108, 328), "Another continuation line for the same synthetic paragraph.")
+    page.insert_text((108, 342), "Final continuation line for the same paragraph block.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not findings
+
+
+def test_p015_first_paragraph_after_split_numbered_heading_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "indent_split_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    page.insert_text((246, 300), "4.3", fontsize=12)
+    page.insert_text((276, 300), "Problem Formulation", fontsize=12)
+    page.insert_text((108, 340), "This paragraph should be flush left after the heading line.", fontsize=12)
+    page.insert_text((108, 354), "Continuation text for the same synthetic paragraph block.", fontsize=12)
+    page.insert_text((108, 368), "Another continuation line for the same paragraph block.", fontsize=12)
+    page.insert_text((108, 382), "Final continuation line for the same paragraph block.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not findings
 
 
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:
@@ -4227,6 +4310,22 @@ def test_p027_chapter_heading_all_caps_no_warning(tmp_path: Path) -> None:
     assert not l1
 
 
+def test_p027_body_sentence_starting_with_chapter_not_treated_as_heading(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p027_chapter_sentence.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 260),
+        "Chapter 3 is dedicated to describing the proposed method.",
+        fontsize=12,
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    assert not any(f.rule_id == "P027" for f in findings)
+
+
 def test_p027_toc_page_ignored(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p027_toc_skip.pdf"
     doc = fitz.open()
@@ -4448,6 +4547,31 @@ def test_p028_frontmatter_uppercase_roman_warns(tmp_path: Path) -> None:
     assert any(
         f.details.get("issue_type") == "uppercase_roman_on_frontmatter_page" for f in findings
     )
+
+
+def test_p028_frontmatter_toc_right_column_numbers_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p028_toc_column_filtered.pdf"
+    doc = fitz.open()
+
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((180, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((108, 180), "Introduction", fontsize=12)
+    p1.insert_text((528, 180), "29", fontsize=12)
+    p1.insert_text((108, 200), "Literature Review", fontsize=12)
+    p1.insert_text((528, 200), "34", fontsize=12)
+    p1.insert_text((300, 760), "viii", fontsize=12)
+
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((220, 90), "CHAPTER 1", fontsize=16, fontname="Times-Bold")
+    p2.insert_text((220, 120), "INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    p2.insert_text((300, 760), "1", fontsize=12)
+
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert not findings
 
 
 def test_p028_body_arabic_no_warning(tmp_path: Path) -> None:
@@ -9242,6 +9366,27 @@ def test_p044_text_before_heading_ignored(tmp_path: Path) -> None:
     # If pre-heading text at x=40 were included, left_margin would be 40 and
     # para1_x=108 would look indented (delta=68 > 18) → false positive.
     _make_abstract_pdf(pdf_path, para1_x=108.0, para2_x=140.0, pre_heading_x=40.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_abstract_indentation(model)
+    assert not any(f.rule_id == "P044" for f in findings)
+
+
+def test_p044_centered_title_preamble_after_heading_ignored(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p044_centered_preamble.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    page.insert_text((170, 130), "Synthetic dissertation title line for testing.", fontsize=12)
+    page.insert_text((290, 150), "by", fontsize=12)
+    page.insert_text((250, 170), "Student Name", fontsize=12)
+    page.insert_text((108, 220), "Synthetic abstract body paragraph first line text here.", fontsize=12)
+    page.insert_text((108, 234), "Continuation abstract first paragraph body text line here.", fontsize=12)
+    page.insert_text((108, 248), "Another line in first abstract paragraph body text here.", fontsize=12)
+    page.insert_text((140, 320), "Synthetic abstract body paragraph second line here.", fontsize=12)
+    page.insert_text((108, 334), "Continuation abstract second paragraph body text line.", fontsize=12)
+    page.insert_text((108, 348), "Another line in second abstract paragraph body text.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_abstract_indentation(model)
     assert not any(f.rule_id == "P044" for f in findings)

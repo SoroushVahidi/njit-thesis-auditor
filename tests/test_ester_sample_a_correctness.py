@@ -8,6 +8,7 @@ from pathlib import Path
 import fitz
 
 from njit_auditor.audit_runner import run_pdf_audit_full
+from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
@@ -59,11 +60,7 @@ def test_p038_concatenated_variant_does_not_emit_phrase_not_exact(tmp_path: Path
 
 
 def test_ester_sample_a_problem_finding_baseline() -> None:
-    """Regression guard for Sample A's visible findings and P038 FP removal.
-
-    The exact total can drift slightly with extraction differences, so this
-    asserts the stable rule-level baseline that Ester cares about.
-    """
+    """Regression guard for the reproducible Sample A correctness fixes."""
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
         return
@@ -73,18 +70,47 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
+    assert len(problem) == 25
     assert by_rule["P038"] == 0
     assert by_rule["P011"] == 19
-    assert by_rule["P013"] >= 2
-    assert by_rule["P028"] >= 2
-    assert by_rule["P015"] == 5
-    assert by_rule["P019"] == 1
-    assert by_rule["P051"] == 1
-    assert by_rule["P044"] == 1
-    assert by_rule["P016"] == 1
-    assert by_rule["P027"] == 1
-    assert by_rule["P020"] == 1
-    assert by_rule["P012"] == 1
+    assert by_rule["P013"] == 0
+    assert by_rule["P028"] == 0
+    assert by_rule["P044"] == 0
+    assert by_rule["P027"] == 0
+    assert by_rule["P015"] == 1
+
+
+def test_ester_sample_a_p012_rollup_lists_affected_pages() -> None:
+    sample = get_builtin_sample("ester_sample_a")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+    p012 = next(f for f in view.findings if f.rule_id == "P012")
+    assert "Affected pages include:" in p012.polished_comment
+    assert "42 pages total" in p012.polished_comment
+
+
+def test_p038_required_heading_missing_remains_student_visible() -> None:
+    finding = AuditFinding(
+        rule_id="P038",
+        severity=Severity.WARNING,
+        message="Missing required heading.",
+        details={
+            "issue_type": "required_heading_missing",
+            "expected_heading": "TABLE OF CONTENTS",
+            "section_key": "table_of_contents",
+        },
+    )
+    view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
+    assert len(view.findings) == 1
+    assert view.findings[0].rule_id == "P038"
+    assert view.findings[0].location_label == (
+        "Front matter — required heading missing: TABLE OF CONTENTS"
+    )
+    assert view.findings[0].has_highlight is False
+    assert "document-level" in view.findings[0].no_highlight_reason.lower()
 
 
 def test_ester_sample_a_json_export_schema_unchanged() -> None:

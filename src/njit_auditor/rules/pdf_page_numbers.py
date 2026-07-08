@@ -237,6 +237,17 @@ def _filter_toc_column_candidates(
     ]
 
 
+def _front_matter_pages_for_toc_filter(pdf_doc: PdfDocument) -> set[int]:
+    # Imported lazily to avoid a circular import:
+    # pdf_page_numbers → pdf_headings → pdf_margins → pdf_page_numbers.
+    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
+
+    body_start = find_body_start_page(pdf_doc)
+    if body_start is None:
+        return set()
+    return {page.page_number for page in pdf_doc.pages if page.page_number < body_start}
+
+
 def _primary_plausible_candidate(
     candidates: list[PageNumberCandidate],
 ) -> PageNumberCandidate | None:
@@ -355,10 +366,14 @@ def run_pdf_page_number_candidates_rule(
     candidates_by_page: dict[int, list[PageNumberCandidate]] = {}
     for candidate in candidates:
         candidates_by_page.setdefault(candidate.page_number, []).append(candidate)
+    front_matter_pages = _front_matter_pages_for_toc_filter(pdf_doc)
 
     for page in sorted(candidates_by_page):
         page_candidates = candidates_by_page[page]
-        plausible = _plausible_candidates(page_candidates)
+        plausible = _filter_toc_column_candidates(
+            _plausible_candidates(page_candidates),
+            page_is_front_matter=(page in front_matter_pages),
+        )
         if not plausible:
             # Every token in the margin zone on this page is implausible (e.g. a
             # long numeric ID, protocol number, or decimal section number) --
@@ -430,14 +445,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     # are not confused with the real printed page number (roman, bottom-center).
     # Imported here to avoid a circular import:
     # pdf_page_numbers → pdf_headings → pdf_margins → pdf_page_numbers.
-    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
-
-    body_start = find_body_start_page(pdf_doc)
-    front_matter_pages: set[int] = set()
-    if body_start is not None:
-        for pg in pdf_doc.pages:
-            if pg.page_number < body_start:
-                front_matter_pages.add(pg.page_number)
+    front_matter_pages = _front_matter_pages_for_toc_filter(pdf_doc)
 
     # Per-page filtered plausible candidates (TOC column noise suppressed in front matter).
     filtered_by_page: dict[int, list[PageNumberCandidate]] = {
