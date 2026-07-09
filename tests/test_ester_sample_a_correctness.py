@@ -164,12 +164,15 @@ def test_ester_sample_b_p015_mid_paragraph_false_positives_resolved() -> None:
     assert p015_pages.isdisjoint({24, 26, 27, 38})
 
 
-def test_ester_sample_b_p015_page_23_remains_deferred() -> None:
-    """Documents a known gap: page 23 is not yet fixed by this pass.
+def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
+    """P015 no longer fires on Sample B page 23 (mid-paragraph sentence, Ester false positive).
 
-    If this assertion starts failing because page 23 was fixed, update this
-    test and the deferred note in docs/status/ester_sample_a_correctness_pass1.md
-    rather than deleting the coverage.
+    Page 23's false positive had a different root cause than pages 24/26/27/38:
+    text extraction split one visual line into two same-baseline fragments,
+    which fooled paragraph grouping into treating the next real line as a new
+    (unindented) paragraph. See ``_merge_same_row_fragments`` in
+    src/njit_auditor/rules/pdf_indentation.py and
+    docs/status/ester_sample_b_p015_page23.md.
     """
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
@@ -179,7 +182,9 @@ def test_ester_sample_b_p015_page_23_remains_deferred() -> None:
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
 
-    assert 23 in p015_pages
+    assert 23 not in p015_pages
+    # Page 34 is a separate, unconfirmed residual finding untouched by this fix.
+    assert 34 in p015_pages
 
 
 def test_ester_sample_b_p012_p038_visibility_stable() -> None:
