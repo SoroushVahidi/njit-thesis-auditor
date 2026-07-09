@@ -8,7 +8,14 @@ from njit_auditor.cli import app
 from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
 from njit_auditor.pdf_highlight import has_visible_highlight
 from njit_auditor.pdf_layout import _style_flags_from_font_name, load_pdf_layout
-from njit_auditor.pdf_models import BBox, PdfTextLine, PdfTextSpan
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    PdfTextSpan,
+)
 from njit_auditor.report_view import enriched_pdf_location_label
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
 from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
@@ -3042,6 +3049,98 @@ def test_p023_table_plus_body_measures_only_body(tmp_path: Path) -> None:
     assert bbox is not None
     measured_y0 = float(bbox.split(",")[1])
     assert measured_y0 > max(_TABLE_ROW_Y), "measured region must be below the table"
+
+
+def _p023_text_line(text: str, x0: float, y0: float, x1: float, y1: float) -> PdfTextLine:
+    bbox = BBox(x0=x0, y0=y0, x1=x1, y1=y1)
+    span = PdfTextSpan(text=text, bbox=bbox, font="Times", size=12.0)
+    return PdfTextLine(spans=[span], bbox=bbox, text=text)
+
+
+def test_p023_figure_description_split_row_not_counted() -> None:
+    """A multi-line figure description must not be flagged as under-spaced body text.
+
+    Reproduces the Sample B page 82 layout artifact: text extraction splits a
+    figure caption's number ("Figure 3.3") from its description text onto a
+    separate line fragment sharing the same visual row, and the description
+    continues below at single-spacing (a normal, expected convention for
+    figure descriptions, per Ester's exception list: tables, figure
+    descriptions, bullet points, multi-line titles). Without the
+    split-row-aware exclusion, these 9 tightly packed description lines alone
+    clear the P023 thresholds (>= 8 suspicious gaps, majority fraction,
+    median ratio < 1.55). See
+    docs/status/ester_sample_b_p023_figure_description_spacing.md.
+    """
+    lines = [
+        # Bare "Figure 3.3" label, split from its description onto the same row.
+        _p023_text_line("Figure 3.3", 108, 100, 160, 112),
+        _p023_text_line(
+            "Scheduling strategies for the ODW weight over training. From left to",
+            180,
+            100,
+            520,
+            112,
+        ),
+    ]
+    y = 112
+    for idx in range(8):
+        text = f"right: description continuation line number {idx} for the figure caption."
+        lines.append(_p023_text_line(text, 108, y, 500, y + 12))
+        y += 12
+    block = PdfTextBlock(lines=lines, bbox=BBox(x0=108, y0=100, x1=520, y1=y), text="")
+    page = PdfPage(page_number=1, width=612, height=792, text_blocks=[block])
+    model = PdfDocument(path="synthetic", pages=[page])
+
+    findings = check_pdf_body_spacing(model)
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_figure_description_does_not_suppress_ordinary_body_paragraph() -> None:
+    """A figure-description exception must not swallow a separate body paragraph.
+
+    A figure block (label + single-spaced description) sits above an
+    unrelated, ordinary single-spaced body paragraph. P023 must still fire
+    on the body paragraph, and the finding must measure only the body lines
+    -- not the figure-description lines above it.
+    """
+    lines = [
+        _p023_text_line("Figure 3.3", 108, 100, 160, 112),
+        _p023_text_line(
+            "Scheduling strategies for the ODW weight over training. From left to",
+            180,
+            100,
+            520,
+            112,
+        ),
+    ]
+    y = 112
+    for idx in range(4):
+        text = f"right: description continuation line number {idx} for the figure caption."
+        lines.append(_p023_text_line(text, 108, y, 500, y + 12))
+        y += 12
+
+    # Clear paragraph-break gap, then ordinary single-spaced body prose.
+    body_top = y + 40
+    body_y = [body_top + i * 12 for i in range(11)]
+    for idx, by in enumerate(body_y):
+        lines.append(
+            _p023_text_line(_BODY_TEXT_TEMPLATE.format(idx=idx), 108, by, 500, by + 12)
+        )
+
+    block = PdfTextBlock(
+        lines=lines, bbox=BBox(x0=108, y0=100, x1=520, y1=body_y[-1] + 12), text=""
+    )
+    page = PdfPage(page_number=1, width=612, height=792, text_blocks=[block])
+    model = PdfDocument(path="synthetic", pages=[page])
+
+    p023 = [f for f in check_pdf_body_spacing(model) if f.rule_id == "P023"]
+    assert len(p023) == 1
+    finding = p023[0]
+    assert finding.details.get("measured_body_line_count") == str(len(body_y))
+    bbox = finding.details.get("bbox")
+    assert bbox is not None
+    measured_y0 = float(bbox.split(",")[1])
+    assert measured_y0 >= body_top, "measured region must be the body paragraph, not the figure"
 
 
 def test_p023_references_continuation_page_not_flagged(tmp_path: Path) -> None:
