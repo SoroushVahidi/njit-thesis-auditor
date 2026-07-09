@@ -69,10 +69,17 @@ def test_small_right_margin_overflow_still_flags(tmp_path: Path) -> None:
 def test_single_line_large_right_margin_overflow_stays_precise(tmp_path: Path) -> None:
     """Approval-Page 'Date'-style case: one short line far over the right
     margin must remain a single, precise, tight highlight -- current good
-    behavior must not regress."""
+    behavior must not regress.
+
+    x=535 (not 520) so the measured overflow is comfortably in "high
+    confidence" territory (~18pt) -- genuinely "far over", matching this
+    test's own docstring, and distinct from the sub-5pt single-line noise
+    now suppressed by the low-confidence filter (see
+    docs/status/ester_sample_b_p011_margin_low_overflow.md).
+    """
     doc = fitz.open()
     page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
-    page.insert_text((520, 400), "Date", fontsize=11)
+    page.insert_text((535, 400), "Date", fontsize=11)
     pdf_path = tmp_path / "single_line_date.pdf"
     doc.save(pdf_path)
     doc.close()

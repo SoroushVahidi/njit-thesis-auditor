@@ -60,7 +60,14 @@ def test_p038_concatenated_variant_does_not_emit_phrase_not_exact(tmp_path: Path
 
 
 def test_ester_sample_a_problem_finding_baseline() -> None:
-    """Regression guard for the reproducible Sample A correctness fixes."""
+    """Regression guard for the reproducible Sample A correctness fixes.
+
+    P011 dropped from 19 to 17 (total 25 -> 23) after the low-confidence
+    margin-overflow suppression fix: two Sample A findings were single-line,
+    sub-5pt "overflow" -- the same measurement-noise pattern Ester's Sample B
+    review confirmed as false positives. See
+    docs/status/ester_sample_b_p011_margin_low_overflow.md.
+    """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
         return
@@ -70,9 +77,9 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
-    assert len(problem) == 25
+    assert len(problem) == 23
     assert by_rule["P038"] == 0
-    assert by_rule["P011"] == 19
+    assert by_rule["P011"] == 17
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0
@@ -383,3 +390,55 @@ def test_ester_sample_b_p038_acknowledgements_page9_not_flagged() -> None:
     assert p038_findings == [], (
         f"Sample B must have zero P038 findings after the fix; got: {p038_findings}"
     )
+
+
+def test_ester_sample_b_p011_low_overflow_false_positives_cleared() -> None:
+    """P011 no longer flags Sample B pages 1, 24, and 39.
+
+    Ester's Sample B review marked these three as false positives: each is a
+    single text line with a small (under 5pt) measured right-margin
+    "overflow" — the same font-metric/text-extraction measurement-noise
+    pattern as every other "low confidence" P011 finding in this document.
+    See docs/status/ester_sample_b_p011_margin_low_overflow.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    false_positive_pages = {1, 24, 39}
+    hits = [f for f in view.findings if f.rule_id == "P011" and f.page in false_positive_pages]
+    assert hits == [], f"Sample B pages 1/24/39 must have zero P011 findings: {hits}"
+
+
+def test_ester_sample_b_p011_true_positives_retained_with_highlights() -> None:
+    """P011 still flags Sample B pages 10, 15, 27, 33, and 38.
+
+    Ester's Sample B review confirmed these as real margin-overflow defects
+    (measured overflow 5.4-21.2pt — comfortably medium/high confidence, not
+    the sub-5pt noise pattern suppressed on pages 1/24/39). The
+    low-overflow-noise fix must not weaken detection of genuine violations,
+    and each retained finding must still resolve to a usable, visible
+    highlight rather than a vague "open the page" fallback. See
+    docs/status/ester_sample_b_p011_margin_low_overflow.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    true_positive_pages = {10, 15, 27, 33, 38}
+    found_pages = {
+        f.page for f in view.findings if f.rule_id == "P011" and f.page in true_positive_pages
+    }
+    assert found_pages == true_positive_pages, (
+        f"expected all of {true_positive_pages}, got {found_pages}"
+    )
+    for f in view.findings:
+        if f.rule_id == "P011" and f.page in true_positive_pages:
+            assert f.has_highlight is True, f"page {f.page}: expected a real highlight"
+            assert f.action_kind == "highlight"
