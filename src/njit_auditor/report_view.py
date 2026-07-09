@@ -2035,7 +2035,12 @@ def _title_case_issue_label(details: Mapping[str, str]) -> str:
 
 def _title_case_subject_and_rule_clause(details: Mapping[str, str]) -> tuple[str, str]:
     if details.get("source", "") == "caption":
-        return "table title", "NJIT requires table titles to use Title Case"
+        return (
+            "table title",
+            "NJIT requires table titles to use Title Case (every word capitalized "
+            "except prepositions, conjunctions, and articles) and table titles "
+            "must not end with a period",
+        )
     return (
         "Level 2 heading",
         "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case",
@@ -2054,11 +2059,13 @@ def _apply_title_case_presentation(
     corrected_word = details.get("corrected_word", "").strip()
     if not flagged_word or not corrected_word:
         return finding, True
-    comment = p020_short_likely_problem(flagged_word, corrected_word)
+    source = details.get("source", "")
+    comment = p020_short_likely_problem(flagged_word, corrected_word, source=source)
     suggested_fix = p020_short_suggested_fix(
         flagged_word,
         corrected_word,
         details.get("line_preview", ""),
+        source=source,
     )
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 

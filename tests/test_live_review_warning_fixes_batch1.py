@@ -180,6 +180,24 @@ def test_p020_short_main_card_wording() -> None:
     assert "A Study of perceptions" in fix
 
 
+def test_p020_short_main_card_wording_table_title_source() -> None:
+    """Regression (Ester Sample B page 80): a table-title P020 finding must say
+    "table title", not "heading" — the two follow different NJIT formatting rules
+    and must never be described with each other's wording."""
+    comment = p020_short_likely_problem("study", "Study", source="caption")
+    fix = p020_short_suggested_fix(
+        "study",
+        "Study",
+        "A study of perceptions, readiness, benefits, and barriers related to",
+        source="caption",
+    )
+    assert comment == (
+        "Likely problem: In this table title, 'study' should be capitalized as 'Study'."
+    )
+    assert "heading" not in comment
+    assert "A Study of perceptions" in fix
+
+
 def test_p020_suggested_fix_never_edits_inside_larger_word() -> None:
     # Regression: replacing the flagged token "n" -> "N" must never alter the
     # "n" inside "Linear" (which previously produced "LiNear").

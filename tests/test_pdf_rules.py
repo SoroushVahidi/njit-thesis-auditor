@@ -2427,6 +2427,69 @@ def test_p020_table_title_with_sample_size_notation_not_flagged(tmp_path: Path) 
     assert not findings, f"statistical notation must not trigger P020; got: {findings}"
 
 
+def test_p020_level3_numbered_heading_excluded_from_title_case_check(tmp_path: Path) -> None:
+    """Regression (Ester Sample B page 71): a Level 3 numbered heading (e.g.
+    "3.4.3") whose number sits on its own bold line directly above the bold
+    heading text must be excluded from P020's Title Case check. Level 3+
+    headings use sentence case (Q051), which P020 does not check — this heading
+    text would otherwise be misread as a Level 2 title-case violation."""
+    pdf_path = tmp_path / "p020_level3_excluded.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "3.4.3", fontsize=12, fontname="Times-Bold")
+    page.insert_text(
+        (108, 160),
+        "Implementation experiments and Results",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    assert not findings, f"Level 3+ numbered headings must be excluded from P020; got: {findings}"
+
+
+def test_p020_same_heading_text_without_level3_prefix_still_warns(tmp_path: Path) -> None:
+    """The Level 3 exclusion above must be targeted, not a blanket suppression:
+    the identical heading text without a preceding Level 3+ number line is still
+    a bold heading and must still be checked."""
+    pdf_path = tmp_path / "p020_no_level3_prefix.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Implementation experiments and Results",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    assert findings, "a bold heading without a Level 3+ number prefix must still be checked"
+
+
+def test_p020_level2_numbered_heading_not_excluded(tmp_path: Path) -> None:
+    """Boundary check: a Level 2 number prefix (single dot, e.g. "3.4") must not
+    trigger the Level 3+ exclusion — Level 2 headings remain Title Case-checked."""
+    pdf_path = tmp_path / "p020_level2_not_excluded.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "3.4", fontsize=12, fontname="Times-Bold")
+    page.insert_text(
+        (108, 160),
+        "Implementation experiments and Results",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    assert findings, "Level 2 numbered headings must remain Title Case-checked"
+
+
 def test_p020_cli_pdf_run_includes_p020(tmp_path: Path) -> None:
     pdf_path = tmp_path / "cli_p020.pdf"
     doc = fitz.open()
