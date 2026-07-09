@@ -43,7 +43,7 @@ _L3_RE = re.compile(r"^(\d+\.\d+\.\d+)\s+(.+)$")
 _L2_RE = re.compile(r"^(\d+\.\d+)\s+(.+)$")
 
 # Level 1 body-chapter pattern: "CHAPTER N ..." or "APPENDIX A ...".
-_CHAPTER_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+\s*(.*)$", re.IGNORECASE)
+_CHAPTER_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+\s*(.*)$")
 
 # Year-in-parens pattern — indicates a reference/citation, not a heading.
 _CITATION_RE = re.compile(r"\(\d{4}\)")

@@ -39,6 +39,9 @@ CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IG
 BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
 _BODY_SECTION_HEADING_RE = re.compile(r"^\d+(?:\.\d+)+\s+\S")
 _BODY_CHAPTER_HEADING_RE = re.compile(r"^(?:CHAPTER|APPENDIX)\s+[\dA-Z]")
+_SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+$")
+_ALGORITHM_HEADING_RE = re.compile(r"^algorithm\s*\d*[:.]?", re.IGNORECASE)
+_CODELIKE_CUE_RE = re.compile(r"(?:Input:|range\(|elseif|until|[{}<>])")
 
 
 def first_text_x(line: PdfTextLine) -> float:
@@ -115,6 +118,48 @@ def _find_heading_exempt_paragraph_indices(
         if _is_section_heading_line(paragraph[0]):
             exempt.add(idx)
             continue
+        if idx == 0 or not heading_spans:
+            continue
+        prev_end_y = paragraphs[idx - 1][-1].bbox.y1
+        this_start_y = paragraph[0].bbox.y0
+        for hy0, hy1 in heading_spans:
+            if hy0 >= prev_end_y - 4.0 and hy1 <= this_start_y + 4.0:
+                exempt.add(idx)
+                break
+
+    return frozenset(exempt)
+
+
+def _find_split_heading_following_paragraph_indices(
+    page: PdfPage, paragraphs: list[list[PdfTextLine]]
+) -> frozenset[int]:
+    """Return paragraph indices that follow split numbered headings like '4.3' + title."""
+
+    exempt: set[int] = set()
+    heading_spans: list[tuple[float, float]] = []
+    page_lines = sorted(
+        (line for block in page.text_blocks for line in block.lines),
+        key=lambda line: (line.bbox.y0, line.bbox.x0),
+    )
+    for index, line in enumerate(page_lines):
+        clean = " ".join(line.text.strip().split())
+        if not _SECTION_NUMBER_ONLY_RE.match(clean):
+            continue
+        next_line = page_lines[index + 1] if index + 1 < len(page_lines) else None
+        if next_line is None:
+            continue
+        next_clean = " ".join(next_line.text.strip().split())
+        if (
+            next_clean
+            and len(next_clean) <= 100
+            and not next_clean.endswith((".", ",", ";"))
+            and sum(ch.isalpha() for ch in next_clean) >= 4
+        ):
+            gap = next_line.bbox.y0 - line.bbox.y1
+            if gap <= MAX_PARAGRAPH_GAP_PT:
+                heading_spans.append((line.bbox.y0, max(line.bbox.y1, next_line.bbox.y1)))
+
+    for idx, paragraph in enumerate(paragraphs):
         if idx == 0 or not heading_spans:
             continue
         prev_end_y = paragraphs[idx - 1][-1].bbox.y1
@@ -208,6 +253,24 @@ def _paragraph_is_low_confidence(paragraph: list[PdfTextLine]) -> bool:
     return (max(x_values) - min(x_values)) > MAX_LINE_X_SPREAD_PT
 
 
+def _paragraph_starts_like_continuation(paragraph: list[PdfTextLine]) -> bool:
+    first_line = " ".join(paragraph[0].text.strip().split())
+    for char in first_line:
+        if char.isalpha():
+            return char.islower()
+    return False
+
+
+def _paragraph_is_algorithm_or_code_like(paragraph: list[PdfTextLine]) -> bool:
+    line_texts = [" ".join(line.text.strip().split()) for line in paragraph]
+    if not line_texts:
+        return False
+    if _ALGORITHM_HEADING_RE.match(line_texts[0]):
+        return True
+    cue_lines = sum(1 for text in line_texts if _CODELIKE_CUE_RE.search(text))
+    return cue_lines >= 2
+
+
 def _is_likely_expected_indent(indent_pt: float) -> bool:
     return abs(indent_pt - EXPECTED_NORMAL_INDENT_PT) <= INDENT_TOLERANCE_PT
 
@@ -233,6 +296,9 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
             continue
 
         heading_exempt = _find_heading_exempt_paragraph_indices(page, paragraphs)
+        split_heading_exempt = _find_split_heading_following_paragraph_indices(
+            page, paragraphs
+        )
 
         paragraph_data: list[tuple[int, list[PdfTextLine], float]] = []
         for idx, paragraph in enumerate(paragraphs):
@@ -246,6 +312,12 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         likely_not_indented_count = 0
         for idx, paragraph, indent_pt in paragraph_data:
             if idx in heading_exempt:
+                continue
+            if idx in split_heading_exempt:
+                continue
+            if _paragraph_starts_like_continuation(paragraph):
+                continue
+            if _paragraph_is_algorithm_or_code_like(paragraph):
                 continue
             if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 likely_indented_count += 1
@@ -297,6 +369,12 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
             # Detect body-text paragraphs after the first that are missing first-line indent.
             if idx >= 1:
                 if idx in heading_exempt:
+                    continue
+                if idx in split_heading_exempt:
+                    continue
+                if _paragraph_starts_like_continuation(paragraph):
+                    continue
+                if _paragraph_is_algorithm_or_code_like(paragraph):
                     continue
                 likely_indented = _is_likely_expected_indent(indent_pt)
                 if likely_indented or not seen_indented_paragraph:

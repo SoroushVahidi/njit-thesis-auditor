@@ -28,6 +28,7 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_headings import find_body_start_page, find_named_frontmatter_headings
 from njit_auditor.rules.pdf_page_numbers import (
+    _filter_toc_column_candidates,
     detect_page_number_candidates,
     is_plausible_page_number_candidate,
 )
@@ -120,77 +121,83 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
     # Only consider plausible page-number candidates (bottom/top-positioned tokens, not
     # section headings or other non-page-number matches in the margin zone).
     raw_candidates = detect_page_number_candidates(pdf_doc)
-    candidates = [c for c in raw_candidates if is_plausible_page_number_candidate(c)]
+    candidates_by_page: dict[int, list] = {}
+    for candidate in raw_candidates:
+        if is_plausible_page_number_candidate(candidate):
+            candidates_by_page.setdefault(candidate.page_number, []).append(candidate)
 
     # Deduplicate: one finding per (page, issue_type).
     seen: set[tuple[int, str]] = set()
     findings: list[AuditFinding] = []
 
-    for candidate in candidates:
-        pn = candidate.page_number
+    for pn, page_candidates in candidates_by_page.items():
         if pn in no_number_pages:
             continue  # P022 handles no-number pages
         region = regions.get(pn, "ambiguous")
         if region == "ambiguous":
             continue
-
-        issue_type: str | None = None
-        expected: str | None = None
-        q_rule: str = ""
-
-        if region == "front_matter":
-            if candidate.number_style == "arabic":
-                issue_type = "arabic_number_on_frontmatter_page"
-                expected = "lowercase Roman numerals"
-                q_rule = "Q022"
-            elif candidate.number_style == "roman_upper":
-                issue_type = "uppercase_roman_on_frontmatter_page"
-                expected = "lowercase Roman numerals"
-                q_rule = "Q022"
-            # roman_lower is correct — no warning
-
-        elif region == "body":
-            if candidate.number_style in ("roman_lower", "roman_upper"):
-                issue_type = "roman_number_on_body_page"
-                expected = "Arabic numerals"
-                q_rule = ""
-
-        if issue_type is None:
-            continue
-        key = (pn, issue_type)
-        if key in seen:
-            continue
-        seen.add(key)
-
-        regime_details: dict[str, str] = {
-            "page_number": str(pn),
-            "issue_type": issue_type,
-            "candidate_text": candidate.text,
-            "candidate_style": candidate.number_style,
-            "observed_style": _style_label(candidate.number_style),
-            "page_region": region,
-            "expected_or_reason": expected or "",
-            "expected_style": expected or "",
-            "source_q_rule_id": q_rule,
-            "confidence": "medium",
-            "suggested_fix": (
-                f"Use {expected} for {region.replace('_', ' ')} pages." if expected else ""
-            ),
-        }
-        if candidate.bbox is not None:
-            regime_details["bbox"] = format_bbox_detail(candidate.bbox)
-        findings.append(
-            AuditFinding(
-                rule_id="P028",
-                severity=Severity.WARNING,
-                page=pn,
-                message=(
-                    f"Page {pn} ({region}) has a page-number candidate "
-                    f"'{candidate.text}' ({candidate.number_style}) that does not "
-                    f"match the expected regime for that region."
-                ),
-                details=regime_details,
-            )
+        filtered_candidates = _filter_toc_column_candidates(
+            page_candidates,
+            page_is_front_matter=(region == "front_matter"),
         )
+        for candidate in filtered_candidates:
+            issue_type: str | None = None
+            expected: str | None = None
+            q_rule: str = ""
+
+            if region == "front_matter":
+                if candidate.number_style == "arabic":
+                    issue_type = "arabic_number_on_frontmatter_page"
+                    expected = "lowercase Roman numerals"
+                    q_rule = "Q022"
+                elif candidate.number_style == "roman_upper":
+                    issue_type = "uppercase_roman_on_frontmatter_page"
+                    expected = "lowercase Roman numerals"
+                    q_rule = "Q022"
+                # roman_lower is correct — no warning
+
+            elif region == "body":
+                if candidate.number_style in ("roman_lower", "roman_upper"):
+                    issue_type = "roman_number_on_body_page"
+                    expected = "Arabic numerals"
+                    q_rule = ""
+
+            if issue_type is None:
+                continue
+            key = (pn, issue_type)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            regime_details: dict[str, str] = {
+                "page_number": str(pn),
+                "issue_type": issue_type,
+                "candidate_text": candidate.text,
+                "candidate_style": candidate.number_style,
+                "observed_style": _style_label(candidate.number_style),
+                "page_region": region,
+                "expected_or_reason": expected or "",
+                "expected_style": expected or "",
+                "source_q_rule_id": q_rule,
+                "confidence": "medium",
+                "suggested_fix": (
+                    f"Use {expected} for {region.replace('_', ' ')} pages." if expected else ""
+                ),
+            }
+            if candidate.bbox is not None:
+                regime_details["bbox"] = format_bbox_detail(candidate.bbox)
+            findings.append(
+                AuditFinding(
+                    rule_id="P028",
+                    severity=Severity.WARNING,
+                    page=pn,
+                    message=(
+                        f"Page {pn} ({region}) has a page-number candidate "
+                        f"'{candidate.text}' ({candidate.number_style}) that does not "
+                        f"match the expected regime for that region."
+                    ),
+                    details=regime_details,
+                )
+            )
 
     return findings

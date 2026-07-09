@@ -26,6 +26,7 @@ INDENT_THRESHOLD_PT = 18.0
 MAX_PARA_GAP_PT = 14.0
 MIN_TEXT_LEN = 20
 MIN_PARA_BLOCKS = 2
+LEFT_MARGIN_CLUSTER_TOLERANCE_PT = 8.0
 _HEADING_LABEL = "ABSTRACT"
 _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
 # A line ending in sentence-terminal punctuation (optionally followed by a closing
@@ -65,7 +66,30 @@ def _lines_below_heading(
                 continue
             if _is_usable_line(line):
                 lines.append(line)
-    return sorted(lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+    sorted_lines = sorted(lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+    if not sorted_lines:
+        return []
+
+    # Dissertation titles and bylines often sit between the ABSTRACT heading and
+    # the real paragraph body. They are usually centered and should not become
+    # paragraph 1 for P044. Find the first line that joins the shared left-margin
+    # cluster, then keep any immediately-preceding wrapped line from that same
+    # paragraph if needed.
+    left_margin_x = min(line.bbox.x0 for line in sorted_lines)
+    body_start_idx = next(
+        (
+            index
+            for index, line in enumerate(sorted_lines)
+            if line.bbox.x0 <= left_margin_x + LEFT_MARGIN_CLUSTER_TOLERANCE_PT
+        ),
+        0,
+    )
+    while body_start_idx > 0:
+        gap = sorted_lines[body_start_idx].bbox.y0 - sorted_lines[body_start_idx - 1].bbox.y1
+        if gap > MAX_PARA_GAP_PT:
+            break
+        body_start_idx -= 1
+    return sorted_lines[body_start_idx:]
 
 
 def _ends_sentence(line: PdfTextLine) -> bool:

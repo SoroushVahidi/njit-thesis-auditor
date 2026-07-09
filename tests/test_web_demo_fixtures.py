@@ -20,8 +20,8 @@ from fastapi.testclient import TestClient
 
 FIXTURES = Path(__file__).parent / "fixtures" / "web_demo"
 
-# Current audit output for clean_minimal.pdf on main (docs/tests must stay aligned).
-_CLEAN_MINIMAL_EXPECTED_RULE_IDS = frozenset({"P011", "P013", "P027"})
+# Current audit output for clean_minimal.pdf after the Sample A P027 heading fix.
+_CLEAN_MINIMAL_EXPECTED_RULE_IDS = frozenset({"P011", "P013"})
 
 # Strings that must never appear in committed fixture files (privacy check).
 # Real personal or private-content strings are blocked; these are the canonical
@@ -161,7 +161,7 @@ def test_clean_minimal_pdf_produces_expected_residual_findings() -> None:
         for finding in findings
         if finding.severity.value == "WARNING"
     }
-    assert warnings == {"P011", "P027"}
+    assert warnings == {"P011"}
     p013 = next(finding for finding in findings if finding.rule_id == "P013")
     assert p013.severity.value == "PASS"
 
