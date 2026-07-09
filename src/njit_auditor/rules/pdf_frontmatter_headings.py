@@ -40,6 +40,22 @@ _P038_CONCATENATED_HEADING_VARIANTS: dict[str, str] = {
     "TABLEOFCONTENTS": "TABLE OF CONTENTS",
 }
 
+# Known-wrong phrase variants worth flagging to the student as a mismatch from
+# the NJIT-canonical heading (Check 2 below). Deliberately separate from
+# FRONTMATTER_HEADING_VARIANTS (pdf_frontmatter_heading_gate.py): that map
+# exists to tolerantly *locate* a section for other rules (P041, P044-P047,
+# P065-P068, TOC/list detection) and includes spellings NJIT accepts as
+# equivalent — e.g. "ACKNOWLEDGMENTS", the standard American spelling of
+# "ACKNOWLEDGEMENTS" — which must never be reported to the student as an
+# error. Ester's Sample B review confirmed flagging "ACKNOWLEDGMENTS" as a
+# phrase mismatch was a false positive (see
+# docs/status/ester_sample_b_p038_front_matter_headings.md). Empty for now:
+# no curated variant is currently known to be a genuine phrasing defect worth
+# flagging (a concatenated/no-space heading is a layout artifact, not a
+# different phrase, and is already handled by
+# _P038_CONCATENATED_HEADING_VARIANTS above for presence detection only).
+_P038_FLAGGED_PHRASE_VARIANTS: dict[str, str] = {}
+
 
 def _p038_detected_heading_set(pdf_doc: PdfDocument) -> set[str]:
     """Headings considered present for P038 missing-section checks only."""
@@ -73,8 +89,12 @@ def check_pdf_frontmatter_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
 
     Conservative gates:
     - No findings if no headings at all are detected (image-only / flattened PDFs).
-    - required_heading_missing only for REQUIRED_HEADINGS not found anywhere.
-    - heading_phrase_not_exact only for known safe curated variants, never arbitrary text.
+    - required_heading_missing only for REQUIRED_HEADINGS not found anywhere — a heading
+      detected under an NJIT-accepted equivalent spelling (FRONTMATTER_HEADING_VARIANTS)
+      counts as present and is never also reported missing.
+    - heading_phrase_not_exact only for curated variants that are genuine phrasing
+      defects (_P038_FLAGGED_PHRASE_VARIANTS), never NJIT-accepted equivalent spellings
+      and never arbitrary text.
     Does not duplicate P014 style checks or P025 structure checks.
     """
     if not pdf_doc.pages:
@@ -126,7 +146,7 @@ def check_pdf_frontmatter_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
         for block in page.text_blocks:
             for line in block.lines:
                 normalized_upper = normalize_heading_text(line.text).upper()
-                canonical = FRONTMATTER_HEADING_VARIANTS.get(normalized_upper)
+                canonical = _P038_FLAGGED_PHRASE_VARIANTS.get(normalized_upper)
                 if canonical is None:
                     continue
                 # Avoid duplicates and skip if canonical is already correctly detected.

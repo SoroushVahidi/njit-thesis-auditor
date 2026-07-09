@@ -187,8 +187,15 @@ def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
     assert 34 in p015_pages
 
 
-def test_ester_sample_b_p012_p038_visibility_stable() -> None:
-    """P012 document-level rollup and P038 page-9 highlight are unchanged by this pass."""
+def test_ester_sample_b_p012_visibility_stable() -> None:
+    """P012 document-level rollup is unchanged by this pass.
+
+    P038's page-9 finding is covered separately by
+    test_ester_sample_b_p038_acknowledgements_page9_not_flagged — Ester's
+    Sample B review confirmed that finding was a false positive (American
+    spelling "ACKNOWLEDGMENTS" is an NJIT-accepted equivalent), so it is now
+    correctly absent rather than "stable" at one finding.
+    """
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
         return
@@ -199,11 +206,6 @@ def test_ester_sample_b_p012_p038_visibility_stable() -> None:
     p012 = next(f for f in view.findings if f.rule_id == "P012")
     assert p012.has_highlight is False
     assert "pages total" in p012.polished_comment
-
-    p038 = [f for f in view.findings if f.rule_id == "P038"]
-    assert len(p038) == 1
-    assert p038[0].page == 9
-    assert p038[0].has_highlight is True
 
 
 def test_ester_sample_b_p016_page1_no_duplicate_spacing_finding() -> None:
@@ -304,3 +306,27 @@ def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() 
     assert "figure" not in finding.detailed_explanation.lower()
     assert "must not end with a period" in finding.detailed_explanation
     assert "prepositions, conjunctions, and articles" in finding.detailed_explanation
+
+
+def test_ester_sample_b_p038_acknowledgements_page9_not_flagged() -> None:
+    """P038 no longer flags Sample B page 9's ACKNOWLEDGEMENTS heading.
+
+    Page 9's heading literally reads "ACKNOWLEDGMENTS" (the standard American
+    spelling, verified directly in the PDF text layer — not a text-extraction
+    artifact). The detector already treated this as present for section-gate
+    localization purposes, but P038's own phrase-mismatch check separately
+    flagged it as a wording error. Ester's Sample B review confirmed this was
+    a false positive: the American spelling is an NJIT-accepted equivalent,
+    not a defect. See docs/status/ester_sample_b_p038_front_matter_headings.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    p038_findings = [f for f in view.findings if f.rule_id == "P038"]
+    assert p038_findings == [], (
+        f"Sample B must have zero P038 findings after the fix; got: {p038_findings}"
+    )
