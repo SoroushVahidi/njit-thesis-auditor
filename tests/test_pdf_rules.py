@@ -8274,26 +8274,22 @@ def test_p038_toc_missing_warns(tmp_path: Path) -> None:
     assert any(f.details.get("section_key") == "table_of_contents" for f in missing)
 
 
-def test_p038_acknowledgments_variant_warns(tmp_path: Path) -> None:
-    """American spelling ACKNOWLEDGMENTS should trigger heading_phrase_not_exact."""
+def test_p038_acknowledgments_american_spelling_accepted_no_finding(tmp_path: Path) -> None:
+    """Regression (Ester Sample B page 9): the standard American spelling
+    "ACKNOWLEDGMENTS" is an NJIT-accepted equivalent of "ACKNOWLEDGEMENTS" and
+    must not be reported as either a phrase mismatch or a missing heading —
+    flagging it was a false positive, confirmed by Ester's live review."""
     pdf_path = tmp_path / "p038_ackments.pdf"
     _make_p038_pdf(pdf_path, [
         ("APPROVAL PAGE", None, None),
         ("BIOGRAPHICAL SKETCH", None, "iv"),
-        ("ACKNOWLEDGMENTS", None, "vi"),  # American spelling — not canonical
+        ("ACKNOWLEDGMENTS", None, "vi"),  # American spelling — accepted equivalent
         ("TABLE OF CONTENTS", None, "vii"),
         (None, "CHAPTER 1 INTRODUCTION", "1"),
     ])
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
-    phrase_wrong = [
-        f for f in findings if f.details.get("issue_type") == "heading_phrase_not_exact"
-    ]
-    assert phrase_wrong
-    f = phrase_wrong[0]
-    assert f.details.get("expected_heading") == "ACKNOWLEDGEMENTS"
-    assert f.details.get("observed_heading_normalized") == "ACKNOWLEDGMENTS"
-    assert f.details.get("section_key") == "acknowledgements"
+    assert not findings, f"American spelling must not be flagged at all; got: {findings}"
 
 
 def test_p038_dedication_absent_no_finding(tmp_path: Path) -> None:
@@ -8355,12 +8351,14 @@ def test_p038_finding_metadata_privacy_safe(tmp_path: Path) -> None:
     _make_p038_pdf(pdf_path, [
         ("APPROVAL PAGE", None, None),
         ("BIOGRAPHICAL SKETCH", None, "iv"),
-        ("ACKNOWLEDGMENTS", None, "vi"),
+        # ACKNOWLEDGEMENTS omitted entirely so this still exercises a real P038
+        # finding (required_heading_missing) for the privacy assertions below.
         ("TABLE OF CONTENTS", None, "vii"),
         (None, "CHAPTER 1 INTRODUCTION", "1"),
     ])
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+    assert findings
     for f in findings:
         # observed_heading_normalized must only be present for known safe variants
         observed = f.details.get("observed_heading_normalized", "")
@@ -8394,7 +8392,8 @@ def test_p038_cli_includes_rule(tmp_path: Path) -> None:
     _make_p038_pdf(pdf_path, [
         ("APPROVAL PAGE", None, None),
         ("BIOGRAPHICAL SKETCH", None, "iv"),
-        ("ACKNOWLEDGMENTS", None, "vi"),  # triggers heading_phrase_not_exact
+        # ACKNOWLEDGEMENTS omitted entirely so this still triggers a P038
+        # finding (required_heading_missing) for the CLI-inclusion assertion.
         ("TABLE OF CONTENTS", None, "vii"),
         (None, "CHAPTER 1 INTRODUCTION", "1"),
     ])
@@ -8403,6 +8402,45 @@ def test_p038_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P038" for item in payload.get("findings", []))
+
+
+def test_p038_accepted_variant_and_missing_heading_do_not_conflict(tmp_path: Path) -> None:
+    """An accepted equivalent spelling must never appear in the missing list,
+    while a genuinely different missing heading is still reported — the two
+    checks must not produce duplicated or conflicting P038 findings for the
+    same section."""
+    pdf_path = tmp_path / "p038_variant_and_missing.pdf"
+    _make_p038_pdf(pdf_path, [
+        ("APPROVAL PAGE", None, None),
+        # BIOGRAPHICAL SKETCH omitted — genuinely missing.
+        ("ACKNOWLEDGMENTS", None, "vi"),  # American spelling — accepted equivalent
+        ("TABLE OF CONTENTS", None, "vii"),
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_frontmatter_headings(model) if f.rule_id == "P038"]
+
+    section_keys_by_issue_type: dict[str, set[str]] = {}
+    for f in findings:
+        issue_type = f.details.get("issue_type", "")
+        section_keys_by_issue_type.setdefault(issue_type, set()).add(
+            f.details.get("section_key", "")
+        )
+
+    # The accepted variant must not be reported at all — not missing, not a
+    # phrase mismatch.
+    assert "acknowledgements" not in section_keys_by_issue_type.get(
+        "required_heading_missing", set()
+    )
+    assert "acknowledgements" not in section_keys_by_issue_type.get(
+        "heading_phrase_not_exact", set()
+    )
+
+    # The genuinely missing heading must still be reported exactly once.
+    missing_findings = [
+        f for f in findings if f.details.get("issue_type") == "required_heading_missing"
+    ]
+    assert [f.details.get("section_key") for f in missing_findings] == ["biographical_sketch"]
 
 
 
