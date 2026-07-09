@@ -202,6 +202,15 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
                         },
                     )
 
+        # paragraph_gap_threshold is always stricter than excessive_gap_threshold, so
+        # any gap that qualifies as a paragraph gap also qualifies as a line gap and
+        # is already counted in excessive_gaps. When both fire on the same page they
+        # are anchored on the same largest gap (Sample B page 1: Ester's reported
+        # duplicate "Spacing / blank lines" card). Keep only the more specific
+        # paragraph-gap finding rather than showing the same evidence twice.
+        if "excessive_paragraph_gap" in page_issue_findings:
+            page_issue_findings.pop("excessive_line_gap", None)
+
         for issue_type in (
             "suspicious_heading_blank_gap",
             "excessive_paragraph_gap",

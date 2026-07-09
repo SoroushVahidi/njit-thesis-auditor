@@ -960,6 +960,14 @@ def test_obvious_large_blank_gap_warns_for_p016(tmp_path: Path) -> None:
 
 
 def test_repeated_excessive_gaps_grouped_for_p016(tmp_path: Path) -> None:
+    """Repeated large gaps are grouped into one P016 finding, not one per gap.
+
+    These gaps are large enough to clear both the line-gap and the stricter
+    paragraph-gap threshold, so the paragraph-gap finding is the one that
+    fires (see test_p016_paragraph_gap_suppresses_redundant_line_gap for the
+    dedup rule itself). It still reports affected_gap_count == 2, preserving
+    the "grouped, not duplicated per gap" guarantee this test checks.
+    """
     pdf_path = tmp_path / "spacing_grouped.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -968,12 +976,9 @@ def test_repeated_excessive_gaps_grouped_for_p016(tmp_path: Path) -> None:
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
-    warnings = [
-        f
-        for f in check_pdf_spacing(model)
-        if f.rule_id == "P016" and f.details.get("issue_type") == "excessive_line_gap"
-    ]
+    warnings = [f for f in check_pdf_spacing(model) if f.rule_id == "P016"]
     assert len(warnings) == 1
+    assert warnings[0].details.get("issue_type") == "excessive_paragraph_gap"
     assert warnings[0].details.get("affected_gap_count") == "2"
 
 
@@ -1074,6 +1079,38 @@ def test_p016_heading_gap_reported_as_after_heading(tmp_path: Path) -> None:
     assert finding.details.get("heading_gap_position") == "after"
     assert "after" in finding.message.lower()
     assert "before a heading" not in finding.message.lower()
+
+
+def test_p016_paragraph_gap_suppresses_redundant_line_gap(tmp_path: Path) -> None:
+    """A single large gap must not emit both excessive_line_gap and
+    excessive_paragraph_gap for the same page.
+
+    Regression for Ester's Sample B feedback: page 1 showed two "Spacing /
+    blank lines" cards because one large gap cleared both the (lower)
+    line-gap threshold and the (higher) paragraph-gap threshold, so both
+    issue types fired with the same largest_gap_pt. paragraph_gap_threshold
+    is always stricter than excessive_gap_threshold, so any gap that
+    qualifies as a paragraph gap is always already counted as a line gap —
+    the two findings are never independent evidence, only the more specific
+    paragraph-gap classification should be reported.
+    """
+    pdf_path = tmp_path / "spacing_duplicate_gap.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    # One gap (~50pt) clears only the line-gap threshold; one gap (~65pt)
+    # clears both. Pre-fix this produced excessive_line_gap (count=2) AND
+    # excessive_paragraph_gap (count=1) with the same largest_gap_pt.
+    _draw_spacing_lines(page, [140, 154, 168, 233, 247, 327])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_spacing(model) if f.rule_id == "P016"]
+
+    issue_types = {f.details.get("issue_type") for f in warnings}
+    assert "excessive_line_gap" not in issue_types
+    assert "excessive_paragraph_gap" in issue_types
+    assert len(warnings) == 1
 
 
 def test_figure_caption_with_terminal_punctuation_does_not_warn_p017(tmp_path: Path) -> None:
