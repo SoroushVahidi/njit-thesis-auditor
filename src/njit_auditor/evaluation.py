@@ -97,7 +97,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P068": "committee_approval_page",
         "P033": "title_page_metadata",
         "P034": "title_page_metadata",
-        "P051": "title_page_metadata",
+        "P051": "copyright_page_metadata",
         "P052": "title_page_metadata",
         "P041": "title_page_metadata",
         "P020": "capitalization_case",
