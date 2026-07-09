@@ -453,3 +453,27 @@ def test_ester_sample_b_p011_true_positives_retained_with_highlights() -> None:
         if f.rule_id == "P011" and f.page in true_positive_pages:
             assert f.has_highlight is True, f"page {f.page}: expected a real highlight"
             assert f.action_kind == "highlight"
+
+
+def test_ester_sample_b_p026_page5_approval_page_font_false_positive_resolved() -> None:
+    """P026 no longer misfires on Sample B page 5 (the Approval Page).
+
+    Ester flagged the page 5 font warning as incorrect -- the highlighted
+    text was correct-size text. Page 5 is the Approval Page: a committee
+    signature block (names/titles/date lines), not body prose. The PDF's
+    text extraction runs the page's "APPROVAL PAGE" heading together with no
+    space ("APPROVALPAGE"), so the P026 page-skip gate (which already
+    exempts named front-matter headings, matching the same pattern used by
+    P038) failed to recognize the page as front matter and measured the
+    signature block's legitimate ~10.9pt CMR10 text against the 12pt
+    body-text rule. See docs/status/ester_sample_b_font_false_positive_highlight.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    hits = [f for f in view.findings if f.rule_id == "P026" and f.page == 5]
+    assert hits == [], f"Sample B page 5 must have zero P026 findings: {hits}"

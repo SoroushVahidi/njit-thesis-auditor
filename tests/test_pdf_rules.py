@@ -4625,6 +4625,118 @@ def test_p026_json_report_includes_p026_when_triggered(tmp_path: Path) -> None:
     assert "P026" in rule_ids
 
 
+# ---- concatenated named-heading page-skip (Ester Sample B page 5 false positive) ----
+# When PDF text extraction runs heading words together with no spaces (a known
+# layout artifact -- see pdf_frontmatter_headings.py's own
+# _P038_CONCATENATED_HEADING_VARIANTS), the P026 page-skip gate must still
+# recognize the page as front matter so a signature/name block (allowed
+# correct-size text for that page type) is not measured against the 12pt
+# body-text rule.
+
+def test_p026_approval_page_concatenated_heading_signature_block_not_flagged(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p026_approval_concat.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((240, 90), "APPROVALPAGE", fontsize=12.0, fontname="tiro")
+    committee_line = "Dr. Example Advisor, Dissertation Committee Member Title"
+    for i in range(8):
+        page.insert_text((108, 250 + i * 40), committee_line, fontsize=10.9, fontname="tiro")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_biographical_sketch_concatenated_heading_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_biosketch_concat.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 90), "BIOGRAPHICALSKETCH", fontsize=12.0, fontname="tiro")
+    for i in range(10):
+        page.insert_text((108, 150 + i * 28), _LONG_BODY_LINE, fontsize=10.0, fontname="tiro")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_font_compliance(model)
+    assert not any(f.rule_id == "P026" for f in findings)
+
+
+def test_p026_body_10_9pt_without_named_heading_still_flagged(tmp_path: Path) -> None:
+    """Same font size as the real Sample B approval-page text (10.9pt), but on
+    an ordinary body page with no front-matter heading -- must still be
+    flagged. The page-skip fix must not reduce font checking globally."""
+    pdf_path = tmp_path / "p026_10_9pt_body.pdf"
+    _make_body_page_with_font(pdf_path, "tiro", 10.9, line_count=12)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    size_warnings = [
+        w for w in warnings if w.details.get("issue_type") == "possible_body_font_size_issue"
+    ]
+    assert len(size_warnings) >= 1
+
+
+def test_p026_concatenated_heading_that_is_not_a_known_variant_still_flagged(
+    tmp_path: Path,
+) -> None:
+    """A concatenated line that isn't one of the known front-matter headings
+    (e.g. an ordinary run-together sentence) must not accidentally exempt the
+    page -- only the curated variant list should skip font checking."""
+    pdf_path = tmp_path / "p026_unrelated_concat.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 90), "ThisIsNotARecognizedFrontMatterHeadingAtAll", fontsize=12.0, fontname="tiro"
+    )
+    for i in range(12):
+        page.insert_text((108, 150 + i * 28), _LONG_BODY_LINE, fontsize=10.0, fontname="tiro")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    size_warnings = [
+        w for w in warnings if w.details.get("issue_type") == "possible_body_font_size_issue"
+    ]
+    assert len(size_warnings) >= 1
+
+
+def test_p026_highlight_targets_offending_span_not_correct_text(tmp_path: Path) -> None:
+    """When a font-size finding is legitimate, its highlight bbox must point
+    at a wrong-size line, never at a correct-size line on the same page."""
+    pdf_path = tmp_path / "p026_highlight_target.pdf"
+    correct_line = "An ordinary correct size body paragraph line for the test."
+    wrong_line = "An ordinary wrong size body paragraph line for the test here."
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    correct_y0s = []
+    for i in range(4):
+        y = 150 + i * 28
+        page.insert_text((108, y), correct_line, fontsize=12.0, fontname="tiro")
+        correct_y0s.append(y)
+    wrong_y0s = []
+    for i in range(6):
+        y = 150 + (4 + i) * 28
+        page.insert_text((108, y), wrong_line, fontsize=15.0, fontname="tiro")
+        wrong_y0s.append(y)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_font_compliance(model)
+        if f.rule_id == "P026" and f.details.get("issue_type") == "possible_body_font_size_issue"
+    ]
+    assert len(findings) == 1
+    bbox_str = findings[0].details["bbox"]
+    highlighted_y0 = float(bbox_str.split(",")[1])
+    # PyMuPDF's extracted line bbox.y0 sits a few points above the insertion
+    # baseline; allow slack but keep well clear of the correct-size cluster.
+    assert any(abs(highlighted_y0 - (wy - 10)) < 6 for wy in wrong_y0s)
+    assert not any(abs(highlighted_y0 - (cy - 10)) < 6 for cy in correct_y0s)
+
+
 # ---------------------------------------------------------------------------
 # P027 — heading-level style tests
 # ---------------------------------------------------------------------------
