@@ -257,6 +257,56 @@ def _primary_plausible_candidate(
     return max(plausible, key=_candidate_rank)
 
 
+_MIN_DOMINANT_LOCATION_SAMPLE = 10
+_MIN_DOMINANT_LOCATION_RATIO = 0.9
+
+
+def _dominant_location(
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> str | None:
+    """Return "top" or "bottom" when one location overwhelmingly dominates the
+    document's plausible page-number candidates, else None.
+
+    Requires both a minimum sample size and a strong majority so this never fires
+    on small or ambiguous documents (short PDFs, synthetic tests) — only on
+    documents with an unmistakable, page-numbering-wide pattern.
+    """
+    all_plausible = [c for candidates in filtered_by_page.values() for c in candidates]
+    if len(all_plausible) < _MIN_DOMINANT_LOCATION_SAMPLE:
+        return None
+    location, count = Counter(c.location for c in all_plausible).most_common(1)[0]
+    if count / len(all_plausible) < _MIN_DOMINANT_LOCATION_RATIO:
+        return None
+    return location
+
+
+def _filter_secondary_location_noise(
+    plausible: list[PageNumberCandidate],
+    dominant_location: str | None,
+) -> list[PageNumberCandidate]:
+    """Drop candidates outside the document's dominant page-number location when a
+    dominant-location candidate is already present on the same page.
+
+    Handles reprinted/embedded material (e.g. a published paper reproduced as a
+    dissertation chapter) that carries its own original page numbering at the
+    opposite edge of the page from where the manuscript's real page numbers are
+    printed. That secondary token is not a second real page number, so it should
+    not force a "multiple_page_numbers" review — the manuscript's own printed
+    page number (at the document's dominant location) is unambiguous.
+
+    Never fires when both candidates share the same location (e.g. bottom-center
+    + bottom-right on one page), which remains a genuine multiple-candidate case,
+    and never fires when *every* candidate on the page is already non-dominant
+    (nothing to prefer over anything else).
+    """
+    if dominant_location is None:
+        return plausible
+    dominant_here = [c for c in plausible if c.location == dominant_location]
+    if not dominant_here or len(dominant_here) == len(plausible):
+        return plausible
+    return dominant_here
+
+
 def _format_candidate_tokens(candidates: list[PageNumberCandidate]) -> str:
     return "; ".join(f"{_position_label(c.position_type)}: {c.text}" for c in candidates)
 
@@ -368,11 +418,22 @@ def run_pdf_page_number_candidates_rule(
         candidates_by_page.setdefault(candidate.page_number, []).append(candidate)
     front_matter_pages = _front_matter_pages_for_toc_filter(pdf_doc)
 
+    # Per-page filtered plausible candidates (TOC column noise suppressed in front
+    # matter). Computed for every page up front so the document-wide dominant
+    # page-number location can be established before filtering any single page —
+    # see _filter_secondary_location_noise for why this must match P019's logic.
+    filtered_by_page: dict[int, list[PageNumberCandidate]] = {
+        pg: _filter_toc_column_candidates(
+            _plausible_candidates(pc),
+            page_is_front_matter=(pg in front_matter_pages),
+        )
+        for pg, pc in candidates_by_page.items()
+    }
+    dominant_location = _dominant_location(filtered_by_page)
+
     for page in sorted(candidates_by_page):
-        page_candidates = candidates_by_page[page]
-        plausible = _filter_toc_column_candidates(
-            _plausible_candidates(page_candidates),
-            page_is_front_matter=(page in front_matter_pages),
+        plausible = _filter_secondary_location_noise(
+            filtered_by_page[page], dominant_location
         )
         if not plausible:
             # Every token in the margin zone on this page is implausible (e.g. a
@@ -483,8 +544,11 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Multiple plausible page-number candidates on a single page (TOC noise filtered).
-    for page, plausible in filtered_by_page.items():
+    # Multiple plausible page-number candidates on a single page (TOC noise filtered,
+    # and secondary-location noise like an embedded reprint's own page numbers filtered).
+    dominant_location = _dominant_location(filtered_by_page)
+    for page, raw_plausible in filtered_by_page.items():
+        plausible = _filter_secondary_location_noise(raw_plausible, dominant_location)
         if len(plausible) <= 1:
             continue
         candidate_tokens = _format_candidate_tokens(plausible)
@@ -497,9 +561,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             "plausible_candidate_count": str(len(plausible)),
             "confidence": "medium",
         }
-        primary_bbox = plausible[0].bbox
-        if primary_bbox is not None:
-            multiple_details["bbox"] = format_bbox_detail(primary_bbox)
+        primary = _primary_plausible_candidate(plausible)
+        if primary is not None and primary.bbox is not None:
+            multiple_details["bbox"] = format_bbox_detail(primary.bbox)
         findings.append(
             AuditFinding(
                 rule_id="P019",
