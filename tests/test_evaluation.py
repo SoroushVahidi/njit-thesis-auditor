@@ -36,6 +36,7 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P032") == "list_of_tables_figures_toc"
     assert map_finding_rule_to_category("P033") == "title_page_metadata"
     assert map_finding_rule_to_category("P034") == "title_page_metadata"
+    assert map_finding_rule_to_category("P051") == "copyright_page_metadata"
     assert map_finding_rule_to_category("P035", {"float_type": "table"}) == "table_format"
     assert map_finding_rule_to_category("P035", {"float_type": "figure"}) == "figure_format"
     assert map_finding_rule_to_category("P036", {}) == "list_of_tables_figures_toc"

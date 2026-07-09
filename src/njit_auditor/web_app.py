@@ -435,6 +435,7 @@ _CATEGORY_LABELS: dict[str, str] = {
     "annotations": "Annotations / comments",
     "capitalization_case": "Capitalization",
     "committee_approval_page": "Approval page",
+    "copyright_page_metadata": "Copyright page",
     "figure_format": "Figure formatting",
     "figure_table_format": "Figures / tables",
     "font_format": "Font formatting",

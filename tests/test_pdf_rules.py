@@ -7116,6 +7116,48 @@ def test_p051_no_year_warns(tmp_path: Path) -> None:
     assert any(f.details.get("issue_type") == "copyright_year_not_found" for f in findings)
 
 
+def test_p051_category_is_copyright_page_not_title_page(tmp_path: Path) -> None:
+    """P051 copyright-year findings must surface under Copyright page, not Title page.
+
+    Ester's Sample B feedback confirmed the P051 finding itself is correct but
+    flagged the wrong student-facing category (Title page). The rule ID and
+    detector behavior must stay unchanged; only the category/topic label moves.
+    """
+    from njit_auditor.evaluation import map_finding_rule_to_category
+    from njit_auditor.report_outputs import audit_findings_to_json_dict
+    from njit_auditor.report_view import build_report_view
+    from njit_auditor.web_app import _humanize_cat
+
+    pdf_path = tmp_path / "p051_category.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© Test Author. All Rights Reserved.")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert findings
+
+    assert map_finding_rule_to_category("P051") == "copyright_page_metadata"
+
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+    p051_view = next(f for f in view.findings if f.rule_id == "P051")
+    assert p051_view.category == "copyright_page_metadata"
+    assert _humanize_cat(p051_view.category) == "Copyright page"
+    assert _humanize_cat(p051_view.category) != "Title page"
+
+    # JSON export keeps the P051 rule ID intact (category is a display-layer
+    # concern computed by report_view/evaluation, not part of the raw schema).
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    json_finding = next(f for f in payload["findings"] if f["rule_id"] == "P051")
+    assert json_finding["rule_id"] == "P051"
+
+    # Markdown export renders without error and keeps the P051 rule ID intact.
+    from njit_auditor.report_outputs import write_markdown_report
+
+    md_path = tmp_path / "report.md"
+    write_markdown_report(findings, {"audit_type": "pdf"}, md_path)
+    md_text = md_path.read_text()
+    assert "`P051`" in md_text
+    assert "copyright_page_metadata" in md_text
+
+
 def test_p051_no_copyright_page_no_finding(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p051_no_copyright.pdf"
     _make_copyright_page_pdf(pdf_path, include_copyright_page=False)
