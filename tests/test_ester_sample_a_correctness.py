@@ -308,6 +308,59 @@ def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() 
     assert "prepositions, conjunctions, and articles" in finding.detailed_explanation
 
 
+def test_ester_sample_b_p019_page57_58_embedded_reprint_not_flagged() -> None:
+    """Neither P019 nor P013 flags Sample B pages 57-58 as "multiple_page_numbers".
+
+    Those pages reproduce a published paper as a dissertation chapter; the
+    reprint carries its own original top-of-page numbering ("2", "1") alongside
+    the manuscript's real, continuously-incrementing bottom-center page number
+    ("43", "44"). Ester's Sample B review flagged this as a false positive: the
+    manuscript's own page number is unambiguous, so it should not require manual
+    "multiple candidates" review. P013 shares the exact same candidate-counting
+    logic as P019 (see _filter_secondary_location_noise in
+    rules/pdf_page_numbers.py), so both had to be fixed together — fixing only
+    P019 just moved the false positive to P013's own raw candidate finding,
+    which is no longer suppressed as "redundant with P019" once P019 stops
+    reporting a problem here. See
+    docs/status/ester_sample_b_p019_page_numbering_highlights.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    noise = [
+        f
+        for f in view.findings
+        if f.rule_id in ("P019", "P013")
+        and f.page in {57, 58}
+        and f.issue_type == "duplicate_or_ambiguous_page_number"
+    ]
+    assert noise == [], f"Sample B pages 57/58 must have zero P019/P013 false positives: {noise}"
+
+
+def test_ester_sample_b_p019_document_level_finding_still_surfaced_honestly() -> None:
+    """The document-level mixed-numbering-style P019 finding remains visible with
+    an honest "no highlight available" explanation rather than being silently
+    dropped for lacking a page anchor. See
+    docs/status/ester_sample_b_p019_page_numbering_highlights.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    doc_level = [f for f in view.findings if f.rule_id == "P019" and f.page is None]
+    assert doc_level, "expected the document-level P019 mixed-numbering finding to remain"
+    for f in doc_level:
+        assert f.has_highlight is False
+        assert "document-level" in f.no_highlight_reason.lower()
+
+
 def test_ester_sample_b_p038_acknowledgements_page9_not_flagged() -> None:
     """P038 no longer flags Sample B page 9's ACKNOWLEDGEMENTS heading.
 

@@ -2087,6 +2087,166 @@ def test_p019_real_multiple_candidates_body_still_warns(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# P019: reprinted/embedded-material secondary page numbering (Sample B page 57/58)
+# ---------------------------------------------------------------------------
+
+
+def _make_pdf_with_dominant_bottom_numbering(
+    path: Path,
+    *,
+    page_count: int,
+    embedded_reprint_pages: dict[int, str] | None = None,
+    second_bottom_pages: dict[int, str] | None = None,
+) -> None:
+    """Build a PDF where nearly every page has a single bottom-center arabic page
+    number (the document-wide dominant pattern), optionally with some pages
+    additionally carrying a top-center "embedded reprint" number (its own original
+    page numbering, e.g. a reproduced published paper) and/or a second bottom
+    candidate (a genuine same-location duplicate).
+    """
+    embedded_reprint_pages = embedded_reprint_pages or {}
+    second_bottom_pages = second_bottom_pages or {}
+    doc = fitz.open()
+    for idx in range(page_count):
+        page_number = idx + 1
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((300, 770), str(page_number), fontsize=12)
+        if page_number in embedded_reprint_pages:
+            page.insert_text((300, 30), embedded_reprint_pages[page_number], fontsize=12)
+        if page_number in second_bottom_pages:
+            page.insert_text((560, 770), second_bottom_pages[page_number], fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
+def test_p019_embedded_reprint_top_number_not_flagged_as_multiple(tmp_path: Path) -> None:
+    """Regression test for Sample B pages 57/58: a page with an overwhelming
+    document-wide bottom-center numbering pattern plus a rare top-center number
+    (an embedded reprint's own original page count) must not be flagged as
+    "multiple_page_numbers" — the manuscript's own bottom-center page number is
+    unambiguous. See docs/status/ester_sample_b_p019_page_numbering_highlights.md.
+    """
+    pdf_path = tmp_path / "p019_embedded_reprint.pdf"
+    _make_pdf_with_dominant_bottom_numbering(
+        pdf_path,
+        page_count=20,
+        embedded_reprint_pages={10: "2", 11: "3"},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    noise = [
+        f
+        for f in findings
+        if f.details.get("issue_type") == "multiple_page_numbers" and f.page in {10, 11}
+    ]
+    assert noise == [], f"embedded reprint top-numbers should not be flagged: {noise}"
+
+
+def test_p019_genuine_duplicate_bottom_candidate_still_flagged_in_large_doc(
+    tmp_path: Path,
+) -> None:
+    """A page with two candidates at the SAME (bottom) location remains a genuine
+    ambiguity even in a document large enough for the dominant-location filter to
+    be active — the filter only ever discounts a different-location secondary
+    candidate, never a same-location duplicate."""
+    pdf_path = tmp_path / "p019_genuine_duplicate.pdf"
+    _make_pdf_with_dominant_bottom_numbering(
+        pdf_path,
+        page_count=15,
+        second_bottom_pages={10: "99"},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    hit = [
+        f
+        for f in findings
+        if f.details.get("issue_type") == "multiple_page_numbers" and f.page == 10
+    ]
+    assert hit, "same-location duplicate candidates must still be flagged"
+
+
+def test_p019_embedded_reprint_pattern_not_suppressed_in_small_document(
+    tmp_path: Path,
+) -> None:
+    """Conservative guard: the dominant-location filter requires a large enough
+    sample to trust the document-wide pattern. In a short document (below the
+    minimum sample size), a top+bottom split on one page is still flagged —
+    there isn't enough signal yet to call one location "dominant"."""
+    pdf_path = tmp_path / "p019_small_doc_top_bottom.pdf"
+    _make_pdf_with_dominant_bottom_numbering(
+        pdf_path,
+        page_count=3,
+        embedded_reprint_pages={2: "1"},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    hit = [
+        f
+        for f in findings
+        if f.details.get("issue_type") == "multiple_page_numbers" and f.page == 2
+    ]
+    assert hit, "small documents must not suppress top+bottom candidates as noise"
+
+
+def test_p019_multiple_page_numbers_highlight_targets_dominant_candidate(
+    tmp_path: Path,
+) -> None:
+    """When multiple_page_numbers still fires, its bbox must point at the highest
+    ranked (most page-number-like) candidate, not merely the first one detected in
+    document scan order — otherwise the highlight can land on unrelated noise
+    instead of the actual page number."""
+    pdf_path = tmp_path / "p019_highlight_target.pdf"
+    _make_pdf_with_dominant_bottom_numbering(
+        pdf_path,
+        page_count=15,
+        second_bottom_pages={10: "99"},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    hit = next(
+        f
+        for f in findings
+        if f.details.get("issue_type") == "multiple_page_numbers" and f.page == 10
+    )
+    bbox = hit.details.get("bbox", "")
+    assert bbox, "expected a bbox on the remaining genuine multiple_page_numbers finding"
+    # bottom-center ("10", rank score higher: dominant style+position) must win over
+    # bottom-right ("99") as the primary highlight target.
+    x0 = float(bbox.split(",")[0])
+    assert 250 < x0 < 350, f"expected bottom-center bbox to be selected, got x0={x0}"
+
+
+def test_p013_embedded_reprint_top_number_not_counted_as_duplicate(tmp_path: Path) -> None:
+    """P013's own candidate count must apply the same dominant-location noise
+    filter as P019 (see test_p019_embedded_reprint_top_number_not_flagged_as_multiple).
+
+    P013 and P019 independently compute "how many plausible page-number
+    candidates are on this page" and both classify a count > 1 as a
+    "duplicate_or_ambiguous_page_number" problem (see
+    classify_visible_page_number_issue in page_number_student_preview.py).
+    Fixing only P019 would leave P013's raw candidate finding unsuppressed
+    (it is normally hidden as "redundant with P019's confirmed problem" —
+    see _collect_claimed_page_number_keys in report_view.py — but only when
+    P019 actually reports a problem there), silently moving the false
+    positive from P019 to P013 instead of resolving it.
+    """
+    pdf_path = tmp_path / "p013_embedded_reprint.pdf"
+    _make_pdf_with_dominant_bottom_numbering(
+        pdf_path,
+        page_count=20,
+        embedded_reprint_pages={10: "2", 11: "3"},
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = run_pdf_page_number_candidates_rule(model)
+    for page in (10, 11):
+        finding = next(f for f in findings if f.page == page)
+        assert finding.details.get("candidate_count_on_page") == "1", (
+            f"page {page}: embedded reprint's top-number should not count as a "
+            f"second candidate, got {finding.details}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # P020: Title-case capitalization — helper unit tests
 # ---------------------------------------------------------------------------
 
