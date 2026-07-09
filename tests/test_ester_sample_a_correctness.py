@@ -250,3 +250,57 @@ def test_ester_sample_b_p023_page82_figure_description_not_flagged() -> None:
 
     p023_page82 = [f for f in view.findings if f.rule_id == "P023" and f.page == 82]
     assert p023_page82 == []
+
+
+def test_ester_sample_b_p020_page71_third_level_heading_not_flagged() -> None:
+    """P020 no longer misreads Sample B page 71 as a Level 2 title-case violation.
+
+    Page 71 has a Level 3 numbered heading ("3.4.3") whose number sits on its
+    own bold line directly above the bold heading text. Because the two are on
+    separate text lines, neither P020's generic bold-heading path nor P027's
+    same-line numbered-heading regex previously identified the heading text as
+    Level 3+ (sentence case, Q051) — P020 fell back to Title Case rules and,
+    combined with a text-extraction artifact that glued a minor word onto the
+    following word, produced a nonsensical suggestion. Level 3+ numbered
+    headings are now excluded from P020, matching this rule's documented scope.
+    See docs/status/ester_sample_b_p020_specific_remediation.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    p020_page71 = [f for f in view.findings if f.rule_id == "P020" and f.page == 71]
+    assert p020_page71 == []
+
+
+def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() -> None:
+    """P020's Sample B page 80 finding uses table-title-specific remediation.
+
+    Root cause: the short card-level wording (title_case_student_preview.py)
+    hardcoded "In this heading" regardless of the finding's `source`, so a
+    table-title finding was described using heading wording. Table titles and
+    headings follow different NJIT formatting rules and must never share
+    wording. See docs/status/ester_sample_b_p020_specific_remediation.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    p020_page80 = [f for f in view.findings if f.rule_id == "P020" and f.page == 80]
+    assert len(p020_page80) == 1
+    finding = p020_page80[0]
+
+    assert "table title" in finding.polished_comment
+    assert "heading" not in finding.polished_comment.lower()
+    assert "figure" not in finding.polished_comment.lower()
+
+    assert "table title" in finding.detailed_explanation
+    assert "figure" not in finding.detailed_explanation.lower()
+    assert "must not end with a period" in finding.detailed_explanation
+    assert "prepositions, conjunctions, and articles" in finding.detailed_explanation

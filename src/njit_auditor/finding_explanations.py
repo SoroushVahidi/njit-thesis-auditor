@@ -1220,10 +1220,6 @@ def _p020_title_case_explanation(details: dict[str, str], *, page: int | None) -
         location_phrase = f"the {title_phrase} on {page_phrase}"
     else:
         location_phrase = f"a {subject} on {page_phrase}"
-    if source == "caption":
-        rule_text = "NJIT requires table titles to use Title Case"
-    else:
-        rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
     flagged_word = details.get("flagged_word", "").strip()
     corrected_word = details.get("corrected_word", "").strip()
     word_clause = ""
@@ -1231,6 +1227,21 @@ def _p020_title_case_explanation(details: dict[str, str], *, page: int | None) -
         word_clause = (
             f" Flagged word: '{flagged_word}' should be '{corrected_word}'."
         )
+    if source == "caption":
+        return (
+            f"Observed: {location_phrase.capitalize()} appears to have a "
+            f"capitalization problem: {reason_text}.{word_clause} "
+            "Expected: NJIT requires table titles to use Title Case (every word "
+            "capitalized except prepositions, conjunctions, and articles), and "
+            "table titles must not end with a period. "
+            "Why this is suspicious: the detector compares each word against "
+            "NJIT's Title Case rule for table titles, so short connector words "
+            "(a, of, the, and similar) are correctly left lowercase and not "
+            "flagged. "
+            "What to check or fix: open the flagged page and capitalize the "
+            "specific word the finding identifies as missing a capital letter."
+        )
+    rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
     return (
         f"Observed: {location_phrase.capitalize()} appears to have a capitalization "
         f"problem: {reason_text}.{word_clause} "

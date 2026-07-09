@@ -2690,7 +2690,12 @@ def _p036_entry_pair_label(details: dict[str, str]) -> str:
 
 
 _P020_TITLE_CASE_SUBJECT_AND_RULE: dict[str, tuple[str, str]] = {
-    "caption": ("table title", "NJIT requires table titles to use Title Case"),
+    "caption": (
+        "table title",
+        "NJIT requires table titles to use Title Case (every word capitalized "
+        "except prepositions, conjunctions, and articles) and table titles "
+        "must not end with a period",
+    ),
 }
 _P020_TITLE_CASE_DEFAULT_SUBJECT_AND_RULE = (
     "Level 2 heading",
@@ -2711,11 +2716,13 @@ def _p020_title_case_individual_comment(
         p020_short_suggested_fix,
     )
 
-    comment = p020_short_likely_problem(flagged_word, corrected_word)
+    source = details.get("source", "")
+    comment = p020_short_likely_problem(flagged_word, corrected_word, source=source)
     fix = p020_short_suggested_fix(
         flagged_word,
         corrected_word,
         details.get("line_preview", ""),
+        source=source,
     )
     return f"{comment} Suggested fix: {fix}"
 

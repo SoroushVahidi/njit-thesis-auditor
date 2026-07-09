@@ -87,24 +87,33 @@ def p020_short_suggested_fix(
     flagged_word: str,
     corrected_word: str,
     line_preview: str,
+    *,
+    source: str = "heading",
 ) -> str:
+    subject = title_case_subject_kind(source)
     preview = sanitize_title_case_line_preview(line_preview)
     if preview and flagged_word:
         updated = _replace_whole_word(preview, flagged_word, corrected_word)
         if updated is not None:
             return f'Change "{preview}" to "{updated}".'
     if flagged_word and corrected_word:
-        return f'Change "{flagged_word}" to "{corrected_word}" in this heading.'
-    return "Correct the flagged word capitalization in this heading."
+        return f'Change "{flagged_word}" to "{corrected_word}" in this {subject}.'
+    return f"Correct the flagged word capitalization in this {subject}."
 
 
-def p020_short_likely_problem(flagged_word: str, corrected_word: str) -> str:
+def p020_short_likely_problem(
+    flagged_word: str,
+    corrected_word: str,
+    *,
+    source: str = "heading",
+) -> str:
+    subject = title_case_subject_kind(source)
     if flagged_word and corrected_word:
         return (
-            f"Likely problem: In this heading, '{flagged_word}' should be "
+            f"Likely problem: In this {subject}, '{flagged_word}' should be "
             f"capitalized as '{corrected_word}'."
         )
-    return "Likely problem: A word in this heading may not follow Title Case."
+    return f"Likely problem: A word in this {subject} may not follow Title Case."
 
 
 def p027_sentence_case_likely_problem(level: str) -> str:

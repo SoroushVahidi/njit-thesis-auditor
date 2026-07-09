@@ -997,10 +997,14 @@ def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> st
     reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
     if source == "caption":
         subject = "table title"
-        rule_text = "NJIT requires table titles to use Title Case"
-    else:
-        subject = "Level 2 heading"
-        rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
+        return (
+            f"Possible title-case issue in a {subject} on page {page_label}: "
+            f"{reason_text}. NJIT requires table titles to use Title Case "
+            "(every word capitalized except prepositions, conjunctions, and "
+            "articles), and table titles must not end with a period."
+        )
+    subject = "Level 2 heading"
+    rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
     return (
         f"Possible title-case issue in a {subject} on page {page_label}: "
         f"{reason_text}. {rule_text} (capitalize the first word, last word, "

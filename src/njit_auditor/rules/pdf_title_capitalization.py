@@ -92,6 +92,15 @@ _SUBTITLE_SEP_RE = re.compile(r"[:–—]|--+")
 # Word token: letter-started run, optionally joined by single hyphens.
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
 
+# A bold line that is *only* a Level 3+ section number (e.g. "3.4.3"), on its own
+# line, immediately followed by the bold heading text. When the number and text
+# are split across two lines like this, neither P020's generic bold-heading path
+# nor P027's same-line numbered-heading regex can see the number prefix attached
+# to the heading text — so this pattern is P020's own signal to recognize the
+# following line as a Level 3+ (sentence-case) heading and exclude it, per this
+# module's documented scope (Level 3+ is not checked by P020).
+_LEVEL3PLUS_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+){2,4}$")
+
 # Statistical / mathematical notation must never be forced to title case.
 # Comparison and (in)equality operators that mark a variable=value expression.
 _STAT_OPERATOR_RE = re.compile(r"[=<>≤≥±≈~∼]")
@@ -463,20 +472,27 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
             continue
         if _is_template_frontmatter_page(page):
             continue  # Title/Approval Page boilerplate — not subject to generic P020
+        prev_is_level3plus_number = False
         for block in page.text_blocks:
             for line in block.lines:
                 clean = normalize_title_text(line.text)
                 if not clean:
+                    prev_is_level3plus_number = False
                     continue
                 if _is_page_number_line(clean):
+                    prev_is_level3plus_number = False
                     continue
                 if _is_frontmatter_allcaps_label(clean):
+                    prev_is_level3plus_number = False
                     continue
                 if len(clean) > MAX_HEADING_LINE_LEN:
+                    prev_is_level3plus_number = False
                     continue
                 if CAPTION_START_RE.match(normalize_caption_candidate_text(clean)):
+                    prev_is_level3plus_number = False
                     continue  # already covered by caption detection above
                 if _is_prose_paragraph_line(clean):
+                    prev_is_level3plus_number = False
                     continue  # prose body text, not a heading
 
                 detection_reason = _spans_bold_reason(line)
@@ -485,6 +501,19 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                     # Only apply for short lines to avoid catching body paragraphs.
                     if _is_font_size_heading(line, body_size):
                         detection_reason = "font_size_heading_fallback"
+
+                is_level3plus_number = (
+                    detection_reason is not None
+                    and bool(_LEVEL3PLUS_NUMBER_ONLY_RE.match(clean))
+                )
+
+                if prev_is_level3plus_number and detection_reason is not None:
+                    # This bold line is the heading text for a Level 3+ numbered
+                    # heading whose number lives on the previous (bold) line.
+                    # Level 3+ headings use sentence case, not Title Case, and
+                    # are out of P020's scope (see module docstring).
+                    prev_is_level3plus_number = is_level3plus_number
+                    continue
 
                 if detection_reason is not None:
                     results.append(
@@ -498,6 +527,8 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                             source_line=line,
                         )
                     )
+
+                prev_is_level3plus_number = is_level3plus_number
 
     return results
 
