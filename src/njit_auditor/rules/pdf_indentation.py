@@ -6,7 +6,7 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -23,6 +23,7 @@ NEGATIVE_INDENT_IGNORE_PT = -8.0
 MIN_LINES_FOR_MISSING_LATER_INDENT = 4
 MIN_LIKELY_INDENTED_PARAGRAPHS_FOR_PAGE_STYLE = 2
 MIN_INDENT_STYLE_CONFIDENCE_RATIO = 0.6
+SAME_ROW_Y_TOLERANCE_PT = 1.0
 
 TOC_LIKE_HEADINGS = {
     "TABLE OF CONTENTS",
@@ -172,6 +173,56 @@ def _find_split_heading_following_paragraph_indices(
     return frozenset(exempt)
 
 
+def _same_run_style(a: PdfTextLine, b: PdfTextLine) -> bool:
+    """Return True when the touching ends of two fragments share one text run's style.
+
+    Used to tell a pure extraction split (identical font/weight on both sides,
+    e.g. mid-sentence) apart from a genuine run-in heading like a LaTeX
+    ``\\paragraph{...}`` title (bold lead-in immediately followed by regular
+    body text on the same baseline), which must not be merged.
+    """
+    if not a.spans or not b.spans:
+        return False
+    left = a.spans[-1]
+    right = b.spans[0]
+    return left.font == right.font and left.bold == right.bold and left.italic == right.italic
+
+
+def _merge_same_row_fragments(lines: list[PdfTextLine]) -> list[PdfTextLine]:
+    """Merge line fragments that text extraction split at an identical baseline.
+
+    Some PDF producers emit one visual text row as two non-overlapping runs at
+    the same y-coordinates (observed on a Sample B page where a sentence
+    spanning a mid-line boundary came back as separate "line" entries). Left
+    alone, the trailing fragment reads as a short line ending a paragraph and
+    the next real line is misread as a new paragraph's first line. Merging
+    same-baseline, same-style fragments back into one line before paragraph
+    grouping avoids that spurious break without touching genuine paragraph
+    boundaries or run-in heading rows (bold lead-in + regular continuation).
+    """
+    merged: list[PdfTextLine] = []
+    for line in lines:
+        if merged:
+            prev = merged[-1]
+            same_row = (
+                abs(line.bbox.y0 - prev.bbox.y0) <= SAME_ROW_Y_TOLERANCE_PT
+                and abs(line.bbox.y1 - prev.bbox.y1) <= SAME_ROW_Y_TOLERANCE_PT
+                and line.bbox.x0 > prev.bbox.x1
+                and _same_run_style(prev, line)
+            )
+            if same_row:
+                merged[-1] = PdfTextLine(
+                    spans=prev.spans + line.spans,
+                    bbox=BBox(x0=prev.bbox.x0, y0=prev.bbox.y0, x1=line.bbox.x1, y1=prev.bbox.y1),
+                    text=f"{prev.text} {line.text}".strip(),
+                    line_dir=prev.line_dir,
+                    wmode=prev.wmode,
+                )
+                continue
+        merged.append(line)
+    return merged
+
+
 def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
     """Group nearby lines into paragraph candidates on a page."""
 
@@ -188,6 +239,7 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
         return []
 
     lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+    lines = _merge_same_row_fragments(lines)
 
     paragraphs: list[list[PdfTextLine]] = []
     current: list[PdfTextLine] = []

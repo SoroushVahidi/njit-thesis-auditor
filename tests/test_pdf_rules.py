@@ -49,7 +49,11 @@ from njit_auditor.rules.pdf_heading_levels import (
     check_pdf_heading_level_styles,
 )
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings, find_body_start_page
-from njit_auditor.rules.pdf_indentation import check_pdf_indentation
+from njit_auditor.rules.pdf_indentation import (
+    _merge_same_row_fragments,
+    _same_run_style,
+    check_pdf_indentation,
+)
 from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
 from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
     check_pdf_lot_lof_column_header_style_alignment,
@@ -845,6 +849,72 @@ def test_p015_first_paragraph_after_split_numbered_heading_not_flagged(tmp_path:
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
     assert not findings
+
+
+def test_p015_same_baseline_split_line_not_treated_as_new_paragraph(tmp_path: Path) -> None:
+    """Regression for Sample B page 23: extraction split one line into two same-y runs.
+
+    When a PDF producer emits a single visual line as two non-overlapping,
+    same-style text runs at an identical baseline, the following continuation
+    lines must stay part of the same paragraph rather than being misread as a
+    new, unindented paragraph.
+    """
+    pdf_path = tmp_path / "indent_same_baseline_split.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    page.insert_text((190, 210), "This is a synthetic paragraph line for indentation checks.")
+    page.insert_text((108, 224), "Continuation synthetic paragraph line text.")
+    page.insert_text((108, 238), "Split line fragment one ends here.")
+    page.insert_text((300, 238), "and fragment two continues on the same baseline.")
+    page.insert_text((108, 252), "Continuation synthetic paragraph line text again.")
+    page.insert_text((108, 266), "Another continuation synthetic paragraph line text.")
+    page.insert_text((108, 280), "Final continuation synthetic paragraph line text.")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not findings
+
+
+def test_merge_same_row_fragments_combines_matching_style_runs() -> None:
+    bbox_a = BBox(x0=108.0, y0=568.8, x1=374.8, y1=580.7)
+    bbox_b = BBox(x0=388.0, y0=568.8, x1=540.0, y1=580.7)
+    span_a = PdfTextSpan(text="field.", bbox=bbox_a, font="CMR12", bold=False, italic=False)
+    span_b = PdfTextSpan(text="One", bbox=bbox_b, font="CMR12", bold=False, italic=False)
+    line_a = PdfTextLine(spans=[span_a], bbox=bbox_a, text="field.")
+    line_b = PdfTextLine(spans=[span_b], bbox=bbox_b, text="One")
+
+    merged = _merge_same_row_fragments([line_a, line_b])
+
+    assert len(merged) == 1
+    assert merged[0].bbox.x0 == 108.0
+    assert merged[0].bbox.x1 == 540.0
+    assert merged[0].text == "field. One"
+
+
+def test_merge_same_row_fragments_keeps_run_in_heading_separate() -> None:
+    """A bold run-in heading followed by regular text must not be merged.
+
+    Sample B pages 46/68 open a paragraph with a bold LaTeX-style run-in
+    heading (e.g. "Strong-Start Annealing Principle.") immediately followed
+    by regular body text on the same baseline. That style change is a real
+    row, not an extraction artifact, and must stay two lines.
+    """
+    bbox_a = BBox(x0=108.0, y0=322.5, x1=306.0, y1=334.4)
+    bbox_b = BBox(x0=317.6, y0=322.5, x1=547.6, y1=334.4)
+    heading_span = PdfTextSpan(
+        text="Strong-Start Annealing Principle.", bbox=bbox_a, font="CMBX12", bold=True
+    )
+    body_span = PdfTextSpan(
+        text="The scheduling strategy follows a strong-start", bbox=bbox_b, font="CMR12", bold=False
+    )
+    line_a = PdfTextLine(spans=[heading_span], bbox=bbox_a, text=heading_span.text)
+    line_b = PdfTextLine(spans=[body_span], bbox=bbox_b, text=body_span.text)
+
+    assert _same_run_style(line_a, line_b) is False
+    merged = _merge_same_row_fragments([line_a, line_b])
+    assert len(merged) == 2
 
 
 def test_pdf_cli_command_runs(tmp_path: Path) -> None:
