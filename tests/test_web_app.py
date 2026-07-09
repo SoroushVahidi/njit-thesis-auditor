@@ -712,6 +712,37 @@ def test_findings_by_topic_review_all_link_targets_category_drilldown(
         assert category_resp.status_code == 200
 
 
+def test_findings_by_topic_section_always_visible_not_collapsed(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Regression test for a live-deployment bug (2026-07): PR #490 restored the
+    "Findings by topic" table, but the running web server had never been
+    restarted onto the new code, so Soroush kept seeing the old page. The
+    table's own code was correct and other tests here already covered its
+    content — but nothing asserted the specific worry from the bug report:
+    that the table must render as a plain, always-visible <section>, never
+    nested inside a collapsed <details> ancestor, and must appear before the
+    Downloads section and after Findings in page order."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+
+    assert 'id="section-topics"' in html
+    before_topics, after_marker = html.split('<section id="section-topics"', 1)
+    # No unclosed <details> opened before this section and still open when it starts.
+    assert before_topics.count("<details") == before_topics.count("</details>")
+    # The section's own markup (up to its closing </section>) contains no <details>.
+    topics_section = after_marker.split("</section>", 1)[0]
+    assert "<details" not in topics_section
+
+    idx_findings = html.index('id="section-findings"')
+    idx_topics = html.index('id="section-topics"')
+    idx_downloads = html.index('id="section-downloads"')
+    assert idx_findings < idx_topics < idx_downloads
+
+
 def test_category_drilldown_page_shows_affected_pages(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
