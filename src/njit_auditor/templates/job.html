@@ -472,7 +472,7 @@
       </li>
       <li>
         <span class="ro-label">Findings by topic</span> —
-        <a href="#section-topics">The secondary index below</a> ranks categories by finding count when you want a topic-wide overview. Click Review all to see every example in one category.
+        <a href="#section-topics">The summary table below</a> ranks every category by finding count for a quick topic-wide overview. Click Review all to see every example in one category.
       </li>
       {% else %}
       <li>
@@ -622,10 +622,12 @@
 
 {% if category_summary %}
 <section id="section-topics" class="section" aria-label="Findings by topic">
-  <details class="collapsible card card-compact">
-    <summary><strong>Findings by topic</strong> — secondary category index ({{ category_summary|length }} {{ "topic" if category_summary|length == 1 else "topics" }}, sorted by count)</summary>
-    <p class="file-hint" style="margin:0.75rem 0 0.5rem;">Use this table when you want a topic-wide overview. For page-by-page review, use <a href="#section-findings">Findings in page order</a> above.</p>
-    <div class="table-scroll" style="margin-top:0.5rem;">
+  <div class="section-header">
+    <h2>Findings by topic</h2>
+    <span class="section-note">Issue summary — counts by topic, sorted highest first. For page-by-page review, use <a href="#section-findings">Findings in page order</a> above.</span>
+  </div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <div class="table-scroll">
     <table>
       <thead>
         <tr><th>Topic</th><th>Findings</th><th></th></tr>
@@ -641,7 +643,7 @@
       </tbody>
     </table>
     </div>
-  </details>
+  </div>
 </section>
 {% endif %}
 

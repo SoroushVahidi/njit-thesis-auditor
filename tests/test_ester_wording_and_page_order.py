@@ -422,6 +422,86 @@ def test_json_export_schema_unchanged_by_wording_layer(tmp_path: Path) -> None:
     }
 
 
+def test_issue_type_summary_table_visible_not_collapsed(
+    client: tuple[TestClient, object], tmp_path: Path
+) -> None:
+    """The topic/count table must render as a plain, always-visible section.
+
+    Regression test for a side effect introduced when Findings by topic was
+    reordered after Findings in page order (#479): the table was
+    accidentally wrapped in a collapsed ``<details>`` disclosure, hiding a
+    summary students previously saw immediately.
+    """
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    html = c.get(f"/audits/{job_id}").text
+
+    topics_start = html.index('id="section-topics"')
+    topics_end = html.index("</section>", topics_start)
+    section = html[topics_start:topics_end]
+    assert "<details" not in section
+    assert "<h2>Findings by topic</h2>" in section
+
+
+def test_issue_type_summary_table_groups_by_human_readable_category(
+    client: tuple[TestClient, object], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    html = c.get(f"/audits/{job_id}").text
+
+    topics_start = html.index('id="section-topics"')
+    topics_end = html.index("</section>", topics_start)
+    section = html[topics_start:topics_end]
+    assert "Margins / overflow" in section
+    assert ">3<" in section
+
+
+def test_issue_type_summary_table_does_not_use_prule_as_primary_label(
+    client: tuple[TestClient, object], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    html = c.get(f"/audits/{job_id}").text
+
+    topics_start = html.index('id="section-topics"')
+    topics_end = html.index("</section>", topics_start)
+    section = html[topics_start:topics_end]
+    row_start = section.index("<tbody>")
+    row_end = section.index("</tbody>")
+    rows = section[row_start:row_end]
+    assert "P011" not in rows
+    assert "Problem 1" not in rows
+
+
+def test_issue_type_summary_table_has_no_duplicate_finding_explanations(
+    client: tuple[TestClient, object], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    html = c.get(f"/audits/{job_id}").text
+
+    topics_start = html.index('id="section-topics"')
+    topics_end = html.index("</section>", topics_start)
+    section = html[topics_start:topics_end]
+    assert "Left margin too narrow" not in section
+    assert "polished_comment" not in section
+    assert "Review note" not in section
+
+
+def test_issue_type_summary_table_still_after_page_order_findings(
+    client: tuple[TestClient, object], tmp_path: Path
+) -> None:
+    """Restoring visibility must not regress the page-order-first Ester requirement."""
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    html = c.get(f"/audits/{job_id}").text
+
+    idx_findings = html.index('id="section-findings"')
+    idx_topics = html.index('id="section-topics"')
+    assert idx_findings < idx_topics
+
+
 @pytest.mark.parametrize(
     "viewport_width",
     [390],
