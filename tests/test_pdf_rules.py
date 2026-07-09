@@ -460,11 +460,18 @@ def test_grouped_violations_confidence_high_for_large_overflow(tmp_path: Path) -
     assert warning.details.get("confidence") == "high"
 
 
-def test_p011_tiny_single_line_overflow_is_low_confidence(tmp_path: Path) -> None:
-    """A tiny (just-over-tolerance), single-line overflow should still warn but
-    as a low-confidence signal — not presented with the same strength as a
-    substantial margin crossing. triage_tier stays constant across confidence
-    levels (it is part of build_grouped_findings()'s grouping key)."""
+def test_p011_tiny_single_line_overflow_is_suppressed(tmp_path: Path) -> None:
+    """A tiny (just-over-tolerance), single-line overflow is no longer reported
+    as a problem at all.
+
+    Before Ester's Sample B review, this "low confidence" pattern (single
+    line, sub-5pt overflow) still produced a full P011 warning. Ester's
+    review confirmed several real-document instances of exactly this pattern
+    (single short line, ~3-5pt right-margin "overflow") as false positives —
+    almost certainly font-metric/text-extraction measurement noise rather
+    than real content outside the margin. See
+    docs/status/ester_sample_b_p011_margin_low_overflow.md.
+    """
     pdf_path = tmp_path / "margin_tiny_low_conf.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -475,12 +482,8 @@ def test_p011_tiny_single_line_overflow_is_low_confidence(tmp_path: Path) -> Non
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     findings = run_pdf_margin_rule(model)
-    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
-    assert warning.details.get("confidence") == "low"
-    assert warning.details.get("triage_tier") == "informational"
-    overflow = float(warning.details["worst_overflow_pt"])
-    assert 3.0 < overflow < 5.0
-    assert f"{overflow:.1f} pt" in warning.message
+    assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
+    assert not any(f.rule_id == "P011" and f.severity.value == "WARNING" for f in findings)
 
 
 def test_p011_real_overflow_message_states_measured_overrun(tmp_path: Path) -> None:

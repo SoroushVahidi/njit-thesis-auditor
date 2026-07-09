@@ -215,6 +215,16 @@ def run_pdf_margin_rule(
             if count >= ARTIFACT_GUARD_MIN_COUNT and worst < ARTIFACT_GUARD_MAX_OVERFLOW_PT:
                 continue
             confidence = _group_confidence(worst, count)
+            # A "low" confidence group is, by construction, a single line whose
+            # measured overflow is under the 5pt medium-confidence floor -- text
+            # extraction/font-metric rounding noise rather than a real margin
+            # violation. Ester's Sample B review confirmed exactly this pattern
+            # (single-line, sub-5pt right-margin "overflow") as false positives
+            # on several pages while every reviewed medium/high-confidence
+            # finding was a real violation. See
+            # docs/status/ester_sample_b_p011_margin_low_overflow.md.
+            if confidence == "low":
+                continue
 
             # `bbox` stays the union of every violating line's box, unchanged, for
             # backward compatibility with any consumer reading a single box (e.g.
