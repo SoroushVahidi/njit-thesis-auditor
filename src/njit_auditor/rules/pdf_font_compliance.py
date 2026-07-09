@@ -63,6 +63,20 @@ _NAMED_HEADINGS: frozenset[str] = frozenset(EXPECTED_HEADINGS) | frozenset(
     ["REFERENCES", "BIBLIOGRAPHY", "WORKS CITED", "DEDICATION", "COPYRIGHT PAGE"]
 )
 
+# Concatenated heading lines from PDF text extraction (no spaces between words) --
+# the same layout artifact independently handled in pdf_frontmatter_headings.py
+# (P038) for presence detection. Kept rule-local rather than shared: this gate
+# only needs to recognize the page as front matter to skip body-font measurement,
+# not to judge phrase correctness. Without this, pages like the Approval Page
+# (committee signature block, not body prose) get measured against the 12pt
+# body-text rule and produce a false positive (Ester Sample B page 5).
+_CONCATENATED_HEADING_VARIANTS: dict[str, str] = {
+    "ACKNOWLEDGMENT": "ACKNOWLEDGEMENTS",
+    "APPROVALPAGE": "APPROVAL PAGE",
+    "BIOGRAPHICALSKETCH": "BIOGRAPHICAL SKETCH",
+    "TABLEOFCONTENTS": "TABLE OF CONTENTS",
+}
+
 _ACCEPTED_BODY_FONT_EXPECTED = (
     "Times New Roman, Arial, Computer Modern, or Latin Modern"
 )
@@ -142,7 +156,11 @@ def is_accepted_body_font_family(classification: str) -> bool:
 def _page_has_named_heading(page: PdfPage, headings: frozenset[str]) -> bool:
     for block in page.text_blocks:
         for line in block.lines:
-            if normalize_heading_text(line.text).upper() in headings:
+            normalized_upper = normalize_heading_text(line.text).upper()
+            if normalized_upper in headings:
+                return True
+            canonical = _CONCATENATED_HEADING_VARIANTS.get(normalized_upper)
+            if canonical is not None and canonical in headings:
                 return True
     return False
 
