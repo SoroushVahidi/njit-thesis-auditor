@@ -96,6 +96,22 @@ REFERENCES_LIKE_HEADINGS = frozenset({
 CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
 BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
 
+# Bare "Figure N" / "Fig. N" anchor with nothing else on the line. Some PDFs
+# (LaTeX output with a wide caption-number/text gap) split a figure caption's
+# label from its description text into separate extracted line objects on the
+# same visual row. A line consisting of *only* this label never occurs in
+# ordinary body prose (a body sentence that references a figure always has
+# more words on the same line), so it is a safe, narrow anchor for locating a
+# figure-caption region without the fuller prose-vs-caption disambiguation
+# that whole-sentence caption detection needs.
+FIGURE_LABEL_ANCHOR_RE = re.compile(
+    r"^(?:figure|fig\.)\s*[0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*[.:)]?\s*$",
+    re.IGNORECASE,
+)
+# Lines sharing a top-of-bbox within this tolerance are treated as the same
+# visual row (split fragments of one caption line, not consecutive lines).
+_ROW_Y_TOLERANCE_PT = 1.0
+
 
 def _normalized_heading(line: PdfTextLine) -> str:
     return normalize_heading_text(line.text).upper()
@@ -215,6 +231,68 @@ def _line_in_bands(line: PdfTextLine, bands: list[tuple[float, float]]) -> bool:
     return any(y0 <= center_y <= y1 for y0, y1 in bands)
 
 
+def _group_into_rows(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
+    """Group lines sharing a top-of-bbox into one visual row.
+
+    Handles PDFs whose text extraction splits one visual line (e.g. a figure
+    label and its caption text, separated by a wide LaTeX-inserted gap) into
+    multiple line objects at the same y-position.
+    """
+    ordered = sorted(lines, key=lambda ln: (ln.bbox.y0, ln.bbox.x0))
+    rows: list[list[PdfTextLine]] = []
+    for line in ordered:
+        if rows and abs(line.bbox.y0 - rows[-1][0].bbox.y0) <= _ROW_Y_TOLERANCE_PT:
+            rows[-1].append(line)
+        else:
+            rows.append([line])
+    return rows
+
+
+def _figure_caption_band_ranges(
+    all_lines: list[PdfTextLine],
+    font_size: float,
+) -> list[tuple[float, float]]:
+    """Return vertical (y0, y1) bands covering figure captions/descriptions.
+
+    Each band starts at a row whose leftmost line is a bare figure-label
+    anchor (see ``FIGURE_LABEL_ANCHOR_RE``) and extends downward across the
+    contiguous run of tightly packed rows -- the caption's own description
+    text -- stopping at the first row whose pitch indicates ordinary
+    (double-spaced) body text has resumed. Figure captions/descriptions are
+    conventionally single-spaced even in an otherwise double-spaced document,
+    so this text must not be measured as ordinary body prose.
+    """
+    if not all_lines:
+        return []
+    pitch_limit = max(font_size, 1.0) * _TABLE_ROW_PITCH_RATIO
+    rows = _group_into_rows(all_lines)
+    bands: list[tuple[float, float]] = []
+    row_index = 0
+    while row_index < len(rows):
+        row = rows[row_index]
+        anchor_line = min(row, key=lambda ln: ln.bbox.x0)
+        clean = " ".join(anchor_line.text.strip().split())
+        if not FIGURE_LABEL_ANCHOR_RE.match(clean):
+            row_index += 1
+            continue
+        band_top = min(ln.bbox.y0 for ln in row)
+        band_bottom = max(ln.bbox.y1 for ln in row)
+        prev_top = band_top
+        next_index = row_index + 1
+        while next_index < len(rows):
+            next_row = rows[next_index]
+            next_top = min(ln.bbox.y0 for ln in next_row)
+            pitch = next_top - prev_top
+            if pitch > pitch_limit:
+                break
+            band_bottom = max(band_bottom, max(ln.bbox.y1 for ln in next_row))
+            prev_top = next_top
+            next_index += 1
+        bands.append((band_top, band_bottom))
+        row_index = next_index
+    return bands
+
+
 def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P023 warnings when body text appears not to be double-spaced.
 
@@ -255,21 +333,25 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
         for block in page.text_blocks:
             all_lines.extend(block.lines)
 
+        page_font_size = _estimate_font_size(all_lines) if all_lines else FALLBACK_FONT_SIZE_PT
         table_bands = _table_band_ranges(
             table_caption_bboxes.get(page.page_number, []),
             all_lines,
-            _estimate_font_size(all_lines) if all_lines else FALLBACK_FONT_SIZE_PT,
+            page_font_size,
         )
+        figure_bands = _figure_caption_band_ranges(all_lines, page_font_size)
 
         body_lines = [
             line
             for line in all_lines
             if _is_body_text_line(line, page.height)
             and not _line_in_bands(line, table_bands)
+            and not _line_in_bands(line, figure_bands)
         ]
         # Only warn when actual body-text lines remain to be measured. If all
-        # tight spacing lives inside a table region, body_lines is now too small
-        # and the page is skipped rather than mislabeled.
+        # tight spacing lives inside a table or figure-caption region,
+        # body_lines is now too small and the page is skipped rather than
+        # mislabeled.
         if len(body_lines) < MIN_BODY_LINES_FOR_CHECK:
             continue
 

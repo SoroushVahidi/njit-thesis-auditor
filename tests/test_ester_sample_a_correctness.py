@@ -227,3 +227,26 @@ def test_ester_sample_b_p016_page1_no_duplicate_spacing_finding() -> None:
     p016_page1 = [f for f in view.findings if f.rule_id == "P016" and f.page == 1]
     assert len(p016_page1) == 1
     assert p016_page1[0].category == "spacing_blank_lines"
+
+
+def test_ester_sample_b_p023_page82_figure_description_not_flagged() -> None:
+    """P023 no longer flags Sample B page 82 as under-spaced body text.
+
+    Page 82 is entirely two figure descriptions (Figure 3.3 and Figure 3.4).
+    Root cause: the PDF's text extraction splits each caption's number
+    ("Figure3.3") from its description text onto a separate line fragment on
+    the same visual row, so the multi-line description text was measured as
+    ordinary body text and flagged single-spaced. Figure descriptions are
+    conventionally single-spaced (Ester's exception list: tables, figure
+    descriptions, bullet points, multi-line titles) and must not be
+    flagged. See docs/status/ester_sample_b_p023_figure_description_spacing.md.
+    """
+    sample = get_builtin_sample("ester_sample_b")
+    if not sample.abs_path.exists():
+        return
+
+    findings = run_pdf_audit_full(sample.abs_path)
+    view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
+
+    p023_page82 = [f for f in view.findings if f.rule_id == "P023" and f.page == 82]
+    assert p023_page82 == []
