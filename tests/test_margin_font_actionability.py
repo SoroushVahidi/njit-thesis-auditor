@@ -166,7 +166,7 @@ def test_margin_side_specific_wording(app: tuple[TestClient, Any]) -> None:
     text = _get_html(client, f"/audits/{job_id}")
     assert "Likely problem:" in text
     assert "page 2 appears to cross the required right margin boundary" in text
-    assert "highlighted text" in text.lower() or "paragraph" in text.lower()
+    assert "highlighted material" in text.lower() or "content formatting" in text.lower()
     assert "No exact highlight is available" in text
     assert "Open the original PDF page" in text
     assert "Open PDF page" not in text
@@ -196,7 +196,7 @@ def test_margin_unknown_side_wording(app: tuple[TestClient, Any]) -> None:
     text = _get_html(client, f"/audits/{job_id}/problems/rule/P011")
     assert "could not determine the exact margin side" in text
     assert "too close to or beyond a required page margin" in text
-    assert "highlighted text" in text.lower() or "paragraph" in text.lower()
+    assert "highlighted material" in text.lower() or "content formatting" in text.lower()
     assert "flagged issue type" not in text
 
 
@@ -449,7 +449,7 @@ def test_margin_font_wording_consistent_across_pages(app: tuple[TestClient, Any]
         text = _get_html(client, path)
         if "P011" in path or "margin-or-overflow" in path or path.endswith(job_id):
             assert "bottom margin" in text
-            assert "highlighted text" in text.lower() or "paragraph" in text.lower()
+            assert "highlighted material" in text.lower() or "content formatting" in text.lower()
         if "P026" in path or "font-format" in path or path.endswith(job_id):
             assert "font family CMR12" in text
             assert "Times New Roman" in text

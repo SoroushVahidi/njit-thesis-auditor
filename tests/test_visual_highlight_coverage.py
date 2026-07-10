@@ -203,7 +203,7 @@ def test_p011_margin_with_bbox_renders_real_highlight_and_keeps_wording(
 
     # Wording uses context-aware margin remediation.
     assert "page 2 appears to cross the required right margin boundary" in text
-    assert "highlighted text" in text.lower() or "paragraph" in text.lower()
+    assert "highlighted material" in text.lower() or "content formatting" in text.lower()
 
     # A real highlight is now offered, and it must not contradict itself.
     assert "Open highlighted PDF page" in text
