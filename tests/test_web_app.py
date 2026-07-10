@@ -743,14 +743,15 @@ def test_findings_by_topic_section_always_visible_not_collapsed(
     assert idx_findings < idx_topics < idx_downloads
 
 
-def test_problem_summary_by_type_table_visible_before_page_order_findings(
+def test_problem_summary_by_type_table_removed_leaving_one_topic_table(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Soroush's original "old summary table" — problems grouped by type and
-    sorted by count — must render as its own always-visible section near the
-    top of the results page, before "Findings in page order". This is
-    distinct from the "Findings by topic" navigation index further down the
-    page (see test_findings_by_topic_table_visible_sorted_and_clean)."""
+    """The top "Problem summary by type" table (added in PR #495) was reported
+    as a redundant duplicate of "Findings by topic" and removed at Soroush's
+    request. Only one grouped-by-category count table — "Findings by topic" —
+    should remain on the page, and it must keep its sorting, human-readable
+    labels, and "Review all" links. "Findings in page order" must still be
+    present as the main detailed review section."""
     from njit_auditor.models import AuditFinding, Severity
 
     c, wa = client
@@ -786,54 +787,36 @@ def test_problem_summary_by_type_table_visible_before_page_order_findings(
     assert resp.status_code == 200
     html = resp.content.decode()
 
-    # Visible, not collapsed.
-    assert 'id="section-problem-summary"' in html
-    assert "Problem summary by type" in html
-    before_summary, after_marker = html.split('<section id="section-problem-summary"', 1)
-    assert before_summary.count("<details") == before_summary.count("</details>")
-    summary_section = after_marker.split("</section>", 1)[0]
-    assert "<details" not in summary_section
+    # The top "Problem summary by type" table is gone, with no replacement.
+    assert 'id="section-problem-summary"' not in html
+    assert "Problem summary by type" not in html
 
-    # Positioned before "Findings in page order", near the top of the page.
-    idx_summary = html.index('id="section-problem-summary"')
-    idx_findings = html.index('id="section-findings"')
-    idx_topics = html.index('id="section-topics"')
-    assert idx_summary < idx_findings
-    assert idx_summary < idx_topics
+    # "Findings by topic" is rendered exactly once — the only grouped
+    # count/topic table left on the page (nav/jump-link mentions of the
+    # phrase elsewhere on the page are fine; the section itself must be
+    # unique).
+    assert html.count('id="section-topics"') == 1
+    assert html.count("<h2>Findings by topic</h2>") == 1
 
-    # Existing sections are preserved.
+    # "Findings in page order" remains the main detailed review section.
     assert 'id="section-findings"' in html
-    assert 'id="section-topics"' in html
 
-    # Human-readable labels, not raw rule IDs / internal "Problem N" labels.
-    assert "Spacing / blank lines" in summary_section
-    assert "Capitalization" in summary_section
-    assert "P016" not in summary_section
-    assert "P020" not in summary_section
-    assert "spacing_blank_lines" not in summary_section
+    topics_section = html.split('id="section-topics"', 1)[1].split("</section>", 1)[0]
 
-    # Sorted by count descending: the 5-finding category before the 2-finding one.
-    idx_spacing = summary_section.index("Spacing / blank lines")
-    idx_capitalization = summary_section.index("Capitalization")
+    # Human-readable labels, not raw rule IDs.
+    assert "Spacing / blank lines" in topics_section
+    assert "Capitalization" in topics_section
+    assert "P016" not in topics_section
+    assert "P020" not in topics_section
+
+    # Still sorted by count descending.
+    idx_spacing = topics_section.index("Spacing / blank lines")
+    idx_capitalization = topics_section.index("Capitalization")
     assert idx_spacing < idx_capitalization
 
-    # Counts shown, no full warning explanations duplicated in the table.
-    assert "Excessive line gap" not in summary_section
-    assert "polished_comment" not in summary_section
-
-
-def test_problem_summary_by_type_row_counts_match_findings(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    c, wa = client
-    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
-    resp = c.get(f"/audits/{job_id}")
-    html = resp.content.decode()
-    summary_section = html.split('id="section-problem-summary"', 1)[1].split(
-        "</section>", 1
-    )[0]
-    assert "Margins / overflow" in summary_section
-    assert ">3<" in summary_section
+    # "Review all" links are kept.
+    assert "Review all" in topics_section
+    assert f"/audits/{job_id}/problems/category/spacing-blank-lines" in topics_section
 
 
 def test_category_drilldown_page_shows_affected_pages(
