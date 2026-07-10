@@ -46,12 +46,22 @@ _REFERENCE_LINE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# IEEE/numeric-style reference entry, e.g. "[24]H. Oshitani, T. Kamigaki..." --
+# a bracketed number immediately (optionally after whitespace) followed by a
+# capital letter. Continuation pages of a numbered reference list repeat this
+# shape on every entry but never carry a literal "References" heading, so this
+# is the signal that identifies them.
+_NUMBERED_REFERENCE_LINE_RE = re.compile(r"^\[\d{1,3}\]\s*\S")
+_NUMBERED_REFERENCE_ENTRY_RE = re.compile(r"\[\d{1,3}\]\s*[A-Z]")
+
 
 def _looks_like_reference_line(text: str) -> bool:
     stripped = text.strip()
     if not stripped:
         return False
     if _REFERENCE_LINE_RE.match(stripped):
+        return True
+    if _NUMBERED_REFERENCE_LINE_RE.match(stripped):
         return True
     return bool(re.search(r"\(\d{4}\)", stripped) and re.search(r",\s*[A-Z]", stripped))
 
@@ -64,6 +74,13 @@ def _reference_line_ratio(previews: Sequence[str]) -> float:
     return hits / len(nonempty)
 
 
+def _page_has_numbered_reference_entries(page_text: str) -> bool:
+    # Two or more bracket-numbered entries on a page is specific to a numbered
+    # reference list; a single inline body citation like "[12] Recent work..."
+    # can coincidentally match the same shape once, but not repeatedly.
+    return len(_NUMBERED_REFERENCE_ENTRY_RE.findall(page_text)) >= 2
+
+
 def infer_page_margin_context(
     page_text: str,
     line_previews: Sequence[str] = (),
@@ -73,6 +90,15 @@ def infer_page_margin_context(
         return "references"
     if "APPROVAL PAGE" in upper:
         return "approval_page"
+    # Checked before the single-word "ABSTRACT" match below: reference-list
+    # continuation pages don't repeat the section heading, and citation URLs
+    # such as "...proceedings.neurips.cc/.../hash/...-Abstract.html" contain
+    # the standalone word "Abstract", which would otherwise misclassify a
+    # references page as the Abstract section.
+    if _page_has_numbered_reference_entries(page_text) or _reference_line_ratio(
+        line_previews
+    ) >= 0.5:
+        return "references"
     if re.search(r"\bABSTRACT\b", upper):
         return "abstract"
     if "TABLE OF CONTENTS" in upper:
@@ -81,8 +107,6 @@ def infer_page_margin_context(
         return "list_front_matter"
     if re.search(r"CHAPTER\s+\d", upper):
         return "body"
-    if _reference_line_ratio(line_previews) >= 0.5:
-        return "references"
     return "general"
 
 

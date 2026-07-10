@@ -136,6 +136,111 @@ def test_reference_continuation_page_inferred_from_line_previews() -> None:
     assert infer_margin_content_kind("general", previews) == "references_hanging_indent"
 
 
+def test_numbered_reference_continuation_page_inferred_from_page_text() -> None:
+    """Regression for the "[24]H. Oshitani..." IEEE/numeric citation style,
+    which does not match the APA "Lastname, F. (YYYY)" pattern. A continuation
+    page of a numbered reference list has no "References" heading of its own,
+    so the page text itself (not just the violating line previews) must carry
+    the signal."""
+    from njit_auditor.p011_margin_presentation import infer_page_margin_context
+
+    page_text = (
+        "[24]H.Oshitani,T.Kamigaki,andA.Suzuki,“Majorissuesandchallengesof"
+        "influenzapandemicpreparednessindevelopingcountries,” Emerging "
+        "infectious diseases, vol. 14, pp. 875-80, 07 2008.\n"
+        "[25]S.Müller,M.Balmer,W.Charlton,R.Ewert,A.Neumann,C.Rakow,"
+        "T.Schlenther"
+    )
+    assert infer_page_margin_context(page_text, []) == "references"
+
+
+def test_reference_page_with_abstract_html_citation_url_not_misclassified() -> None:
+    """Regression for pages that cite NeurIPS/OpenReview papers, whose landing
+    pages are literally named "Abstract.html" (e.g.
+    proceedings.neurips.cc/paper/1999/hash/<id>-Abstract.html). The lone word
+    "Abstract" inside that URL previously outranked the numbered-reference
+    signal and mislabeled the page as Abstract-section content."""
+    from njit_auditor.p011_margin_presentation import infer_page_margin_context
+
+    page_text = (
+        "[47]R.S.Sutton,D.McAllester,S.Singh,andY.Mansour,“PolicyGradient"
+        "MethodsforReinforcementLearningwithFunctionApproximation,” in "
+        "Advances in Neural Information Processing Systems, vol. 12. MIT "
+        "Press, 1999. [Online]. Available: https://proceedings.neurips.cc/"
+        "paper/1999/hash/464d828b85b0bed98e80ade0a5c43b0f-Abstract.html\n"
+        "[48]R.J.Williams,“Simplestatisticalgradient-followingalgorithms"
+        "forconnectionistreinforcementlearning,” Machine learning, 1992."
+    )
+    assert infer_page_margin_context(page_text, []) == "references"
+
+
+def test_single_inline_bracket_citation_does_not_trigger_references_page_signal() -> None:
+    """A single inline body citation shaped like "[12] Recent work..." can
+    coincidentally match the numbered-reference-entry pattern once, but body
+    prose should not be misclassified as a references page on that alone."""
+    from njit_auditor.p011_margin_presentation import infer_page_margin_context
+
+    page_text = (
+        "This approach builds on prior work. As shown in [12] Recent studies "
+        "demonstrate that the proposed method generalizes well across domains "
+        "and datasets used throughout this chapter."
+    )
+    assert infer_page_margin_context(page_text, []) != "references"
+
+
+def test_numbered_reference_left_margin_overflow_stays_high_confidence_with_correct_wording(
+    tmp_path: Path,
+) -> None:
+    """End-to-end regression for the reported live bug: a references
+    continuation page (no "References" heading on the page itself, IEEE-style
+    numbered entries, and a citation URL containing the word "Abstract")
+    should keep its high-confidence left-margin warning, label it as
+    references content, and suggest hanging-indent remediation -- not
+    "Abstract content" / "Thesis content" and not a line-spacing fix."""
+    pdf_path = tmp_path / "numbered_reference_continuation.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    lines = [
+        "[47]R.S.Sutton, D. McAllester, S. Singh, and Y. Mansour, Policy",
+        "Gradient Methods, .../hash/abc123-Abstract.html, 1999.",
+        "[48]R.J.Williams, Simple statistical gradient-following algorithms,",
+        "Machine learning, 1992.",
+        "[49]A.Corana, M. Marchesi, C. Martini, and S. Ridella, Minimizing",
+        "multimodal functions, ACM TOMS, 1987.",
+    ]
+    y = 100
+    for line in lines:
+        page.insert_text((60, y), line, fontsize=11)
+        y += 20
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in run_pdf_margin_rule(model)
+        if f.details.get("issue_type") == "margin_boundary_violation"
+    ]
+    assert findings
+    finding = findings[0]
+    assert finding.details.get("page_context") == "references"
+    assert finding.details.get("confidence") == "high"
+
+    report = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+    view = build_report_view(report)
+    rendered = next(f for f in view.findings if f.rule_id == "P011")
+
+    comment_lower = rendered.polished_comment.lower()
+    assert "references content" in comment_lower or "reference-list content" in comment_lower
+    assert "abstract content" not in comment_lower
+    assert "thesis content" not in comment_lower
+
+    fix_lower = rendered.suggested_fix.lower()
+    assert "hanging-indent" in fix_lower or "hanging indent" in fix_lower
+    assert "reference" in fix_lower
+    assert "line spacing" not in fix_lower
+
+
 def test_off_center_margin_pdf_stores_page_context_and_highlight_bboxes(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_two_lines.pdf"
     doc = fitz.open()
