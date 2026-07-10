@@ -177,6 +177,31 @@ def _margin_boundary_guide_bbox(
     return BBox(x0=x0, y0=boundary_y - thickness, x1=x1, y1=boundary_y + thickness)
 
 
+def _overflow_segment_bbox(
+    side: MarginSide,
+    group: list[LineViolation],
+    *,
+    allowed_x0: float,
+    allowed_y0: float,
+    allowed_x1: float,
+    allowed_y1: float,
+) -> BBox:
+    """Return the sub-rectangle of *group*'s union box that actually crosses
+    the margin boundary -- presentation-only geometry derived from the same
+    line boxes and boundary already used for detection, never a new measure
+    of overflow. Used to render the crossing segment distinctly from the
+    rest of the (in-bounds) line in the highlighted PDF.
+    """
+    full = _union_bbox_of(group)
+    if side is MarginSide.RIGHT:
+        return BBox(x0=max(full.x0, allowed_x1), y0=full.y0, x1=full.x1, y1=full.y1)
+    if side is MarginSide.LEFT:
+        return BBox(x0=full.x0, y0=full.y0, x1=min(full.x1, allowed_x0), y1=full.y1)
+    if side is MarginSide.BOTTOM:
+        return BBox(x0=full.x0, y0=max(full.y0, allowed_y1), x1=full.x1, y1=full.y1)
+    return BBox(x0=full.x0, y0=full.y0, x1=full.x1, y1=min(full.y1, allowed_y0))
+
+
 def run_pdf_margin_rule(
     pdf_doc: PdfDocument,
     *,
@@ -242,6 +267,22 @@ def run_pdf_margin_rule(
             adjacent_groups = _group_adjacent_violations(violations)
             highlight_bboxes = [_union_bbox_of(group) for group in adjacent_groups]
 
+            # For each same group, the sub-rectangle that actually crosses the
+            # margin boundary -- lets the highlighted PDF draw the crossing
+            # segment more strongly than the rest of the (in-bounds) line,
+            # instead of highlighting the whole line uniformly.
+            overflow_segment_bboxes = [
+                _overflow_segment_bbox(
+                    side,
+                    group,
+                    allowed_x0=allowed_x0,
+                    allowed_y0=allowed_y0,
+                    allowed_x1=allowed_x1,
+                    allowed_y1=allowed_y1,
+                )
+                for group in adjacent_groups
+            ]
+
             # A thin guide rectangle marking the exact required margin boundary
             # line the content must not cross, scoped to the affected region's
             # extent rather than spanning the full page.
@@ -283,6 +324,9 @@ def run_pdf_margin_rule(
                 "bbox": format_bbox_detail(highlight_bbox),
                 "highlight_bboxes": " | ".join(
                     format_bbox_detail(box) for box in highlight_bboxes
+                ),
+                "overflow_segment_bboxes": " | ".join(
+                    format_bbox_detail(box) for box in overflow_segment_bboxes
                 ),
                 "margin_boundary_bbox": format_bbox_detail(margin_boundary_bbox),
             }

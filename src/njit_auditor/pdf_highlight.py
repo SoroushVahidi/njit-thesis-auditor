@@ -26,7 +26,50 @@ MAX_HIGHLIGHT_BOXES_PER_PAGE = 25
 # normalized fractions mistaken for PDF points).
 MIN_HIGHLIGHT_DIMENSION_PT = 2.0
 
-BoxesByPage = dict[int, list[tuple[float, float, float, float]]]
+
+class HighlightBox(tuple):
+    """A (x0, y0, x1, y1) box that also carries an optional rendering *kind*.
+
+    Behaves exactly like a plain 4-tuple for every existing caller (equality,
+    indexing, unpacking) -- ``kind`` is an extra attribute, not a 5th tuple
+    element, so code written against the old ``tuple[float, float, float,
+    float]`` contract keeps working unchanged. Only the highlighted-PDF
+    drawing code reads ``kind`` to pick a rendering style.
+    """
+
+    kind: str
+
+    def __new__(
+        cls, x0: float, y0: float, x1: float, y1: float, kind: str = "default"
+    ) -> HighlightBox:
+        obj = super().__new__(cls, (x0, y0, x1, y1))
+        obj.kind = kind
+        return obj
+
+    @classmethod
+    def from_tuple(
+        cls, box: tuple[float, float, float, float], kind: str = "default"
+    ) -> HighlightBox:
+        return cls(box[0], box[1], box[2], box[3], kind=kind)
+
+
+# Rendering style per HighlightBox.kind: (stroke_rgb, fill_rgb_or_None, opacity).
+# "default" reproduces the original single-style look exactly, for every box
+# that isn't explicitly tagged (i.e. every rule except P011's new geometry).
+_BoxStyle = tuple[tuple[float, float, float], tuple[float, float, float] | None, float]
+_BOX_STYLES: dict[str, _BoxStyle] = {
+    "default": (_HIGHLIGHT_STROKE_RGB, _HIGHLIGHT_FILL_RGB, _HIGHLIGHT_OPACITY),
+    # P011: full affected line -- kept light so it reads as context, not the defect itself.
+    "line": ((1.0, 0.7, 0.0), (1.0, 1.0, 0.55), 0.18),
+    # P011: only the segment that actually crosses the margin -- strong fill,
+    # the clear visual answer to "which part of this line is the problem?".
+    "overflow": ((0.85, 0.15, 0.1), (1.0, 0.35, 0.25), 0.55),
+    # P011: thin margin-boundary marker -- outline only (no fill) so it reads
+    # as a ruler line, not another highlight.
+    "guide": ((0.15, 0.35, 0.75), None, 0.7),
+}
+
+BoxesByPage = dict[int, list[HighlightBox]]
 PageSize = tuple[float, float]
 
 
@@ -210,6 +253,73 @@ class HighlightDrawResult:
         return self.drawn_count > 0
 
 
+def _draw_highlight_box(
+    page: fitz.Page, clipped: tuple[float, float, float, float], kind: str
+) -> None:
+    """Add one rectangle annotation to *page*, styled per ``kind``.
+
+    Unknown kinds fall back to the "default" style, so callers passing plain
+    (non-``HighlightBox``) tuples through legacy code paths keep the exact
+    original appearance.
+    """
+    stroke, fill, opacity = _BOX_STYLES.get(kind, _BOX_STYLES["default"])
+    annot = page.add_rect_annot(fitz.Rect(*clipped))
+    if fill is not None:
+        annot.set_colors(stroke=stroke, fill=fill)
+    else:
+        annot.set_colors(stroke=stroke)
+    annot.set_opacity(opacity)
+    annot.update()
+
+
+_MARKER_LABEL_SIZE_PT = 9.0
+
+
+def _draw_overflow_marker(
+    page: fitz.Page, clipped: tuple[float, float, float, float], number: int
+) -> None:
+    """Draw a small numbered label beside an overflow-segment box.
+
+    Matches the numbers used in the review note's numbered snippet list (see
+    ``report_view._margin_affected_lines_clause``), so a student can tell
+    which highlighted line on the page corresponds to which numbered snippet
+    in the text. Text only, no extra annotation object, so it never affects
+    ``HighlightDrawResult.drawn_count``/``has_highlight``.
+    """
+    x0, y0, x1, y1 = clipped
+    stroke = _BOX_STYLES["overflow"][0]
+    anchor = fitz.Point(min(x1 + 2, page.rect.width - _MARKER_LABEL_SIZE_PT), (y0 + y1) / 2 + 3)
+    page.insert_text(anchor, str(number), fontsize=_MARKER_LABEL_SIZE_PT, color=stroke)
+
+
+def _draw_boxes_for_page(
+    page: fitz.Page,
+    boxes: list[HighlightBox] | list[tuple[float, float, float, float]],
+) -> tuple[int, int]:
+    """Draw every box in *boxes* onto *page*, adding numbered markers beside
+    overflow-segment boxes when there is more than one on this page (a single
+    overflow box needs no marker -- there's nothing to disambiguate it from).
+
+    Returns (drawn_count, skipped_count) for this page only.
+    """
+    drawn = 0
+    skipped = 0
+    overflow_total = sum(1 for box in boxes if getattr(box, "kind", "default") == "overflow")
+    marker_number = 0
+    for box in boxes:
+        clipped = clip_box_to_page(box, page.rect.width, page.rect.height)
+        if clipped is None:
+            skipped += 1
+            continue
+        kind = getattr(box, "kind", "default")
+        _draw_highlight_box(page, clipped, kind)
+        if kind == "overflow" and overflow_total > 1:
+            marker_number += 1
+            _draw_overflow_marker(page, clipped, marker_number)
+        drawn += 1
+    return drawn, skipped
+
+
 def build_highlighted_pdf(
     source_pdf: Path, output_pdf: Path, boxes_by_page: BoxesByPage
 ) -> HighlightDrawResult:
@@ -239,18 +349,9 @@ def build_highlighted_pdf(
             page = doc[page_index]
             capped_boxes = boxes[:MAX_HIGHLIGHT_BOXES_PER_PAGE]
             skipped += len(boxes) - len(capped_boxes)
-            page_drawn = 0
-            for box in capped_boxes:
-                clipped = clip_box_to_page(box, page.rect.width, page.rect.height)
-                if clipped is None:
-                    skipped += 1
-                    continue
-                annot = page.add_rect_annot(fitz.Rect(*clipped))
-                annot.set_colors(stroke=_HIGHLIGHT_STROKE_RGB, fill=_HIGHLIGHT_FILL_RGB)
-                annot.set_opacity(_HIGHLIGHT_OPACITY)
-                annot.update()
-                drawn += 1
-                page_drawn += 1
+            page_drawn, page_skipped = _draw_boxes_for_page(page, capped_boxes)
+            drawn += page_drawn
+            skipped += page_skipped
             if page_drawn:
                 pages_highlighted.append(page_number)
         if drawn:
@@ -266,7 +367,7 @@ def build_highlighted_single_page_pdf(
     output_pdf: Path,
     *,
     source_page_number: int,
-    boxes: list[tuple[float, float, float, float]],
+    boxes: list[HighlightBox] | list[tuple[float, float, float, float]],
 ) -> HighlightDrawResult:
     """Write a one-page PDF whose sole page is *source_page_number* with overlays.
 
@@ -284,16 +385,9 @@ def build_highlighted_single_page_pdf(
             page = out[0]
             capped_boxes = boxes[:MAX_HIGHLIGHT_BOXES_PER_PAGE]
             skipped += len(boxes) - len(capped_boxes)
-            for box in capped_boxes:
-                clipped = clip_box_to_page(box, page.rect.width, page.rect.height)
-                if clipped is None:
-                    skipped += 1
-                    continue
-                annot = page.add_rect_annot(fitz.Rect(*clipped))
-                annot.set_colors(stroke=_HIGHLIGHT_STROKE_RGB, fill=_HIGHLIGHT_FILL_RGB)
-                annot.set_opacity(_HIGHLIGHT_OPACITY)
-                annot.update()
-                drawn += 1
+            page_drawn, page_skipped = _draw_boxes_for_page(page, capped_boxes)
+            drawn += page_drawn
+            skipped += page_skipped
             if drawn:
                 output_pdf.parent.mkdir(parents=True, exist_ok=True)
                 out.save(output_pdf)

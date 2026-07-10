@@ -60,6 +60,14 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .example-card__title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    min-width: 0;
+    flex: 1 1 auto;
   }
   .example-card__meta {
     display: grid;
@@ -129,6 +137,55 @@
       padding: 0.18rem 0.55rem;
     }
   }
+  .page-legend {
+    list-style: none;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+  .page-legend li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+  .page-legend li > span:last-child {
+    /* Without this, a long rule label refuses to wrap inside the flex row
+       and instead overflows -- the classic flexbox min-width:auto bug (see
+       the identical fix on .status-banner__body in base.html/job.html). */
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .page-legend__marker {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.3rem;
+    border-radius: 50%;
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: 0.82rem;
+  }
+  .example-card__marker {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 0.35rem;
+    border-radius: 50%;
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: 0.88rem;
+    background: #fff;
+  }
 </style>
 {% endblock %}
 
@@ -153,6 +210,21 @@
       <span class="badge badge-muted">Pages to review: {{ pages_to_review }}</span>
       {% endif %}
     </div>
+    {% if legend %}
+    <ol class="page-legend" aria-label="Problem legend for this page">
+      {% for entry in legend %}
+      <li>
+        <span class="page-legend__marker" aria-hidden="true">{{ entry.number }}</span>
+        <span>
+          {% if is_p_rule_id(entry.rule_id) %}
+          <a href="/rules#{{ entry.rule_id }}" class="rule-link">{{ entry.rule_id }}</a>
+          {% else %}<strong>{{ entry.rule_id }}</strong>{% endif %}
+          — {{ entry.label }}
+        </span>
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
     <div class="problem-group-actions">
       <a href="{{ audit_page_url }}" class="btn btn-secondary">&larr; Back to all results</a>
       {% if hero_action_kind == "explanation" %}
@@ -175,10 +247,13 @@
     {% for example in examples %}
     <article id="{{ example.problem_anchor if example.problem_anchor else '' }}" class="card example-card">
       <div class="example-card__header">
-        <div>
+        <div class="example-card__title-row">
+          {% if example.legend_number %}
+          <span class="example-card__marker" aria-label="Legend item {{ example.legend_number }}">{{ example.legend_number }}</span>
+          {% endif %}
           <p class="example-card__title">
             {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
-            {% if group_kind == "category" %}
+            {% if group_kind in ("category", "page") %}
               {% if example.public_rule_reference_id %}
               <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.public_rule_reference_id }}: see rule reference">{{ example.public_rule_reference_id }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
@@ -195,7 +270,10 @@
           </p>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
-          {% if example.page is not none %}
+          {% if group_kind == "page" %}
+          {# The page number is already the page this whole view is for -- showing it
+             again on every card would duplicate it needlessly. #}
+          {% elif example.page is not none %}
           <span class="badge badge-info">Page {{ example.page }}</span>
           {% elif example.location_text and example.location_text.startswith("Document-wide") %}
           <span class="badge badge-muted">Document-wide</span>
