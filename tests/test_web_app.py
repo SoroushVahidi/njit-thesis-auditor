@@ -743,6 +743,99 @@ def test_findings_by_topic_section_always_visible_not_collapsed(
     assert idx_findings < idx_topics < idx_downloads
 
 
+def test_problem_summary_by_type_table_visible_before_page_order_findings(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """Soroush's original "old summary table" — problems grouped by type and
+    sorted by count — must render as its own always-visible section near the
+    top of the results page, before "Findings in page order". This is
+    distinct from the "Findings by topic" navigation index further down the
+    page (see test_findings_by_topic_table_visible_sorted_and_clean)."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    c, wa = client
+    findings = (
+        [
+            AuditFinding(
+                rule_id="P016",
+                severity=Severity.WARNING,
+                page=i + 1,
+                message="Excessive line gap.",
+                details={"issue_type": "excessive_line_gap", "largest_gap_pt": "48.0"},
+            )
+            for i in range(5)
+        ]
+        + [
+            AuditFinding(
+                rule_id="P020",
+                severity=Severity.WARNING,
+                page=20,
+                message="Possible title-capitalization issue.",
+                details={
+                    "issue_type": "possible_title_capitalization_issue",
+                    "flagged_word": "The",
+                },
+            )
+            for _ in range(2)
+        ]
+    )
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    resp = c.get(f"/audits/{job_id}")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+
+    # Visible, not collapsed.
+    assert 'id="section-problem-summary"' in html
+    assert "Problem summary by type" in html
+    before_summary, after_marker = html.split('<section id="section-problem-summary"', 1)
+    assert before_summary.count("<details") == before_summary.count("</details>")
+    summary_section = after_marker.split("</section>", 1)[0]
+    assert "<details" not in summary_section
+
+    # Positioned before "Findings in page order", near the top of the page.
+    idx_summary = html.index('id="section-problem-summary"')
+    idx_findings = html.index('id="section-findings"')
+    idx_topics = html.index('id="section-topics"')
+    assert idx_summary < idx_findings
+    assert idx_summary < idx_topics
+
+    # Existing sections are preserved.
+    assert 'id="section-findings"' in html
+    assert 'id="section-topics"' in html
+
+    # Human-readable labels, not raw rule IDs / internal "Problem N" labels.
+    assert "Spacing / blank lines" in summary_section
+    assert "Capitalization" in summary_section
+    assert "P016" not in summary_section
+    assert "P020" not in summary_section
+    assert "spacing_blank_lines" not in summary_section
+
+    # Sorted by count descending: the 5-finding category before the 2-finding one.
+    idx_spacing = summary_section.index("Spacing / blank lines")
+    idx_capitalization = summary_section.index("Capitalization")
+    assert idx_spacing < idx_capitalization
+
+    # Counts shown, no full warning explanations duplicated in the table.
+    assert "Excessive line gap" not in summary_section
+    assert "polished_comment" not in summary_section
+
+
+def test_problem_summary_by_type_row_counts_match_findings(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
+    resp = c.get(f"/audits/{job_id}")
+    html = resp.content.decode()
+    summary_section = html.split('id="section-problem-summary"', 1)[1].split(
+        "</section>", 1
+    )[0]
+    assert "Margins / overflow" in summary_section
+    assert ">3<" in summary_section
+
+
 def test_category_drilldown_page_shows_affected_pages(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:

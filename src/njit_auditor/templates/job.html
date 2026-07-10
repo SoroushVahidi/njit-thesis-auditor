@@ -451,6 +451,33 @@
   <p class="file-hint" style="margin-top:0.75rem;margin-bottom:0;">These are automated review signals, not confirmed formatting defects. All findings require manual verification against NJIT guidelines.</p>
 </section>
 
+{% if category_summary %}
+<section id="section-problem-summary" class="section" aria-label="Problem summary by type">
+  <div class="section-header">
+    <h2>Problem summary by type</h2>
+    <span class="section-note">Every problem type found, sorted from most to least common.</span>
+  </div>
+  <div class="card" style="padding:0.5rem 0.75rem">
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Problem type</th><th>Count</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for row in category_summary %}
+        <tr>
+          <td>{{ row.category | humanize_cat }}</td>
+          <td>{{ row.count }}</td>
+          <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">View</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
 {% if findings %}
 <section id="section-review-order" class="section" aria-label="Recommended review order">
   <div class="section-header">
@@ -472,7 +499,7 @@
       </li>
       <li>
         <span class="ro-label">Findings by topic</span> —
-        <a href="#section-topics">The summary table below</a> ranks every category by finding count for a quick topic-wide overview. Click Review all to see every example in one category.
+        <a href="#section-topics">The topic index below</a> ranks every category by finding count with links to review every example in one category. See the <a href="#section-problem-summary">Problem summary by type</a> table near the top of the page for the same counts at a glance.
       </li>
       {% else %}
       <li>
