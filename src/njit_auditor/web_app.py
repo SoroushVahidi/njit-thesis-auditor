@@ -38,6 +38,7 @@ from njit_auditor.issue_type_explanations import (
 )
 from njit_auditor.models import AuditFinding
 from njit_auditor.pdf_highlight import (
+    HighlightBox,
     build_highlighted_pdf,
     build_highlighted_single_page_pdf,
     build_single_page_pdf,
@@ -1854,12 +1855,42 @@ _GROUP_KIND_KICKERS: dict[str, str] = {
     "issue_type": "Examples of this exact problem",
     "rule": "Examples for this rule",
     "category": "Problems in this category",
+    "page": "Every problem on this page",
 }
 _GROUP_KIND_HEADINGS: dict[str, str] = {
     "issue_type": "Examples of this exact problem",
     "rule": "All examples for this rule",
     "category": "All examples in this category",
+    "page": "All problems on this page, together",
 }
+
+
+def _build_page_legend(examples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Assign a stable 1-based marker number to each distinct (rule_id,
+    issue_type) present in *examples*, in first-seen order, and stamp that
+    number onto each matching example as ``legend_number``.
+
+    Used only by the per-page composite view so several findings that share
+    a page can be told apart by a numbered marker (not color alone, for
+    accessibility) while still using a stable identity per problem type.
+    """
+    seen: dict[tuple[str, str], int] = {}
+    legend: list[dict[str, Any]] = []
+    for example in examples:
+        key = (str(example.get("rule_id", "")).strip(), str(example.get("issue_type", "")).strip())
+        number = seen.get(key)
+        if number is None:
+            number = len(seen) + 1
+            seen[key] = number
+            label = (
+                str(example.get("issue_type_label", "")).strip()
+                or str(example.get("issue_type", "")).strip().replace("_", " ")
+                or str(example.get("rule_title", "")).strip()
+                or key[0]
+            )
+            legend.append({"number": number, "rule_id": key[0], "label": label})
+        example["legend_number"] = number
+    return legend
 
 
 def _group_pattern_note(examples: list[dict[str, Any]], pages: list[int]) -> str:
@@ -1948,6 +1979,7 @@ def _problem_group_context(
         "hero_action_kind": hero_action_kind,
         "hero_action_label": hero_action_label,
         "hero_action_url": hero_action_url,
+        "legend": [],
     }
 
 
@@ -2512,6 +2544,60 @@ async def rule_problem_page(request: Request, job_id: str, rule_id: str) -> HTML
     return _render(request, "problem_group.html", context)
 
 
+@app.get("/audits/{job_id}/problems/page/{page_number}", response_class=HTMLResponse)
+async def page_problem_page(request: Request, job_id: str, page_number: int) -> HTMLResponse:
+    """Show every counted finding on a single physical page together.
+
+    A composite view for pages with several unrelated findings (e.g. a page
+    with both a missing page number and an indent inconsistency) -- each
+    distinct (rule_id, issue_type) gets a stable numbered marker via
+    ``_build_page_legend`` so cards can be told apart without relying on
+    color alone. Read-only: does not change what counts as a finding, its
+    page, or any other detector output.
+    """
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None:
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    if job.state != "complete" or job.audit_type != "pdf":
+        return _index_error(
+            request,
+            "This problem group is not available for that audit.",
+            status_code=404,
+        )
+
+    matching_findings = [
+        finding
+        for finding in job.findings
+        if _coerce_page_number(finding.get("page")) == page_number
+    ]
+    if not matching_findings:
+        return _index_error(
+            request,
+            "That page was not found for this audit.",
+            status_code=404,
+        )
+
+    examples = _problem_group_examples(job, findings=matching_findings)
+    legend = _build_page_legend(examples)
+    rule_ids = sorted({str(ex.get("rule_id", "")).strip() for ex in examples if ex.get("rule_id")})
+    group_explanation = (
+        f"Every counted problem finding on page {page_number}, shown together "
+        f"so you can review them in one pass instead of jumping between "
+        f"{'a single rule' if len(rule_ids) == 1 else f'{len(rule_ids)} different rules'}."
+    )
+    context = _problem_group_context(
+        job=job,
+        group_title=f"Page {page_number}",
+        group_kind="page",
+        group_key=str(page_number),
+        group_explanation=group_explanation,
+        examples=examples,
+    )
+    context["legend"] = legend
+    return _render(request, "problem_group.html", context)
+
+
 @app.get(
     "/audits/{job_id}/problems/rule/{rule_id}/issue-type/{issue_type_slug}",
     response_class=HTMLResponse,
@@ -2732,9 +2818,9 @@ def _matching_findings_for_highlight(
 
 def _highlight_boxes_by_page(
     findings: list[dict[str, Any]],
-) -> dict[int, list[tuple[float, float, float, float]]]:
+) -> dict[int, list[HighlightBox]]:
     """Group parsed bounding boxes by 1-based page number across matched findings."""
-    boxes_by_page: dict[int, list[tuple[float, float, float, float]]] = {}
+    boxes_by_page: dict[int, list[HighlightBox]] = {}
     for finding in findings:
         page = _coerce_page_number(finding.get("page"))
         if page is None:
@@ -2747,17 +2833,21 @@ def _highlight_boxes_by_page(
         )
         rule_id = str(finding.get("rule_id", ""))
         issue_type = _finding_issue_type(finding)
-        boxes = parse_highlight_bboxes_from_details(
+        parsed_boxes = parse_highlight_bboxes_from_details(
             details,
             rule_id=rule_id,
             issue_type=issue_type,
         )
+        boxes: list[HighlightBox] = [
+            box if isinstance(box, HighlightBox) else HighlightBox.from_tuple(box)
+            for box in parsed_boxes
+        ]
         if not boxes:
             bbox = _bbox_from_finding_entry(finding)
             if bbox is not None:
-                boxes = [bbox]
-        for bbox in boxes:
-            boxes_by_page.setdefault(page, []).append(bbox)
+                boxes = [HighlightBox.from_tuple(bbox)]
+        for box in boxes:
+            boxes_by_page.setdefault(page, []).append(box)
     return boxes_by_page
 
 

@@ -94,11 +94,17 @@ def test_single_line_large_right_margin_overflow_stays_precise(tmp_path: Path) -
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    # One tight text box plus one boundary guide -- not a broad region.
-    assert len(boxes) == 2
+    # One tight text box, its overflow-only segment, plus one boundary guide.
+    assert len(boxes) == 3
     text_box = boxes[0]
     assert text_box[3] - text_box[1] < 20.0, "single-line box must stay one line tall"
-    guide_box = boxes[1]
+    assert text_box.kind == "line"
+    overflow_box = boxes[1]
+    assert overflow_box.kind == "overflow"
+    assert overflow_box[0] >= ALLOWED_X1, "overflow segment must start at/after the boundary"
+    assert overflow_box[2] == text_box[2], "overflow segment must share the line's right edge"
+    guide_box = boxes[2]
+    assert guide_box.kind == "guide"
     assert guide_box[2] - guide_box[0] < 5.0, "boundary guide must be a thin line"
     assert guide_box[0] < ALLOWED_X1 < guide_box[2], "right guide must straddle the boundary"
 
@@ -132,16 +138,20 @@ def test_non_adjacent_right_margin_lines_not_one_giant_highlight(tmp_path: Path)
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    # Two separate tight line boxes plus one boundary guide -- never a single
-    # union spanning both clean lines in between.
-    assert len(boxes) == 3
+    # Two separate tight line boxes, two matching overflow segments, plus one
+    # boundary guide -- never a single union spanning both clean lines in between.
+    assert len(boxes) == 5
     line_boxes = boxes[:2]
     for box in line_boxes:
         assert box[3] - box[1] < 20.0, "each affected-line box must stay one line tall"
+        assert box.kind == "line"
     # The two line boxes must not overlap the clean lines' vertical band.
     first_y1 = line_boxes[0][3]
     second_y0 = line_boxes[1][1]
     assert second_y0 - first_y1 > 15.0, "boxes must be separated, not merged across the gap"
+    overflow_boxes = boxes[2:4]
+    for box in overflow_boxes:
+        assert box.kind == "overflow"
 
 
 def test_adjacent_right_margin_lines_merge_without_extra_content(tmp_path: Path) -> None:
@@ -169,11 +179,12 @@ def test_adjacent_right_margin_lines_merge_without_extra_content(tmp_path: Path)
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    # One merged tight box (both lines, no gap) plus the boundary guide.
-    assert len(boxes) == 2
+    # One merged tight box (both lines, no gap), its overflow segment, plus
+    # the boundary guide.
+    assert len(boxes) == 3
     merged_box = boxes[0]
     assert merged_box[3] - merged_box[1] < 40.0, "merged box must span only these two lines"
-    guide_box = boxes[1]
+    guide_box = boxes[2]
     assert guide_box[2] - guide_box[0] < 5.0
 
 
@@ -204,12 +215,12 @@ def test_left_margin_reference_entries_not_one_giant_highlight(tmp_path: Path) -
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    assert len(boxes) == 3
+    assert len(boxes) == 5
     line_boxes = boxes[:2]
     first_y1 = line_boxes[0][3]
     second_y0 = line_boxes[1][1]
     assert second_y0 - first_y1 > 15.0, "separated reference lines must not be merged"
-    guide_box = boxes[2]
+    guide_box = boxes[4]
     assert guide_box[2] - guide_box[0] < 5.0
     assert guide_box[0] < ALLOWED_X0 < guide_box[2], "left guide must straddle the left boundary"
 
@@ -235,8 +246,9 @@ def test_top_margin_boundary_guide_is_horizontal(tmp_path: Path) -> None:
     boxes = parse_highlight_bboxes_from_details(
         details, rule_id="P011", issue_type="margin_boundary_violation"
     )
-    assert len(boxes) == 2
-    text_box, guide_box = boxes
+    assert len(boxes) == 3
+    text_box, overflow_box, guide_box = boxes
+    assert overflow_box[3] <= ALLOWED_Y0, "top overflow segment must sit above the boundary"
     assert guide_box[3] - guide_box[1] < 5.0, "top guide must be a thin horizontal line"
     assert guide_box[2] - guide_box[0] > 20.0, "top guide must span the affected width"
     assert guide_box[1] < ALLOWED_Y0 < guide_box[3], "top guide must straddle the top boundary"
@@ -281,7 +293,7 @@ def test_mixed_top_and_right_margin_page_gives_separated_evidence(tmp_path: Path
     # each side -- never one region spanning the whole page between them.
     boxes_by_page = _highlight_boxes_by_page(payload["findings"])
     boxes = boxes_by_page[1]
-    assert len(boxes) == 4, "expected 2 boxes (line + guide) per side, 4 total"
+    assert len(boxes) == 6, "expected 3 boxes (line + overflow + guide) per side, 6 total"
     # No single box should span from the top-margin region to the right-margin
     # region: every box's own height must stay small relative to the full gap.
     for box in boxes:

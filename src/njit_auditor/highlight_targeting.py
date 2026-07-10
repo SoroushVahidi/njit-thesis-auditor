@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 
-from njit_auditor.pdf_highlight import is_drawable_bbox
+from njit_auditor.pdf_highlight import HighlightBox, is_drawable_bbox
 from njit_auditor.pdf_models import BBox, PdfTextLine, format_bbox_detail
 
 _BBOX_PARTS = 4
@@ -181,12 +181,21 @@ def parse_highlight_bboxes_from_details(
 ) -> list[tuple[float, float, float, float]]:
     """Return every drawable highlight box encoded in finding details."""
     if rule_id == "P011" and issue_type == _P011_MARGIN_ISSUE:
-        precise_boxes = _parse_bbox_list(str(details.get("highlight_bboxes", "")).strip())
-        if precise_boxes:
+        line_boxes = _parse_bbox_list(str(details.get("highlight_bboxes", "")).strip())
+        if line_boxes:
+            result: list[tuple[float, float, float, float]] = [
+                HighlightBox.from_tuple(box, kind="line") for box in line_boxes
+            ]
+            overflow_boxes = _parse_bbox_list(
+                str(details.get("overflow_segment_bboxes", "")).strip()
+            )
+            result.extend(
+                HighlightBox.from_tuple(box, kind="overflow") for box in overflow_boxes
+            )
             guide_box = _parse_bbox_text(str(details.get("margin_boundary_bbox", "")).strip())
             if guide_box is not None:
-                precise_boxes.append(guide_box)
-            return precise_boxes
+                result.append(HighlightBox.from_tuple(guide_box, kind="guide"))
+            return result
 
     boxes: list[tuple[float, float, float, float]] = []
     line_bbox = _parse_bbox_text(str(details.get("bbox", "")).strip())

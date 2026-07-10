@@ -68,10 +68,56 @@ def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
     return f"{value[: max_len - 3]}..."
 
 
+# Detail keys that hold several already-short, "|"-joined preview snippets
+# (each individually capped by its own detector -- e.g. P011's
+# affected_line_texts truncates each line to 60 chars before joining) get a
+# dedicated item-boundary-safe truncation instead of the generic single-value
+# cap below: (max_total_chars, max_item_count). This is deliberately *not* a
+# blanket exemption from size limits -- it still bounds both the total
+# exported size and the item count, so a malformed/adversarial PDF producing
+# an unusually large details dict cannot inflate the report payload. It only
+# changes *where* truncation is allowed to cut: never through the middle of
+# an already-short preview snippet, only by dropping whole trailing items.
+_MULTI_ITEM_DETAIL_LIMITS: dict[str, tuple[int, int]] = {
+    "affected_line_texts": (340, 6),
+}
+_MULTI_ITEM_SEPARATOR = " | "
+
+
+def _truncate_pipe_joined(value: str, *, max_len: int, max_items: int) -> str:
+    """Truncate a ``" | "``-joined multi-item string at item boundaries only.
+
+    Never cuts a surviving item's text short -- an item is either included
+    whole or dropped entirely, so downstream numbered-list formatting never
+    displays a truncated fragment as if it were a complete snippet.
+    """
+    items = value.split(_MULTI_ITEM_SEPARATOR)[:max_items]
+    kept: list[str] = []
+    total = 0
+    for item in items:
+        added = len(item) if not kept else len(_MULTI_ITEM_SEPARATOR) + len(item)
+        if total + added > max_len:
+            break
+        kept.append(item)
+        total += added
+    # Always keep at least the first item, even if it alone exceeds max_len,
+    # so a single long snippet degrades to one (safely char-truncated) item
+    # rather than disappearing entirely.
+    if not kept and items:
+        kept = [_truncate(items[0], max_len)]
+    return _MULTI_ITEM_SEPARATOR.join(kept)
+
+
 def _sanitize_details(details: dict[str, str]) -> dict[str, str]:
     sanitized: dict[str, str] = {}
     for key, value in details.items():
-        sanitized[key] = _truncate(str(value))
+        text = str(value)
+        limits = _MULTI_ITEM_DETAIL_LIMITS.get(key)
+        if limits is not None:
+            max_len, max_items = limits
+            sanitized[key] = _truncate_pipe_joined(text, max_len=max_len, max_items=max_items)
+        else:
+            sanitized[key] = _truncate(text)
     return sanitized
 
 

@@ -977,7 +977,15 @@ def _margin_overflow_extras(details: Mapping[str, str]) -> list[str]:
 
 
 def _margin_affected_lines_clause(details: Mapping[str, str]) -> str:
-    """Format a student-readable clause listing affected line text previews, if stored."""
+    """Format a student-readable clause listing affected line text previews, if stored.
+
+    Multiple lines are numbered (1. "...", 2. "...") instead of joined with
+    "and" into a run-on sentence, so each snippet reads as a distinct item a
+    student can match against its own highlighted segment on the page. A
+    single affected line stays an unnumbered inline clause -- numbering one
+    item adds nothing. Never repeats the page number: the card/finding this
+    text appears on already states it once.
+    """
     texts_raw = details.get("affected_line_texts", "").strip()
     if not texts_raw:
         return ""
@@ -986,9 +994,9 @@ def _margin_affected_lines_clause(details: Mapping[str, str]) -> str:
         return ""
     if len(parts) == 1:
         return f' Affected text: "{parts[0]}".'
-    previews = " and ".join(f'"{p}"' for p in parts[:3])
-    suffix = " (and more)" if len(parts) > 3 else ""
-    return f" Affected text lines include: {previews}{suffix}."
+    numbered = " ".join(f'{i}. "{p}"' for i, p in enumerate(parts[:5], start=1))
+    suffix = " (and more)" if len(parts) > 5 else ""
+    return f" Affected text lines: {numbered}{suffix}."
 
 
 def _margin_overflow_detail_phrase(details: Mapping[str, str]) -> str:

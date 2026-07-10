@@ -610,6 +610,7 @@
         {% endif %}
         <div class="finding-card__action">
           {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">See all findings on page {{ f.page }}</a>{% endif %}
         </div>
       </article>
       {% endfor %}
