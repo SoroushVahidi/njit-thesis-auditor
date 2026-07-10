@@ -19,26 +19,57 @@ _ESTER_MARGIN_REMEDIATION = (
     "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch."
 )
 
-_TEXT_PARAGRAPH_FIX = (
-    "Adjust the paragraph, text wrapping, or line spacing so the highlighted text "
-    "stays within the required margin."
-)
 _APPROVAL_DATE_FIX = (
     "Move the Date label and signature/date line layout left, or shorten the line, "
     "so all approval-page content stays within the required margin."
 )
 _REFERENCES_FIX = (
-    "Adjust the references paragraph indentation or hanging-indent settings so all "
-    "reference text stays within the required margin."
+    "Adjust the references paragraph formatting or hanging-indent settings, and wrap "
+    "long URLs if needed, so all reference numbers and text remain within the "
+    "required margin."
 )
-_FLOAT_LAYOUT_FIX = (
-    "Adjust the table or figure layout so the full object stays within the required "
-    "margin."
+_TABLE_FIX = (
+    "Reduce the table width, adjust column widths, wrap cell content, or reposition "
+    "the table so it stays within the required margin."
 )
-_GENERIC_SIDE_FIX = (
-    "Move the flagged content back inside the required {side} so all thesis content "
-    "stays within the allowed page area."
+_FIGURE_FIX = (
+    "Resize or reposition the figure so it stays within the required margin, and "
+    "check whether the caption also crosses the margin."
 )
+_CODE_LISTING_FIX = (
+    "Wrap long lines, reduce the listing width, or adjust the listing indentation so "
+    "the code stays within the required margin."
+)
+_TOC_FIX = (
+    "Check the table-of-contents tab stops, dot leaders, indentation, and entry "
+    "formatting so all entries stay within the required margin."
+)
+_GENERIC_FIX = (
+    "Adjust the content formatting, indentation, wrapping, or object width so the "
+    "highlighted material remains within the required margin."
+)
+
+# Vertical (top/bottom) margin overflow is the only case where the stored
+# `side` detail itself is evidence of a vertical-spacing problem; horizontal
+# (left/right) overflow is a wrapping/indentation issue, not a line-spacing one.
+_VERTICAL_SIDE_LABELS = frozenset({"top margin", "bottom margin"})
+
+
+def _text_paragraph_fix(*, page_context: str, side_label: str) -> str:
+    if page_context == "general":
+        return _GENERIC_FIX
+    label = "body text" if page_context == "body" else "text"
+    if side_label in _VERTICAL_SIDE_LABELS:
+        clause = (
+            "paragraph formatting, line spacing, indentation, manual line breaks, "
+            "justification, or text wrapping"
+        )
+    else:
+        clause = (
+            "paragraph formatting, indentation, manual line breaks, justification, "
+            "or text wrapping"
+        )
+    return f"Adjust the {clause} so the highlighted {label} remains within the required margin."
 
 
 _REFERENCE_LINE_RE = re.compile(
@@ -114,6 +145,11 @@ def margin_content_label(page_context: str) -> str:
     return _PAGE_CONTEXT_CONTENT_LABELS.get(page_context, "thesis content")
 
 
+_LISTING_CAPTION_RE = re.compile(r"\blisting\s+\d", re.IGNORECASE)
+_TABLE_CAPTION_RE = re.compile(r"\btable\s+\d", re.IGNORECASE)
+_FIGURE_CAPTION_RE = re.compile(r"\bfigure\s+\d", re.IGNORECASE)
+
+
 def infer_margin_content_kind(page_context: str, line_previews: Sequence[str]) -> str:
     previews = [preview.strip() for preview in line_previews if preview.strip()]
     if page_context == "approval_page" and any(
@@ -122,9 +158,18 @@ def infer_margin_content_kind(page_context: str, line_previews: Sequence[str]) -
         return "approval_date_layout"
     if page_context == "references" or _reference_line_ratio(previews) >= 0.5:
         return "references_hanging_indent"
-    combined = " ".join(previews).lower()
-    if re.search(r"\btable\s+\d", combined) or re.search(r"\bfigure\s+\d", combined):
-        return "float_layout"
+    if page_context == "table_of_contents":
+        return "toc_entry"
+    combined = " ".join(previews)
+    # Caption numbering ("Listing 3.1", "Table 2", "Figure 4") is checked in
+    # this order because a listing/table page can also legitimately contain
+    # the word "table" (e.g. a "truth table" inside example code).
+    if _LISTING_CAPTION_RE.search(combined):
+        return "code_listing"
+    if _TABLE_CAPTION_RE.search(combined):
+        return "table_layout"
+    if _FIGURE_CAPTION_RE.search(combined):
+        return "figure_layout"
     return "text_paragraph"
 
 
@@ -138,11 +183,17 @@ def _secondary_margin_fix(
         return _APPROVAL_DATE_FIX
     if content_kind == "references_hanging_indent":
         return _REFERENCES_FIX
-    if content_kind == "float_layout":
-        return _FLOAT_LAYOUT_FIX
+    if content_kind == "table_layout":
+        return _TABLE_FIX
+    if content_kind == "figure_layout":
+        return _FIGURE_FIX
+    if content_kind == "code_listing":
+        return _CODE_LISTING_FIX
+    if content_kind == "toc_entry":
+        return _TOC_FIX
     if content_kind == "text_paragraph":
-        return _TEXT_PARAGRAPH_FIX
-    return _GENERIC_SIDE_FIX.format(side=side_label)
+        return _text_paragraph_fix(page_context=page_context, side_label=side_label)
+    return _GENERIC_FIX
 
 
 def margin_suggested_fix(

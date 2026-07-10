@@ -241,6 +241,168 @@ def test_numbered_reference_left_margin_overflow_stays_high_confidence_with_corr
     assert "line spacing" not in fix_lower
 
 
+def test_body_text_fix_uses_body_wording_not_line_spacing() -> None:
+    """Horizontal (left/right) body-text overflow must say "body text" (not the
+    generic "thesis content") and must not suggest line spacing, since line
+    spacing does not fix horizontal overflow."""
+    rendered = _finding_view(
+        {
+            "side": "right_margin",
+            "worst_overflow_pt": "6.0",
+            "affected_line_count": "1",
+            "confidence": "medium",
+            "page_context": "body",
+            "margin_content_kind": "text_paragraph",
+        },
+        page=20,
+    )
+    lower = rendered.suggested_fix.lower()
+    assert "body text" in lower
+    assert "line spacing" not in lower
+    assert "thesis content" not in lower
+    for token in _FORBIDDEN_FIX_TOKENS:
+        assert token not in lower
+
+
+def test_body_text_vertical_overflow_may_mention_line_spacing() -> None:
+    """Top/bottom overflow is itself vertical evidence, so line spacing is a
+    legitimate suggestion there (unlike for horizontal overflow)."""
+    from njit_auditor.p011_margin_presentation import margin_suggested_fix
+
+    fix = margin_suggested_fix(
+        page_context="body",
+        content_kind="text_paragraph",
+        side_label="bottom margin",
+    )
+    assert "line spacing" in fix.lower()
+    assert "body text" in fix.lower()
+
+
+def test_table_content_kind_suggests_table_specific_remediation() -> None:
+    from njit_auditor.p011_margin_presentation import (
+        infer_margin_content_kind,
+        margin_suggested_fix,
+    )
+
+    assert infer_margin_content_kind("body", ["Table 3: Summary of results"]) == "table_layout"
+    fix = margin_suggested_fix(
+        page_context="body", content_kind="table_layout", side_label="right margin"
+    ).lower()
+    assert "table" in fix
+    assert "column" in fix or "width" in fix
+    assert "line spacing" not in fix
+
+
+def test_figure_content_kind_suggests_figure_specific_remediation() -> None:
+    from njit_auditor.p011_margin_presentation import (
+        infer_margin_content_kind,
+        margin_suggested_fix,
+    )
+
+    assert infer_margin_content_kind("body", ["Figure 2: Architecture diagram"]) == "figure_layout"
+    fix = margin_suggested_fix(
+        page_context="body", content_kind="figure_layout", side_label="right margin"
+    ).lower()
+    assert "figure" in fix
+    assert "caption" in fix
+    assert "line spacing" not in fix
+
+
+def test_code_listing_content_kind_suggests_listing_specific_remediation() -> None:
+    from njit_auditor.p011_margin_presentation import (
+        infer_margin_content_kind,
+        margin_suggested_fix,
+    )
+
+    assert (
+        infer_margin_content_kind("general", ["Listing 4.1: Training loop"]) == "code_listing"
+    )
+    fix = margin_suggested_fix(
+        page_context="general", content_kind="code_listing", side_label="right margin"
+    ).lower()
+    assert "listing" in fix
+    assert "wrap" in fix or "indentation" in fix
+    assert "line spacing" not in fix
+
+
+def test_toc_content_kind_suggests_toc_specific_remediation() -> None:
+    from njit_auditor.p011_margin_presentation import (
+        infer_margin_content_kind,
+        margin_suggested_fix,
+    )
+
+    assert infer_margin_content_kind("table_of_contents", []) == "toc_entry"
+    fix = margin_suggested_fix(
+        page_context="table_of_contents", content_kind="toc_entry", side_label="right margin"
+    ).lower()
+    assert "tab stop" in fix or "dot leader" in fix
+    assert "indentation" in fix or "entry" in fix
+    assert "line spacing" not in fix
+
+
+def test_unknown_generic_content_gets_safe_fallback_without_line_spacing() -> None:
+    from njit_auditor.p011_margin_presentation import margin_suggested_fix
+
+    fix = margin_suggested_fix(
+        page_context="general", content_kind="text_paragraph", side_label="right margin"
+    ).lower()
+    assert "line spacing" not in fix
+    assert "1.5 inches" in fix
+    assert "1 inch" in fix
+
+
+def test_approval_page_date_wording_unchanged_by_content_aware_update() -> None:
+    """The approval-page Date-label remediation is a specific, already-correct
+    fix and must not be replaced by any of the new generic/body wording."""
+    from njit_auditor.p011_margin_presentation import margin_suggested_fix
+
+    fix = margin_suggested_fix(
+        page_context="approval_page",
+        content_kind="approval_date_layout",
+        side_label="right margin",
+    )
+    assert fix == (
+        "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch. "
+        "Move the Date label and signature/date line layout left, or shorten the line, "
+        "so all approval-page content stays within the required margin."
+    )
+
+
+def test_margin_fix_content_aware_update_preserves_confidence_and_overflow(
+    tmp_path: Path,
+) -> None:
+    """Content-aware wording changes must never affect confidence, overflow
+    measurement, rule ID, or highlight targeting -- only the suggested-fix text."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((520, 130), "Table 1: crossing the right margin boundary here.", fontsize=11)
+    pdf_path = tmp_path / "table_caption_overflow.pdf"
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in run_pdf_margin_rule(model)
+        if f.details.get("issue_type") == "margin_boundary_violation"
+    ]
+    assert findings
+    finding = findings[0]
+    assert finding.rule_id == "P011"
+    assert finding.details.get("margin_content_kind") == "table_layout"
+
+    report = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+    view = build_report_view(report)
+    rendered = next(f for f in view.findings if f.rule_id == "P011")
+    assert rendered.confidence == finding.details.get("confidence")
+    assert "table" in rendered.suggested_fix.lower()
+
+    boxes = parse_highlight_bboxes_from_details(
+        finding.details, rule_id="P011", issue_type="margin_boundary_violation"
+    )
+    assert boxes, "table-specific wording must not remove highlight targeting"
+
+
 def test_off_center_margin_pdf_stores_page_context_and_highlight_bboxes(tmp_path: Path) -> None:
     pdf_path = tmp_path / "margin_two_lines.pdf"
     doc = fitz.open()
