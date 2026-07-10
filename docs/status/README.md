@@ -19,6 +19,7 @@
 | Repository polish inventory (baseline, cleanup issues, recommended sequence) | [repo_polish_inventory.md](repo_polish_inventory.md) |
 | Ester Q → P → public rule cards | [ester_q_p_rule_public_rule_mapping.md](ester_q_p_rule_public_rule_mapping.md) |
 | Live server deploy / verify | [live_deployment_checklist.md](live_deployment_checklist.md) |
+| Validated high-confidence warning examples (manual review, no change needed) | [high_confidence_warning_review_validated_examples.md](high_confidence_warning_review_validated_examples.md) |
 | Evaluation data index | [evaluation_data_manifest.md](evaluation_data_manifest.md) |
 | Data inventory | [data_inventory_and_evaluation_sources.md](data_inventory_and_evaluation_sources.md) |
 
