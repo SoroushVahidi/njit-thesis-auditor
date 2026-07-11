@@ -172,14 +172,21 @@ def test_ester_sample_b_p015_mid_paragraph_false_positives_resolved() -> None:
 
 
 def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
-    """P015 no longer fires on Sample B page 23 (mid-paragraph sentence, Ester false positive).
+    """P015's page-23 same-baseline-fragment false positive stays fixed.
 
-    Page 23's false positive had a different root cause than pages 24/26/27/38:
+    Page 23's original false positive had a layout-extraction root cause:
     text extraction split one visual line into two same-baseline fragments,
     which fooled paragraph grouping into treating the next real line as a new
-    (unindented) paragraph. See ``_merge_same_row_fragments`` in
-    src/njit_auditor/rules/pdf_indentation.py and
-    docs/status/ester_sample_b_p015_page23.md.
+    (unindented) paragraph, reported as ``missing_later_indent``. See
+    ``_merge_same_row_fragments`` in src/njit_auditor/rules/pdf_indentation.py
+    and docs/status/ester_sample_b_p015_page23.md. That specific defect must
+    not reappear.
+
+    A separate, genuine ``unexpected_indent_on_continuation_line`` finding on
+    the page (an indented "where ..." clause continuing the sentence before a
+    displayed equation, matching Ester's own "delete indent" annotation there)
+    is expected and is not the same defect -- see
+    docs/status/sample_b_annotation_ground_truth_forensics_20260710.md.
     """
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
@@ -187,10 +194,14 @@ def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
 
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
-    p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
+    page_23_issue_types = {
+        f.issue_type for f in view.findings if f.rule_id == "P015" and f.page == 23
+    }
 
-    assert 23 not in p015_pages
+    assert "missing_later_indent" not in page_23_issue_types
+    assert page_23_issue_types == {"unexpected_indent_on_continuation_line"}
     # Page 34 is a separate, unconfirmed residual finding untouched by this fix.
+    p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
     assert 34 in p015_pages
 
 

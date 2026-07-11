@@ -146,13 +146,8 @@ def test_p015_atomic_public_cards_have_ester_body_wording(web_client) -> None:
 
 def test_public_mapping_splits_p015_issue_types(web_client) -> None:
     _, wa = web_client
-    assert (
-        wa._public_rule_reference_id("P015", issue_type="unexpected_opening_indent")
-        == "P015A"
-    )
-    assert (
-        wa._public_rule_reference_id("P015", issue_type="missing_later_indent") == "P015B"
-    )
+    assert wa._public_rule_reference_id("P015", issue_type="unexpected_opening_indent") == "P015A"
+    assert wa._public_rule_reference_id("P015", issue_type="missing_later_indent") == "P015B"
 
 
 def test_p015b_flags_missing_later_indent_on_body_page() -> None:
@@ -195,7 +190,76 @@ def test_p015a_not_flagged_for_flush_left_opening_after_heading(tmp_path: Path) 
     findings = [
         f
         for f in check_pdf_indentation(model)
+        if f.rule_id == "P015" and f.details.get("issue_type") == "unexpected_opening_indent"
+    ]
+    assert not findings
+
+
+def test_p015_flags_unexpected_indent_on_equation_continuation_line() -> None:
+    """A "where ..."-style clause continuing the sentence before a displayed
+
+    equation should stay flush-left; a paragraph-style indent on it is a
+    defect distinct from both P015A (opening indent) and P015B (missing
+    later indent).
+    """
+    para = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=80.0,
+            y1=92.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
         if f.rule_id == "P015"
-        and f.details.get("issue_type") == "unexpected_opening_indent"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert len(findings) == 1
+
+
+def test_p015_does_not_flag_bracketed_citation_led_paragraph_as_continuation() -> None:
+    """A genuine new sentence like "[12] explored ..." starts with a lowercase
+
+    letter right after its citation marker but is not a continuation clause,
+    so an indent on it must not trip the continuation-indent check.
+    """
+    para = [
+        _line(
+            "[12] explored alternative implicit fields for shape work.", x0=144.0, y0=80.0, y1=92.0
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
     ]
     assert not findings
