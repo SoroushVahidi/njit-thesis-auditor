@@ -1465,6 +1465,10 @@ def test_p042_wording_never_leaks_unrelated_detail_text() -> None:
 
 
 def test_p033_frontmatter_title_mismatch_is_specific_not_generic() -> None:
+    # "title_page" is the literal page_role string the P033 detector emits
+    # (see pdf_title_consistency.py's _append_candidate calls) -- it must
+    # match _P033_ROLE_LABELS' key exactly, or the label silently falls
+    # through to a generic, ungrammatical fallback (regression-tested below).
     findings = [
         AuditFinding(
             rule_id="P033",
@@ -1473,7 +1477,7 @@ def test_p033_frontmatter_title_mismatch_is_specific_not_generic() -> None:
             message="Title may not match across front-matter pages.",
             details={
                 "issue_type": "frontmatter_title_mismatch",
-                "reference_page_role": "title",
+                "reference_page_role": "title_page",
                 "mismatch_pages": "5",
                 "comparison_basis": "normalized_text_hash_and_sequence_similarity",
             },
@@ -1489,6 +1493,64 @@ def test_p033_frontmatter_title_mismatch_is_specific_not_generic() -> None:
     assert "was flagged by an automated check" not in fv.issue_type_explanation
     assert "automated formatting check" not in fv.detailed_explanation
     assert "This check (P033) found a possible" not in fv.polished_comment
+
+
+def test_p033_reference_role_matches_detector_output_not_a_stale_label_key() -> None:
+    """Regression test: _P033_ROLE_LABELS' keys must match the literal
+    page_role strings pdf_title_consistency.py actually emits. These are the
+    only three roles _collect_title_candidates ever appends (title_page,
+    abstract, approval_page) -- P033 has no "copyright_page" role, that is a
+    separate rule (P051). A stale/mismatched key silently falls through to
+    the generic fallback, producing the ungrammatical "the title on the
+    another front-matter page" and losing the one piece of location
+    evidence (which page to compare against) that makes this finding
+    actionable."""
+    for role in ("title_page", "abstract", "approval_page"):
+        findings = [
+            AuditFinding(
+                rule_id="P033",
+                severity=Severity.WARNING,
+                page=5,
+                message="Title may not match across front-matter pages.",
+                details={
+                    "issue_type": "frontmatter_title_mismatch",
+                    "reference_page_role": role,
+                    "mismatch_pages": "5",
+                    "comparison_basis": "normalized_text_hash_and_sequence_similarity",
+                },
+            )
+        ]
+        payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+        view = build_report_view(payload)
+        fv = next(f for f in view.findings if f.rule_id == "P033")
+        assert "the another" not in fv.polished_comment
+        assert "another front-matter page" not in fv.polished_comment
+
+
+def test_p033_unrecognized_reference_role_falls_back_grammatically() -> None:
+    """No real detector output currently reaches this path (only the three
+    roles above exist), but the fallback is a defensive default and must
+    still read as grammatically correct English -- "the other front-matter
+    page", not "the another front-matter page" -- if it is ever exercised."""
+    findings = [
+        AuditFinding(
+            rule_id="P033",
+            severity=Severity.WARNING,
+            page=5,
+            message="Title may not match across front-matter pages.",
+            details={
+                "issue_type": "frontmatter_title_mismatch",
+                "reference_page_role": "some_future_unrecognized_role",
+                "mismatch_pages": "5",
+                "comparison_basis": "normalized_text_hash_and_sequence_similarity",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P033")
+    assert "the another" not in fv.polished_comment
+    assert "the other front-matter page" in fv.polished_comment
 
 
 def test_p051_copyright_year_not_found_names_the_right_gap() -> None:
