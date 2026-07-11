@@ -1635,14 +1635,17 @@ def _p042_appendix_format_comment(
 
 
 _P033_ROLE_LABELS: dict[str, str] = {
-    "title": "Title Page",
+    "title_page": "Title Page",
     "abstract": "Abstract",
     "approval_page": "Approval Page",
 }
 
 
 def _p033_role_label(role: str) -> str:
-    return _P033_ROLE_LABELS.get(role, "another front-matter page")
+    # Callers always prepend "the" (e.g. "the title on the {reference_role}"),
+    # so this fallback must read naturally as "the other front-matter page",
+    # not "the another front-matter page".
+    return _P033_ROLE_LABELS.get(role, "other front-matter page")
 
 
 def _p033_frontmatter_title_comment(*, page: int | None, details: dict[str, str]) -> str:
