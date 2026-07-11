@@ -946,6 +946,46 @@ def _page_number_position_label(position_type: str) -> str:
     return labels.get(position_type, "an unexpected location")
 
 
+def _page_number_style_label(number_style: str) -> str:
+    labels = {
+        "arabic": "Arabic numerals",
+        "roman_lower": "lowercase Roman numerals",
+        "roman_upper": "uppercase Roman numerals",
+    }
+    return labels.get(number_style, "an unexpected style")
+
+
+def _format_style_transition_pages(raw: str) -> str:
+    """Parse pdf_page_numbers.py's "prevpage:prevstyle->page:style;..." detail
+    into a short, student-facing clause naming the exact transition pages,
+    e.g. "the style changes from lowercase Roman numerals (page 8) to Arabic
+    numerals (page 9)". Returns "" when the field is empty or malformed, so
+    callers can fall back to generic wording rather than show garbled text.
+    """
+    raw = raw.strip()
+    if not raw:
+        return ""
+    clauses: list[str] = []
+    for entry in raw.split(";"):
+        entry = entry.strip()
+        if not entry or "->" not in entry:
+            continue
+        left, right = entry.split("->", 1)
+        if ":" not in left or ":" not in right:
+            continue
+        prev_page, prev_style = left.split(":", 1)
+        page, style = right.split(":", 1)
+        if not (prev_page.strip().isdigit() and page.strip().isdigit()):
+            continue
+        clauses.append(
+            f"{_page_number_style_label(prev_style.strip())} (page {prev_page.strip()}) to "
+            f"{_page_number_style_label(style.strip())} (page {page.strip()})"
+        )
+    if not clauses:
+        return ""
+    return "; then ".join(clauses)
+
+
 def _problem_prefix(confidence: str) -> str:
     return "Problem" if confidence.strip().lower() == "high" else "Likely problem"
 
@@ -1423,14 +1463,39 @@ def _page_number_comment_and_fix(
                 "Update the page-numbering style for this section.",
             )
         if rule_id == "P019":
-            where = f"on page {page_label}" if page is not None else "across the document"
+            if page is not None:
+                return (
+                    "Review needed: Problem: "
+                    f"More than one page-numbering style was found on page {page_label} "
+                    f"({observed_style}), but NJIT requires one consistent style per section "
+                    f"(expected: {expected_style}). This is a broader consistency check; if a "
+                    "more specific front-matter/body style problem is also reported above for "
+                    "this page, fix that one first and re-check this warning afterward.",
+                    "Verify the numbering-style boundary between front matter and body, then "
+                    "correct any inconsistent pages.",
+                )
+            transition_clause = _format_style_transition_pages(
+                details.get("transition_pages", "")
+            )
+            if transition_clause:
+                return (
+                    "Review needed: Problem: "
+                    f"The page-numbering style changes from {transition_clause} across the "
+                    f"document, but NJIT requires one consistent style per section (expected: "
+                    f"{expected_style}). This is a broader consistency check; if a more "
+                    "specific front-matter/body style problem is also reported above for one "
+                    "of these pages, fix that one first and re-check this warning afterward.",
+                    "Verify the numbering-style boundary at the identified transition page(s), "
+                    "then correct any inconsistent pages.",
+                )
             return (
                 "Review needed: Problem: "
-                f"More than one page-numbering style was found {where} "
+                f"More than one page-numbering style was found across the document "
                 f"({observed_style}), but NJIT requires one consistent style per section "
-                f"(expected: {expected_style}). This is a broader consistency check; if a "
-                "more specific front-matter/body style problem is also reported above for "
-                "this page, fix that one first and re-check this warning afterward.",
+                f"(expected: {expected_style}). The exact transition page could not be "
+                "determined automatically. This is a broader consistency check; if a more "
+                "specific front-matter/body style problem is also reported above for a "
+                "particular page, fix that one first and re-check this warning afterward.",
                 "Verify the numbering-style boundary between front matter and body, then "
                 "correct any inconsistent pages.",
             )
@@ -1482,11 +1547,17 @@ def _page_number_comment_and_fix(
         if rule_id == "P019":
             previous_value = details.get("previous_sequence_value", "").strip()
             next_value = details.get("next_sequence_value", "").strip()
+            previous_page = details.get("previous_sequence_page", "").strip()
+            next_page = details.get("next_sequence_page", "").strip()
             neighbor_parts: list[str] = []
             if previous_value:
-                neighbor_parts.append(f"previous detected page number: {previous_value}")
+                page_clause = f" (page {previous_page})" if previous_page else ""
+                neighbor_parts.append(
+                    f"previous detected page number: {previous_value}{page_clause}"
+                )
             if next_value:
-                neighbor_parts.append(f"next detected page number: {next_value}")
+                page_clause = f" (page {next_page})" if next_page else ""
+                neighbor_parts.append(f"next detected page number: {next_value}{page_clause}")
             neighbor_clause = (
                 f" Nearby detected numbers: {'; '.join(neighbor_parts)}."
                 if neighbor_parts

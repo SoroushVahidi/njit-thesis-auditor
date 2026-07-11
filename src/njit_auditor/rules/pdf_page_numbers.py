@@ -311,6 +311,29 @@ def _format_candidate_tokens(candidates: list[PageNumberCandidate]) -> str:
     return "; ".join(f"{_position_label(c.position_type)}: {c.text}" for c in candidates)
 
 
+def _style_transition_pages(
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> list[tuple[int, str, int, str]]:
+    """Return every (previous_page, previous_style, page, new_style) point where
+    the document's primary page-number style changes from one page with a
+    plausible candidate to the next. This turns a generic "mixed styles
+    detected across the document" claim into the exact pages responsible,
+    when the underlying per-page style data already makes that identifiable.
+    """
+    per_page_style: list[tuple[int, str]] = []
+    for page in sorted(filtered_by_page):
+        primary = _primary_plausible_candidate(filtered_by_page[page])
+        if primary is None or primary.number_style == "other":
+            continue
+        per_page_style.append((page, primary.number_style))
+
+    transitions: list[tuple[int, str, int, str]] = []
+    for (prev_page, prev_style), (page, style) in zip(per_page_style, per_page_style[1:]):
+        if style != prev_style:
+            transitions.append((prev_page, prev_style, page, style))
+    return transitions
+
+
 def _primary_sequence_values(
     by_page: dict[int, list[PageNumberCandidate]],
     *,
@@ -325,21 +348,32 @@ def _primary_sequence_values(
     return values
 
 
-def _sequence_neighbor_values(
+def _sequence_neighbors(
     values_by_page: list[tuple[int, int]], page: int
-) -> tuple[str, str]:
+) -> tuple[str, str, str, str]:
+    """Return (previous_page, previous_value, next_page, next_value) as strings,
+    so wording can name the exact neighboring pages, not just their values --
+    e.g. "changed from 'viii' on page 8 to '10' on page 9" instead of only
+    naming the values with no page attached.
+    """
     sorted_items = sorted(values_by_page, key=lambda item: item[0])
+    previous_page = ""
     previous_value = ""
+    next_page = ""
     next_value = ""
     for index, (current_page, value) in enumerate(sorted_items):
         if current_page != page:
             continue
         if index > 0:
-            previous_value = str(sorted_items[index - 1][1])
+            prev_page_num, prev_val = sorted_items[index - 1]
+            previous_page = str(prev_page_num)
+            previous_value = str(prev_val)
         if index + 1 < len(sorted_items):
-            next_value = str(sorted_items[index + 1][1])
+            next_page_num, next_val = sorted_items[index + 1]
+            next_page = str(next_page_num)
+            next_value = str(next_val)
         break
-    return previous_value, next_value
+    return previous_page, previous_value, next_page, next_value
 
 
 def _candidate_confidence(candidate: PageNumberCandidate) -> str:
@@ -620,20 +654,30 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         styles = {c.number_style for c in plausible if c.number_style != "other"}
         if len(styles) > 1:
             observed_style_labels = sorted(_style_label(style) for style in styles)
+            mixed_style_details: dict[str, str] = {
+                "page_number": str(page),
+                "issue_type": "mixed_numbering_style",
+                "expected_or_context": ",".join(sorted(styles)),
+                "observed_style": ", ".join(observed_style_labels),
+                "expected_style": "one consistent page-numbering style",
+                "confidence": "medium",
+            }
+            # This page already has 2+ plausible candidates with different
+            # styles in scope (that is what triggered this finding) -- the
+            # highest-ranked one is the token most likely to be the actual
+            # printed page number, so it is the right one to highlight
+            # (mirrors the same precedent used for inconsistent_position and
+            # multiple_page_numbers above).
+            mixed_style_primary = max(plausible, key=_candidate_rank)
+            if mixed_style_primary.bbox is not None:
+                mixed_style_details["bbox"] = format_bbox_detail(mixed_style_primary.bbox)
             findings.append(
                 AuditFinding(
                     rule_id="P019",
                     severity=Severity.WARNING,
                     page=page,
                     message="Mixed page-numbering styles detected on one page.",
-                    details={
-                        "page_number": str(page),
-                        "issue_type": "mixed_numbering_style",
-                        "expected_or_context": ",".join(sorted(styles)),
-                        "observed_style": ", ".join(observed_style_labels),
-                        "expected_style": "one consistent page-numbering style",
-                        "confidence": "medium",
-                    },
+                    details=mixed_style_details,
                 )
             )
 
@@ -643,21 +687,28 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     )
     if len([s for s in style_counts if style_counts[s] > 0]) > 1:
         observed_style_labels = sorted(_style_label(style) for style in style_counts)
+        document_mixed_details: dict[str, str] = {
+            "page_number": "-",
+            "issue_type": "mixed_numbering_style",
+            "expected_or_context": ",".join(
+                f"{style}:{count}" for style, count in sorted(style_counts.items())
+            ),
+            "observed_style": ", ".join(observed_style_labels),
+            "expected_style": "one consistent page-numbering style per numbering section",
+            "confidence": "low",
+        }
+        transitions = _style_transition_pages(filtered_by_page)
+        if transitions:
+            document_mixed_details["transition_pages"] = ";".join(
+                f"{prev_page}:{prev_style}->{page:d}:{new_style}"
+                for prev_page, prev_style, page, new_style in transitions
+            )
         findings.append(
             AuditFinding(
                 rule_id="P019",
                 severity=Severity.WARNING,
                 message="Mixed numbering styles detected across candidate page-number regions.",
-                details={
-                    "page_number": "-",
-                    "issue_type": "mixed_numbering_style",
-                    "expected_or_context": ",".join(
-                        f"{style}:{count}" for style, count in sorted(style_counts.items())
-                    ),
-                    "observed_style": ", ".join(observed_style_labels),
-                    "expected_style": "one consistent page-numbering style per numbering section",
-                    "confidence": "low",
-                },
+                details=document_mixed_details,
             )
         )
 
@@ -669,7 +720,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             expected <= MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER
             and actual <= MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER
         ):
-            previous_value, next_value = _sequence_neighbor_values(arabic_values, page)
+            previous_page, previous_value, next_page, next_value = _sequence_neighbors(
+                arabic_values, page
+            )
             sequence_details: dict[str, str] = {
                 "page_number": str(page),
                 "issue_type": "sequence_gap",
@@ -678,6 +731,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 "expected_sequence": str(expected),
                 "previous_sequence_value": previous_value,
                 "next_sequence_value": next_value,
+                "previous_sequence_page": previous_page,
+                "next_sequence_page": next_page,
                 "sequence_confidence": "medium",
                 "confidence": "medium",
             }
@@ -698,24 +753,32 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     roman_gap = _find_sequence_gap(roman_values)
     if roman_gap:
         page, expected, actual = roman_gap
-        previous_value, next_value = _sequence_neighbor_values(roman_values, page)
+        previous_page, previous_value, next_page, next_value = _sequence_neighbors(
+            roman_values, page
+        )
+        roman_sequence_details: dict[str, str] = {
+            "page_number": str(page),
+            "issue_type": "sequence_gap",
+            "expected_or_context": f"expected={expected},actual={actual},style=roman_lower",
+            "observed_sequence": str(actual),
+            "expected_sequence": str(expected),
+            "previous_sequence_value": previous_value,
+            "next_sequence_value": next_value,
+            "previous_sequence_page": previous_page,
+            "next_sequence_page": next_page,
+            "sequence_confidence": "medium",
+            "confidence": "medium",
+        }
+        roman_primary = _primary_plausible_candidate(by_page.get(page, []))
+        if roman_primary is not None and roman_primary.bbox is not None:
+            roman_sequence_details["bbox"] = format_bbox_detail(roman_primary.bbox)
         findings.append(
             AuditFinding(
                 rule_id="P019",
                 severity=Severity.WARNING,
                 page=page,
                 message="Roman page-number candidate sequence shows an obvious gap/break.",
-                details={
-                    "page_number": str(page),
-                    "issue_type": "sequence_gap",
-                    "expected_or_context": f"expected={expected},actual={actual},style=roman_lower",
-                    "observed_sequence": str(actual),
-                    "expected_sequence": str(expected),
-                    "previous_sequence_value": previous_value,
-                    "next_sequence_value": next_value,
-                    "sequence_confidence": "medium",
-                    "confidence": "medium",
-                },
+                details=roman_sequence_details,
             )
         )
 
