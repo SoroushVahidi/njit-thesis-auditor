@@ -1789,6 +1789,7 @@ def _apply_page_number_presentation(
         detailed_explanation = _page_number_detail_text(
             visible_issue_type, page=finding.page
         )
+    no_highlight_reason = finding.no_highlight_reason
     if not finding.has_highlight and finding.page is not None:
         guidance = build_no_highlight_guidance(
             rule_id=finding.rule_id,
@@ -1801,6 +1802,18 @@ def _apply_page_number_presentation(
             f"{detailed_explanation} "
             f"{guidance}"
         )
+    elif not finding.has_highlight and finding.page is None:
+        # location_label was just recomputed above (often richer than what was
+        # known when no_highlight_reason was first built) -- refresh it too, or
+        # it can still claim "no location" right under a location that IS shown.
+        no_highlight_reason = get_no_highlight_reason(
+            has_highlight=finding.has_highlight,
+            page=finding.page,
+            rule_id=finding.rule_id,
+            issue_type=visible_issue_type,
+            details=dict(details),
+            location_label=location_label,
+        )
     return (
         replace(
             finding,
@@ -1811,6 +1824,7 @@ def _apply_page_number_presentation(
             suggested_fix=suggested_fix,
             detailed_explanation=detailed_explanation,
             location_label=location_label,
+            no_highlight_reason=no_highlight_reason,
         ),
         is_problem,
     )

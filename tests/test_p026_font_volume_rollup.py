@@ -78,6 +78,27 @@ def test_high_volume_same_pattern_collapses_to_one_document_card() -> None:
     assert cards[0].has_highlight is False
 
 
+def test_high_volume_no_highlight_reason_lists_affected_pages() -> None:
+    """The no-highlight text must not tell a student to "review every affected
+    page" without actually naming them -- same wording defect Ester flagged
+    on the P012 document-wide summary, present here in the parallel P026
+    document-wide summary too.
+    """
+    findings = [
+        _p026_family_finding(page=i)
+        for i in range(1, P026_DOCUMENT_SUMMARY_MIN_AFFECTED_PAGES + 1)
+    ]
+    view = build_report_view(_payload(findings))
+    card = [f for f in view.findings if f.rule_id == "P026"][0]
+    reason = card.no_highlight_reason or ""
+    assert "listed in the summary" not in reason.lower()
+
+    from njit_auditor.report_outputs import compact_page_list
+
+    pages = sorted({f.page for f in findings if f.page is not None})
+    assert compact_page_list(pages) in reason
+
+
 def test_distinct_font_patterns_remain_separate() -> None:
     findings = [
         _p026_family_finding(page=1, observed_summary="CMR12"),

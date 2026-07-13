@@ -313,7 +313,7 @@ def p012_document_no_highlight_reason(stats: P012PresentationStats) -> str:
     return (
         "No exact highlight is available for this document-wide annotation summary. "
         f"Open page {stats.representative_page} as a representative starting point, "
-        "then review every affected page listed in the summary."
+        f"then review the affected pages: {stats.pages_compact}."
     )
 
 
