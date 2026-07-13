@@ -22,6 +22,7 @@
 | Validated high-confidence warning examples (manual review, no change needed) | [high_confidence_warning_review_validated_examples.md](high_confidence_warning_review_validated_examples.md) |
 | Evaluation data index | [evaluation_data_manifest.md](evaluation_data_manifest.md) |
 | Data inventory | [data_inventory_and_evaluation_sources.md](data_inventory_and_evaluation_sources.md) |
+| Overnight Esther correctness pass (adopted 5 stalled PRs: P015/P026/P011/P033) | [overnight_esther_correctness_20260712.md](overnight_esther_correctness_20260712.md) |
 
 Older dated audits below the "Historical" sections in `current_project_state_and_next_steps.md`
 are preserved for milestone context — they are **not** current status.

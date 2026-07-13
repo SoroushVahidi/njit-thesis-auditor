@@ -7,9 +7,58 @@
 > [live deployment checklist](live_deployment_checklist.md) ·
 > [evaluation data manifest](evaluation_data_manifest.md)
 
-## Current Status — 2026-07-06, #25 (Sample A correctness alignment)
+## Current Status — 2026-07-12/13, #26 (overnight Esther correctness pass — adopted 5 stalled PRs)
 
 This section is the authoritative current snapshot. Everything below it is preserved as historical context.
+
+- **Code baseline `main`:** `8e6ad430449195577fc84ef93c1fc864d1e078c7` at pass start (PR #503);
+  pending merge of this pass's PR.
+- **Live server:** untouched throughout — no restart, no port-8000 access.
+- **Open PR count:** 6 at pass start; 5 adopted (cherry-picked, not GitHub-merged) into this pass's
+  branch, 1 (#483) found superseded by already-merged `main` content and skipped.
+- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2788 passed** (2742 baseline
+  + 46 tests carried in by the 5 adopted commits).
+- **Full report:** [`overnight_esther_correctness_20260712.md`](overnight_esther_correctness_20260712.md).
+
+### Overnight Esther correctness pass (2026-07-12/13)
+
+Rather than re-investigating rules from scratch, this pass first triaged the 6 open PRs left by
+prior sessions (all created 2026-07-08 through 2026-07-11, each already root-caused and tested)
+and found 5 of them mergeable-clean against current `main` with zero conflicts:
+
+- **#504** P015 continuation-line indentation gap fix + Sample B annotation forensics (proved zero
+  cross-contamination from Esther's native PDF annotations into any non-P012 rule).
+- **#494** P026 font false-positive fix (Approval Page committee-signature block no longer measured
+  against body-font size, via the same concatenated-heading recognition P038 already used).
+- **#499** P011 remediation made content-aware (references/body/tables/figures/listings/TOC/
+  approval-page get distinct, correct suggested fixes; no detector/confidence/highlight change).
+- **#500** P011 precision/false-negative audit — docs + regression tests only; found no detector
+  defect requiring a code change.
+- **#502** P033 page-role wording fix (`title_page` vs. `title` key mismatch) + a new offline
+  diagnostic-only duplicate-candidate-warning analysis tool (not wired into the web UI).
+- **#483** (Sample B feedback audit doc) found superseded by already-merged `main` content —
+  skipped, not adopted.
+
+**Sample A/B/C/D before/after (fresh replay this pass):** Sample A and D unchanged (23 and 210
+visible findings respectively — no regression). Sample B: 35 → 39 visible (+5 P015 true positives,
+−1 P026 false positive). Sample C (same document family as B): 34 → 38, same delta shape.
+
+**PDF-link crawl (in-process `TestClient`, no server, no port):** Sample A 22/22, Sample B 38/38,
+Sample D 149/149 links returned 200 + `application/pdf` + `%PDF` body — zero failures.
+
+**Anti-overfitting check:** zero sample/filename/author-specific conditionals in any touched
+runtime `src/` file (one diagnostic-only script loop over sample IDs, outside `src/`, is exempt).
+
+**Deferred to Esther's judgment (not guessed at):** P011 footer-zone body-text policy (Sample A
+8-page cluster), P011 non-text-element (image/drawing) margin coverage, 6 unreviewed Sample B
+medium-confidence P011 pages, and a possible new TOC-entry sentence-case rule. Full list in the
+dedicated report.
+
+**Repo cleanup note:** the 5 source PR branches for the adopted commits, plus #483, are now
+superseded and can be closed once this pass's PR is reviewed — not actioned in this pass (out of
+scope; flagged for the next maintenance pass).
+
+## Historical — 2026-07-06, #25 (Sample A correctness alignment)
 
 - **Code baseline `main`:** `f323b57380865a94cb0e59de514335aa8a25eb5b` at pass start; pending merge of this pass's PR.
 - **Live server:** `f323b57380865a94cb0e59de514335aa8a25eb5b` — **untouched during this pass**.
