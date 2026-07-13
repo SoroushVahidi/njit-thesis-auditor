@@ -124,14 +124,56 @@ was never needed for anything except the leak itself.
    before committing — found only negative (`not in`) assertions and comment references, so no
    other test needed updating.
 
+## 3c. Second new fix, found via automated PR review: P015 mixed-case-led false positive
+
+After pushing the PR, the repository's automated review bot (`chatgpt-codex-connector`) flagged a
+real, general false-positive risk in the adopted P015 continuation-line code (§3, from PR #504):
+`_paragraph_starts_like_continuation()` treated **any** paragraph whose first letter is lowercase as
+a candidate continuation clause, based only on that one letter. A genuine new, correctly indented
+paragraph that happens to open with a lowercase-led mixed-case scientific term or brand name (the
+bot's examples: "pH", "mRNA", "eBay") would satisfy this and get incorrectly flagged as
+`unexpected_indent_on_continuation_line`, telling the student to remove a correct indent.
+
+**Investigated and confirmed real** (not merely plausible): reproduced with a synthetic paragraph
+opening "pH values were recorded..." at a normal first-line indent — flagged as a false positive
+before the fix.
+
+**Fix:** `_paragraph_starts_like_continuation()` (`src/njit_auditor/rules/pdf_indentation.py`) now
+also requires the first word have **no internal uppercase letter** — "where"/"which"/"since" (common
+all-lowercase connector words that genuinely start continuation clauses) still qualify; "pH"/"mRNA"/
+"eBay" (mixed-case terms that start genuine new sentences) no longer do. This one helper is shared by
+three call sites (the new continuation-indent flag, and two pre-existing "missing indent" exemption
+checks), so the fix is general, not scoped only to the newest branch.
+
+**Measured real-data impact (Sample B/C, same document family; privacy-safe page+issue_type+
+confidence diff, no body text):**
+
+| Page | Before | After |
+|------|--------|-------|
+| 37 | `unexpected_indent_on_continuation_line` (medium) | *(removed — was a false positive)* |
+| 87 | `unexpected_indent_on_continuation_line` (medium) | *(removed — was a false positive)* |
+| 46 | *(not flagged — wrongly exempted)* | `missing_later_indent` (high) — genuine true positive newly surfaced |
+| 79 | *(not flagged — wrongly exempted)* | `missing_later_indent` (high) — genuine true positive newly surfaced |
+
+Net visible P015 count on Sample B/C is unchanged (6) because 2 false positives were removed and 2
+previously-suppressed genuine true positives (a pre-existing, already-tested, unrelated check that
+had been incorrectly bypassed for these paragraphs) were simultaneously surfaced — a real quality
+improvement the raw count alone does not show. Sample A and Sample D counts are unchanged (no
+paragraphs in those documents hit this heuristic).
+
+**Validation:** 3 new parametrized regression tests (`pH`/`mRNA`/`eBay` openers) in
+`tests/test_p015_body_indent_ester_split.py`, confirmed to fail pre-fix (reproduced the bot's exact
+concern) and pass post-fix. Targeted P015 + Sample A/B baseline modules re-run clean; full suite
+**2797 passed**; `ruff check .` / `mypy src` clean.
+
 ## 4. Validation (this session)
 
 - `ruff check .` — **clean** (0 issues).
 - `mypy src/njit_auditor` — **clean**, "Success: no issues found in 108 source files".
 - `python -m pytest -q tests` (with `PYTHONPATH=<worktree>/src` per the documented venv-pinning
-  quirk) — **2794 passed**, 0 failed, 3 warnings (pre-existing deprecation warnings, unrelated to
-  this pass), ~100s. That is baseline 2742 + 46 tests from the five adopted commits + 6 new tests
-  from the rule_id-leak fix (§3b).
+  quirk) — **2797 passed**, 0 failed, 3 warnings (pre-existing deprecation warnings, unrelated to
+  this pass), ~100s. That is baseline 2742 + 46 tests from the five adopted commits + 6 tests from
+  the rule_id-leak fix (§3b) + 3 tests from the P015 mixed-case-led fix (§3c).
 - Anti-overfitting grep: `git diff 8e6ad43..HEAD -- src/ scripts/` searched for sample/filename/
   author-name-specific conditionals. The only hit is a loop over `("ester_sample_a",
   "ester_sample_b")` inside `scripts/p011_overnight_inventory.py`, which is a standalone offline

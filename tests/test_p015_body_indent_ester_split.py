@@ -263,3 +263,46 @@ def test_p015_does_not_flag_bracketed_citation_led_paragraph_as_continuation() -
         and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
     ]
     assert not findings
+
+
+@pytest.mark.parametrize(
+    "opening_phrase",
+    [
+        "pH values were recorded across each trial for this test analysis.",
+        "mRNA expression levels varied significantly across the samples tested.",
+        "eBay listings were used as the primary data source for this test case.",
+    ],
+)
+def test_p015_does_not_flag_mixed_case_led_new_paragraph_as_continuation(
+    opening_phrase: str,
+) -> None:
+    """A genuine new, correctly indented paragraph that happens to open with a
+    lowercase-led mixed-case scientific term or brand name (pH, mRNA, eBay)
+    must not be mistaken for a continuation clause like "where q denotes ..."
+    just because its very first letter is lowercase -- the internal uppercase
+    letter is the general signal that this is a term/proper noun starting a
+    fresh sentence, not a common all-lowercase connector word.
+    """
+    para = [
+        _line(opening_phrase, x0=144.0, y0=80.0, y1=92.0),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert not findings
