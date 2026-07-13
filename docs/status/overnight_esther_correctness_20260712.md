@@ -83,14 +83,55 @@ unchanged; only P015 raw count rose 1→6 and P026 raw count fell 1→0). No oth
 on any sample. This matches, and independently re-confirms, the counts each adopted PR's own body
 claimed.
 
+## 3b. New fix found and implemented this session: raw rule_id leak in the generic fallback
+
+After adopting the five PRs above, a fresh, independent grep/trace audit (Phase 4 item 1 — internal
+`P###` identifiers leaking into student-visible text) found a genuine, previously-unreported gap:
+`build_polished_comment()`'s final catch-all fallback in `src/njit_auditor/polished_comments.py`
+(reached whenever a `(rule_id, issue_type)` pair has no entry in `_ISSUE_TEMPLATES` or
+`_RULE_FALLBACKS`) interpolated the raw internal `rule_id` directly into the sentence that becomes
+`FindingView.polished_comment` — rendered as visible prose by `job.html` and `problem_group.html`
+(e.g. `"This check (P065) found a possible dedication text not centered issue on page 7."`).
+
+At the time of the audit, **P057, P059, P062, P065, and P078** — all live, default-enabled
+detectors (not experimental-gated in `audit_runner.py`) — had zero coverage in either dict and so
+always hit this path in production. The project already had an established convention (multiple
+existing tests assert `"This check (" not in polished_comment` for *specific* rule/issue pairs) that
+this exact generic path had never been checked against.
+
+**Fix:** `src/njit_auditor/polished_comments.py` — replaced `f"This check ({rule_id}) found a
+possible..."` with `f"This formatting check found a possible..."` in both fallback branches (source-
+rule and PDF-rule). Two lines changed; no rule ID, threshold, confidence, or detection logic
+touched — purely removes the internal identifier from the visible sentence. `_finish_comment`
+already discarded `rule_id`/`issue_type` for this branch (`_ = rule_id`), confirming the identifier
+was never needed for anything except the leak itself.
+
+**Validation discipline followed:**
+1. Added `test_generic_fallback_never_leaks_raw_rule_id` (parametrized over the 5 confirmed-affected
+   rule IDs) and `test_generic_fallback_never_leaks_raw_rule_id_for_any_unmapped_id` (a synthetic
+   `P999` id, proving the fallback is safe by construction for any future uncovered rule, not just
+   the 5 found) in `tests/test_feedback_clarity_wording.py`.
+2. Confirmed both new tests **fail** against the pre-fix code (`git stash` of just the source file,
+   rerun, all 6 fail with the exact leaked substring in the assertion error; `git stash pop`
+   restored the fix) — a real red/green demonstration, not just static reasoning.
+3. Found and fixed one pre-existing stale test, `test_polished_comment_fallback_unknown_rule` in
+   `tests/test_report_view.py`, which had asserted `"P999" in comment` — i.e. it had encoded the
+   leak itself as expected behavior. Updated to assert the opposite, with a comment cross-
+   referencing the new regression tests.
+4. Full suite re-run after both changes: **2794 passed**, 0 failed. `ruff check .` and
+   `mypy src/njit_auditor` both clean.
+5. Grepped the whole test suite for any *positive* assertion of the old `"This check ("` wording
+   before committing — found only negative (`not in`) assertions and comment references, so no
+   other test needed updating.
+
 ## 4. Validation (this session)
 
 - `ruff check .` — **clean** (0 issues).
 - `mypy src/njit_auditor` — **clean**, "Success: no issues found in 108 source files".
 - `python -m pytest -q tests` (with `PYTHONPATH=<worktree>/src` per the documented venv-pinning
-  quirk) — **2788 passed**, 0 failed, 3 warnings (pre-existing deprecation warnings, unrelated to
-  this pass), ~100s. That is baseline 2742 + 46 new/updated tests carried in by the five adopted
-  commits.
+  quirk) — **2794 passed**, 0 failed, 3 warnings (pre-existing deprecation warnings, unrelated to
+  this pass), ~100s. That is baseline 2742 + 46 tests from the five adopted commits + 6 new tests
+  from the rule_id-leak fix (§3b).
 - Anti-overfitting grep: `git diff 8e6ad43..HEAD -- src/ scripts/` searched for sample/filename/
   author-name-specific conditionals. The only hit is a loop over `("ester_sample_a",
   "ester_sample_b")` inside `scripts/p011_overnight_inventory.py`, which is a standalone offline

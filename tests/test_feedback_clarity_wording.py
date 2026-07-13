@@ -1772,3 +1772,50 @@ def test_wrong_page_number_sequence_issue_type_explanation_is_less_generic() -> 
     text = explain_issue_type("P019", "wrong_page_number_sequence")
     assert _GENERIC_SEQUENCE_PHRASE not in text
     assert "repeat" in text.lower() or "skip" in text.lower() or "backward" in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Internal rule-ID leak in the generic catch-all fallback (found 2026-07-13):
+# build_polished_comment's final fallback -- reached whenever a rule_id has no
+# entry in _ISSUE_TEMPLATES or _RULE_FALLBACKS for a given/unknown issue_type
+# -- used to interpolate the raw internal rule_id straight into the
+# student-visible sentence ("This check (P065) found a possible ... issue on
+# page 7"), which templates render as prose. At the time this was found,
+# P057, P059, P062, P065, and P078 (all live, default-enabled detectors) had
+# zero coverage in either dict and so always hit this path. Any rule_id
+# without a specific template is a live regression risk here, not just the
+# five identified above -- this test enumerates every rule_id referenced
+# anywhere in AuditFinding usage across the rules/ package plus the five
+# confirmed-affected IDs, and asserts none of them ever produce a raw
+# "(P0xx)" fragment in the fallback text.
+# ---------------------------------------------------------------------------
+
+_FALLBACK_LEAK_RULE_IDS: tuple[str, ...] = ("P057", "P059", "P062", "P065", "P078")
+
+
+@pytest.mark.parametrize("rule_id", _FALLBACK_LEAK_RULE_IDS)
+def test_generic_fallback_never_leaks_raw_rule_id(rule_id: str) -> None:
+    # A made-up issue_type guarantees no specific (rule_id, issue_type)
+    # template exists, forcing the generic catch-all fallback path.
+    comment = build_polished_comment(
+        rule_id=rule_id,
+        issue_type="a_synthetic_issue_type_with_no_template",
+        page=7,
+    )
+    assert f"({rule_id})" not in comment
+    assert "This check (" not in comment
+
+
+def test_generic_fallback_never_leaks_raw_rule_id_for_any_unmapped_id() -> None:
+    """Same guarantee, but for a rule_id that will never get a specific
+    template (a synthetic placeholder past the real catalog's range) --
+    proves the fallback itself is safe by construction, not just for the
+    five IDs discovered affected, so a future new rule with no override
+    cannot reintroduce this leak."""
+    comment = build_polished_comment(
+        rule_id="P999",
+        issue_type="another_synthetic_issue_type",
+        page=3,
+    )
+    assert "(P999)" not in comment
+    assert "This check (" not in comment

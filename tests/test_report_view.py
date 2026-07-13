@@ -1497,7 +1497,11 @@ def test_polished_comment_fallback_unknown_rule() -> None:
         page=1,
         details={},
     )
-    assert "P999" in comment
+    # The internal rule_id must never leak into this student-visible sentence
+    # (see tests/test_feedback_clarity_wording.py's
+    # test_generic_fallback_never_leaks_raw_rule_id* regression tests for the
+    # 2026-07-13 fix). The fallback must still be a real, non-empty comment.
+    assert "P999" not in comment
     assert "Review needed" in comment
 
 

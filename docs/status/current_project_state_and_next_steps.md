@@ -16,8 +16,14 @@ This section is the authoritative current snapshot. Everything below it is prese
 - **Live server:** untouched throughout — no restart, no port-8000 access.
 - **Open PR count:** 6 at pass start; 5 adopted (cherry-picked, not GitHub-merged) into this pass's
   branch, 1 (#483) found superseded by already-merged `main` content and skipped.
-- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2788 passed** (2742 baseline
-  + 46 tests carried in by the 5 adopted commits).
+- **Validation:** `ruff check .` / `mypy src` / `python -m pytest` — **2794 passed** (2742 baseline
+  + 46 tests from the 5 adopted commits + 6 new tests from a rule_id-leak fix found this pass).
+- **New fix this pass (not from an adopted PR):** `polished_comments.py`'s generic fallback leaked
+  the raw internal `rule_id` (e.g. `P065`) into student-visible text for any rule/issue-type pair
+  with no specific template — live for P057/P059/P062/P065/P078 at time of discovery. Fixed (2-line
+  change, no detector/threshold/rule-ID logic touched) with 6 new regression tests; confirmed to
+  fail pre-fix, pass post-fix; also fixed one pre-existing stale test that had encoded the leak as
+  expected behavior.
 - **Full report:** [`overnight_esther_correctness_20260712.md`](overnight_esther_correctness_20260712.md).
 
 ### Overnight Esther correctness pass (2026-07-12/13)
