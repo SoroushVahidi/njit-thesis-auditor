@@ -61,7 +61,7 @@ Both connectors work; verified with read-only calls in this exact session.
   dissertation formatting)")` returned zero matches, so a broader sanity
   query (`in:inbox`) was run and returned real results (201 threads),
   confirming the connector itself works and the first query was simply too
-  narrow. A targeted `from:ester.flaim@njit.edu` search then returned 24
+  narrow. A targeted from-Ester search then returned 24
   real threads spanning 2026-06-22 through 2026-07-13, including "Feedback
   on the latest version of the thesis/dissertation auditor" (2026-07-06,
   the thread where Ester attached Sample B feedback) and live
