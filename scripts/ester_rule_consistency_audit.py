@@ -279,6 +279,8 @@ def _load_public_catalog() -> dict[str, dict[str, Any]]:
                 {
                     "id": rid,
                     "parent_rule_id": rid[:-1],
+                    "question": rule.get("question", ""),
+                    "remediation": rule.get("remediation", ""),
                     "issue_types": tuple(rule.get("issue_types", []) or []),
                     "source_q_rule_ids": tuple(rule.get("source_q_rule_ids", []) or []),
                 },
@@ -732,9 +734,12 @@ def classify_q_rule(
     if status == "manual_review_only":
         return "manual review only", detector, coverage.manual_review_reason or ""
     if status == "partial":
-        return "partially implemented", detector, coverage.gap_reason or ""
-    if status == "implemented" and coverage.coverage_confidence in {"low", "diagnostic"}:
-        return "partially implemented", detector, coverage.gap_reason or ""
+        return "partially implemented", detector, getattr(coverage, "gap_reason", "") or ""
+    if status == "implemented" and getattr(coverage, "coverage_confidence", None) in {
+        "low",
+        "diagnostic",
+    }:
+        return "partially implemented", detector, getattr(coverage, "gap_reason", "") or ""
     if not detector:
         return "missing", "", "No P-rule mapping in catalog notes."
 
