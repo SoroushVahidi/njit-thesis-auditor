@@ -35,8 +35,17 @@ def test_rule_id_mapping() -> None:
     assert map_finding_rule_to_category("P031") == "list_of_tables_figures_toc"
     assert map_finding_rule_to_category("P032") == "list_of_tables_figures_toc"
     assert map_finding_rule_to_category("P033") == "title_page_metadata"
-    assert map_finding_rule_to_category("P034") == "title_page_metadata"
+    # P034 (Copyright Page header/match), P051 (copyright year), and P052 (copyright
+    # owner name) all describe findings on the Copyright Page, not the Title Page --
+    # Ester flagged P051 as mislabeled "Title Page" in both Sample A and Sample B
+    # feedback; P034/P052 had the identical copy-paste category bug and were never
+    # swept when P051 was fixed (commit cc4d86c).
+    assert map_finding_rule_to_category("P034") == "copyright_page_metadata"
     assert map_finding_rule_to_category("P051") == "copyright_page_metadata"
+    assert map_finding_rule_to_category("P052") == "copyright_page_metadata"
+    # P041 (Dedication Page header) has nothing to do with the Title Page; its sibling
+    # rule P065 (dedication text centering/italics) already uses frontmatter_structure.
+    assert map_finding_rule_to_category("P041") == "frontmatter_structure"
     assert map_finding_rule_to_category("P035", {"float_type": "table"}) == "table_format"
     assert map_finding_rule_to_category("P035", {"float_type": "figure"}) == "figure_format"
     assert map_finding_rule_to_category("P036", {}) == "list_of_tables_figures_toc"
