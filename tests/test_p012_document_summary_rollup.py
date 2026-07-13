@@ -164,6 +164,25 @@ def test_document_summary_representative_page_action_wording() -> None:
     assert card.action_label is not None
 
 
+def test_document_summary_no_highlight_reason_lists_affected_pages() -> None:
+    """The no-highlight text must not tell a student to "review every affected
+    page" without actually naming them (Ester: "We cannot ask students to
+    review 'affected pages' without providing the pages.").
+    """
+    findings = _high_volume_findings()
+    view = build_report_view(_payload(findings))
+    card = [f for f in view.findings if f.rule_id == "P012"][0]
+    reason = card.no_highlight_reason or ""
+    assert "listed in the summary" not in reason.lower()
+    # Same compact page-range text used in the rolled-up comment must also
+    # appear in the no-highlight reason.
+    assert card.polished_comment or card.detailed_explanation
+    from njit_auditor.report_outputs import compact_page_list
+
+    pages = sorted({f.page for f in findings if f.page is not None})
+    assert compact_page_list(pages) in reason
+
+
 def test_document_summary_page_is_none_not_representative_page() -> None:
     """Document-wide P012 card must have page=None, not the first affected page."""
     findings = _high_volume_findings()
