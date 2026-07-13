@@ -32,6 +32,11 @@ _NO_HIGHLIGHT_DOC_REASON = (
     "This finding is document-level and does not correspond to a specific page or visual location."
 )
 
+_NO_HIGHLIGHT_DOC_REASON_WITH_LOCATION = (
+    "This finding has no specific PDF page or on-page highlight, but it does apply to a "
+    "specific part of the document -- see the location above."
+)
+
 
 def get_action_kind(*, has_highlight: bool, page: int | None) -> str:
     """Return the action kind for a finding.
@@ -130,6 +135,8 @@ def build_no_highlight_guidance(
 ) -> str:
     """Return a precise student-facing fallback when no exact highlight exists."""
     if page is None:
+        if location_label.strip():
+            return _NO_HIGHLIGHT_DOC_REASON_WITH_LOCATION
         return _NO_HIGHLIGHT_DOC_REASON
     location = _location_phrase(page=page, location_label=location_label, details=details)
     target = _inspection_target(rule_id, issue_type, details)

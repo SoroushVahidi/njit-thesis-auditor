@@ -117,7 +117,32 @@ def test_p038_required_heading_missing_remains_student_visible() -> None:
         "Front matter — required heading missing: TABLE OF CONTENTS"
     )
     assert view.findings[0].has_highlight is False
-    assert "document-level" in view.findings[0].no_highlight_reason.lower()
+    # Ester (Sample B feedback, P038 Problem 43): the boilerplate "does not
+    # correspond to a specific page or visual location" is incorrect once a
+    # location IS given (here, the front-matter section name) -- don't repeat
+    # the location text again, but don't deny it exists either.
+    reason = view.findings[0].no_highlight_reason.lower()
+    assert "does not correspond to a specific page or visual location" not in reason
+    assert "no specific pdf page" in reason
+
+
+def test_no_highlight_guidance_still_claims_no_location_when_none_is_known() -> None:
+    """A genuinely locationless document-level finding (e.g. P021 word count)
+    must keep the original generic wording -- only findings that DO carry a
+    location_label get the corrected sentence.
+    """
+    finding = AuditFinding(
+        rule_id="P021",
+        severity=Severity.WARNING,
+        message="Abstract word count exceeded.",
+        details={"word_count": "420", "limit": "350"},
+    )
+    view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
+    assert view.findings[0].location_label == ""
+    assert (
+        "does not correspond to a specific page or visual location"
+        in view.findings[0].no_highlight_reason.lower()
+    )
 
 
 def test_ester_sample_a_json_export_schema_unchanged() -> None:
@@ -365,7 +390,12 @@ def test_ester_sample_b_p019_document_level_finding_still_surfaced_honestly() ->
     assert doc_level, "expected the document-level P019 mixed-numbering finding to remain"
     for f in doc_level:
         assert f.has_highlight is False
-        assert "document-level" in f.no_highlight_reason.lower()
+        # A location IS given (document-wide mixed-numbering description), so
+        # the reason must not claim there is no location -- see Ester's Sample
+        # B P038 Problem 43 complaint, which applies to this case too.
+        reason = f.no_highlight_reason.lower()
+        assert "does not correspond to a specific page or visual location" not in reason
+        assert "no specific pdf page" in reason
 
 
 def test_ester_sample_b_p038_acknowledgements_page9_not_flagged() -> None:

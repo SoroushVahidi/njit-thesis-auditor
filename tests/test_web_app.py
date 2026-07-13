@@ -2447,7 +2447,12 @@ def test_problem_group_page_page_less_finding_has_no_generic_pdf_link(
     assert b"Front matter \xe2\x80\x94 required heading missing" in resp.content
     assert f'href="/audits/{job_id}/pdf"'.encode() not in resp.content
     assert b"Open PDF" not in resp.content
-    assert b"document-level" in resp.content.lower()
+    # A location IS shown ("Front matter -- required heading missing: ..."),
+    # so the no-highlight text must not also claim there is no location
+    # (Ester, Sample B Problem 43: "the auditor says that this does not
+    # correspond to a specific page" when a location was in fact given).
+    assert b"does not correspond to a specific page or visual location" not in resp.content.lower()
+    assert b"no specific pdf page" in resp.content.lower()
 
 
 def test_problem_group_pages_only_show_matching_findings(
