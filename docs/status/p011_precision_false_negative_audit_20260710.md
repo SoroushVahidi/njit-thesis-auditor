@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-10  
 **Baseline commit:** `e5757b40f4d6b62142d6f02e145967ff839897f0` (`origin/main`, 2026-07-09 — *Improve P011 reference margin wording #498*)  
-**Worktree:** `/home/soroush/njit-thesis-auditor/njit-thesis-auditor-clean-worktrees/p011-precision-false-negative-audit`  
+**Worktree:** clean worktree `p011-precision-false-negative-audit` (host path omitted)  
 **Branch:** `fix/p011-margin-precision-false-negative-audit`  
 **Production:** not modified; port 8000 not accessed.
 

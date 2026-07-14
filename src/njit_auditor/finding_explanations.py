@@ -106,6 +106,11 @@ def _inspection_target(rule_id: str, issue_type: str, details: dict[str, str]) -
     if rule_id == "P015":
         if issue_type == "unexpected_opening_indent":
             return "the first line of the opening paragraph"
+        if issue_type == "unexpected_indent_on_continuation_line":
+            paragraph_index = details.get("paragraph_index", "").strip()
+            if paragraph_index:
+                return f"the continuation line in body paragraph {paragraph_index}"
+            return "the continuation line after a displayed equation or similar break"
         paragraph_index = details.get("paragraph_index", "").strip()
         if paragraph_index:
             return f"the first line of body paragraph {paragraph_index}"
@@ -1015,6 +1020,11 @@ def _p012_annotation_explanation(details: dict[str, str], *, page: int | None) -
 def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
     if issue_type == "unexpected_opening_indent":
         return "the first paragraph after a heading"
+    if issue_type == "unexpected_indent_on_continuation_line":
+        paragraph_index = details.get("paragraph_index", "").strip()
+        if paragraph_index:
+            return f"continuation line in body paragraph {paragraph_index}"
+        return "a continuation line after a displayed equation or similar break"
     paragraph_index = details.get("paragraph_index", "").strip()
     if paragraph_index:
         return f"body paragraph {paragraph_index}"
@@ -1033,6 +1043,16 @@ def _p015_indentation_explanation(
             observed = f"{observed} (about {indent_pt}pt from the left margin)"
         expected = (
             f"{descriptor.capitalize()} should begin flush with the left margin"
+        )
+    elif issue_type == "unexpected_indent_on_continuation_line":
+        observed = (
+            f"{descriptor.capitalize()} starts with a paragraph-style first-line indent"
+        )
+        if indent_pt:
+            observed = f"{observed} (about {indent_pt}pt from the left margin)"
+        expected = (
+            "Continuation lines after a displayed equation or similar break should "
+            "begin flush with the left margin"
         )
     else:
         observed = f"{descriptor.capitalize()} appears to be missing its first-line indent"
@@ -1816,6 +1836,7 @@ def _build_explanation_text(
     if rule_id == "P015" and effective_issue_type in {
         "unexpected_opening_indent",
         "missing_later_indent",
+        "unexpected_indent_on_continuation_line",
     }:
         return _p015_indentation_explanation(effective_issue_type, details, page=page)
     if rule_id == "P026" and effective_issue_type in {

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Privacy-safe P011 inventory for Sample A/B overnight audit.
 
-Writes machine-readable output under /tmp only. No dissertation text committed.
+Writes machine-readable output under ignored ``results/`` by default
+(or ``NJITA_P011_INVENTORY_OUT`` if set). No dissertation text is committed.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -48,7 +50,11 @@ def _finding_id(raw_index: int) -> str:
     return f"f{raw_index}"
 
 
-OUT_DIR = Path("/tmp/njit-p011-audit-" + datetime.now(timezone.utc).strftime("%Y%m%d"))
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_DEFAULT_OUT = _REPO_ROOT / "results" / (
+    "p011-inventory-" + datetime.now(timezone.utc).strftime("%Y%m%d")
+)
+OUT_DIR = Path(os.environ.get("NJITA_P011_INVENTORY_OUT", str(_DEFAULT_OUT)))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 _URL_RE = re.compile(r"https?://|www\.|\.com/|\.org/|doi\.org", re.I)

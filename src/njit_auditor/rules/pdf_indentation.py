@@ -190,13 +190,13 @@ def _merge_same_row_fragments(lines: list[PdfTextLine]) -> list[PdfTextLine]:
     """Merge line fragments that text extraction split at an identical baseline.
 
     Some PDF producers emit one visual text row as two non-overlapping runs at
-    the same y-coordinates (observed on a Sample B page where a sentence
-    spanning a mid-line boundary came back as separate "line" entries). Left
-    alone, the trailing fragment reads as a short line ending a paragraph and
-    the next real line is misread as a new paragraph's first line. Merging
-    same-baseline, same-style fragments back into one line before paragraph
-    grouping avoids that spurious break without touching genuine paragraph
-    boundaries or run-in heading rows (bold lead-in + regular continuation).
+    the same y-coordinates (for example when a sentence spanning a mid-line
+    boundary is extracted as separate "line" entries). Left alone, the trailing
+    fragment reads as a short line ending a paragraph and the next real line is
+    misread as a new paragraph's first line. Merging same-baseline, same-style
+    fragments back into one line before paragraph grouping avoids that spurious
+    break without touching genuine paragraph boundaries or run-in heading rows
+    (bold lead-in + regular continuation).
     """
     merged: list[PdfTextLine] = []
     for line in lines:
@@ -303,12 +303,27 @@ def _paragraph_is_low_confidence(paragraph: list[PdfTextLine]) -> bool:
     return (max(x_values) - min(x_values)) > MAX_LINE_X_SPREAD_PT
 
 
+_FIRST_WORD_RE = re.compile(r"[A-Za-z][A-Za-z']*")
+
+
 def _paragraph_starts_like_continuation(paragraph: list[PdfTextLine]) -> bool:
     first_line = " ".join(paragraph[0].text.strip().split())
-    for char in first_line:
-        if char.isalpha():
-            return char.islower()
-    return False
+    match = _FIRST_WORD_RE.search(first_line)
+    if not match:
+        return False
+    word = match.group(0)
+    if not word[0].islower():
+        return False
+    # A lowercase-led word with an internal uppercase letter (e.g. "pH",
+    # "mRNA", "eBay", "iPhone") is a mixed-case scientific term, unit, or
+    # proper noun -- these start genuine new sentences/paragraphs, not a
+    # common all-lowercase connector word (e.g. "where", "which", "since")
+    # that starts a continuation clause after a displayed equation. Exclude
+    # them so a legitimate, correctly indented new paragraph is not mistaken
+    # for a continuation line.
+    if any(char.isupper() for char in word[1:]):
+        return False
+    return True
 
 
 # A leading "(a)" or "[12]" marker means the lowercase letter inside the

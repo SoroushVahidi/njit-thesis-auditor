@@ -6,6 +6,8 @@ no sample/document-specific values.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from njit_auditor.duplicate_candidate_analysis import (
     bbox_iou,
     find_geometric_duplicate_candidates,
@@ -300,3 +302,32 @@ def test_legitimately_distinct_same_object_findings_stay_candidates_only() -> No
     c = report.candidates[0]
     assert {c.rule_id_a, c.rule_id_b} == {"P024", "P040"}
     assert "same_page" in c.reasons
+
+
+def test_duplicate_candidate_cli_help_mentions_human_review(tmp_path: Path) -> None:
+    """The CLI must document that candidates need human review and fail clearly
+    on a missing PDF path without writing private filenames into Tracebacks as
+    success output.
+    """
+    import subprocess
+    import sys
+
+    script = Path(__file__).resolve().parents[1] / "scripts" / "warning_duplicate_candidate_analysis.py"
+    help_proc = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert help_proc.returncode == 0
+    assert "human review" in help_proc.stdout.lower()
+
+    missing = tmp_path / "does-not-exist.pdf"
+    missing_proc = subprocess.run(
+        [sys.executable, str(script), str(missing)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert missing_proc.returncode == 2
+    assert "PDF not found" in missing_proc.stderr
