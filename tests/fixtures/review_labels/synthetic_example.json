@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "notes": "Synthetic example only — no private dissertation content.",
+  "labels": [
+    {
+      "sample_id": "synthetic_demo_a",
+      "label": "true_positive",
+      "rule_id": "P015",
+      "issue_type": "unexpected_indent_on_continuation_line",
+      "page": 12,
+      "finding_id": "problem-3",
+      "reviewer_note": "Continuation indent after displayed equation; synthetic fixture."
+    },
+    {
+      "sample_id": "synthetic_demo_a",
+      "label": "false_positive",
+      "rule_id": "P011",
+      "issue_type": "margin_boundary_violation",
+      "page": 4,
+      "finding_id": "problem-7",
+      "reviewer_note": "Synthetic near-miss overflow that should stay suppressed."
+    },
+    {
+      "sample_id": "synthetic_demo_b",
+      "label": "false_negative",
+      "rule_id": "P033",
+      "issue_type": "title_page_mismatch",
+      "page": 1,
+      "reviewer_note": "Known miss recorded without an existing finding_id."
+    },
+    {
+      "sample_id": "synthetic_demo_b",
+      "label": "policy_decision_needed",
+      "rule_id": "P011",
+      "issue_type": "margin_boundary_violation",
+      "page": 9,
+      "reviewer_note": "Footer-zone policy deferred to Esther."
+    }
+  ]
+}
