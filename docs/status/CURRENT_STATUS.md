@@ -8,57 +8,53 @@
 > This file is intentionally short. Do not append dated snapshots here — open a new dated
 > report under `docs/status/` instead and link it from the relevant section below.
 
-_Last verified: 2026-07-13, by the repository-polish audit (`docs/status/repository_polish_and_organization_20260713.md`)._
+_Last verified: 2026-07-14, after reduced PR #505 merged (`docs/status/pr505_reduction_after_pr508_20260714.md`)._
 
 ## Main branch
 
 | Field | Value |
 |---|---|
-| `origin/main` SHA | `dcadd61c7688a9e244d56d84cf39dca469f55006` (short `dcadd61`) |
-| Last merged PR | [#507](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/507) — fix `ester_rule_consistency_audit.py` attribute bugs |
-| CI (`.github/workflows/ci.yml`) | passing on `main` |
+| `origin/main` SHA | `3d31ce9bff97b650aa81346834dcbd18b8ed5c88` (short `3d31ce9`) |
+| Last merged PR | [#505](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/505) — finalize P015/P011/P033 correctness work after repository normalization |
+| CI (`.github/workflows/ci.yml`) | passing on `main` (post-merge run `29303438713`) |
 | `ruff check .` | clean |
-| `mypy src` | clean, 107 source files |
-| `python -m pytest -q tests` | **2734 passed, 2 skipped** |
+| `mypy src` | clean, 108 source files |
+| `python -m pytest -q tests` | **2821 passed** (measured on fresh `origin/main` @ `3d31ce9`) |
 | Rule coverage | P001–P083 implemented (P075 is a documented non-inventory project task; next new rule ID is **P084**, not started) |
 
-Numbers above were measured directly on a fresh `origin/main` checkout as part of this audit —
-not copied from an older doc. If you're reading this later, re-run the three validation
+Numbers above were measured directly on a fresh `origin/main` checkout after the reduced #505
+merge — not copied from an older doc. If you're reading this later, re-run the three validation
 commands yourself before trusting the counts.
 
 ## Active open PRs (as of this audit)
 
-| PR | Branch | Status |
-|---|---|---|
-| [#505](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/505) | `fix/overnight-esther-correctness-20260712` | Open, `MERGEABLE`/`CLEAN`. Adopts P015/P011/P033 fixes cherry-picked from #499/#500/#502/#504. Its P026 hunk is now a byte-identical no-op against `main` — PR [#506](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/506) merged an equivalent (more general) P026 concatenated-heading fix independently on 2026-07-13. Merging #505 is still safe; review it as "P015 continuation-indent + P011 remediation wording + P033 wording fix + docs", not as a font-compliance change. |
-| [#504](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/504) | `investigate/sample-b-annotation-ground-truth` | Superseded — cherry-picked into #505. Close once #505 is merged. |
-| [#502](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/502) | `fix/p033-location-wording-and-duplicate-analysis` | Superseded — cherry-picked into #505. Close once #505 is merged. |
-| [#500](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/500) | `fix/p011-margin-precision-false-negative-audit` | Superseded — cherry-picked into #505. Close once #505 is merged. |
-| [#499](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/499) | `fix/p011-content-aware-remediation` | Superseded — cherry-picked into #505. Close once #505 is merged. |
-| [#483](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/483) | `audit/ester-sample-b-feedback` | `CONFLICTING`. Per #505's own description, its content was already superseded by #482 (merged 2026-07-09) and was **not** adopted. Recommend closing without merging. |
+None. Source PRs [#499](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/499),
+[#500](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/500),
+[#502](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/502),
+[#504](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/504), and
+[#483](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/483) were closed after #505
+merged. Branches for #499/#500/#502/#504 were deleted; #483's remote branch was left intact
+because its documentation commit is not an ancestor of `main`.
 
-This assessment was made by inspecting `gh pr list`/`gh pr view`/`gh pr diff` output and diffing
-the overlapping file (`src/njit_auditor/rules/pdf_font_compliance.py`) between #505 and #506
-directly — not by trusting any prior status doc.
+Reconstruction details: `docs/status/pr505_reduction_after_pr508_20260714.md`.
+Old #505 head backup tag: `backup/pr505-e772f5f-before-reduction-20260714`.
 
 ## Stale remote branches
 
-30 remote branches exist; only the 6 above correspond to open PRs. The other ~24 correspond to
-already-merged PRs and were left over because this repo does not auto-delete branches on merge.
-None were deleted by this audit (branch deletion requires explicit human authorization per the
-task constraints this report was produced under). Full list and recommended deletions are in
+Many remote branches remain from already-merged PRs (repo does not auto-delete on merge).
+#505 reduction deleted only the closed source-PR branches listed above. Full historical list
+and further deletion candidates remain in
 `docs/status/repository_polish_and_organization_20260713.md`.
 
 ## Live deployment status
 
-**Not independently verified against the running service in this pass** — the task that produced
-this document explicitly prohibited restarting the live server or making requests to port 8000.
+**Not deployed and not verified against the running service in this pass** — port 8000 /
+systemd / nginx / Caddy / firewall / VPN / DNS were not touched.
 
-The only repository-derived evidence available: the dedicated deploy worktree
-(`archives/njit-thesis-auditor-deploy` on the host that manages it) is checked out at `c4d4065`
-(the PR #493 merge commit), which is **8 commits behind** `origin/main`'s `dcadd61`. This is a
-lower bound on staleness as of this audit, not a live-verified fact — confirm with `GET /version`
-per `docs/DEPLOYMENT.md` before relying on current UI behavior matching `main`.
+Repository-derived lower bound only: the dedicated deploy worktree
+(`archives/njit-thesis-auditor-deploy`) was previously observed at `c4d4065` and will be further
+behind after #505/#508. Confirm with `GET /version` per `docs/DEPLOYMENT.md` before relying on
+UI behavior matching `main`.
 
 ## Current evaluation corpus
 
@@ -68,47 +64,35 @@ per `docs/DEPLOYMENT.md` before relying on current UI behavior matching `main`.
   `docs/status/repository_polish_and_organization_20260713.md`).
 - Synthetic fixtures under `tests/fixtures/web_demo/` (`clean_minimal.pdf`, `issues_pdf.pdf`,
   `demo_project.zip`) — safe for the public web UI demo and CI.
-- Full inventory: `docs/EVALUATION_DATA.md` (new, this audit) and the older
+- Full inventory: `docs/EVALUATION_DATA.md` and the older
   `docs/status/evaluation_data_manifest.md` / `docs/status/data_inventory_and_evaluation_sources.md`.
 
 ## Unresolved engineering tasks
 
-- Rebase/merge #505 **after** #508, then close #499/#500/#502/#504/#483 (see table above and the
-  independent-review overlap analysis in
-  `docs/status/repository_polish_and_organization_20260713.md`). Prefer Outcome A: keep #505's
-  unique detector/remediation/test commits; drop its duplicated polish-comment leak hunk and
-  stale status-doc edits once #508 is on `main`.
-- Delete stale merged-PR remote branches (list in the full audit report).
+- Delete additional stale merged-PR remote branches (see polish report) when explicitly
+  authorized.
 - Private evaluation binaries under `data/raw/ester/` include both Git LFS pointers and full Git
   blobs; filenames often contain personal names. Keep the repo private; plan a later coordinated
-  history/LFS migration (documented in the polish report) — do not rewrite history in a polish PR.
+  history/LFS migration — do not rewrite history casually.
 - `scripts/ester_rule_consistency_audit.py` requires local, untracked, generated
-  `results/ester_feedback_raw/*.xlsx` input and cannot run in a fresh clone or CI; it is not
-  wired into `docs/RULE_ARCHITECTURE.md`'s consistency-test story for that reason. Making it
-  CI-runnable (e.g. by committing a redacted fixture) is deferred — needs Esther/maintainer
-  input on what's safe to commit from her raw spreadsheets.
+  `results/ester_feedback_raw/*.xlsx` input and cannot run in a fresh clone or CI.
+- Optional remaining-time work: privacy-safe duplicate-candidate aggregate audit; typed evaluation
+  labeling schema; lightweight CURRENT_STATUS drift prevention tests.
 
 ## Unresolved Esther-policy questions
 
-Carried forward from PR #505's own "Remaining Esther-judgment items" list (still unresolved as of
-this audit):
+Still unresolved after #505 (do **not** implement without Esther's explicit sign-off):
 
-- Footer-zone P011 body-text policy (Sample A 8-page cluster).
+- Footer-zone P011 body-text policy (Sample A cluster).
 - P011 non-text-element (image/drawing) margin coverage.
-- 6 unreviewed Sample B medium-confidence P011 pages.
+- Unreviewed Sample B medium-confidence P011 pages.
 - A possible new TOC-entry sentence-case rule.
-
-Do not implement any of these without Esther's explicit sign-off — they are formatting-policy
-judgment calls, not engineering bugs.
+- Whether any duplicate-warning candidates should ever auto-suppress (tooling remains
+  diagnostic-only).
 
 ## Immediate recommended next actions
 
-1. Merge PR #508 (this polish/registry/leak-fix PR) first.
-2. Rebase PR #505 onto the new `main`, drop duplicated/superseded hunks (generic polish-comment
-   leak fix; P026 font hunk already a no-op vs #506; stale status-doc updates), retain unique
-   P015/P011/P033/duplicate-tooling work, re-validate, then merge the reduced #505.
-3. Close #499/#500/#502/#504/#483 as superseded.
-4. Delete the ~24 stale merged-PR remote branches (and #505's branch only after #505 merges).
-5. Restart the live deployment once a maintainer confirms `main` is in the desired state (out of
-   scope for this audit).
-6. Decide the 4 open Esther-policy questions above with Esther directly.
+1. Deploy only after an explicit maintainer decision (out of scope for the #505 overnight pass).
+2. Decide the Esther-policy questions above with Esther directly.
+3. Optionally run the privacy-safe duplicate-candidate aggregate audit and/or small labeling /
+   status-drift infrastructure PRs.
