@@ -1114,6 +1114,11 @@ def _p036_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
 def _p015_paragraph_descriptor(issue_type: str, details: dict[str, str]) -> str:
     if issue_type == "unexpected_opening_indent":
         return "the first paragraph after a heading"
+    if issue_type == "unexpected_indent_on_continuation_line":
+        paragraph_index = details.get("paragraph_index", "").strip()
+        if paragraph_index:
+            return f"continuation line in body paragraph {paragraph_index}"
+        return "a continuation line after a displayed equation or similar break"
     paragraph_index = details.get("paragraph_index", "").strip()
     if paragraph_index:
         return f"body paragraph {paragraph_index}"
@@ -1131,6 +1136,13 @@ def _p015_indentation_comment(
             "to have a first-line indent. NJIT expects the first paragraph after a "
             "section heading to begin flush with the left margin. Remove the first-line "
             "indent from this paragraph."
+        )
+    if issue_type == "unexpected_indent_on_continuation_line":
+        return (
+            f"Likely problem: {descriptor.capitalize()} on page {page_label} appears "
+            "to use a paragraph-style first-line indent. NJIT expects continuation "
+            "lines after a displayed equation or similar break to stay flush with the "
+            "left margin. Remove the first-line indent from this continuation line."
         )
     return (
         f"Likely problem: {descriptor.capitalize()} on page {page_label} appears to "
@@ -1635,14 +1647,17 @@ def _p042_appendix_format_comment(
 
 
 _P033_ROLE_LABELS: dict[str, str] = {
-    "title": "Title Page",
+    "title_page": "Title Page",
     "abstract": "Abstract",
     "approval_page": "Approval Page",
 }
 
 
 def _p033_role_label(role: str) -> str:
-    return _P033_ROLE_LABELS.get(role, "another front-matter page")
+    # Callers always prepend "the" (e.g. "the title on the {reference_role}"),
+    # so this fallback must read naturally as "the other front-matter page",
+    # not "the another front-matter page".
+    return _P033_ROLE_LABELS.get(role, "other front-matter page")
 
 
 def _p033_frontmatter_title_comment(*, page: int | None, details: dict[str, str]) -> str:
@@ -1764,6 +1779,7 @@ def build_polished_comment(
     if rule_id == "P015" and issue in {
         "unexpected_opening_indent",
         "missing_later_indent",
+        "unexpected_indent_on_continuation_line",
     }:
         body = _p015_indentation_comment(issue, page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)

@@ -146,13 +146,8 @@ def test_p015_atomic_public_cards_have_ester_body_wording(web_client) -> None:
 
 def test_public_mapping_splits_p015_issue_types(web_client) -> None:
     _, wa = web_client
-    assert (
-        wa._public_rule_reference_id("P015", issue_type="unexpected_opening_indent")
-        == "P015A"
-    )
-    assert (
-        wa._public_rule_reference_id("P015", issue_type="missing_later_indent") == "P015B"
-    )
+    assert wa._public_rule_reference_id("P015", issue_type="unexpected_opening_indent") == "P015A"
+    assert wa._public_rule_reference_id("P015", issue_type="missing_later_indent") == "P015B"
 
 
 def test_p015b_flags_missing_later_indent_on_body_page() -> None:
@@ -195,7 +190,186 @@ def test_p015a_not_flagged_for_flush_left_opening_after_heading(tmp_path: Path) 
     findings = [
         f
         for f in check_pdf_indentation(model)
+        if f.rule_id == "P015" and f.details.get("issue_type") == "unexpected_opening_indent"
+    ]
+    assert not findings
+
+
+def test_p015_flags_unexpected_indent_on_equation_continuation_line() -> None:
+    """A "where ..."-style clause continuing the sentence before a displayed
+
+    equation should stay flush-left; a paragraph-style indent on it is a
+    defect distinct from both P015A (opening indent) and P015B (missing
+    later indent).
+    """
+    para = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=80.0,
+            y1=92.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
         if f.rule_id == "P015"
-        and f.details.get("issue_type") == "unexpected_opening_indent"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert len(findings) == 1
+
+
+def test_p015_does_not_flag_bracketed_citation_led_paragraph_as_continuation() -> None:
+    """A genuine new sentence like "[12] explored ..." starts with a lowercase
+
+    letter right after its citation marker but is not a continuation clause,
+    so an indent on it must not trip the continuation-indent check.
+    """
+    para = [
+        _line(
+            "[12] explored alternative implicit fields for shape work.", x0=144.0, y0=80.0, y1=92.0
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert not findings
+
+
+def test_p015_does_not_flag_paren_list_marker_led_paragraph_as_continuation() -> None:
+    """A genuine new list/item sentence like '(a) represents ...' must not be
+    treated as a lowercase continuation clause merely because the first letter
+    inside the parentheses is lowercase.
+    """
+    para = [
+        _line(
+            "(a) represents the first measured quantity for this fixture case.",
+            x0=144.0,
+            y0=80.0,
+            y1=92.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert not findings
+
+
+def test_p015_does_not_flag_flush_left_continuation_line() -> None:
+    """A correctly unindented continuation line is not a defect."""
+    para = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=108.0,
+            y0=80.0,
+            y1=92.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert not findings
+
+
+@pytest.mark.parametrize(
+    "opening_phrase",
+    [
+        "pH values were recorded across each trial for this test analysis.",
+        "mRNA expression levels varied significantly across the samples tested.",
+        "eBay listings were used as the primary data source for this test case.",
+    ],
+)
+def test_p015_does_not_flag_mixed_case_led_new_paragraph_as_continuation(
+    opening_phrase: str,
+) -> None:
+    """A genuine new, correctly indented paragraph that happens to open with a
+    lowercase-led mixed-case scientific term or brand name (pH, mRNA, eBay)
+    must not be mistaken for a continuation clause like "where q denotes ..."
+    just because its very first letter is lowercase -- the internal uppercase
+    letter is the general signal that this is a term/proper noun starting a
+    fresh sentence, not a common all-lowercase connector word.
+    """
+    para = [
+        _line(opening_phrase, x0=144.0, y0=80.0, y1=92.0),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
     ]
     assert not findings

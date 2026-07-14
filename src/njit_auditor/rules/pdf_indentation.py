@@ -98,9 +98,7 @@ def _is_section_heading_line(line: PdfTextLine) -> bool:
         return False
     if clean.endswith((".", ",", ";")):
         return False
-    return bool(
-        _BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean)
-    )
+    return bool(_BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean))
 
 
 def _find_heading_exempt_paragraph_indices(
@@ -192,13 +190,13 @@ def _merge_same_row_fragments(lines: list[PdfTextLine]) -> list[PdfTextLine]:
     """Merge line fragments that text extraction split at an identical baseline.
 
     Some PDF producers emit one visual text row as two non-overlapping runs at
-    the same y-coordinates (observed on a Sample B page where a sentence
-    spanning a mid-line boundary came back as separate "line" entries). Left
-    alone, the trailing fragment reads as a short line ending a paragraph and
-    the next real line is misread as a new paragraph's first line. Merging
-    same-baseline, same-style fragments back into one line before paragraph
-    grouping avoids that spurious break without touching genuine paragraph
-    boundaries or run-in heading rows (bold lead-in + regular continuation).
+    the same y-coordinates (for example when a sentence spanning a mid-line
+    boundary is extracted as separate "line" entries). Left alone, the trailing
+    fragment reads as a short line ending a paragraph and the next real line is
+    misread as a new paragraph's first line. Merging same-baseline, same-style
+    fragments back into one line before paragraph grouping avoids that spurious
+    break without touching genuine paragraph boundaries or run-in heading rows
+    (bold lead-in + regular continuation).
     """
     merged: list[PdfTextLine] = []
     for line in lines:
@@ -305,12 +303,40 @@ def _paragraph_is_low_confidence(paragraph: list[PdfTextLine]) -> bool:
     return (max(x_values) - min(x_values)) > MAX_LINE_X_SPREAD_PT
 
 
+_FIRST_WORD_RE = re.compile(r"[A-Za-z][A-Za-z']*")
+
+
 def _paragraph_starts_like_continuation(paragraph: list[PdfTextLine]) -> bool:
     first_line = " ".join(paragraph[0].text.strip().split())
-    for char in first_line:
-        if char.isalpha():
-            return char.islower()
-    return False
+    match = _FIRST_WORD_RE.search(first_line)
+    if not match:
+        return False
+    word = match.group(0)
+    if not word[0].islower():
+        return False
+    # A lowercase-led word with an internal uppercase letter (e.g. "pH",
+    # "mRNA", "eBay", "iPhone") is a mixed-case scientific term, unit, or
+    # proper noun -- these start genuine new sentences/paragraphs, not a
+    # common all-lowercase connector word (e.g. "where", "which", "since")
+    # that starts a continuation clause after a displayed equation. Exclude
+    # them so a legitimate, correctly indented new paragraph is not mistaken
+    # for a continuation line.
+    if any(char.isupper() for char in word[1:]):
+        return False
+    return True
+
+
+# A leading "(a)" or "[12]" marker means the lowercase letter inside the
+# bracket is a list/citation marker, not the start of a continuation
+# sentence -- exclude these from the continuation-indent check below so a
+# genuinely new list item or citation-led sentence isn't mistaken for a
+# stray "where ..."/"which ..." clause after a displayed equation.
+_BRACKETED_LEAD_MARKER_RE = re.compile(r"^\s*[\(\[]")
+
+
+def _paragraph_starts_like_bracketed_marker(paragraph: list[PdfTextLine]) -> bool:
+    first_line = paragraph[0].text.strip()
+    return bool(_BRACKETED_LEAD_MARKER_RE.match(first_line))
 
 
 def _paragraph_is_algorithm_or_code_like(paragraph: list[PdfTextLine]) -> bool:
@@ -348,9 +374,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
             continue
 
         heading_exempt = _find_heading_exempt_paragraph_indices(page, paragraphs)
-        split_heading_exempt = _find_split_heading_following_paragraph_indices(
-            page, paragraphs
-        )
+        split_heading_exempt = _find_split_heading_following_paragraph_indices(page, paragraphs)
 
         paragraph_data: list[tuple[int, list[PdfTextLine], float]] = []
         for idx, paragraph in enumerate(paragraphs):
@@ -395,8 +419,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                     severity=Severity.WARNING,
                     page=page.page_number,
                     message=(
-                        "First paragraph after a heading appears indented but should "
-                        "be flush-left."
+                        "First paragraph after a heading appears indented but should be flush-left."
                     ),
                     details={
                         "page_number": str(page.page_number),
@@ -414,6 +437,42 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                     },
                 )
                 page_issue_findings["unexpected_opening_indent"] = current
+
+            if (
+                idx not in heading_exempt
+                and idx not in split_heading_exempt
+                and _paragraph_starts_like_continuation(paragraph)
+                and not _paragraph_starts_like_bracketed_marker(paragraph)
+                and not _paragraph_is_algorithm_or_code_like(paragraph)
+                and indent_pt >= STRONG_INDENT_THRESHOLD_PT
+            ):
+                current = AuditFinding(
+                    rule_id="P015",
+                    severity=Severity.WARNING,
+                    page=page.page_number,
+                    message=(
+                        "Line continuing the previous sentence (e.g. after a displayed "
+                        "equation) appears to have a paragraph-style indent."
+                    ),
+                    details={
+                        "page_number": str(page.page_number),
+                        "issue_type": "unexpected_indent_on_continuation_line",
+                        "indent_pt": f"{indent_pt:.1f}",
+                        "expected": "flush_left_continuation_line",
+                        "paragraph_line_count": str(len(paragraph)),
+                        "paragraph_index": str(idx + 1),
+                        "bbox": format_bbox_detail(paragraph[0].bbox),
+                        "confidence": "medium",
+                        "suggested_fix": (
+                            "Remove the first-line indent from this line -- it "
+                            "continues the previous sentence rather than starting a "
+                            "new paragraph."
+                        ),
+                    },
+                )
+                existing = page_issue_findings.get("unexpected_indent_on_continuation_line")
+                if existing is None or indent_pt > float(existing.details["indent_pt"]):
+                    page_issue_findings["unexpected_indent_on_continuation_line"] = current
 
             if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 seen_indented_paragraph = True
@@ -442,8 +501,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                         severity=Severity.WARNING,
                         page=page.page_number,
                         message=(
-                            "Later paragraph appears to be missing expected first-line "
-                            "indentation."
+                            "Later paragraph appears to be missing expected first-line indentation."
                         ),
                         details={
                             "page_number": str(page.page_number),

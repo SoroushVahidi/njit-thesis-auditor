@@ -140,6 +140,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "biosketch_publication_order_suspicious": "Biographical Sketch publication order suspicious",
     "unexpected_opening_indent": "Unexpected opening paragraph indent",
     "missing_later_indent": "Missing paragraph-after-first indent",
+    "unexpected_indent_on_continuation_line": "Unexpected indent on continuation line",
     "wrapped_entry_internal_spacing": "Wrapped list entry internal spacing",
     "single_appendix_missing_title": "Single appendix missing title",
     "lot_mixed_numbering_format": "List of Tables mixed numbering format",
@@ -554,6 +555,11 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P015", "missing_later_indent"): (
         "This means a later body paragraph appears to be missing its required "
         "first-line indent. Apply a first-line indent to that paragraph."
+    ),
+    ("P015", "unexpected_indent_on_continuation_line"): (
+        "This means a continuation line after a displayed equation or similar "
+        "break appears to use a paragraph-style first-line indent. Keep that "
+        "continuation line flush with the left margin."
     ),
     ("P017", "unexpected_terminal_period"): (
         "This means a figure or table caption ends with a terminal period where "
