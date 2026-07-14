@@ -7,6 +7,12 @@ archives — each has a banner at the top pointing here. See also the top-level
 [../ROADMAP.md](../ROADMAP.md), [../RULE_ARCHITECTURE.md](../RULE_ARCHITECTURE.md),
 [../EVALUATION_DATA.md](../EVALUATION_DATA.md), and [../DEPLOYMENT.md](../DEPLOYMENT.md).
 
+After merging to `main`, update **both** `CURRENT_STATUS.md` and the snapshot fields in
+`data/processed/evaluation_data_manifest.json` (`main_commit_used_for_status_snapshot` and
+`pytest_count_used_for_status_snapshot`) in the same PR — alignment/drift tests require them to
+match. Optionally set `NJITA_STRICT_STATUS_DRIFT=1` locally to also ratchet against a fresh
+`pytest --collect-only` inventory.
+
 This is not the first pass at this problem — [repo_polish_inventory.md](repo_polish_inventory.md)
 (2026-07-03) identified the same staleness pattern in these same files and fixed it for a few
 days before it drifted again. `CURRENT_STATUS.md` is intentionally short specifically so it's
