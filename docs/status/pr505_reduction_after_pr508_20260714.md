@@ -28,6 +28,35 @@ Measured on a clean worktree at `e75d5b8`:
 | `mypy src` | passed (107 source files) |
 | `python -m pytest -q tests` | **2775 passed** (environment-collected count; #508 docs had cited 2755/2) |
 
+## Post-reconstruction validation
+
+Measured on `fix/reduce-pr-505-after-508`:
+
+| Check | Result |
+|---|---|
+| `ruff check .` | passed |
+| `mypy src` | passed (108 source files) |
+| `python -m pytest -q tests` | **2821 passed** |
+| Targeted P015/P011/P033/duplicate/registry suites | **116 passed** (137 deselected via `-k`) |
+| Wheel/sdist build | both built; **0** private binaries packaged |
+| Internal markdown relative links | 172 checked, 0 missing |
+| FastAPI in-process smoke (no port 8000) | `/`, `/help`, `/rules`, `/version` ok |
+| PDF link crawl tests | 11 passed |
+
+### Privacy-safe finding signature deltas vs `e75d5b8`
+
+| Sample ID | Before | After | Delta | Explanation |
+|---|---:|---:|---:|---|
+| `ester_sample_a` | 197 | 197 | 0 | no change |
+| `ester_sample_b` | 202 | 207 | +5 | +3 `unexpected_indent_on_continuation_line` (pp. 22/23/88); +2 `missing_later_indent` (pp. 46/79) from improved same-row fragment merging |
+| `ester_sample_c` | 137 | 142 | +5 | same P015 signature shape as Sample B (related revision) |
+| `ester_sample_d` | 454 | 454 | 0 | no change |
+
+No sample-specific conditionals in `pdf_indentation.py`. Continuation-line additions are the intentional false-negative fix. Extra `missing_later_indent` findings are understood as general grouping side-effects of merging same-baseline fragments, not private-text overfitting.
+
+Artifacts (operator copy under overnight `results/`):
+`phase2_signature_compare.json`, `phase2_p015_delta_review.json`.
+
 ## Workstream classification
 
 | Workstream | Classification | Action |
