@@ -1,0 +1,189 @@
+"""Cross-source consistency checks for the rule "registry".
+
+There is no single canonical rule-registry class in this codebase yet (see
+docs/RULE_ARCHITECTURE.md for why, and for the smallest-safe-step registry
+improvement this test file accompanies). Until one exists, these tests are the
+guardrail that keeps `data/processed/rules/project_added_rules.json`, the
+detector source, and the student-facing wording layers from silently drifting
+apart the way PR #505 found and fixed for P057/P059/P062/P065/P078 (a raw
+`rule_id` leaking into the generic fallback comment).
+
+These tests only read tracked repository files — no network access, no local
+generated `results/` output, so they run the same in a fresh clone and in CI.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from njit_auditor.polished_comments import _ISSUE_TEMPLATES, _RULE_FALLBACKS, build_polished_comment
+from njit_auditor.rule_loader import ALLOWED_RULE_TYPES, load_rule_file
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_CATALOG_PATH = _REPO_ROOT / "data/processed/rules/project_added_rules.json"
+
+_REPORTING_ONLY_TYPES = frozenset(
+    {"infrastructure", "infrastructure_refinement", "reporting_refinement"}
+)
+
+# Internal rule ID pattern that must never appear verbatim in student-facing text.
+_RAW_ID_PATTERN = re.compile(r"\b[PQ]\d{2,3}\b")
+
+# (rule_id, issue_type) pairs that are catalog-declared but currently fall through to
+# the generic, non-leaking fallback sentence in build_polished_comment (no dedicated
+# template, no rule-level fallback). This is pre-existing wording debt, not something
+# this audit is scoped to write 13 new templates for (see docs/ROADMAP.md). The test
+# below is a ratchet: it fails if this set ever grows without a matching template
+# being added here, so new gaps can't be introduced silently.
+_KNOWN_WORDING_GAPS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("P057", "lot_page_numbers_not_nondecreasing"),
+        ("P057", "lof_page_numbers_not_nondecreasing"),
+        ("P059", "lot_entry_numbers_not_nondecreasing"),
+        ("P059", "lof_entry_numbers_not_nondecreasing"),
+        ("P062", "toc_cross_page_entry_numbers_not_nondecreasing"),
+        ("P065", "dedication_text_not_centered"),
+        ("P065", "dedication_text_not_italic"),
+        ("P066", "biosketch_degree_order_suspicious"),
+        ("P067", "biosketch_publication_order_suspicious"),
+        ("P078", "abstract_pdf_forbidden_term"),
+        ("P078", "abstract_pdf_first_person_pronoun"),
+        ("P082", "landscape_page_number_orientation_advisory"),
+        ("P082", "landscape_page_number_position_advisory"),
+    }
+)
+
+
+def _load_catalog() -> list[dict]:
+    return json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
+
+
+def test_catalog_validates_against_rule_definition_schema() -> None:
+    """The full, current field set (title/rule_type/issue_types/... included) must
+    round-trip through RuleDefinition without silently dropping fields — see the
+    "Schema drift" note in docs/RULE_ARCHITECTURE.md for why this was previously
+    silently broken."""
+    rules = load_rule_file(_CATALOG_PATH)
+    by_id = {r.id: r for r in rules}
+    p082 = by_id["P082"]
+    assert p082.rule_type == "experimental_advisory"
+    assert p082.issue_types == [
+        "landscape_page_number_orientation_advisory",
+        "landscape_page_number_position_advisory",
+    ]
+    assert p082.title == "Landscape Page-Number Orientation Advisory"
+
+
+def test_no_duplicate_public_rule_ids() -> None:
+    catalog = _load_catalog()
+    ids = [r["id"] for r in catalog]
+    assert len(ids) == len(set(ids)), "duplicate rule id in project_added_rules.json"
+
+
+def test_rule_type_values_are_all_recognized() -> None:
+    catalog = _load_catalog()
+    for rule in catalog:
+        rule_type = rule.get("rule_type")
+        if rule_type is not None:
+            assert rule_type in ALLOWED_RULE_TYPES, (
+                f"{rule['id']} has unrecognized rule_type {rule_type!r}"
+            )
+
+
+def test_reporting_only_rules_have_no_standalone_issue_types() -> None:
+    """A reporting-only/infrastructure rule must never claim a standalone issue type
+    — it should only ever appear as a triage rollup on its parent detector's
+    findings, never as its own student-visible finding."""
+    catalog = _load_catalog()
+    for rule in catalog:
+        if rule.get("rule_type") in _REPORTING_ONLY_TYPES:
+            assert not rule.get("issue_types"), (
+                f"{rule['id']} is rule_type={rule['rule_type']!r} but declares "
+                f"standalone issue_types {rule.get('issue_types')!r}"
+            )
+
+
+def test_implemented_rules_have_an_implementation_module_or_are_evaluation_tasks() -> None:
+    """A rule marked implemented must point at real code, unless it's an
+    evaluation-task rule (produces an analysis artifact, not a detector)."""
+    catalog = _load_catalog()
+    for rule in catalog:
+        if rule.get("implementation_status") != "implemented":
+            continue
+        if rule.get("rule_type") == "evaluation_task" or rule.get("phase") == "evaluation_task":
+            continue
+        assert rule.get("implementation_module"), (
+            f"{rule['id']} is implemented but has no implementation_module"
+        )
+
+
+def test_implementation_modules_are_importable() -> None:
+    """Catches a stale/typo'd implementation_module before it becomes a mystery
+    404-style bug report — the module reference must resolve to real code."""
+    catalog = _load_catalog()
+    for rule in catalog:
+        module_name = rule.get("implementation_module")
+        if not module_name:
+            continue
+        importlib.import_module(module_name)  # raises ImportError if stale
+
+
+def test_default_enabled_wording_gaps_have_not_grown() -> None:
+    """Ratchet test: fails if a *new* default-enabled (non-experimental,
+    non-reporting-only) catalog issue type has no template/fallback coverage in
+    polished_comments.py, without also updating _KNOWN_WORDING_GAPS above."""
+    catalog = _load_catalog()
+    current_gaps: set[tuple[str, str]] = set()
+    for rule in catalog:
+        if rule.get("rule_type") in _REPORTING_ONLY_TYPES:
+            continue
+        rule_id = rule["id"]
+        for issue_type in rule.get("issue_types") or []:
+            if (rule_id, issue_type) in _ISSUE_TEMPLATES:
+                continue
+            if rule_id in _RULE_FALLBACKS:
+                continue
+            current_gaps.add((rule_id, issue_type))
+
+    new_gaps = current_gaps - _KNOWN_WORDING_GAPS
+    assert not new_gaps, (
+        f"New default-enabled issue type(s) with no wording coverage: {sorted(new_gaps)}. "
+        "Add a template to polished_comments._ISSUE_TEMPLATES (preferred) or a rule-level "
+        "fallback, or — if this really is intentional debt — add it to _KNOWN_WORDING_GAPS "
+        "in this test with a reason."
+    )
+
+    closed_gaps = _KNOWN_WORDING_GAPS - current_gaps
+    if closed_gaps:
+        pytest.fail(
+            f"_KNOWN_WORDING_GAPS is stale — these are now covered and should be removed "
+            f"from the allowlist: {sorted(closed_gaps)}"
+        )
+
+
+@pytest.mark.parametrize("rule_id,issue_type", sorted(_KNOWN_WORDING_GAPS))
+def test_generic_fallback_never_leaks_raw_rule_id(rule_id: str, issue_type: str) -> None:
+    """The exact (rule_id, issue_type) pairs known to hit the generic fallback (no
+    template, no rule-level override) must still produce student-facing text with no
+    raw P###/Q### token in it. This is a regression test for the bug fixed in this
+    audit (see docs/RULE_ARCHITECTURE.md and CURRENT_STATUS.md): the fallback used to
+    interpolate the literal rule_id, e.g. "This check (P065) found a possible ...
+    issue"."""
+    comment = build_polished_comment(rule_id=rule_id, issue_type=issue_type, page=3)
+    leaked = _RAW_ID_PATTERN.findall(comment)
+    assert not leaked, f"{rule_id}/{issue_type} leaked raw id(s) {leaked} in: {comment!r}"
+
+
+def test_generic_fallback_never_leaks_raw_rule_id_for_unknown_issue_type() -> None:
+    """Same check for a made-up issue type that will never have template coverage —
+    guards the fallback path itself, not just today's known gaps."""
+    comment = build_polished_comment(
+        rule_id="P057", issue_type="a_completely_novel_future_issue_type", page=1
+    )
+    leaked = _RAW_ID_PATTERN.findall(comment)
+    assert not leaked, f"leaked raw id(s) {leaked} in: {comment!r}"

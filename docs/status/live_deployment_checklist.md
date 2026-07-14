@@ -1,5 +1,10 @@
 # Live Deployment Checklist
 
+> **See [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md) for the current, consolidated procedure.** This
+> file is kept for full historical detail (the superseded manual-tmux fallback, and dated
+> verification snapshots below whose SHA/PR/test-count numbers are not current — see
+> [`docs/status/CURRENT_STATUS.md`](CURRENT_STATUS.md) instead).
+
 ## Current supervision: systemd user service (as of 2026-07-04)
 
 The live web UI is supervised by a **user-level systemd service**, not a manual `nohup`

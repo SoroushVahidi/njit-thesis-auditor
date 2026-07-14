@@ -1,6 +1,10 @@
-# Open PR Triage (2026-07-06, #25: Sample A correctness alignment)
+# Open PR Triage (2026-07-06, #25: Sample A correctness alignment) — historical archive
 
-> **Canonical open-PR index.** Pair with
+> **Superseded.** As of the 2026-07-13 repository-polish audit, the current open-PR list lives in
+> [`docs/status/CURRENT_STATUS.md`](CURRENT_STATUS.md#active-open-prs-as-of-this-audit). Every PR
+> number below has since been merged, closed, or superseded — kept as a dated historical record.
+
+> **Original framing (historical, kept verbatim below for context):** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
 
 **Baseline inspected:** `main` @ `f323b57380865a94cb0e59de514335aa8a25eb5b`.  

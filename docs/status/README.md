@@ -1,10 +1,21 @@
 # Project Status Documentation
 
-**Start here:** [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md)
+**Start here:** [CURRENT_STATUS.md](CURRENT_STATUS.md) — short, genuinely current SHA/tests/open-PR
+snapshot, added 2026-07-13. This replaces `current_project_state_and_next_steps.md` as the entry
+point; that file (and `open_pr_triage.md`, `live_deployment_checklist.md`) are now historical
+archives — each has a banner at the top pointing here. See also the top-level
+[../ROADMAP.md](../ROADMAP.md), [../RULE_ARCHITECTURE.md](../RULE_ARCHITECTURE.md),
+[../EVALUATION_DATA.md](../EVALUATION_DATA.md), and [../DEPLOYMENT.md](../DEPLOYMENT.md).
+
+This is not the first pass at this problem — [repo_polish_inventory.md](repo_polish_inventory.md)
+(2026-07-03) identified the same staleness pattern in these same files and fixed it for a few
+days before it drifted again. `CURRENT_STATUS.md` is intentionally short specifically so it's
+cheap to keep updated; if it goes stale again, that's the signal to fix, not to add another
+inventory doc.
 
 | Topic | Document |
 |---|---|
-| Open PR triage and merge order | [open_pr_triage.md](open_pr_triage.md) |
+| Open PR triage and merge order (historical; see CURRENT_STATUS.md for current) | [open_pr_triage.md](open_pr_triage.md) |
 | Ester feedback language source of truth | [ester_feedback_source_of_truth.md](ester_feedback_source_of_truth.md) |
 | Ester language alignment audit (pre-implementation) | [ester_language_alignment_audit.md](ester_language_alignment_audit.md) |
 | Ester current wording inventory | [ester_current_wording_inventory.md](ester_current_wording_inventory.md) |

@@ -1872,12 +1872,12 @@ def build_polished_comment(
             issue_label = humanize_issue_type(issue).lower() if issue else "formatting"
             if rule_id in _SOURCE_RULE_IDS:
                 body = (
-                    f"This check ({rule_id}) found a possible {issue_label} issue "
+                    f"This automated check found a possible {issue_label} issue "
                     f"at {_safe_location_label(safe_details)}."
                 )
             else:
                 body = (
-                    f"This check ({rule_id}) found a possible {issue_label} issue "
+                    f"This automated check found a possible {issue_label} issue "
                     f"on page {_safe_page_label(page)}."
                 )
             return _finish_comment(body, rule_id=rule_id, issue_type=issue)
