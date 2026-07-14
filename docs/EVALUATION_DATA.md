@@ -41,6 +41,7 @@ decision, not an engineering one for this PR.
 | `clean_minimal.pdf`, `issues_pdf.pdf`, `demo_project.zip` | `tests/fixtures/web_demo/` | Committed synthetic placeholder text (intended as LFS-tracked; some checkout trees currently materialize them as ordinary blobs). Used by the web-demo guide and manual QA checklist. |
 | `examples/latex/good_minimal_thesis/`, `examples/latex/bad_minimal_thesis/` | `examples/` | Synthetic TeX fixtures for the CLI `tex` audit demo. |
 | Per-rule synthetic PDFs | Generated inline by most `tests/test_*.py` files via `reportlab` | Not checked in as static files; built at test time. |
+| Review-label example JSON | `tests/fixtures/review_labels/synthetic_example.json` | Synthetic-only records for `njit_auditor.review_labels` (see `docs/EVALUATION_REVIEW_LABELS.md`). |
 
 ### Processed rule specs (not raw student data, safe to read/edit with care)
 
@@ -73,6 +74,10 @@ Existing per-sample review docs (e.g. `docs/status/ester_sample_b_feedback_audit
 `docs/status/warning_actionability_audit_20260622.md`) predate this taxonomy and use free-form
 prose labels; they were not retroactively relabeled in this pass. New review passes should use
 the table above.
+
+Typed validation for the same vocabulary lives in `njit_auditor.review_labels` and
+`docs/EVALUATION_REVIEW_LABELS.md`. It rejects unknown labels and forbids path-like sample IDs.
+Using it is optional; labeling the full existing corpus is not required immediately.
 
 ## Cross-references
 
