@@ -312,7 +312,8 @@ def test_duplicate_candidate_cli_help_mentions_human_review(tmp_path: Path) -> N
     import subprocess
     import sys
 
-    script = Path(__file__).resolve().parents[1] / "scripts" / "warning_duplicate_candidate_analysis.py"
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "scripts" / "warning_duplicate_candidate_analysis.py"
     help_proc = subprocess.run(
         [sys.executable, str(script), "--help"],
         check=False,
