@@ -8,18 +8,18 @@
 > This file is intentionally short. Do not append dated snapshots here — open a new dated
 > report under `docs/status/` instead and link it from the relevant section below.
 
-_Last verified: 2026-07-14, after reduced PR #505 merged (`docs/status/pr505_reduction_after_pr508_20260714.md`)._
+_Last verified: 2026-07-14, after #505/#509/#510/#511 (`docs/status/pr505_reduction_after_pr508_20260714.md`)._
 
 ## Main branch
 
 | Field | Value |
 |---|---|
-| `origin/main` SHA | `3d31ce9bff97b650aa81346834dcbd18b8ed5c88` (short `3d31ce9`) |
-| Last merged PR | [#505](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/505) — finalize P015/P011/P033 correctness work after repository normalization |
+| `origin/main` SHA | `859d8f15c44fdc46709d9e38d8597388af3ec1c6` (short `859d8f1`) |
+| Last merged PR | [#511](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/511) — CURRENT_STATUS drift-prevention checks
 | CI (`.github/workflows/ci.yml`) | passing on `main` (post-merge run `29303438713`) |
 | `ruff check .` | clean |
-| `mypy src` | clean, 108 source files |
-| `python -m pytest -q tests` | **2821 passed** (measured on fresh `origin/main` @ `3d31ce9`) |
+| `mypy src` | clean, 109 source files |
+| `python -m pytest -q tests` | **2834 passed** (measured on fresh `origin/main` @ `859d8f1`)
 | Rule coverage | P001–P083 implemented (P075 is a documented non-inventory project task; next new rule ID is **P084**, not started) |
 
 Numbers above were measured directly on a fresh `origin/main` checkout after the reduced #505
