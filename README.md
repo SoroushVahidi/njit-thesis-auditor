@@ -152,9 +152,8 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 - **No authentication or rate limiting by default.** A public deployment needs a reverse proxy,
   TLS, authentication, and rate limiting — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - This repository's own evaluation data includes real, private student dissertations under
-  `data/raw/ester/` (currently committed via Git LFS to this **private** GitHub repository) — see
-  [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md) for the privacy rules governing that data and
-  why the repo must stay private.
+  `data/raw/ester/` (tracked in this **private** GitHub repository; mix of Git LFS pointers and
+  ordinary blobs — see [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md)) — keep the repo private.
 
 ## Limitations
 

@@ -21,7 +21,17 @@ from pathlib import Path
 
 import pytest
 
-from njit_auditor.polished_comments import _ISSUE_TEMPLATES, _RULE_FALLBACKS, build_polished_comment
+from njit_auditor.issue_type_explanations import (
+    explain_issue_type,
+    issue_type_title,
+    student_facing_issue_label,
+)
+from njit_auditor.polished_comments import (
+    _ISSUE_TEMPLATES,
+    _RULE_FALLBACKS,
+    build_polished_comment,
+    finalize_student_facing_comment_and_fix,
+)
 from njit_auditor.rule_loader import ALLOWED_RULE_TYPES, load_rule_file
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -34,12 +44,13 @@ _REPORTING_ONLY_TYPES = frozenset(
 # Internal rule ID pattern that must never appear verbatim in student-facing text.
 _RAW_ID_PATTERN = re.compile(r"\b[PQ]\d{2,3}\b")
 
-# (rule_id, issue_type) pairs that are catalog-declared but currently fall through to
-# the generic, non-leaking fallback sentence in build_polished_comment (no dedicated
-# template, no rule-level fallback). This is pre-existing wording debt, not something
-# this audit is scoped to write 13 new templates for (see docs/ROADMAP.md). The test
-# below is a ratchet: it fails if this set ever grows without a matching template
-# being added here, so new gaps can't be introduced silently.
+# Catalog issue types with no entry in polished_comments._ISSUE_TEMPLATES /
+# _RULE_FALLBACKS. Most of these hit the generic non-leaking fallback sentence.
+# P066/P067 have dedicated build_polished_comment handlers (so they do not hit
+# the generic fallback) but still lack dict-template coverage — listed here so
+# the ratchet tracks them. Writing dedicated templates for the remainder is
+# deferred wording debt (see docs/ROADMAP.md). The ratchet fails if this set
+# grows without a matching template being added.
 _KNOWN_WORDING_GAPS: frozenset[tuple[str, str]] = frozenset(
     {
         ("P057", "lot_page_numbers_not_nondecreasing"),
@@ -167,16 +178,33 @@ def test_default_enabled_wording_gaps_have_not_grown() -> None:
 
 
 @pytest.mark.parametrize("rule_id,issue_type", sorted(_KNOWN_WORDING_GAPS))
-def test_generic_fallback_never_leaks_raw_rule_id(rule_id: str, issue_type: str) -> None:
-    """The exact (rule_id, issue_type) pairs known to hit the generic fallback (no
-    template, no rule-level override) must still produce student-facing text with no
-    raw P###/Q### token in it. This is a regression test for the bug fixed in this
-    audit (see docs/RULE_ARCHITECTURE.md and CURRENT_STATUS.md): the fallback used to
-    interpolate the literal rule_id, e.g. "This check (P065) found a possible ...
-    issue"."""
-    comment = build_polished_comment(rule_id=rule_id, issue_type=issue_type, page=3)
-    leaked = _RAW_ID_PATTERN.findall(comment)
-    assert not leaked, f"{rule_id}/{issue_type} leaked raw id(s) {leaked} in: {comment!r}"
+def test_public_surfaces_never_leak_raw_rule_id(rule_id: str, issue_type: str) -> None:
+    """Public student-facing surfaces must not embed raw P###/Q### tokens.
+
+    Covers polished comments (the original leak), drilldown titles, issue-type
+    labels, explanations, and suggested-fix / remediation text. Separate
+    rule-reference links may still show IDs intentionally.
+    """
+    comment, fix = finalize_student_facing_comment_and_fix(
+        rule_id, issue_type, "", ""
+    )
+    surfaces = {
+        "comment": comment or build_polished_comment(
+            rule_id=rule_id, issue_type=issue_type, page=3
+        ),
+        "title": issue_type_title(rule_id, issue_type),
+        "label": student_facing_issue_label(rule_id, issue_type),
+        "explanation": explain_issue_type(rule_id, issue_type),
+        "suggested_fix": fix,
+    }
+    for surface, text in surfaces.items():
+        assert text and str(text).strip(), (
+            f"{rule_id}/{issue_type} {surface} is empty/less informative"
+        )
+        leaked = _RAW_ID_PATTERN.findall(str(text))
+        assert not leaked, (
+            f"{rule_id}/{issue_type} leaked raw id(s) {leaked} in {surface}: {text!r}"
+        )
 
 
 def test_generic_fallback_never_leaks_raw_rule_id_for_unknown_issue_type() -> None:
@@ -187,3 +215,5 @@ def test_generic_fallback_never_leaks_raw_rule_id_for_unknown_issue_type() -> No
     )
     leaked = _RAW_ID_PATTERN.findall(comment)
     assert not leaked, f"leaked raw id(s) {leaked} in: {comment!r}"
+    title = issue_type_title("P057", "a_completely_novel_future_issue_type")
+    assert not _RAW_ID_PATTERN.findall(title), f"title leaked id(s) in: {title!r}"

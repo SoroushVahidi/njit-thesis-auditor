@@ -179,17 +179,19 @@ def issue_type_title(rule_id: str, issue_type: str) -> str:
     Falls back to the humanized issue-type label when no explicit override
     exists, so every issue type still gets a specific (not broad-category)
     title.
+
+    Titles are student-facing prose and must not embed raw internal ``P###``/
+    ``Q###`` identifiers. Rule IDs remain available as separate rule-reference
+    links elsewhere in the UI.
     """
     explicit = _ISSUE_TYPE_TITLES.get((rule_id, issue_type))
     if explicit is not None:
         return explicit
     ester = student_warning_label(rule_id, issue_type)
     if ester:
-        return f"{ester} ({rule_id})"
+        return ester
     label = humanize_issue_type(issue_type)
-    if label and rule_id:
-        return f"{label} ({rule_id})"
-    return label or rule_id or "Finding"
+    return label or "Finding"
 
 
 def has_curated_issue_type_title(rule_id: str, issue_type: str) -> bool:

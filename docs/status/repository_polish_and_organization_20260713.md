@@ -262,3 +262,71 @@ The live server was not restarted, no request was made to port 8000, and the dep
 (`archives/njit-thesis-auditor-deploy`) was not modified — the only interaction with it in this
 entire pass was a read-only `git worktree list` / `git log` to report its checked-out SHA in
 `docs/status/CURRENT_STATUS.md`.
+
+## Independent review follow-up (PR #508 finalize, same day)
+
+Performed in a fresh review worktree from `origin/chore/repo-polish-and-organization-20260713`
+after GitHub CI was already green, because automated Codex review had hit a usage limit.
+
+### Findings and corrections applied on this branch
+
+1. **Additional public-output ID leak:** `issue_type_title()` embedded raw `(P###)` into
+   student-facing drilldown/category H1 titles (separate from the polished-comment fallback).
+   Fixed to return human/Esther labels only; dedicated rule-reference links still show IDs.
+   Strengthened `tests/test_rule_registry_consistency.py` to cover title/label/explanation/
+   suggested-fix surfaces; updated the one web test that previously required `(P011)` in the
+   title prose.
+2. **P066/P067 wording-gap claim:** those rules have dedicated `build_polished_comment` handlers
+   (they never hit the generic fallback). The allowlist comment now says so; leak coverage still
+   includes them.
+3. **Private data storage claim refined:** not all of `data/raw/ester/` is LFS *pointer* objects —
+   several private binaries are ordinary Git blobs (multi‑MB) despite `.gitattributes`. Filenames
+   often contain personal names. Repo is private (verified). Documented a later migration plan
+   below; no history rewrite in this PR. Package builds remain source-only (`setuptools` finds
+   packages under `src/` only) — private evaluation files are not packaged.
+4. **`CURRENT_STATUS.md`:** removed the already-fixed "`results/` not gitignored" unresolved
+   item; recommended merge sequence updated to Outcome A (#508 first, then reduced #505).
+
+### Exact #505 overlap analysis (vs `origin/main` @ `dcadd61` and #508)
+
+| #505 commit | Classification |
+|---|---|
+| `df71d7c` P015 continuation-indent + Sample B forensics | **Still unique and valuable** (detector + docs/tests) |
+| `5ba3acc` Sample B P026 font false positive | **Already merged into main** via #506 — `pdf_font_compliance.py` diff vs main is **empty** (byte-identical no-op) |
+| `822ad2e` P011 content-aware remediation | **Still unique and valuable** |
+| `5eb0bfb` P011 precision audit + regression tests | **Still unique and valuable** |
+| `a9efeff` P033 page-role wording + duplicate-candidate tooling | **Still unique and valuable** |
+| `9f6d4f8` overnight status docs | **Documentation-only**; largely superseded once #508's canonical status exists — drop/rebase |
+| `ab2c2c3` generic polished-comment rule_id leak fix | **Duplicated semantically (not byte-identical)** by #508 (`This formatting check` vs `This automated check`); drop after #508 merges |
+| `e772f5f` P015 mixed-case continuation heuristic (pH/mRNA/eBay) | **Still unique and valuable** |
+
+Overlapping files with #508 only: `polished_comments.py`, `tests/test_report_view.py`,
+`docs/status/README.md`, `docs/status/current_project_state_and_next_steps.md`.
+
+**Chosen sequence: Outcome A** (merge #508 first; rebase #505; strip duplicated/superseded hunks;
+retain unique validated detector/remediation/tooling). Porting unique #505 detector work into
+#508 would widen this polish PR's blast radius without benefit — Outcome B rejected.
+
+Source PRs #499/#500/#502/#504 remain superseded by #505 once the reduced #505 merges; #483
+remains close-without-merge.
+
+### Private LFS / package risk assessment
+
+- Repo visibility: **private** (GitHub).
+- `.gitattributes` marks `*.pdf`/`*.docx`/`*.xlsx`/`*.zip` as LFS filters.
+- Tree reality: mix of LFS pointers and full blobs under `data/raw/ester/` and guidelines;
+  synthetic `tests/fixtures/web_demo/` binaries are also in the "should-be-pointer" set.
+- `.gitignore` correctly ignores `data/evaluation/generated/`, `data/evaluation/private/`, and
+  (as of this PR) `/results/`.
+- `pyproject.toml` packages only `src/njit_auditor` — wheel/sdist should not ship private samples.
+- **Later migration plan (do not execute here):** (1) move private evaluation corpora to
+  access-controlled external storage (Drive or encrypted local volume) with an env-provided path
+  manifest; (2) stop adding new private binaries to git; (3) exclude any remaining private paths
+  from package/release tooling explicitly; (4) coordinated LFS/history purge only after backups
+  and Esther/maintainer authorization; (5) rename path segments that encode personal names in any
+  *new* storage layout (history rename is optional / separate).
+
+### Live server
+
+Untouched throughout this independent review — no port 8000 access, no deploy, no
+`systemctl`/tmux restart.

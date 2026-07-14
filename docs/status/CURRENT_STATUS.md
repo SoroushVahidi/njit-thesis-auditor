@@ -73,9 +73,15 @@ per `docs/DEPLOYMENT.md` before relying on current UI behavior matching `main`.
 
 ## Unresolved engineering tasks
 
-- Rebase/merge #505, then close #499/#500/#502/#504/#483 (see table above).
+- Rebase/merge #505 **after** #508, then close #499/#500/#502/#504/#483 (see table above and the
+  independent-review overlap analysis in
+  `docs/status/repository_polish_and_organization_20260713.md`). Prefer Outcome A: keep #505's
+  unique detector/remediation/test commits; drop its duplicated polish-comment leak hunk and
+  stale status-doc edits once #508 is on `main`.
 - Delete stale merged-PR remote branches (list in the full audit report).
-- `results/` (script scratch output) is not gitignored — see repository-polish audit, Phase 5.
+- Private evaluation binaries under `data/raw/ester/` include both Git LFS pointers and full Git
+  blobs; filenames often contain personal names. Keep the repo private; plan a later coordinated
+  history/LFS migration (documented in the polish report) — do not rewrite history in a polish PR.
 - `scripts/ester_rule_consistency_audit.py` requires local, untracked, generated
   `results/ester_feedback_raw/*.xlsx` input and cannot run in a fresh clone or CI; it is not
   wired into `docs/RULE_ARCHITECTURE.md`'s consistency-test story for that reason. Making it
@@ -97,9 +103,12 @@ judgment calls, not engineering bugs.
 
 ## Immediate recommended next actions
 
-1. Review and merge PR #505 (or rebase it if #506/#507 caused drift beyond the confirmed no-op).
-2. Close #499/#500/#502/#504/#483 as superseded.
-3. Delete the ~24 stale merged-PR remote branches.
-4. Restart the live deployment once a maintainer confirms `main` is in the desired state (out of
+1. Merge PR #508 (this polish/registry/leak-fix PR) first.
+2. Rebase PR #505 onto the new `main`, drop duplicated/superseded hunks (generic polish-comment
+   leak fix; P026 font hunk already a no-op vs #506; stale status-doc updates), retain unique
+   P015/P011/P033/duplicate-tooling work, re-validate, then merge the reduced #505.
+3. Close #499/#500/#502/#504/#483 as superseded.
+4. Delete the ~24 stale merged-PR remote branches (and #505's branch only after #505 merges).
+5. Restart the live deployment once a maintainer confirms `main` is in the desired state (out of
    scope for this audit).
-5. Decide the 4 open Esther-policy questions above with Esther directly.
+6. Decide the 4 open Esther-policy questions above with Esther directly.
