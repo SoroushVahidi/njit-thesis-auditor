@@ -11,6 +11,7 @@ MANIFEST_DOC_PATH = Path("docs/status/evaluation_data_manifest.md")
 DATA_INVENTORY_DOC_PATH = Path("docs/status/data_inventory_and_evaluation_sources.md")
 PROJECT_CLOSEOUT_DOC_PATH = Path("docs/status/project_closeout.md")
 PROJECT_RULES_PATH = Path("data/processed/rules/project_added_rules.json")
+CURRENT_STATUS_DOC_PATH = Path("docs/status/CURRENT_STATUS.md")
 
 REQUIRED_CATEGORIES = (
     "guideline_rule_sources",
@@ -366,6 +367,23 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
 
 
 def test_manifest_current_state_docs_are_aligned() -> None:
+    """As of the 2026-07-13 repository-polish audit, `docs/status/CURRENT_STATUS.md` is
+    the single canonical prose doc required to match the manifest JSON's current
+    snapshot — not README plus three separate `docs/status/` files.
+
+    The old version of this test required README.md and three separate
+    `docs/status/*.md` files to *each* independently embed the exact same current
+    SHA/pytest-count/rule-range figures as this JSON manifest. That's the "duplicate
+    status reports" / "one enormous status file" anti-pattern the audit's task
+    explicitly called out — every rule addition meant hand-editing five places to
+    stay "aligned," and in practice they drifted anyway (the JSON manifest itself was
+    stuck at PR #433 / `07db2fa` / 2512 pytest, dozens of commits behind `main` by the
+    time this test was updated). `current_project_state_and_next_steps.md`,
+    `evaluation_data_manifest.md`, and `data_inventory_and_evaluation_sources.md` are
+    now explicitly historical archives (see the banner at the top of each) and are no
+    longer required to track current numbers — see docs/status/CURRENT_STATUS.md and
+    docs/status/README.md instead.
+    """
     manifest = _load_manifest()
     baseline_main = str(manifest["main_commit_used_for_status_snapshot"])
     pytest_count = int(manifest["pytest_count_used_for_status_snapshot"])
@@ -381,47 +399,27 @@ def test_manifest_current_state_docs_are_aligned() -> None:
     manifest_doc = _load_text(MANIFEST_DOC_PATH)
     data_inventory_doc = _load_text(DATA_INVENTORY_DOC_PATH)
     project_closeout_doc = _load_text(PROJECT_CLOSEOUT_DOC_PATH)
+    current_status_doc = _load_text(CURRENT_STATUS_DOC_PATH)
 
+    # Anti-staleness floor: even though the three older docs are archived, a stale
+    # marker from *two* rewrites ago reappearing would signal something got copied
+    # backwards by mistake.
     for text in (readme, current_state_doc, manifest_doc, data_inventory_doc):
         assert "1042 pytest" not in text
         assert "f4c0c4d" not in text
-        assert "non-inventory project task" in text
-        assert "P076" in text
-        assert "P077" in text
-        assert "P078" in text
-        assert "P079" in text
-        assert "P080" in text
-        assert "P081" in text
-        assert "P082" in text
 
-    for text in (current_state_doc, manifest_doc, data_inventory_doc):
-        assert "Latest main" not in text
-        assert "latest_main_at_last_doc_refresh" not in text
-        assert "Baseline main for this status snapshot" in text
+    # The one canonical current-state doc must actually be current.
+    assert implemented_range in current_status_doc
+    assert next_inventory_id in current_status_doc
+    assert baseline_main in current_status_doc
+    assert f"{pytest_count} passed" in current_status_doc
+    assert "non-inventory project task" in current_status_doc
 
-    assert implemented_range in readme
-    assert implemented_range in current_state_doc
-    assert implemented_range in manifest_doc
-    assert implemented_range in data_inventory_doc
-    assert next_inventory_id in readme
-    assert next_inventory_id in current_state_doc
-    assert next_inventory_id in manifest_doc
-    assert next_inventory_id in data_inventory_doc
-    assert baseline_main in current_state_doc
-    assert baseline_main in manifest_doc
-    assert baseline_main in data_inventory_doc
-    assert f"{pytest_count} pytest" in readme
-    assert f"{pytest_count} pytest" in current_state_doc
-    assert f"{pytest_count} pytest" in manifest_doc
-    assert f"{pytest_count} pytest" in data_inventory_doc
+    # README intentionally no longer embeds these figures (see docs/RULE_ARCHITECTURE.md
+    # and docs/status/CURRENT_STATUS.md) but must not claim to be the live source of them.
     assert "Current validation" not in readme
-    assert "Status snapshot validation" in readme
-    assert "Status snapshot validation" in current_state_doc
-    assert "Status snapshot validation" in manifest_doc
-    assert "Status snapshot validation" in data_inventory_doc
-    assert "Historical P082 closeout snapshot" in readme
-    assert "Historical P082 closeout snapshot" in current_state_doc
-    assert "Historical P082 closeout snapshot" in manifest_doc
+    assert "Status snapshot validation" not in readme
+
     assert "Historical P082 Project Closeout Snapshot" in project_closeout_doc
     assert "Historical Milestone Archive" in current_state_doc
     assert "P001\u2013P082 implemented" not in current_state_doc

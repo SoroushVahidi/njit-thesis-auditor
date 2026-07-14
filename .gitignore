@@ -35,6 +35,10 @@ data/evaluation/private/
 var/web_audits/
 tests/fixtures/web_demo/demo_project_extracted/
 
+# Script scratch output (dated audit/analysis runs written by scripts/*.py; may
+# contain extracted text derived from private evaluation samples — never commit)
+/results/
+
 # OS/editor files
 .DS_Store
 .vscode/

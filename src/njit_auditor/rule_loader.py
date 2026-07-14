@@ -29,14 +29,31 @@ RulePhase = Literal[
 ]
 RuleCheckability = Literal["deterministic", "heuristic", "visual", "manual"]
 RulePriority = Literal["high", "medium", "low"]
+RuleType = Literal[
+    "detection",
+    "infrastructure",
+    "infrastructure_refinement",
+    "reporting_refinement",
+    "experimental_advisory",
+    "evaluation_task",
+]
 
 ALLOWED_PHASES = frozenset(get_args(RulePhase))
 ALLOWED_CHECKABILITY = frozenset(get_args(RuleCheckability))
 ALLOWED_PRIORITY = frozenset(get_args(RulePriority))
+ALLOWED_RULE_TYPES = frozenset(get_args(RuleType))
 
 
 class RuleDefinition(BaseModel):
-    """Schema for one rule loaded from JSON."""
+    """Schema for one rule loaded from JSON.
+
+    ``project_added_rules.json`` carries several fields (``title`` through
+    ``source_q_rule_basis`` below) that older catalog files
+    (``njit_rule_inventory.json``, ``front_matter_rules.json``) don't use. Pydantic
+    ignores unmodeled fields by default, so before this schema was widened these were
+    silently accepted-and-dropped by ``load_rule_file`` rather than validated — see
+    docs/RULE_ARCHITECTURE.md ("Schema drift found and fixed in this audit").
+    """
 
     id: str
     section: str
@@ -52,6 +69,16 @@ class RuleDefinition(BaseModel):
     implementation_module: str | None = None
     priority: RulePriority | None = None
     notes: str | None = None
+    title: str | None = None
+    description: str | None = None
+    rule_type: RuleType | None = None
+    issue_types: list[str] | None = None
+    source_q_rule_ids: list[str] | None = None
+    source_q_rule_basis: str | None = None
+    source_files: list[str] | None = None
+    scope_doc: str | None = None
+    triage_tier: str | None = None
+    affected_rules: list[str] | None = None
 
 
 def load_rule_file(path: str | Path) -> list[RuleDefinition]:
@@ -97,6 +124,11 @@ def load_rule_file(path: str | Path) -> list[RuleDefinition]:
         priority = rule.get("priority")
         if priority is not None and priority not in ALLOWED_PRIORITY:
             msg = f"Rule id {rule_id} has invalid priority: {priority}"
+            raise ValueError(msg)
+
+        rule_type = rule.get("rule_type")
+        if rule_type is not None and rule_type not in ALLOWED_RULE_TYPES:
+            msg = f"Rule id {rule_id} has invalid rule_type: {rule_type}"
             raise ValueError(msg)
 
         input_required = rule.get("input_required")

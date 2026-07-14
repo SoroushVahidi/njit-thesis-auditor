@@ -2351,7 +2351,10 @@ def test_category_problem_page_route_returns_200(
     # Both matching findings share one issue type, so the page title narrows
     # to that issue type rather than staying at the broad category label.
     assert b"including tables and figures" in resp.content
-    assert b"(P011)" in resp.content
+    # Student-facing titles must not embed raw internal rule IDs; the ID still
+    # appears as a dedicated rule-reference link / query parameter instead.
+    assert b"(P011)" not in resp.content
+    assert b'href="/rules#P011"' in resp.content or b"rule_id=P011" in resp.content
     # "original_page" resolves through the same true single-page endpoint as
     # "highlight" rather than a #page=N fragment into the full PDF.
     assert (

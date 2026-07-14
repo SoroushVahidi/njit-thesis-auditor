@@ -1,7 +1,14 @@
-# Current Project State and Next Steps
+# Current Project State and Next Steps (historical archive)
 
-> **Canonical status entry point.** Start here for current `main`, validation, open PRs,
-> Q-rule coverage, and recommended next actions. Related indexes:
+> **Superseded as the canonical status entry point.** As of the 2026-07-13 repository-polish
+> audit, start at [`docs/status/CURRENT_STATUS.md`](CURRENT_STATUS.md) instead — it is
+> deliberately short and kept genuinely current. This file's newest "Current Status" section
+> below (PR #407/#408, SHA `70dcd95`) is over 100 commits stale. The file is preserved in full
+> as a dated forensic/historical record — do not delete it, and do not treat anything in it as
+> current without checking the date against `CURRENT_STATUS.md`.
+
+> **Original entry-point framing (historical, kept verbatim below for context):** Related
+> indexes:
 > [open PR triage](open_pr_triage.md) ·
 > [Ester Q / P / public rule mapping](ester_q_p_rule_public_rule_mapping.md) ·
 > [live deployment checklist](live_deployment_checklist.md) ·

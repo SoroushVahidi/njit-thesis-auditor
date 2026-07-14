@@ -1497,7 +1497,12 @@ def test_polished_comment_fallback_unknown_rule() -> None:
         page=1,
         details={},
     )
-    assert "P999" in comment
+    # The generic fallback must never leak the raw internal rule_id into
+    # student-facing text (fixed in the 2026-07-13 repository-polish audit —
+    # see tests/test_rule_registry_consistency.py for the general regression
+    # coverage). It previously read "This check (P999) found a possible ...".
+    assert "P999" not in comment
+    assert "This automated check found a possible" in comment
     assert "Review needed" in comment
 
 

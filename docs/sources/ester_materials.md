@@ -1,8 +1,17 @@
 # Ester Materials: Source Files for the NJIT Thesis Auditor
 
-These materials were shared by Ester Farfan (NJIT Graduate Studies formatting
+These materials were shared by Esther Flaim (NJIT Graduate Studies formatting
 coordinator) for use in this project. The project owner has confirmed that all
 files in this archive are permitted for use within this repository.
+
+> **Name correction (2026-07-13):** earlier versions of this document said "Ester Farfan." The
+> surname "Flaim" is what actually appears in her own raw materials (e.g. `data/specs/ester_p_rule_feedback.json`,
+> `data/specs/ester_q_matrix.json`, and several files under `data/raw/ester/`) — "Farfan" does not
+> appear anywhere else in the repository and looks like a one-time transcription error in this
+> file. See [docs/TERMINOLOGY.md](../TERMINOLOGY.md) for the separate, still-open "Ester" vs.
+> "Esther" first-name spelling question (this file now uses "Esther," the project's intended
+> spelling per this audit's instructions; the `ester_*` identifiers throughout the codebase are
+> unaffected — see that doc for why).
 
 Original bundle: `ai-formatting-project.rar` (196 MB, Google Drive)
 
@@ -33,7 +42,7 @@ prepositions, and conjunctions).
 ## Commented / Reviewed Dissertation Data
 
 Located in `data/raw/ester/`. These are real dissertation drafts annotated by
-Ester Farfan. They are the primary evaluation dataset for measuring auditor
+Esther Flaim. They are the primary evaluation dataset for measuring auditor
 performance against human reviewer feedback.
 
 Do not reproduce dissertation body text in documentation, reports, or tests.
