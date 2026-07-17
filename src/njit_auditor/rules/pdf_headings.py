@@ -46,8 +46,10 @@ _HEADING_Q_RULE_MAP: dict[str, str] = {
 # "CHAPTER 1 INTRODUCTION" or "APPENDIX A" — space-separated, ALL CAPS.
 _CHAPTER_HEADING_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+")
 # Fallback for PDFs where the space between "CHAPTER" and "1" is a whitespace-only span
-# that pdf_layout.py strips (line 83: `if not text.strip(): continue`), causing PyMuPDF
-# to join them as "CHAPTER1". Only ALL-CAPS versions match.
+# that pdf_layout previously dropped without restoring a geometry-based space, causing
+# PyMuPDF to join them as "CHAPTER1". load_pdf_layout now inserts spaces from horizontal
+# gaps, but this mashed fallback remains for spans that truly abut with no gap. Only
+# ALL-CAPS versions match.
 _CHAPTER_HEADING_MASHED_RE = re.compile(r"^(CHAPTER|APPENDIX)[\dA-Z]+")
 # Fallback: "CHAPTER" or "APPENDIX" alone on its own line (split-heading layout).
 _CHAPTER_STANDALONE_RE = re.compile(r"^(CHAPTER|APPENDIX)\s*$")

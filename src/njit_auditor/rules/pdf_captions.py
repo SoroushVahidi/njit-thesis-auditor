@@ -160,6 +160,24 @@ def _reads_as_prose_sentence(caption_body: str) -> bool:
     return bool(EMBEDDED_SENTENCE_RE.search(caption_body))
 
 
+_PROSE_AFTER_TABLE_REF_RE = re.compile(
+    r"^(?:The|A|An|This|These|Those)\b.+\b(?:is|are|was|were|has|have|had|"
+    r"suggests|shows|compares|presents|indicates|demonstrates|reports)\b",
+    re.IGNORECASE,
+)
+
+
+def _reads_as_prose_after_float_reference(caption_body: str) -> bool:
+    """True when a Table/Figure body reads as a continuing prose sentence.
+
+    Pattern: ``Table 3.2. The corresponding … is experimentally determined…``
+    — determiner-led clause with a finite verb. Real table titles are short
+    noun phrases in title case, not full declarative sentences.
+    """
+
+    return bool(_PROSE_AFTER_TABLE_REF_RE.search(caption_body))
+
+
 def _starts_with_lowercase_word(text: str) -> bool:
     for char in text:
         if char.isalpha():
@@ -243,7 +261,17 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
             body = normalize_caption_text(match.group("body"))
             if len(body) < MIN_CAPTION_BODY_LEN:
                 continue
+            # Both table titles (title case) and figure descriptions (sentence case)
+            # capitalize the first word of the body. A lowercase-starting body after
+            # "Table/Figure N.N" is almost always an inline cross-reference in prose
+            # ("Table 3.1 compares…"), not a standalone caption/title. Same-margin
+            # continuation alone is not reliable when the first line's extracted
+            # left edge differs from the wrapped paragraph.
+            if _starts_with_lowercase_word(body):
+                continue
             if _reads_as_prose_sentence(body):
+                continue
+            if _reads_as_prose_after_float_reference(body):
                 continue
             if _next_line_is_paragraph_continuation(body, page_lines, index):
                 continue

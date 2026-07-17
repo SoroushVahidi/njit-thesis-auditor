@@ -346,7 +346,7 @@
     "section": "PDF title and heading capitalization",
     "question": "Do title-like PDF lines follow NJIT title-case capitalization heuristics?",
     "rule_definition": "Heuristically detect obvious title-case violations in title-like PDF text regions. Per NJIT guidelines, Level 2 headings (X.x) and table titles use Title Case: each word capitalized except short articles, prepositions, and conjunctions. Checked for bold heading-like lines and table caption title bodies. Not applied to body paragraphs, figure captions (sentence case), Level 3+ headings (sentence case), references pages, or all-caps front-matter labels.",
-    "remediation": "Review flagged title-like lines for NJIT title case: capitalize the first word, last word, all major words (4+ letters), and all words after subtitle separators. Short articles (a, an, the), conjunctions (and, but, or, for, nor, as), and prepositions (at, by, in, of, on, per, to, up, via) may remain lowercase in the middle. Always check the heading in your original source document (Word or Overleaf) rather than relying solely on the PDF text extraction.",
+    "remediation": "Review flagged title-like lines for NJIT title case: capitalize the first word and all major words, and all words after subtitle separators. Articles (a, an, the), conjunctions (and, but, or, for, nor, as, yet, so), and prepositions (including longer ones such as with, from, into, between, through, without) may remain lowercase in the middle. Always check the heading in your original source document (Word or Overleaf) rather than relying solely on the PDF text extraction.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",

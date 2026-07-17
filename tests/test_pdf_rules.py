@@ -100,6 +100,7 @@ from njit_auditor.rules.pdf_title_capitalization import (
     check_pdf_title_capitalization,
     is_minor_word,
     looks_like_acronym,
+    normalize_numbered_heading_text,
 )
 from njit_auditor.rules.pdf_title_consistency import (
     _collect_title_candidates,
@@ -2331,10 +2332,35 @@ def test_p013_embedded_reprint_top_number_not_counted_as_duplicate(tmp_path: Pat
 
 
 def test_p020_minor_word_detection() -> None:
-    for word in ("a", "an", "the", "and", "but", "or", "for", "nor", "as",
-                 "at", "by", "in", "of", "on", "per", "to", "up", "via"):
+    for word in (
+        "a",
+        "an",
+        "the",
+        "and",
+        "but",
+        "or",
+        "for",
+        "nor",
+        "as",
+        "at",
+        "by",
+        "in",
+        "of",
+        "on",
+        "per",
+        "to",
+        "up",
+        "via",
+        "with",
+        "from",
+        "into",
+        "over",
+        "between",
+        "through",
+        "without",
+    ):
         assert is_minor_word(word), f"'{word}' should be a minor word"
-    for word in ("machine", "learning", "with", "from", "into", "over"):
+    for word in ("machine", "learning", "results", "comparison", "robustness"):
         assert not is_minor_word(word), f"'{word}' should NOT be a minor word"
 
 
@@ -2440,11 +2466,36 @@ def test_p020_phrase_statistical_notation_variants_not_flagged() -> None:
         assert check_apa_title_case_phrase(phrase) == [], phrase
 
 
-def test_p020_phrase_comparison_with_prior_studies_still_flags_with() -> None:
-    # The strict title-case policy still treats "with" (4 letters) as a major
-    # word that must be capitalized. This behavior must be preserved.
+def test_p020_phrase_preposition_with_lowercase_no_issue() -> None:
+    # NJIT/Esther: prepositions stay lowercase in title case, including "with".
     issues = check_apa_title_case_phrase("Comparison with Prior Studies")
-    assert any(i["word"] == "with" and i["expected"] == "With" for i in issues)
+    assert issues == []
+    assert not any(i["word"].lower() == "with" for i in issues)
+
+
+def test_p020_phrase_representative_minor_prepositions_no_issue() -> None:
+    for phrase in (
+        "Results from Sparse Sampling Experiments",
+        "Analysis into Incomplete Point Clouds",
+        "Methods over Multiple Benchmark Datasets",
+        "Tradeoffs between Accuracy and Speed Metrics",
+        "Reconstruction through Geometry Aware Sampling",
+        "Evaluation without Manual Annotation Labels",
+        "Quantitative Results on Sparse Point Clouds with 10k, 5k, and 1k Points",
+        "Comparison of Uniform and Geometry-Aware Importance Sampling on",
+    ):
+        assert check_apa_title_case_phrase(phrase) == [], phrase
+
+
+def test_p020_normalize_glued_section_number_spacing() -> None:
+    assert (
+        normalize_numbered_heading_text("3.3.9.4Robustness to input variations.")
+        == "3.3.9.4 Robustness to input variations."
+    )
+    assert (
+        normalize_numbered_heading_text("3.2 Quantitative Results Overview Title")
+        == "3.2 Quantitative Results Overview Title"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2524,6 +2575,236 @@ def test_p020_lowercase_minor_word_in_middle_no_warning(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_title_capitalization(model)
     assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_table_title_lowercase_with_not_flagged(tmp_path: Path) -> None:
+    """NJIT title case keeps the preposition 'with' lowercase in table titles."""
+    pdf_path = tmp_path / "p020_table_with.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 3.5 Quantitative Results with Different Weight Settings",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(
+        f.rule_id == "P020" and (f.details or {}).get("flagged_word", "").lower() == "with"
+        for f in findings
+    )
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_genuine_table_caption_still_checked(tmp_path: Path) -> None:
+    """Real table captions remain in scope; true major-word errors still warn."""
+    pdf_path = tmp_path / "p020_table_major.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 3.1 Quantitative results on Sparse Point Clouds",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("source") == "caption"
+    assert warning.details.get("flagged_word") == "results"
+    assert warning.details.get("expected_or_reason") == "major_word_requires_capital"
+
+
+def test_p020_prose_table_reference_not_treated_as_caption(tmp_path: Path) -> None:
+    """Inline 'Table N.N compares…' prose must not become a table-title finding."""
+    pdf_path = tmp_path / "p020_table_prose.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 3.1 compares the iteration time, convergence time, and GPU memory",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    page.insert_text(
+        (108, 158),
+        "usage of the original and finite-difference formulations on this task.",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+    captions = detect_caption_lines(model)
+    assert not any(
+        c.caption_type == "table" and c.caption_body.lower().startswith("compares")
+        for c in captions
+    )
+
+
+def test_p020_level4_heading_sentence_case_not_title_cased(tmp_path: Path) -> None:
+    """Level 4 headings use sentence case; P020 must not demand title case."""
+    pdf_path = tmp_path / "p020_level4.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    # Mimic glued number+title extraction seen in real PDFs.
+    page.insert_text(
+        (108, 140),
+        "3.3.9.4Robustness to input variations.",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(f.rule_id == "P020" for f in findings)
+
+
+def test_p020_level2_heading_still_title_case_checked(tmp_path: Path) -> None:
+    """Level 2 (X.x) headings remain in P020 title-case scope."""
+    pdf_path = tmp_path / "p020_level2.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "3.2 Robustness to input variations here",
+        fontsize=14,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("flagged_word") == "input"
+    assert "3.2 " in (warning.details.get("line_preview") or "")
+
+
+def test_p020_period_terminated_sentence_case_heading_not_title_cased(tmp_path: Path) -> None:
+    """Level 4/5-style headings end with a period and must not get P020 title case."""
+    pdf_path = tmp_path / "p020_period_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Neural signed distance representation.",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
+
+
+def test_p020_run_in_heading_with_body_on_same_baseline_excluded(tmp_path: Path) -> None:
+    """Bold run-in heading + non-bold body on the same baseline is not L2 title case."""
+    pdf_path = tmp_path / "p020_run_in.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Expectation-maximization (EM) algorithm",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    page.insert_text(
+        (380, 140),
+        "The EM algorithm is used for estimation.",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
+
+
+def test_p020_glued_and_performance_suppressed_when_rebuild_is_clean(tmp_path: Path) -> None:
+    """Span-gap rebuild that yields valid title case suppresses glued-token FPs."""
+    pdf_path = tmp_path / "p020_glued_and.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    x = 100.0
+    y = 140.0
+    for word in ("Relating", "Floc", "Filter", "Porosity,", "Depth,", "and", "Performance"):
+        page.insert_text((x, y), word, fontsize=12, fontname="Times-Bold")
+        x += fitz.get_text_length(word, fontname="Times-Bold", fontsize=12) + 4.5
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    # Historical extraction may glue words; P020 must not warn once gaps are restored.
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
+
+
+def test_p020_glued_in_power_systems_flags_visible_word(tmp_path: Path) -> None:
+    """When rebuild still has a title-case issue, flag the visible word not the glue token."""
+    pdf_path = tmp_path / "p020_glued_power.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 120), "3.3", fontsize=12, fontname="Times-Bold")
+    x = 108.0
+    y = 140.0
+    for word in ("Graph", "Attention", "Network", "(GAEN)", "in", "power", "systems"):
+        page.insert_text((x, y), word, fontsize=12, fontname="Times-Bold")
+        x += fitz.get_text_length(word, fontname="Times-Bold", fontsize=12) + 4.5
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
+    assert findings
+    flagged = findings[0].details.get("flagged_word")
+    assert flagged == "power"
+    assert flagged != "inpowersystems"
+    preview = findings[0].details.get("line_preview") or ""
+    assert "in power systems" in preview
+
+
+def test_p020_table_title_comparison_lowercase_still_warns(tmp_path: Path) -> None:
+    """Control: genuine table-title capitalization issues remain detectable."""
+    pdf_path = tmp_path / "p020_table_comparison.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 4.2 Quantitative comparison on Spot, Bunny, and Duck",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next((f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("flagged_word") == "comparison"
+    assert warning.details.get("source") == "caption"
+
+
+def test_p020_prose_table_ref_with_determiner_clause_excluded(tmp_path: Path) -> None:
+    """Table N.N. The … is … prose sentences are not table titles."""
+    pdf_path = tmp_path / "p020_table_prose_the.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "Table 3.2. The corresponding profile of a plane jet is experimentally determined",
+        fontsize=12,
+        fontname="Times-Roman",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
 
 
 def test_p020_first_word_lowercase_in_bold_heading_warns(tmp_path: Path) -> None:
@@ -3702,6 +3983,28 @@ def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
     )
 
 
+def test_p024_lof_sentence_case_keeps_long_minor_words_in_ratio(tmp_path: Path) -> None:
+    """Lowercase long prepositions must dilute LoF sentence-case ratio (not tip FPs)."""
+    pdf_path = tmp_path / "lof_with_marching.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Overview of the experimental setup for this study ....", 108),
+            ("Figure 2 Schematic of the measurement configuration used here ....", 108),
+            ("Figure 3 Qualitative comparison with Marching Cubes ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024"
+        and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        and "Marching" in (f.details.get("line_preview") or "")
+        for f in findings
+    )
+
+
 def test_p024_lof_sentence_case_identifies_exact_flagged_words(tmp_path: Path) -> None:
     """The finding must name the specific words causing the sentence-case
     violation, not just a generic 'multiple later words' message."""
@@ -3736,7 +4039,10 @@ def test_p024_lof_common_nouns_in_title_case_warn(tmp_path: Path) -> None:
         pdf_path,
         "LIST OF FIGURES",
         [
-            ("Figure 4.1 Relationship between Benefits and Readiness ....", 108),
+            # Use several capitalized major nouns (not prepositions) so the
+            # sentence-case heuristic still has enough eligible later words after
+            # NJIT minor-word filtering (articles/prepositions/conjunctions).
+            ("Figure 4.1 Relationship Benefits Readiness Outcomes Across Cohorts ....", 108),
             ("Figure 4.2 Overview of results for baseline comparison ....", 108),
             ("Figure 4.3 Summary of findings from pilot testing ....", 108),
         ],
@@ -6343,9 +6649,10 @@ def test_p020_font_size_fallback_large_font_wrong_case_warns(tmp_path: Path) -> 
             fontsize=12,
             fontname="tiro",
         )
-    # Non-bold heading at 14pt with title-case violation.
+    # Non-bold heading at 14pt with title-case violation (must not start with a
+    # minor word — those lines are treated as wrapped continuations).
     page.insert_text(
-        (108, 380), "the results and discussion methods", fontsize=14, fontname="tiro"
+        (108, 380), "machine learning results and discussion", fontsize=14, fontname="tiro"
     )
     doc.save(pdf_path)
     doc.close()
