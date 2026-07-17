@@ -459,15 +459,17 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "correct."
     ),
     ("P051", "copyright_year_not_found"): (
-        "A copyright page was detected, but the auditor could not confidently read "
-        "a four-digit copyright year on it. NJIT requires the copyright page to "
-        "state the copyright year clearly next to the copyright notice (for "
+        "A copyright page was detected, but the auditor could not confidently "
+        "associate a four-digit copyright year with the copyright notice. NJIT "
+        "requires the copyright page to state the copyright year clearly next to "
+        "the copyright notice (for "
         "example, 'Copyright © 2025 by [Author Name]. All Rights Reserved.'), "
         "matching the year the degree is conferred. This often happens when the "
-        "year is split across two lines, uses an unusual symbol or spacing next "
-        "to the copyright mark, or is genuinely missing. Review the copyright "
-        "page and add or reposition the year if needed. This is an automated, "
-        "approximate check, so verify by reading the page directly before editing."
+        "year is split across lines, uses unusual spacing, or is present elsewhere "
+        "on the page but not clearly attached to the copyright notice. Review the "
+        "copyright page and add or reposition the year if needed. This is an "
+        "automated, approximate check, so verify by reading the page directly "
+        "before editing."
     ),
     ("P034", "copyright_author_mismatch"): (
         "The author name on the copyright page may not match the author name "
@@ -871,9 +873,9 @@ _RULE_FALLBACKS: dict[str, str] = {
         "in the required format."
     ),
     "P051": (
-        "The copyright page may be missing a clearly readable copyright year. "
-        "Review the copyright page and confirm the year is present next to the "
-        "copyright notice."
+        "The auditor may not have been able to confidently associate a copyright "
+        "year with the copyright notice. Review the copyright page and confirm "
+        "the year is present next to the copyright notice."
     ),
     "P052": (
         "The copyright page may be missing a clearly readable author name. "

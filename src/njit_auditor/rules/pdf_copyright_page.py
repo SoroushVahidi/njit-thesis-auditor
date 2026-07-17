@@ -15,9 +15,17 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
+from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextLine,
+    format_bbox_detail,
+)
 from njit_auditor.rules.pdf_headings import (
     find_named_frontmatter_headings,
     normalize_heading_text,
@@ -34,9 +42,13 @@ _MONTH_YEAR_RE = re.compile(
     r"october|november|december)\s+((?:19|20)\d{2})$",
     re.IGNORECASE,
 )
-_YEAR_TOKEN_RE = re.compile(r"\b(19|20)\d{2}\b")
+_YEAR_TOKEN_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
 _COPYRIGHT_YEAR_LINE_RE = re.compile(
-    r"(?:©|\(c\)|copyright)\s*(?:©\s*)?(19|20)\d{2}",
+    r"(?:©|\(c\)|copyright)\s*(?:©\s*)?((?:19|20)\d{2})",
+    re.IGNORECASE,
+)
+_ADJACENT_YEAR_ROW_RE = re.compile(
+    r"^(?:©\s*)?((?:19|20)\d{2})(?:\s+(?:by\s+)?[A-Za-z].*)?$",
     re.IGNORECASE,
 )
 _AUTHOR_NOISE_RE = re.compile(
@@ -49,6 +61,28 @@ _MIN_AUTHOR_NORMALIZED_LEN = 4
 _MIN_AUTHOR_WORDS = 2
 _NAME_SUFFIX_TOKENS = frozenset({"jr", "sr", "ii", "iii", "iv"})
 _MAX_MIDDLE_INITIAL_TOKEN_LEN = 2
+_ROW_Y_TOLERANCE_PT = 3.0
+_MIN_SPAN_SPACE_GAP_PT = 1.0
+_MAX_ADJACENT_ROW_GAP_PT = 36.0
+_MAX_ADJACENT_ROW_CENTER_DELTA_PT = 72.0
+_MAX_INFERRED_COPYRIGHT_ROWS = 6
+
+
+@dataclass(frozen=True)
+class _VisualRow:
+    text: str
+    bbox: BBox
+    lines: tuple[PdfTextLine, ...]
+
+
+@dataclass(frozen=True)
+class _CopyrightYearContext:
+    year: int | None
+    notice_bbox: BBox | None
+    associated_year_bbox: BBox | None
+    candidate_year_bbox: BBox | None
+    association: str
+    marker_detected: bool
 
 
 def _stable_author_hash(normalized: str) -> str:
@@ -61,9 +95,92 @@ def _normalize_author(text: str) -> str:
     return " ".join(lowered.split())
 
 
+def _normalize_notice_text(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text).replace("\u00a0", " ")
+    return " ".join(normalized.split())
+
+
 def _sorted_lines(page: PdfPage) -> list[PdfTextLine]:
     lines = [line for block in page.text_blocks for line in block.lines]
     return sorted(lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+
+
+def _union_bboxes(boxes: list[BBox]) -> BBox | None:
+    if not boxes:
+        return None
+    return BBox(
+        x0=min(box.x0 for box in boxes),
+        y0=min(box.y0 for box in boxes),
+        x1=max(box.x1 for box in boxes),
+        y1=max(box.y1 for box in boxes),
+    )
+
+
+def _visual_space_gap_threshold(line: PdfTextLine) -> float:
+    sizes = [span.size for span in line.spans if span.size]
+    if not sizes:
+        return _MIN_SPAN_SPACE_GAP_PT
+    return max(_MIN_SPAN_SPACE_GAP_PT, min(sizes) * 0.12)
+
+
+def _rebuild_line_text(line: PdfTextLine) -> str:
+    pieces: list[str] = []
+    prev_end_x: float | None = None
+    gap_threshold = _visual_space_gap_threshold(line)
+
+    for span in sorted(line.spans, key=lambda item: item.bbox.x0):
+        raw = unicodedata.normalize("NFKC", span.text).replace("\u00a0", " ")
+        if not raw.strip():
+            continue
+        clean = raw.strip()
+        if pieces:
+            needs_space = raw[:1].isspace() or pieces[-1][-1].isspace()
+            if not needs_space and prev_end_x is not None:
+                needs_space = (span.bbox.x0 - prev_end_x) >= gap_threshold
+            if needs_space:
+                pieces.append(" ")
+        pieces.append(clean)
+        prev_end_x = span.bbox.x1
+
+    return _normalize_notice_text("".join(pieces))
+
+
+def _visual_rows(page: PdfPage) -> list[_VisualRow]:
+    rows: list[list[PdfTextLine]] = []
+    for line in _sorted_lines(page):
+        line_center_y = (line.bbox.y0 + line.bbox.y1) / 2.0
+        if rows:
+            previous = rows[-1]
+            previous_center_y = sum(
+                (item.bbox.y0 + item.bbox.y1) / 2.0 for item in previous
+            ) / len(previous)
+            previous_height = sum(item.bbox.height for item in previous) / len(previous)
+            tolerance = max(
+                _ROW_Y_TOLERANCE_PT,
+                min(previous_height, line.bbox.height) * 0.35,
+            )
+            if abs(line_center_y - previous_center_y) <= tolerance:
+                previous.append(line)
+                continue
+        rows.append([line])
+
+    result: list[_VisualRow] = []
+    for row_lines in rows:
+        ordered = sorted(row_lines, key=lambda item: item.bbox.x0)
+        row_text = " ".join(
+            rebuilt for line in ordered if (rebuilt := _rebuild_line_text(line))
+        ).strip()
+        row_bbox = _union_bboxes([line.bbox for line in ordered])
+        if not row_text or row_bbox is None:
+            continue
+        result.append(
+            _VisualRow(
+                text=_normalize_notice_text(row_text),
+                bbox=row_bbox,
+                lines=tuple(ordered),
+            )
+        )
+    return result
 
 
 def _page_has_meaningful_text(page: PdfPage) -> bool:
@@ -92,7 +209,10 @@ def _find_copyright_page(pdf_document: PdfDocument) -> PdfPage | None:
                 return page
 
     for page in pdf_document.pages[:_COPYRIGHT_SCAN_PAGES]:
-        full_text = " ".join(line.text for line in _sorted_lines(page))
+        rows = _visual_rows(page)
+        if not rows or len(rows) > _MAX_INFERRED_COPYRIGHT_ROWS:
+            continue
+        full_text = " ".join(row.text for row in rows)
         if _COPYRIGHT_RE.search(full_text):
             if _page_has_meaningful_text(page):
                 return page
@@ -160,7 +280,7 @@ def _check_top_margin_header(copyright_page: PdfPage) -> AuditFinding | None:
 def _extract_title_page_year(title_page: PdfPage) -> int | None:
     years: list[int] = []
     for line in _sorted_lines(title_page):
-        cleaned = normalize_heading_text(line.text)
+        cleaned = _rebuild_line_text(line) or normalize_heading_text(line.text)
         month_year = _MONTH_YEAR_RE.match(cleaned)
         if month_year:
             return int(month_year.group(1))
@@ -175,25 +295,7 @@ def _extract_title_page_year(title_page: PdfPage) -> int | None:
 
 
 def _extract_copyright_year(copyright_page: PdfPage) -> int | None:
-    line_years: list[int] = []
-    all_years: list[int] = []
-    for line in _sorted_lines(copyright_page):
-        cleaned = line.text.strip()
-        if not cleaned:
-            continue
-        years_in_line = [int(m.group()) for m in _YEAR_TOKEN_RE.finditer(cleaned)]
-        all_years.extend(years_in_line)
-        if _COPYRIGHT_YEAR_LINE_RE.search(cleaned):
-            if len(years_in_line) == 1:
-                line_years.append(years_in_line[0])
-            elif len(years_in_line) > 1:
-                return None
-    if len(line_years) == 1:
-        return line_years[0]
-    unique = sorted(set(all_years))
-    if len(unique) == 1:
-        return unique[0]
-    return None
+    return _locate_copyright_year(copyright_page).year
 
 
 def _author_confidence(normalized: str) -> str:
@@ -220,7 +322,10 @@ def _is_author_noise(cleaned: str) -> bool:
 
 
 def _extract_title_page_author(title_page: PdfPage) -> tuple[str, str] | None:
-    lines = [normalize_heading_text(line.text) for line in _sorted_lines(title_page)]
+    lines = [
+        _rebuild_line_text(line) or normalize_heading_text(line.text)
+        for line in _sorted_lines(title_page)
+    ]
     for index, cleaned in enumerate(lines):
         if cleaned.lower() != "by":
             continue
@@ -273,23 +378,9 @@ def _extract_copyright_year_adjacent_lines(copyright_page: PdfPage) -> int | Non
     Handles the pattern where line N has a copyright marker but no year token
     and line N+1 has exactly one year token with no other significant text.
     """
-    lines = _sorted_lines(copyright_page)
-    for i, line in enumerate(lines[:-1]):
-        cleaned = line.text.strip()
-        if not cleaned:
-            continue
-        if not _COPYRIGHT_RE.search(cleaned):
-            continue
-        if _YEAR_TOKEN_RE.search(cleaned):
-            continue  # year on same line — existing _COPYRIGHT_YEAR_LINE_RE handles it
-        next_text = lines[i + 1].text.strip()
-        years = [int(m.group()) for m in _YEAR_TOKEN_RE.finditer(next_text)]
-        if len(years) != 1:
-            continue
-        non_year = _YEAR_TOKEN_RE.sub("", next_text).strip()
-        if re.search(r"[A-Za-z]{2,}", non_year):
-            continue  # other text alongside year — too ambiguous
-        return years[0]
+    context = _locate_copyright_year(copyright_page)
+    if context.association == "adjacent_row":
+        return context.year
     return None
 
 
@@ -302,30 +393,32 @@ def _extract_copyright_author_adjacent_lines(
     but no recognizable author string, and line N+1 has a plausible author-like string
     (2+ words, no copyright marker, no year token, no noise patterns).
     """
-    lines = _sorted_lines(copyright_page)
-    for i, line in enumerate(lines[:-1]):
-        cleaned = line.text.strip()
+    rows = _visual_rows(copyright_page)
+    for i, row in enumerate(rows[:-1]):
+        cleaned = row.text.strip()
         if not cleaned:
             continue
         if not _COPYRIGHT_RE.search(cleaned):
             continue
-        if not _YEAR_TOKEN_RE.search(cleaned):
-            continue  # need a year on this line for context
-        # Already has an author on this line? — handled by _extract_copyright_author
-        existing_match = re.search(
-            r"(?:©|\(c\)|copyright)\s*(?:©\s*)?(?:19|20)\d{2}\s+(.+)$",
-            cleaned,
-            re.IGNORECASE,
-        )
-        if existing_match and existing_match.group(1).strip():
-            continue  # same-line author already handled
-        next_text = lines[i + 1].text.strip()
+        next_text = rows[i + 1].text.strip()
         if not next_text:
             continue
         if _COPYRIGHT_RE.search(next_text):
             continue  # next line is another copyright marker line
-        if _YEAR_TOKEN_RE.search(next_text):
-            continue  # year on next line — too ambiguous
+        if _YEAR_TOKEN_RE.search(cleaned):
+            existing_match = re.search(
+                r"(?:©|\(c\)|copyright)\s*(?:©\s*)?(?:19|20)\d{2}\s*(?:by\s+)?(.+)$",
+                cleaned,
+                re.IGNORECASE,
+            )
+            if existing_match and existing_match.group(1).strip():
+                continue  # same-line author already handled
+        elif _is_plausible_adjacent_year_row(next_text):
+            if author := _extract_author_from_year_row(next_text):
+                return author
+            continue
+        elif _YEAR_TOKEN_RE.search(next_text):
+            continue  # unrelated year on next line — too ambiguous
         if _AUTHOR_NOISE_RE.match(next_text):
             continue
         normalized = _normalize_author(next_text)
@@ -336,32 +429,129 @@ def _extract_copyright_author_adjacent_lines(
 
 
 def _extract_copyright_author(copyright_page: PdfPage) -> tuple[str, str] | None:
-    for line in _sorted_lines(copyright_page):
-        raw = line.text.strip()
+    for row in _visual_rows(copyright_page):
+        raw = row.text.strip()
         if not _COPYRIGHT_RE.search(raw):
             continue
-        match = re.search(
-            r"(?:©|\(c\)|copyright)\s*(?:©\s*)?(?:19|20)\d{2}\s+(.+)$",
-            raw,
-            re.IGNORECASE,
-        )
-        if not match:
-            continue
-        remainder = match.group(1)
-        remainder = re.split(
-            r"\.\s*All Rights Reserved|\s+All Rights Reserved",
-            remainder,
-            maxsplit=1,
-            flags=re.IGNORECASE,
-        )[0]
-        remainder = remainder.strip(" .,;")
-        if not remainder:
-            continue
-        normalized = _normalize_author(remainder)
-        if _author_confidence(normalized) != "high":
-            continue
-        return normalized, _stable_author_hash(normalized)
+        if author := _extract_author_from_year_row(raw):
+            return author
     return None
+
+
+def _row_years(row: _VisualRow) -> list[int]:
+    return [int(match.group(1)) for match in _YEAR_TOKEN_RE.finditer(row.text)]
+
+
+def _is_plausible_adjacent_year_row(text: str) -> bool:
+    return _ADJACENT_YEAR_ROW_RE.match(text) is not None
+
+
+def _extract_author_from_year_row(text: str) -> tuple[str, str] | None:
+    match = re.search(
+        r"(?:©|\(c\)|copyright)?\s*(?:©\s*)?(?:19|20)\d{2}\s*(?:by\s+)?(.+)$",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    remainder = match.group(1)
+    remainder = re.split(
+        r"\.\s*All Rights Reserved|\s+All Rights Reserved",
+        remainder,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    remainder = remainder.strip(" .,;")
+    if not remainder:
+        return None
+    normalized = _normalize_author(remainder)
+    if _author_confidence(normalized) != "high":
+        return None
+    return normalized, _stable_author_hash(normalized)
+
+
+def _rows_are_visually_adjacent(notice_row: _VisualRow, candidate_row: _VisualRow) -> bool:
+    vertical_gap = max(
+        candidate_row.bbox.y0 - notice_row.bbox.y1,
+        notice_row.bbox.y0 - candidate_row.bbox.y1,
+        0.0,
+    )
+    if vertical_gap > _MAX_ADJACENT_ROW_GAP_PT:
+        return False
+    notice_center_x = (notice_row.bbox.x0 + notice_row.bbox.x1) / 2.0
+    candidate_center_x = (candidate_row.bbox.x0 + candidate_row.bbox.x1) / 2.0
+    return abs(notice_center_x - candidate_center_x) <= _MAX_ADJACENT_ROW_CENTER_DELTA_PT
+
+
+def _locate_copyright_year(copyright_page: PdfPage) -> _CopyrightYearContext:
+    rows = _visual_rows(copyright_page)
+    notice_rows = [(index, row) for index, row in enumerate(rows) if _COPYRIGHT_RE.search(row.text)]
+    marker_detected = bool(notice_rows)
+
+    for notice_index, notice_row in notice_rows:
+        same_row_match = _COPYRIGHT_YEAR_LINE_RE.search(notice_row.text)
+        same_row_years = sorted(set(_row_years(notice_row)))
+        if same_row_match is not None and len(same_row_years) == 1:
+            return _CopyrightYearContext(
+                year=same_row_years[0],
+                notice_bbox=notice_row.bbox,
+                associated_year_bbox=notice_row.bbox,
+                candidate_year_bbox=notice_row.bbox,
+                association="same_row",
+                marker_detected=True,
+            )
+
+        for offset in (-1, 1):
+            candidate_index = notice_index + offset
+            if not (0 <= candidate_index < len(rows)):
+                continue
+            candidate_row = rows[candidate_index]
+            if _COPYRIGHT_RE.search(candidate_row.text):
+                continue
+            if not _rows_are_visually_adjacent(notice_row, candidate_row):
+                continue
+            years = _row_years(candidate_row)
+            if len(years) != 1 or not _is_plausible_adjacent_year_row(candidate_row.text):
+                continue
+            return _CopyrightYearContext(
+                year=years[0],
+                notice_bbox=notice_row.bbox,
+                associated_year_bbox=candidate_row.bbox,
+                candidate_year_bbox=candidate_row.bbox,
+                association="adjacent_row",
+                marker_detected=True,
+            )
+
+    first_notice_bbox = notice_rows[0][1].bbox if notice_rows else None
+    candidate_year_rows = [
+        row for row in rows if _row_years(row) and not _COPYRIGHT_RE.search(row.text)
+    ]
+    if notice_rows and candidate_year_rows:
+        notice_row = notice_rows[0][1]
+        candidate_row = min(
+            candidate_year_rows,
+            key=lambda row: abs(
+                ((row.bbox.y0 + row.bbox.y1) / 2.0)
+                - ((notice_row.bbox.y0 + notice_row.bbox.y1) / 2.0)
+            ),
+        )
+        return _CopyrightYearContext(
+            year=None,
+            notice_bbox=first_notice_bbox,
+            associated_year_bbox=None,
+            candidate_year_bbox=candidate_row.bbox,
+            association="unassociated_year_elsewhere",
+            marker_detected=True,
+        )
+
+    return _CopyrightYearContext(
+        year=None,
+        notice_bbox=first_notice_bbox,
+        associated_year_bbox=None,
+        candidate_year_bbox=None,
+        association="no_year_candidate" if marker_detected else "no_copyright_notice",
+        marker_detected=marker_detected,
+    )
 
 
 def _check_year_consistency(
@@ -430,32 +620,34 @@ def check_pdf_copyright_year_format(pdf_document: PdfDocument) -> list[AuditFind
     copyright_page = _find_copyright_page(pdf_document)
     if copyright_page is None:
         return []
-    if _extract_copyright_year(copyright_page) is not None:
+    context = _locate_copyright_year(copyright_page)
+    if context.year is not None:
         return []
-    if _extract_copyright_year_adjacent_lines(copyright_page) is not None:
-        return []
-    page_text = " ".join(line.text for line in _sorted_lines(copyright_page))
-    if _YEAR_TOKEN_RE.search(page_text):
-        return []  # year present but unextractable — conservative skip
+    details = {
+        "issue_type": "copyright_year_not_found",
+        "page": str(copyright_page.page_number),
+        "copyright_marker_detected": str(context.marker_detected).lower(),
+        "triage_tier": "low",
+        "confidence": "low",
+        "source_q_rule_id": "Q010",
+        "year_association": context.association,
+    }
+    if context.notice_bbox is not None:
+        details["bbox"] = format_bbox_detail(context.notice_bbox)
+    if context.candidate_year_bbox is not None:
+        details["candidate_year_bbox"] = format_bbox_detail(context.candidate_year_bbox)
     return [
         AuditFinding(
             rule_id="P051",
             severity=Severity.WARNING,
             page=copyright_page.page_number,
             message=(
-                "Copyright Page detected but no copyright year could be confidently "
-                "identified. Verify that the copyright year is present and correctly "
-                "formatted (Q010)."
+                "Copyright Page detected, but the auditor could not confidently "
+                "associate a four-digit year with the copyright notice. Verify that "
+                "the year appears directly next to the notice and matches the Title "
+                "Page year (Q010)."
             ),
-            details={
-                "issue_type": "copyright_year_not_found",
-                "page": str(copyright_page.page_number),
-                "copyright_marker_detected": str(
-                    bool(_COPYRIGHT_RE.search(page_text))
-                ).lower(),
-                "triage_tier": "low",
-                "source_q_rule_id": "Q010",
-            },
+            details=details,
         )
     ]
 
@@ -475,7 +667,7 @@ def check_pdf_copyright_author_format(pdf_document: PdfDocument) -> list[AuditFi
     if _extract_copyright_author_adjacent_lines(copyright_page) is not None:
         return []
     # Copyright page with year but no author string extractable
-    page_text = " ".join(line.text for line in _sorted_lines(copyright_page))
+    page_text = " ".join(row.text for row in _visual_rows(copyright_page))
     return [
         AuditFinding(
             rule_id="P052",

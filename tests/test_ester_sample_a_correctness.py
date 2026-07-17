@@ -67,6 +67,10 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     sub-5pt "overflow" -- the same measurement-noise pattern Ester's Sample B
     review confirmed as false positives. See
     docs/status/ester_sample_b_p011_margin_low_overflow.md.
+
+    Later P051 copyright-year extraction hardening removed one additional
+    Sample A false positive on the Copyright Page, so the total problem count
+    is now 22 while the earlier P011 regression coverage remains unchanged.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -77,7 +81,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
-    assert len(problem) == 23
+    assert len(problem) == 22
     assert by_rule["P038"] == 0
     assert by_rule["P011"] == 17
     assert by_rule["P013"] == 0
@@ -85,6 +89,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     assert by_rule["P044"] == 0
     assert by_rule["P027"] == 0
     assert by_rule["P015"] == 1
+    assert by_rule["P051"] == 0
 
 
 def test_ester_sample_a_p012_rollup_lists_affected_pages() -> None:
