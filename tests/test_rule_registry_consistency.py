@@ -27,12 +27,11 @@ from njit_auditor.issue_type_explanations import (
     student_facing_issue_label,
 )
 from njit_auditor.polished_comments import (
-    _ISSUE_TEMPLATES,
-    _RULE_FALLBACKS,
     build_polished_comment,
     finalize_student_facing_comment_and_fix,
 )
 from njit_auditor.rule_loader import ALLOWED_RULE_TYPES, load_rule_file
+from njit_auditor.rule_source_scan import detector_emitted_pairs_by_static_scan
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CATALOG_PATH = _REPO_ROOT / "data/processed/rules/project_added_rules.json"
@@ -44,26 +43,15 @@ _REPORTING_ONLY_TYPES = frozenset(
 # Internal rule ID pattern that must never appear verbatim in student-facing text.
 _RAW_ID_PATTERN = re.compile(r"\b[PQ]\d{2,3}\b")
 
-# Catalog issue types with no entry in polished_comments._ISSUE_TEMPLATES /
-# _RULE_FALLBACKS. Most of these hit the generic non-leaking fallback sentence.
-# P066/P067 have dedicated build_polished_comment handlers (so they do not hit
-# the generic fallback) but still lack dict-template coverage — listed here so
-# the ratchet tracks them. Writing dedicated templates for the remainder is
-# deferred wording debt (see docs/ROADMAP.md). The ratchet fails if this set
+# Default-enabled issue types with no wording coverage in polished_comments.py
+# (i.e. build_polished_comment() falls to the generic fallback sentence for
+# them). P082 is experimental/opt-in — never enabled by default — so its
+# fallback wording, while generic, is never seen in a default web/CLI audit;
+# it is tracked here anyway so the ratchet notices if it's ever enabled by
+# default without also getting real templates. The ratchet fails if this set
 # grows without a matching template being added.
 _KNOWN_WORDING_GAPS: frozenset[tuple[str, str]] = frozenset(
     {
-        ("P057", "lot_page_numbers_not_nondecreasing"),
-        ("P057", "lof_page_numbers_not_nondecreasing"),
-        ("P059", "lot_entry_numbers_not_nondecreasing"),
-        ("P059", "lof_entry_numbers_not_nondecreasing"),
-        ("P062", "toc_cross_page_entry_numbers_not_nondecreasing"),
-        ("P065", "dedication_text_not_centered"),
-        ("P065", "dedication_text_not_italic"),
-        ("P066", "biosketch_degree_order_suspicious"),
-        ("P067", "biosketch_publication_order_suspicious"),
-        ("P078", "abstract_pdf_forbidden_term"),
-        ("P078", "abstract_pdf_first_person_pronoun"),
         ("P082", "landscape_page_number_orientation_advisory"),
         ("P082", "landscape_page_number_position_advisory"),
     }
@@ -144,22 +132,88 @@ def test_implementation_modules_are_importable() -> None:
         importlib.import_module(module_name)  # raises ImportError if stale
 
 
+def test_static_scan_finds_pairs_missing_from_catalog_issue_types() -> None:
+    """Regression test for the meta-gap itself: P014's catalog entry has no
+    `issue_types` populated, so the static scan is the only ground-truth
+    source that sees its two emitted issue types. This proves the scanner
+    would have caught the original bug (both pairs previously had zero
+    wording coverage) instead of merely asserting it runs without error."""
+    catalog = _load_catalog()
+    p014 = next(rule for rule in catalog if rule["id"] == "P014")
+    assert not p014.get("issue_types"), (
+        "this test's premise (P014 has no catalog issue_types) no longer holds — "
+        "update this test's docstring/rationale if that catalog entry was fixed"
+    )
+    scanned_pairs = detector_emitted_pairs_by_static_scan()
+    assert ("P014", "frontmatter_heading_layout_issue") in scanned_pairs
+    assert ("P014", "frontmatter_heading_not_centered") in scanned_pairs
+
+
+_GENERIC_FALLBACK_MARKER = "This automated check found a possible"
+
+
+def _has_comment_coverage(rule_id: str, issue_type: str) -> bool:
+    """True unless (rule_id, issue_type) falls all the way to
+    build_polished_comment()'s generic fallback sentence.
+
+    Behavioral, not structural: a pair can be "covered" either via an
+    `_ISSUE_TEMPLATES` dict entry or via a dedicated `build_polished_comment()`
+    dispatch branch (e.g. P012, P014, P015, P032, P042, P045, P047 all use the
+    dispatch-branch style, not the dict, and must not be flagged as gaps).
+    Calling the real function is what makes this accurate for both styles at
+    once instead of re-encoding which style each rule happens to use.
+    """
+    comment = build_polished_comment(rule_id=rule_id, issue_type=issue_type, page=1, details={})
+    return _GENERIC_FALLBACK_MARKER not in comment
+
+
 def test_default_enabled_wording_gaps_have_not_grown() -> None:
     """Ratchet test: fails if a *new* default-enabled (non-experimental,
-    non-reporting-only) catalog issue type has no template/fallback coverage in
-    polished_comments.py, without also updating _KNOWN_WORDING_GAPS above."""
+    non-reporting-only) issue type has no wording coverage in
+    polished_comments.py, without also updating _KNOWN_WORDING_GAPS above.
+
+    Ground truth is the union of two sources, not just the catalog: (1) the
+    catalog's `issue_types` field, and (2) a static AST scan of every
+    `AuditFinding(...)` call in src/njit_auditor/rules/*.py
+    (`detector_emitted_pairs_by_static_scan()`). Source (1) alone previously
+    let P014 hide from this ratchet — its catalog entry has no `issue_types`
+    populated, so it contributed zero pairs even though its detector emitted
+    two issue types with a real wording bug. Source (2) is a conservative,
+    static-only superset add: it can only surface pairs source (1) missed,
+    never remove catalog-derived ground truth.
+    """
     catalog = _load_catalog()
+    non_reporting_rule_ids = {
+        rule["id"] for rule in catalog if rule.get("rule_type") not in _REPORTING_ONLY_TYPES
+    }
+    excluded_rule_ids = {
+        rule["id"]
+        for rule in catalog
+        if rule.get("rule_type") in _REPORTING_ONLY_TYPES
+        or rule.get("rule_type") == "evaluation_task"
+        or rule.get("phase") == "evaluation_task"
+        or "experimental" in (rule.get("rule_type") or "")
+    }
+
     current_gaps: set[tuple[str, str]] = set()
     for rule in catalog:
         if rule.get("rule_type") in _REPORTING_ONLY_TYPES:
             continue
         rule_id = rule["id"]
         for issue_type in rule.get("issue_types") or []:
-            if (rule_id, issue_type) in _ISSUE_TEMPLATES:
-                continue
-            if rule_id in _RULE_FALLBACKS:
+            if _has_comment_coverage(rule_id, issue_type):
                 continue
             current_gaps.add((rule_id, issue_type))
+
+    for rule_id, issue_type in detector_emitted_pairs_by_static_scan():
+        if rule_id in excluded_rule_ids:
+            continue
+        if rule_id not in non_reporting_rule_ids:
+            # Rule ID not in the catalog at all — out of scope for this ratchet.
+            continue
+        if _has_comment_coverage(rule_id, issue_type):
+            continue
+        current_gaps.add((rule_id, issue_type))
 
     new_gaps = current_gaps - _KNOWN_WORDING_GAPS
     assert not new_gaps, (

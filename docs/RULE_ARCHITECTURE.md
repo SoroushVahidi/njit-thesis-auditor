@@ -35,12 +35,16 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
 - **Evaluation-task rules** (P083): produce an analysis artifact (`data/processed/ef_comment_coverage.json`),
   not runtime findings at all.
 
-The web UI's `_classify_rule()` (`src/njit_auditor/web_app.py:633`) is the current source of
-truth for this classification at render time, driven by the JSON catalog's `rule_type` and
-`phase` fields (see below). A second function, `_technical_reason()`
-(`src/njit_auditor/web_app.py:1607`), independently re-derives the same classification with a
-parallel if/elif chain — this is duplication (see "Known duplication" below), not two different
-policies; they must always agree, and there is no test today enforcing that they do.
+The web UI's `_classify_rule()` and `_technical_reason()` (`src/njit_auditor/web_app.py`) are the
+current source of truth for this classification at render time, driven by the JSON catalog's
+`rule_type` and `phase` fields (see below). **Update (2026-07-16 atomic-presentation audit):**
+these two functions used to independently re-derive the same if/elif chain — real, live
+duplication, not just a stylistic echo: it let `_classify_rule` compare a raw `phase` value while
+`_technical_reason` compared a lowercased one, so a mixed-case catalog `phase` (e.g.
+`"Evaluation_Task"`) could make them disagree. Both now delegate to one private helper,
+`_rule_technical_classification()`, so disagreement is structurally impossible rather than merely
+tested-for; see `tests/test_rule_classification_consistency.py` (includes a regression case proving
+the old code really did disagree on mixed-case input).
 
 ## Where each piece of metadata actually lives
 
@@ -190,3 +194,24 @@ functions into one code path. Those are real, valid follow-up work (tracked in
 `docs/ROADMAP.md`), but each needs its own careful, behavior-preserving change with dedicated
 before/after verification — bundling them into a "repo polish" pass would violate the "smallest
 safe step" instruction this work was scoped under.
+
+## Update: 2026-07-16 atomic-presentation audit
+
+A follow-up pass closed two of the items listed above as still-open — both as small, independently
+verified, behavior-preserving slices rather than the "risky full rewrite" this document originally
+ruled out:
+
+- **The two `web_app.py` classification functions are unified.** `_classify_rule()` and
+  `_technical_reason()` now both delegate to one private helper, `_rule_technical_classification()`
+  (see the updated "Detector vs. reporting-only..." section above). Proven equivalent, not just
+  visually merged, via `tests/test_rule_classification_consistency.py`.
+- **A real, previously-invisible wording bug (P014) was found and fixed**, and closed 24 more of
+  the 140 active `(rule_id, issue_type)` pairs' documented wording debt (P057, P059, P061, P062,
+  P065, P078, P034, plus removal of 3 confirmed-dead dict entries). See
+  `docs/status/atomic_presentation_inventory_20260716.md` for the full before/after table and
+  methodology. The 4-way issue-type-source duplication itself (catalog `issue_types` /
+  `_ISSUE_TYPE_LABELS` / `_ISSUE_TEMPLATES` keys / detector source) is **not** unified — that
+  remains real, valid follow-up work — but a new read-only static scanner,
+  `src/njit_auditor/rule_source_scan.py`, now cross-checks the detector source against the catalog
+  in `tests/test_rule_registry_consistency.py`'s wording-coverage ratchet, so a rule whose catalog
+  entry is missing `issue_types` (P014's exact failure mode) can no longer silently evade that test.
