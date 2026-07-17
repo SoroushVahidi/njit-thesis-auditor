@@ -21,6 +21,12 @@ TOP_MARGIN_PT = 1.0 * INCH_TO_PT
 BOTTOM_MARGIN_PT = 1.0 * INCH_TO_PT
 MIN_ARTIFACT_SIZE_PT = 2.0
 OVERFLOW_TOLERANCE_PT = 3.0
+# Numeric-stability guard only: PDF/PyMuPDF coordinates can land a few
+# thousandths of a point above the nominal tolerance (e.g. 3.00006pt) while the
+# displayed overflow rounds to 3.0pt and the rendered ink remains in-bounds.
+# This does not widen NJIT policy tolerance; it makes the existing 3.0pt cutoff
+# behave consistently at floating-point precision boundaries.
+OVERFLOW_TOLERANCE_EPSILON_PT = 0.01
 
 # Artifact guard: a page/side group with this many lines all below this overflow
 # is likely caused by a compressed-PDF coordinate shift rather than a real margin violation.
@@ -31,6 +37,11 @@ ARTIFACT_GUARD_MAX_OVERFLOW_PT = 8.0
 # does not affect detection, thresholds, or confidence -- purely how wide the
 # guide line is once rendered in the highlighted PDF.
 MARGIN_GUIDE_HALF_THICKNESS_PT = 1.5
+
+# Presentation-only minimum width/height for visible overflow aids. Thin actual
+# overflow slices are widened only for display, while the raw overflow segment
+# geometry stays unchanged in the serialized finding details.
+MIN_VISIBLE_OVERFLOW_DIMENSION_PT = 4.0
 
 # Two violating lines on the same side are grouped into one tight highlight
 # region only when no other line (violating or not) separates them in the
@@ -104,7 +115,7 @@ def _line_violation(
     if not overflow_by_side:
         return None
     side, overflow = max(overflow_by_side.items(), key=lambda item: item[1])
-    if overflow <= OVERFLOW_TOLERANCE_PT:
+    if overflow <= OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
         return None
     return LineViolation(side=side, overflow_pt=overflow, line=line, line_index=line_index)
 
@@ -202,6 +213,52 @@ def _overflow_segment_bbox(
     return BBox(x0=full.x0, y0=full.y0, x1=full.x1, y1=min(full.y1, allowed_y0))
 
 
+def _overflow_display_bbox(
+    side: MarginSide,
+    group: list[LineViolation],
+    *,
+    allowed_x0: float,
+    allowed_y0: float,
+    allowed_x1: float,
+    allowed_y1: float,
+) -> BBox:
+    """Return a display-friendly version of the overflow slice.
+
+    The underlying overflow segment geometry remains exact; this helper only
+    widens very thin slices enough to stay visible in the highlighted PDF.
+    """
+    segment = _overflow_segment_bbox(
+        side,
+        group,
+        allowed_x0=allowed_x0,
+        allowed_y0=allowed_y0,
+        allowed_x1=allowed_x1,
+        allowed_y1=allowed_y1,
+    )
+    full = _union_bbox_of(group)
+    if side in (MarginSide.LEFT, MarginSide.RIGHT):
+        width = segment.width
+        if width >= MIN_VISIBLE_OVERFLOW_DIMENSION_PT:
+            return segment
+        target = min(MIN_VISIBLE_OVERFLOW_DIMENSION_PT, full.width)
+        center = (segment.x0 + segment.x1) / 2
+        x0 = max(full.x0, center - target / 2)
+        x1 = min(full.x1, x0 + target)
+        if x1 - x0 < target:
+            x0 = max(full.x0, x1 - target)
+        return BBox(x0=x0, y0=segment.y0, x1=x1, y1=segment.y1)
+    height = segment.height
+    if height >= MIN_VISIBLE_OVERFLOW_DIMENSION_PT:
+        return segment
+    target = min(MIN_VISIBLE_OVERFLOW_DIMENSION_PT, full.height)
+    center = (segment.y0 + segment.y1) / 2
+    y0 = max(full.y0, center - target / 2)
+    y1 = min(full.y1, y0 + target)
+    if y1 - y0 < target:
+        y0 = max(full.y0, y1 - target)
+    return BBox(x0=segment.x0, y0=y0, x1=segment.x1, y1=y1)
+
+
 def run_pdf_margin_rule(
     pdf_doc: PdfDocument,
     *,
@@ -282,6 +339,17 @@ def run_pdf_margin_rule(
                 )
                 for group in adjacent_groups
             ]
+            overflow_display_bboxes = [
+                _overflow_display_bbox(
+                    side,
+                    group,
+                    allowed_x0=allowed_x0,
+                    allowed_y0=allowed_y0,
+                    allowed_x1=allowed_x1,
+                    allowed_y1=allowed_y1,
+                )
+                for group in adjacent_groups
+            ]
 
             # A thin guide rectangle marking the exact required margin boundary
             # line the content must not cross, scoped to the affected region's
@@ -324,6 +392,9 @@ def run_pdf_margin_rule(
                 "bbox": format_bbox_detail(highlight_bbox),
                 "highlight_bboxes": " | ".join(
                     format_bbox_detail(box) for box in highlight_bboxes
+                ),
+                "overflow_display_bboxes": " | ".join(
+                    format_bbox_detail(box) for box in overflow_display_bboxes
                 ),
                 "overflow_segment_bboxes": " | ".join(
                     format_bbox_detail(box) for box in overflow_segment_bboxes

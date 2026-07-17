@@ -2,7 +2,7 @@
 
 Covers, using synthetic metadata only:
 
-1. P011 — strict margin wording (1.5 in left, 1 in top/bottom/right, no content in margins)
+1. P011 — neutral margin wording (1.5 in left, 1 in top/bottom/right)
 2. P012 — "Resolve or delete" annotation remediation
 3. P013 — bottom-center placement wording
 4. P016 — necessary-page-break exception in spacing wording
@@ -24,7 +24,7 @@ import pytest
 from njit_auditor.polished_comments import build_polished_comment
 
 # ---------------------------------------------------------------------------
-# 1. P011 — strict margin wording
+# 1. P011 — neutral margin wording
 # ---------------------------------------------------------------------------
 
 def test_p011_margin_wording_mentions_1_5_inches() -> None:
@@ -50,15 +50,17 @@ def test_p011_margin_wording_mentions_1_5_inches() -> None:
     assert "left margin" in comment
 
 
-def test_p011_margin_wording_no_content_in_margins() -> None:
+def test_p011_margin_wording_is_neutral() -> None:
     comment = build_polished_comment(
         rule_id="P011",
         issue_type="margin_boundary_violation",
         page=3,
         details={"issue_type": "margin_boundary_violation", "side": "left_margin"},
     )
-    assert "strict" in comment.lower()
-    assert "even by a small amount" in comment.lower()
+    lowered = comment.lower()
+    assert "strict" not in lowered
+    assert "even by a small amount" not in lowered
+    assert "appears too close to" in lowered or "appears to cross the required" in lowered
 
 
 def test_p011_margin_right_mentions_right_boundary() -> None:

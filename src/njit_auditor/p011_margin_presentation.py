@@ -222,21 +222,17 @@ def margin_comment_body(
     lines_clause: str,
 ) -> str:
     content_label = margin_content_label(page_context)
-    strict_note = (
-        " NJIT margin rules are strict: no text, table, or figure may cross a "
-        "required boundary, even by a small amount."
-    )
     if side_label == "required page margin":
         return (
             f"Likely problem: Some {content_label} on page {page_label} appears too close "
             "to or beyond a required page margin. The auditor could not determine the "
             f"exact margin side from the available metadata{overflow_detail}."
-            f"{lines_clause}{strict_note}"
+            f"{lines_clause}"
         )
     return (
         f"Likely problem: {content_label.capitalize()} on page {page_label} appears to "
         f"cross the required {side_label} boundary{overflow_detail}."
-        f"{lines_clause}{strict_note}"
+        f"{lines_clause}"
     )
 
 

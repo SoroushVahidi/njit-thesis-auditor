@@ -47,7 +47,7 @@ def _text_at_x1(text: str, target_x1: float, y: float, fontsize: float = 11) -> 
 
 def test_small_right_margin_overflow_still_flags(tmp_path: Path) -> None:
     """A right-margin overflow just past the tolerance must still be flagged --
-    Ester's rule is strict, so small overflows are never suppressed."""
+    small overflows are never suppressed."""
     target_overflow = OVERFLOW_TOLERANCE_PT + 2.0  # comfortably over tolerance, still "small"
     text = "Slightly over the margin boundary line"
     x0, _ = _text_at_x1(text, ALLOWED_X1 + target_overflow, 120)
@@ -287,7 +287,10 @@ def test_mixed_top_and_right_margin_page_gives_separated_evidence(tmp_path: Path
     assert "right margin (~" in comment
     assert "top margin (~" in comment
     assert "pt over" in comment
-    assert "strict" in comment.lower()
+    lowered = comment.lower()
+    assert "strict" not in lowered
+    assert "even by a small amount" not in lowered
+    assert "appears to cross the required" not in lowered
 
     # The actual highlighted-PDF drawing path must show separate boxes for
     # each side -- never one region spanning the whole page between them.
@@ -300,9 +303,9 @@ def test_mixed_top_and_right_margin_page_gives_separated_evidence(tmp_path: Path
         assert box[3] - box[1] < 40.0, "no box should span both affected regions"
 
 
-def test_single_side_comment_states_strictness_without_downgrading() -> None:
-    """A single-side P011 comment must explain that even a small overflow is
-    not allowed, and must never suggest the warning is optional or ignorable."""
+def test_single_side_comment_stays_neutral_without_downgrading() -> None:
+    """A single-side P011 comment must stay neutral and must never suggest
+    the warning is optional or ignorable."""
     comment = build_polished_comment(
         rule_id="P011",
         issue_type="margin_boundary_violation",
@@ -310,7 +313,8 @@ def test_single_side_comment_states_strictness_without_downgrading() -> None:
         details={"side": "right_margin", "worst_overflow_pt": "3.0", "affected_line_count": "2"},
     )
     lowered = comment.lower()
-    assert "strict" in lowered
-    assert "even by a small amount" in lowered
+    assert "strict" not in lowered
+    assert "even by a small amount" not in lowered
+    assert "appears to cross the required right margin boundary" in lowered
     for phrase in ("optional", "can be ignored", "may be ignored", "not required"):
         assert phrase not in lowered

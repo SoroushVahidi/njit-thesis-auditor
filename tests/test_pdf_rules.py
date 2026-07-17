@@ -5,7 +5,10 @@ import fitz
 from typer.testing import CliRunner
 
 from njit_auditor.cli import app
-from njit_auditor.highlight_targeting import resolve_primary_highlight_bbox
+from njit_auditor.highlight_targeting import (
+    parse_highlight_bboxes_from_details,
+    resolve_primary_highlight_bbox,
+)
 from njit_auditor.pdf_highlight import has_visible_highlight
 from njit_auditor.pdf_layout import _style_flags_from_font_name, load_pdf_layout
 from njit_auditor.pdf_models import (
@@ -170,6 +173,40 @@ def _make_pdf_with_normal_text(path: Path) -> None:
     page.insert_text((130, 130), "Inside margins", fontsize=12)
     doc.save(path)
     doc.close()
+
+
+def _make_manual_pdf_doc_with_right_overflow(
+    *, overflow_pt: float, line_count: int = 3
+) -> PdfDocument:
+    lines: list[PdfTextLine] = []
+    for index in range(line_count):
+        bbox = BBox(
+            x0=108.0,
+            y0=120.0 + (index * 18.0),
+            x1=540.0 + overflow_pt,
+            y1=132.0 + (index * 18.0),
+        )
+        span = PdfTextSpan(text=f"Synthetic overflow line {index}", bbox=bbox, size=12.0)
+        lines.append(PdfTextLine(spans=[span], bbox=bbox, text=span.text))
+    block_bbox = BBox(
+        x0=min(line.bbox.x0 for line in lines),
+        y0=min(line.bbox.y0 for line in lines),
+        x1=max(line.bbox.x1 for line in lines),
+        y1=max(line.bbox.y1 for line in lines),
+    )
+    page = PdfPage(
+        page_number=1,
+        width=612.0,
+        height=792.0,
+        text_blocks=[
+            PdfTextBlock(
+                lines=lines,
+                bbox=block_bbox,
+                text="\n".join(line.text for line in lines),
+            )
+        ],
+    )
+    return PdfDocument(path="synthetic.pdf", pages=[page])
 
 
 def _make_pdf_with_annotation(path: Path) -> None:
@@ -445,6 +482,45 @@ def test_small_group_real_violation_still_warns(tmp_path: Path) -> None:
     findings = run_pdf_margin_rule(model)
     # Small group (count < 5) should never be suppressed by the artifact guard.
     assert any(f.rule_id == "P011" and f.severity.value == "WARNING" for f in findings)
+
+
+def test_right_margin_float_fuzz_at_threshold_is_ignored() -> None:
+    """A multi-line group at 3.000xpt should honor the documented 3pt cutoff,
+    not promote float noise into a medium-confidence warning."""
+    model = _make_manual_pdf_doc_with_right_overflow(overflow_pt=3.002, line_count=3)
+    findings = run_pdf_margin_rule(model)
+    assert not any(f.rule_id == "P011" and f.severity.value == "WARNING" for f in findings)
+    assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
+
+
+def test_right_margin_overflow_just_beyond_float_guard_still_warns() -> None:
+    model = _make_manual_pdf_doc_with_right_overflow(overflow_pt=3.02, line_count=3)
+    findings = run_pdf_margin_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("side") == "right_margin"
+    assert warnings[0].details.get("confidence") == "medium"
+
+
+def test_thin_right_margin_overflow_gets_display_widening() -> None:
+    model = _make_manual_pdf_doc_with_right_overflow(overflow_pt=3.02, line_count=2)
+    findings = run_pdf_margin_rule(model)
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    boxes = parse_highlight_bboxes_from_details(
+        warning.details, rule_id="P011", issue_type="margin_boundary_violation"
+    )
+    overflow_boxes = [box for box in boxes if box.kind == "overflow"]
+    display_boxes = [box for box in boxes if box.kind == "overflow_display"]
+    guide_boxes = [box for box in boxes if box.kind == "guide"]
+    assert len(overflow_boxes) == 1
+    assert len(display_boxes) == 1
+    assert len(guide_boxes) == 1
+    overflow_box = overflow_boxes[0]
+    display_box = display_boxes[0]
+    assert display_box[2] - display_box[0] >= 4.0
+    assert display_box[2] - display_box[0] >= overflow_box[2] - overflow_box[0]
+    assert display_box[0] <= overflow_box[0]
+    assert display_box[2] >= overflow_box[2]
 
 
 def test_grouped_violations_confidence_high_for_large_overflow(tmp_path: Path) -> None:
