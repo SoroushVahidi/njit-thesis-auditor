@@ -104,7 +104,7 @@ def check_pdf_lof_terminal_punctuation(pdf_document: PdfDocument) -> list[AuditF
         if context.page_type != "list_of_figures":
             continue
         entries = extract_toc_entry_lines(context)
-        if len(entries) < 2:
+        if not entries:
             continue
         page_findings = _check_lof_terminal_punctuation_page(context, entries, entry_offset)
         findings.extend(page_findings)

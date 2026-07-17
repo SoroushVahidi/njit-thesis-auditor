@@ -582,19 +582,29 @@ def _drop_merge_orphans(entries: list[TocEntryLine]) -> list[TocEntryLine]:
 def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
     """Extract likely entry lines below TOC/List heading on a page."""
 
+    page_width = context.page.width or 612.0
+    max_entry_left = page_width * TOC_ENTRY_MAX_LEFT_FRACTION
     ordered_lines: list[PdfTextLine] = []
     for block in context.page.text_blocks:
         for line in block.lines:
             if line.bbox.y0 <= context.heading_bottom_y + 2:
+                continue
+            raw_cleaned = _clean_text(_line_text_for_toc(line))
+            if (
+                line.bbox.x0 >= max_entry_left
+                and not NUMERIC_ONLY_RE.match(raw_cleaned)
+                and not _is_leader_page_fragment_line(raw_cleaned)
+                and not is_toc_structural_column_label(raw_cleaned)
+            ):
+                # Exclude right-margin annotations before same-baseline row
+                # assembly. Filtering only after assembly lets comments such as
+                # reviewer names become glued into a legitimate TOC entry.
                 continue
             ordered_lines.append(line)
     ordered_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
     # Rebuild visual TOC rows from same-baseline column fragments before
     # classifying entries / pairing page numbers.
     ordered_lines = _assemble_same_baseline_toc_rows(ordered_lines)
-
-    page_width = context.page.width or 612.0
-    max_entry_left = page_width * TOC_ENTRY_MAX_LEFT_FRACTION
 
     entries: list[TocEntryLine] = []
     auxiliary_lines: list[PdfTextLine] = []
