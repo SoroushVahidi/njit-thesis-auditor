@@ -21,12 +21,20 @@ _TOC_STRUCTURAL_COLUMN_LABELS = frozenset(
     {
         "CHAPTER",
         "CHAPTERS",
+        "CHAPTER PAGE",
+        "CHAPTERS PAGE",
         "PAGE",
         "PAGES",
         "TITLE",
+        "TITLE PAGE",
         "TABLE",
+        "TABLE PAGE",
+        "TABLES",
+        "TABLES PAGE",
         "FIGURE",
+        "FIGURE PAGE",
         "FIGURES",
+        "FIGURES PAGE",
     }
 )
 
