@@ -48,7 +48,7 @@ if str(_REPO_ROOT / "src") not in sys.path:
 
 from njit_auditor.issue_type_explanations import explain_issue_type, issue_type_title
 from njit_auditor.polished_comments import _resolve_remediation, build_polished_comment
-from njit_auditor.rule_source_scan import detector_emitted_pairs_by_static_scan
+from njit_auditor.rule_source_scan import full_active_issue_type_universe
 
 _CATALOG_PATH = _REPO_ROOT / "data/processed/rules/project_added_rules.json"
 
@@ -59,13 +59,34 @@ _REPORTING_ONLY_TYPES = frozenset(
 _GENERIC_COMMENT_MARKER = "This automated check found a possible"
 _GENERIC_EXPLANATION_MARKER = "was flagged by an automated check"
 
+# Unreachable-in-practice combinations rule_source_scan.py's flow-insensitive
+# scan over-generates (see that module's docstring and
+# tests/test_rule_registry_consistency.py's matching constant): pdf_heading_
+# levels.py's `level` loop variable ranges over (2, 3, 4, 5), but these
+# specific f-string issue types can only ever be built inside branches that
+# exclude the level shown here. Excluded so this diagnostic doesn't report
+# fake "needs refinement" debt for pairs that can never actually be emitted.
+_SCANNER_OVER_APPROXIMATION_ARTIFACTS = frozenset(
+    {
+        ("P027", "level2_sentence_case_issue"),
+        ("P027", "level2_sentence_case_or_punctuation_issue"),
+        ("P027", "level3_sentence_case_or_punctuation_issue"),
+    }
+)
+
 
 def _load_catalog() -> list[dict]:
     return json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
 
 
 def _active_pairs_with_question(catalog: list[dict]) -> tuple[set[tuple[str, str]], dict[str, str]]:
-    """Return (active non-reporting/experimental/evaluation pairs, rule_id -> question)."""
+    """Return (active non-reporting/experimental/evaluation pairs, rule_id -> question).
+
+    Ground truth is `rule_source_scan.full_active_issue_type_universe()` — the
+    comprehensive static scan plus the TeX/source-pipeline dispatch and the
+    one documented non-detector exception (P021) — filtered to rule_ids the
+    catalog actually knows about and considers default-enabled.
+    """
     question_by_rule: dict[str, str] = {
         rule["id"]: str(rule.get("question") or "") for rule in catalog
     }
@@ -79,16 +100,11 @@ def _active_pairs_with_question(catalog: list[dict]) -> tuple[set[tuple[str, str
     }
     known_rule_ids = {rule["id"] for rule in catalog}
 
-    pairs: set[tuple[str, str]] = set()
-    for rule in catalog:
-        if rule["id"] in excluded_rule_ids:
-            continue
-        for issue_type in rule.get("issue_types") or []:
-            pairs.add((rule["id"], issue_type))
-    for rule_id, issue_type in detector_emitted_pairs_by_static_scan():
-        if rule_id in excluded_rule_ids or rule_id not in known_rule_ids:
-            continue
-        pairs.add((rule_id, issue_type))
+    pairs = {
+        (rule_id, issue_type)
+        for rule_id, issue_type in full_active_issue_type_universe()
+        if rule_id in known_rule_ids and rule_id not in excluded_rule_ids
+    } - _SCANNER_OVER_APPROXIMATION_ARTIFACTS
     return pairs, question_by_rule
 
 

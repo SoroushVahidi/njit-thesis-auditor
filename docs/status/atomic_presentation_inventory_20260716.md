@@ -1,5 +1,15 @@
 # Atomic Presentation Inventory (2026-07-16)
 
+> **Update (2026-07-16, same day, follow-up pass):** The "72 of ~140" scanner
+> coverage gap described below has since been closed to 143/145 (see
+> [issue_type_universe_coverage_20260716.md](issue_type_universe_coverage_20260716.md)).
+> `rule_source_scan.py` now resolves module-level config-dict lookups,
+> same-module cross-function argument tracing, and finite-domain f-string
+> templates, not just direct literal assignment. This file's "Methodology"
+> and "Result" sections below describe the *original* (72-pair) scanner and
+> are kept for historical accuracy — the counts are stale, the qualitative
+> findings (which pairs were non-atomic, and the fixes applied) are not.
+>
 > **Purpose:** Classify every active, default-enabled `(rule_id, issue_type)`
 > pair by whether its student-facing comment and explanation are already
 > atomic (one issue type → one specific title/question → one explanation →
