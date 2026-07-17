@@ -741,6 +741,36 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P038", "heading_phrase_not_exact"): (
         "Correct this heading to use the exact canonical NJIT phrase."
     ),
+    # P014/P018 catalog `remediation` text is a developer index of internal
+    # P###/Q### cross-references (per-page/sub-rule notation), not
+    # student-facing wording — it must never reach `_remediation_by_rule()`'s
+    # raw fallback. These overrides mirror the clean wording already shown on
+    # the web UI (report_view.py's `_apply_named_heading_presentation` for
+    # P014, toc_list_student_preview.py's `_P018_SHORT_FIX` for P018), so the
+    # markdown-export and base-resolver paths (which do not go through those
+    # presentation-layer rewrites) show the same clean text instead of the
+    # raw catalog string.
+    ("P014", "frontmatter_heading_layout_issue"): (
+        "Format this front-matter heading in bold, all capital letters, and "
+        "centered near the top of the page."
+    ),
+    ("P014", "frontmatter_heading_not_centered"): (
+        "Center this heading within the text area. Keep it bold and in all "
+        "capital letters."
+    ),
+    ("P018", "misaligned_page_number_column"): (
+        "Align this entry's page number with the dominant right-hand column "
+        "on this list page."
+    ),
+    ("P018", "missing_page_number"): "Add the missing trailing page number to this entry.",
+    ("P018", "inconsistent_leader_dots"): (
+        "Make the leader-dot spacing before this entry's page number match "
+        "nearby entries."
+    ),
+    ("P018", "inconsistent_hierarchy_indent"): (
+        "Align this entry's left indent with the other TOC entries at the "
+        "same level."
+    ),
     ("P021", "abstract_word_count_exceeded"): "",
     ("P017", "unexpected_terminal_period"): "",
     ("P017", "missing_terminal_punctuation"): "",
