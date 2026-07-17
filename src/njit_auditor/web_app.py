@@ -630,28 +630,42 @@ def _checkability_label(checkability: str | None) -> str:
     return mapping.get(checkability or "", "Pattern-based")
 
 
-def _classify_rule(rule: dict[str, Any]) -> str:
-    """Return 'student', 'technical', or 'excluded'."""
-    phase = rule.get("phase", "") or ""
+def _rule_technical_classification(rule: dict[str, Any]) -> str | None:
+    """Return the technical-classification reason for *rule*, or None if it's student-facing.
+
+    Single source of truth backing both `_classify_rule()` and `_technical_reason()`
+    below — they used to independently re-derive this same if/elif chain (see
+    docs/RULE_ARCHITECTURE.md "Known duplication"), which meant nothing enforced
+    that they could never disagree. Deriving both from one function makes
+    disagreement structurally impossible instead of merely tested-for.
+    """
+    phase = (rule.get("phase", "") or "").lower()
     notes = (rule.get("notes", "") or "").lower()
     rule_type = (rule.get("rule_type", "") or "").lower()
 
     if phase == "evaluation_task" or rule_type == "evaluation_task":
-        return "technical"
-    if rule_type in ("infrastructure", "reporting_refinement"):
-        return "technical"
+        return "Evaluation task — no detector, no student findings"
+    if rule_type == "infrastructure":
+        return "Infrastructure capability — no standalone findings"
+    if rule_type == "reporting_refinement":
+        return "Reporting refinement — extends existing summaries, no new findings"
     if "experimental" in rule_type:
         # Experimental/opt-in rules (e.g. P082) are never enabled by default and
         # this website never passes an AuditOptions with them turned on, so they
         # never produce findings on a web PDF audit.
-        return "technical"
+        return "Experimental / opt-in — not enabled in this website's PDF audit"
     if "infrastructure-only" in notes:
-        return "technical"
+        return "Infrastructure scaffold — no standalone findings in this phase"
     if "reporting-only" in notes:
-        return "technical"
+        return "Reporting-only refinement — no new raw findings"
     if phase == "docx_comments":
-        return "technical"
-    return "student"
+        return "DOCX comment extraction infrastructure"
+    return None
+
+
+def _classify_rule(rule: dict[str, Any]) -> str:
+    """Return 'student' or 'technical'."""
+    return "technical" if _rule_technical_classification(rule) is not None else "student"
 
 
 _HEURISTIC_WORDING = [
@@ -1605,24 +1619,7 @@ def _build_rule_catalog() -> dict[str, Any]:
 
 
 def _technical_reason(rule: dict[str, Any]) -> str:
-    rule_type = (rule.get("rule_type", "") or "").lower()
-    phase = (rule.get("phase", "") or "").lower()
-    notes = (rule.get("notes", "") or "").lower()
-    if rule_type == "evaluation_task" or phase == "evaluation_task":
-        return "Evaluation task — no detector, no student findings"
-    if rule_type == "infrastructure":
-        return "Infrastructure capability — no standalone findings"
-    if rule_type == "reporting_refinement":
-        return "Reporting refinement — extends existing summaries, no new findings"
-    if "experimental" in rule_type:
-        return "Experimental / opt-in — not enabled in this website's PDF audit"
-    if "infrastructure-only" in notes:
-        return "Infrastructure scaffold — no standalone findings in this phase"
-    if "reporting-only" in notes:
-        return "Reporting-only refinement — no new raw findings"
-    if phase == "docx_comments":
-        return "DOCX comment extraction infrastructure"
-    return "Technical entry"
+    return _rule_technical_classification(rule) or "Technical entry"
 
 
 @lru_cache(maxsize=1)
