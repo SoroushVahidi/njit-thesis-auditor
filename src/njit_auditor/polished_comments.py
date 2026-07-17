@@ -1033,7 +1033,9 @@ _TITLE_CASE_REASON_TEXT: dict[str, str] = {
     "word_after_separator_requires_capital": (
         "a word after a colon, dash, or similar separator is not capitalized"
     ),
-    "major_word_requires_capital": "a major word (4+ letters) is not capitalized",
+    "major_word_requires_capital": (
+        "a major word (not an article, preposition, or conjunction) is not capitalized"
+    ),
 }
 
 _TITLE_CASE_REASON_SHORT: dict[str, str] = {
@@ -1086,8 +1088,9 @@ def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> st
     rule_text = "NJIT requires Level 2 headings (e.g. 1.1, 1.2) to use Title Case"
     return (
         f"Possible title-case issue in a {subject} on page {page_label}: "
-        f"{reason_text}. {rule_text} (capitalize the first word, last word, "
-        "and all major words of 4+ letters)."
+        f"{reason_text}. {rule_text} (capitalize the first word and all major "
+        "words; leave articles, prepositions, and conjunctions lowercase in "
+        "the middle)."
     )
 
 

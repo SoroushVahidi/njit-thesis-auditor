@@ -1245,7 +1245,9 @@ _P020_TITLE_CASE_REASON_TEXT: dict[str, str] = {
     "word_after_separator_requires_capital": (
         "a word after a colon, dash, or similar separator is not capitalized"
     ),
-    "major_word_requires_capital": "a major word (4+ letters) is not capitalized",
+    "major_word_requires_capital": (
+        "a major word (not an article, preposition, or conjunction) is not capitalized"
+    ),
 }
 
 
@@ -1278,8 +1280,8 @@ def _p020_title_case_explanation(details: dict[str, str], *, page: int | None) -
             "capitalized except prepositions, conjunctions, and articles), and "
             "table titles must not end with a period. "
             "Why this is suspicious: the detector compares each word against "
-            "NJIT's Title Case rule for table titles, so short connector words "
-            "(a, of, the, and similar) are correctly left lowercase and not "
+            "NJIT's Title Case rule for table titles, so connector words "
+            "(a, of, the, with, and similar) are correctly left lowercase and not "
             "flagged. "
             "What to check or fix: open the flagged page and capitalize the "
             "specific word the finding identifies as missing a capital letter."
@@ -1288,10 +1290,11 @@ def _p020_title_case_explanation(details: dict[str, str], *, page: int | None) -
     return (
         f"Observed: {location_phrase.capitalize()} appears to have a capitalization "
         f"problem: {reason_text}.{word_clause} "
-        f"Expected: {rule_text} (capitalize the first word, last word, and all "
-        "major words of 4+ letters). "
+        f"Expected: {rule_text} (capitalize the first word and all major "
+        "words; leave articles, prepositions, and conjunctions lowercase "
+        "in the middle). "
         "Why this is suspicious: the detector compares each word against NJIT's "
-        "Title Case rule for this text role, so short connector words (a, of, the, "
+        "Title Case rule for this text role, so connector words (a, of, the, with, "
         "and similar) are correctly left lowercase and not flagged. "
         "What to check or fix: open the flagged page and capitalize the specific "
         "word the finding identifies as missing a capital letter."

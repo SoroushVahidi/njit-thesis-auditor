@@ -163,7 +163,10 @@ def test_p020_comment_falls_back_safely_without_word_metadata() -> None:
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P020")
     assert "''" not in fv.polished_comment
-    assert "a major word (4+ letters) is not capitalized" in fv.polished_comment
+    assert (
+        "a major word (not an article, preposition, or conjunction) is not capitalized"
+        in fv.polished_comment
+    )
 
 
 def test_p020_individual_findings_distinguishable_on_same_page() -> None:
@@ -243,7 +246,10 @@ def test_markdown_report_p020_falls_back_safely_without_word_metadata(tmp_path: 
     text = output_path.read_text(encoding="utf-8")
 
     assert "''" not in text
-    assert "a major word (4+ letters) is not capitalized" in text
+    assert (
+        "a major word (not an article, preposition, or conjunction) is not capitalized"
+        in text
+    )
 
 
 def test_markdown_report_p020_never_quotes_blocked_detail_text(tmp_path: Path) -> None:

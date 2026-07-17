@@ -2013,7 +2013,10 @@ def test_p020_caption_source_comment_is_title_case_specific_not_mixed_with_headi
     )
     assert "table title" in comment
     assert "Level 2 heading" not in comment
-    assert "a major word (4+ letters) is not capitalized" in comment
+    assert (
+        "a major word (not an article, preposition, or conjunction) is not capitalized"
+        in comment
+    )
 
 
 def test_p020_comment_never_quotes_flagged_word() -> None:

@@ -14,6 +14,10 @@ from njit_auditor.pdf_models import (
 )
 
 LANDSCAPE_ASPECT_THRESHOLD = 1.02
+# When whitespace-only spans are omitted from the model, recover word breaks from
+# horizontal gaps between remaining content spans (same heuristic as P051 notice
+# reconstruction). Gaps below this floor are treated as kerning/subscript joins.
+_MIN_SPAN_SPACE_GAP_PT = 1.0
 
 
 def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
@@ -45,6 +49,57 @@ def _style_flags_from_font_name(font_name: str | None) -> tuple[bool, bool]:
         or base.startswith("cmsl")
     )
     return bold, italic
+
+
+def _span_space_gap_threshold(spans: list[PdfTextSpan]) -> float:
+    """Minimum horizontal gap that indicates a word space between content spans."""
+    sizes = [span.size for span in spans if span.size]
+    if not sizes:
+        return _MIN_SPAN_SPACE_GAP_PT
+    return max(_MIN_SPAN_SPACE_GAP_PT, min(sizes) * 0.10)
+
+
+def _spans_have_script_offset(prev: PdfTextSpan, span: PdfTextSpan) -> bool:
+    """True when span looks vertically shifted like a super/subscript relative to prev."""
+    prev_mid = (prev.bbox.y0 + prev.bbox.y1) / 2.0
+    span_mid = (span.bbox.y0 + span.bbox.y1) / 2.0
+    sizes = [s for s in (prev.size, span.size) if s]
+    size = min(sizes) if sizes else 12.0
+    return abs(span_mid - prev_mid) >= size * 0.15
+
+
+def join_content_span_texts(spans: list[PdfTextSpan]) -> str:
+    """Join non-empty span texts, inserting spaces where geometry implies a gap.
+
+    PyMuPDF often emits whitespace as its own span. Those spans are omitted from
+    the layout model (they are not useful as styled content), which concatenates
+    adjacent words in ``line.text`` (``in`` + ``power`` → ``inpower``). Callers
+    that need readable title/caption phrases can rebuild from span geometry:
+    when the horizontal gap between consecutive content spans is at least a
+    fraction of the font size — and the spans share a baseline (not
+    super/subscript) — restore a single ASCII space.
+    """
+    if not spans:
+        return ""
+    threshold = _span_space_gap_threshold(spans)
+    pieces: list[str] = []
+    prev: PdfTextSpan | None = None
+    for span in spans:
+        raw = span.text.replace("\u00a0", " ")
+        clean = raw.strip()
+        if not clean:
+            continue
+        if pieces and prev is not None:
+            gap = span.bbox.x0 - prev.bbox.x1
+            if gap >= threshold and not _spans_have_script_offset(prev, span):
+                pieces.append(" ")
+        pieces.append(clean)
+        prev = span
+    return "".join(pieces)
+
+
+# Backwards-compatible private alias used by unit tests.
+_join_content_span_texts = join_content_span_texts
 
 
 def load_pdf_layout(pdf_path: str) -> PdfDocument:
@@ -108,6 +163,10 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         span_text_chunks.append(text)
                     if not spans:
                         continue
+                    # Keep raw concatenation for the stored line.text so downstream
+                    # rules that already tolerate/expect historical extraction stay
+                    # stable. Callers that need geometry-aware word breaks (P020
+                    # titles/captions) use join_content_span_texts(spans) explicitly.
                     line_text = "".join(span_text_chunks).strip()
                     block_text_chunks.append(line_text)
                     wmode_raw = line.get("wmode")

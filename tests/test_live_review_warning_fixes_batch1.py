@@ -211,9 +211,18 @@ def test_p020_suggested_fix_never_edits_inside_larger_word() -> None:
 
 
 def test_p020_suggested_fix_replaces_only_whole_word_token() -> None:
-    # "with" must be capitalized without touching "within" if it appeared.
-    fix = p020_short_suggested_fix("with", "With", "Comparison with Prior Studies")
-    assert fix == 'Change "Comparison with Prior Studies" to "Comparison With Prior Studies".'
+    # Whole-token replacement must not edit a flagged stem inside a larger word.
+    fix = p020_short_suggested_fix(
+        "form",
+        "Form",
+        "Comparison form Prior Studies within Formulas",
+    )
+    assert fix == (
+        'Change "Comparison form Prior Studies within Formulas" to '
+        '"Comparison Form Prior Studies within Formulas".'
+    )
+    assert "Formulas" in fix
+    assert "within Formulas" in fix
 
 
 def test_p018_short_main_card_and_location_label() -> None:
