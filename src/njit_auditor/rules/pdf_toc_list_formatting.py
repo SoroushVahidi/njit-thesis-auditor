@@ -135,6 +135,12 @@ def _sentence_case_violation_words(text: str) -> list[str]:
     Conservative: flags only when >=60% of eligible later words are
     capitalized (title-case-like). Used for List of Figures entries, which
     NJIT expects in sentence case.
+
+    Lowercase NJIT minor words (including longer prepositions such as
+    ``with``) stay in the denominator so they dilute the title-case ratio.
+    Short minors are already dropped by the ``len(w) > 3`` gate; excluding
+    long minors here would falsely tip borderline sentence-case figure
+    titles that contain a few proper nouns (e.g. ``… with Marching Cubes``).
     """
     words = _WORD_RE.findall(text)
     if len(words) < 4:
@@ -144,7 +150,6 @@ def _sentence_case_violation_words(text: str) -> list[str]:
         if len(w) > 3
         and not looks_like_acronym(w)
         and not _SKIP_WORD_RE.search(w)
-        and w.lower() not in MINOR_WORDS
     ]
     if len(later) < 3:
         return []

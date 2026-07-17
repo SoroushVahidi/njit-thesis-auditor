@@ -3983,6 +3983,28 @@ def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
     )
 
 
+def test_p024_lof_sentence_case_keeps_long_minor_words_in_ratio(tmp_path: Path) -> None:
+    """Lowercase long prepositions must dilute LoF sentence-case ratio (not tip FPs)."""
+    pdf_path = tmp_path / "lof_with_marching.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Overview of the experimental setup for this study ....", 108),
+            ("Figure 2 Schematic of the measurement configuration used here ....", 108),
+            ("Figure 3 Qualitative comparison with Marching Cubes ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024"
+        and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        and "Marching" in (f.details.get("line_preview") or "")
+        for f in findings
+    )
+
+
 def test_p024_lof_sentence_case_identifies_exact_flagged_words(tmp_path: Path) -> None:
     """The finding must name the specific words causing the sentence-case
     violation, not just a generic 'multiple later words' message."""
