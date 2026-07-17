@@ -7841,6 +7841,20 @@ def test_p051_multiple_years_but_one_near_notice_no_finding(tmp_path: Path) -> N
     assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
 
 
+def test_p051_ambiguous_year_range_still_warns(tmp_path: Path) -> None:
+    """Ambiguous same-line ranges like 2023-2024 must not count as a confident year."""
+    pdf_path = tmp_path / "p051_ambiguous_year_range.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2023-2024 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "copyright_year_not_found"
+    assert findings[0].details.get("year_association") == "no_year_candidate"
+
+
 def test_p051_year_far_from_notice_warns(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p051_far_year.pdf"
     _make_p051_pdf(
