@@ -24,18 +24,22 @@ a snapshot — it should change rarely and shouldn't need dated entries.
 
 ## Near-term engineering work
 
-- Land PR #505 and close the PRs it supersedes (#499, #500, #502, #504, #483) — see
-  [CURRENT_STATUS.md](status/CURRENT_STATUS.md).
-- Delete stale merged-PR remote branches (~24 as of this audit).
+- Delete stale merged-PR remote branches (~24 as of the 2026-07-13 audit; still open as of
+  2026-07-16 — not deleted by that pass, since branch deletion is a destructive action requiring
+  explicit authorization).
 - Continue the canonical-rule-registry consolidation started in this audit
   (`docs/RULE_ARCHITECTURE.md`, Phase 4) — collapse the remaining duplication between detector
   registration, public rule cards, Esther Q/P mappings, wording maps, and issue-type templates
-  one safe slice at a time. Do not attempt this as a single rewrite.
+  one safe slice at a time. Do not attempt this as a single rewrite. The 2026-07-16
+  atomic-presentation pass took one more such slice: it unified `web_app.py`'s two classification
+  functions, closed the P014 wording gap and 8 other tracked wording gaps (see
+  `docs/status/atomic_presentation_inventory_20260716.md`), and added a static source-scanner
+  (`src/njit_auditor/rule_source_scan.py`) that keeps the wording-coverage ratchet honest against
+  the detector source instead of only the catalog's (often-unpopulated) `issue_types` field. The
+  4-way issue-type-source duplication itself is still open.
 - Make `scripts/ester_rule_consistency_audit.py` runnable in a fresh clone/CI (currently requires
   untracked local `results/ester_feedback_raw/*.xlsx` input) — likely needs a redacted or
   synthetic stand-in for Esther's raw spreadsheets, decided with her input.
-- Add `results/` (script scratch output) to `.gitignore` — see Phase 5 of the repository-polish
-  audit.
 
 ## Policy-dependent work (needs Esther, not engineering judgment)
 

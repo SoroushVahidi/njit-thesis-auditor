@@ -166,22 +166,22 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "List of Figures on page {page} does not include the correct continued "
         "heading. Add the correct continued heading on this continuation page."
     ),
-    ("P030", "toc_missing_continued_heading"): (
-        "A Table of Contents continuation page on page {page} does not include "
-        "'TABLE OF CONTENTS (Continued).' Add the correct continued heading on "
-        "this continuation page."
-    ),
-    ("P033", "title_page_mismatch"): (
-        "Title-page metadata may be inconsistent on page {page}. "
-        "Manually verify title, degree line, and author block match NJIT front-matter requirements."
-    ),
-    ("P033", "title_consistency_mismatch"): (
-        "Title consistency check flagged a possible mismatch on page {page}. "
-        "Manually verify title-page fields against NJIT requirements."
-    ),
     ("P034", "copyright_year_mismatch"): (
         "Copyright page year format on page {page} may need review. "
         "Confirm the copyright block includes the required year format."
+    ),
+    ("P034", "copyright_top_margin_header_text"): (
+        "Text was detected in the top margin area of the copyright page "
+        "(page {page}). NJIT requires the copyright page to have no header "
+        "text or running head in the top margin. Remove or reposition this "
+        "text outside the top margin."
+    ),
+    ("P034", "copyright_author_mismatch"): (
+        "The author name on the copyright page (page {page}) does not appear "
+        "to match the author name on the title page. NJIT requires the same "
+        "author name to appear consistently on both pages. Verify the "
+        "copyright page shows the exact same author name used on the title "
+        "page."
     ),
     ("P052", "copyright_author_not_found"): (
         "A copyright page was detected on page {page} but author metadata could not be verified. "
@@ -305,12 +305,61 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "follows it) and not an extra blank line. If unnecessary, delete the blank line."
     ),
     ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
-        "List of Tables entry numbers may not be non-decreasing across pages {page_range}. "
-        "Verify cross-page numbering continuity in the LoT."
+        "List of Tables entry numbers may not be non-decreasing across a "
+        "multi-page run starting at page {page}. Verify cross-page numbering "
+        "continuity in the LoT."
     ),
     ("P061", "lof_cross_page_entry_numbers_not_nondecreasing"): (
-        "List of Figures entry numbers may not be non-decreasing across pages {page_range}. "
-        "Verify cross-page numbering continuity in the LoF."
+        "List of Figures entry numbers may not be non-decreasing across a "
+        "multi-page run starting at page {page}. Verify cross-page numbering "
+        "continuity in the LoF."
+    ),
+    ("P057", "lot_page_numbers_not_nondecreasing"): (
+        "List of Tables page numbers on page {page} do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "listed page numbers, so they increase from top to bottom."
+    ),
+    ("P057", "lof_page_numbers_not_nondecreasing"): (
+        "List of Figures page numbers on page {page} do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "listed page numbers, so they increase from top to bottom."
+    ),
+    ("P059", "lot_entry_numbers_not_nondecreasing"): (
+        "List of Tables entry numbers on page {page} do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "entry numbers, so they increase from top to bottom."
+    ),
+    ("P059", "lof_entry_numbers_not_nondecreasing"): (
+        "List of Figures entry numbers on page {page} do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "entry numbers, so they increase from top to bottom."
+    ),
+    ("P062", "toc_cross_page_entry_numbers_not_nondecreasing"): (
+        "Table of Contents section numbers may not be non-decreasing across a "
+        "multi-page run starting at page {page}. Verify cross-page numbering "
+        "continuity in the TOC."
+    ),
+    ("P065", "dedication_text_not_centered"): (
+        "The dedication text on page {page} does not appear to be centered "
+        "horizontally on the page. NJIT requires dedication text to be "
+        "centered. Adjust the paragraph alignment in your source document."
+    ),
+    ("P065", "dedication_text_not_italic"): (
+        "The dedication text on page {page} does not appear to be "
+        "italicized. NJIT requires dedication text to be in italic font. "
+        "Apply italic formatting to the dedication text."
+    ),
+    ("P078", "abstract_pdf_forbidden_term"): (
+        "The abstract on page {page} appears to contain \"paper\" or "
+        "\"article\" (or a plural form). NJIT abstract guidance asks you to "
+        "avoid these terms. Replace \"paper\" or \"article\" with "
+        "\"dissertation,\" \"study,\" \"work,\" or \"research.\""
+    ),
+    ("P078", "abstract_pdf_first_person_pronoun"): (
+        "The abstract on page {page} appears to use a first-person pronoun "
+        "such as \"I,\" \"me,\" \"my,\" \"we,\" or \"our.\" NJIT abstract "
+        "guidance asks you to write in third person. Rewrite the sentence to "
+        "remove first-person pronouns."
     ),
     ("P001", "risky_command"): (
         "Risky formatting command '\\{command}' at {location}. "
@@ -1217,6 +1266,41 @@ def _p012_annotation_comment(*, page: int | None, details: dict[str, str]) -> st
     )
 
 
+_P014_ATTRIBUTE_LABELS: tuple[tuple[str, str], ...] = (
+    ("centered", "centered"),
+    ("near_top", "near the top of the page"),
+    ("bold", "bold"),
+    ("all_caps", "in all capital letters"),
+)
+
+
+def _p014_heading_comment(*, page: int | None, details: dict[str, str]) -> str:
+    # Deliberately never echoes details["heading"] (the extracted section-name
+    # text) — this comment is meant to be a stable, privacy-conservative
+    # template regardless of which named front-matter heading was flagged.
+    page_label = _safe_page_label(page)
+    failed_labels = [
+        label
+        for key, label in _P014_ATTRIBUTE_LABELS
+        if details.get(key, "").strip().lower() == "false"
+    ]
+    if failed_labels:
+        observed = (
+            f"a front-matter heading on page {page_label} is "
+            + ", ".join(f"not {label}" for label in failed_labels)
+        )
+    else:
+        observed = (
+            f"a front-matter heading on page {page_label} does not match "
+            "NJIT's expected layout/style"
+        )
+    return (
+        f"Problem: Detected that {observed}. NJIT requires named front-matter "
+        "section headings to be centered near the top of the page, in bold, "
+        "and in all capital letters. Correct any attributes that do not match."
+    )
+
+
 def _p026_font_comment(
     *,
     issue_type: str,
@@ -1774,6 +1858,13 @@ def build_polished_comment(
 
     if rule_id == "P012" and issue == "pdf_annotation_detected":
         body = _p012_annotation_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P014" and issue in {
+        "frontmatter_heading_layout_issue",
+        "frontmatter_heading_not_centered",
+    }:
+        body = _p014_heading_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P015" and issue in {

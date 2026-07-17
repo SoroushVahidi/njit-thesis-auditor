@@ -447,21 +447,6 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "missing a required continued heading on a continuation page. "
         "NJIT requires '(Continued)' in the heading when such lists span multiple pages."
     ),
-    ("P030", "toc_missing_continued_heading"): (
-        "The Table of Contents spans multiple pages but may be missing a "
-        "'TABLE OF CONTENTS (Continued)' heading on continuation pages. "
-        "NJIT requires this heading on each continuation page of the TOC."
-    ),
-    ("P033", "title_page_mismatch"): (
-        "Title-page metadata may be inconsistent. Common issues include the degree "
-        "line, author block, or university name not matching the expected format. "
-        "Manually verify the title page against NJIT front-matter requirements."
-    ),
-    ("P033", "title_consistency_mismatch"): (
-        "The title shown in different parts of the document may not be consistent. "
-        "Verify that the title is identical wherever it appears: title page, "
-        "abstract, and table of contents."
-    ),
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title text differs between two or more front-matter "
         "pages — the Title Page, Abstract, and/or Approval Page — based on a "
@@ -473,6 +458,14 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P034", "copyright_year_mismatch"): (
         "The copyright year on the copyright page may not match the expected format "
         "or year. Confirm the copyright block includes the correct year."
+    ),
+    ("P034", "copyright_top_margin_header_text"): (
+        "This means text was detected in the top margin area of the copyright "
+        "page, where NJIT expects no header text or running head."
+    ),
+    ("P034", "copyright_author_mismatch"): (
+        "This means the author name on the copyright page does not appear to "
+        "match the author name on the title page."
     ),
     ("P052", "copyright_author_not_found"): (
         "A copyright page was detected but the author name could not be verified. "
@@ -690,6 +683,34 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "This means Table of Contents section numbers do not appear in "
         "non-decreasing order on this page."
+    ),
+    ("P057", "lot_page_numbers_not_nondecreasing"): (
+        "This means List of Tables page numbers do not appear in "
+        "non-decreasing order down this page."
+    ),
+    ("P057", "lof_page_numbers_not_nondecreasing"): (
+        "This means List of Figures page numbers do not appear in "
+        "non-decreasing order down this page."
+    ),
+    ("P059", "lot_entry_numbers_not_nondecreasing"): (
+        "This means List of Tables entry numbers do not appear in "
+        "non-decreasing order down this page."
+    ),
+    ("P059", "lof_entry_numbers_not_nondecreasing"): (
+        "This means List of Figures entry numbers do not appear in "
+        "non-decreasing order down this page."
+    ),
+    ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
+        "This means List of Tables entry numbers do not appear in "
+        "non-decreasing order across this multi-page run."
+    ),
+    ("P061", "lof_cross_page_entry_numbers_not_nondecreasing"): (
+        "This means List of Figures entry numbers do not appear in "
+        "non-decreasing order across this multi-page run."
+    ),
+    ("P062", "toc_cross_page_entry_numbers_not_nondecreasing"): (
+        "This means Table of Contents section numbers do not appear in "
+        "non-decreasing order across this multi-page run."
     ),
     ("P064", "references_section_heading_not_detected"): (
         "This means no recognized REFERENCES or BIBLIOGRAPHY section heading "

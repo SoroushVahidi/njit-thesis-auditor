@@ -433,25 +433,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Tables, or List of Figures does not include the correct continued heading. "
         "Add the correct continued heading on this continuation page."
     ),
-    ("P030", "toc_missing_continued_heading"): (
-        "Problem: A Table of Contents continuation page does not include "
-        "'TABLE OF CONTENTS (Continued).' "
-        "Add the correct continued heading on this continuation page."
-    ),
     # --- P033 title consistency ---
-    ("P033", "title_page_mismatch"): (
-        "Title-page metadata may be inconsistent or incomplete. "
-        "Manually verify the title, degree line, and author block against NJIT "
-        "front-matter requirements. "
-        "Common issues include a missing department/program line, an incorrect "
-        "degree phrase, or a title that differs from the abstract or body."
-    ),
-    ("P033", "title_consistency_mismatch"): (
-        "The title detected on the title page may not match the title found in other "
-        "parts of the document. "
-        "Manually verify that all occurrences of the title (title page, abstract, "
-        "header) are identical."
-    ),
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title appears to differ between two or more front-matter "
         "pages — the Title Page, Abstract, and/or Approval Page — based on a "
@@ -734,6 +716,38 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "Table of Contents section numbers on this page do not appear in "
         "non-decreasing order. Reorder entries so section numbers increase correctly."
+    ),
+    ("P057", "lot_page_numbers_not_nondecreasing"): (
+        "List of Tables page numbers on this page do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "listed page numbers, so they increase from top to bottom."
+    ),
+    ("P057", "lof_page_numbers_not_nondecreasing"): (
+        "List of Figures page numbers on this page do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "listed page numbers, so they increase from top to bottom."
+    ),
+    ("P059", "lot_entry_numbers_not_nondecreasing"): (
+        "List of Tables entry numbers on this page do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "entry numbers, so they increase from top to bottom."
+    ),
+    ("P059", "lof_entry_numbers_not_nondecreasing"): (
+        "List of Figures entry numbers on this page do not appear to be in "
+        "non-decreasing order down the list. Reorder entries, or correct the "
+        "entry numbers, so they increase from top to bottom."
+    ),
+    ("P061", "lot_cross_page_entry_numbers_not_nondecreasing"): (
+        "List of Tables entry numbers may not be non-decreasing across a "
+        "multi-page run. Verify cross-page numbering continuity in the LoT."
+    ),
+    ("P061", "lof_cross_page_entry_numbers_not_nondecreasing"): (
+        "List of Figures entry numbers may not be non-decreasing across a "
+        "multi-page run. Verify cross-page numbering continuity in the LoF."
+    ),
+    ("P062", "toc_cross_page_entry_numbers_not_nondecreasing"): (
+        "Table of Contents section numbers may not be non-decreasing across a "
+        "multi-page run. Verify cross-page numbering continuity in the TOC."
     ),
     # --- P064 references structural (issue-specific) ---
     ("P064", "references_section_heading_not_detected"): (
