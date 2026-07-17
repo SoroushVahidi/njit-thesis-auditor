@@ -73,31 +73,6 @@ _SCANNER_OVER_APPROXIMATION_ARTIFACTS: frozenset[tuple[str, str]] = frozenset(
     }
 )
 
-# Pre-existing bug, discovered by this pass's broadened leak-check coverage,
-# deliberately NOT fixed here (out of scope: this task is architectural
-# ground-truth-discovery work, not a wording fix pass — see the task
-# instructions' "isolate and document separately" guidance). Root cause: the
-# raw catalog `remediation` field for P014 and P018 embeds internal
-# cross-reference notation (e.g. "APPROVAL PAGE (Q013, P038)", "P018A-C
-# (Q049-Q051)") intended as a developer note about which Q/P rules cover
-# which sub-cases. No per-issue-type remediation override exists for these
-# six pairs, so `_resolve_remediation()`'s catalog-level fallback surfaces
-# that raw internal text to students verbatim. Recommended fix (not applied
-# here): add `_ISSUE_REMEDIATION_OVERRIDES` entries in polished_comments.py
-# for these six pairs with clean, student-facing remediation text — a
-# presentation-only change, no raw-JSON edit needed.
-_KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("P014", "frontmatter_heading_layout_issue"),
-        ("P014", "frontmatter_heading_not_centered"),
-        ("P018", "inconsistent_hierarchy_indent"),
-        ("P018", "inconsistent_leader_dots"),
-        ("P018", "misaligned_page_number_column"),
-        ("P018", "missing_page_number"),
-    }
-)
-
-
 def _load_catalog() -> list[dict]:
     return json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
 
@@ -329,28 +304,9 @@ def test_public_surfaces_never_leak_raw_rule_id(rule_id: str, issue_type: str) -
         assert text and str(text).strip(), (
             f"{rule_id}/{issue_type} {surface} is empty/less informative"
         )
-        pair = (rule_id, issue_type)
-        if surface == "suggested_fix" and pair in _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS:
-            # Pre-existing bug, discovered by this test, deliberately not fixed
-            # here — see _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS' docstring.
-            continue
         leaked = _RAW_ID_PATTERN.findall(str(text))
         assert not leaked, (
             f"{rule_id}/{issue_type} leaked raw id(s) {leaked} in {surface}: {text!r}"
-        )
-
-
-def test_known_pre_existing_suggested_fix_leaks_are_not_stale() -> None:
-    """Staleness guard for _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS: if a pair
-    listed there no longer actually leaks (e.g. someone added a remediation
-    override), it should be removed from the allowlist so the main leak test
-    goes back to checking `suggested_fix` for that pair too."""
-    for rule_id, issue_type in sorted(_KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS):
-        _, fix = finalize_student_facing_comment_and_fix(rule_id, issue_type, "", "")
-        leaked = _RAW_ID_PATTERN.findall(fix)
-        assert leaked, (
-            f"{rule_id}/{issue_type} no longer leaks in suggested_fix ({fix!r}) — "
-            "remove it from _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS."
         )
 
 

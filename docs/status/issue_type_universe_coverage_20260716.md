@@ -186,11 +186,19 @@ and named — neither hides a real gap silently.
 
 ## Discovered but deliberately out of scope (per task instructions)
 
+**Update (2026-07-17): fixed.** See the follow-up branch
+`fix/p014-p018-suggested-fix-leaks` — `_ISSUE_REMEDIATION_OVERRIDES` entries
+were added in `polished_comments.py` for the six pairs below, exactly as
+recommended here. `_KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS` and its staleness
+test were removed from `tests/test_rule_registry_consistency.py` since the
+allowlist is now empty; `test_public_surfaces_never_leak_raw_rule_id` enforces
+zero `suggested_fix` leaks directly.
+
 Broadening the leak-check test's coverage from 2 to 143 pairs surfaced **two
 real, pre-existing bugs** that were invisible before (nothing had ever run
 the check against these pairs). Per this task's explicit instruction to
 isolate and document rather than fold into architectural work, **neither was
-fixed**:
+fixed at the time**:
 
 - **P014 and P018's `suggested_fix` text leaks raw `P0##`/`Q0##` tokens**
   (e.g. "APPROVAL PAGE (Q013, P038)", "P018A-C (Q049-Q051)"). Root cause:
