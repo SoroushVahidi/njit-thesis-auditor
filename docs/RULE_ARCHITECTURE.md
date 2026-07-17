@@ -215,3 +215,11 @@ ruled out:
   `src/njit_auditor/rule_source_scan.py`, now cross-checks the detector source against the catalog
   in `tests/test_rule_registry_consistency.py`'s wording-coverage ratchet, so a rule whose catalog
   entry is missing `issue_types` (P014's exact failure mode) can no longer silently evade that test.
+
+**Same-day follow-up:** `rule_source_scan.py`'s scanner was substantially deepened (module-level
+config-dict resolution through intermediate variables, same-module cross-function argument tracing,
+finite-domain f-string templates) — mechanical discovery went from 56/72 raw/catalog-unioned pairs to
+134 raw / 145 full-universe pairs, essentially matching the manually-audited universe. See
+`docs/status/issue_type_universe_coverage_20260716.md` for the full root-cause analysis, alternatives
+considered, and two pre-existing `suggested_fix` leaks (P014, P018) this broadened testing surfaced
+but deliberately did not fix.

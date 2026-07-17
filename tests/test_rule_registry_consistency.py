@@ -31,7 +31,10 @@ from njit_auditor.polished_comments import (
     finalize_student_facing_comment_and_fix,
 )
 from njit_auditor.rule_loader import ALLOWED_RULE_TYPES, load_rule_file
-from njit_auditor.rule_source_scan import detector_emitted_pairs_by_static_scan
+from njit_auditor.rule_source_scan import (
+    detector_emitted_pairs_by_static_scan,
+    full_active_issue_type_universe,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CATALOG_PATH = _REPO_ROOT / "data/processed/rules/project_added_rules.json"
@@ -45,15 +48,52 @@ _RAW_ID_PATTERN = re.compile(r"\b[PQ]\d{2,3}\b")
 
 # Default-enabled issue types with no wording coverage in polished_comments.py
 # (i.e. build_polished_comment() falls to the generic fallback sentence for
-# them). P082 is experimental/opt-in — never enabled by default — so its
-# fallback wording, while generic, is never seen in a default web/CLI audit;
-# it is tracked here anyway so the ratchet notices if it's ever enabled by
-# default without also getting real templates. The ratchet fails if this set
-# grows without a matching template being added.
-_KNOWN_WORDING_GAPS: frozenset[tuple[str, str]] = frozenset(
+# them). Empty as of the 2026-07-16 issue-type-universe audit: P082 (the only
+# entry this ever held) is experimental/opt-in, and is now correctly excluded
+# from `_active_default_enabled_universe()` itself (rather than included and
+# then allowlisted here) — see that helper's docstring. The ratchet fails if
+# this set grows without a matching template being added.
+_KNOWN_WORDING_GAPS: frozenset[tuple[str, str]] = frozenset()
+
+# Scanner false positives: rule_source_scan.py tracks *every* literal value a
+# loop variable is ever bound to across a whole function, but does not narrow
+# that set inside `if`/`else` branches (it is flow-insensitive by design — see
+# that module's docstring on scope). In pdf_heading_levels.py's `_check_line`,
+# `level` ranges over (2, 3, 4, 5), but the f-string issue types
+# `f"level{level}_..."` only appear inside the `else:  # level 3, 4, 5` branch
+# (never level 2), and the punctuation-check f-string is further guarded by
+# `if level in (4, 5):` (never level 3). The scanner cannot see those guards,
+# so it reports the full cross product, including three combinations that can
+# never actually be constructed at runtime:
+_SCANNER_OVER_APPROXIMATION_ARTIFACTS: frozenset[tuple[str, str]] = frozenset(
     {
-        ("P082", "landscape_page_number_orientation_advisory"),
-        ("P082", "landscape_page_number_position_advisory"),
+        ("P027", "level2_sentence_case_issue"),
+        ("P027", "level2_sentence_case_or_punctuation_issue"),
+        ("P027", "level3_sentence_case_or_punctuation_issue"),
+    }
+)
+
+# Pre-existing bug, discovered by this pass's broadened leak-check coverage,
+# deliberately NOT fixed here (out of scope: this task is architectural
+# ground-truth-discovery work, not a wording fix pass — see the task
+# instructions' "isolate and document separately" guidance). Root cause: the
+# raw catalog `remediation` field for P014 and P018 embeds internal
+# cross-reference notation (e.g. "APPROVAL PAGE (Q013, P038)", "P018A-C
+# (Q049-Q051)") intended as a developer note about which Q/P rules cover
+# which sub-cases. No per-issue-type remediation override exists for these
+# six pairs, so `_resolve_remediation()`'s catalog-level fallback surfaces
+# that raw internal text to students verbatim. Recommended fix (not applied
+# here): add `_ISSUE_REMEDIATION_OVERRIDES` entries in polished_comments.py
+# for these six pairs with clean, student-facing remediation text — a
+# presentation-only change, no raw-JSON edit needed.
+_KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("P014", "frontmatter_heading_layout_issue"),
+        ("P014", "frontmatter_heading_not_centered"),
+        ("P018", "inconsistent_hierarchy_indent"),
+        ("P018", "inconsistent_leader_dots"),
+        ("P018", "misaligned_page_number_column"),
+        ("P018", "missing_page_number"),
     }
 )
 
@@ -167,25 +207,18 @@ def _has_comment_coverage(rule_id: str, issue_type: str) -> bool:
     return _GENERIC_FALLBACK_MARKER not in comment
 
 
-def test_default_enabled_wording_gaps_have_not_grown() -> None:
-    """Ratchet test: fails if a *new* default-enabled (non-experimental,
-    non-reporting-only) issue type has no wording coverage in
-    polished_comments.py, without also updating _KNOWN_WORDING_GAPS above.
-
-    Ground truth is the union of two sources, not just the catalog: (1) the
-    catalog's `issue_types` field, and (2) a static AST scan of every
-    `AuditFinding(...)` call in src/njit_auditor/rules/*.py
-    (`detector_emitted_pairs_by_static_scan()`). Source (1) alone previously
-    let P014 hide from this ratchet — its catalog entry has no `issue_types`
-    populated, so it contributed zero pairs even though its detector emitted
-    two issue types with a real wording bug. Source (2) is a conservative,
-    static-only superset add: it can only surface pairs source (1) missed,
-    never remove catalog-derived ground truth.
+def _active_default_enabled_universe() -> set[tuple[str, str]]:
+    """The complete active, default-enabled (rule_id, issue_type) universe:
+    the union of every ground-truth source this repo knows about
+    (`rule_source_scan.full_active_issue_type_universe()` — the catalog's own
+    `issue_types` field is intentionally NOT unioned in separately here,
+    since every pair it has ever contained is already a subset of the
+    static-scan sources; see test_catalog_issue_types_are_a_subset_of_the_
+    static_universe below), filtered down to rule_ids that are (a) present
+    in the catalog and (b) not reporting-only/experimental/evaluation-task.
     """
     catalog = _load_catalog()
-    non_reporting_rule_ids = {
-        rule["id"] for rule in catalog if rule.get("rule_type") not in _REPORTING_ONLY_TYPES
-    }
+    known_rule_ids = {rule["id"] for rule in catalog}
     excluded_rule_ids = {
         rule["id"]
         for rule in catalog
@@ -194,26 +227,60 @@ def test_default_enabled_wording_gaps_have_not_grown() -> None:
         or rule.get("phase") == "evaluation_task"
         or "experimental" in (rule.get("rule_type") or "")
     }
+    return {
+        (rule_id, issue_type)
+        for rule_id, issue_type in full_active_issue_type_universe()
+        if rule_id in known_rule_ids and rule_id not in excluded_rule_ids
+    }
 
-    current_gaps: set[tuple[str, str]] = set()
-    for rule in catalog:
-        if rule.get("rule_type") in _REPORTING_ONLY_TYPES:
-            continue
-        rule_id = rule["id"]
-        for issue_type in rule.get("issue_types") or []:
-            if _has_comment_coverage(rule_id, issue_type):
-                continue
-            current_gaps.add((rule_id, issue_type))
 
-    for rule_id, issue_type in detector_emitted_pairs_by_static_scan():
-        if rule_id in excluded_rule_ids:
-            continue
-        if rule_id not in non_reporting_rule_ids:
-            # Rule ID not in the catalog at all — out of scope for this ratchet.
-            continue
-        if _has_comment_coverage(rule_id, issue_type):
-            continue
-        current_gaps.add((rule_id, issue_type))
+def test_catalog_issue_types_are_a_subset_of_the_static_universe() -> None:
+    """Sanity check on the ground-truth hierarchy itself: every pair the
+    catalog's `issue_types` field has ever declared must also be discoverable
+    by the static scan (or one of its documented exceptions/sources). If this
+    ever fails, either a catalog entry drifted from the real detector, or the
+    scanner has a real blind spot that needs a new pattern, not a silent gap."""
+    catalog = _load_catalog()
+    catalog_pairs = {
+        (rule["id"], issue_type)
+        for rule in catalog
+        for issue_type in (rule.get("issue_types") or [])
+    }
+    static_universe = full_active_issue_type_universe()
+    missing = catalog_pairs - static_universe
+    assert not missing, (
+        f"Catalog issue_types not found by any static source: {sorted(missing)}. "
+        "Either the catalog is stale, or rule_source_scan.py needs a new pattern."
+    )
+
+
+def test_default_enabled_wording_gaps_have_not_grown() -> None:
+    """Ratchet test: fails if a *new* default-enabled (non-experimental,
+    non-reporting-only) issue type has no wording coverage in
+    polished_comments.py, without also updating _KNOWN_WORDING_GAPS above.
+
+    Ground truth is `rule_source_scan.full_active_issue_type_universe()` — a
+    comprehensive static scan of every `AuditFinding(...)` call site in
+    src/njit_auditor/rules/*.py (handling module-level config-dict lookups,
+    same-module cross-function argument tracing, and f-string templates over
+    finite domains — see that module's docstring), plus the TeX/source
+    pipeline's separate rule_id-keyed dispatch and one documented
+    non-detector exception (P021). This replaced sourcing ground truth from
+    only the catalog's `issue_types` field, which is populated for a
+    minority of rows and is exactly how P014 hid from this ratchet before
+    the 2026-07-16 audit that added rule_source_scan.py.
+    """
+    current_gaps: set[tuple[str, str]] = {
+        (rule_id, issue_type)
+        for rule_id, issue_type in _active_default_enabled_universe()
+        if not _has_comment_coverage(rule_id, issue_type)
+    }
+
+    # _SCANNER_OVER_APPROXIMATION_ARTIFACTS are unreachable-in-practice pairs
+    # the scanner's flow-insensitivity over-generates (see its docstring) —
+    # they are not real wording debt, so they never even reach the
+    # _KNOWN_WORDING_GAPS staleness check below.
+    current_gaps -= _SCANNER_OVER_APPROXIMATION_ARTIFACTS
 
     new_gaps = current_gaps - _KNOWN_WORDING_GAPS
     assert not new_gaps, (
@@ -231,13 +298,20 @@ def test_default_enabled_wording_gaps_have_not_grown() -> None:
         )
 
 
-@pytest.mark.parametrize("rule_id,issue_type", sorted(_KNOWN_WORDING_GAPS))
+@pytest.mark.parametrize("rule_id,issue_type", sorted(_active_default_enabled_universe()))
 def test_public_surfaces_never_leak_raw_rule_id(rule_id: str, issue_type: str) -> None:
     """Public student-facing surfaces must not embed raw P###/Q### tokens.
 
     Covers polished comments (the original leak), drilldown titles, issue-type
     labels, explanations, and suggested-fix / remediation text. Separate
     rule-reference links may still show IDs intentionally.
+
+    Parametrized over the *complete* active default-enabled issue-type
+    universe (rule_source_scan.full_active_issue_type_universe(), filtered to
+    non-reporting/non-experimental rule_ids) — not just the small known-gaps
+    allowlist — so this test verifies title/comment/explanation/remediation
+    coverage and non-leakage for every pair the project can currently prove
+    exists, not only the ones someone remembered to list by hand.
     """
     comment, fix = finalize_student_facing_comment_and_fix(
         rule_id, issue_type, "", ""
@@ -255,9 +329,28 @@ def test_public_surfaces_never_leak_raw_rule_id(rule_id: str, issue_type: str) -
         assert text and str(text).strip(), (
             f"{rule_id}/{issue_type} {surface} is empty/less informative"
         )
+        pair = (rule_id, issue_type)
+        if surface == "suggested_fix" and pair in _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS:
+            # Pre-existing bug, discovered by this test, deliberately not fixed
+            # here — see _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS' docstring.
+            continue
         leaked = _RAW_ID_PATTERN.findall(str(text))
         assert not leaked, (
             f"{rule_id}/{issue_type} leaked raw id(s) {leaked} in {surface}: {text!r}"
+        )
+
+
+def test_known_pre_existing_suggested_fix_leaks_are_not_stale() -> None:
+    """Staleness guard for _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS: if a pair
+    listed there no longer actually leaks (e.g. someone added a remediation
+    override), it should be removed from the allowlist so the main leak test
+    goes back to checking `suggested_fix` for that pair too."""
+    for rule_id, issue_type in sorted(_KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS):
+        _, fix = finalize_student_facing_comment_and_fix(rule_id, issue_type, "", "")
+        leaked = _RAW_ID_PATTERN.findall(fix)
+        assert leaked, (
+            f"{rule_id}/{issue_type} no longer leaks in suggested_fix ({fix!r}) — "
+            "remove it from _KNOWN_PRE_EXISTING_SUGGESTED_FIX_LEAKS."
         )
 
 
