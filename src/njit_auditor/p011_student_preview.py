@@ -93,11 +93,9 @@ def p011_combined_rolled_up_comment(stats: P011PagePresentationStats) -> str:
     base = (
         f"Likely problem: Page {stats.page} has content that may be too close to the "
         f"{side_phrase}. The auditor flagged {stats.raw_finding_count} separate "
-        "margin-boundary warnings on this page. NJIT's margin rule is strict: no text, "
-        "tables, or figures should cross a required margin boundary, even by a small "
-        "amount. Review the highlighted areas if available, or inspect the full page "
-        "layout including headers, footers, page numbers, tables, figures, captions, "
-        "and long lines."
+        "margin-boundary warnings on this page. Review the highlighted areas if "
+        "available, or inspect the full page layout including headers, footers, page "
+        "numbers, tables, figures, captions, and long lines."
     )
     breakdown = _side_breakdown_phrase(stats.side_stats)
     return f"{base} {breakdown}" if breakdown else base
@@ -133,8 +131,8 @@ def p011_combined_rolled_up_explanation(stats: P011PagePresentationStats) -> str
         f"Observed: {location}. The auditor flagged {stats.raw_finding_count} separate "
         "margin-boundary warnings on this page because text crosses more than one required "
         "margin side. Expected: body content should stay inside NJIT page margins on every "
-        f"side, even by a small amount. What to check or fix: inspect the whole page, not "
-        f"just one area. {highlight_note}{breakdown_clause}"
+        f"side. What to check or fix: inspect the whole page, not just one area. "
+        f"{highlight_note}{breakdown_clause}"
     )
 
 
@@ -199,8 +197,15 @@ def collect_p011_margin_pages_from_serialized(
             for chunk in str(details.get("highlight_bboxes", "")).strip().split("|")
             if (box := _parse_bbox_field(chunk.strip())) is not None
         )
-        guide_box = _parse_bbox_field(str(details.get("margin_boundary_bbox", "")).strip())
-        entry_boxes = precise_boxes + ((guide_box,) if guide_box is not None else ())
+        guide_boxes = tuple(
+            box
+            for chunk in str(details.get("margin_boundary_bboxes", "")).strip().split("|")
+            if (box := _parse_bbox_field(chunk.strip())) is not None
+        )
+        if not guide_boxes:
+            guide_box = _parse_bbox_field(str(details.get("margin_boundary_bbox", "")).strip())
+            guide_boxes = ((guide_box,) if guide_box is not None else ())
+        entry_boxes = precise_boxes + guide_boxes
         try:
             worst_overflow_pt = float(str(details.get("worst_overflow_pt", "0")).strip())
         except ValueError:

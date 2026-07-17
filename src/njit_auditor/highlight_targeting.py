@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
+from itertools import zip_longest
 
 from njit_auditor.pdf_highlight import HighlightBox, is_drawable_bbox
 from njit_auditor.pdf_models import BBox, PdfTextLine, format_bbox_detail
@@ -186,15 +187,23 @@ def parse_highlight_bboxes_from_details(
             result: list[tuple[float, float, float, float]] = [
                 HighlightBox.from_tuple(box, kind="line") for box in line_boxes
             ]
+            display_boxes = _parse_bbox_list(
+                str(details.get("overflow_display_bboxes", "")).strip()
+            )
             overflow_boxes = _parse_bbox_list(
                 str(details.get("overflow_segment_bboxes", "")).strip()
             )
-            result.extend(
-                HighlightBox.from_tuple(box, kind="overflow") for box in overflow_boxes
-            )
-            guide_box = _parse_bbox_text(str(details.get("margin_boundary_bbox", "")).strip())
-            if guide_box is not None:
-                result.append(HighlightBox.from_tuple(guide_box, kind="guide"))
+            for display_box, overflow_box in zip_longest(display_boxes, overflow_boxes):
+                if display_box is not None and display_box != overflow_box:
+                    result.append(HighlightBox.from_tuple(display_box, kind="overflow_display"))
+                if overflow_box is not None:
+                    result.append(HighlightBox.from_tuple(overflow_box, kind="overflow"))
+            guide_boxes = _parse_bbox_list(str(details.get("margin_boundary_bboxes", "")).strip())
+            if not guide_boxes:
+                guide_box = _parse_bbox_text(str(details.get("margin_boundary_bbox", "").strip()))
+                if guide_box is not None:
+                    guide_boxes = [guide_box]
+            result.extend(HighlightBox.from_tuple(box, kind="guide") for box in guide_boxes)
             return result
 
     boxes: list[tuple[float, float, float, float]] = []

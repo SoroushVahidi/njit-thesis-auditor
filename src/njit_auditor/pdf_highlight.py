@@ -18,7 +18,7 @@ _HIGHLIGHT_FILL_RGB = (1.0, 1.0, 0.0)
 _HIGHLIGHT_OPACITY = 0.35
 
 # Caps annotations per page in case a single request matches many findings.
-MAX_HIGHLIGHT_BOXES_PER_PAGE = 25
+MAX_HIGHLIGHT_BOXES_PER_PAGE = 100
 
 # A clipped box narrower or shorter than this (in PDF points) is treated as
 # invisible once drawn, even though it is technically non-degenerate. This
@@ -64,6 +64,9 @@ _BOX_STYLES: dict[str, _BoxStyle] = {
     # P011: only the segment that actually crosses the margin -- strong fill,
     # the clear visual answer to "which part of this line is the problem?".
     "overflow": ((0.85, 0.15, 0.1), (1.0, 0.35, 0.25), 0.55),
+    # P011: display-only widening for thin overflow slices -- outline-only so
+    # the visible aid stays distinct from the actual overflow fill.
+    "overflow_display": ((0.85, 0.15, 0.1), None, 0.7),
     # P011: thin margin-boundary marker -- outline only (no fill) so it reads
     # as a ruler line, not another highlight.
     "guide": ((0.15, 0.35, 0.75), None, 0.7),
