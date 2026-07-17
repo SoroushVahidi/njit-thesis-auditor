@@ -1817,7 +1817,7 @@ def _p051_copyright_year_comment(*, page: int | None, details: dict[str, str]) -
     if marker_detected:
         observed = (
             "copyright-notice wording was found on this page, but the auditor could "
-            "not confidently read a four-digit year next to it"
+            "not confidently associate a four-digit year with that notice"
         )
     else:
         observed = (
@@ -1829,11 +1829,11 @@ def _p051_copyright_year_comment(*, page: int | None, details: dict[str, str]) -
         "requires the Copyright Page to state the copyright year clearly next to "
         "the copyright notice (for example, 'Copyright © 2025 by [Author "
         "Name]. All Rights Reserved.'), matching the year the degree is conferred. "
-        "Check this page for the year: add it if missing, or move it next to the "
-        "copyright notice in the standard format if it is present but in an unusual "
-        "spot or format. This is an automated, approximate check — the year may "
-        "be present but hard to detect automatically, so always verify by reading "
-        "the page directly."
+        "Check this page for the year: add it if missing, or move it directly next "
+        "to the copyright notice in a standard readable format if it is present but "
+        "in an unusual spot or layout. This is an automated, approximate check — "
+        "the year may be present but hard to associate automatically, so always "
+        "verify by reading the page directly."
     )
 
 

@@ -44,7 +44,14 @@ _P035_PLACEMENT_ISSUES: frozenset[str] = frozenset(
         "table_caption_not_above_body",
     }
 )
-_EXTRA_BBOX_KEYS: tuple[str, ...] = ("body_bbox", "caption_bbox", "token_bbox", "word_bbox", "rect")
+_EXTRA_BBOX_KEYS: tuple[str, ...] = (
+    "body_bbox",
+    "caption_bbox",
+    "candidate_year_bbox",
+    "token_bbox",
+    "word_bbox",
+    "rect",
+)
 
 
 _P011_MARGIN_ISSUE = "margin_boundary_violation"

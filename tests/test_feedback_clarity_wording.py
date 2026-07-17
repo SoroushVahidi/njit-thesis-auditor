@@ -1576,7 +1576,7 @@ def test_p051_copyright_year_not_found_names_the_right_gap() -> None:
     )
 
     for finding, expected_phrase in (
-        (marker_present, "could not confidently read a four-digit year"),
+        (marker_present, "could not confidently associate a four-digit year"),
         (marker_absent, "did not find recognizable copyright-notice wording"),
     ):
         payload = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})

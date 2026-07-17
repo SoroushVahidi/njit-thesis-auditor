@@ -7621,6 +7621,31 @@ def _make_p051_pdf(
     doc.close()
 
 
+def _make_p051_fragmented_pdf(
+    path: Path,
+    copyright_fragments: list[tuple[float, float, str]],
+    *,
+    extra_lines: list[tuple[float, float, str]] | None = None,
+    with_title_page: bool = True,
+) -> None:
+    """Build a copyright-page PDF with multiple same-row fragments."""
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    if with_title_page:
+        for idx, line in enumerate(_DEFAULT_TITLE_PAGE_LINES):
+            p1.insert_text((108, 100 + idx * 20), line, fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    for x, y, text in copyright_fragments:
+        p2.insert_text((x, y), text, fontsize=12)
+    for x, y, text in extra_lines or []:
+        p2.insert_text((x, y), text, fontsize=12)
+    p_abs = doc.new_page(width=612, height=792)
+    p_abs.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p_abs.insert_text((108, 140), "Synthetic abstract for P051 testing.", fontsize=12)
+    doc.save(path)
+    doc.close()
+
+
 def test_p051_standard_year_no_finding(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p051_standard.pdf"
     _make_copyright_page_pdf(pdf_path, copyright_notice="© 2024 Test Author. All Rights Reserved.")
@@ -7658,12 +7683,78 @@ def test_p051_adjacent_line_year_no_finding(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
 
 
+def test_p051_adjacent_line_year_and_author_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_adjacent_year_author.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[
+            (360, "Copyright"),
+            (375, "2024 by Test Author"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_copyright_symbol_year_author_same_line_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_symbol_year_author.pdf"
+    _make_copyright_page_pdf(pdf_path, copyright_notice="© 2024 Test Author")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_split_spans_same_line_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_split_spans_same_line.pdf"
+    _make_p051_fragmented_pdf(
+        pdf_path,
+        copyright_fragments=[
+            (230, 360, "Copyright"),
+            (285, 360, "©"),
+            (302, 360, "2024"),
+            (333, 360, "by"),
+            (350, 360, "Test"),
+            (382, 360, "Author"),
+        ],
+        extra_lines=[(254, 384, "ALL RIGHTS RESERVED")],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+    assert not any(f.rule_id == "P052" for f in check_pdf_copyright_author_format(model))
+
+
+def test_p051_split_copyright_and_year_adjacent_fragments_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_split_copyright_year_fragments.pdf"
+    _make_p051_fragmented_pdf(
+        pdf_path,
+        copyright_fragments=[
+            (240, 360, "Copyright"),
+            (305, 360, "2024"),
+            (340, 360, "Test"),
+            (372, 360, "Author"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_unusual_whitespace_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_unusual_whitespace.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="Copyright\u00a0©\u00a02024\u00a0by\u00a0Test\u00a0Author",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
 def test_p051_no_year_warns(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p051_no_year.pdf"
     _make_copyright_page_pdf(pdf_path, copyright_notice="© Test Author. All Rights Reserved.")
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
     assert any(f.details.get("issue_type") == "copyright_year_not_found" for f in findings)
+    assert findings[0].details.get("confidence") == "low"
+    assert findings[0].details.get("bbox")
 
 
 def test_p051_category_is_copyright_page_not_title_page(tmp_path: Path) -> None:
@@ -7715,8 +7806,8 @@ def test_p051_no_copyright_page_no_finding(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
 
 
-def test_p051_year_present_unextractable_no_finding(tmp_path: Path) -> None:
-    pdf_path = tmp_path / "p051_ambiguous.pdf"
+def test_p051_unrelated_year_elsewhere_warns_with_candidate_bbox(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_unrelated_year_elsewhere.pdf"
     _make_p051_pdf(
         pdf_path,
         copyright_page_lines=[
@@ -7725,6 +7816,84 @@ def test_p051_year_present_unextractable_no_finding(tmp_path: Path) -> None:
             (420, "Revised 2024"),
         ],
     )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert len(findings) == 1
+    assert findings[0].details.get("year_association") == "unassociated_year_elsewhere"
+    assert findings[0].details.get("candidate_year_bbox")
+    assert resolve_primary_highlight_bbox(
+        findings[0].details,
+        rule_id="P051",
+        issue_type="copyright_year_not_found",
+    ) is not None
+
+
+def test_p051_multiple_years_but_one_near_notice_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_multiple_years_one_near_notice.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[
+            (360, "Copyright 2024 Test Author"),
+            (500, "Series Volume 2020"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
+
+
+def test_p051_ambiguous_year_range_still_warns(tmp_path: Path) -> None:
+    """Ambiguous same-line ranges like 2023-2024 must not count as a confident year."""
+    pdf_path = tmp_path / "p051_ambiguous_year_range.pdf"
+    _make_copyright_page_pdf(
+        pdf_path,
+        copyright_notice="© 2023-2024 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "copyright_year_not_found"
+    assert findings[0].details.get("year_association") == "no_year_candidate"
+
+
+def test_p051_year_far_from_notice_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_far_year.pdf"
+    _make_p051_pdf(
+        pdf_path,
+        copyright_page_lines=[
+            (320, "Copyright"),
+            (560, "2024 by Test Author"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    assert len(findings) == 1
+    assert findings[0].details.get("year_association") == "unassociated_year_elsewhere"
+
+
+def test_p051_non_copyright_page_copyright_like_prose_not_flagged(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p051_non_copyright_prose.pdf"
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    for idx, line in enumerate(_DEFAULT_TITLE_PAGE_LINES):
+        p1.insert_text((108, 100 + idx * 20), line, fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    prose_lines = [
+        "This chapter discusses historical context for the study.",
+        "The copyright law reference below is body prose, not a Copyright Page notice.",
+        "No visible copyright year should be inferred from this paragraph.",
+        "Additional body text keeps the page clearly non-sparse and non-front-matter.",
+        "Further explanatory prose remains on this same page for classification testing.",
+        "This row exists only to keep the page body-like rather than front-matter-like.",
+        "One more line prevents sparse-page inference from misclassifying the page.",
+    ]
+    for idx, line in enumerate(prose_lines):
+        p2.insert_text((108, 140 + idx * 20), line, fontsize=12)
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p3.insert_text((108, 140), "Synthetic abstract for P051 testing.", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P051" for f in check_pdf_copyright_year_format(model))
 
@@ -7764,6 +7933,31 @@ def test_p051_p034_unaffected(tmp_path: Path) -> None:
     p051 = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
     assert any(f.details.get("issue_type") == "copyright_year_mismatch" for f in p034)
     assert not p051
+
+
+def test_p051_span_joined_real_world_shape_still_allows_p034_year_and_author(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p051_real_world_span_joined.pdf"
+    _make_p051_fragmented_pdf(
+        pdf_path,
+        copyright_fragments=[
+            (230, 360, "Copyright"),
+            (285, 360, "©"),
+            (302, 360, "2023"),
+            (333, 360, "by"),
+            (350, 360, "Test"),
+            (382, 360, "Author"),
+        ],
+        extra_lines=[(254, 384, "ALL RIGHTS RESERVED")],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p034 = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    p051 = [f for f in check_pdf_copyright_year_format(model) if f.rule_id == "P051"]
+    p052 = [f for f in check_pdf_copyright_author_format(model) if f.rule_id == "P052"]
+    assert any(f.details.get("issue_type") == "copyright_year_mismatch" for f in p034)
+    assert not p051
+    assert not p052
 
 
 # ---------------------------------------------------------------------------

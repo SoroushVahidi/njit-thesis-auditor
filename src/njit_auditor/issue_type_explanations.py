@@ -87,7 +87,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "frontmatter_title_mismatch": "Front-matter title mismatch",
     "copyright_year_mismatch": "Copyright year mismatch",
     "copyright_author_not_found": "Copyright author not found",
-    "copyright_year_not_found": "Copyright year not found",
+    "copyright_year_not_found": "Copyright year could not be confidently associated",
     # Dedication
     "dedication_text_not_centered": "Dedication text not centered",
     "dedication_text_not_italic": "Dedication text not italic",
@@ -472,10 +472,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "Confirm the copyright block includes the required author name."
     ),
     ("P051", "copyright_year_not_found"): (
-        "A copyright page was detected, but the auditor could not confidently read "
-        "a four-digit copyright year on it. Check the copyright page and confirm "
-        "the year is present, clearly next to the copyright notice, and matches "
-        "the year the degree is conferred."
+        "A copyright page was detected, but the auditor could not confidently "
+        "associate a four-digit copyright year with the copyright notice. Check "
+        "the copyright page and confirm the year is present, clearly next to the "
+        "copyright notice, and matches the year the degree is conferred."
     ),
     ("P038", "required_heading_missing"): (
         "This means a required front-matter section heading was not found "
