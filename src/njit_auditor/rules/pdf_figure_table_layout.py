@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
+    PdfGraphicBlock,
     PdfPage,
     PdfTextBlock,
     PdfTextLine,
@@ -34,6 +36,8 @@ MAX_BODY_SEARCH_GAP_PT = 120.0
 MIN_BODY_LINES = 2
 MIN_BODY_WIDTH_PT = 72.0
 MIN_BODY_ALPHA_CHARS = 12
+MIN_GRAPHIC_BODY_HEIGHT_PT = 24.0
+MAX_GRAPHIC_PAGE_FRACTION = 0.90
 
 FLOAT_NUMBER_RE = re.compile(
     r"^\s*(?:figure|fig\.|table)\s+(?P<number>[0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)",
@@ -80,6 +84,9 @@ def _block_is_chapter_heading(block: PdfTextBlock) -> bool:
     return bool(CHAPTER_HEADING_RE.match(block.text.strip()))
 
 
+BodyRegion = PdfTextBlock | PdfGraphicBlock
+
+
 def _cluster_body_blocks(blocks: list[PdfTextBlock]) -> list[list[PdfTextBlock]]:
     if not blocks:
         return []
@@ -108,12 +115,70 @@ def _select_body_cluster(blocks: list[PdfTextBlock]) -> list[PdfTextBlock] | Non
     return qualifying[0]
 
 
-def _union_bbox(blocks: list[PdfTextBlock]) -> BBox:
+def _has_any_text_body_signal(blocks: list[PdfTextBlock]) -> bool:
+    return any(_cluster_has_body_signal(cluster) for cluster in _cluster_body_blocks(blocks))
+
+
+def _union_bbox(blocks: Sequence[BodyRegion]) -> BBox:
     return BBox(
         x0=min(block.bbox.x0 for block in blocks),
         y0=min(block.bbox.y0 for block in blocks),
         x1=max(block.bbox.x1 for block in blocks),
         y1=max(block.bbox.y1 for block in blocks),
+    )
+
+
+def _graphic_has_body_signal(page: PdfPage, graphic: PdfGraphicBlock) -> bool:
+    bbox = graphic.bbox
+    if bbox.width < MIN_BODY_WIDTH_PT or bbox.height < MIN_GRAPHIC_BODY_HEIGHT_PT:
+        return False
+    if bbox.width > page.width * MAX_GRAPHIC_PAGE_FRACTION:
+        return False
+    if bbox.height > page.height * MAX_GRAPHIC_PAGE_FRACTION:
+        return False
+    if bbox.y0 < TOP_MARGIN_PT - 12.0:
+        return False
+    if bbox.y1 > page.height - BOTTOM_MARGIN_PT + 12.0:
+        return False
+    return True
+
+
+def _cluster_graphic_blocks(
+    graphics: list[PdfGraphicBlock],
+) -> list[list[PdfGraphicBlock]]:
+    if not graphics:
+        return []
+    ordered = sorted(graphics, key=lambda graphic: graphic.bbox.y0)
+    clusters: list[list[PdfGraphicBlock]] = [[ordered[0]]]
+    for graphic in ordered[1:]:
+        previous = clusters[-1][-1]
+        gap = graphic.bbox.y0 - previous.bbox.y1
+        if gap <= MAX_CLUSTER_LINE_GAP_PT:
+            clusters[-1].append(graphic)
+        else:
+            clusters.append([graphic])
+    return clusters
+
+
+def _select_graphic_cluster(
+    page: PdfPage, graphics: list[PdfGraphicBlock]
+) -> list[PdfGraphicBlock] | None:
+    qualifying = [
+        cluster
+        for cluster in _cluster_graphic_blocks(graphics)
+        if any(_graphic_has_body_signal(page, graphic) for graphic in cluster)
+    ]
+    if not qualifying:
+        return None
+    if len(qualifying) > 1:
+        return None
+    return qualifying[0]
+
+
+def _has_any_graphic_body_signal(page: PdfPage, graphics: list[PdfGraphicBlock]) -> bool:
+    return any(
+        any(_graphic_has_body_signal(page, graphic) for graphic in cluster)
+        for cluster in _cluster_graphic_blocks(graphics)
     )
 
 
@@ -177,6 +242,23 @@ def _candidate_body_blocks(
             above.append(block)
         if -CAPTION_BODY_GAP_PT <= gap_below <= MAX_BODY_SEARCH_GAP_PT:
             below.append(block)
+    return above, below
+
+
+def _candidate_graphic_blocks(
+    page: PdfPage, caption_bbox: BBox
+) -> tuple[list[PdfGraphicBlock], list[PdfGraphicBlock]]:
+    above: list[PdfGraphicBlock] = []
+    below: list[PdfGraphicBlock] = []
+    for graphic in page.graphic_blocks:
+        if not _graphic_has_body_signal(page, graphic):
+            continue
+        gap_above = caption_bbox.y0 - graphic.bbox.y1
+        gap_below = graphic.bbox.y0 - caption_bbox.y1
+        if -CAPTION_BODY_GAP_PT <= gap_above <= MAX_BODY_SEARCH_GAP_PT:
+            above.append(graphic)
+        if -CAPTION_BODY_GAP_PT <= gap_below <= MAX_BODY_SEARCH_GAP_PT:
+            below.append(graphic)
     return above, below
 
 
@@ -294,6 +376,8 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             if primary is None and wrong_side is None:
                 continue
             if primary is None and wrong_side is not None:
+                if _has_any_text_body_signal(below):
+                    continue
                 _append_finding(
                     findings,
                     issue_type="table_caption_not_above_body",
@@ -322,11 +406,53 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             continue
 
         above, below = _candidate_body_blocks(page, caption_bbox)
+        graphic_above, graphic_below = _candidate_graphic_blocks(page, caption_bbox)
+        primary_graphic = _select_graphic_cluster(page, graphic_above)
         primary = _select_body_cluster(above)
+        wrong_side_graphic = _select_graphic_cluster(page, graphic_below)
         wrong_side = _select_body_cluster(below)
+        if primary_graphic is not None:
+            body_bbox = _union_bbox(primary_graphic)
+            not_centered, center_delta = _centering_issue(page, body_bbox)
+            if not_centered:
+                _append_finding(
+                    findings,
+                    issue_type="figure_body_not_centered",
+                    float_type="figure",
+                    page_number=caption.page_number,
+                    float_number=float_number,
+                    center_delta=center_delta,
+                    bbox=body_bbox,
+                    body_bbox=body_bbox,
+                    caption_bbox=caption_bbox,
+                )
+            continue
+        if primary is None and wrong_side is None:
+            if wrong_side_graphic is None:
+                continue
+        if primary is None and wrong_side_graphic is not None:
+            if _has_any_text_body_signal(above) or _has_any_graphic_body_signal(
+                page, graphic_above
+            ):
+                continue
+            _append_finding(
+                findings,
+                issue_type="figure_caption_not_below_body",
+                float_type="figure",
+                page_number=caption.page_number,
+                float_number=float_number,
+                bbox=caption_bbox,
+                body_bbox=_union_bbox(wrong_side_graphic),
+                caption_bbox=caption_bbox,
+            )
+            continue
         if primary is None and wrong_side is None:
             continue
         if primary is None and wrong_side is not None:
+            if _has_any_text_body_signal(above) or _has_any_graphic_body_signal(
+                page, graphic_above
+            ):
+                continue
             if _cluster_looks_like_body_paragraph(wrong_side):
                 continue
             _append_finding(

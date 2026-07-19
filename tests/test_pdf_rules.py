@@ -8411,6 +8411,16 @@ def _draw_p035_body_rows(
         )
 
 
+def _insert_p035_raster_figure(page: fitz.Page, rect: fitz.Rect) -> None:
+    pixmap = fitz.Pixmap(
+        fitz.csRGB,
+        fitz.IRect(0, 0, int(rect.width), int(rect.height)),
+        False,
+    )
+    pixmap.clear_with(0xD9D9D9)
+    page.insert_image(rect, stream=pixmap.tobytes("png"))
+
+
 def _make_p035_body_page_pdf(
     path: Path,
     *,
@@ -8555,6 +8565,74 @@ def test_p035_centered_figure_with_caption_below_no_finding(tmp_path: Path) -> N
     )
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P035" for f in check_pdf_figure_table_layout(model))
+
+
+def test_p035_raster_figure_above_caption_ignores_equation_below(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p035_raster_figure_above_caption_ok.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 2 RESULTS", fontsize=14, fontname="Times-Bold")
+    _insert_p035_raster_figure(page, fitz.Rect(180, 120, 468, 236))
+    page.insert_text((108, 260), _P035_FIGURE_CAPTION, fontsize=11)
+    page.insert_text((240, 320), "J(C) = 1 / |C|", fontsize=11)
+    page.insert_text(
+        (108, 350),
+        "This paragraph discusses the equation below the figure caption.",
+        fontsize=11,
+    )
+    page.insert_text(
+        (108, 368),
+        "It must not be treated as the body of the figure.",
+        fontsize=11,
+    )
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    assert model.pages[0].graphic_blocks
+    warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
+    assert not any(
+        w.details.get("issue_type") == "figure_caption_not_below_body" for w in warnings
+    )
+
+
+def test_p035_raster_figure_below_caption_warns_and_highlights_figure(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p035_raster_figure_below_caption_warns.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 2 RESULTS", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 150), _P035_FIGURE_CAPTION, fontsize=11)
+    _insert_p035_raster_figure(page, fitz.Rect(180, 200, 468, 316))
+    page.insert_text((240, 360), "J(C) = 1 / |C|", fontsize=11)
+    page.insert_text(
+        (108, 390),
+        "Unrelated prose below the figure must not become the highlight target.",
+        fontsize=11,
+    )
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [
+        f
+        for f in check_pdf_figure_table_layout(model)
+        if f.details.get("issue_type") == "figure_caption_not_below_body"
+    ]
+    assert len(warnings) == 1
+    boxes = parse_highlight_bboxes_from_details(
+        warnings[0].details,
+        rule_id="P035",
+        issue_type="figure_caption_not_below_body",
+    )
+    assert len(boxes) == 2
+    body_bbox_raw = warnings[0].details.get("body_bbox", "")
+    x0, y0, x1, y1 = (float(value) for value in body_bbox_raw.split(","))
+    assert (x0, y0, x1, y1) == (180.0, 200.0, 468.0, 316.0)
+    assert all(box[1] < 330.0 for box in boxes)
 
 
 def test_p035_off_center_figure_body_warns(tmp_path: Path) -> None:
