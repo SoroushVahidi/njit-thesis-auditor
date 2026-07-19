@@ -1059,6 +1059,30 @@ def test_long_preview_is_truncated() -> None:
     assert len(value) <= 120
 
 
+def test_json_export_hides_internal_source_q_details() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            message="Abstract paragraph after the first appears not to be indented.",
+            page=1,
+            details={
+                "issue_type": "abstract_subsequent_paragraph_not_indented",
+                "source_q_rule_id": "Q003",
+                "source_q_rule_ids": "Q002,Q003",
+                "source_q_rule_basis": "internal mapping note",
+                "paragraph_index": "1",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    details = payload["findings"][0]["details"]
+    assert "source_q_rule_id" not in details
+    assert "source_q_rule_ids" not in details
+    assert "source_q_rule_basis" not in details
+    assert details["paragraph_index"] == "1"
+
+
 # ---- write_json_report tests ----
 
 

@@ -82,6 +82,14 @@ _MULTI_ITEM_DETAIL_LIMITS: dict[str, tuple[int, int]] = {
     "affected_line_texts": (340, 6),
 }
 _MULTI_ITEM_SEPARATOR = " | "
+_INTERNAL_STUDENT_EXPORT_DETAIL_KEYS: frozenset[str] = frozenset(
+    {
+        "source_q_rule_id",
+        "source_q_rule_ids",
+        "source_q_rule",
+        "source_q_rule_basis",
+    }
+)
 
 
 def _truncate_pipe_joined(value: str, *, max_len: int, max_items: int) -> str:
@@ -111,6 +119,8 @@ def _truncate_pipe_joined(value: str, *, max_len: int, max_items: int) -> str:
 def _sanitize_details(details: dict[str, str]) -> dict[str, str]:
     sanitized: dict[str, str] = {}
     for key, value in details.items():
+        if key in _INTERNAL_STUDENT_EXPORT_DETAIL_KEYS:
+            continue
         text = str(value)
         limits = _MULTI_ITEM_DETAIL_LIMITS.get(key)
         if limits is not None:
