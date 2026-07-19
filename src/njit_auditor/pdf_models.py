@@ -65,6 +65,13 @@ class PdfTextBlock(BaseModel):
     text: str
 
 
+class PdfGraphicBlock(BaseModel):
+    """Detected non-text graphic region such as a raster image."""
+
+    bbox: BBox
+    kind: str = "image"
+
+
 class PdfPage(BaseModel):
     """Single PDF page with geometric and text-block content."""
 
@@ -79,6 +86,7 @@ class PdfPage(BaseModel):
     page_rotation: int = 0
     is_visually_landscape: bool = False
     text_blocks: list[PdfTextBlock] = Field(default_factory=list)
+    graphic_blocks: list[PdfGraphicBlock] = Field(default_factory=list)
 
 
 class PdfDocument(BaseModel):

@@ -7,6 +7,7 @@ import fitz
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
+    PdfGraphicBlock,
     PdfPage,
     PdfTextBlock,
     PdfTextLine,
@@ -18,6 +19,8 @@ LANDSCAPE_ASPECT_THRESHOLD = 1.02
 # horizontal gaps between remaining content spans (same heuristic as P051 notice
 # reconstruction). Gaps below this floor are treated as kerning/subscript joins.
 _MIN_SPAN_SPACE_GAP_PT = 1.0
+_MIN_GRAPHIC_WIDTH_PT = 12.0
+_MIN_GRAPHIC_HEIGHT_PT = 12.0
 
 
 def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
@@ -122,9 +125,37 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                 page_rotation=int(page.rotation),
                 is_visually_landscape=_is_visually_landscape(page_width, page_height),
                 text_blocks=[],
+                graphic_blocks=[],
             )
 
             page_dict = page.get_text("dict")
+            seen_graphics: set[tuple[int, int, int, int]] = set()
+            for image in page.get_images(full=True):
+                xref = int(image[0])
+                for rect in page.get_image_rects(xref):
+                    if rect.width < _MIN_GRAPHIC_WIDTH_PT or rect.height < _MIN_GRAPHIC_HEIGHT_PT:
+                        continue
+                    key = (
+                        round(rect.x0 * 10),
+                        round(rect.y0 * 10),
+                        round(rect.x1 * 10),
+                        round(rect.y1 * 10),
+                    )
+                    if key in seen_graphics:
+                        continue
+                    seen_graphics.add(key)
+                    page_model.graphic_blocks.append(
+                        PdfGraphicBlock(
+                            bbox=BBox(
+                                x0=float(rect.x0),
+                                y0=float(rect.y0),
+                                x1=float(rect.x1),
+                                y1=float(rect.y1),
+                            ),
+                            kind="image",
+                        )
+                    )
+
             for block in page_dict.get("blocks", []):
                 if block.get("type") != 0:
                     continue
