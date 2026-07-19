@@ -298,7 +298,7 @@ def test_page_number_location_label_names_observed_and_expected_on_page() -> Non
         {"observed_sequence": "vii", "expected_sequence": "viii"},
         9,
     )
-    assert label == 'Page 9 — printed page number "vii" (expected "viii")'
+    assert label == 'PDF page 9 — printed page number "vii" (expected "viii")'
 
 
 @pytest.fixture()

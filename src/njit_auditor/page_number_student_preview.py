@@ -24,6 +24,8 @@ _POSITION_LABELS: dict[str, str] = {
     "other": "an unexpected location",
 }
 
+_DOCUMENT_LABEL_CONFIDENCES = frozenset({"high", "medium"})
+
 
 def is_page_number_rule(rule_id: str) -> bool:
     return rule_id in _PAGE_NUMBER_RULE_IDS
@@ -117,6 +119,68 @@ def _expected_printed_page_number(details: Mapping[str, str]) -> str:
     return ""
 
 
+def detected_document_page_label(details: Mapping[str, str]) -> str:
+    """Return the detected printed document page label when confidence is sufficient."""
+    label = details.get("document_page_label", "").strip()
+    if not label:
+        return ""
+    confidence = details.get("document_page_label_confidence", "").strip().lower()
+    if confidence and confidence not in _DOCUMENT_LABEL_CONFIDENCES:
+        return ""
+    return label
+
+
+def page_number_badge_label(
+    rule_id: str,
+    details: Mapping[str, str],
+    page: int | None,
+) -> str:
+    """Return the display-only page badge for page-number findings.
+
+    ``page`` remains the physical PDF page used for navigation. The returned
+    label may include the document's own printed page label when it was detected
+    directly from a page-number token.
+    """
+    if page is None:
+        return "Document-wide"
+    if not is_page_number_rule(rule_id):
+        return f"Page {page}"
+    label = detected_document_page_label(details)
+    if label and label != str(page):
+        return f"Page {label} (PDF page {page})"
+    if label:
+        return f"Page {label}"
+    return f"PDF page {page}"
+
+
+def page_number_action_suffix(
+    rule_id: str,
+    details: Mapping[str, str],
+    page: int | None,
+) -> str:
+    """Return the suffix appended to PDF action buttons without duplicating 'Page'."""
+    if page is None:
+        return ""
+    if not is_page_number_rule(rule_id):
+        return str(page)
+    label = detected_document_page_label(details)
+    if label and label != str(page):
+        return f"{label} (PDF page {page})"
+    if label:
+        return label
+    return str(page)
+
+
+def page_number_location_prefix(details: Mapping[str, str], page: int | None) -> str:
+    """Return a location prefix that separates document label from physical page."""
+    if page is None:
+        return "Document-wide"
+    label = detected_document_page_label(details)
+    if label:
+        return f"Document page: {label} · PDF page: {page}"
+    return f"PDF page {page}"
+
+
 def _p037_section_phrase(details: Mapping[str, str]) -> str:
     section_key = details.get("section_key", "").strip()
     if not section_key:
@@ -151,7 +215,7 @@ def page_number_location_label(
             return "Document-wide — page-numbering sequence inconsistency"
         return "Document-wide page-numbering issue"
 
-    page_prefix = f"Page {page}"
+    page_prefix = page_number_location_prefix(details, page)
     section_phrase = _p037_section_phrase(details)
     section_clause = f"{section_phrase}, " if section_phrase else ""
 

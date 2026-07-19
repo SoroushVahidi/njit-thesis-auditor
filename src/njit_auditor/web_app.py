@@ -1652,10 +1652,13 @@ def _student_location_text(finding: dict[str, Any]) -> str:
     location_label = str(finding.get("location_label", "")).strip()
     if page is not None:
         if not location_label or location_label == str(page):
-            return f"Page {page}"
-        if location_label.lower().startswith(("page ", "pages ")):
+            return str(finding.get("page_display_label", "")).strip() or f"Page {page}"
+        if location_label.lower().startswith(
+            ("page ", "pages ", "pdf page ", "document page:")
+        ):
             return location_label
-        return f"Page {page} - {location_label}"
+        page_label = str(finding.get("page_display_label", "")).strip() or f"Page {page}"
+        return f"{page_label} - {location_label}"
     if location_label:
         return location_label
     return "Document-wide overview"
@@ -1757,6 +1760,9 @@ def _action_label_with_page(example: dict[str, Any]) -> str:
     viewers, which don't show a hover tooltip.
     """
     label = str(example.get("action_label", "")).strip()
+    page_suffix = str(example.get("page_action_suffix", "")).strip()
+    if page_suffix:
+        return f"{label} {page_suffix}"
     page = example.get("page")
     return f"{label} {page}" if page is not None else label
 
@@ -1823,6 +1829,12 @@ def _problem_group_examples(
                 "suggested_fix": str(finding.get("suggested_fix", "")).strip(),
                 "location_text": _student_location_text(finding),
                 "page": page,
+                "page_display_label": str(
+                    finding.get("page_display_label", "")
+                ).strip(),
+                "page_action_suffix": str(
+                    finding.get("page_action_suffix", "")
+                ).strip(),
                 "confidence_level": confidence_level,
                 "confidence_label": confidence_label,
                 "confidence_css_class": confidence_css_class,
@@ -2204,6 +2216,8 @@ def _run_audit_task(job_id: str) -> None:
             "source_file": fv.get("source_file", ""),
             "source_line": fv.get("source_line", ""),
             "location_label": fv.get("location_label", ""),
+            "page_display_label": fv.get("page_display_label", ""),
+            "page_action_suffix": fv.get("page_action_suffix", ""),
             "bbox": fv.get("bbox"),
             "action_kind": fv.get("action_kind", ""),
             "action_label": fv.get("action_label", ""),

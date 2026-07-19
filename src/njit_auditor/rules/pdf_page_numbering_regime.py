@@ -171,10 +171,14 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
 
             regime_details: dict[str, str] = {
                 "page_number": str(pn),
+                "pdf_page": str(pn),
                 "issue_type": issue_type,
                 "candidate_text": candidate.text,
                 "candidate_style": candidate.number_style,
                 "observed_style": _style_label(candidate.number_style),
+                "document_page_label": candidate.text,
+                "document_page_label_style": candidate.number_style,
+                "document_page_label_confidence": "medium",
                 "page_region": region,
                 "expected_or_reason": expected or "",
                 "expected_style": expected or "",
@@ -186,6 +190,7 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
             }
             if candidate.bbox is not None:
                 regime_details["bbox"] = format_bbox_detail(candidate.bbox)
+                regime_details["document_page_label_bbox"] = format_bbox_detail(candidate.bbox)
             findings.append(
                 AuditFinding(
                     rule_id="P028",

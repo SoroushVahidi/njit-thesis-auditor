@@ -139,6 +139,39 @@ def test_roman_sequence_gap_carries_bbox(tmp_path: Path) -> None:
     assert roman_gaps[0].details["bbox"]
 
 
+def test_roman_sequence_gap_preserves_printed_roman_token_in_p019(tmp_path: Path) -> None:
+    pdf_path = _build_roman_sequence_with_gap(tmp_path, values=["vii", "viii", "viii"])
+    findings = _run(pdf_path)
+    roman_gap = next(
+        f
+        for f in _findings_of(findings, "sequence_gap")
+        if "style=roman_lower" in f.details.get("expected_or_context", "")
+    )
+    assert roman_gap.details["observed_sequence"] == "viii"
+    assert roman_gap.details["expected_sequence"] == "ix"
+    assert roman_gap.details["observed_value"] == "8"
+    assert roman_gap.details["expected_value"] == "9"
+    assert roman_gap.details["document_page_label"] == "viii"
+
+
+def test_roman_sequence_gap_highlight_targets_footer_not_body_text(tmp_path: Path) -> None:
+    doc = _new_doc()
+    for token in ("vii", "viii", "viii"):
+        page = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+        page.insert_text((108, 300), "Musialski 8 viii", fontsize=12.0)
+        _add_bottom_center_number(page, token)
+    pdf_path = _save(doc, tmp_path / "roman_footer_not_body_text.pdf")
+
+    findings = _run(pdf_path)
+    roman_gap = next(
+        f
+        for f in _findings_of(findings, "sequence_gap")
+        if "style=roman_lower" in f.details.get("expected_or_context", "")
+    )
+    y0 = float(roman_gap.details["bbox"].split(",")[1])
+    assert y0 > 740.0
+
+
 def test_arabic_sequence_gap_still_carries_bbox(tmp_path: Path) -> None:
     """Pre-existing behavior for Arabic must be unchanged by this fix."""
     pdf_path = _build_arabic_sequence_with_gap(tmp_path, values=["1", "2", "4"])
@@ -270,6 +303,33 @@ def test_skipped_roman_number_still_flagged_as_sequence_gap(tmp_path: Path) -> N
     pdf_path = _build_roman_sequence_with_gap(tmp_path, values=["i", "ii", "iv"])
     findings = _run(pdf_path)
     assert _findings_of(findings, "sequence_gap")
+
+
+def test_p019_suppresses_roman_frontmatter_sequence_when_p029_owns_it(
+    tmp_path: Path,
+) -> None:
+    doc = _new_doc()
+    p = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+    p.insert_text((250, 90), "BIOGRAPHICAL SKETCH", fontsize=14)
+    _add_bottom_center_number(p, "vii")
+    p = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+    p.insert_text((250, 90), "TABLE OF CONTENTS", fontsize=14)
+    _add_bottom_center_number(p, "viii")
+    p = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+    p.insert_text((250, 90), "LIST OF TABLES", fontsize=14)
+    _add_bottom_center_number(p, "viii")
+    p = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+    p.insert_text((108, 90), "CHAPTER 1 INTRODUCTION", fontsize=14)
+    _add_bottom_center_number(p, "1")
+    pdf_path = _save(doc, tmp_path / "frontmatter_roman_owned_by_p029.pdf")
+
+    findings = _run(pdf_path)
+    roman_p019 = [
+        f
+        for f in _findings_of(findings, "sequence_gap")
+        if "style=roman_lower" in f.details.get("expected_or_context", "")
+    ]
+    assert roman_p019 == []
 
 
 def test_duplicate_candidates_on_one_page_still_flagged_as_multiple_page_numbers(

@@ -185,17 +185,22 @@ def check_pdf_roman_section_anchors(pdf_doc: PdfDocument) -> list[AuditFinding]:
             "issue_type": issue_type,
             "section_key": section_key,
             "page_number": str(section_page),
+            "pdf_page": str(section_page),
             "expected_roman": expected_roman,
             "expected_value": str(expected_value),
             "observed_roman": cand.text,
             "observed_value": str(cand.value),
             "observed_sequence": cand.text,
             "expected_sequence": expected_roman,
+            "document_page_label": cand.text,
+            "document_page_label_style": cand.number_style,
+            "document_page_label_confidence": "medium",
             "triage_tier": "check",
             "confidence": "medium",
         }
         if cand.bbox is not None:
             details["bbox"] = format_bbox_detail(cand.bbox)
+            details["document_page_label_bbox"] = format_bbox_detail(cand.bbox)
 
         findings.append(
             AuditFinding(
