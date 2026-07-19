@@ -59,7 +59,7 @@ def _check_toc_appendix_format_page(
                     page=context.page.page_number,
                     message=(
                         "Single TOC appendix entry appears to lack a title after "
-                        "APPENDIX, as required by NJIT guidelines (Q058)."
+                        "APPENDIX, as required by NJIT guidelines."
                     ),
                     details={
                         "page_number": str(context.page.page_number),
@@ -83,7 +83,7 @@ def _check_toc_appendix_format_page(
                         message=(
                             "TOC appendix entry does not use a letter identifier "
                             "(e.g. APPENDIX A), which is required when multiple "
-                            "appendices are listed (Q059)."
+                            "appendices are listed."
                         ),
                         details={
                             "page_number": str(context.page.page_number),

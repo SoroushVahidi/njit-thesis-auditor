@@ -198,7 +198,7 @@ def _check_toc_page(
                         page=context.page.page_number,
                         message=(
                             "TOC Level 1 entry may not be in ALL CAPS as expected by "
-                            "NJIT guidelines (Q049)."
+                            "NJIT guidelines."
                         ),
                         details={
                             "page_number": str(context.page.page_number),

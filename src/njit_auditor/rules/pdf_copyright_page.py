@@ -645,7 +645,7 @@ def check_pdf_copyright_year_format(pdf_document: PdfDocument) -> list[AuditFind
                 "Copyright Page detected, but the auditor could not confidently "
                 "associate a four-digit year with the copyright notice. Verify that "
                 "the year appears directly next to the notice and matches the Title "
-                "Page year (Q010)."
+                "Page year."
             ),
             details=details,
         )
@@ -676,7 +676,7 @@ def check_pdf_copyright_author_format(pdf_document: PdfDocument) -> list[AuditFi
             message=(
                 "Copyright Page detected with a copyright year but no author or "
                 "copyright-owner name could be confidently identified. Verify that "
-                "the copyright owner name is present and clearly formatted (Q011)."
+                "the copyright owner name is present and clearly formatted."
             ),
             details={
                 "issue_type": "copyright_author_not_found",

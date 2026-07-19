@@ -130,9 +130,8 @@ def _check_cross_page_run(
             message=(
                 f"List entry numbers are not in non-decreasing order across "
                 f"{len(run)} consecutive pages: {inversions} inversion(s) among "
-                f"{len(comparable)} comparable entries. NJIT guidelines "
-                f"({source_q_rule_id}) imply entries should be ordered across "
-                f"the full List section."
+                f"{len(comparable)} comparable entries. NJIT guidelines imply "
+                "entries should be ordered across the full List section."
             ),
             details={
                 "issue_type": issue_type,

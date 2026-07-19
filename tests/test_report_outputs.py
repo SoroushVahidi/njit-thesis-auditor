@@ -1059,6 +1059,30 @@ def test_long_preview_is_truncated() -> None:
     assert len(value) <= 120
 
 
+def test_json_export_hides_internal_source_q_details() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P044",
+            severity=Severity.WARNING,
+            message="Abstract paragraph after the first appears not to be indented.",
+            page=1,
+            details={
+                "issue_type": "abstract_subsequent_paragraph_not_indented",
+                "source_q_rule_id": "Q003",
+                "source_q_rule_ids": "Q002,Q003",
+                "source_q_rule_basis": "internal mapping note",
+                "paragraph_index": "1",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    details = payload["findings"][0]["details"]
+    assert "source_q_rule_id" not in details
+    assert "source_q_rule_ids" not in details
+    assert "source_q_rule_basis" not in details
+    assert details["paragraph_index"] == "1"
+
+
 # ---- write_json_report tests ----
 
 
@@ -1953,11 +1977,10 @@ def test_p044_triage_issue_type_counts() -> None:
     assert triage["issue_type_counts"]["abstract_subsequent_paragraph_not_indented"] == 2
 
 
-def test_p044_triage_source_q_rule_counts() -> None:
+def test_p044_triage_excludes_source_q_rule_counts() -> None:
     triage = build_p044_abstract_indentation_triage_summary(_p044_mixed_findings())
     assert triage is not None
-    assert triage["source_q_rule_counts"]["Q002"] == 1
-    assert triage["source_q_rule_counts"]["Q003"] == 2
+    assert "source_q_rule_counts" not in triage
 
 
 def test_p044_triage_paragraph_index_counts() -> None:
@@ -1973,7 +1996,9 @@ def test_markdown_report_includes_p044_triage_section(tmp_path: Path) -> None:
     write_markdown_report(_p044_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "## P044 Abstract Indentation Triage" in text
-    assert "Source Q-rule counts" in text
+    assert "Source Q-rule counts" not in text
+    assert "Q002" not in text
+    assert "Q003" not in text
     assert "Triage tier counts" not in text
     assert (
         "Raw per-page P044 findings are listed under **Findings by Rule → P044** below."

@@ -214,7 +214,7 @@ def check_pdf_biosketch_publication_ordering(
             page=page.page_number,
             message=(
                 "Biographical Sketch publication/presentation entries may not be listed in "
-                "most-recent-first order. NJIT guidelines (Q027) require reverse "
+                "most-recent-first order. NJIT guidelines require reverse "
                 "chronological ordering."
             ),
             details={

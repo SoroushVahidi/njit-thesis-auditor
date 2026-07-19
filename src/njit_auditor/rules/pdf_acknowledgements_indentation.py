@@ -105,7 +105,7 @@ def check_pdf_acknowledgements_indentation(
                 page=page.page_number,
                 message=(
                     "First Acknowledgements paragraph appears to be indented rather "
-                    "than flush-left, as required by NJIT guidelines (Q044)."
+                    "than flush-left, as required by NJIT guidelines."
                 ),
                 details={
                     "page_number": str(page.page_number),
@@ -132,7 +132,7 @@ def check_pdf_acknowledgements_indentation(
                     page=page.page_number,
                     message=(
                         "Acknowledgements paragraph after the first appears not to be "
-                        "indented, as required by NJIT guidelines (Q045)."
+                        "indented, as required by NJIT guidelines."
                     ),
                     details={
                         "page_number": str(page.page_number),

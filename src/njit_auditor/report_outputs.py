@@ -82,6 +82,14 @@ _MULTI_ITEM_DETAIL_LIMITS: dict[str, tuple[int, int]] = {
     "affected_line_texts": (340, 6),
 }
 _MULTI_ITEM_SEPARATOR = " | "
+_INTERNAL_STUDENT_EXPORT_DETAIL_KEYS: frozenset[str] = frozenset(
+    {
+        "source_q_rule_id",
+        "source_q_rule_ids",
+        "source_q_rule",
+        "source_q_rule_basis",
+    }
+)
 
 
 def _truncate_pipe_joined(value: str, *, max_len: int, max_items: int) -> str:
@@ -111,6 +119,8 @@ def _truncate_pipe_joined(value: str, *, max_len: int, max_items: int) -> str:
 def _sanitize_details(details: dict[str, str]) -> dict[str, str]:
     sanitized: dict[str, str] = {}
     for key, value in details.items():
+        if key in _INTERNAL_STUDENT_EXPORT_DETAIL_KEYS:
+            continue
         text = str(value)
         limits = _MULTI_ITEM_DETAIL_LIMITS.get(key)
         if limits is not None:
@@ -1385,7 +1395,6 @@ def build_p044_abstract_indentation_triage_summary(
 
     pages = sorted({f.page for f in p044_findings if f.page is not None})
     issue_type_counts: Counter[str] = Counter()
-    source_q_rule_counts: Counter[str] = Counter()
     triage_tier_counts: Counter[str] = Counter()
     paragraph_index_counts: Counter[str] = Counter()
 
@@ -1394,13 +1403,6 @@ def build_p044_abstract_indentation_triage_summary(
         issue_type = details.get("issue_type", "")
         if issue_type:
             issue_type_counts[issue_type] += 1
-
-        q_rule = (
-            details.get("source_q_rule_id")
-            or details.get("source_q_rule_ids")
-            or "(unknown)"
-        )
-        source_q_rule_counts[q_rule] += 1
 
         triage_tier = details.get("triage_tier", "").strip()
         if triage_tier:
@@ -1419,7 +1421,6 @@ def build_p044_abstract_indentation_triage_summary(
         "affected_page_count": len(pages),
         "affected_pages_compact": compact_page_list(pages),
         "issue_type_counts": dict(sorted(issue_type_counts.items())),
-        "source_q_rule_counts": dict(sorted(source_q_rule_counts.items())),
         "triage_tier_counts": dict(sorted(triage_tier_counts.items())),
         "paragraph_index_counts": dict(sorted(paragraph_index_counts.items())),
         "triage_note": (
@@ -2401,14 +2402,6 @@ def _format_p044_triage_section(grouped: dict[str, Any]) -> list[str]:
         lines.append("")
         for issue_type, count in sorted(issue_counts.items()):
             lines.append(f"- `{issue_type}`: {count}")
-        lines.append("")
-
-    source_q_counts = triage.get("source_q_rule_counts", {})
-    if source_q_counts:
-        lines.append("### Source Q-rule counts")
-        lines.append("")
-        for q_rule, count in sorted(source_q_counts.items()):
-            lines.append(f"- `{q_rule}`: {count}")
         lines.append("")
 
     para_counts = triage.get("paragraph_index_counts", {})

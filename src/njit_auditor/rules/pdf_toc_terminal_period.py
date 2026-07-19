@@ -77,7 +77,7 @@ def _check_toc_terminal_period_page(
                 page=context.page.page_number,
                 message=(
                     "Table of Contents entry ends with a terminal period. "
-                    "NJIT guidelines (Q049/Q050/Q051) require that TOC entries "
+                    "NJIT guidelines require that TOC entries "
                     "at all levels do not end with a terminal period."
                 ),
                 details=details,

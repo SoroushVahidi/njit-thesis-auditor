@@ -161,7 +161,7 @@ def check_pdf_abstract_indentation(
                 page=page.page_number,
                 message=(
                     "First Abstract paragraph appears to be indented rather "
-                    "than flush-left, as required by NJIT guidelines (Q002)."
+                    "than flush-left, as required by NJIT guidelines."
                 ),
                 details={
                     "page_number": str(page.page_number),
@@ -192,7 +192,7 @@ def check_pdf_abstract_indentation(
                     page=page.page_number,
                     message=(
                         "Abstract paragraph after the first appears not to be "
-                        "indented, as required by NJIT guidelines (Q003)."
+                        "indented, as required by NJIT guidelines."
                     ),
                     details={
                         "page_number": str(page.page_number),
