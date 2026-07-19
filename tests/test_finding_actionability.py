@@ -358,7 +358,9 @@ def test_findingview_page_only_fields() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_document_level_finding_renders_explanation(app: tuple[TestClient, Any]) -> None:
+def test_p013_document_overview_is_internal_not_a_visible_explanation(
+    app: tuple[TestClient, Any],
+) -> None:
     c, wa = app
     findings = [
         AuditFinding(
@@ -371,11 +373,13 @@ def test_document_level_finding_renders_explanation(app: tuple[TestClient, Any])
     ]
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
+    job = wa._get_job(job_id)
 
-    # Should not show a fake highlighted link
+    assert job.report_view["total_findings"] == 0
+    assert not job.report_view["findings"]
+    assert not job.report_view["inventory_findings"]
     assert "/pdf/highlighted" not in page_html
-    # Should show document-level explanation note
-    assert "document-level" in page_html.lower() or "What does this mean?" in page_html
+    assert "Document overview." not in page_html
 
 
 def test_document_level_action_kind() -> None:
