@@ -29,7 +29,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 MIN_ENTRY_TEXT_LEN = 10
 
-_LEADER_STRIP_RE = re.compile(r"\s*(?:\.\s*){2,}$")
+_LEADER_STRIP_RE = re.compile(r"\s*(?:(?:\.\s*){2,}|[-–—_]{2,})$")
 _TERMINAL_PERIOD_RE = re.compile(r"\.\s*$")
 
 

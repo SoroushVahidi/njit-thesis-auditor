@@ -10,7 +10,9 @@ from njit_auditor.digital_commons_wrapper import (
     without_wrapper_pages,
 )
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_layout import join_content_span_texts
 from njit_auditor.pdf_models import (
+    BBox,
     PdfDocument,
     PdfPage,
     PdfTextLine,
@@ -35,16 +37,30 @@ PAGE_NUMBER_TOKEN_RE = re.compile(
     r"(?:(?:\.{2,}\s*)|(?:\s{2,}))(?P<num>(?:[0-9]+|[ivxlcdm]+))$",
     re.IGNORECASE,
 )
+# Single-space trailing page numbers are common when leaders are absent and the
+# page number is drawn in the same text object as the title. Only accept these
+# when the line reaches the right-hand page-number column (geometry gate below).
+TRAILING_RIGHT_COLUMN_PAGE_NUM_RE = re.compile(
+    r"^(?P<body>.+\S)\s+(?P<num>(?:[0-9]{1,4}|[ivxlcdm]{1,8}))$",
+    re.IGNORECASE,
+)
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
 SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)[\s:]")
+SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)*$")
 LINE_PREVIEW_MAX_LEN = 80
 RIGHT_EDGE_TOLERANCE_PT = 10.0
 MIN_ENTRIES_FOR_DOT_STYLE = 4
 PAGE_NUMBER_LINE_Y_TOLERANCE_PT = 5.0
 PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT = 8.0
 RIGHT_COLUMN_MIN_X_OFFSET_PT = 200.0
-WRAPPED_ENTRY_Y_GAP_PT = 12.0
+# Single-spaced TOC wrap continuations are typically ~14–16 pt below the parent
+# title row (line height), so keep this just above one line.
+WRAPPED_ENTRY_Y_GAP_PT = 16.0
+SAME_BASELINE_Y_TOLERANCE_PT = 3.0
+# Entries whose left edge sits in the right half of the page are usually
+# margin notes / annotation fragments, not TOC body rows.
+TOC_ENTRY_MAX_LEFT_FRACTION = 0.55
 PREFIX_ENTRY_MIN_LEN = 4
 DEFAULT_ENTRY_MIN_LEN = 8
 PREFIX_ENTRY_RE = re.compile(r"^(TABLE|FIGURE|CHAPTER|APPENDIX)\b", re.IGNORECASE)
@@ -218,6 +234,41 @@ def _page_number_right_x_for_token(line: PdfTextLine, token: str) -> float:
     return line.bbox.x1
 
 
+def _line_reaches_page_number_column(line: PdfTextLine) -> bool:
+    """True when the line's right edge sits in the TOC page-number column band."""
+
+    return (line.bbox.x1 - line.bbox.x0) >= RIGHT_COLUMN_MIN_X_OFFSET_PT or (
+        line.bbox.x1 >= line.bbox.x0 + 100 and line.bbox.x1 >= 480.0
+    )
+
+
+def _extract_trailing_right_column_page_number(
+    line: PdfTextLine, cleaned_text: str
+) -> tuple[str | None, float | None]:
+    """Extract a single-space trailing page number when geometry confirms the column.
+
+    NJIT requires a right-aligned page number; leaders (Q052) are a separate
+    consistency check. Missing leaders must not make a visible trailing page
+    number look "missing" when it occupies the right-hand column.
+    """
+
+    if not _line_reaches_page_number_column(line):
+        return None, None
+    match = TRAILING_RIGHT_COLUMN_PAGE_NUM_RE.match(cleaned_text)
+    if match is None:
+        return None, None
+    body = match.group("body").strip()
+    token = match.group("num")
+    # Reject bare section numbers or tiny stubs ("3.3 40", "Ch 1").
+    if SECTION_NUMBER_ONLY_RE.match(body):
+        return None, None
+    if len(body) < PREFIX_ENTRY_MIN_LEN:
+        return None, None
+    if not any(ch.isalpha() for ch in body):
+        return None, None
+    return token, _page_number_right_x_for_token(line, token)
+
+
 def _extract_page_number_token(
     line: PdfTextLine, cleaned_text: str
 ) -> tuple[str | None, float | None]:
@@ -226,8 +277,80 @@ def _extract_page_number_token(
         token = match.group("num")
         right_x = _page_number_right_x_for_token(line, token)
         return token, right_x
-    return _extract_page_number_from_spans(line)
+    span_token = _extract_page_number_from_spans(line)
+    if span_token[0] is not None:
+        return span_token
+    return _extract_trailing_right_column_page_number(line, cleaned_text)
 
+
+def _line_mid_y(line: PdfTextLine) -> float:
+    return (line.bbox.y0 + line.bbox.y1) / 2.0
+
+
+def _line_text_for_toc(line: PdfTextLine) -> str:
+    """Prefer geometry-aware span joining so section numbers are not glued to titles."""
+
+    if line.spans:
+        joined = join_content_span_texts(line.spans).strip()
+        if joined:
+            return joined
+    return line.text.replace("\u00a0", " ").strip()
+
+
+def _merge_baseline_group_to_line(group: list[PdfTextLine]) -> PdfTextLine:
+    """Merge same-baseline TOC column fragments into one left-to-right visual row.
+
+    PyMuPDF frequently emits section number, title, and page number as separate
+    ``PdfTextLine`` objects that share a baseline. Concatenating without restoring
+    inter-column spaces yields glued tokens such as ``3.3.3Geometric`` and leaves
+    the page-number column unpaired from the title.
+    """
+
+    ordered = sorted(group, key=lambda line: (line.bbox.x0, line.bbox.y0))
+    spans: list[PdfTextSpan] = []
+    text_parts: list[str] = []
+    prev_x1: float | None = None
+    for line in ordered:
+        piece = _line_text_for_toc(line)
+        if not piece:
+            continue
+        if text_parts and prev_x1 is not None:
+            if not text_parts[-1].endswith(" ") and not piece.startswith(" "):
+                text_parts.append(" ")
+        text_parts.append(piece)
+        spans.extend(line.spans)
+        prev_x1 = line.bbox.x1
+    merged_text = "".join(text_parts).strip()
+    bbox = BBox(
+        x0=min(line.bbox.x0 for line in ordered),
+        y0=min(line.bbox.y0 for line in ordered),
+        x1=max(line.bbox.x1 for line in ordered),
+        y1=max(line.bbox.y1 for line in ordered),
+    )
+    return PdfTextLine(spans=spans or ordered[0].spans, bbox=bbox, text=merged_text)
+
+
+def _assemble_same_baseline_toc_rows(lines: list[PdfTextLine]) -> list[PdfTextLine]:
+    """Group TOC/list lines that share a baseline into visual rows."""
+
+    if not lines:
+        return []
+    ordered = sorted(lines, key=lambda line: (_line_mid_y(line), line.bbox.x0))
+    groups: list[list[PdfTextLine]] = []
+    current: list[PdfTextLine] = []
+    current_mid: float | None = None
+    for line in ordered:
+        mid = _line_mid_y(line)
+        if current_mid is None or abs(mid - current_mid) <= SAME_BASELINE_Y_TOLERANCE_PT:
+            current.append(line)
+            current_mid = mid if current_mid is None else (current_mid * 0.7 + mid * 0.3)
+        else:
+            groups.append(current)
+            current = [line]
+            current_mid = mid
+    if current:
+        groups.append(current)
+    return [_merge_baseline_group_to_line(group) for group in groups]
 
 def _is_leader_page_fragment_line(cleaned_text: str) -> bool:
     """True when a line carries leaders and a trailing page number but is not an entry."""
@@ -247,6 +370,16 @@ def _apply_auxiliary_page_number(entry: TocEntryLine, aux_line: PdfTextLine) -> 
     entry.page_number_right_x = right_x if right_x is not None else aux_line.bbox.x1
     if not entry.has_leader_dots and _has_leader_dot_pattern(cleaned):
         entry.has_leader_dots = True
+
+
+def _looks_like_wrap_continuation(cleaned_text: str) -> bool:
+    """True for mid-entry wrap fragments (hyphen tails / lowercase run-ons)."""
+
+    if not cleaned_text:
+        return False
+    if cleaned_text.endswith("-") or cleaned_text.endswith("\u2010"):
+        return True
+    return cleaned_text[0].islower()
 
 
 def _has_prefix_entry_shape(cleaned_text: str) -> bool:
@@ -269,11 +402,14 @@ def _likely_entry_line(cleaned_text: str, *, has_page_number_signal: bool = Fals
         and len(cleaned_text.split()) > 6
         and not _has_leader_dot_pattern(cleaned_text)
         and not has_prefix
+        and not _looks_like_wrap_continuation(cleaned_text)
     ):
         return False
     min_len = (
         PREFIX_ENTRY_MIN_LEN
-        if has_prefix or has_page_number_signal
+        if has_prefix
+        or has_page_number_signal
+        or _looks_like_wrap_continuation(cleaned_text)
         else DEFAULT_ENTRY_MIN_LEN
     )
     if len(cleaned_text) < min_len:
@@ -343,6 +479,15 @@ def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
     )
 
 
+def _strip_trailing_page_token(text: str, token: str | None) -> str:
+    if not token:
+        return text
+    stripped = text.rstrip()
+    if stripped.endswith(token):
+        stripped = stripped[: -len(token)].rstrip()
+    return stripped
+
+
 def _merge_wrapped_entries(
     entries: list[TocEntryLine],
     auxiliary_lines: list[PdfTextLine],
@@ -351,13 +496,14 @@ def _merge_wrapped_entries(
         return entries
 
     merged: list[TocEntryLine] = []
-    skip_next = False
     sorted_entries = sorted(entries, key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
-    for idx, entry in enumerate(sorted_entries):
-        if skip_next:
-            skip_next = False
-            continue
-        if entry.page_number_token is None:
+    idx = 0
+    while idx < len(sorted_entries):
+        entry = sorted_entries[idx]
+        idx += 1
+        if entry.page_number_token is None and _has_prefix_entry_shape(entry.cleaned_text):
+            # Only numbered/typed entry starts may absorb wrap continuations /
+            # below-row page numbers. Mid-wrap fragments must not steal tokens.
             matched = _pair_right_column_number(
                 entry,
                 auxiliary_lines,
@@ -368,18 +514,51 @@ def _merge_wrapped_entries(
             if matched is not None:
                 _apply_auxiliary_page_number(entry, matched)
                 entry.is_wrapped = True
-            elif idx + 1 < len(sorted_entries):
-                nxt = sorted_entries[idx + 1]
-                y_gap = nxt.line.bbox.y0 - entry.line.bbox.y0
-                if (
-                    y_gap <= WRAPPED_ENTRY_Y_GAP_PT
-                    and nxt.page_number_token is not None
-                    and entry.page_number_token is None
-                ):
-                    entry.page_number_token = nxt.page_number_token
-                    entry.page_number_right_x = nxt.page_number_right_x
-                    entry.is_wrapped = True
-                    skip_next = True
+            else:
+                prev_y = entry.line.bbox.y0
+                while idx < len(sorted_entries):
+                    nxt = sorted_entries[idx]
+                    y_gap = nxt.line.bbox.y0 - prev_y
+                    if y_gap > WRAPPED_ENTRY_Y_GAP_PT:
+                        break
+                    if _has_prefix_entry_shape(nxt.cleaned_text):
+                        break
+                    cont = _strip_trailing_page_token(
+                        nxt.cleaned_text, nxt.page_number_token
+                    )
+                    if cont:
+                        entry.cleaned_text = f"{entry.cleaned_text} {cont}".strip()
+                        entry.is_wrapped = True
+                        entry.line = PdfTextLine(
+                            spans=list(entry.line.spans) + list(nxt.line.spans),
+                            bbox=BBox(
+                                x0=min(entry.line.bbox.x0, nxt.line.bbox.x0),
+                                y0=min(entry.line.bbox.y0, nxt.line.bbox.y0),
+                                x1=max(entry.line.bbox.x1, nxt.line.bbox.x1),
+                                y1=max(entry.line.bbox.y1, nxt.line.bbox.y1),
+                            ),
+                            text=entry.cleaned_text,
+                        )
+                    if nxt.has_leader_dots:
+                        entry.has_leader_dots = True
+                    if nxt.page_number_token is not None:
+                        entry.page_number_token = nxt.page_number_token
+                        entry.page_number_right_x = nxt.page_number_right_x
+                        idx += 1
+                        break
+                    prev_y = nxt.line.bbox.y0
+                    idx += 1
+                if entry.page_number_token is None:
+                    matched = _pair_right_column_number(
+                        entry,
+                        auxiliary_lines,
+                        max_y_gap=WRAPPED_ENTRY_Y_GAP_PT,
+                        require_below=True,
+                        relax_y_tolerance=True,
+                    )
+                    if matched is not None:
+                        _apply_auxiliary_page_number(entry, matched)
+                        entry.is_wrapped = True
         merged.append(entry)
     return merged
 
@@ -403,25 +582,46 @@ def _drop_merge_orphans(entries: list[TocEntryLine]) -> list[TocEntryLine]:
 def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
     """Extract likely entry lines below TOC/List heading on a page."""
 
+    page_width = context.page.width or 612.0
+    max_entry_left = page_width * TOC_ENTRY_MAX_LEFT_FRACTION
     ordered_lines: list[PdfTextLine] = []
     for block in context.page.text_blocks:
         for line in block.lines:
             if line.bbox.y0 <= context.heading_bottom_y + 2:
                 continue
+            raw_cleaned = _clean_text(_line_text_for_toc(line))
+            if (
+                line.bbox.x0 >= max_entry_left
+                and not NUMERIC_ONLY_RE.match(raw_cleaned)
+                and not _is_leader_page_fragment_line(raw_cleaned)
+                and not is_toc_structural_column_label(raw_cleaned)
+            ):
+                # Exclude right-margin annotations before same-baseline row
+                # assembly. Filtering only after assembly lets comments such as
+                # reviewer names become glued into a legitimate TOC entry.
+                continue
             ordered_lines.append(line)
     ordered_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+    # Rebuild visual TOC rows from same-baseline column fragments before
+    # classifying entries / pairing page numbers.
+    ordered_lines = _assemble_same_baseline_toc_rows(ordered_lines)
 
     entries: list[TocEntryLine] = []
     auxiliary_lines: list[PdfTextLine] = []
     for line in ordered_lines:
-        cleaned = _clean_text(line.text)
+        cleaned = _clean_text(_line_text_for_toc(line))
         if _is_list_heading_line(cleaned):
+            continue
+        if is_toc_structural_column_label(cleaned):
             continue
         if NUMERIC_ONLY_RE.match(cleaned):
             auxiliary_lines.append(line)
             continue
         if _is_leader_page_fragment_line(cleaned):
             auxiliary_lines.append(line)
+            continue
+        # Margin notes / annotation fragments in the right half are not TOC rows.
+        if line.bbox.x0 >= max_entry_left and not _has_prefix_entry_shape(cleaned):
             continue
         page_num, page_right_x = _extract_page_number_token(line, cleaned)
         has_signal = page_num is not None or page_right_x is not None
@@ -542,13 +742,24 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
         }
 
         entries_with_page_num = [
-            entry for entry in entries if entry.page_number_right_x is not None
+            entry
+            for entry in entries
+            if entry.page_number_right_x is not None
+            # Column-alignment compares dedicated right-column number spans.
+            # Trailing digits embedded in a long title span are still valid page
+            # numbers for presence checks, but their span x1 is not the column.
+            and _right_column_page_number_span(entry.line) is not None
         ]
         entries_missing_page_num = [
             entry
             for entry in entries
             if entry.page_number_right_x is None
             and not is_toc_structural_column_label(entry.cleaned_text)
+            # Wrap continuations (no section/Figure/Table prefix) are not
+            # independent entries; do not treat them as "missing page number".
+            and (
+                _has_prefix_entry_shape(entry.cleaned_text) or entry.has_leader_dots
+            )
         ]
 
         if len(entries_with_page_num) >= 3:

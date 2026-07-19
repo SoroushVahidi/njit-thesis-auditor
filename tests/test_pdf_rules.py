@@ -9519,6 +9519,19 @@ def test_p040_lof_entry_missing_punct_warns(tmp_path: Path) -> None:
     assert findings[0].details.get("source_q_rule_id") == "Q075"
 
 
+def test_p040_single_reconstructed_entry_missing_punct_warns(tmp_path: Path) -> None:
+    """Q075 applies even when a List of Figures page contains one entry."""
+    pdf_path = tmp_path / "p040_single_entry_no_punct.pdf"
+    _make_lof_terminal_punct_pdf(
+        pdf_path,
+        [("Figure 1. A single figure description without terminal punctuation", "5")],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) == 1
+    assert findings[0].details.get("page_entry_index") == "0"
+
+
 def test_p040_all_entries_missing_punct_multiple_findings(tmp_path: Path) -> None:
     """Multiple LoF entries lacking punctuation → multiple P040 findings."""
     pdf_path = tmp_path / "p040_all_missing.pdf"
@@ -9949,6 +9962,23 @@ def test_p054_toc_entry_with_period_warns(tmp_path: Path) -> None:
         ("Chapter 2 Literature Review of Related Work", "15"),
         ("Chapter 3 Methodology and Experimental Design", "30"),
     ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "toc_entry_has_terminal_period"
+
+
+def test_p054_period_before_hyphen_leaders_warns(tmp_path: Path) -> None:
+    """A title period remains terminal punctuation before hyphen leaders."""
+    pdf_path = tmp_path / "p054_period_hyphen_leaders.pdf"
+    _make_toc_terminal_period_pdf(
+        pdf_path,
+        [
+            ("Chapter 1 Introduction and Background.----------------", "1"),
+            ("Chapter 2 Literature Review of Related Work", "15"),
+            ("Chapter 3 Methodology and Experimental Design", "30"),
+        ],
+    )
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
     assert len(findings) == 1
