@@ -13,6 +13,7 @@ from typing import Any
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.page_number_student_preview import classify_visible_page_number_issue
 
 MAX_DETAIL_TEXT_LEN = 120
 # Rules with this many or more findings appear in high_volume_rules summary.
@@ -129,6 +130,28 @@ def _sanitize_details(details: dict[str, str]) -> dict[str, str]:
         else:
             sanitized[key] = _truncate(text)
     return sanitized
+
+
+def _student_export_role(rule_id: str, details: dict[str, str]) -> tuple[bool, str]:
+    """Return whether an exported finding is a student-visible problem and its role.
+
+    P013 page-number candidates are detector evidence, not violations by
+    themselves. Keep them in the raw export for compatibility, but label their
+    role explicitly so JSON consumers do not treat routine candidates as warning
+    cards.
+    """
+    issue_type = details.get("issue_type", "").strip()
+    if rule_id == P013_RULE_ID:
+        visible_issue_type, is_visible = classify_visible_page_number_issue(
+            rule_id, issue_type, details
+        )
+        if not is_visible:
+            if issue_type == P013_DOC_ISSUE_TYPE:
+                return False, "internal_summary"
+            return False, "inventory"
+        if visible_issue_type:
+            return True, "problem"
+    return True, "problem"
 
 
 def _severity_counts(findings: list[AuditFinding]) -> dict[str, int]:
@@ -854,8 +877,9 @@ def build_p013_triage_summary(findings: list[AuditFinding]) -> dict[str, Any] | 
         "calibration_buckets": calibration_buckets,
         "calibration_note": (
             "Calibration buckets organize routine dominant-pattern pages separately from "
-            "multi-candidate and non-dominant pages for manual triage only. Raw P013 "
-            "warnings are not suppressed or re-scored."
+            "multi-candidate and non-dominant pages for manual triage only. P013 "
+            "detector entries are retained as inventory evidence and are not "
+            "student-visible problems unless a specific page-number defect is reported."
         ),
         "triage_tier": "informational",
         "triage_note": (
@@ -1554,12 +1578,15 @@ def audit_findings_to_json_dict(
     serialized_findings: list[dict[str, Any]] = []
     for finding in prepared:
         details = _sanitize_details(finding.details)
+        _, student_facing_role = _student_export_role(finding.rule_id, details)
         entry: dict[str, Any] = {
             "rule_id": finding.rule_id,
             "severity": finding.severity.value,
             "message": finding.message,
             "page": finding.page,
             "details": details,
+            "student_visible_problem": False,
+            "student_facing_role": student_facing_role,
         }
         if finding.page is not None:
             entry["pdf_page"] = finding.page
@@ -1576,11 +1603,27 @@ def audit_findings_to_json_dict(
         problem_number = problem_number_map.get(index)
         entry["problem_number"] = problem_number
         entry["problem_anchor"] = f"problem-{problem_number}" if problem_number else ""
+        entry["student_visible_problem"] = problem_number is not None
+        details = entry.get("details", {})
+        if (
+            entry.get("rule_id") == P013_RULE_ID
+            and not entry["student_visible_problem"]
+            and isinstance(details, dict)
+            and details.get("issue_type") == P013_PAGE_ISSUE_TYPE
+        ):
+            entry["student_facing_role"] = "inventory"
+
+    inventory_finding_count = sum(
+        1
+        for entry in serialized_findings
+        if entry.get("student_facing_role") == "inventory"
+    )
 
     meta_block: dict[str, Any] = {
         **metadata,
         "total_findings": len(prepared),
         "visible_problem_count": len(problem_number_map),
+        "inventory_finding_count": inventory_finding_count,
         "counts_by_severity": _severity_counts(prepared),
         "counts_by_rule_id": _rule_counts(prepared),
         "counts_by_category": _category_counts(prepared),
@@ -1825,14 +1868,14 @@ def _format_p013_triage_section(grouped: dict[str, Any]) -> list[str]:
         return []
 
     lines: list[str] = []
-    lines.append("## P013 Page-Number Candidate Triage")
+    lines.append("## P013 Page-Number Candidate Inventory")
     lines.append("")
     lines.append(triage.get("triage_note", ""))
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|---|---:|")
-    lines.append(f"| Raw P013 findings | {triage['raw_finding_count']} |")
-    lines.append(f"| Page-level warnings | {triage['page_level_finding_count']} |")
+    lines.append(f"| Raw P013 detector entries | {triage['raw_finding_count']} |")
+    lines.append(f"| Page-level inventory entries | {triage['page_level_finding_count']} |")
     lines.append(f"| Document overview | {triage['document_overview_finding_count']} |")
     lines.append(f"| Affected pages | {triage['affected_page_count']} |")
     lines.append(f"| Pages with multiple candidates | {triage['pages_with_multiple_candidates']} |")
@@ -1913,7 +1956,8 @@ def _format_p013_triage_section(grouped: dict[str, Any]) -> list[str]:
         lines.append("")
 
     lines.append(
-        "Raw per-page P013 findings are listed under **Findings by Rule → P013** below."
+        "Routine per-page P013 candidates are inventory evidence. They are not "
+        "listed as problems unless another finding reports a specific page-number defect."
     )
     lines.append("")
     return lines
@@ -2494,6 +2538,7 @@ def _serialized_finding_is_visible_problem(
     p026_display_state: Any = None,
     p011_display_state: Any = None,
     finding_index: int | None = None,
+    claimed_page_number_keys: frozenset[tuple[str, int]] = frozenset(),
 ) -> bool:
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
@@ -2607,6 +2652,13 @@ def _serialized_finding_is_visible_problem(
         )
         if not is_visible:
             return False
+        if (
+            rule_id == P013_RULE_ID
+            and visible_issue_type is not None
+            and page is not None
+            and (visible_issue_type, page) in claimed_page_number_keys
+        ):
+            return False
         if visible_issue_type is not None:
             return consume_page_number_display_slot(
                 rule_id,
@@ -2674,6 +2726,31 @@ def _problem_number_map(
     p011_display_state = init_p011_display_state(
         collect_p011_margin_pages_from_serialized(serialized_findings),
     )
+    claimed_page_number_keys: set[tuple[str, int]] = set()
+    for finding in serialized_findings:
+        rule_id = str(finding.get("rule_id", "")).strip()
+        if rule_id == P013_RULE_ID:
+            continue
+        details_raw = finding.get("details", {})
+        details = (
+            {str(k): str(v) for k, v in details_raw.items()}
+            if isinstance(details_raw, dict)
+            else {}
+        )
+        if map_finding_rule_to_category(rule_id, details) != "page_numbering":
+            continue
+        issue_type = details.get("issue_type", "").strip()
+        visible_issue_type, is_visible = classify_visible_page_number_issue(
+            rule_id, issue_type, details
+        )
+        page_raw = finding.get("page")
+        if not is_visible or visible_issue_type is None or page_raw is None:
+            continue
+        try:
+            page = int(page_raw)
+        except (TypeError, ValueError):
+            continue
+        claimed_page_number_keys.add((visible_issue_type, page))
     for index, finding in enumerate(serialized_findings):
         if not _serialized_finding_is_visible_problem(
             finding,
@@ -2688,6 +2765,7 @@ def _problem_number_map(
             p026_display_state=p026_display_state,
             p011_display_state=p011_display_state,
             finding_index=index,
+            claimed_page_number_keys=frozenset(claimed_page_number_keys),
         ):
             continue
         mapping[index] = next_problem_number
@@ -2895,7 +2973,7 @@ def _format_p013_informational_candidates_block(
         )
         lines.append(f"- Number style: {style_summary}")
     lines.append(
-        "- See **P013 Page-Number Candidate Triage** earlier in this report "
+        "- See **P013 Page-Number Candidate Inventory** earlier in this report "
         "for a fuller breakdown."
     )
     lines.append("")
@@ -3314,8 +3392,6 @@ def write_markdown_report(
     lines.append("## Findings by Rule")
     lines.append("")
     for rule_id, rule_findings in grouped_by_rule.items():
-        lines.append(f"### {rule_id}")
-        lines.append("")
         if audit_type == "tex":
             sort_key = lambda item: (  # noqa: E731
                 item.get("source_file", ""),
@@ -3337,6 +3413,12 @@ def write_markdown_report(
                 visible_findings.append(finding)
             else:
                 informational_findings.append(finding)
+
+        if rule_id == "P013" and not visible_findings:
+            continue
+
+        lines.append(f"### {rule_id}")
+        lines.append("")
         for finding in visible_findings:
             lines.append(_finding_markdown_line(finding, audit_type=audit_type))
         if informational_findings:

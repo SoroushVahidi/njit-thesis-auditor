@@ -603,19 +603,29 @@ def test_p013_raw_findings_preserved_in_json() -> None:
     payload = audit_findings_to_json_dict(findings, _metadata())
     assert len(payload["findings"]) == 9
     assert payload["grouped_summary"]["p013_triage"]["raw_finding_count"] == 9
+    routine_candidates = [
+        finding
+        for finding in payload["findings"]
+        if finding["rule_id"] == "P013"
+        and (finding["details"] or {}).get("issue_type") == P013_PAGE_ISSUE_TYPE
+        and finding.get("student_facing_role") == "inventory"
+    ]
+    assert len(routine_candidates) == 7
+    assert payload["metadata"]["inventory_finding_count"] == 7
+    assert all(finding["student_visible_problem"] is False for finding in routine_candidates)
 
 
 def test_markdown_report_includes_p013_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "report_p013.md"
     write_markdown_report(_p013_findings(8), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P013 Page-Number Candidate Triage" in text
+    assert "P013 Page-Number Candidate Inventory" in text
     assert "bottom_center/arabic" in text
     assert "Calibration buckets" in text
     assert "Document pattern label" in text
-    assert "not suppressed or re-scored" in text
+    assert "detector entries are retained as inventory evidence" in text
     assert "Issue type counts" in text
-    triage_pos = text.index("P013 Page-Number Candidate Triage")
+    triage_pos = text.index("P013 Page-Number Candidate Inventory")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
 
@@ -651,6 +661,50 @@ def test_markdown_findings_by_rule_summarizes_p013_informational_candidates(
     assert "informational" in section.lower()
 
 
+def test_markdown_findings_by_rule_omits_routine_only_p013_candidates(
+    tmp_path: Path,
+) -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=1,
+            message="Page has 1 page-number-like candidate(s).",
+            details={
+                "issue_type": P013_PAGE_ISSUE_TYPE,
+                "position_type": "bottom_center",
+                "number_style": "roman_lower",
+                "candidate_count_on_page": "1",
+                "observed_summary": "bottom_center/roman_lower",
+                "confidence": "medium",
+                "triage_tier": "informational",
+            },
+        ),
+        AuditFinding(
+            rule_id="P013",
+            severity=Severity.WARNING,
+            page=2,
+            message="Page has 1 page-number-like candidate(s).",
+            details={
+                "issue_type": P013_PAGE_ISSUE_TYPE,
+                "position_type": "bottom_center",
+                "number_style": "arabic",
+                "candidate_count_on_page": "1",
+                "observed_summary": "bottom_center/arabic",
+                "confidence": "medium",
+                "triage_tier": "informational",
+            },
+        ),
+    ]
+    output_path = tmp_path / "report_p013_routine.md"
+    write_markdown_report(findings, _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+    findings_by_rule = text.split("## Findings by Rule", 1)[1]
+
+    assert "P013 Page-Number Candidate Inventory" in text
+    assert "### P013" not in findings_by_rule
+
+
 def test_markdown_findings_by_rule_keeps_real_p013_problem_individually_listed(
     tmp_path: Path,
 ) -> None:
@@ -674,7 +728,7 @@ def test_markdown_p013_informational_summary_breaks_down_by_page_position_style(
     assert "Pages:" in section
     assert "Position:" in section
     assert "Number style:" in section
-    assert "P013 Page-Number Candidate Triage" in section
+    assert "P013 Page-Number Candidate Inventory" in section
 
 
 def test_markdown_findings_by_rule_unaffected_for_non_p013_rules(tmp_path: Path) -> None:
@@ -849,7 +903,7 @@ def test_markdown_report_includes_p011_triage_section(tmp_path: Path) -> None:
     assert "left_margin" in text
     assert "Overflow distance by side" in text
     triage_pos = text.index("P011 Margin/Overflow Triage")
-    p013_pos = text.find("P013 Page-Number Candidate Triage")
+    p013_pos = text.find("P013 Page-Number Candidate Inventory")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
     if p013_pos >= 0:
