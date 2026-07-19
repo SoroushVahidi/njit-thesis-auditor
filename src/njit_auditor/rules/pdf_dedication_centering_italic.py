@@ -162,7 +162,7 @@ def _check_centering(
         message=(
             "Dedication text block center deviates from the text-area center by "
             f"{offset_pt:.1f} pt (threshold: {_CENTER_OFFSET_THRESHOLD_PT:.0f} pt). "
-            "NJIT requires the dedication text to be centered on the page (Q033)."
+            "NJIT requires the dedication text to be centered on the page."
         ),
         details={
             "issue_type": "dedication_text_not_centered",
@@ -197,7 +197,7 @@ def _check_italic(
         message=(
             f"Dedication text italic span ratio is {italic_ratio:.2f} "
             f"(threshold: {_ITALIC_RATIO_THRESHOLD:.1f}). "
-            "NJIT requires dedication text in the Latin alphabet to be italicized (Q034)."
+            "NJIT requires dedication text in the Latin alphabet to be italicized."
         ),
         details={
             "issue_type": "dedication_text_not_italic",

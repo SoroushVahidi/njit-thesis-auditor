@@ -112,7 +112,7 @@ def check_pdf_biosketch_publication_layout(
                 page=page.page_number,
                 message=(
                     "Biographical Sketch page has no publication entries with hanging indent. "
-                    "NJIT guidelines (Q029) require publication/presentation entries to use "
+                    "NJIT guidelines require publication/presentation entries to use "
                     "hanging indentation."
                 ),
                 details={
@@ -140,7 +140,7 @@ def check_pdf_biosketch_publication_layout(
                     page=page.page_number,
                     message=(
                         "Consecutive publication entries on the Biographical Sketch page "
-                        "appear to lack the required blank line between them (Q028)."
+                        "appear to lack the required blank line between them."
                     ),
                     details={
                         "page_number": str(page.page_number),

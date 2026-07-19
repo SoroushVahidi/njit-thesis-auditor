@@ -88,7 +88,7 @@ def _check_lof_terminal_punctuation_page(
                 message=(
                     "List of Figures entry does not end with terminal punctuation "
                     "(period, question mark, or exclamation point) as required by "
-                    "NJIT guidelines (Q075)."
+                    "NJIT guidelines."
                 ),
                 details=details,
             )

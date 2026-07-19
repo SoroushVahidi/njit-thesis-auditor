@@ -90,7 +90,7 @@ def _check_page_number_format(
                 f"List entry numbering format is inconsistent: "
                 f"{chapter_count} chapter-based (X.Y) and "
                 f"{sequential_count} sequential (N) entries detected. "
-                f"NJIT guidelines (Q063/Q072) imply a single consistent format."
+                "NJIT guidelines imply a single consistent format."
             ),
             details={
                 "issue_type": issue_type,

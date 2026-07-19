@@ -17,6 +17,8 @@ including the one documented non-detector exception).
 from __future__ import annotations
 
 import ast
+import re
+from pathlib import Path
 
 from njit_auditor.rule_source_scan import (
     KNOWN_NON_DETECTOR_ISSUE_TYPES,
@@ -26,10 +28,36 @@ from njit_auditor.rule_source_scan import (
     source_pipeline_issue_type_pairs,
 )
 
+RULES_DIR = Path(__file__).resolve().parents[1] / "src" / "njit_auditor" / "rules"
+
 
 def _pairs_for(source: str) -> set[tuple[str, str]]:
     tree = ast.parse(source)
     return _ModuleResolver(tree).emitted_pairs()
+
+
+def test_audit_finding_messages_do_not_expose_source_q_rule_ids() -> None:
+    """Student-facing raw detector messages should not expose internal Q IDs.
+
+    Detectors may still keep source_q_rule_id/source_q_rule_ids in details for
+    traceability and rule mapping; this only scans the message= argument passed
+    to AuditFinding.
+    """
+    offenders: list[str] = []
+    for path in sorted(RULES_DIR.glob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for keyword in node.keywords:
+                if keyword.arg != "message":
+                    continue
+                segment = ast.get_source_segment(source, keyword.value) or ""
+                if re.search(r"Q0\d{2}", segment):
+                    offenders.append(f"{path.relative_to(RULES_DIR)}:{node.lineno}")
+
+    assert offenders == []
 
 
 def test_direct_literal_in_dict_literal() -> None:

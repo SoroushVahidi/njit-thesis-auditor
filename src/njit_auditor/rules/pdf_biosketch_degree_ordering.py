@@ -159,7 +159,7 @@ def check_pdf_biosketch_degree_ordering(
             page=page.page_number,
             message=(
                 "Biographical Sketch degree entries may not be listed in most-recent-first "
-                "order. NJIT guidelines (Q025) require postgraduate degrees listed from most "
+                "order. NJIT guidelines require postgraduate degrees listed from most "
                 "recent to oldest."
             ),
             details={

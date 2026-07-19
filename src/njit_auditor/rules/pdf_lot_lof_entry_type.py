@@ -60,7 +60,7 @@ def _check_lot_entry_type_page(
                 page=context.page.page_number,
                 message=(
                     "List of Tables entry starts with 'Figure'. "
-                    "NJIT guidelines (Q063) require that the List of Tables "
+                    "NJIT guidelines require that the List of Tables "
                     "contain only table entries."
                 ),
                 details={
@@ -100,7 +100,7 @@ def _check_lof_entry_type_page(
                 page=context.page.page_number,
                 message=(
                     "List of Figures entry starts with 'Table'. "
-                    "NJIT guidelines (Q072) require that the List of Figures "
+                    "NJIT guidelines require that the List of Figures "
                     "contain only figure entries."
                 ),
                 details={

@@ -124,6 +124,11 @@ from njit_auditor.rules.pdf_toc_page_number_ordering import (
 runner = CliRunner()
 
 
+def _assert_student_message_hides_source_q_ids(finding: object) -> None:
+    message = str(getattr(finding, "message", ""))
+    assert "Q0" not in message
+
+
 def _make_pdf_with_bottom_page_number(path: Path) -> None:
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -8062,6 +8067,8 @@ def test_p051_no_year_warns(tmp_path: Path) -> None:
     assert any(f.details.get("issue_type") == "copyright_year_not_found" for f in findings)
     assert findings[0].details.get("confidence") == "low"
     assert findings[0].details.get("bbox")
+    assert findings[0].details.get("source_q_rule_id") == "Q010"
+    _assert_student_message_hides_source_q_ids(findings[0])
 
 
 def test_p051_category_is_copyright_page_not_title_page(tmp_path: Path) -> None:
@@ -8295,6 +8302,8 @@ def test_p052_year_no_author_warns(tmp_path: Path) -> None:
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_copyright_author_format(model) if f.rule_id == "P052"]
     assert any(f.details.get("issue_type") == "copyright_author_not_found" for f in findings)
+    assert findings[0].details.get("source_q_rule_id") == "Q011"
+    _assert_student_message_hides_source_q_ids(findings[0])
 
 
 def test_p052_adjacent_line_author_no_finding(tmp_path: Path) -> None:
@@ -9608,6 +9617,8 @@ def test_p040_single_reconstructed_entry_missing_punct_warns(tmp_path: Path) -> 
     findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
     assert len(findings) == 1
     assert findings[0].details.get("page_entry_index") == "0"
+    assert findings[0].details.get("source_q_rule_id") == "Q075"
+    _assert_student_message_hides_source_q_ids(findings[0])
 
 
 def test_p040_all_entries_missing_punct_multiple_findings(tmp_path: Path) -> None:
@@ -9861,6 +9872,8 @@ def test_p053_lot_entry_with_period_warns(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
     assert len(findings) == 1
     assert findings[0].details.get("issue_type") == "lot_entry_has_terminal_period"
+    assert findings[0].details.get("source_q_rule_id") == "Q065"
+    _assert_student_message_hides_source_q_ids(findings[0])
 
 
 def test_p053_wrap_continuation_skipped(tmp_path: Path) -> None:
@@ -10044,6 +10057,8 @@ def test_p054_toc_entry_with_period_warns(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
     assert len(findings) == 1
     assert findings[0].details.get("issue_type") == "toc_entry_has_terminal_period"
+    assert findings[0].details.get("source_q_rule_id") == "Q050"
+    _assert_student_message_hides_source_q_ids(findings[0])
 
 
 def test_p054_period_before_hyphen_leaders_warns(tmp_path: Path) -> None:
@@ -10768,6 +10783,7 @@ def test_p044_q002_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q002_findings
     assert all(f.details.get("source_q_rule_id") == "Q002" for f in q002_findings)
+    _assert_student_message_hides_source_q_ids(q002_findings[0])
 
 
 def test_p044_q003_source_q_rule_id(tmp_path: Path) -> None:
@@ -10782,6 +10798,7 @@ def test_p044_q003_source_q_rule_id(tmp_path: Path) -> None:
     ]
     assert q003_findings
     assert all(f.details.get("source_q_rule_id") == "Q003" for f in q003_findings)
+    _assert_student_message_hides_source_q_ids(q003_findings[0])
 
 
 def test_p044_continuation_line_after_large_gap_not_new_paragraph(tmp_path: Path) -> None:

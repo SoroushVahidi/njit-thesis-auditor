@@ -81,7 +81,7 @@ def _check_toc_hierarchy_page(
                     page=context.page.page_number,
                     message=(
                         "TOC level-2 entries do not appear to be indented relative to "
-                        "level-1 entries, which is required for visual hierarchy (Q056)."
+                        "level-1 entries, which is required for visual hierarchy."
                     ),
                     details={
                         "page_number": str(context.page.page_number),
@@ -110,7 +110,7 @@ def _check_toc_hierarchy_page(
                     page=context.page.page_number,
                     message=(
                         "TOC level-3 entries do not appear to be indented relative to "
-                        "level-2 entries, which is required for visual hierarchy (Q056)."
+                        "level-2 entries, which is required for visual hierarchy."
                     ),
                     details={
                         "page_number": str(context.page.page_number),

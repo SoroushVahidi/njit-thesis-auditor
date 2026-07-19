@@ -161,7 +161,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                     page=page_num,
                     message=(
                         f"Single appendix body heading on page {page_num} uses a letter "
-                        f"identifier ('{letter}'). NJIT guidelines (Q058) require a single "
+                        f"identifier ('{letter}'). NJIT guidelines require a single "
                         f"appendix to be labeled APPENDIX without a letter suffix."
                     ),
                     details={
@@ -189,7 +189,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                         page=page_num,
                         message=(
                             f"Multiple-appendix body heading on page {page_num} does not "
-                            f"include a letter identifier. NJIT guidelines (Q059) require "
+                            "include a letter identifier. NJIT guidelines require "
                             f"multiple appendices to be labeled APPENDIX A, APPENDIX B, etc."
                         ),
                         details={
@@ -219,7 +219,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                             message=(
                                 f"Appendix body heading on page {page_num} repeats the "
                                 f"letter identifier '{letter}'. Each appendix must use a "
-                                f"unique letter (A, B, C ...) per NJIT guidelines (Q059)."
+                                "unique letter (A, B, C ...) per NJIT guidelines."
                             ),
                             details={
                                 "issue_type": "appendix_letter_sequence_repeat",
@@ -250,8 +250,8 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                                 message=(
                                     f"Appendix body heading letter sequence is non-consecutive "
                                     f"on page {page_num}: expected '{expected}' at position "
-                                    f"{idx + 1} but found '{actual}'. NJIT guidelines (Q059) "
-                                    f"require consecutive letter labels (A, B, C ...)."
+                                    f"{idx + 1} but found '{actual}'. NJIT guidelines "
+                                    "require consecutive letter labels (A, B, C ...)."
                                 ),
                                 details={
                                     "issue_type": "appendix_letter_sequence_gap",

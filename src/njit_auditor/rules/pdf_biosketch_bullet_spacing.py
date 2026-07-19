@@ -125,7 +125,7 @@ def check_pdf_biosketch_bullet_spacing(
                         message=(
                             "A bullet or list block on the Biographical Sketch page has an "
                             "unexpectedly large line gap, suggesting double-spacing within a "
-                            "bullet item (NJIT guidelines Q026)."
+                            "bullet item."
                         ),
                         details={
                             "page_number": str(page.page_number),

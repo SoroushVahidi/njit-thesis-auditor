@@ -57,6 +57,11 @@ def _p063_findings(pdf_path: Path) -> list:
     return [f for f in check_pdf_appendix_body_headings(model) if f.rule_id == "P063"]
 
 
+def _assert_student_message_hides_source_q_ids(finding: object) -> None:
+    message = str(getattr(finding, "message", ""))
+    assert "Q0" not in message
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -132,6 +137,7 @@ def test_p063_multiple_appendix_missing_letter_warns(tmp_path: Path) -> None:
         if f.details.get("issue_type") == "multiple_appendix_missing_letter":
             assert f.details.get("appendix_count") == "2"
             assert f.details.get("source_q_rule_id") == "Q059"
+            _assert_student_message_hides_source_q_ids(f)
 
 
 def test_p063_multiple_appendix_letter_gap_warns(tmp_path: Path) -> None:
@@ -152,6 +158,7 @@ def test_p063_multiple_appendix_letter_gap_warns(tmp_path: Path) -> None:
     assert f.details.get("expected_letter") == "B"
     assert f.details.get("found_letter") == "C"
     assert f.details.get("source_q_rule_id") == "Q059"
+    _assert_student_message_hides_source_q_ids(f)
 
 
 def test_p063_multiple_appendix_letter_repeat_warns(tmp_path: Path) -> None:
@@ -169,6 +176,11 @@ def test_p063_multiple_appendix_letter_repeat_warns(tmp_path: Path) -> None:
     assert any(
         f.details.get("issue_type") == "appendix_letter_sequence_repeat" for f in findings
     )
+    repeated = next(
+        f for f in findings if f.details.get("issue_type") == "appendix_letter_sequence_repeat"
+    )
+    assert repeated.details.get("source_q_rule_id") == "Q059"
+    _assert_student_message_hides_source_q_ids(repeated)
     for f in findings:
         if f.details.get("issue_type") == "appendix_letter_sequence_repeat":
             assert f.details.get("letter_repeated") == "A"

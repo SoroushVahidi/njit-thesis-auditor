@@ -82,7 +82,7 @@ def _check_lot_terminal_period_page(
                 page=context.page.page_number,
                 message=(
                     "List of Tables entry ends with a terminal period. "
-                    "NJIT guidelines (Q065) require that table titles use "
+                    "NJIT guidelines require that table titles use "
                     "title case with no terminal period."
                 ),
                 details=details,
