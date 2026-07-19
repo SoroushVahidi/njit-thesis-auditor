@@ -118,7 +118,7 @@ def _check_ordering(
             message=(
                 f"List entry numbers are not in non-decreasing order: "
                 f"{inversions} inversion(s) among {len(comparable)} comparable entries. "
-                f"NJIT guidelines ({source_q_rule_id}) imply entries should be ordered."
+                "NJIT guidelines imply entries should be ordered."
             ),
             details={
                 "issue_type": issue_type,

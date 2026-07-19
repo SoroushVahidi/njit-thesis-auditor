@@ -54,7 +54,7 @@ def test_audit_finding_messages_do_not_expose_source_q_rule_ids() -> None:
                 if keyword.arg != "message":
                     continue
                 segment = ast.get_source_segment(source, keyword.value) or ""
-                if re.search(r"Q0\d{2}", segment):
+                if re.search(r"Q0\d{2}|source_q_rule", segment):
                     offenders.append(f"{path.relative_to(RULES_DIR)}:{node.lineno}")
 
     assert offenders == []

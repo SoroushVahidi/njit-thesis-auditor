@@ -1953,11 +1953,10 @@ def test_p044_triage_issue_type_counts() -> None:
     assert triage["issue_type_counts"]["abstract_subsequent_paragraph_not_indented"] == 2
 
 
-def test_p044_triage_source_q_rule_counts() -> None:
+def test_p044_triage_excludes_source_q_rule_counts() -> None:
     triage = build_p044_abstract_indentation_triage_summary(_p044_mixed_findings())
     assert triage is not None
-    assert triage["source_q_rule_counts"]["Q002"] == 1
-    assert triage["source_q_rule_counts"]["Q003"] == 2
+    assert "source_q_rule_counts" not in triage
 
 
 def test_p044_triage_paragraph_index_counts() -> None:
@@ -1973,7 +1972,9 @@ def test_markdown_report_includes_p044_triage_section(tmp_path: Path) -> None:
     write_markdown_report(_p044_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "## P044 Abstract Indentation Triage" in text
-    assert "Source Q-rule counts" in text
+    assert "Source Q-rule counts" not in text
+    assert "Q002" not in text
+    assert "Q003" not in text
     assert "Triage tier counts" not in text
     assert (
         "Raw per-page P044 findings are listed under **Findings by Rule → P044** below."
