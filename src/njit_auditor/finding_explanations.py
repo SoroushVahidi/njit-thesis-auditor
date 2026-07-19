@@ -1228,6 +1228,16 @@ def _p037_roman_section_explanation(
         section_name = _P037_SECTION_KEY_LABELS.get(
             details.get("section_key", "").strip(), "front-matter section"
         )
+    if details.get("section_key", "").strip() == "list_of_tables":
+        return (
+            f"Observed: The {section_name} page ({page_phrase}) is numbered '{observed}'. "
+            f"Expected: the List of Tables should continue the Roman sequence after the "
+            f"Table of Contents (expected here: '{expected}'). "
+            "Why this is suspicious: the Table of Contents can span multiple pages, so "
+            "this check uses the detected preceding TOC numeral instead of a fixed slot. "
+            f"What to check or fix: change this page's Roman numeral to '{expected}' "
+            "or correct the preceding front-matter sequence."
+        )
     return (
         f"Observed: The {section_name} page ({page_phrase}) is numbered '{observed}'. "
         f"Expected: NJIT's front-matter template assigns the {section_name} a fixed "

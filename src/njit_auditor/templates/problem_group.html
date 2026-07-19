@@ -274,7 +274,7 @@
           {# The page number is already the page this whole view is for -- showing it
              again on every card would duplicate it needlessly. #}
           {% elif example.page is not none %}
-          <span class="badge badge-info">Page {{ example.page }}</span>
+          <span class="badge badge-info">{{ example.page_display_label if example.page_display_label else "Page " ~ example.page }}</span>
           {% elif example.location_text and example.location_text.startswith("Document-wide") %}
           <span class="badge badge-muted">Document-wide</span>
           {% else %}
@@ -310,7 +310,7 @@
       <div class="example-card__actions">
         {% if example.action_kind in ("highlight", "original_page") and example.pdf_page_url %}
         <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
-          {{ example.action_label }} {{ example.page }}
+          {{ example.action_label }} {{ example.page_action_suffix if example.page_action_suffix else example.page }}
         </a>
         {% else %}
         <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>

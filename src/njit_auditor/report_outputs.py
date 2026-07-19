@@ -1560,6 +1560,11 @@ def audit_findings_to_json_dict(
             "page": finding.page,
             "details": details,
         }
+        if finding.page is not None:
+            entry["pdf_page"] = finding.page
+        document_page_label = details.get("document_page_label", "").strip()
+        if document_page_label:
+            entry["document_page_label"] = document_page_label
         if audit_type == "tex":
             entry["source_file"] = _source_location_basename(details)
             entry["source_line"] = details.get("line", "")
@@ -2954,6 +2959,30 @@ def _finding_markdown_line(
             audit_type=audit_type,
             p012_count_by_page=p012_count_by_page,
         )
+    elif (
+        map_finding_rule_to_category(str(finding.get("rule_id", "")), safe_details)
+        == "page_numbering"
+    ):
+        from njit_auditor.page_number_student_preview import (
+            classify_visible_page_number_issue,
+            page_number_location_label,
+        )
+
+        visible_issue_type, is_visible = classify_visible_page_number_issue(
+            str(finding.get("rule_id", "")),
+            issue_type,
+            safe_details,
+        )
+        loc_text = (
+            page_number_location_label(
+                str(finding.get("rule_id", "")),
+                visible_issue_type,
+                safe_details,
+                page,
+            )
+            if is_visible
+            else (f"PDF page {page}" if page is not None else "Document-wide overview")
+        )
     else:
         from njit_auditor.report_view import enriched_pdf_location_label
 
@@ -3118,6 +3147,27 @@ def _problem_location_text(
             observed_summary=safe_details.get("observed_summary", ""),
             expected=safe_details.get("expected", ""),
         )
+    if map_finding_rule_to_category(rule_id, safe_details) == "page_numbering":
+        from njit_auditor.page_number_student_preview import (
+            classify_visible_page_number_issue,
+            page_number_location_label,
+        )
+
+        visible_issue_type, is_visible = classify_visible_page_number_issue(
+            rule_id,
+            issue_type,
+            safe_details,
+        )
+        if is_visible:
+            label = page_number_location_label(
+                rule_id,
+                visible_issue_type,
+                safe_details,
+                page,
+            )
+            if label:
+                return label
+        return f"PDF page {page}" if page is not None else "Document-wide overview"
     label = enriched_pdf_location_label(rule_id, issue_type, safe_details, page)
     if label:
         return label

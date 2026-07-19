@@ -71,6 +71,15 @@ class PageNumberCandidate:
     bbox: tuple[float, float, float, float] | None = None
 
 
+@dataclass(frozen=True)
+class _SequenceCandidate:
+    page_number: int
+    value: int
+    text: str
+    number_style: str
+    bbox: tuple[float, float, float, float] | None = None
+
+
 def _is_top_or_bottom_zone(
     y0: float, y1: float, page_height: float, zone_ratio: float = TOP_BOTTOM_ZONE_RATIO
 ) -> bool:
@@ -338,42 +347,81 @@ def _primary_sequence_values(
     by_page: dict[int, list[PageNumberCandidate]],
     *,
     number_style: str,
-) -> list[tuple[int, int]]:
-    values: list[tuple[int, int]] = []
+) -> list[_SequenceCandidate]:
+    values: list[_SequenceCandidate] = []
     for page in sorted(by_page):
         primary = _primary_plausible_candidate(by_page[page])
         if primary is None or primary.number_style != number_style or primary.value is None:
             continue
-        values.append((page, primary.value))
+        values.append(
+            _SequenceCandidate(
+                page_number=page,
+                value=primary.value,
+                text=primary.text,
+                number_style=primary.number_style,
+                bbox=primary.bbox,
+            )
+        )
     return values
 
 
 def _sequence_neighbors(
-    values_by_page: list[tuple[int, int]], page: int
+    values_by_page: list[_SequenceCandidate], page: int
 ) -> tuple[str, str, str, str]:
     """Return (previous_page, previous_value, next_page, next_value) as strings,
     so wording can name the exact neighboring pages, not just their values --
     e.g. "changed from 'viii' on page 8 to '10' on page 9" instead of only
     naming the values with no page attached.
     """
-    sorted_items = sorted(values_by_page, key=lambda item: item[0])
+    sorted_items = sorted(values_by_page, key=lambda item: item.page_number)
     previous_page = ""
     previous_value = ""
     next_page = ""
     next_value = ""
-    for index, (current_page, value) in enumerate(sorted_items):
-        if current_page != page:
+    for index, current in enumerate(sorted_items):
+        if current.page_number != page:
             continue
         if index > 0:
-            prev_page_num, prev_val = sorted_items[index - 1]
-            previous_page = str(prev_page_num)
-            previous_value = str(prev_val)
+            prev = sorted_items[index - 1]
+            previous_page = str(prev.page_number)
+            previous_value = prev.text
         if index + 1 < len(sorted_items):
-            next_page_num, next_val = sorted_items[index + 1]
-            next_page = str(next_page_num)
-            next_value = str(next_val)
+            next_item = sorted_items[index + 1]
+            next_page = str(next_item.page_number)
+            next_value = next_item.text
         break
     return previous_page, previous_value, next_page, next_value
+
+
+def _int_to_roman_lower(value: int) -> str:
+    vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    syms = ["m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i"]
+    result: list[str] = []
+    for amount, symbol in zip(vals, syms):
+        while value >= amount:
+            result.append(symbol)
+            value -= amount
+    return "".join(result)
+
+
+def _format_expected_sequence_value(number_style: str, value: int) -> str:
+    if number_style == "roman_lower":
+        return _int_to_roman_lower(value)
+    if number_style == "roman_upper":
+        return _int_to_roman_lower(value).upper()
+    return str(value)
+
+
+def _document_label_details(candidate: PageNumberCandidate | _SequenceCandidate) -> dict[str, str]:
+    details = {
+        "pdf_page": str(candidate.page_number),
+        "document_page_label": candidate.text,
+        "document_page_label_style": candidate.number_style,
+        "document_page_label_confidence": "medium",
+    }
+    if candidate.bbox is not None:
+        details["document_page_label_bbox"] = format_bbox_detail(candidate.bbox)
+    return details
 
 
 def _candidate_confidence(candidate: PageNumberCandidate) -> str:
@@ -496,6 +544,7 @@ def run_pdf_page_number_candidates_rule(
                 "Verify placement/format against NJIT page-number requirements."
             ),
         }
+        details.update(_document_label_details(primary))
         if primary.bbox is not None:
             details["bbox"] = format_bbox_detail(primary.bbox)
         findings.append(
@@ -510,17 +559,19 @@ def run_pdf_page_number_candidates_rule(
     return findings
 
 
-def _find_sequence_gap(values_by_page: list[tuple[int, int]]) -> tuple[int, int, int] | None:
+def _find_sequence_gap(
+    values_by_page: list[_SequenceCandidate],
+) -> tuple[_SequenceCandidate, int, int] | None:
     if len(values_by_page) < 3:
         return None
-    sorted_items = sorted(values_by_page, key=lambda item: item[0])
-    for (prev_page, prev_value), (page, value) in zip(sorted_items, sorted_items[1:]):
-        page_step = page - prev_page
-        value_step = value - prev_value
+    sorted_items = sorted(values_by_page, key=lambda item: item.page_number)
+    for prev, current in zip(sorted_items, sorted_items[1:]):
+        page_step = current.page_number - prev.page_number
+        value_step = current.value - prev.value
         if page_step <= 0:
             continue
         if value_step != page_step:
-            return (page, prev_value + page_step, value)
+            return (current, prev.value + page_step, current.value)
     return None
 
 
@@ -596,6 +647,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             "confidence": "medium",
         }
         primary = _primary_plausible_candidate(plausible)
+        if primary is not None:
+            multiple_details.update(_document_label_details(primary))
         if primary is not None and primary.bbox is not None:
             multiple_details["bbox"] = format_bbox_detail(primary.bbox)
         findings.append(
@@ -637,6 +690,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                     "confidence": "medium",
                 }
                 mismatch_bbox = mismatched_candidates[0].bbox
+                inconsistent_details.update(
+                    _document_label_details(mismatched_candidates[0])
+                )
                 if mismatch_bbox is not None:
                     inconsistent_details["bbox"] = format_bbox_detail(mismatch_bbox)
                 findings.append(
@@ -669,6 +725,7 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             # (mirrors the same precedent used for inconsistent_position and
             # multiple_page_numbers above).
             mixed_style_primary = max(plausible, key=_candidate_rank)
+            mixed_style_details.update(_document_label_details(mixed_style_primary))
             if mixed_style_primary.bbox is not None:
                 mixed_style_details["bbox"] = format_bbox_detail(mixed_style_primary.bbox)
             findings.append(
@@ -715,7 +772,8 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     arabic_values = _primary_sequence_values(by_page, number_style="arabic")
     arabic_gap = _find_sequence_gap(arabic_values)
     if arabic_gap:
-        page, expected, actual = arabic_gap
+        current, expected, actual = arabic_gap
+        page = current.page_number
         if (
             expected <= MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER
             and actual <= MAX_PLAUSIBLE_ARABIC_PAGE_NUMBER
@@ -736,9 +794,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 "sequence_confidence": "medium",
                 "confidence": "medium",
             }
-            primary = _primary_plausible_candidate(by_page.get(page, []))
-            if primary is not None and primary.bbox is not None:
-                sequence_details["bbox"] = format_bbox_detail(primary.bbox)
+            sequence_details.update(_document_label_details(current))
+            if current.bbox is not None:
+                sequence_details["bbox"] = format_bbox_detail(current.bbox)
             findings.append(
                 AuditFinding(
                     rule_id="P019",
@@ -752,16 +810,28 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     roman_values = _primary_sequence_values(by_page, number_style="roman_lower")
     roman_gap = _find_sequence_gap(roman_values)
     if roman_gap:
-        page, expected, actual = roman_gap
+        current, expected, actual = roman_gap
+        page = current.page_number
+        # P029 owns front-matter lowercase-Roman sequence defects. Suppress the
+        # generic P019 duplicate only when this physical page is confidently in
+        # front matter; P019 still handles Roman sequence breaks outside that scope.
+        if page in front_matter_pages:
+            roman_gap = None
+    if roman_gap:
+        current, expected, actual = roman_gap
+        page = current.page_number
         previous_page, previous_value, next_page, next_value = _sequence_neighbors(
             roman_values, page
         )
+        expected_text = _format_expected_sequence_value(current.number_style, expected)
         roman_sequence_details: dict[str, str] = {
             "page_number": str(page),
             "issue_type": "sequence_gap",
             "expected_or_context": f"expected={expected},actual={actual},style=roman_lower",
-            "observed_sequence": str(actual),
-            "expected_sequence": str(expected),
+            "observed_sequence": current.text,
+            "expected_sequence": expected_text,
+            "observed_value": str(actual),
+            "expected_value": str(expected),
             "previous_sequence_value": previous_value,
             "next_sequence_value": next_value,
             "previous_sequence_page": previous_page,
@@ -769,9 +839,9 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             "sequence_confidence": "medium",
             "confidence": "medium",
         }
-        roman_primary = _primary_plausible_candidate(by_page.get(page, []))
-        if roman_primary is not None and roman_primary.bbox is not None:
-            roman_sequence_details["bbox"] = format_bbox_detail(roman_primary.bbox)
+        roman_sequence_details.update(_document_label_details(current))
+        if current.bbox is not None:
+            roman_sequence_details["bbox"] = format_bbox_detail(current.bbox)
         findings.append(
             AuditFinding(
                 rule_id="P019",

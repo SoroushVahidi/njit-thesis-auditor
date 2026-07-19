@@ -89,6 +89,8 @@ from njit_auditor.page_number_student_preview import (
     classify_visible_page_number_issue,
     consume_page_number_display_slot,
     is_page_number_rule,
+    page_number_action_suffix,
+    page_number_badge_label,
     page_number_location_label,
 )
 from njit_auditor.pdf_highlight import (
@@ -188,6 +190,8 @@ class FindingView:
     source_file: str = ""
     source_line: str = ""
     location_label: str = ""
+    page_display_label: str = ""
+    page_action_suffix: str = ""
     bbox: tuple[float, float, float, float] | None = None
     # Actionability fields (presentation layer only — never change detection semantics)
     action_kind: str = ""       # "highlight" | "original_page" | "explanation"
@@ -876,6 +880,8 @@ def _finding_view_from_item(
     severity = str(item.get("severity", "WARNING"))
     category = map_finding_rule_to_category(rule_id, details)
     confidence = _normalize_confidence(str(details.get("confidence", "")))
+    page_display_label = f"Page {page}" if page is not None else "No page"
+    page_action_suffix_label = str(page) if page is not None else ""
     polished = build_polished_comment(
         rule_id=rule_id,
         issue_type=issue_type,
@@ -907,6 +913,8 @@ def _finding_view_from_item(
             source_file=source_file,
             source_line=source_line,
             location_label=location_label,
+            page_display_label=page_display_label,
+            page_action_suffix=page_action_suffix_label,
             bbox=bbox,
             action_kind=get_action_kind(has_highlight=has_highlight, page=page),
             action_label=get_action_label(has_highlight=has_highlight, page=page),
@@ -1534,6 +1542,17 @@ def _page_number_comment_and_fix(
                 "Correct this page's Roman numeral so it continues the front-matter sequence.",
             )
         if rule_id == "P037":
+            if details.get("section_key", "").strip() == "list_of_tables":
+                return (
+                    "Review needed: Problem: "
+                    f"The Roman numeral page number on page {page_label} does not continue "
+                    "the front-matter sequence after the Table of Contents "
+                    f"(observed: {observed}; expected: {expected}). This check uses the "
+                    "detected preceding TOC numeral instead of a fixed slot because the "
+                    "Table of Contents can span multiple pages.",
+                    "Set the List of Tables page number to the next Roman numeral after the "
+                    "Table of Contents, or correct the preceding front-matter sequence.",
+                )
             return (
                 "Review needed: Problem: "
                 f"The Roman numeral page number on page {page_label} does not match the "
@@ -1824,6 +1843,12 @@ def _apply_page_number_presentation(
             suggested_fix=suggested_fix,
             detailed_explanation=detailed_explanation,
             location_label=location_label,
+            page_display_label=page_number_badge_label(
+                finding.rule_id, details, finding.page
+            ),
+            page_action_suffix=page_number_action_suffix(
+                finding.rule_id, details, finding.page
+            ),
             no_highlight_reason=no_highlight_reason,
         ),
         is_problem,

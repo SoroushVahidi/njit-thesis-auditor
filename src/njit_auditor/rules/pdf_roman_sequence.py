@@ -115,6 +115,7 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
             seen.add(key)
             details = {
                 "page_number": str(cand.page_number),
+                "pdf_page": str(cand.page_number),
                 "issue_type": issue_type,
                 "candidate_text": cand.text,
                 "candidate_value": str(cand.value),
@@ -122,11 +123,15 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 "expected_value": str(expected),
                 "observed_sequence": cand.text,
                 "expected_sequence": _int_to_roman_lower(expected),
+                "document_page_label": cand.text,
+                "document_page_label_style": cand.number_style,
+                "document_page_label_confidence": "medium",
                 "page_region": "front_matter",
                 "confidence": confidence,
             }
             if cand.bbox is not None:
                 details["bbox"] = format_bbox_detail(cand.bbox)
+                details["document_page_label_bbox"] = format_bbox_detail(cand.bbox)
             findings.append(
                 AuditFinding(
                     rule_id="P029",

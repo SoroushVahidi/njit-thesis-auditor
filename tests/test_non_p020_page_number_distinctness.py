@@ -36,6 +36,8 @@ def _p029_finding(
             "issue_type": issue_type,
             "observed_sequence": observed,
             "expected_sequence": expected,
+            "document_page_label": observed,
+            "document_page_label_confidence": "medium",
             "page_region": "front_matter",
             "bbox": bbox,
         },
@@ -59,6 +61,8 @@ def _p037_finding(
             "section_key": section_key,
             "observed_sequence": observed,
             "expected_sequence": expected,
+            "document_page_label": observed,
+            "document_page_label_confidence": "medium",
         },
     )
 
@@ -67,10 +71,18 @@ def test_p029_location_label_names_printed_and_expected_values() -> None:
     label = page_number_location_label(
         "P029",
         "wrong_page_number_sequence",
-        {"observed_sequence": "vii", "expected_sequence": "viii"},
+        {
+            "observed_sequence": "vii",
+            "expected_sequence": "viii",
+            "document_page_label": "vii",
+            "document_page_label_confidence": "medium",
+        },
         7,
     )
-    assert label == 'Page 7 — printed page number "vii" (expected "viii")'
+    assert label == (
+        'Document page: vii · PDF page: 7 — printed page number "vii" '
+        '(expected "viii")'
+    )
 
 
 def test_p037_location_label_names_section_and_values() -> None:
@@ -81,12 +93,25 @@ def test_p037_location_label_names_section_and_values() -> None:
             "section_key": "biographical_sketch",
             "observed_sequence": "vi",
             "expected_sequence": "iv",
+            "document_page_label": "vi",
+            "document_page_label_confidence": "medium",
         },
         11,
     )
     assert label == (
-        'Page 11 — Biographical Sketch, printed page number "vi" (expected "iv")'
+        'Document page: vi · PDF page: 11 — Biographical Sketch, '
+        'printed page number "vi" (expected "iv")'
     )
+
+
+def test_missing_page_number_location_falls_back_to_physical_pdf_page() -> None:
+    label = page_number_location_label(
+        "P019",
+        "missing_page_number",
+        {"issue_type": "missing_page_number"},
+        9,
+    )
+    assert label == "PDF page 9 — no printed page number detected"
 
 
 def test_document_level_p019_style_warning_has_document_wide_location() -> None:
@@ -111,6 +136,7 @@ def test_distinct_p029_same_page_different_observed_values_have_distinct_locatio
     locations = {card.location_label for card in cards}
     assert len(locations) == 2
     assert all('printed page number "' in loc for loc in locations)
+    assert all("PDF page: 7" in loc for loc in locations)
 
 
 def test_exact_duplicate_p029_findings_produce_one_visible_card() -> None:
@@ -198,6 +224,33 @@ def test_page_number_student_facing_text_has_no_raw_coordinates() -> None:
     assert "500.0" not in card.polished_comment
     assert "500.0" not in card.location_label
     assert "720.0" not in card.detailed_explanation
+
+
+def test_page_number_warning_card_badge_uses_document_label_without_changing_page() -> None:
+    view = build_report_view(_payload([_p029_finding(page=7, observed="viii", expected="ix")]))
+    card = next(f for f in view.findings if f.rule_id == "P029")
+    assert card.page == 7
+    assert card.page_display_label == "Page viii (PDF page 7)"
+    assert card.page_action_suffix == "viii (PDF page 7)"
+
+
+def test_json_export_keeps_page_and_adds_page_label_metadata() -> None:
+    payload = _payload([_p029_finding(page=7, observed="viii", expected="ix")])
+    finding = next(f for f in payload["findings"] if f["rule_id"] == "P029")
+    assert finding["page"] == 7
+    assert finding["pdf_page"] == 7
+    assert finding["document_page_label"] == "viii"
+
+
+def test_markdown_location_uses_document_label_and_pdf_page(tmp_path: Path) -> None:
+    output_path = tmp_path / "report.md"
+    write_markdown_report(
+        [_p029_finding(page=7, observed="viii", expected="ix")],
+        {"audit_type": "pdf"},
+        output_path,
+    )
+    text = output_path.read_text(encoding="utf-8")
+    assert "Document page: viii · PDF page: 7" in text
 
 
 def test_classify_visible_page_number_issue_hides_routine_p013_candidate() -> None:
