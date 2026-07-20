@@ -1,0 +1,11 @@
+# Environment for njit-thesis-auditor-tcp8000-diagnostics.service.
+#
+# Set CLIENT_FILTER=10.196.115.152 when you only want Esther's current laptop IP.
+# Leave CLIENT_FILTER empty to record metadata for all TCP/8000 clients.
+DEPLOY_WORKTREE=/home/soroush/njit-thesis-auditor/njit-thesis-auditor-clean-worktrees/live-current-main
+AUDITOR_HOST=10.196.93.210
+AUDITOR_PORT=8000
+CLIENT_FILTER=
+TCPDUMP_BIN=/usr/bin/tcpdump
+TCPDUMP_INTERFACE=any
+TCPDUMP_SNAPLEN=96

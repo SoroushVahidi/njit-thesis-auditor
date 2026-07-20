@@ -1,0 +1,18 @@
+[Unit]
+Description=NJIT Thesis Auditor TCP/8000 metadata diagnostics
+Documentation=file:/home/soroush/njit-thesis-auditor/njit-thesis-auditor-clean-worktrees/live-current-main/docs/network_diagnostics.md
+After=network-online.target
+
+[Service]
+Type=simple
+Environment=DEPLOY_WORKTREE=/home/soroush/njit-thesis-auditor/njit-thesis-auditor-clean-worktrees/live-current-main
+EnvironmentFile=-/etc/default/njit-thesis-auditor-tcp8000-diagnostics
+ExecStartPre=/usr/bin/install -d -m 0750 -o root -g adm /var/log/njit-thesis-auditor
+ExecStart=/bin/bash -lc 'exec "$DEPLOY_WORKTREE/scripts/run_tcp8000_metadata_capture.sh"'
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/njit-thesis-auditor/tcp-8000.log
+StandardError=append:/var/log/njit-thesis-auditor/tcp-8000.log
+
+[Install]
+WantedBy=multi-user.target
