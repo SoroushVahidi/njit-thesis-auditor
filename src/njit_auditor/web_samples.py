@@ -1,4 +1,4 @@
-"""Curated built-in sample PDF registry for the web audit UI."""
+﻿"""Curated built-in sample PDF registry for the web audit UI."""
 
 from __future__ import annotations
 
@@ -23,22 +23,22 @@ class SampleInfo:
 _CURATED: list[SampleInfo] = [
     SampleInfo(
         sample_id="ester_sample_a",
-        label="Sample A — first review (EF-annotated)",
+        label="Sample A ? first review (EF-annotated)",
         rel_path="data/raw/ester/250218 Cibaku Elson First Review.pdf",
     ),
     SampleInfo(
         sample_id="ester_sample_b",
-        label="Sample B — second review with EF feedback",
+        label="Sample B ? second review with EF feedback",
         rel_path="data/raw/ester/Yin_Haotian_Second_R_with_EF_Feedback.pdf",
     ),
     SampleInfo(
         sample_id="ester_sample_c",
-        label="Sample C — second review with EF comments",
+        label="Sample C ? second review with EF comments",
         rel_path="data/raw/ester/260415 Yin H _2nd_review with EF Comments.pdf",
     ),
     SampleInfo(
         sample_id="ester_sample_d",
-        label="Sample D — fourth review compressed (EF-annotated)",
+        label="Sample D ? fourth review compressed (EF-annotated)",
         rel_path="data/raw/ester/Yin_H_4th_Review_with_EF_comments_compressed.pdf",
     ),
 ]
@@ -65,8 +65,10 @@ def copy_builtin_sample_to_job(sample_id: str, destination_path: Path) -> None:
 
     # Defense-in-depth: verify resolved path stays under repo root.
     repo = _REPO_ROOT.resolve()
-    if not str(src).startswith(str(repo) + "/") and str(src) != str(repo):
-        raise ValueError("Sample path escapes repository root.")
+    try:
+        src.relative_to(repo)
+    except ValueError:
+        raise ValueError("Sample path escapes repository root.") from None
 
     if not src.exists():
         raise FileNotFoundError("Sample file not found on this server.")
@@ -77,3 +79,4 @@ def copy_builtin_sample_to_job(sample_id: str, destination_path: Path) -> None:
         raise ValueError("Sample file is not a valid PDF.")
 
     shutil.copy2(src, destination_path)
+
