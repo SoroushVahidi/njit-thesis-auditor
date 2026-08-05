@@ -390,6 +390,24 @@ def test_mixed_medium_low_confidence_displays_as_low() -> None:
     assert group.confidence_css_class == "confidence-badge--low"
 
 
+def _reordered_by_rule_id(
+    items: list[dict[str, Any]], rule_id_order: list[str]
+) -> list[dict[str, Any]]:
+    """Return items rearranged to a specific rule_id order (each rule_id unique here).
+
+    audit_findings_to_json_dict() now sorts findings by page before assigning
+    problem numbers (see report_outputs._findings_sorted_for_export), so the
+    fixtures below no longer come out of build_report_view() in a deliberately
+    non-page-ordered sequence. The sort_grouped_problems/sort_findings tests
+    still need a scrambled input to prove the "default"/"page_order" sort mode
+    itself reorders correctly rather than just passing through -- this helper
+    reconstructs that scrambled order explicitly instead of relying on it as an
+    incidental side effect of report-building order.
+    """
+    by_rule_id = {item["rule_id"]: item for item in items}
+    return [by_rule_id[rule_id] for rule_id in rule_id_order]
+
+
 def _confidence_sort_fixture_grouped_problems() -> list[dict[str, Any]]:
     """Five singleton cards in a deliberately non-confidence-ordered default order.
 
@@ -459,9 +477,10 @@ def test_sort_grouped_problems_default_mode_orders_by_page() -> None:
     """"default" is the "Page order" option shown in the UI and the order applied on
     first page load, so it must sort by earliest affected page, not preserve
     insertion order (P037 is inserted first but is on page 2, after P011's page 1)."""
-    problems = _confidence_sort_fixture_grouped_problems()
-    insertion_order = [p["rule_id"] for p in problems]
-    assert insertion_order == ["P037", "P011", "P026", "P030", "P044"]
+    problems = _reordered_by_rule_id(
+        _confidence_sort_fixture_grouped_problems(),
+        ["P037", "P011", "P026", "P030", "P044"],
+    )
 
     # Pages: P037=2, P011=1, P026=3, P030=4, P044=5.
     expected_page_order = ["P011", "P037", "P026", "P030", "P044"]
@@ -699,9 +718,10 @@ def _page_sort_fixture_grouped_problems() -> list[dict[str, Any]]:
 
 
 def test_page_order_sort_orders_grouped_problems_by_earliest_page() -> None:
-    problems = _page_sort_fixture_grouped_problems()
-    default_order = [p["rule_id"] for p in problems]
-    assert default_order == ["P037", "P011", "P026", "P030", "P044"]
+    problems = _reordered_by_rule_id(
+        _page_sort_fixture_grouped_problems(),
+        ["P037", "P011", "P026", "P030", "P044"],
+    )
 
     sorted_problems = sort_grouped_problems(problems, "page_order")
     # P044's earliest occurrence (page 1) sorts first even though it is a multi-page
@@ -819,9 +839,10 @@ def _confidence_sort_fixture_findings() -> list[dict[str, Any]]:
 
 
 def test_sort_findings_default_mode_orders_by_page() -> None:
-    findings = _confidence_sort_fixture_findings()
-    insertion_order = [f["rule_id"] for f in findings]
-    assert insertion_order == ["P037", "P011", "P026", "P030", "P044"]
+    findings = _reordered_by_rule_id(
+        _confidence_sort_fixture_findings(),
+        ["P037", "P011", "P026", "P030", "P044"],
+    )
 
     # Pages: P037=2, P011=1, P026=3, P030=4, P044=5.
     expected_page_order = ["P011", "P037", "P026", "P030", "P044"]
@@ -927,9 +948,10 @@ def _page_sort_fixture_findings() -> list[dict[str, Any]]:
 
 
 def test_sort_findings_page_order_orders_by_page() -> None:
-    findings = _page_sort_fixture_findings()
-    default_order = [f["rule_id"] for f in findings]
-    assert default_order == ["P037", "P011", "P026", "P030"]
+    findings = _reordered_by_rule_id(
+        _page_sort_fixture_findings(),
+        ["P037", "P011", "P026", "P030"],
+    )
 
     sorted_findings = sort_findings(findings, "page_order")
     # P011 and P026 share page 3 and keep their original relative order
