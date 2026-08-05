@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from njit_auditor.models import AuditFinding, Severity
@@ -1137,6 +1138,87 @@ def test_json_export_hides_internal_source_q_details() -> None:
     assert details["paragraph_index"] == "1"
 
 
+def _unordered_page_findings() -> list[AuditFinding]:
+    """Findings whose input order deliberately does not match page order.
+
+    Mimics real pipeline output: each rule sweeps the whole document before the
+    next rule runs, so findings from different rules interleave pages
+    non-sequentially (here: 8, 2, 5, None, 2). None of these rule_id/issue_type
+    pairs are subject to the P011/P012/P020/P026/P018/page-numbering "first
+    occurrence wins" display dedup, so every finding stays individually visible
+    and this test can assert order and count without that logic in the way.
+    A source_q_rule_id is attached to the first finding to confirm the
+    page-reorder does not reintroduce a Q-rule ID leak into the export.
+    """
+    return [
+        AuditFinding(
+            rule_id="P014",
+            severity=Severity.WARNING,
+            page=8,
+            message="Heading not centered on page eight.",
+            details={"issue_type": "heading_not_centered", "source_q_rule_id": "Q014"},
+        ),
+        AuditFinding(
+            rule_id="P015",
+            severity=Severity.WARNING,
+            page=2,
+            message="Body indentation problem on page two.",
+            details={"issue_type": "body_indent_problem"},
+        ),
+        AuditFinding(
+            rule_id="P021",
+            severity=Severity.WARNING,
+            page=5,
+            message="Formatting problem on page five.",
+            details={"issue_type": "formatting_problem"},
+        ),
+        AuditFinding(
+            rule_id="P068",
+            severity=Severity.WARNING,
+            page=None,
+            message="Document-wide committee block problem.",
+            details={"issue_type": "committee_block_problem"},
+        ),
+        AuditFinding(
+            rule_id="P027",
+            severity=Severity.WARNING,
+            page=2,
+            message="Second problem also on page two.",
+            details={"issue_type": "sentence_case_mismatch"},
+        ),
+    ]
+
+
+def test_json_export_orders_findings_by_page() -> None:
+    findings = _unordered_page_findings()
+    payload = audit_findings_to_json_dict(findings, _metadata())
+    serialized = payload["findings"]
+
+    # No finding is dropped or added by the reorder.
+    assert len(serialized) == len(findings)
+    assert {f["rule_id"] for f in serialized} == {"P014", "P015", "P021", "P068", "P027"}
+
+    # Page-specific findings come first in ascending page order; the one
+    # page-less finding (P068) sorts last, not wherever it fell in the input.
+    pages = [f["page"] for f in serialized]
+    assert pages == [2, 2, 5, 8, None]
+
+    # A stable sort keeps same-page findings in their original relative order
+    # (P015 appeared before P027 in the unsorted input, both on page 2).
+    rule_order = [f["rule_id"] for f in serialized]
+    assert rule_order == ["P015", "P027", "P021", "P014", "P068"]
+
+    # Problem numbers are assigned in the new page order, 1..N, matching the
+    # order a student would encounter each issue reading front-to-back.
+    problem_numbers = [f["problem_number"] for f in serialized]
+    assert problem_numbers == [1, 2, 3, 4, 5]
+
+    # The page-reorder must not reintroduce a source Q-rule ID leak.
+    for entry in serialized:
+        assert "source_q_rule_id" not in entry["details"]
+        assert "Q014" not in json.dumps(entry)
+
+
 # ---- write_json_report tests ----
 
 
@@ -1167,6 +1249,44 @@ def test_json_report_raw_findings_not_removed(tmp_path: Path) -> None:
 
 
 # ---- write_markdown_report tests ----
+
+
+def test_markdown_problems_section_orders_findings_by_page(tmp_path: Path) -> None:
+    """The primary "## Problems" list must read in page order, not detection order.
+
+    Regression test for the report-download page-ordering fix: before it, this
+    section listed findings in raw per-rule detection order (see
+    _findings_sorted_for_export), so a student reading the downloaded report
+    front-to-back would encounter problems jumping backward across pages.
+    """
+    output_path = tmp_path / "report.md"
+    findings = _unordered_page_findings()
+    write_markdown_report(findings, _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    problems_start = text.index("## Problems")
+    findings_by_rule_start = text.index("## Findings by Rule")
+    problems_section = text[problems_start:findings_by_rule_start]
+
+    headings = re.findall(r"^### Problem (\d+) — (.+)$", problems_section, re.MULTILINE)
+    # No finding is dropped: exactly one "### Problem N" heading per input finding.
+    assert len(headings) == len(findings)
+    assert [int(number) for number, _ in headings] == [1, 2, 3, 4, 5]
+
+    # Rule IDs appear in the same page order asserted against the JSON export:
+    # page 2, 2, 5, 8, then the page-less finding last.
+    rule_id_order = []
+    for number, _ in headings:
+        block = problems_section[problems_section.index(f"### Problem {number} —") :]
+        match = re.search(r"- Rule: `(P\d+)`", block)
+        assert match is not None
+        rule_id_order.append(match.group(1))
+    assert rule_id_order == ["P015", "P027", "P021", "P014", "P068"]
+
+    # A source Q-rule ID attached to one finding must not leak into the
+    # student-facing markdown export.
+    assert "source_q_rule_id" not in text
+    assert "Q014" not in text
 
 
 def test_markdown_report_is_written_and_parent_created(tmp_path: Path) -> None:

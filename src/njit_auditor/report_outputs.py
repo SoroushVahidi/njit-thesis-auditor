@@ -234,6 +234,32 @@ def _prepare_findings_for_export(
     return prepared
 
 
+def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFinding]:
+    """Return findings ordered by PDF page, earliest first, page-less findings last.
+
+    The audit pipeline emits findings grouped by detector/rule (each rule sweeps
+    the whole document before the next one runs), not by page, so without this
+    sort a downloaded report's finding order -- and its problem numbers -- jump
+    around the document non-sequentially. TeX-source findings carry no ``page``
+    (they use file/line instead), so every one shares sort key ``(True, 0)`` and
+    this is a no-op for source audits; their own file/line ordering is applied
+    separately where needed (see the "Findings by Rule" sort_key below).
+
+    The sort is stable, which matters beyond determinism: several presentation
+    helpers downstream (``_problem_number_map``, ``build_grouped_findings``, and
+    the P011/P012/P020/P026/page-number "first occurrence wins" dedup states)
+    pick their representative finding via per-page state keyed on traversal
+    order, not raw list position. Because every one of those dedup keys already
+    includes the page, a stable sort preserves which finding wins each dedup
+    slot -- it only reorders the page groups themselves, so finding counts and
+    representative-finding choices are unchanged; only display order changes.
+    """
+    return sorted(
+        findings,
+        key=lambda finding: (finding.page is None, finding.page or 0),
+    )
+
+
 def build_source_report(
     findings: list[AuditFinding],
     *,
@@ -1573,7 +1599,7 @@ def audit_findings_to_json_dict(
 ) -> dict[str, Any]:
     """Convert findings + metadata into a structured serializable payload."""
     audit_type = metadata.get("audit_type", "pdf")
-    prepared = _prepare_findings_for_export(findings, audit_type)
+    prepared = _findings_sorted_for_export(_prepare_findings_for_export(findings, audit_type))
 
     serialized_findings: list[dict[str, Any]] = []
     for finding in prepared:
