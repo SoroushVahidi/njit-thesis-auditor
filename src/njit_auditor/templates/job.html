@@ -651,11 +651,12 @@
 <section id="section-downloads" class="section export-section" aria-label="Downloads">
   <h2 style="margin-top:0;">Download reports</h2>
   <p class="file-hint" style="margin-top:0">
-    Download the full student report as a Markdown file — every finding, in page order, with plain-language explanations and suggested fixes. A structured JSON export is also available for use with other tools.
+    Download the full student report as a plain-text file — every finding, grouped by page, with plain-language explanations and suggested fixes. A Markdown copy and a structured JSON export (for other tools) are also available.
   </p>
   <div class="dl-links">
     <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View original PDF &#8599;</a>
-    <a href="/audits/{{ job_id }}/download/markdown" class="btn">Download Full Student Report</a>
+    <a href="/audits/{{ job_id }}/download/text" class="btn">Download Full Student Report (.txt)</a>
+    <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON (structured/developer export)</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
   </div>

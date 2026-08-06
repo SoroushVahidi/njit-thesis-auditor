@@ -47,11 +47,14 @@ from njit_auditor.pdf_highlight import (
 )
 from njit_auditor.report_outputs import (
     _high_volume_pattern_note,
+    _websafe_rule_text,
     build_audit_report,
+    category_display_label,
     compact_page_list,
     sanitize_report_for_web_export,
     write_markdown_report,
 )
+from njit_auditor.report_text import write_text_report
 from njit_auditor.report_view import (
     SORT_MODE_DEFAULT,
     build_report_view,
@@ -429,37 +432,9 @@ _templates.env.globals["pdf_action_url"] = _pdf_action_url
 # Category humanization
 # ---------------------------------------------------------------------------
 
-_CATEGORY_LABELS: dict[str, str] = {
-    "abstract_language": "Abstract language",
-    "abstract_length": "Abstract length",
-    "abstract_structure": "Abstract structure",
-    "annotations": "Annotations / comments",
-    "capitalization_case": "Capitalization",
-    "committee_approval_page": "Approval page",
-    "copyright_page_metadata": "Copyright page",
-    "figure_format": "Figure formatting",
-    "figure_table_format": "Figures / tables",
-    "font_format": "Font formatting",
-    "formatting_override": "Formatting overrides",
-    "frontmatter_structure": "Front matter / appendix structure",
-    "heading_title": "Headings / titles",
-    "indentation": "Indentation",
-    "labels_references": "Labels / cross-references",
-    "latex_linter": "LaTeX linting",
-    "list_of_tables_figures_toc": "TOC / lists",
-    "margin_or_overflow": "Margins / overflow",
-    "page_numbering": "Page numbering",
-    "punctuation": "Punctuation",
-    "references_citations": "References / citations",
-    "spacing_blank_lines": "Spacing / blank lines",
-    "table_format": "Table formatting",
-    "title_page_metadata": "Title page",
-}
-
-
 def _humanize_cat(category: str) -> str:
     """Return a student-friendly display label for a raw category key."""
-    return _CATEGORY_LABELS.get(str(category), str(category).replace("_", " ").capitalize())
+    return category_display_label(category)
 
 
 _templates.env.filters["humanize_cat"] = _humanize_cat
@@ -666,367 +641,6 @@ def _rule_technical_classification(rule: dict[str, Any]) -> str | None:
 def _classify_rule(rule: dict[str, Any]) -> str:
     """Return 'student' or 'technical'."""
     return "technical" if _rule_technical_classification(rule) is not None else "student"
-
-
-_HEURISTIC_WORDING = [
-    # Order matters: collapse the "heuristic check" bigram first so it
-    # doesn't end up as the doubled-up "check check".
-    (re.compile(r"\bHeuristic check\b"), "Automated check"),
-    (re.compile(r"\bheuristic check\b"), "automated check"),
-    (re.compile(r"\bHeuristically\b"), "Automatically"),
-    (re.compile(r"\bheuristically\b"), "automatically"),
-    (re.compile(r"\bHeuristics\b"), "Checks"),
-    (re.compile(r"\bheuristics\b"), "checks"),
-    (re.compile(r"\bHeuristic\b"), "Check"),
-    (re.compile(r"\bheuristic\b"), "check"),
-]
-
-# A handful of canonical rule_definition/remediation strings reference
-# LaTeX-specific authoring/implementation detail (e.g. LaTeX-only remediation
-# commands, "implemented for both LaTeX source and compiled PDF"). This
-# website only ever runs the PDF path, so those mentions are confusing here.
-# Override just the public display text for those entries — the canonical
-# rule data on disk (used by the CLI's source audit) is left untouched.
-_RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
-    "P011": {
-        "question": (
-            "Is all text (including tables and figures) contained entirely within "
-            "the required page margins?"
-        ),
-        "remediation": (
-            "Set left margin to 1.5 inches and top, bottom, and right margin to "
-            "1 inch."
-        ),
-    },
-    "P021": {
-        "rule_definition": (
-            "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 "
-            "words. Degree type is inferred from the document text. Word count "
-            "uses conservative tokenization (letter-containing tokens only)."
-        ),
-    },
-    "P023": {
-        "question": (
-            "Is body text double-spaced, except for tables, figure descriptions, "
-            "bullet points, and multi-line titles?"
-        ),
-        "remediation": (
-            "Apply double spacing to body text. Keep tables, figure descriptions, "
-            "bullet points, and multi-line titles single-spaced."
-        ),
-    },
-    "P026": {
-        "rule_definition": (
-            "NJIT guidelines require body text to use an accepted font family and 12pt size. "
-            "Word documents should use Times New Roman or Arial. Documents prepared with "
-            "common thesis templates often use Computer Modern or Latin Modern, which are "
-            "also accepted. "
-            "This check looks at ordinary body-text spans on each page for "
-            "(A) font size outside 11.0-13.0pt and (B) font family outside accepted "
-            "families (Times New Roman, Arial, Computer Modern, Latin Modern, and "
-            "common near-equivalent serifs)."
-        ),
-        "remediation": (
-            "Word users: set body text to Times New Roman or Arial at 12pt. "
-            "For documents prepared with common thesis templates, Computer Modern or "
-            "Latin Modern are accepted."
-        ),
-    },
-    "P028": {
-        "remediation": (
-            "Use lowercase Roman numerals for numbered front-matter pages, "
-            "and use Arabic numerals for body pages."
-        ),
-    },
-    "P029": {
-        "question": (
-            "Do visible lowercase Roman numerals in the front matter appear "
-            "in a continuous increasing sequence?"
-        ),
-        "remediation": (
-            "Correct the front-matter Roman numeral page numbers so they "
-            "increase continuously in order."
-        ),
-    },
-    "P043": {
-        "question": (
-            "Does the Acknowledgements page follow the correct paragraph "
-            "indentation style: first paragraph flush-left and subsequent "
-            "paragraphs indented?"
-        ),
-        "remediation": (
-            "Remove any first-line indent from the first Acknowledgements "
-            "paragraph, and apply a first-line indent to each subsequent "
-            "Acknowledgements paragraph."
-        ),
-    },
-    "P044": {
-        "question": (
-            "Does the Abstract page follow the correct paragraph "
-            "indentation style: first paragraph flush-left and subsequent "
-            "paragraphs indented?"
-        ),
-        "remediation": (
-            "Remove any first-line indent from the first Abstract "
-            "paragraph, and apply a first-line indent to each subsequent "
-            "Abstract paragraph."
-        ),
-    },
-    "P013": {
-        "question": (
-            "Are all visible page numbers located exactly in the designated "
-            "bottom-center position?"
-        ),
-        "rule_definition": (
-            "Detect text that looks like a page number and record its position "
-            "and style so it can be checked manually. This is a verification "
-            "signal, not a confirmed formatting defect by itself — see the "
-            "page-number sequence/style and page-numbering-regime rules for "
-            "findings that flag a specific page-numbering problem. "
-            "NJIT requires page numbers at the bottom center of the page, "
-            "0.5 inches from the bottom edge."
-        ),
-        "remediation": (
-            "Set page numbers at the bottom center of the page, 0.5 inches "
-            "from the bottom edge."
-        ),
-    },
-    "P030": {
-        "question": (
-            "Do continuation pages of a multi-page Table of Contents, List of "
-            "Tables, or List of Figures include the correct continued heading?"
-        ),
-        "remediation": (
-            "Add the correct continued heading on each continuation page, such "
-            "as \"TABLE OF CONTENTS (Continued),\" \"LIST OF TABLES "
-            "(Continued),\" or \"LIST OF FIGURES (Continued).\""
-        ),
-    },
-    "P050": {
-        "question": (
-            "Is the left-column header, \"Table\" or \"Figure,\" formatted in "
-            "bold in the List of Tables or List of Figures?"
-        ),
-        "remediation": (
-            "Format the \"Table\" or \"Figure\" column header in bold."
-        ),
-    },
-    "P031": {
-        "question": (
-            "Do List of Tables and List of Figures pages show the required "
-            "\"Table\" or \"Figure\" and \"Page\" column headers?"
-        ),
-        "remediation": (
-            "Add the required column headers directly below the list heading: "
-            "\"Table\" or \"Figure\" on the left and \"Page\" on the right."
-        ),
-    },
-    "P032": {
-        "question": (
-            "Are wrapped Table of Contents, List of Tables, and List of Figures "
-            "entries single-spaced within the same entry?"
-        ),
-        "remediation": (
-            "Single-space wrapped TOC, List of Tables, and List of Figures "
-            "entries so continuation lines stay within the same entry without "
-            "extra blank space."
-        ),
-    },
-    "P036": {
-        "question": (
-            "Is there visible double spacing or a blank line between consecutive "
-            "TOC, List of Tables, or List of Figures entries?"
-        ),
-        "remediation": (
-            "Add visible double spacing or a blank line between consecutive "
-            "entries in the TOC, List of Tables, or List of Figures."
-        ),
-    },
-    "P039": {
-        "question": (
-            "Are level-2 and level-3 Table of Contents entries indented to "
-            "show hierarchy?"
-        ),
-        "remediation": (
-            "Indent level-2 TOC entries to the right of level-1 entries, and "
-            "indent level-3 entries further to the right of level-2 entries."
-        ),
-    },
-    "P040": {
-        "question": (
-            "Does every figure description in the List of Figures end with "
-            "terminal punctuation?"
-        ),
-        "remediation": (
-            "Add terminal punctuation, such as a period, question mark, or "
-            "exclamation point, to every figure description in the List of "
-            "Figures."
-        ),
-    },
-    "P046": {
-        "question": (
-            "Are all table numbers in the List of Tables and all figure numbers "
-            "in the List of Figures aligned vertically in one left column?"
-        ),
-        "remediation": (
-            "Align all table numbers in the List of Tables and all figure "
-            "numbers in the List of Figures into one consistent left column."
-        ),
-    },
-    "P048": {
-        "question": (
-            "Are all page numbers in the List of Tables and List of Figures "
-            "aligned vertically in one right column?"
-        ),
-        "remediation": (
-            "Align all page numbers in the List of Tables and List of Figures "
-            "into one consistent right column."
-        ),
-    },
-    "P049": {
-        "question": (
-            "Is the \"Page\" column header in the List of Tables or List of "
-            "Figures bold and right-aligned over the page-number column?"
-        ),
-        "remediation": (
-            "Format the \"Page\" column header in bold and align it over the "
-            "page-number column on the right."
-        ),
-    },
-    "P041": {
-        "question": (
-            "Is there no header text in the top margin area of the Dedication page?"
-        ),
-        "remediation": (
-            "Remove any running header or header text from the top margin area "
-            "of the Dedication page."
-        ),
-    },
-    "P042": {
-        "question": (
-            "Are appendix entries in the Table of Contents formatted correctly "
-            "for a single appendix or multiple appendices?"
-        ),
-        "remediation": (
-            "For one appendix, begin the TOC entry with \"APPENDIX\" followed "
-            "by the title. For multiple appendices, label each TOC entry with a "
-            "letter, such as \"APPENDIX A,\" \"APPENDIX B,\" and so on."
-        ),
-    },
-    "P053": {
-        "question": (
-            "Are all List of Tables entries free of a final period?"
-        ),
-        "remediation": (
-            "Remove the final period from each List of Tables entry. Table "
-            "titles should use title case without terminal punctuation."
-        ),
-    },
-    "P054": {
-        "question": (
-            "Are all Table of Contents entries free of a final period?"
-        ),
-        "remediation": (
-            "Remove the final period from each Table of Contents entry."
-        ),
-    },
-    "P055": {
-        "question": (
-            "Are table entries listed only in the List of Tables and figure "
-            "entries listed only in the List of Figures?"
-        ),
-        "remediation": (
-            "Move each misplaced entry to the correct section: table entries "
-            "belong in the List of Tables, and figure entries belong in the "
-            "List of Figures."
-        ),
-    },
-    "P074": {
-        "question": (
-            "Does the Title Page display a graduation month that is exactly "
-            "August, December, or May?"
-        ),
-        "remediation": (
-            "Change the graduation month on the Title Page to August, December, "
-            "or May."
-        ),
-    },
-    "P078": {
-        "question": (
-            "Is the Abstract text free of the words \"paper\" or \"article\" "
-            "and free of first-person pronouns?"
-        ),
-        "remediation": (
-            "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" "
-            "\"work,\" or \"research.\" Rewrite sentences to remove "
-            "first-person pronouns such as \"I,\" \"me,\" \"my,\" \"we,\" or "
-            "\"our.\""
-        ),
-    },
-    "P045": {
-        "question": (
-            "Do publication and presentation entries in the Biographical Sketch "
-            "use the required layout: hanging indent, internal single spacing, "
-            "and a blank line between entries?"
-        ),
-        "remediation": (
-            "Format each publication or presentation entry with a hanging indent. "
-            "Keep wrapped lines within each entry single-spaced, and add a blank "
-            "line between separate entries."
-        ),
-    },
-    "P047": {
-        "question": (
-            "Are bullet items in the Biographical Sketch education section "
-            "single-spaced within each bullet?"
-        ),
-        "remediation": (
-            "Single-space each bullet item in the Biographical Sketch education "
-            "section, with no extra blank lines inside the same bullet item."
-        ),
-    },
-    "P066": {
-        "question": (
-            "Are postgraduate degrees in the Biographical Sketch listed from "
-            "most recent to oldest?"
-        ),
-        "remediation": (
-            "Reorder postgraduate degree entries in the Biographical Sketch from "
-            "most recent to oldest."
-        ),
-    },
-    "P067": {
-        "question": (
-            "Are publication and presentation entries in the Biographical Sketch "
-            "listed from most recent to oldest?"
-        ),
-        "remediation": (
-            "Reorder publication and presentation entries in the Biographical "
-            "Sketch from most recent to oldest."
-        ),
-    },
-    "P068": {
-        "question": (
-            "Does the Approval Page include committee role labels and "
-            "signature/date structural blocks for committee entries?"
-        ),
-        "remediation": (
-            "Add the required advisor or committee role label and the "
-            "signature/date structural block for each committee entry on the "
-            "Approval Page."
-        ),
-    },
-}
-
-
-def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
-    """Rewrite internal authoring language (e.g. "heuristic", LaTeX-only
-    remediation commands) for the public rules page without touching the
-    canonical rule data on disk."""
-    result = _RULE_TEXT_OVERRIDES.get(rule_id, {}).get(field, text)
-    for pattern, replacement in _HEURISTIC_WORDING:
-        result = pattern.sub(replacement, result)
-    return result
 
 
 _HIDDEN_PUBLIC_RULE_IDS = frozenset({"P015", "P018", "P026", "P039"})
@@ -2177,6 +1791,17 @@ def _run_audit_task(job_id: str) -> None:
     md_report_path = jdir / "report.md"
     write_markdown_report(export_findings, export_metadata, md_report_path)
 
+    # Write the plain-text student report (primary download): page-grouped,
+    # consolidated repeats, using the same public rule-id mapping the /rules
+    # page and web cards use so a referenced rule always resolves there.
+    txt_report_path = jdir / "report.txt"
+    write_text_report(
+        export_findings,
+        export_metadata,
+        txt_report_path,
+        public_rule_reference_id=_public_rule_reference_id,
+    )
+
     view = build_report_view(web_payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
     raw_findings = web_payload.get("findings", [])
@@ -2690,6 +2315,21 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
         path=str(report_path),
         media_type="text/markdown",
         filename=f"audit_{job_id[:8]}.md",
+    )
+
+
+@app.get("/audits/{job_id}/download/text", response_model=None)
+async def download_text(job_id: str) -> FileResponse | JSONResponse:
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return JSONResponse({"error": "report not available"}, status_code=404)
+    report_path = _job_dir(job_id) / "report.txt"
+    if not report_path.exists():
+        return JSONResponse({"error": "report file missing"}, status_code=404)
+    return FileResponse(
+        path=str(report_path),
+        media_type="text/plain; charset=utf-8",
+        filename=f"thesis_audit_report_{job_id[:8]}.txt",
     )
 
 

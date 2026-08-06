@@ -336,6 +336,7 @@ def _inject_complete_job_with_findings(
 
     from njit_auditor.pdf_highlight import get_pdf_page_sizes
     from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_text import write_text_report
     from njit_auditor.report_view import build_report_view, report_view_to_dict
 
     job_id = secrets.token_urlsafe(16)
@@ -351,6 +352,7 @@ def _inject_complete_job_with_findings(
         payload["grouped_findings"] = grouped_findings
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
+    write_text_report(findings, metadata, jdir / "report.txt")
     pdf_page_sizes = (
         get_pdf_page_sizes(jdir / "upload.pdf") if audit_type == "pdf" else []
     )
@@ -1664,6 +1666,7 @@ def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
     from njit_auditor.models import AuditFinding, Severity
     from njit_auditor.pdf_highlight import get_pdf_page_sizes
     from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_text import write_text_report
     from njit_auditor.report_view import build_report_view, report_view_to_dict
 
     c, wa = client
@@ -1706,6 +1709,7 @@ def test_results_page_grouped_cards_include_mixed_confidence_filter_metadata(
     ]
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
+    write_text_report(findings, metadata, jdir / "report.txt")
     pdf_page_sizes = get_pdf_page_sizes(jdir / "upload.pdf")
     view = build_report_view(payload, pdf_page_sizes=pdf_page_sizes)
 
@@ -2547,10 +2551,27 @@ def test_download_markdown_returns_text(client: tuple[TestClient, Any], tmp_path
     assert "text/markdown" in ct or "text/plain" in ct
 
 
+def test_download_text_returns_plain_text_student_report(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    resp = c.get(f"/audits/{job_id}/download/text")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "text/plain; charset=utf-8"
+    disposition = resp.headers.get("content-disposition", "")
+    assert disposition.endswith(".txt\"") or disposition.endswith(".txt")
+    assert f"thesis_audit_report_{job_id[:8]}.txt" in disposition
+    body = resp.content.decode("utf-8")
+    assert "PDF PAGE" in body
+    assert "Public rule reference: P011" in body
+
+
 def test_download_missing_job_returns_404(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     assert c.get("/audits/badid/download/json").status_code == 404
     assert c.get("/audits/badid/download/markdown").status_code == 404
+    assert c.get("/audits/badid/download/text").status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -3543,6 +3564,7 @@ def _inject_complete_pdf_job(
 
     from njit_auditor.models import AuditFinding, Severity
     from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+    from njit_auditor.report_text import write_text_report
     from njit_auditor.report_view import build_report_view, report_view_to_dict
 
     job_id = secrets.token_urlsafe(16)
@@ -3562,6 +3584,7 @@ def _inject_complete_pdf_job(
     payload = audit_findings_to_json_dict(findings, metadata)
     (jdir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_markdown_report(findings, metadata, jdir / "report.md")
+    write_text_report(findings, metadata, jdir / "report.txt")
     view = build_report_view(payload)
 
     job = wa.JobState(
@@ -3737,14 +3760,12 @@ def test_humanize_cat_fallback_for_unknown_key() -> None:
 
 
 def test_humanize_cat_all_labels_dict_keys_are_distinct() -> None:
-    """Every key and value in _CATEGORY_LABELS must be unique."""
-    import importlib
+    """Every key and value in CATEGORY_DISPLAY_LABELS must be unique."""
+    from njit_auditor.report_outputs import CATEGORY_DISPLAY_LABELS
 
-    import njit_auditor.web_app as wa
-    importlib.reload(wa)
-    labels = wa._CATEGORY_LABELS
-    assert len(set(labels.keys())) == len(labels), "Duplicate keys in _CATEGORY_LABELS"
-    assert len(set(labels.values())) == len(labels), "Duplicate values in _CATEGORY_LABELS"
+    labels = CATEGORY_DISPLAY_LABELS
+    assert len(set(labels.keys())) == len(labels), "Duplicate keys in CATEGORY_DISPLAY_LABELS"
+    assert len(set(labels.values())) == len(labels), "Duplicate values in CATEGORY_DISPLAY_LABELS"
 
 
 def test_results_page_shows_human_category_labels(
