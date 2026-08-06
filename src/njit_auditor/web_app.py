@@ -48,10 +48,12 @@ from njit_auditor.pdf_highlight import (
 from njit_auditor.report_outputs import (
     _high_volume_pattern_note,
     build_audit_report,
+    category_display_label,
     compact_page_list,
     sanitize_report_for_web_export,
     write_markdown_report,
 )
+from njit_auditor.report_text import write_text_report
 from njit_auditor.report_view import (
     SORT_MODE_DEFAULT,
     build_report_view,
@@ -429,37 +431,9 @@ _templates.env.globals["pdf_action_url"] = _pdf_action_url
 # Category humanization
 # ---------------------------------------------------------------------------
 
-_CATEGORY_LABELS: dict[str, str] = {
-    "abstract_language": "Abstract language",
-    "abstract_length": "Abstract length",
-    "abstract_structure": "Abstract structure",
-    "annotations": "Annotations / comments",
-    "capitalization_case": "Capitalization",
-    "committee_approval_page": "Approval page",
-    "copyright_page_metadata": "Copyright page",
-    "figure_format": "Figure formatting",
-    "figure_table_format": "Figures / tables",
-    "font_format": "Font formatting",
-    "formatting_override": "Formatting overrides",
-    "frontmatter_structure": "Front matter / appendix structure",
-    "heading_title": "Headings / titles",
-    "indentation": "Indentation",
-    "labels_references": "Labels / cross-references",
-    "latex_linter": "LaTeX linting",
-    "list_of_tables_figures_toc": "TOC / lists",
-    "margin_or_overflow": "Margins / overflow",
-    "page_numbering": "Page numbering",
-    "punctuation": "Punctuation",
-    "references_citations": "References / citations",
-    "spacing_blank_lines": "Spacing / blank lines",
-    "table_format": "Table formatting",
-    "title_page_metadata": "Title page",
-}
-
-
 def _humanize_cat(category: str) -> str:
     """Return a student-friendly display label for a raw category key."""
-    return _CATEGORY_LABELS.get(str(category), str(category).replace("_", " ").capitalize())
+    return category_display_label(category)
 
 
 _templates.env.filters["humanize_cat"] = _humanize_cat
@@ -2177,6 +2151,17 @@ def _run_audit_task(job_id: str) -> None:
     md_report_path = jdir / "report.md"
     write_markdown_report(export_findings, export_metadata, md_report_path)
 
+    # Write the plain-text student report (primary download): page-grouped,
+    # consolidated repeats, using the same public rule-id mapping the /rules
+    # page and web cards use so a referenced rule always resolves there.
+    txt_report_path = jdir / "report.txt"
+    write_text_report(
+        export_findings,
+        export_metadata,
+        txt_report_path,
+        public_rule_reference_id=_public_rule_reference_id,
+    )
+
     view = build_report_view(web_payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
     raw_findings = web_payload.get("findings", [])
@@ -2690,6 +2675,21 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
         path=str(report_path),
         media_type="text/markdown",
         filename=f"audit_{job_id[:8]}.md",
+    )
+
+
+@app.get("/audits/{job_id}/download/text", response_model=None)
+async def download_text(job_id: str) -> FileResponse | JSONResponse:
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return JSONResponse({"error": "report not available"}, status_code=404)
+    report_path = _job_dir(job_id) / "report.txt"
+    if not report_path.exists():
+        return JSONResponse({"error": "report file missing"}, status_code=404)
+    return FileResponse(
+        path=str(report_path),
+        media_type="text/plain; charset=utf-8",
+        filename=f"thesis_audit_report_{job_id[:8]}.txt",
     )
 
 
