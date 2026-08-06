@@ -50,6 +50,22 @@ def _margin_finding(page: int, *, absolute_path: str | None = None) -> AuditFind
     )
 
 
+def _lof_punctuation_finding(page: int, entry_index: int, page_entry_index: int) -> AuditFinding:
+    return AuditFinding(
+        rule_id="P040",
+        severity=Severity.WARNING,
+        page=page,
+        message="List of Figures entry missing terminal punctuation.",
+        details={
+            "issue_type": "lof_entry_missing_terminal_punctuation",
+            "page_type": "list_of_figures",
+            "entry_index": str(entry_index),
+            "page_entry_index": str(page_entry_index),
+            "confidence": "high",
+        },
+    )
+
+
 def _page_number_candidate(page: int, *, label: str = "") -> AuditFinding:
     details = {
         "issue_type": "page_number_candidate",
@@ -169,6 +185,36 @@ def test_repeated_same_page_p036_findings_consolidate_without_dropping_pairs(
     for prev, nxt in pairs:
         assert prev in text
         assert nxt in text
+
+
+def test_repeated_same_page_punctuation_findings_consolidate_without_dropping_entries(
+    tmp_path: Path,
+) -> None:
+    findings = [
+        _lof_punctuation_finding(15, entry_index=3, page_entry_index=0),
+        _lof_punctuation_finding(15, entry_index=4, page_entry_index=1),
+        _lof_punctuation_finding(15, entry_index=5, page_entry_index=2),
+        # Unrelated same-page finding: must not be folded into the
+        # punctuation group just because it shares a page.
+        _margin_finding(15),
+    ]
+    text = _write(findings, tmp_path)
+
+    assert text.count("PDF PAGE 15") == 1
+    assert text.count("List of Figures entry missing terminal punctuation") == 1
+    assert "Affected locations: 3" in text
+    # Every affected entry is preserved in the numbered list, none dropped.
+    assert "1. List of Figures entry 4" in text
+    assert "2. List of Figures entry 5" in text
+    assert "3. List of Figures entry 6" in text
+    # The unrelated margin finding stays a separate problem record, not
+    # merged into the punctuation group's "Affected locations" list.
+    assert "Problem 1 —" in text
+    assert "Problem 2 —" in text
+    assert "Problem 3" not in text
+    margin_start = text.index("Left margin boundary violation")
+    margin_end = text.index("Public rule reference: P011", margin_start)
+    assert "Affected locations" not in text[margin_start:margin_end]
 
 
 def test_p013_routine_candidates_excluded_from_headline_problem_count(tmp_path: Path) -> None:

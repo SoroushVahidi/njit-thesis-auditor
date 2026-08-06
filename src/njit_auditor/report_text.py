@@ -16,9 +16,17 @@ from pathlib import Path
 from typing import Any
 
 from njit_auditor.evaluation import map_finding_rule_to_category
-from njit_auditor.issue_type_explanations import student_facing_issue_label
+from njit_auditor.issue_type_explanations import (
+    has_curated_issue_type_title,
+    humanize_issue_type,
+    issue_type_title,
+)
 from njit_auditor.models import AuditFinding
 from njit_auditor.p011_student_preview import (
+    P011_ISSUE_TYPE,
+    P011_RULE_ID,
+    _join_margin_labels,
+    _side_short_label,
     collect_p011_margin_pages_from_serialized,
     init_p011_display_state,
 )
@@ -30,6 +38,7 @@ from njit_auditor.p026_student_preview import (
 from njit_auditor.report_outputs import (
     _prepare_findings_for_export,
     _problem_location_text,
+    _websafe_rule_text,
     audit_findings_to_json_dict,
     category_display_label,
     individual_finding_comment_and_fix,
@@ -100,11 +109,20 @@ def _full_remediation_by_rule() -> dict[str, str]:
 
 
 def _detruncate_fix_text(rule_id: str, fix_text: str) -> str:
-    """Replace a word-boundary-truncated fix ("...") with the full remediation text."""
+    """Replace a word-boundary-truncated fix ("...") with the full remediation text.
+
+    The full text is read straight from the canonical rule JSON (see
+    ``_full_remediation_by_rule``), so it must be run through the same
+    ``_websafe_rule_text`` sanitization the public Rules Reference page
+    applies before it reaches a student -- otherwise internal
+    authoring/reviewer shorthand left in that field (e.g. a trailing
+    "Ester: ..." summary note addressed to other rule authors, not
+    students) would be de-truncated straight into this report verbatim.
+    """
     if fix_text.endswith("...") or fix_text.endswith("…"):
         full = _full_remediation_by_rule().get(rule_id, "")
         if full:
-            return full
+            return _websafe_rule_text(rule_id, "remediation", full)
     return fix_text
 
 
@@ -160,10 +178,48 @@ def _clean_detected_text(text: str) -> str:
 
 
 def _title_for(rule_id: str, issue_type: str, category: str) -> str:
-    label = student_facing_issue_label(rule_id, issue_type).strip()
+    """Return a short, student-facing title for one problem record.
+
+    Deliberately does not fall back to the long Ester-authored yes/no rule
+    question (``student_facing_issue_label``'s first preference): that
+    phrasing is a full sentence meant for a rule-level card, and using it
+    verbatim here made many unrelated occurrences of the same rule show the
+    identical long question as their title. Prefers a hand-curated short
+    title, then the short humanized issue-type label -- both already
+    written to be title-length and student-facing -- before falling back to
+    the coarse category label.
+    """
+    if has_curated_issue_type_title(rule_id, issue_type):
+        curated = issue_type_title(rule_id, issue_type).strip()
+        if curated:
+            return curated
+    label = humanize_issue_type(issue_type).strip()
     if label:
         return label
     return category_display_label(category)
+
+
+def _p011_margin_title(
+    details: Mapping[str, str],
+    page: int | None,
+    p011_page_stats: dict[Any, Any] | None,
+) -> str:
+    """Return a side-specific title for a P011 margin-boundary problem.
+
+    Mirrors the same page-level rollup ``individual_finding_comment_and_fix``
+    and ``_problem_location_text`` use for P011, so a page with more than one
+    affected side (e.g. bottom and right) names every affected side in the
+    title rather than only the first underlying finding's side.
+    """
+    page_stats = p011_page_stats.get(page) if p011_page_stats is not None and page else None
+    if page_stats is not None and getattr(page_stats, "raw_finding_count", 1) > 1:
+        sides = sorted({_side_short_label(side) for side in page_stats.sides if side.strip()})
+    else:
+        raw_side = details.get("side", "").strip()
+        sides = [_side_short_label(raw_side)] if raw_side else []
+    if not sides:
+        return "Margin boundary violation"
+    return f"{_join_margin_labels(sides).capitalize()} boundary violation"
 
 
 def _manuscript_page_labels(findings: list[AuditFinding]) -> dict[int, str]:
@@ -268,12 +324,17 @@ def _build_occurrences(
             int(problem_number_raw) if isinstance(problem_number_raw, int) else len(occurrences)
         )
 
+        if rule_id == P011_RULE_ID and issue_type == P011_ISSUE_TYPE:
+            title = _p011_margin_title(details, page, p011_page_stats)
+        else:
+            title = _title_for(rule_id, issue_type, category)
+
         occurrences.append(
             _Occurrence(
                 rule_id=rule_id,
                 issue_type=issue_type,
                 page=page,
-                title=_title_for(rule_id, issue_type, category),
+                title=title,
                 section=section,
                 exact_location=exact_location,
                 detected_text=comment,
