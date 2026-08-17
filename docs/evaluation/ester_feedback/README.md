@@ -26,6 +26,50 @@ The primary purpose of each evaluation sheet is **human validation of the audito
 
 ---
 
+## Ester's R011 Feedback and the Consolidated PDF Review Package
+
+After reviewing the R011 spreadsheet, Ester Flaim confirmed the spreadsheet
+structure and explanatory detail were sufficient, but asked to **see** the
+relevant page and the exact auditor-generated highlighting directly, so she
+does not have to manually open each dissertation and locate the page herself.
+
+Starting with R011, and required for R012 and every subsequent rule cycle,
+each review package must include a **consolidated PDF** in addition to the
+spreadsheet:
+
+* `Rxxx_Ester_Auditor_Feedback.pdf`, saved alongside the `.xlsx` in
+  `docs/evaluation/ester_feedback/`.
+* **Page 1 — overview:** a landscape or portrait index/summary page (built
+  from the values already recorded in the `.xlsx`) listing every student with
+  physical PDF page, printed/document page, a short location description, a
+  short possible-violation description, and auditor confidence. Excerpts may
+  be shortened here for readability; full identifying evidence appears on the
+  following pages.
+* **One evidence section per student, in the same order as the spreadsheet
+  rows**, each clearly headed with the student's name, the rule ID, physical
+  PDF page, printed/document page, and auditor confidence, so the reader
+  never has to infer which dissertation a page belongs to.
+* **Real auditor highlighting only.** Evidence pages must be generated from
+  the actual finding's stored highlight geometry (e.g. `pdf_highlight.py` /
+  `highlight_targeting.py`'s `line`, `overflow`, `overflow_display`, and
+  `guide` box kinds for P011), never a manually guessed box or an arrow
+  pointing at a general area. When a finding reports multiple affected lines,
+  every line that has drawable geometry must be visibly highlighted.
+* **Prefer one evidence page per student.** Add a second page only when the
+  evidence genuinely needs it (e.g. a legibility crop, or content spanning
+  more than one relevant page) — not automatically for every student.
+* **Minimize thesis content.** Include only the summary and the specific
+  page(s) needed for the selected finding; never append full dissertations,
+  and never commit the source dissertation PDFs to git.
+* **Visually inspect every page before sending.** Confirm headers are
+  unambiguous, highlights are visible and correspond to the selected finding,
+  no page is clipped, rotated, blank, or duplicated, and no student is
+  omitted or repeated.
+
+The `.xlsx` remains the structured data artifact and source of truth for
+which finding was selected per student; the consolidated PDF is the primary
+artifact actually sent to Ester for human review.
+
 ## Standard Structural Layout
 
 To maximize readability, every Ester-facing cell should follow this standard structured block format:
@@ -44,5 +88,6 @@ Auditor confidence: [MEDIUM / HIGH]
 
 ## Maintenance of Review Artifacts
 * The spreadsheet must be saved as: `Rxxx_Ester_Auditor_Feedback.xlsx` (e.g., `R011_Ester_Auditor_Feedback.xlsx`).
-* It must be saved in the tracked repository directory: `docs/evaluation/ester_feedback/`.
+* The consolidated PDF must be saved as: `Rxxx_Ester_Auditor_Feedback.pdf` (e.g., `R011_Ester_Auditor_Feedback.pdf`), alongside the spreadsheet.
+* Both must be saved in the tracked repository directory: `docs/evaluation/ester_feedback/`.
 * No student PDFs, DOCX files, raw JSON outputs, or local credentials must ever be committed to git.
