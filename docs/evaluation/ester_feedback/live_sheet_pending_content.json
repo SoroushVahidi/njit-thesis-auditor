@@ -1,0 +1,2480 @@
+{
+  "R012": {
+    "tab_name": "R012",
+    "b1_line1": "Possible R012 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R012 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1uAKVQ-q52_5v9mdZMSqwS3fbjPhHCXlC/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R012 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R012 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R012 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R012 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R012 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R012 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R012 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R012 finding."
+      ]
+    ]
+  },
+  "R013": {
+    "tab_name": "R013",
+    "b1_line1": "Possible R013 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R013 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1CEWdzvSpZAnKKP_bBg-OfBeVAzu-cQw5/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R013 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R013 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R013 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R013 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R013 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R013 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R013 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R013 finding."
+      ]
+    ]
+  },
+  "R014": {
+    "tab_name": "R014",
+    "b1_line1": "Possible R014 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R014 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1fBLSDMF-Gknqvtj-k3sgTc7nBXXvM2lV/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R014 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R014 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R014 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R014 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R014 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R014 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R014 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R014 finding."
+      ]
+    ]
+  },
+  "R015": {
+    "tab_name": "R015",
+    "b1_line1": "Possible R015 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R015 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1iTI8rvSNBUvhsbnWeG61sBMl6vEatVue/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R015 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "Physical PDF page: 17\nPrinted/document page: 1\nLocation: Near page center\nAffected content:\n  1. \", where \u03b7 is the (often small) step size. Much previous work analyzes\"\nPossible violation: Line continuing the previous sentence (e.g. after a displayed equation) appears to have a paragraph-style indent.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Muyeed",
+        "Physical PDF page: 144\nPrinted/document page: 123\nLocation: Near page center\nAffected content:\n  1. \"i l\u22121 is the output of the last layer. We set a one hour time limit for the\"\nPossible violation: Line continuing the previous sentence (e.g. after a displayed equation) appears to have a paragraph-style indent.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Anthony",
+        "No current auditor R015 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R015 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R015 finding."
+      ],
+      [
+        "Youra",
+        "Physical PDF page: 86\nPrinted/document page: 69\nLocation: Near page center\nAffected content:\n  1. \"observational evidence directly linking individual SMFR types to corresponding\"\nPossible violation: Later paragraph appears to be missing expected first-line indentation.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Sebastian",
+        "No current auditor R015 finding."
+      ]
+    ]
+  },
+  "R016": {
+    "tab_name": "R016",
+    "b1_line1": "Possible R016 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R016 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1BvIz_WWIsHkGGbyEJCOhfzP3K4rC3jHz/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R016 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R016 finding."
+      ],
+      [
+        "Muyeed",
+        "Physical PDF page: 1\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Detected excessive blank space likely between paragraph groups.\nMeasured amount: 68.7 (largest gap pt)\nAuditor confidence: HIGH"
+      ],
+      [
+        "Anthony",
+        "No current auditor R016 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 1\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Detected excessive vertical spacing between adjacent text lines.\nMeasured amount: 41.9 (largest gap pt)\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R016 finding."
+      ],
+      [
+        "Youra",
+        "Physical PDF page: 1\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Detected excessive blank space likely between paragraph groups.\nMeasured amount: 68.7 (largest gap pt)\nAuditor confidence: HIGH"
+      ],
+      [
+        "Sebastian",
+        "No current auditor R016 finding."
+      ]
+    ]
+  },
+  "R017": {
+    "tab_name": "R017",
+    "b1_line1": "Possible R017 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R017 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1NGuAwE6zW23wLUuwufc2H57BNxVvpCe2/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R017 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R017 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R017 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 47\nPrinted/document page: 33\nLocation: Near page center\nAffected content:\n  1. \"Figure 2.1. Representative Neotropical snake species (Families: Elapidae, Aniliidae, and\"\nPossible violation: Figure caption appears to be missing terminal punctuation.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 28\nPrinted/document page: 9\nLocation: Near page center\nAffected content:\n  1. \"Figure 1.1 Isotope-dilution strategies for targeted MS-based absolute quantification of\"\nPossible violation: Figure caption appears to be missing terminal punctuation.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R017 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R017 finding."
+      ],
+      [
+        "Sebastian",
+        "Physical PDF page: 19\nPrinted/document page: 4\nLocation: Near page center\nAffected content:\n  1. \"Figure 1.1 The Edinger Westphal nuclei and supraoculomotor area relative proximity\"\nPossible violation: Figure caption appears to be missing terminal punctuation.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ]
+    ]
+  },
+  "R018": {
+    "tab_name": "R018",
+    "b1_line1": "Possible R018 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R018 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1HhPTG-N4_m69Med1QGcc7ZLe6sSu1dd2/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R018 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R018 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R018 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 14\nPrinted/document page: xii\nLocation: body text\nAffected content:\n  1. \"Dipsadidae). .......................................................................................................... 33\"\nPossible violation: This TOC entry's left indent does not match other entries at the same hierarchy level.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 11\nPrinted/document page: viii\nLocation: body text\nAffected content:\n  1. \"1.1 Biological Importance of Proteins and Need for Quantification and Characterization \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026. \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026.. 1\"\nPossible violation: TOC/List entries show inconsistent visible leader-dot usage.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Patrick",
+        "No current auditor R018 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R018 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R018 finding."
+      ]
+    ]
+  },
+  "R019": {
+    "tab_name": "R019",
+    "b1_line1": "Possible R019 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R019 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R019 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Muyeed",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Patrick",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Youra",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Sebastian",
+        "Physical PDF page: not applicable (document-level finding)\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Mixed numbering styles detected across candidate page-number regions.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ]
+    ]
+  },
+  "R020": {
+    "tab_name": "R020",
+    "b1_line1": "Possible R020 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R020 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1o8fYYYA6BtACEsNLqGl0JdJkm4Brp_f7/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R020 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "Physical PDF page: 3\nPrinted/document page: not reliably identifiable\nLocation: body text\nAffected content:\n  1. \"and\"\nPossible violation: Possible title capitalization issue in title-like text: 'and' may need to be capitalized (first_word_requires_capital).\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Muyeed",
+        "Physical PDF page: 180\nPrinted/document page: 159\nLocation: Top of page\nAffected content:\n  1. \"vs\"\nPossible violation: Possible title capitalization issue in title-like text: 'vs' may need to be capitalized (major_word_requires_capital).\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 19\nPrinted/document page: 5\nLocation: Near page center\nAffected content:\n  1. \"Publications with a neutral perspective on Batesian mimicry\"\nPossible violation: Possible title capitalization issue in title-like text: 'neutral' may need to be capitalized (major_word_requires_capital).\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 20\nPrinted/document page: 1\nLocation: Top of page\nAffected content:\n  1. \"1.1 Biological Importance of Proteins & need for Quantification and\"\nPossible violation: Possible title capitalization issue in title-like text: 'need' may need to be capitalized (major_word_requires_capital).\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Patrick",
+        "No current auditor R020 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R020 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R020 finding."
+      ]
+    ]
+  },
+  "R022": {
+    "tab_name": "R022",
+    "b1_line1": "Possible R022 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R022 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/16mDZavIaB85XTabFIxK5Unx-ERzc9tUa/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R022 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R022 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R022 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R022 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R022 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R022 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R022 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R022 finding."
+      ]
+    ]
+  },
+  "R023": {
+    "tab_name": "R023",
+    "b1_line1": "Possible R023 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R023 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Qy_RJgDIiwbj8c89dAMBEz92Llvj3kDl/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R023 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "Physical PDF page: 51\nPrinted/document page: 35\nLocation: Near page center\nAffected content:\n  1. \"\u2022 If we let W be the set of invariant measures of P with support in I, then the extreme points of W are exactly \u00b5\u22c6 m (m \u2208M); \u2022 Since the Tm are disjoint clos...\"\nPossible violation: Body text on page 51 appears to be under-spaced (median line spacing 14.7pt, ratio 1.23\u00d7 font size). NJIT requires double-spaced body text.\nMeasured amount: 14.7 (median body gap pt)\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Muyeed",
+        "Physical PDF page: 32\nPrinted/document page: 11\nLocation: Near page center\nAffected content:\n  1. \"Parameters that influence flipping include (a) number of estimators, determining how many estimators the algorithm will create to produce the final result, (...\"\nPossible violation: Body text on page 32 appears to be under-spaced (median line spacing 14.4pt, ratio 1.21\u00d7 font size). NJIT requires double-spaced body text.\nMeasured amount: 14.4 (median body gap pt)\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 55\nPrinted/document page: 41\nLocation: body text\nAffected content:\n  1. \"Figure 2.4. Phenotypic dissimilarity as a function of asymmetric geographic overlap. Analysis of ten Neotropical snake species (Families: Elapidae, Aniliidae...\"\nPossible violation: Body text on page 55 appears to be under-spaced (median line spacing 13.8pt, ratio 1.15\u00d7 font size). NJIT requires double-spaced body text.\nMeasured amount: 13.8 (median body gap pt)\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Praneeth",
+        "No current auditor R023 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R023 finding."
+      ],
+      [
+        "Youra",
+        "Physical PDF page: 102\nPrinted/document page: 85\nLocation: body text\nAffected content:\n  1. \"Figure 4.7 SuperDARN convection maps and corresponding simulation snapshots for Case 1 and the Type 4 SMFR simulation of Park et al. (2018). Panels (a)\u2013(c) p...\"\nPossible violation: Body text on page 102 appears to be under-spaced (median line spacing 12.0pt, ratio 1.00\u00d7 font size). NJIT requires double-spaced body text.\nMeasured amount: 12.0 (median body gap pt)\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Sebastian",
+        "No current auditor R023 finding."
+      ]
+    ]
+  },
+  "R024": {
+    "tab_name": "R024",
+    "b1_line1": "Possible R024 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R024 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1ENDN5mULoQyv6lnptx4Uva5leKhKLELp/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R024 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R024 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R024 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 14\nPrinted/document page: xii\nLocation: Top of page\nAffected content:\n  1. \"2.1. Representative Neotropical snake species (Families: Elapidae, Aniliidae, and\"\nPossible violation: List of Figures entry may not follow sentence-case style: 'Neotropical', 'Families', 'Elapidae' appear capitalized where sentence case is expected.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 14\nPrinted/document page: xi\nLocation: Near page center\nAffected content:\n  1. \"3.3 Identified Peptides of \u03b2-casein and their Corresponding m/z\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026 91\"\nPossible violation: List of Tables entry may have title-case issue: 'casein' may need to be capitalized (major_word_requires_capital).\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Patrick",
+        "No current auditor R024 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R024 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R024 finding."
+      ]
+    ]
+  },
+  "R025": {
+    "tab_name": "R025",
+    "b1_line1": "Possible R025 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R025 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/13YfvbD1KFyQ8EqSrtc4hNq2eDmymbwmS/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R025 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R025 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R025 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R025 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R025 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R025 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R025 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R025 finding."
+      ]
+    ]
+  },
+  "R026": {
+    "tab_name": "R026",
+    "b1_line1": "Possible R026 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R026 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/18IjXY8avWT9ReBHWfTFwLnNXTZupIm-6/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R026 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R026 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R026 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R026 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 35\nPrinted/document page: 16\nLocation: Near page center\nAffected content:\n  1. \"Sources: Xu, C.; Zheng, Q.; Zhao, P.; Paterson, J.; Chen, H., A new quantification method using\"\nPossible violation: Body text on page 35 may not use 12pt font size.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Patrick",
+        "No current auditor R026 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R026 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R026 finding."
+      ]
+    ]
+  },
+  "R027": {
+    "tab_name": "R027",
+    "b1_line1": "Possible R027 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R027 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1nr4d0u2W4YUj7cCE5bw3Ig-blgJiNfE6/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R027 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R027 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R027 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R027 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 69\nPrinted/document page: 50\nLocation: Near page center\nAffected content:\n  1. \"2.3.3.1 Protein sequence of Cytochrome C (Surrogate peptide GATLFK is\"\nPossible violation: Level 4 heading on page 69 may be missing a required terminal period (NJIT: Level 4 heading ends with a period).\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Patrick",
+        "No current auditor R027 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R027 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R027 finding."
+      ]
+    ]
+  },
+  "R028": {
+    "tab_name": "R028",
+    "b1_line1": "Possible R028 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R028 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1__BiKXia68fSB5H7q0SWazWnIIbO31nR/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R028 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "Physical PDF page: 12\nPrinted/document page: x\nLocation: Footer area\nAffected content:\n  1. \"x\"\nPossible violation: Page 12 (body) has a page-number candidate 'x' (roman_lower) that does not match the expected regime for that region.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Muyeed",
+        "No current auditor R028 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R028 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R028 finding."
+      ],
+      [
+        "Patrick",
+        "Physical PDF page: 13\nPrinted/document page: 1\nLocation: Footer area\nAffected content:\n  1. \"1\"\nPossible violation: Page 13 (front_matter) has a page-number candidate '1' (arabic) that does not match the expected regime for that region.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Youra",
+        "No current auditor R028 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R028 finding."
+      ]
+    ]
+  },
+  "R029": {
+    "tab_name": "R029",
+    "b1_line1": "Possible R029 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R029 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/13eBuNBhF1nufAy3Q7M77PqInlb4bc_DI/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R029 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R029 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R029 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R029 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R029 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R029 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R029 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R029 finding."
+      ]
+    ]
+  },
+  "R030": {
+    "tab_name": "R030",
+    "b1_line1": "Possible R030 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R030 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1JhAGQIRSlq2enCatQDyWmELmoGqUNxBC/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R030 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R030 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R030 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 11\nPrinted/document page: ix\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Multi-page TOC/List continuation page appears to be missing a continued heading.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 12\nPrinted/document page: ix\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Multi-page TOC/List continuation page appears to be missing a continued heading.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R030 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R030 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R030 finding."
+      ]
+    ]
+  },
+  "R031": {
+    "tab_name": "R031",
+    "b1_line1": "Possible R031 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R031 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1PD6rzp_vvbKPxQdK-SWY5UIE9KOUujjv/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R031 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R031 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R031 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R031 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R031 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R031 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R031 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R031 finding."
+      ]
+    ]
+  },
+  "R032": {
+    "tab_name": "R032",
+    "b1_line1": "Possible R032 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R032 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1b4Rm0tFmoEBUE_ZasD36sKs8EKGXCtKb/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R032 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R032 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R032 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R032 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R032 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R032 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R032 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R032 finding."
+      ]
+    ]
+  },
+  "R033": {
+    "tab_name": "R033",
+    "b1_line1": "Possible R033 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R033 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/151J5aFbg33Uy-52ZZuXV5gawi-gt2vuh/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R033 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R033 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R033 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R033 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 6\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Dissertation title text on front-matter pages may be inconsistent (normalized comparison across title, abstract, and/or approval pages).\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R033 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R033 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R033 finding."
+      ]
+    ]
+  },
+  "R034": {
+    "tab_name": "R034",
+    "b1_line1": "Possible R034 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R034 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Qy3LSMRIkD3VhS1DymXrw_esQh_AAAuM/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R034 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R034 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R034 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R034 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R034 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R034 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R034 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R034 finding."
+      ]
+    ]
+  },
+  "R035": {
+    "tab_name": "R035",
+    "b1_line1": "Possible R035 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R035 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1NOD5qRSswHypwDl4u6G6ANAVhgvf9BQo/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R035 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R035 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R035 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 60\nPrinted/document page: not reliably identifiable\nLocation: Near page center\nAffected content:\n  1. \"Model Lookalike MB vs. LB MB vs LT MT vs LB MT vs LT r value p value r value p value r value p value r value p value Micrurus dumerilii Anilius scytale 0.371...\"\nPossible violation: Inferred table body block may not be centered within the text area.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 29\nPrinted/document page: 10\nLocation: body text\nAffected content:\n  1. \"Figure 1.2 Mass spectrometry methodologies for absolute quantification of proteins. (A)\"\nPossible violation: Inferred figure body block may not be centered within the text area.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R035 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R035 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R035 finding."
+      ]
+    ]
+  },
+  "R036": {
+    "tab_name": "R036",
+    "b1_line1": "Possible R036 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R036 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/19hOyB8c2B2u8GPVh6Z8FDtZI57w1eGJ-/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R036 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R036 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R036 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 12\nPrinted/document page: x\nLocation: Near page center\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Consecutive TOC/List entries appear to have insufficient inter-entry vertical spacing.\nMeasured amount: 1.08 (gap ratio)\nAuditor confidence: HIGH"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 11\nPrinted/document page: viii\nLocation: Top of page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Consecutive TOC/List entries appear to have insufficient inter-entry vertical spacing.\nMeasured amount: 1.19 (gap ratio)\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R036 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R036 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R036 finding."
+      ]
+    ]
+  },
+  "R037": {
+    "tab_name": "R037",
+    "b1_line1": "Possible R037 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R037 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/12-72bRRp1P9tFPCm2CgyCVhWvHbHFOad/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R037 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R037 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R037 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 10\nPrinted/document page: viii\nLocation: Footer area\nAffected content:\n  1. \"viii\"\nPossible violation: Section 'TABLE OF CONTENTS' on page 10 has Roman numeral 'viii' (value=8); NJIT template expects vii (7).\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 11\nPrinted/document page: viii\nLocation: Footer area\nAffected content:\n  1. \"viii\"\nPossible violation: Section 'TABLE OF CONTENTS' on page 11 has Roman numeral 'viii' (value=8); NJIT template expects vii (7).\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Patrick",
+        "No current auditor R037 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R037 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R037 finding."
+      ]
+    ]
+  },
+  "R038": {
+    "tab_name": "R038",
+    "b1_line1": "Possible R038 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R038 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/12XYabt_qjAXop7bKKPyz49EVfjII4Mxz/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R038 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R038 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R038 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R038 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R038 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R038 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R038 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R038 finding."
+      ]
+    ]
+  },
+  "R039": {
+    "tab_name": "R039",
+    "b1_line1": "Possible R039 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R039 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1-Eut_xJYEo_Ps1flVJa2TEbB3VaZnsMD/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R039 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R039 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R039 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R039 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 11\nPrinted/document page: viii\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: TOC level-3 entries do not appear to be indented relative to level-2 entries, which is required for visual hierarchy.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R039 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R039 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R039 finding."
+      ]
+    ]
+  },
+  "R040": {
+    "tab_name": "R040",
+    "b1_line1": "Possible R040 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R040 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1SmmA8A6ZBb7N3SC9seQHsT72Du8iEesa/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R040 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R040 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R040 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 14\nPrinted/document page: xii\nLocation: Top of page\nAffected content:\n  1. \"1.1 Supporting publications for Batesian mimicry and its alternatives (1908-2021). .. 7\"\nPossible violation: List of Figures entry does not end with terminal punctuation (period, question mark, or exclamation point) as required by NJIT guidelines.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 15\nPrinted/document page: xii\nLocation: body text\nAffected content:\n  1. \"1.3 Equations showing the electrochemical oxidation of (a) DA, (b) NE, (c) RN, (d) UA, and (e) 5-HT). \u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026.\u2026\u2026\u2026\u2026\u2026\u2026\u2026.. 14\"\nPossible violation: List of Figures entry does not end with terminal punctuation (period, question mark, or exclamation point) as required by NJIT guidelines.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R040 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R040 finding."
+      ],
+      [
+        "Sebastian",
+        "Physical PDF page: 12\nPrinted/document page: x\nLocation: Top of page\nAffected content:\n  1. \"1.1 The Edinger Westphal nuclei and supraoculomotor area relative proximity and interneuron projection .\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026 4\"\nPossible violation: List of Figures entry does not end with terminal punctuation (period, question mark, or exclamation point) as required by NJIT guidelines.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ]
+    ]
+  },
+  "R041": {
+    "tab_name": "R041",
+    "b1_line1": "Possible R041 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R041 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Whcaz703_Tjx6crGw8VqORn7yNF6eJO1/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R041 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R041 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R041 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R041 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R041 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R041 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R041 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R041 finding."
+      ]
+    ]
+  },
+  "R042": {
+    "tab_name": "R042",
+    "b1_line1": "Possible R042 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R042 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1OQtvhoGDo3rQyrP9Ik5NItDR7ulb_XNB/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R042 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R042 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R042 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R042 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R042 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R042 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R042 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R042 finding."
+      ]
+    ]
+  },
+  "R043": {
+    "tab_name": "R043",
+    "b1_line1": "Possible R043 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R043 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1fQ6CqNjMrwsyluBFcRYio_IXTMhZBMML/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R043 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R043 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R043 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R043 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R043 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R043 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R043 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R043 finding."
+      ]
+    ]
+  },
+  "R044": {
+    "tab_name": "R044",
+    "b1_line1": "Possible R044 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R044 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/11_hGmHkQGqUYskMmZGC_gWmKaq9GHN8g/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R044 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R044 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R044 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R044 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R044 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R044 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R044 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R044 finding."
+      ]
+    ]
+  },
+  "R045": {
+    "tab_name": "R045",
+    "b1_line1": "Possible R045 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R045 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1c8JG-eOBNBg7L_i796N3ymtqnY1IzDb5/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R045 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R045 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R045 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R045 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R045 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R045 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R045 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R045 finding."
+      ]
+    ]
+  },
+  "R046": {
+    "tab_name": "R046",
+    "b1_line1": "Possible R046 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R046 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1vQxPpjiXDx4RG7gZc6vb3eUbIw_cwyc_/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R046 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R046 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R046 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 13\nPrinted/document page: xi\nLocation: body text\nAffected content:\n  1. \"g yp g p Distance for 25 Species Pair Comparisons ............................................................46\"\nPossible violation: List of Tables entry numbers do not appear to be aligned in a consistent left column, as required by NJIT guidelines (Q068).\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 15\nPrinted/document page: xii\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: List of Figures entry numbers do not appear to be aligned in a consistent left column, as required by NJIT guidelines (Q078).\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R046 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R046 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R046 finding."
+      ]
+    ]
+  },
+  "R047": {
+    "tab_name": "R047",
+    "b1_line1": "Possible R047 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R047 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1yR3AAMiZQPpocSL2pCBI2wyPhG_ppmOa/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R047 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R047 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R047 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R047 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R047 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R047 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R047 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R047 finding."
+      ]
+    ]
+  },
+  "R048": {
+    "tab_name": "R048",
+    "b1_line1": "Possible R048 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R048 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/15iQwVsKcMp92ytng8kQudRwzWANvdzsw/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R048 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R048 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R048 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R048 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 15\nPrinted/document page: xii\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: List of Figures page numbers do not appear to be aligned in a consistent right column, as required by NJIT guidelines (Q079).\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R048 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R048 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R048 finding."
+      ]
+    ]
+  },
+  "R049": {
+    "tab_name": "R049",
+    "b1_line1": "Possible R049 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R049 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/10g8HISEOHG3WsCtsSzBXnrnVJWcMdciX/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R049 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R049 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R049 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R049 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R049 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R049 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R049 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R049 finding."
+      ]
+    ]
+  },
+  "R050": {
+    "tab_name": "R050",
+    "b1_line1": "Possible R050 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R050 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/18i3b5rerR6-99Vu2e3rSOe_B_tGnwc9-/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R050 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R050 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R050 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R050 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R050 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R050 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R050 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R050 finding."
+      ]
+    ]
+  },
+  "R051": {
+    "tab_name": "R051",
+    "b1_line1": "Possible R051 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R051 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1o_N413jAffFCXRZkyTo9C7-bnEgD5hfk/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R051 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R051 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R051 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R051 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R051 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R051 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R051 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R051 finding."
+      ]
+    ]
+  },
+  "R052": {
+    "tab_name": "R052",
+    "b1_line1": "Possible R052 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R052 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1tohRixyoC07rUkFEvbTjvqQV_UtS1ob_/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R052 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R052 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R052 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R052 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R052 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R052 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R052 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R052 finding."
+      ]
+    ]
+  },
+  "R053": {
+    "tab_name": "R053",
+    "b1_line1": "Possible R053 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R053 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1rqGW55lZsdliN5mTwS43lM_RYJJnk0sl/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R053 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R053 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R053 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R053 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 14\nPrinted/document page: xi\nLocation: body text\nAffected content:\n  1. \"2.4 Electric Current and MS data for GATLFK Peptide from Cytochrome C\u2026\u2026\u2026. 51\"\nPossible violation: List of Tables entry ends with a terminal period. NJIT guidelines require that table titles use title case with no terminal period.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R053 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R053 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R053 finding."
+      ]
+    ]
+  },
+  "R054": {
+    "tab_name": "R054",
+    "b1_line1": "Possible R054 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R054 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Od9LjpalJgtXgm-vjCWXTwrQlg414cMY/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R054 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R054 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R054 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R054 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 11\nPrinted/document page: viii\nLocation: Top of page\nAffected content:\n  1. \"1 INTRODUCTION\u2026.............\u2026\u2026.\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026. 1\"\nPossible violation: Table of Contents entry ends with a terminal period. NJIT guidelines require that TOC entries at all levels do not end with a terminal period.\nMeasured amount: Not applicable for this rule\nAuditor confidence: HIGH"
+      ],
+      [
+        "Patrick",
+        "No current auditor R054 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R054 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R054 finding."
+      ]
+    ]
+  },
+  "R055": {
+    "tab_name": "R055",
+    "b1_line1": "Possible R055 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R055 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/11VOyZMwjV4Xl7W6o843riUYOnU9bT3ks/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R055 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R055 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R055 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R055 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R055 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R055 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R055 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R055 finding."
+      ]
+    ]
+  },
+  "R056": {
+    "tab_name": "R056",
+    "b1_line1": "Possible R056 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R056 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1s-NuhCe-xYlMqqMI4P105JZEvUGx93fI/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R056 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R056 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R056 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R056 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R056 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R056 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R056 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R056 finding."
+      ]
+    ]
+  },
+  "R057": {
+    "tab_name": "R057",
+    "b1_line1": "Possible R057 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R057 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Fv5O_EOHkVjSPxXxxSHUAm2M-Yoksw-M/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R057 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R057 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R057 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R057 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R057 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R057 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R057 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R057 finding."
+      ]
+    ]
+  },
+  "R058": {
+    "tab_name": "R058",
+    "b1_line1": "Possible R058 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R058 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1E7UsnI0G_4iFis_qtMy3IIiVaN-msoxC/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R058 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R058 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R058 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R058 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R058 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R058 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R058 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R058 finding."
+      ]
+    ]
+  },
+  "R059": {
+    "tab_name": "R059",
+    "b1_line1": "Possible R059 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R059 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Jug6Jca8JjvbCm7s5ReV73B0UZsYZP23/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R059 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R059 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R059 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R059 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R059 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R059 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R059 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R059 finding."
+      ]
+    ]
+  },
+  "R060": {
+    "tab_name": "R060",
+    "b1_line1": "Possible R060 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R060 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/13ZBP409eXbPHG-dr76L3G1yJoYkG4ov9/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R060 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R060 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R060 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R060 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R060 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R060 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R060 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R060 finding."
+      ]
+    ]
+  },
+  "R061": {
+    "tab_name": "R061",
+    "b1_line1": "Possible R061 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R061 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1s3XncqWxv60AU7KezKWC6spShfCpbFRN/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R061 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R061 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R061 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R061 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R061 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R061 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R061 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R061 finding."
+      ]
+    ]
+  },
+  "R062": {
+    "tab_name": "R062",
+    "b1_line1": "Possible R062 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R062 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1VlIOwqSenkZP7wPgJVcXMC3v1o1aq_nv/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R062 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R062 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R062 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R062 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R062 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R062 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R062 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R062 finding."
+      ]
+    ]
+  },
+  "R063": {
+    "tab_name": "R063",
+    "b1_line1": "Possible R063 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R063 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1cx5DcpcCQ0KJFCcWNxMmNwXk9WIFhgOg/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R063 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R063 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R063 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R063 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R063 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R063 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R063 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R063 finding."
+      ]
+    ]
+  },
+  "R064": {
+    "tab_name": "R064",
+    "b1_line1": "Possible R064 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R064 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1iUmNr8L8taptHmbfwGCFCmYXh4oNwmDz/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R064 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R064 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R064 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R064 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R064 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R064 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R064 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R064 finding."
+      ]
+    ]
+  },
+  "R065": {
+    "tab_name": "R065",
+    "b1_line1": "Possible R065 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R065 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1KucJ4naZigbtV_4hAx9XlFGXx4iZUWVb/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R065 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R065 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R065 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R065 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R065 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R065 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R065 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R065 finding."
+      ]
+    ]
+  },
+  "R066": {
+    "tab_name": "R066",
+    "b1_line1": "Possible R066 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R066 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1EIXiFwVdY0_RIW4wcsaw6YHBEHJAxggv/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R066 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R066 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R066 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 6\nPrinted/document page: iv\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Biographical Sketch degree entries may not be listed in most-recent-first order. NJIT guidelines require postgraduate degrees listed from most recent to oldest.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Praneeth",
+        "No current auditor R066 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R066 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R066 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R066 finding."
+      ]
+    ]
+  },
+  "R067": {
+    "tab_name": "R067",
+    "b1_line1": "Possible R067 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R067 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1Gjf91CgwDS8Va0U7VuDYh01gitJneubi/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R067 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R067 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R067 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R067 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R067 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R067 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R067 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R067 finding."
+      ]
+    ]
+  },
+  "R068": {
+    "tab_name": "R068",
+    "b1_line1": "Possible R068 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R068 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1xKdF_LP2NMFB2rxRAbeN80jcoJVEzXe2/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R068 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R068 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R068 finding."
+      ],
+      [
+        "Anthony",
+        "Physical PDF page: 5\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: APPROVAL PAGE committee blocks appear sparse: insufficient date/signature structural indicators relative to detected role-label count.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 6\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: APPROVAL PAGE committee blocks appear sparse: insufficient date/signature structural indicators relative to detected role-label count.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ],
+      [
+        "Patrick",
+        "No current auditor R068 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R068 finding."
+      ],
+      [
+        "Sebastian",
+        "Physical PDF page: 5\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: APPROVAL PAGE committee blocks appear sparse: insufficient date/signature structural indicators relative to detected role-label count.\nMeasured amount: Not applicable for this rule\nAuditor confidence: LOW"
+      ]
+    ]
+  },
+  "R074": {
+    "tab_name": "R074",
+    "b1_line1": "Possible R074 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R074 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1LZrD9_sWUdhulujYvUWF1h8XDwUPj07f/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R074 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R074 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R074 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R074 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R074 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R074 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R074 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R074 finding."
+      ]
+    ]
+  },
+  "R078": {
+    "tab_name": "R078",
+    "b1_line1": "Possible R078 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R078 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1rSbmJ-VU_XzjoXVLMEyRFVWKuvk5x3Mm/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R078 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R078 finding."
+      ],
+      [
+        "Muyeed",
+        "Physical PDF page: 1\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Abstract uses first-person pronoun 'i' under NJIT abstract wording guidance.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Anthony",
+        "No current auditor R078 finding."
+      ],
+      [
+        "Praneeth",
+        "Physical PDF page: 1\nPrinted/document page: not reliably identifiable\nLocation: not reliably identifiable on page\nAffected content:\n  1. \"(no drawable excerpt for this finding)\"\nPossible violation: Abstract uses first-person pronoun 'we' under NJIT abstract wording guidance.\nMeasured amount: Not applicable for this rule\nAuditor confidence: MEDIUM"
+      ],
+      [
+        "Patrick",
+        "No current auditor R078 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R078 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R078 finding."
+      ]
+    ]
+  },
+  "R082": {
+    "tab_name": "R082",
+    "b1_line1": "Possible R082 violation \u2014 page, location, reason, confidence",
+    "b1_line2": "\ud83d\udcce Open highlighted R082 PDF \u2014 click here",
+    "b1_hyperlink": "https://drive.google.com/file/d/1QUvquYnIf7BBSOMorbJrtXBfVdoEqUo_/view",
+    "columns": [
+      "DOCUMENT",
+      "Possible R082 violation \u2014 page, location, reason, confidence",
+      "Comment",
+      "Ester Question 1"
+    ],
+    "rows": [
+      [
+        "Philip",
+        "No current auditor R082 finding."
+      ],
+      [
+        "Muyeed",
+        "No current auditor R082 finding."
+      ],
+      [
+        "Anthony",
+        "No current auditor R082 finding."
+      ],
+      [
+        "Praneeth",
+        "No current auditor R082 finding."
+      ],
+      [
+        "Patrick",
+        "No current auditor R082 finding."
+      ],
+      [
+        "Youra",
+        "No current auditor R082 finding."
+      ],
+      [
+        "Sebastian",
+        "No current auditor R082 finding."
+      ]
+    ]
+  }
+}
