@@ -149,6 +149,33 @@ column B is sufficient (see "Ester's Final Preferred Workflow" above). If an
 existing workbook already has equivalent reviewer columns, preserve them
 rather than redesigning the sheet from scratch.
 
+## All-Rules Batch (completed 2026-08-19)
+
+The workflow above has been generated for every applicable rule in the
+catalog, not just R011/R012. Infrastructure lives in `scripts/ester_batch/`
+(`discover_rules.py`, `build_rule_package.py`, `batch_runner.py`, `lib.py`,
+and `qa/selection_qa.py` / `qa/structural_qa.py`); post-generation QA results
+are recorded in `ALL_RULES_POSTGEN_QA.md`, `all_rules_selection_qa.json`,
+`page_less_findings_qa.md`, and `all_zero_rules_qa.md`, with the run manifest
+in `all_rules_batch_manifest.json` / `all_rules_batch_status.json` /
+`ALL_RULES_BATCH_COMPLETE.json`.
+
+* Of 82 catalog rules, **60 are applicable** and have a generated
+  `Rxxx_Ester_Auditor_Feedback.{xlsx,pdf}` pair; 22 non-emitting/infrastructure
+  rules are intentionally excluded and have no package or sheet tab.
+* 34 of the 60 applicable rules produced zero findings across all seven
+  dissertations; their rows record `No current auditor finding` rather than
+  being skipped, since a rule's silence is itself evaluation information.
+* R011 is the one rule with existing Ester feedback already recorded live and
+  must never be regenerated or overwritten by future batch runs.
+* **Live Google Sheet reviewer columns differ from the XLSX above.** Ester's
+  actual live-sheet habit (established on the R011 tab) uses column C for a
+  short classification/comment (e.g. "false positive") and column D for
+  longer rule-level questions/discussion — not the XLSX's `Correct? (Y/N)` /
+  `Notes` pair. New rule tabs in the live sheet should follow the C/D
+  convention Ester already uses, while the local `.xlsx` keeps its documented
+  `Correct? (Y/N)` / `Notes` layout as the structured data artifact.
+
 ## Maintenance of Review Artifacts
 * The spreadsheet must be saved as: `Rxxx_Ester_Auditor_Feedback.xlsx` (e.g., `R011_Ester_Auditor_Feedback.xlsx`).
 * The consolidated PDF must be saved as: `Rxxx_Ester_Auditor_Feedback.pdf` (e.g., `R011_Ester_Auditor_Feedback.pdf`), alongside the spreadsheet.
