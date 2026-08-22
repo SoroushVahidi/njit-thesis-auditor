@@ -361,6 +361,21 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "guidance asks you to write in third person. Rewrite the sentence to "
         "remove first-person pronouns."
     ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "Problem: Table of Contents entries on page {page} use more than one "
+        "leader style before page numbers. Use one leader style, such as dots "
+        "or hyphens, consistently throughout the Table of Contents."
+    ),
+    ("P075", "toc_missing_leader_style"): (
+        "Problem: Some Table of Contents entries on page {page} are missing a "
+        "leader before the page number while other entries use one. Add the "
+        "same leader style before every Table of Contents page number."
+    ),
+    ("P084", "biosketch_birth_information_present"): (
+        "Problem: The Biographical Sketch on page {page} appears to include "
+        "place-of-birth or date-of-birth information. Remove place of birth "
+        "and date of birth from the Biographical Sketch."
+    ),
     ("P001", "risky_command"): (
         "Risky formatting command '\\{command}' at {location}. "
         "Manual overrides can break NJIT layout requirements."

@@ -71,7 +71,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 82
+    assert len(project_rules) == 84
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -382,6 +382,19 @@ def test_project_added_rules_implemented() -> None:
     )
     assert by_id["P074"]["issue_types"] == ["title_page_graduation_month_invalid"]
     assert by_id["P074"]["source_q_rule_ids"] == ["Q006"]
+    assert "P075" in by_id
+    assert by_id["P075"]["implementation_status"] == "implemented"
+    assert by_id["P075"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P075"]["implementation_module"]
+        == "njit_auditor.rules.pdf_toc_leader_consistency"
+    )
+    assert by_id["P075"]["rule_type"] == "detection"
+    assert by_id["P075"]["source_q_rule_ids"] == ["Q052"]
+    assert by_id["P075"]["issue_types"] == [
+        "toc_mixed_leader_styles",
+        "toc_missing_leader_style",
+    ]
     assert "P076" in by_id
     assert by_id["P076"]["implementation_status"] == "implemented"
     assert by_id["P076"]["phase"] == "pdf_layout"
@@ -444,6 +457,16 @@ def test_project_added_rules_implemented() -> None:
     assert by_id["P083"]["rule_type"] == "evaluation_task"
     assert by_id["P083"]["implementation_module"] is None
     assert by_id["P083"]["issue_types"] == []
+    assert "P084" in by_id
+    assert by_id["P084"]["implementation_status"] == "implemented"
+    assert by_id["P084"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P084"]["implementation_module"]
+        == "njit_auditor.rules.pdf_biosketch_birth_information"
+    )
+    assert by_id["P084"]["rule_type"] == "detection"
+    assert by_id["P084"]["source_q_rule_ids"] == ["Q023"]
+    assert by_id["P084"]["issue_types"] == ["biosketch_birth_information_present"]
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

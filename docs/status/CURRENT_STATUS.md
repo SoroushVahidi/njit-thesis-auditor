@@ -8,23 +8,23 @@
 > This file is intentionally short. Do not append dated snapshots here — open a new dated
 > report under `docs/status/` instead and link it from the relevant section below.
 
-_Last verified: 2026-07-14, after #505/#509/#510/#511 (`docs/status/pr505_reduction_after_pr508_20260714.md`)._
+_Last verified: 2026-08-21, after the P075/P084 remote-integration pass._
 
 ## Main branch
 
 | Field | Value |
 |---|---|
-| `origin/main` SHA | `859d8f15c44fdc46709d9e38d8597388af3ec1c6` (short `859d8f1`) |
-| Last merged PR | [#511](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/511) — CURRENT_STATUS drift-prevention checks
+| Integration base SHA | `1ca56c3f4677da373ceb0203b64a1298449e8d95` (short `1ca56c3`) |
+| Last merged PR | [#511](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/511) — CURRENT_STATUS drift-prevention checks |
 | CI (`.github/workflows/ci.yml`) | passing on `main` (post-merge run `29303438713`) |
 | `ruff check .` | clean |
 | `mypy src` | clean, 109 source files |
-| `python -m pytest -q tests` | **2834 passed** (measured on fresh `origin/main` @ `859d8f1`)
-| Rule coverage | P001–P083 implemented (P075 is a documented non-inventory project task; next new rule ID is **P084**, not started) |
+| `python -m pytest -q` | **3123 passed** (measured on integrated branch based on `origin/main` @ `1ca56c3`) |
+| Rule coverage | P001–P084 implemented (including P075 and P084 inventory detectors; no remaining non-inventory project task IDs; next new rule ID is **P085**) |
 
-Numbers above were measured directly on a fresh `origin/main` checkout after the reduced #505
-merge — not copied from an older doc. If you're reading this later, re-run the three validation
-commands yourself before trusting the counts.
+Numbers above were measured directly during the P075/P084 integration pass on a branch based
+on `origin/main` at `1ca56c3` — not copied from an older doc. If you're reading this later,
+re-run the validation commands yourself before trusting the counts.
 
 ## Active open PRs (as of this audit)
 

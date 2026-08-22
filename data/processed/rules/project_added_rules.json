@@ -1564,6 +1564,32 @@
     "notes": "Heuristic. Only fires when a 'Month YYYY' line is detected and the month is not valid. Silent when the graduation date is absent or in a non-standard format. Case-insensitive matching. Valid months: August, December, May (per Q006 rule_definition). PDF companion to run_latex_graduation_month_check in latex_metadata.py."
   },
   {
+    "id": "P075",
+    "title": "TOC Leader-Style Consistency",
+    "description": "Every Table of Contents entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens) throughout the TOC. Complements the broader P018 diagnostic.",
+    "section": "Document Structure",
+    "question": "Is each Table of Contents entry connected to its page number by one consistent leader style (dots or hyphens) throughout the TOC?",
+    "rule_definition": "Every TOC entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens). Flags mixed dot+hyphen leaders and entries missing a leader while others have one.",
+    "severity": "info",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_toc_leader_consistency",
+    "rule_type": "detection",
+    "source_q_rule_ids": [
+      "Q052"
+    ],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_toc_leader_consistency.py"
+    ],
+    "issue_types": [
+      "toc_mixed_leader_styles",
+      "toc_missing_leader_style"
+    ],
+    "remediation": "Right-align page numbers and use one consistent leader style (dots or hyphens) throughout the entire Table of Contents.",
+    "source_file": "project_added",
+    "notes": "Complements P018 diagnostic. Silent when all entries use the same leader style or fewer than 3 paged entries exist."
+  },
+  {
     "id": "P076",
     "title": "P036 TOC/List Spacing Triage Rollup",
     "description": "Reporting-only refinement that adds a privacy-safe grouped triage summary for P036 TOC/LoT/LoF inter-entry spacing findings in JSON and Markdown reports. Aggregates raw P036 findings by issue type, section type, triage tier, page ranges, and gap-ratio severity buckets without changing P036 detection behavior or canonical aggregate counts.",
@@ -1767,5 +1793,30 @@
     "remediation": "No direct remediation — P083 is an evaluation-only task. Use the gap register to decide whether future SMI gaps meet the five-gate evidence bar for new detectors.",
     "source_file": "project_added",
     "notes": "Evaluation task only; no source code changes; no detector logic changes; no canonical aggregate impact. Coverage table based on 52 DOCX-extracted EF comments (category-level estimates from post_p080_docx_pdf_overlap_evaluation.md). Bold/heading style gap (10 SMI) is the main in-scope miss; blocked by insufficient document count (only 2 DOCX files) to pass five-gate evidence bar."
+  },
+  {
+    "id": "P084",
+    "title": "Biographical Sketch Birth Information",
+    "description": "Scans the Biographical Sketch page in PDF for place of birth and date of birth patterns.",
+    "section": "Biographical Sketch",
+    "question": "Does the Biographical Sketch text exclude both place of birth and date of birth?",
+    "rule_definition": "Scans the BIOGRAPHICAL SKETCH page only. Warns on high-confidence place-of-birth and date-of-birth patterns.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_biosketch_birth_information",
+    "rule_type": "detection",
+    "source_q_rule_ids": [
+      "Q023"
+    ],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_biosketch_birth_information.py"
+    ],
+    "issue_types": [
+      "biosketch_birth_information_present"
+    ],
+    "remediation": "Remove place of birth and date of birth from the Biographical Sketch.",
+    "source_file": "project_added",
+    "notes": "Intentionally narrow: scans only the unique BIOGRAPHICAL SKETCH page, stops before Publications/Presentations."
   }
 ]

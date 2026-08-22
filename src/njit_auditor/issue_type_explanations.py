@@ -57,6 +57,9 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "abstract_word_count_exceeded": "Abstract word count exceeded",
     "abstract_pdf_forbidden_term": "Abstract contains a forbidden term",
     "abstract_pdf_first_person_pronoun": "Abstract uses first-person pronoun",
+    "biosketch_birth_information_present": "Biographical Sketch birth information present",
+    "toc_mixed_leader_styles": "TOC mixed leader styles",
+    "toc_missing_leader_style": "TOC missing leader style",
     # Headings / TOC
     "missing_continued_heading": "Missing continued heading",
     "toc_missing_continued_heading": "TOC missing continued heading",
@@ -539,6 +542,21 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means the abstract appears to use a first-person pronoun such as "
         "\"I,\" \"me,\" \"my,\" \"we,\" or \"our.\" Rewrite the sentence to "
         "remove first-person pronouns."
+    ),
+    ("P084", "biosketch_birth_information_present"): (
+        "This means the Biographical Sketch appears to contain place-of-birth "
+        "or date-of-birth information. Remove place of birth and date of birth "
+        "from the Biographical Sketch."
+    ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "The Table of Contents uses different leader styles, such as dots and "
+        "hyphens, to connect entries to page numbers. Use one consistent "
+        "leader style throughout the entire TOC."
+    ),
+    ("P075", "toc_missing_leader_style"): (
+        "Some Table of Contents entries are missing a leader style before the "
+        "page number while others use one. Add a consistent leader style "
+        "between entry text and page numbers."
     ),
     ("P015", "unexpected_opening_indent"): (
         "This means the first paragraph after a section heading appears indented when "

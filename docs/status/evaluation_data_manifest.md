@@ -1,17 +1,17 @@
 # Evaluation Data Manifest
 
 > **Superseded status pointers.** Live `main` SHA, test counts, and Q-rule coverage are in
-> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+> [CURRENT_STATUS.md](CURRENT_STATUS.md).
 > The inventory tables below remain useful; validation bullets at the top are historical.
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
 - **Baseline main for this status snapshot:** `07db2fa` (PR #433); prior baseline: `70dcd95` (PR #408).
-- **Status snapshot validation:** see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) — **2512 pytest passed** on tracked tests at `07db2fa` (2026-07-03).
+- **Status snapshot validation:** see [CURRENT_STATUS.md](CURRENT_STATUS.md) for current test counts and `main` SHA.
 - **Historical P082 closeout snapshot:** `docs/status/project_closeout.md`
 - **Full repository audit (P079 era):** `docs/status/full_repository_audit_after_p079.md`
 - **P073 P019 triage rollup:** complete (2026-06-09) — reporting/metadata refinement now wired in JSON/Markdown outputs via `build_p019_page_numbering_triage_summary()`; 67 P019 findings classified by cause/actionability; sequence_gap highest-signal; see `docs/evaluation/p073_p019_page_numbering_triage_rollup.md` and `docs/evaluation/p073_v2_p019_triage_code_rollup_validation.md`
 - **P074 title-page graduation month:** implemented (2026-06-09) — PDF heuristic for Q006; 0 findings on five-PDF current dataset (all valid); canonical aggregate 1,543 unchanged
-- **P075 inventory consistency guard:** implemented (2026-06-09) — test-only hygiene; P075 remains a documented non-inventory project task; no detection behavior change and no aggregate impact
+- **P075 TOC leader-style consistency:** implemented — PDF detector for Q052; inventory rule `njit_auditor.rules.pdf_toc_leader_consistency`; issue types `toc_mixed_leader_styles` and `toc_missing_leader_style`
 - **P082 landscape page-number orientation advisory:** implemented (2026-06-09) — experimental opt-in; disabled by default; warning/manual-review only; observational over existing P013 page-number candidates; uses PyMuPDF line_dir/wmode/page_rotation; 0 findings on five-PDF dataset in default mode; canonical aggregate unchanged at 1,543; see `docs/planning/p082_landscape_page_number_orientation_scope_and_design.md` and `docs/evaluation/p082_landscape_page_number_orientation_synthetic_validation.md`
 - **P079 P044 Abstract indentation triage rollup:** implemented (2026-06-09) — reporting-only P044 Abstract paragraph indentation triage summary now wired in JSON/Markdown outputs via `build_p044_abstract_indentation_triage_summary()`; grouped JSON key `p044_abstract_indentation_triage`; Markdown section `P044 Abstract Indentation Triage`; aggregates by issue type (abstract_first_paragraph_indented / abstract_subsequent_paragraph_not_indented), source Q-rule (Q002 / Q003), triage tier, paragraph index, and page ranges; no standalone issue types; raw P044 findings and canonical aggregate unchanged at 1,543
 - **P078 PDF Abstract forbidden-term and pronoun check:** implemented (2026-06-09) — `check_pdf_abstract_keywords()` in `src/njit_auditor/rules/pdf_abstract.py`; emits `abstract_pdf_forbidden_term` (Q004) and `abstract_pdf_first_person_pronoun` (Q005) on Abstract page body text only; 14 synthetic tests; 0 findings on five-PDF dataset; canonical aggregate unchanged at 1,543
@@ -26,7 +26,8 @@
 - **P081 P013/P026 calibration rollup:** implemented (2026-06-09, **PR #288**) — reporting-only refinement that extends `grouped_summary.p013_triage` and `grouped_summary.p026_font_triage` with dominant-pattern labels, calibration buckets, and compact routine-vs-outlier page ranges; detector logic unchanged; raw finding counts unchanged; no threshold changes, no raw finding suppression, and no new issue types; canonical aggregate unchanged at 1,543
 - **P082 landscape page-number orientation advisory:** implemented (2026-06-09, **PR #292**) — experimental opt-in; disabled by default; warning/manual-review only; 0 findings on five-PDF dataset in default mode; canonical aggregate unchanged at 1,543; see `docs/planning/p082_landscape_page_number_orientation_scope_and_design.md` and `docs/evaluation/p082_landscape_page_number_orientation_synthetic_validation.md`
 - **P083 EF-comment coverage taxonomy and in-scope gap register:** implemented (2026-06-10) — pure evaluation_task; classifies 52 EF reviewer comments from 2 DOCX dissertation drafts against SIM/SIP/SMI/SBL/SEM/PRF/AMB taxonomy; output: `data/processed/ef_comment_coverage.json` (52 rows; 3 SIM, 34 SIP, 10 SMI, 3 SBL, 2 SEM; covered_or_partial_rate 0.74); 3 new schema tests; no source code changes; no detector changes; canonical aggregate unchanged at 1,543; see `docs/planning/p083_ef_comment_coverage_taxonomy_scope_and_design.md` and `docs/evaluation/ef_comment_coverage_analysis.md`
-- **Status snapshot validation:** see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) for current test counts and `main` SHA.
+- **P084 Biographical Sketch birth-information:** implemented — PDF detector for Q023; inventory rule `njit_auditor.rules.pdf_biosketch_birth_information`; issue type `biosketch_birth_information_present`
+- **Status snapshot validation:** see [CURRENT_STATUS.md](CURRENT_STATUS.md) for current test counts and `main` SHA.
 - **Canonical aggregate:** `docs/evaluation/current_auditor_after_p070_evaluation.md` — **1,543** findings; unchanged after P071 and P072 (both infrastructure-only); no separate `current_auditor_after_p072_evaluation.md`
 - **Latest EF overlap:** `docs/evaluation/ef_overlap_after_p072_evaluation.md` — 143 EF annotations; 671 tool findings on comparison PDFs; `committee_approval_page` gap unchanged (5 EF, 0 tool); `references_citations` gap unchanged (9 EF, 0 tool)
 - **Schema version:** 1
@@ -80,9 +81,9 @@ Authoritative NJIT formatting and process references under `data/raw/guidelines/
 | Path | Prefix | Count | Tracked |
 |---|---|---:|---|
 | `data/processed/rules/njit_rule_inventory.json` | Q | 79 (Q001–Q079) | Yes |
-| `data/processed/rules/project_added_rules.json` | P | 82 (P001–P083, with P075 documented separately as non-inventory) | Yes |
+| `data/processed/rules/project_added_rules.json` | P | 84 (P001–P084) | Yes |
 
-Repository-level progress is **P001–P083**. Project-added rule inventory now spans **P001–P074 plus P076–P083** because **P075 is a documented non-inventory project task**, not a rule inventory entry. The inventory guard allows only documented skipped P-IDs, currently `P075`, so the next project-added rule inventory entry is `P084`. P069–P073, P076, P077, P079, P080, P081, and P083 are infrastructure/reporting/evaluation-only (no standalone findings); P074 and P078 are detection rules (both 0 findings on current dataset); P082 is an experimental opt-in advisory (disabled by default; 0 findings on current dataset in default mode); P083 is a pure evaluation_task (no detector, no aggregate impact). Canonical five-PDF aggregate is **1,543** (unchanged through P083); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
+Repository-level progress is **P001–P084**. Project-added rule inventory now spans all IDs from **P001–P084**, including P075 and P084, and there are no remaining non-inventory project task IDs; the next project-added rule inventory entry is `P085`. P069–P073, P076, P077, P079, P080, P081, and P083 are infrastructure/reporting/evaluation-only (no standalone findings); P074, P075, P078, and P084 are detection rules; P082 is an experimental opt-in advisory (disabled by default; 0 findings on current dataset in default mode); P083 is a pure evaluation_task (no detector, no aggregate impact). Canonical five-PDF aggregate is **1,543** (unchanged through P083); see `docs/evaluation/current_auditor_after_p070_evaluation.md`. Full Q-rule / guideline source coverage is not complete
 (see `docs/status/source_to_implementation_coverage_after_p029.md`). Post-P072 backlog and data strategy: `docs/status/post_p072_backlog_and_data_strategy.md`.
 
 ---

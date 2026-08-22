@@ -293,8 +293,8 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
         auditor_rule_state["project_added_rule_inventory_range"]
         == computed_state["inventory_range"]
     )
-    assert manifest["non_inventory_project_task_ids"] == ["P075"]
-    assert auditor_rule_state["non_inventory_project_task_ids"] == ["P075"]
+    assert manifest["non_inventory_project_task_ids"] == []
+    assert auditor_rule_state["non_inventory_project_task_ids"] == []
     assert manifest["next_project_added_rule_id"] == computed_state["next_inventory_id"]
     assert (
         auditor_rule_state["next_project_added_rule_id"]
@@ -311,16 +311,11 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
         == "docs/evaluation/current_auditor_after_p070_evaluation.md"
     )
     assert auditor_rule_state["canonical_aggregate_findings"] == 1543
-    assert "test-only" in str(auditor_rule_state["p075_status_note"])
-    assert "no detection behavior" in str(
-        manifest["non_inventory_project_task_notes"]["P075"]
-    )
-    assert "no aggregate impact" in str(
-        manifest["non_inventory_project_task_notes"]["P075"]
-    )
-    assert manifest["non_inventory_project_task_notes"]["P075"] == (
-        auditor_rule_state["non_inventory_project_task_notes"]["P075"]
-    )
+    assert manifest["non_inventory_project_task_notes"] == {}
+    assert auditor_rule_state["non_inventory_project_task_notes"] == {}
+    assert "TOC leader-style consistency" in str(auditor_rule_state["p075_status_note"])
+    assert "Q052" in str(auditor_rule_state["p075_status_note"])
+    assert "pdf_toc_leader_consistency" in str(auditor_rule_state["p075_status_note"])
     assert "reporting-only" in str(auditor_rule_state["p076_status_note"])
     assert "P036" in str(auditor_rule_state["p076_status_note"])
     assert "no standalone issue types" in str(auditor_rule_state["p076_status_note"])
@@ -356,6 +351,13 @@ def test_manifest_current_state_metadata_is_consistent() -> None:
     assert "evaluation_task" in str(auditor_rule_state["p083_status_note"]).lower()
     assert "ef_comment_coverage.json" in str(auditor_rule_state["p083_status_note"])
     assert "1,543" in str(auditor_rule_state["p083_status_note"])
+    assert "Biographical Sketch birth-information" in str(
+        auditor_rule_state["p084_status_note"]
+    )
+    assert "Q023" in str(auditor_rule_state["p084_status_note"])
+    assert "pdf_biosketch_birth_information" in str(
+        auditor_rule_state["p084_status_note"]
+    )
 
     p_inventory = next(
         entry
@@ -413,7 +415,7 @@ def test_manifest_current_state_docs_are_aligned() -> None:
     assert next_inventory_id in current_status_doc
     assert baseline_main in current_status_doc
     assert f"{pytest_count} passed" in current_status_doc
-    assert "non-inventory project task" in current_status_doc
+    assert "no remaining non-inventory project task IDs" in current_status_doc
 
     # README intentionally no longer embeds these figures (see docs/RULE_ARCHITECTURE.md
     # and docs/status/CURRENT_STATUS.md) but must not claim to be the live source of them.

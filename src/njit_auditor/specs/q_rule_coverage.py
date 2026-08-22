@@ -30,6 +30,7 @@ class QRuleCoverage:
     question: str
     automatable: bool
     implementation_status: str  # 'implemented', 'manual_review_only', 'unimplemented'
+    coverage_confidence: str = ""
     manual_review_reason: str = ""
     implementing_p_rules: list[str] = field(default_factory=list)
 
@@ -60,16 +61,20 @@ def _load_catalog() -> list[dict]:
 
 
 def _build_q_to_p_map(catalog: list[dict]) -> dict[str, list[str]]:
-    """Return {Q-ID: [P-rule-IDs]} from catalog notes/q_rule_ids fields."""
+    """Return {Q-ID: [P-rule-IDs]} from catalog notes/q_rule_ids/source_q_rule_ids fields."""
     q_to_p: dict[str, list[str]] = {}
     for rule in catalog:
         pid = rule.get("id", "")
         if not pid.startswith("P"):
             continue
-        # Collect Q-refs from notes, q_rule_ids, source_q_rule_ids fields
+        # Keep legacy note-based mappings while also honoring structured source_q_rule_ids.
+        source_q_ids = rule.get("source_q_rule_ids", [])
         q_ids_field = rule.get("q_rule_ids", [])
-        q_ids_str = " ".join(q_ids_field) if isinstance(q_ids_field, list) else ""
-        combined = " ".join([rule.get("notes", ""), q_ids_str])
+        q_ids_str = " ".join(q_ids_field) if isinstance(q_ids_field, list) else str(q_ids_field)
+        source_q_str = (
+            " ".join(source_q_ids) if isinstance(source_q_ids, list) else str(source_q_ids)
+        )
+        combined = " ".join([str(rule.get("notes", "")), q_ids_str, source_q_str])
         for qid in _expand_q_range(combined):
             q_to_p.setdefault(qid, []).append(pid)
     return q_to_p
@@ -94,10 +99,13 @@ def build_coverage_report() -> list[QRuleCoverage]:
 
         if not automatable:
             status = "manual_review_only"
+            coverage = "medium"
         elif implementing:
             status = "implemented"
+            coverage = "medium"
         else:
             status = "unimplemented"
+            coverage = "low"
 
         results.append(QRuleCoverage(
             q_id=qid,
@@ -105,6 +113,7 @@ def build_coverage_report() -> list[QRuleCoverage]:
             question=rule.get("question", ""),
             automatable=automatable,
             implementation_status=status,
+            coverage_confidence=coverage,
             manual_review_reason=rule.get("manual_review_reason", ""),
             implementing_p_rules=implementing,
         ))

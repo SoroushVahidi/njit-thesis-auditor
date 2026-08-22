@@ -1,12 +1,12 @@
 # Data Inventory and Evaluation Sources (status refresh)
 
 > **Superseded status pointers.** For current `main`, validation, and Q-rule coverage see
-> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+> [CURRENT_STATUS.md](CURRENT_STATUS.md).
 
 - Date: 2026-06-11 (release-engineering/status consistency refresh)
 - Historical baseline note: PR #47 (`8afdcad165ab`)
 - Baseline main for this status snapshot: `07db2fa` (PR #433)
-- Status snapshot validation: **2512 pytest passed** on tracked tests at `07db2fa` (2026-07-03); repository progress P001–P083 — see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md) for full status.
+- Status snapshot validation: **2512 pytest passed** on tracked tests at `07db2fa` (2026-07-03); repository progress P001–P084 — see [CURRENT_STATUS.md](CURRENT_STATUS.md) for current status.
 - Scope: repository data organization and evaluation-source status (documentation only)
 
 ## 1. Executive summary
@@ -14,7 +14,7 @@
 This repository contains six major data classes:
 
 1. **Guideline/rule-source data** (`data/raw/guidelines/`) used to derive formatting requirements.
-2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P074 plus P076-P083** implementation rules; repository-level progress is **P001-P083** because P075 is a documented non-inventory project task rather than an inventory rule entry, and the next project-added rule inventory entry is **P084**. P082 is experimental/opt-in and disabled by default. P083 is a pure evaluation_task (no detector, no aggregate impact).
+2. **Processed rule inventory data** (`data/processed/rules/`) defining Q001-Q079 inventory rules and project **P001-P084** implementation rules; P075 and P084 are inventory detectors, there are no remaining non-inventory project task IDs, and the next project-added rule inventory entry is **P085**. P082 is experimental/opt-in and disabled by default. P083 is a pure evaluation_task (no detector, no aggregate impact).
 3. **EF-commented dissertation data** (`data/raw/ester/`) used for comparison against reviewer feedback.
 4. **Clean/no-feedback dissertation baseline data** (zip in `data/raw/ester/`) used for false-positive analysis.
 5. **Generated evaluation artifacts** (`data/evaluation/generated/`) used for reproducible snapshots and comparisons.
@@ -63,18 +63,18 @@ Also present in this folder:
 - `data/processed/rules/njit_rule_inventory.json`  
   Source/guideline-derived Q-rule inventory (`Q001-Q079`) with implementation status metadata.
 - `data/processed/rules/project_added_rules.json`  
-  Project implementation rule set (**P001-P074 plus P076–P083**) — 82 implemented entries spanning `P001-P083`; P069–P073, P076, P077, P079, P080, P081, and P083 are infrastructure/reporting/evaluation-only; P074 and P078 are detection rules (both 0 findings on current dataset); P082 is experimental/opt-in (disabled by default); P083 is a pure evaluation_task; P075 is a documented non-inventory project task, so the next inventory entry is `P084`.
+  Project implementation rule set (**P001-P084**) — 84 implemented entries spanning `P001-P084`; P069–P073, P076, P077, P079, P080, P081, and P083 are infrastructure/reporting/evaluation-only; P074, P075, P078, and P084 are detection rules; P082 is experimental/opt-in (disabled by default); P083 is a pure evaluation_task; there are no remaining non-inventory project task IDs, so the next inventory entry is `P085`.
 - `data/processed/ef_comment_coverage.json`  
   P083 EF-comment coverage table: 52 rows (estimated from category-level breakdown in `docs/evaluation/post_p080_docx_pdf_overlap_evaluation.md`); taxonomy classes: SIM/SIP/SMI/SBL/SEM; covered_or_partial_rate 0.74; no raw reviewer text, student names, or dissertation body text.
 
-From the strict post-P029 audit plus post-audit updates through P083
+From the strict post-P029 audit plus post-audit updates through P084
 (`docs/status/source_to_implementation_coverage_after_p029.md`):
 
-- Repository progress: **P001–P083** implemented, where **P075 is test-only inventory/status hygiene** and a documented non-inventory project task.
-- Inventory guard policy: only documented skipped P-IDs are allowed, currently `P075`; accidental gaps, duplicates, and out-of-order inventory IDs still fail tests.
-- Project-added rule inventory: **82/82** implemented (`P001–P074 plus P076–P083`; historical audit snapshot listed 29/29 at P029).
+- Repository progress: **P001–P084** implemented, including P075 and P084 inventory detectors.
+- Inventory guard policy: accidental gaps, duplicates, and out-of-order inventory IDs fail tests; there are currently no documented skipped P-IDs.
+- Project-added rule inventory: **84/84** implemented (`P001–P084`; historical audit snapshot listed 29/29 at P029).
 - Q-rules: mixed implemented/partial/not-implemented/manual-only status; full source coverage is not complete.
-- P082 landscape page-number orientation advisory is experimental/opt-in; default-mode canonical aggregate remains **1,543**; P083 is a pure evaluation task (no detector, no aggregate impact); next inventory entry is **P084** when explicitly scoped.
+- P082 landscape page-number orientation advisory is experimental/opt-in; default-mode canonical aggregate remains **1,543**; P083 is a pure evaluation task (no detector, no aggregate impact); next inventory entry is **P085** when explicitly scoped.
 
 ## 5. Commented dissertation data
 

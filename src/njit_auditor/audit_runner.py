@@ -49,6 +49,9 @@ from njit_auditor.rules.pdf_approval_page_committee_blocks import (
     check_pdf_approval_page_committee_blocks,
 )
 from njit_auditor.rules.pdf_biosketch_bullet_spacing import check_pdf_biosketch_bullet_spacing
+from njit_auditor.rules.pdf_biosketch_birth_information import (
+    check_pdf_biosketch_birth_information,
+)
 from njit_auditor.rules.pdf_biosketch_degree_ordering import (
     check_pdf_biosketch_degree_ordering,
 )
@@ -136,6 +139,7 @@ from njit_auditor.rules.pdf_toc_entry_number_ordering import (
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
+from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
 from njit_auditor.rules.pdf_toc_page_number_ordering import (
     check_pdf_toc_page_number_ordering,
 )
@@ -270,6 +274,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_indentation(content_doc))
     findings.extend(check_pdf_abstract_indentation(content_doc))
     findings.extend(check_pdf_acknowledgements_indentation(content_doc))
+    findings.extend(check_pdf_biosketch_birth_information(content_doc))
     findings.extend(check_pdf_biosketch_publication_layout(content_doc))
     findings.extend(check_pdf_biosketch_bullet_spacing(content_doc))
     findings.extend(check_pdf_spacing(content_doc))
@@ -279,6 +284,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_figure_table_layout(content_doc))
     findings.extend(check_pdf_heading_level_styles(content_doc))
     findings.extend(check_pdf_toc_alignment(content_doc))
+    findings.extend(check_pdf_toc_leader_consistency(content_doc))
     findings.extend(check_pdf_toc_list_formatting(content_doc))
     findings.extend(check_pdf_toc_continued_headings(content_doc))
     findings.extend(check_pdf_lot_lof_column_headers(content_doc))
