@@ -81,6 +81,15 @@ def _truncate(value: str, max_len: int = MAX_DETAIL_TEXT_LEN) -> str:
 # an already-short preview snippet, only by dropping whole trailing items.
 _MULTI_ITEM_DETAIL_LIMITS: dict[str, tuple[int, int]] = {
     "affected_line_texts": (340, 6),
+    # bbox-family keys hold " | "-joined "x0,y0,x1,y1" coordinate groups
+    # (e.g. P011's per-group highlight_bboxes) that can exceed the generic
+    # 120-char cap on pages with 5+ separated violation groups. Each box is
+    # ~20-30 chars, so (1200, 40) comfortably covers realistic pages while
+    # still bounding total exported size against a malformed/adversarial PDF.
+    "highlight_bboxes": (1200, 40),
+    "margin_boundary_bboxes": (1200, 40),
+    "overflow_display_bboxes": (1200, 40),
+    "overflow_segment_bboxes": (1200, 40),
 }
 _MULTI_ITEM_SEPARATOR = " | "
 _INTERNAL_STUDENT_EXPORT_DETAIL_KEYS: frozenset[str] = frozenset(
