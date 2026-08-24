@@ -318,3 +318,65 @@ def test_single_side_comment_stays_neutral_without_downgrading() -> None:
     assert "appears to cross the required right margin boundary" in lowered
     for phrase in ("optional", "can be ignored", "may be ignored", "not required"):
         assert phrase not in lowered
+
+
+def test_many_separated_groups_survive_json_serialization(tmp_path: Path) -> None:
+    """A heavily-affected page (5+ separated violation groups on one side, as
+    seen on real dissertation body-text pages) must not have its
+    highlight_bboxes list silently truncated by the generic
+    MAX_DETAIL_TEXT_LEN=120 detail-text cap in report_outputs._sanitize_details.
+
+    Regression found during the 2026-08-24 registered-worktree audit: five
+    ~24-char boxes joined by " | " comfortably exceed 120 characters, so the
+    generic single-value truncation helper (designed for free-text fields)
+    was corrupting the last box and silently dropping groups beyond the cut
+    once serialized to JSON -- exactly the report.json the live
+    highlighted-PDF endpoint reads from. bbox-family keys now get an
+    item-boundary-safe multi-item limit via _MULTI_ITEM_DETAIL_LIMITS
+    (like affected_line_texts already has) instead of the generic cap, so a
+    handful of boxes round-trip untouched while total exported size per key
+    stays bounded against a malformed/adversarial PDF."""
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
+    over_text = "This line runs well past the required right margin boundary xxxxxx"
+    y = 100.0
+    for _ in range(5):
+        x0, _ = _text_at_x1(over_text, ALLOWED_X1 + 40, y)
+        page.insert_text((x0, y), over_text, fontsize=11)
+        y += 20
+        page.insert_text((150, y), "A normal clean line well inside the margins.", fontsize=11)
+        y += 20
+    pdf_path = tmp_path / "five_separated_groups.pdf"
+    doc.save(pdf_path)
+    doc.close()
+
+    warnings = _p011_warnings(pdf_path)
+    right = [f for f in warnings if f.details.get("side") == "right_margin"]
+    assert len(right) == 1
+    details = right[0].details
+    assert details.get("affected_line_count") == "5"
+    raw_highlight_bboxes = details["highlight_bboxes"]
+    assert len(raw_highlight_bboxes) > 120, "test setup must actually exceed the old truncation cap"
+
+    # Round-trip through the real JSON serialization path used for report.json
+    # (the same file the live /highlighted-page.pdf endpoint reads from).
+    payload = audit_findings_to_json_dict(right, {"audit_type": "pdf"})
+    serialized_details = payload["findings"][0]["details"]
+    assert serialized_details["highlight_bboxes"] == raw_highlight_bboxes, (
+        "highlight_bboxes must survive JSON serialization untruncated within the bounded limit"
+    )
+
+    # Parsing the raw (pre-serialization) and serialized (post-sanitize)
+    # details must produce identical boxes -- the truncation/bounding step
+    # must never silently corrupt or drop groups, regardless of exactly how
+    # many boxes current highlight-targeting logic produces for this page.
+    raw_boxes = parse_highlight_bboxes_from_details(
+        details, rule_id="P011", issue_type="margin_boundary_violation"
+    )
+    boxes = parse_highlight_bboxes_from_details(
+        serialized_details, rule_id="P011", issue_type="margin_boundary_violation"
+    )
+    assert len(raw_boxes) >= 6, "test setup must produce at least 5 line groups plus 1 guide box"
+    assert boxes == raw_boxes, (
+        "sanitizing/serializing details must never corrupt or drop highlight boxes"
+    )
