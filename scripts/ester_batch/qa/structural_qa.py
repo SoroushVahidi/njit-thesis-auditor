@@ -91,7 +91,9 @@ def audit_xlsx(ester_id: str, path: Path) -> tuple[list[str], list[str]]:
         if ester_id != "R011":
             for phrase in _MARGIN_SPECIFIC_PHRASES:
                 if phrase in cell_b.lower():
-                    problems.append(f"row {i}: margin-specific wording on non-margin rule: {phrase!r}")
+                    problems.append(
+                        f"row {i}: margin-specific wording on non-margin rule: {phrase!r}"
+                    )
 
         c_val = ws.cell(row=i, column=3).value
         d_val = ws.cell(row=i, column=4).value
@@ -133,7 +135,9 @@ def audit_pdf(ester_id: str, path: Path, expected_finding_docs: list[str]) -> li
             f"(docs with a finding), found {len(doc_entries)}"
         )
     else:
-        for (_level, title, _pg), expected_name in zip(doc_entries, expected_finding_docs, strict=False):
+        for (_level, title, _pg), expected_name in zip(
+            doc_entries, expected_finding_docs, strict=False
+        ):
             if not title.startswith(expected_name):
                 problems.append(f"TOC entry order/name mismatch: {title!r} vs {expected_name!r}")
 

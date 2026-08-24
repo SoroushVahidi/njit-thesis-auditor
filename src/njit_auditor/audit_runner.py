@@ -48,10 +48,10 @@ from njit_auditor.rules.pdf_appendix_body_headings import check_pdf_appendix_bod
 from njit_auditor.rules.pdf_approval_page_committee_blocks import (
     check_pdf_approval_page_committee_blocks,
 )
-from njit_auditor.rules.pdf_biosketch_bullet_spacing import check_pdf_biosketch_bullet_spacing
 from njit_auditor.rules.pdf_biosketch_birth_information import (
     check_pdf_biosketch_birth_information,
 )
+from njit_auditor.rules.pdf_biosketch_bullet_spacing import check_pdf_biosketch_bullet_spacing
 from njit_auditor.rules.pdf_biosketch_degree_ordering import (
     check_pdf_biosketch_degree_ordering,
 )
@@ -136,10 +136,10 @@ from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hiera
 from njit_auditor.rules.pdf_toc_entry_number_ordering import (
     check_pdf_toc_entry_number_ordering,
 )
+from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
 from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import check_pdf_toc_list_wrapped_spacing
-from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
 from njit_auditor.rules.pdf_toc_page_number_ordering import (
     check_pdf_toc_page_number_ordering,
 )

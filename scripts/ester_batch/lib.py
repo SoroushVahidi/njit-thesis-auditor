@@ -84,7 +84,9 @@ def build_full_audit_json(pdf_path: Path) -> dict[str, Any]:
     return audit_findings_to_json_dict(result.findings, metadata)
 
 
-def load_or_build_doc_findings(short_name: str, filename: str, *, force: bool = False) -> dict[str, Any]:
+def load_or_build_doc_findings(
+    short_name: str, filename: str, *, force: bool = False
+) -> dict[str, Any]:
     path = cache_path(short_name)
     if path.exists() and not force:
         return json.loads(path.read_text(encoding="utf-8"))
