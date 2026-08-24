@@ -182,6 +182,8 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Live-deployment procedure, smoke test, rollback. |
 | [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) | Naming conventions ("Esther" vs. `ester_*` identifiers, etc.). |
 | [docs/status/README.md](docs/status/README.md) | Index of historical/dated status and audit reports. |
+| [docs/web_gui_mvp.md](docs/web_gui_mvp.md) | Web upload UI operations guide: current public FastAPI web UI behavior. |
+| [docs/planning/synthetic_web_demo_fixtures.md](docs/planning/synthetic_web_demo_fixtures.md) | Synthetic PDF fixtures for web UI demos/screenshots. |
 
 ## Development
 
