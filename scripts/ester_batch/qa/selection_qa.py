@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lib import CACHE_DIR, DOCS, OUTPUT_DIR, REPO_ROOT  # noqa: E402
+from lib import CACHE_DIR, DOCS, OUTPUT_DIR  # noqa: E402
 
 MANIFEST_PATH = OUTPUT_DIR / "all_rules_batch_manifest.json"
 QA_OUT_PATH = OUTPUT_DIR / "all_rules_selection_qa.json"
@@ -178,7 +178,8 @@ def main() -> None:
                         parts = []
                         if not conf_match:
                             parts.append(
-                                f"confidence expected={weakest_conf} generated={parsed.get('confidence')}"
+                                f"confidence expected={weakest_conf} "
+                                f"generated={parsed.get('confidence')}"
                             )
                         if not page_match:
                             parts.append(
