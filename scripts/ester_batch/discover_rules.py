@@ -12,14 +12,21 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RULES_JSON = REPO_ROOT / "data" / "processed" / "rules" / "project_added_rules.json"
-MANIFEST_PATH = REPO_ROOT / "docs" / "evaluation" / "ester_feedback" / "all_rules_batch_manifest.json"
+MANIFEST_PATH = (
+    REPO_ROOT / "docs" / "evaluation" / "ester_feedback" / "all_rules_batch_manifest.json"
+)
 
 # Phases that require input we do not have for this batch (compiled PDFs
 # only -- no TeX source, no DOCX comment threads, no manual/human-only task).
 _SKIP_PHASES = {
     "tex_source": "Requires TeX source files; only compiled PDFs are available for this batch.",
-    "docx_comments": "Requires a DOCX comment thread; the seven dissertations are evaluated as PDFs.",
-    "evaluation_task": "Not a PDF detector rule (internal evaluation/process task, not applicable to Ester review).",
+    "docx_comments": (
+        "Requires a DOCX comment thread; the seven dissertations are evaluated as PDFs."
+    ),
+    "evaluation_task": (
+        "Not a PDF detector rule (internal evaluation/process task, "
+        "not applicable to Ester review)."
+    ),
 }
 
 ALREADY_DONE = {"P011"}
