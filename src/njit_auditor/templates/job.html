@@ -594,7 +594,7 @@
         <div class="finding-card__meta">
           {% if f.problem_number %}<span class="finding-card__problem">Problem {{ f.problem_number }}</span>{% endif %}
           <span class="finding-card__page">
-            {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}">{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}No page{% endif %}
+            {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}">{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}No page{% endif %}
           </span>
           {% if f.location_label %}<span class="finding-card__location">{{ f.location_label }}</span>{% endif %}
         </div>
@@ -609,7 +609,7 @@
         </details>
         {% endif %}
         <div class="finding-card__action">
-          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
           {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">See all findings on page {{ f.page }}</a>{% endif %}
         </div>
       </article>
@@ -785,7 +785,7 @@
         <div class="grouped-problem__actions">
           {% if first_finding.action_kind in ("highlight", "original_page") %}
           <a
-            href="{{ pdf_action_url(job_id, page=first_finding.page, action_kind=first_finding.action_kind, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type) }}"
+            href="{{ pdf_action_url(job_id, page=first_finding.page, action_kind=first_finding.action_kind, rule_id=first_finding.rule_id, issue_type=first_finding.issue_type, finding_id=first_finding.finding_id) }}"
             class="btn btn-secondary"
             target="_blank"
             rel="noopener noreferrer"
@@ -820,14 +820,14 @@
             {% for f in problem.individual_findings %}
               <tr class="grouped-occurrence" data-confidence="{{ f.confidence_level or f.confidence or 'low' }}">
                 <td><a href="#{{ f.problem_anchor }}">{{ "Problem " ~ f.problem_number if f.problem_number else "—" }}</a></td>
-                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
+                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}">{{ f.page_display_label if f.page_display_label else f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else f.page }}{% else %}—{% endif %}{% if f.location_label %}<br><span class="file-hint">{{ f.location_label }}</span>{% endif %}</td>
                 <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
                 <td class="detail-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
                   {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
                 </td>
                 <td class="comment-cell">{{ f.polished_comment }}</td>
-                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
+                <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
               </tr>
             {% endfor %}
             </tbody>

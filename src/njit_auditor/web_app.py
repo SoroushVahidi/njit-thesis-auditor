@@ -59,6 +59,7 @@ from njit_auditor.report_view import (
     SORT_MODE_DEFAULT,
     build_report_view,
     normalize_sort_mode,
+    parse_finding_id,
     report_view_to_dict,
     sort_findings,
     sort_grouped_problems,
@@ -382,6 +383,7 @@ def _pdf_highlight_url(
     page: int | None,
     rule_id: str = "",
     issue_type: str = "",
+    finding_id: str = "",
     finding_index: int | None = None,
 ) -> str:
     """Return the one-page PDF URL for a finding (highlighted, or plain if no bbox).
@@ -392,6 +394,11 @@ def _pdf_highlight_url(
     URL builder is correct for both the "highlight" and "original_page" action
     kinds. This deliberately avoids ``#page=N`` fragment navigation into the
     full multi-page PDF, which mobile PDF viewers do not reliably honor.
+
+    ``finding_id`` (preferred, from :func:`njit_auditor.report_view.make_finding_id`)
+    identifies the finding by a stable per-audit id rather than its
+    display/storage position, which can drift after sorting or grouping;
+    ``finding_index`` is kept only as a legacy fallback for old links.
     """
     params: dict[str, str] = {}
     if page is not None:
@@ -400,7 +407,9 @@ def _pdf_highlight_url(
         params["rule_id"] = rule_id
     if issue_type:
         params["issue_type"] = issue_type
-    if finding_index is not None:
+    if finding_id:
+        params["finding_id"] = finding_id
+    elif finding_index is not None:
         params["finding_index"] = str(finding_index)
     return f"/audits/{job_id}/highlighted-page.pdf?{urllib.parse.urlencode(params)}"
 
@@ -412,6 +421,7 @@ def _pdf_action_url(
     action_kind: str,
     rule_id: str = "",
     issue_type: str = "",
+    finding_id: str = "",
     finding_index: int | None = None,
 ) -> str:
     if action_kind in ("highlight", "original_page") and page is not None:
@@ -420,6 +430,7 @@ def _pdf_action_url(
             page=page,
             rule_id=rule_id,
             issue_type=issue_type,
+            finding_id=finding_id,
             finding_index=finding_index,
         )
     return ""
@@ -1426,6 +1437,7 @@ def _problem_group_examples(
             action_kind=action_kind,
             rule_id=rule_id,
             issue_type=issue_type,
+            finding_id=str(finding.get("finding_id", "")).strip(),
         )
         problem_anchor = (
             str(finding.get("problem_anchor", "")).strip()
@@ -1827,6 +1839,7 @@ def _run_audit_task(job_id: str) -> None:
                 "public_rule_reference_id": public_ref,
                 "severity": fv["severity"],
             "page": fv["page"],
+            "finding_id": fv.get("finding_id", ""),
             "problem_number": fv.get("problem_number", 0),
             "problem_anchor": fv.get("problem_anchor", ""),
             "issue_type": fv["issue_type"],
@@ -2439,10 +2452,21 @@ def _matching_findings_for_highlight(
     page: int | None,
     rule_id: str,
     issue_type: str,
-    finding_index: int | None,
+    finding_id: str = "",
+    finding_index: int | None = None,
 ) -> list[dict[str, Any]]:
-    """Return job findings matching the highlight request's filters."""
+    """Return job findings matching the highlight request's filters.
+
+    ``finding_id`` (preferred) resolves by a stable per-audit id -- exact and
+    unambiguous, immune to sort/grouping order. ``finding_index`` is a legacy
+    fallback for old links: a stale/out-of-range id or index still falls
+    through to the page/rule/issue_type filter below rather than 404ing.
+    """
     source_findings = _report_json_findings_for_highlight(job)
+    if finding_id:
+        raw_index = parse_finding_id(finding_id)
+        if raw_index is not None and 0 <= raw_index < len(source_findings):
+            return [source_findings[raw_index]]
     if finding_index is not None and 0 <= finding_index < len(job.findings):
         visible = job.findings[finding_index]
         page_no = _coerce_page_number(visible.get("page"))
@@ -2508,10 +2532,12 @@ def _highlight_cache_path(
     page: int | None,
     rule_id: str,
     issue_type: str,
-    finding_index: int | None,
+    finding_id: str = "",
+    finding_index: int | None = None,
 ) -> Path:
     """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
-    key = f"{page}|{rule_id}|{issue_type}|{finding_index}"
+    identity = finding_id or str(finding_index)
+    key = f"{page}|{rule_id}|{issue_type}|{identity}"
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     return jdir / f"highlighted-{digest}.pdf"
 
@@ -2522,38 +2548,50 @@ def _highlight_page_cache_path(
     page: int | None,
     rule_id: str,
     issue_type: str,
-    finding_index: int | None,
+    finding_id: str = "",
+    finding_index: int | None = None,
 ) -> Path:
     """Return a stable cache path for a one-page highlighted PDF artifact."""
-    key = f"page|{page}|{rule_id}|{issue_type}|{finding_index}"
+    identity = finding_id or str(finding_index)
+    key = f"page|{page}|{rule_id}|{issue_type}|{identity}"
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     return jdir / f"highlighted-page-{digest}.pdf"
 
 
 @app.get("/audits/{job_id}/pdf/highlighted", response_model=None)
 async def serve_job_pdf_highlighted(
+    request: Request,
     job_id: str,
     page: int | None = None,
     rule_id: str = "",
     issue_type: str = "",
+    finding_id: str = "",
     finding_index: int | None = None,
-) -> FileResponse | JSONResponse:
+) -> FileResponse | HTMLResponse:
     """Serve the uploaded PDF inline with a highlight for a specific finding.
 
     Falls back to the plain (unhighlighted) PDF when the matched finding(s)
     carry no bounding-box coordinates. The original uploaded PDF is never
     modified -- highlights are always drawn on a separate generated copy.
+
+    Errors return an HTML notice, never JSON: mobile browsers (notably
+    iPhone Safari) download or display a bare JSON error payload instead of
+    following/rendering it inline, which broke this student-facing route in
+    production.
     """
+    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
-        return JSONResponse({"error": "not available"}, status_code=404)
+        return _index_notice(request, _expired_job_notice(), status_code=404)
     if job.audit_type != "pdf":
-        return JSONResponse({"error": "not a PDF audit"}, status_code=404)
+        return _index_notice(
+            request, "This highlighted PDF is only available for PDF audits.", status_code=404
+        )
 
     jdir = _job_dir(job_id)
     pdf_path = _job_pdf_path(jdir)
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
-        return JSONResponse({"error": "PDF not found"}, status_code=404)
+        return _index_notice(request, _expired_job_notice(), status_code=404)
 
     headers = {
         "Content-Disposition": f'inline; filename="{_safe_pdf_disposition_filename(job.file_name)}"'
@@ -2573,6 +2611,7 @@ async def serve_job_pdf_highlighted(
             page=page,
             rule_id=rule_id.strip(),
             issue_type=issue_type.strip(),
+            finding_id=finding_id.strip(),
             finding_index=finding_index,
         )
         boxes_by_page = _highlight_boxes_by_page(matches)
@@ -2580,7 +2619,12 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         cache_path = _highlight_cache_path(
-            jdir, page=page, rule_id=rule_id, issue_type=issue_type, finding_index=finding_index
+            jdir,
+            page=page,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            finding_id=finding_id.strip(),
+            finding_index=finding_index,
         )
         if not _is_under_runtime(cache_path):
             return plain_response
@@ -2610,29 +2654,65 @@ async def serve_job_pdf_highlighted(
 
 @app.get("/audits/{job_id}/highlighted-page.pdf", response_model=None)
 async def serve_job_highlighted_page_pdf(
+    request: Request,
     job_id: str,
     page: int | None = None,
     rule_id: str = "",
     issue_type: str = "",
+    finding_id: str = "",
     finding_index: int | None = None,
-) -> FileResponse | JSONResponse:
-    """Serve a one-page highlighted PDF for per-finding report links."""
+) -> FileResponse | HTMLResponse:
+    """Serve a one-page highlighted PDF for per-finding report links.
+
+    Errors return an HTML notice, never JSON: mobile browsers (notably
+    iPhone Safari) download or display a bare JSON error payload instead of
+    following/rendering it inline, which broke this student-facing route in
+    production.
+    """
+    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
-        return JSONResponse({"error": "not available"}, status_code=404)
+        return _index_notice(request, _expired_job_notice(), status_code=404)
     if job.audit_type != "pdf":
-        return JSONResponse({"error": "not a PDF audit"}, status_code=404)
+        return _index_notice(
+            request, "This PDF page is only available for PDF audits.", status_code=404
+        )
     if page is None:
-        return JSONResponse({"error": "page required"}, status_code=400)
+        return _index_notice(
+            request, "This PDF page link is missing a page number.", status_code=400
+        )
 
     jdir = _job_dir(job_id)
     pdf_path = _job_pdf_path(jdir)
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
-        return JSONResponse({"error": "PDF not found"}, status_code=404)
+        return _index_notice(request, _expired_job_notice(), status_code=404)
 
     headers = {
         "Content-Disposition": 'inline; filename="highlighted-page.pdf"'
     }
+
+    cache_path = _highlight_page_cache_path(
+        jdir,
+        page=page,
+        rule_id=rule_id,
+        issue_type=issue_type,
+        finding_id=finding_id.strip(),
+        finding_index=finding_index,
+    )
+
+    def _extract_plain_single_page() -> FileResponse | HTMLResponse:
+        """Best-effort plain single-page extract, used when highlight-aware
+        generation fails for any reason -- this route must always try to
+        hand back a usable PDF rather than a bare error."""
+        if cache_path.exists() and _is_under_runtime(cache_path):
+            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+        if _is_under_runtime(cache_path) and build_single_page_pdf(
+            pdf_path, cache_path, source_page_number=page
+        ):
+            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+        return _index_notice(
+            request, f"Page {page} could not be extracted from this audit PDF.", status_code=404
+        )
 
     try:
         matches = _matching_findings_for_highlight(
@@ -2640,20 +2720,14 @@ async def serve_job_highlighted_page_pdf(
             page=page,
             rule_id=rule_id.strip(),
             issue_type=issue_type.strip(),
+            finding_id=finding_id.strip(),
             finding_index=finding_index,
         )
         boxes_by_page = _highlight_boxes_by_page(matches)
         page_boxes = boxes_by_page.get(page) or []
 
-        cache_path = _highlight_page_cache_path(
-            jdir,
-            page=page,
-            rule_id=rule_id,
-            issue_type=issue_type,
-            finding_index=finding_index,
-        )
         if not _is_under_runtime(cache_path):
-            return JSONResponse({"error": "invalid cache path"}, status_code=500)
+            return _extract_plain_single_page()
 
         if not cache_path.exists():
             if page_boxes:
@@ -2675,7 +2749,11 @@ async def serve_job_highlighted_page_pdf(
             if not cache_path.exists() and not build_single_page_pdf(
                 pdf_path, cache_path, source_page_number=page
             ):
-                return JSONResponse({"error": "page not available"}, status_code=404)
+                return _index_notice(
+                    request,
+                    f"Page {page} could not be extracted from this audit PDF.",
+                    status_code=404,
+                )
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
     except Exception:
@@ -2685,18 +2763,7 @@ async def serve_job_highlighted_page_pdf(
             job_id,
             exc_info=True,
         )
-        cache_path = _highlight_page_cache_path(
-            jdir,
-            page=page,
-            rule_id=rule_id,
-            issue_type=issue_type,
-            finding_index=finding_index,
-        )
-        if _is_under_runtime(cache_path) and build_single_page_pdf(
-            pdf_path, cache_path, source_page_number=page
-        ):
-            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-        return JSONResponse({"error": "highlight unavailable"}, status_code=500)
+        return _extract_plain_single_page()
 
 
 @app.get("/help", response_class=HTMLResponse)

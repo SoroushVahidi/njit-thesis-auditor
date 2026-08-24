@@ -171,6 +171,22 @@ class RuleSummaryView:
     category: str
 
 
+def make_finding_id(raw_index: int) -> str:
+    """Return a stable per-audit finding identifier from a raw report index."""
+    return f"f{raw_index}"
+
+
+def parse_finding_id(finding_id: str) -> int | None:
+    """Parse a ``make_finding_id`` value back to its raw report index."""
+    token = finding_id.strip()
+    if not token.startswith("f"):
+        return None
+    try:
+        return int(token[1:])
+    except ValueError:
+        return None
+
+
 @dataclass(frozen=True)
 class FindingView:
     rule_id: str
@@ -179,6 +195,7 @@ class FindingView:
     severity: str
     issue_type: str
     polished_comment: str
+    finding_id: str = ""
     problem_number: int = 0
     problem_anchor: str = ""
     suggested_fix: str = ""
@@ -2984,6 +3001,7 @@ def build_report_view(
     for problem_number, index in enumerate(sorted(visible_indexes), start=1):
         numbered_view = replace(
             visible_view_by_index[index],
+            finding_id=make_finding_id(index),
             problem_number=problem_number,
             problem_anchor=f"problem-{problem_number}",
         )

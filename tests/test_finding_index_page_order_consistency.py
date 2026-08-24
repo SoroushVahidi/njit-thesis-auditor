@@ -115,6 +115,7 @@ def _inject_job(wa: Any, findings: list[AuditFinding], *, page_count: int = 10) 
                 "rule_id": fv.rule_id,
                 "severity": fv.severity,
                 "page": fv.page,
+                "finding_id": fv.finding_id,
                 "issue_type": fv.issue_type,
                 "category": fv.category,
                 "polished_comment": fv.polished_comment,
