@@ -111,7 +111,10 @@ def main() -> None:
         atomic_write_json(STATUS_PATH, status)
 
         if package_looks_valid(ester_id):
-            print(f"[{now_iso()}] {ester_id}: existing package looks valid, skipping rebuild.", flush=True)
+            print(
+                f"[{now_iso()}] {ester_id}: existing package looks valid, skipping rebuild.",
+                flush=True,
+            )
             status["completed_rules"].append(ester_id)
             status["last_update"] = now_iso()
             atomic_write_json(STATUS_PATH, status)

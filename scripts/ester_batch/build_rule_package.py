@@ -14,9 +14,22 @@ from typing import Any
 
 import fitz
 import openpyxl
+from lib import (
+    DOCS,
+    OUTPUT_DIR,
+    build_evidence,
+    doc_pdf_path,
+    finding_confidence,
+    load_or_build_doc_findings,
+    measured_amount,
+    printed_page_for,
+    select_weakest_finding,
+    visible_findings_for_rule,
+)
 from openpyxl.styles import Alignment, Font
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
     Paragraph,
@@ -25,27 +38,18 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-
-from lib import (
-    DOCS,
-    OUTPUT_DIR,
-    doc_pdf_path,
-    build_evidence,
-    finding_confidence,
-    load_or_build_doc_findings,
-    measured_amount,
-    printed_page_for,
-    select_weakest_finding,
-    visible_findings_for_rule,
-)
 
 
 def _structured_block(ester_id: str, row: dict[str, Any]) -> str:
     if row["no_finding"]:
         return f"No current auditor {ester_id} finding."
+    physical_page_text = (
+        row["physical_page"]
+        if row["physical_page"] is not None
+        else "not applicable (document-level finding)"
+    )
     lines = [
-        f"Physical PDF page: {row['physical_page'] if row['physical_page'] is not None else 'not applicable (document-level finding)'}",
+        f"Physical PDF page: {physical_page_text}",
         f"Printed/document page: {row['printed_page']}",
         f"Location: {row['location'] or 'not reliably identifiable on page'}",
         "Affected content:",
@@ -182,7 +186,14 @@ def _write_overview_pdf(ester_id: str, rows: list[dict[str, Any]], out_path: Pat
         Spacer(1, 0.2 * inch),
     ]
 
-    header = ["Document", "PDF page", "Printed page", "Location", "Possible violation", "Confidence"]
+    header = [
+        "Document",
+        "PDF page",
+        "Printed page",
+        "Location",
+        "Possible violation",
+        "Confidence",
+    ]
     data = [header]
     for row in rows:
         if row["no_finding"]:
@@ -208,7 +219,11 @@ def _write_overview_pdf(ester_id: str, rows: list[dict[str, Any]], out_path: Pat
                 ]
             )
 
-    table = Table(data, colWidths=[0.9 * inch, 0.6 * inch, 1.1 * inch, 1.3 * inch, 4.4 * inch, 0.8 * inch], repeatRows=1)
+    table = Table(
+        data,
+        colWidths=[0.9 * inch, 0.6 * inch, 1.1 * inch, 1.3 * inch, 4.4 * inch, 0.8 * inch],
+        repeatRows=1,
+    )
     table.setStyle(
         TableStyle(
             [
@@ -239,15 +254,22 @@ def _write_evidence_header_pdf(ester_id: str, row: dict[str, Any], out_path: Pat
         topMargin=0.5 * inch,
         bottomMargin=0.5 * inch,
     )
+    physical_page_short = row["physical_page"] if row["physical_page"] is not None else "n/a"
     lines = [
         f"<b>{row['document']}</b> — {ester_id} evidence",
-        f"Physical PDF page: {row['physical_page'] if row['physical_page'] is not None else 'n/a'} &nbsp;&nbsp; "
+        f"Physical PDF page: {physical_page_short} &nbsp;&nbsp; "
         f"Printed/document page: {row['printed_page']} &nbsp;&nbsp; "
         f"Auditor confidence: {row['confidence']}",
     ]
-    elements = [Paragraph(lines[0], title_style), Spacer(1, 0.05 * inch), Paragraph(lines[1], body_style)]
+    elements = [
+        Paragraph(lines[0], title_style),
+        Spacer(1, 0.05 * inch),
+        Paragraph(lines[1], body_style),
+    ]
     elements.append(Spacer(1, 0.08 * inch))
-    elements.append(Paragraph(f"Location: {row['location'] or 'not reliably identifiable on page'}", body_style))
+    elements.append(
+        Paragraph(f"Location: {row['location'] or 'not reliably identifiable on page'}", body_style)
+    )
     for i, text in enumerate(row["affected_lines"], start=1):
         elements.append(Paragraph(f'{i}. "{text}"', body_style))
     elements.append(Spacer(1, 0.05 * inch))
@@ -256,7 +278,13 @@ def _write_evidence_header_pdf(ester_id: str, row: dict[str, Any], out_path: Pat
     doc.build(elements)
 
 
-def _assemble_combined_pdf(ester_id: str, rows: list[dict[str, Any]], overview_pdf: Path, evidence_dir: Path, out_path: Path) -> int:
+def _assemble_combined_pdf(
+    ester_id: str,
+    rows: list[dict[str, Any]],
+    overview_pdf: Path,
+    evidence_dir: Path,
+    out_path: Path,
+) -> int:
     combined = fitz.open()
     combined.insert_pdf(fitz.open(str(overview_pdf)))
     combined.set_toc([[1, "Overview", 1]])
@@ -283,7 +311,9 @@ def _assemble_combined_pdf(ester_id: str, rows: list[dict[str, Any]], overview_p
     return page_count
 
 
-def validate_package(ester_id: str, rows: list[dict[str, Any]], xlsx_path: Path, pdf_path: Path) -> list[str]:
+def validate_package(
+    ester_id: str, rows: list[dict[str, Any]], xlsx_path: Path, pdf_path: Path
+) -> list[str]:
     problems = []
     if len(rows) != len(DOCS):
         problems.append(f"expected {len(DOCS)} document rows, got {len(rows)}")
