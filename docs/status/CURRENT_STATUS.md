@@ -8,23 +8,41 @@
 > This file is intentionally short. Do not append dated snapshots here — open a new dated
 > report under `docs/status/` instead and link it from the relevant section below.
 
-_Last verified: 2026-08-21, after the P075/P084 remote-integration pass._
+_Last verified: 2026-08-25, after the local R011/R015 Esther-feedback checkpoints._
 
 ## Main branch
 
 | Field | Value |
 |---|---|
-| Integration base SHA | `1ca56c3f4677da373ceb0203b64a1298449e8d95` (short `1ca56c3`) |
-| Last merged PR | [#511](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/511) — CURRENT_STATUS drift-prevention checks |
-| CI (`.github/workflows/ci.yml`) | passing on `main` (post-merge run `29303438713`) |
+| Integration base SHA | `989746a120f6e1bd865c17aa5f6380eafde7ccd2` (short `989746a`, current `origin/main`) |
+| Local HEAD SHA | `a23f7093a6c4365539200d0f807a522046a80e7a` (short `a23f709`) |
+| Local unpushed checkpoints | `7090b824` R011/P011 Esther false-positive fix; `a23f7093` R015/P015 Esther false-positive fix |
+| Last merged PR | [#530](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/530) — Pin Ruff version for reproducible CI |
+| CI (`.github/workflows/ci.yml`) | not re-checked remotely for local unpushed checkpoints |
 | `ruff check .` | clean |
-| `mypy src` | clean, 109 source files |
-| `python -m pytest -q` | **3123 passed** (measured on integrated branch based on `origin/main` @ `1ca56c3`) |
+| `mypy src` | clean, 113 source files |
+| `python -m pytest -q` | **3157 passed**, 3 warnings |
 | Rule coverage | P001–P084 implemented (including P075 and P084 inventory detectors; no remaining non-inventory project task IDs; next new rule ID is **P085**) |
 
-Numbers above were measured directly during the P075/P084 integration pass on a branch based
-on `origin/main` at `1ca56c3` — not copied from an older doc. If you're reading this later,
-re-run the validation commands yourself before trusting the counts.
+Numbers above were measured directly on `main` at `a23f7093`, which is 2 commits ahead of
+`origin/main` and has not been pushed. If you're reading this later, re-run the validation
+commands yourself before trusting the counts.
+
+## Recent local checkpoints
+
+- R011/P011 correction completed and committed as
+  `7090b824a8c69e042ced2cb6240d51fbc559cdce`
+  (`fix(p011): incorporate Esther R011 false-positive feedback`). Esther reviewed 7 R011
+  findings and classified all 7 as false positives. The correction is documented in
+  `docs/status/p011_r011_batch_2026_08_false_positive_fix.md`.
+- R015/P015 correction completed and committed as
+  `a23f7093a6c4365539200d0f807a522046a80e7a`
+  (`fix(p015): incorporate Esther R015 false-positive feedback`). Esther reviewed 3 R015
+  findings and classified all 3 as false positives. The correction is documented in
+  `docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md`.
+- No R016 or later detector tuning has been performed from the all-rules feedback workbook:
+  current local artifacts contain candidate findings for later rules, but no Esther
+  correctness/false-positive judgments for R016+.
 
 ## Active open PRs (as of this audit)
 
@@ -81,9 +99,15 @@ UI behavior matching `main`.
 
 ## Unresolved Esther-policy questions
 
-Still unresolved after #505 (do **not** implement without Esther's explicit sign-off):
+Still unresolved (do **not** implement without Esther's explicit sign-off):
 
 - Footer-zone P011 body-text policy (Sample A cluster).
+- R011/P011 recurring single-line bottom-margin cases around 9.2 pt, just beyond the new
+  9.0 pt confirmed-false-positive tolerance.
+- R011/P011 reference-list overflow beyond the bounded reference allowance, especially
+  Patrick reference entries around 10.2-18.0 pt.
+- R015/P015 Youra physical page 101, printed page 84: run-in-heading-adjacent paragraph
+  boundary question surfaced after the row-remnant fix.
 - P011 non-text-element (image/drawing) margin coverage.
 - Unreviewed Sample B medium-confidence P011 pages.
 - A possible new TOC-entry sentence-case rule.
