@@ -69,8 +69,16 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     docs/status/ester_sample_b_p011_margin_low_overflow.md.
 
     Later P051 copyright-year extraction hardening removed one additional
-    Sample A false positive on the Copyright Page, so the total problem count
-    is now 22 while the earlier P011 regression coverage remains unchanged.
+    Sample A false positive on the Copyright Page, bringing the total to 22.
+
+    P011 dropped again from 17 to 15 (total 22 -> 20) after the 2026-08
+    Esther/R011-batch bottom-margin fix (BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT):
+    Sample A pages 26 (6.0pt) and 54 (5.7pt) were single-line bottom-margin
+    "probable TP" guesses in
+    docs/status/p011_precision_false_negative_audit_20260710.md (S7, never
+    confirmed by Esther) and match, in side/magnitude, the bottom-margin false
+    positives Esther confirmed on seven different real dissertations in that
+    batch. See docs/status/p011_r011_batch_2026_08_false_positive_fix.md.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -81,9 +89,9 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
-    assert len(problem) == 22
+    assert len(problem) == 20
     assert by_rule["P038"] == 0
-    assert by_rule["P011"] == 17
+    assert by_rule["P011"] == 15
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0

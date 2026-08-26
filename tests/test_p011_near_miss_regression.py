@@ -49,21 +49,42 @@ def test_ester_sample_b_suppressed_pages_remain_clear() -> None:
     assert not ({1, 24, 39} & pages)
 
 
-def test_ester_sample_b_visible_p011_count_is_27() -> None:
+def test_ester_sample_b_visible_p011_count_is_26() -> None:
+    """26, not the prior 27: page 75's single-line, 6.5pt bottom-margin equation
+    finding is now suppressed by BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT. That page
+    was unreviewed ("-" in docs/status/p011_precision_false_negative_audit_20260710.md
+    S3) but matches, in side/content-kind/magnitude, the bottom-margin equation
+    false positive Esther confirmed for a different dissertation in the 2026-08
+    R011 batch (see docs/status/p011_r011_batch_2026_08_false_positive_fix.md).
+    All 20 right-margin and 6 left-margin (reference hanging-indent) findings
+    are unchanged.
+    """
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
         return
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p011 = [f for f in view.findings if f.rule_id == "P011"]
-    assert len(p011) == 27
+    assert len(p011) == 26
+    assert 75 not in {f.page for f in view.findings if f.rule_id == "P011"}
 
 
-def test_ester_sample_a_visible_p011_count_is_17() -> None:
+def test_ester_sample_a_visible_p011_count_is_15() -> None:
+    """15, not the prior 17: pages 26 (6.0pt) and 54 (5.7pt) were single-line
+    bottom-margin "probable TP" guesses in
+    docs/status/p011_precision_false_negative_audit_20260710.md S7 (never
+    confirmed by Esther) and are now suppressed by
+    BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT -- consistent with Esther's newly
+    confirmed 5.6pt bottom-margin false positive in the 2026-08 R011 batch. The
+    remaining bottom-margin cluster (pages 11, 42, 66, 71, 82, 83 at 9.2-11.0pt)
+    and all 9 reference hanging-indent left-margin cards are unchanged.
+    """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
         return
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p011 = [f for f in view.findings if f.rule_id == "P011"]
-    assert len(p011) == 17
+    assert len(p011) == 15
+    pages = {f.page for f in view.findings if f.rule_id == "P011"}
+    assert not ({26, 54} & pages)

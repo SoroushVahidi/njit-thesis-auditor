@@ -28,6 +28,37 @@ OVERFLOW_TOLERANCE_PT = 3.0
 # behave consistently at floating-point precision boundaries.
 OVERFLOW_TOLERANCE_EPSILON_PT = 0.01
 
+# Bottom-margin-specific overflow tolerance (replaces OVERFLOW_TOLERANCE_PT for
+# the bottom side only). A fully justified body line that lands last on an
+# otherwise full page routinely has its own descent/leading dip a few extra
+# points past the nominal 1-inch line -- normal single-line typographic slack,
+# not content placed outside the margin. Esther confirmed four such
+# single/short-line bottom-margin findings -- both Word and LaTeX source PDFs,
+# both prose and equation lines -- as false positives at 3.9-8.2pt overflow.
+# This is set just above the highest confirmed false positive (8.2pt) and
+# deliberately stops short of the ~9.2pt recurring footer-zone cluster that a
+# prior audit (docs/status/p011_precision_false_negative_audit_20260710.md,
+# S7 "Uncertain cases") flagged as an open policy question rather than a
+# confirmed false positive; this change does not resolve that open question.
+BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT = 9.0
+
+# Extra right/left-margin overflow tolerance for reference-list entries only
+# (added on top of OVERFLOW_TOLERANCE_PT). Bibliography/reference entries
+# often contain an unbreakable long citation title, DOI, or foreign-language
+# phrase that cannot wrap without altering the citation; Esther confirmed a
+# references-list right-margin finding (~6.9pt) as a false positive for
+# exactly this reason. Bounded rather than unlimited so a genuinely oversized
+# reference-block margin problem -- e.g. the ~24pt hanging-indent left-margin
+# violations covered by
+# test_numbered_reference_left_margin_overflow_stays_high_confidence_with_correct_wording --
+# still gets flagged.
+REFERENCES_MARGIN_EXTRA_TOLERANCE_PT = 6.0
+
+# Standard space-glyph advance width as a fraction of font size (~0.25em is a
+# near-universal convention across text fonts), used only to correct a
+# text-extraction artifact -- see _content_right_edge below.
+_SPACE_ADVANCE_EM_FRACTION = 0.25
+
 # Artifact guard: a page/side group with this many lines all below this overflow
 # is likely caused by a compressed-PDF coordinate shift rather than a real margin violation.
 ARTIFACT_GUARD_MIN_COUNT = 5
@@ -84,6 +115,30 @@ def _likely_page_number_text(text: str, y0: float, y1: float, page_height: float
     return _is_top_or_bottom_zone(y0, y1, page_height) and bool(PAGE_NUM_RE.match(text.strip()))
 
 
+def _content_right_edge(line: PdfTextLine) -> float:
+    """Return the line's right edge with a trailing whitespace glyph trimmed off.
+
+    PyMuPDF's line bbox is the union of its spans' boxes, and a span's box
+    extends to the full advance width of its last character -- including a
+    trailing space that fully justified text commonly ends a line with. That
+    space carries no visible ink, so leaving it in inflates the measured right
+    edge by roughly one space-glyph width (~0.25em) with nothing actually
+    crossing the margin. This walks spans from the end, skipping any that are
+    pure whitespace, and trims the trailing whitespace characters off the last
+    span that has real content -- so it only ever narrows the measured edge,
+    never widens it.
+    """
+    for span in reversed(line.spans):
+        if not span.text.strip():
+            continue
+        stripped = span.text.rstrip(" \t")
+        trailing_ws = len(span.text) - len(stripped)
+        if trailing_ws and span.size:
+            return span.bbox.x1 - trailing_ws * span.size * _SPACE_ADVANCE_EM_FRACTION
+        return span.bbox.x1
+    return line.bbox.x1
+
+
 def _line_violation(
     line: PdfTextLine,
     page_height: float,
@@ -102,21 +157,29 @@ def _line_violation(
     if _likely_page_number_text(text, bbox.y0, bbox.y1, page_height):
         return None
 
+    content_x1 = min(bbox.x1, _content_right_edge(line))
+
     overflow_by_side: dict[MarginSide, float] = {}
     if bbox.x0 < allowed_x0:
-        overflow_by_side[MarginSide.LEFT] = allowed_x0 - bbox.x0
-    if bbox.x1 > allowed_x1:
-        overflow_by_side[MarginSide.RIGHT] = bbox.x1 - allowed_x1
+        raw = allowed_x0 - bbox.x0
+        if raw > OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+            overflow_by_side[MarginSide.LEFT] = raw
+    if content_x1 > allowed_x1:
+        raw = content_x1 - allowed_x1
+        if raw > OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+            overflow_by_side[MarginSide.RIGHT] = raw
     if bbox.y0 < allowed_y0:
-        overflow_by_side[MarginSide.TOP] = allowed_y0 - bbox.y0
+        raw = allowed_y0 - bbox.y0
+        if raw > OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+            overflow_by_side[MarginSide.TOP] = raw
     if bbox.y1 > allowed_y1:
-        overflow_by_side[MarginSide.BOTTOM] = bbox.y1 - allowed_y1
+        raw = bbox.y1 - allowed_y1
+        if raw > BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+            overflow_by_side[MarginSide.BOTTOM] = raw
 
     if not overflow_by_side:
         return None
     side, overflow = max(overflow_by_side.items(), key=lambda item: item[1])
-    if overflow <= OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
-        return None
     return LineViolation(side=side, overflow_pt=overflow, line=line, line_index=line_index)
 
 
@@ -296,6 +359,40 @@ def run_pdf_margin_rule(
             # indicates a compressed-PDF coordinate shift, not a real margin violation.
             if count >= ARTIFACT_GUARD_MIN_COUNT and worst < ARTIFACT_GUARD_MAX_OVERFLOW_PT:
                 continue
+
+            # Collect truncated text previews of all violating lines for student-facing
+            # wording, and classify the page/content up front: both the references
+            # exception right below and the finding's remediation wording later need
+            # the same classification, computed once from the same evidence.
+            _MAX_PREVIEW_LEN = 60
+            _MAX_PREVIEW_LINES = 5
+            line_previews: list[str] = []
+            for v in violations[:_MAX_PREVIEW_LINES]:
+                txt = v.line.text.strip()
+                if txt:
+                    line_previews.append(
+                        (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
+                    )
+            page_context = infer_page_margin_context(_page_text(page), line_previews)
+            content_kind = infer_margin_content_kind(page_context, line_previews)
+
+            # Reference-list entries often contain an unbreakable long citation
+            # title, DOI, or foreign-language phrase that cannot wrap without
+            # altering the citation; Esther confirmed a references-list
+            # right-margin finding as a false positive for exactly this reason.
+            # Bounded (not unlimited) so a genuinely oversized reference-block
+            # margin problem -- e.g. the much larger hanging-indent left-margin
+            # violations -- still gets flagged.
+            if (
+                side in (MarginSide.LEFT, MarginSide.RIGHT)
+                and content_kind == "references_hanging_indent"
+                and worst
+                <= OVERFLOW_TOLERANCE_PT
+                + REFERENCES_MARGIN_EXTRA_TOLERANCE_PT
+                + OVERFLOW_TOLERANCE_EPSILON_PT
+            ):
+                continue
+
             confidence = _group_confidence(worst, count)
             # A "low" confidence group is, by construction, a single line whose
             # measured overflow is under the 5pt medium-confidence floor -- text
@@ -363,17 +460,6 @@ def run_pdf_margin_rule(
                 allowed_y1=allowed_y1,
             )
 
-            # Collect truncated text previews of all violating lines for student-facing wording.
-            _MAX_PREVIEW_LEN = 60
-            _MAX_PREVIEW_LINES = 5
-            line_previews: list[str] = []
-            for v in violations[:_MAX_PREVIEW_LINES]:
-                txt = v.line.text.strip()
-                if txt:
-                    line_previews.append(
-                        (txt[:_MAX_PREVIEW_LEN] + "…") if len(txt) > _MAX_PREVIEW_LEN else txt
-                    )
-
             # Tiny, single-line overflows are more likely measurement noise (font
             # metric rounding, a stray descender) than a real violation. This is
             # already reflected in `confidence` ("low"); `triage_tier` stays a
@@ -404,8 +490,6 @@ def run_pdf_margin_rule(
             if line_previews:
                 finding_details["affected_line_texts"] = " | ".join(line_previews)
 
-            page_context = infer_page_margin_context(_page_text(page), line_previews)
-            content_kind = infer_margin_content_kind(page_context, line_previews)
             finding_details["page_context"] = page_context
             finding_details["margin_content_kind"] = content_kind
             finding_details["suggested_fix"] = margin_suggested_fix(
