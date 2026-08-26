@@ -24,6 +24,26 @@ MIN_LINES_FOR_MISSING_LATER_INDENT = 4
 MIN_LIKELY_INDENTED_PARAGRAPHS_FOR_PAGE_STYLE = 2
 MIN_INDENT_STYLE_CONFIDENCE_RATIO = 0.6
 SAME_ROW_Y_TOLERANCE_PT = 1.0
+# A subscript/superscript glyph immediately preceding a same-baseline split
+# can carry a few points of negative kerning into the fragment that follows
+# it (e.g. a subscript "i" whose box extends slightly past where the next
+# word's box begins) even though the two fragments are genuinely two pieces
+# of one row. _merge_same_row_fragments tolerates that much overlap; anything
+# more is treated as two visually distinct, non-adjacent elements.
+SAME_ROW_OVERLAP_ALLOWANCE_PT = 5.0
+
+# A row split by an inline displayed equation, subscript, or superscript need
+# not land its fragments at nearly-identical y0/y1 the way a plain same-baseline
+# text split does (SAME_ROW_Y_TOLERANCE_PT) -- a subscript/superscript glyph
+# commonly shifts a fragment's bounding box by several points. Vertical extent
+# overlap is a more robust "same visual row" signal for that case: this is the
+# minimum fraction of the shorter fragment's own height that must be covered by
+# the other fragment's vertical extent.
+SAME_ROW_OVERLAP_FRACTION = 0.5
+# Sanity bound only, not a reverse-fit tolerance: a discarded same-row remnant
+# more than this far from the surviving fragment it would be absorbed into is
+# treated as unrelated content rather than a truncated prefix of one sentence.
+MAX_ROW_REMNANT_ABSORPTION_GAP_PT = 200.0
 
 TOC_LIKE_HEADINGS = {
     "TABLE OF CONTENTS",
@@ -77,6 +97,90 @@ def _is_usable_paragraph_line(line: PdfTextLine) -> bool:
     if alpha_count / max(len(clean), 1) < 0.45:
         return False
     return True
+
+
+def _is_short_extraction_remnant(line: PdfTextLine) -> bool:
+    """True for a fragment that fails the paragraph-line usability bar only
+    for being short or symbol-heavy -- a subscript, a stray equation glyph,
+    or a sentence prefix truncated by an inline displayed equation -- as
+    opposed to being excluded for being a heading, page number, bullet, or
+    caption. Those are legitimate distinct exclusions that the row-remnant
+    absorption below (`_effective_row_start_x`) must never eat.
+    """
+    if _is_named_heading_line(line) or _is_page_number_line(line):
+        return False
+    clean = " ".join(line.text.strip().split())
+    if not clean:
+        return False
+    if BULLET_PREFIX_RE.match(clean) or CAPTION_PREFIX_RE.match(clean):
+        return False
+    # A bare section number ("2.4.3") split from its title text onto a
+    # separate fragment is a distinct, already-handled structural marker
+    # (see _find_split_heading_following_paragraph_indices), not a discarded
+    # sentence prefix -- absorbing its x0 into the title text would corrupt
+    # that heading detection instead of fixing a sentence-continuation split.
+    if _SECTION_NUMBER_ONLY_RE.match(clean):
+        return False
+    return not _is_usable_paragraph_line(line)
+
+
+def _vertical_overlap_fraction(a: PdfTextLine, b: PdfTextLine) -> float:
+    top = max(a.bbox.y0, b.bbox.y0)
+    bottom = min(a.bbox.y1, b.bbox.y1)
+    overlap = max(0.0, bottom - top)
+    shorter = min(a.bbox.y1 - a.bbox.y0, b.bbox.y1 - b.bbox.y0)
+    if shorter <= 0:
+        return 0.0
+    return overlap / shorter
+
+
+# A row fragmented by an equation can land its pieces in a sort order that
+# does not match strict left-to-right reading order: two fragments visually on
+# the same row can carry slightly different y0 values (a subscript/superscript
+# nudges its own bounding box), which can sort a leftmost fragment *after* the
+# surviving usable one. _effective_row_start_x therefore searches a small
+# window of neighboring raw-line entries on both sides rather than assuming
+# same-row remnants are strictly, contiguously adjacent-before *index*.
+_ROW_REMNANT_SEARCH_WINDOW = 8
+
+
+def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
+    """Return the true visual left edge of a usable line's printed row.
+
+    An inline displayed equation, subscript, or superscript can split one
+    physical text row into several extraction fragments. When the leftmost
+    fragment(s) are too short/symbol-heavy to be usable on their own, they
+    are silently dropped before paragraph grouping ever sees them -- leaving
+    the surviving fragment to start partway across the row, at whatever
+    x-position the equation/subscript happened to end. Grouping and indent
+    measurement then read that position as a real first-line indent, when it
+    is really just where the dropped prefix stopped.
+
+    This scans a bounded neighborhood of *raw_lines* (sorted by (y0, x0),
+    unfiltered) around *index* for fragments that (a) fail usability only for
+    being short/symbol-heavy, (b) substantially overlap this line's vertical
+    extent, and (c) start to its left -- and returns the leftmost such x0. It
+    never looks at or changes a fragment's text -- only which x0
+    grouping/indent code sees for the surviving usable line.
+    """
+    line = raw_lines[index]
+    x0 = line.bbox.x0
+    lo = max(0, index - _ROW_REMNANT_SEARCH_WINDOW)
+    hi = min(len(raw_lines), index + _ROW_REMNANT_SEARCH_WINDOW + 1)
+    for i in range(lo, hi):
+        if i == index:
+            continue
+        candidate = raw_lines[i]
+        if candidate.bbox.x0 >= x0:
+            continue
+        if line.bbox.x0 - candidate.bbox.x0 > MAX_ROW_REMNANT_ABSORPTION_GAP_PT:
+            continue
+        if not _is_short_extraction_remnant(candidate):
+            continue
+        if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
+            continue
+        x0 = candidate.bbox.x0
+    return x0
 
 
 def _has_page_heading_in(page: PdfPage, headings: set[str]) -> bool:
@@ -202,10 +306,21 @@ def _merge_same_row_fragments(lines: list[PdfTextLine]) -> list[PdfTextLine]:
     for line in lines:
         if merged:
             prev = merged[-1]
-            same_row = (
+            same_baseline = (
                 abs(line.bbox.y0 - prev.bbox.y0) <= SAME_ROW_Y_TOLERANCE_PT
                 and abs(line.bbox.y1 - prev.bbox.y1) <= SAME_ROW_Y_TOLERANCE_PT
-                and line.bbox.x0 > prev.bbox.x1
+            )
+            # A subscript/superscript glyph shifts its own fragment's bounding
+            # box, so a row split next to one may miss the strict same-baseline
+            # test above even though the two fragments are genuinely one row;
+            # substantial vertical overlap is a looser but still reliable
+            # fallback signal for that case.
+            same_row_extent = same_baseline or (
+                _vertical_overlap_fraction(prev, line) >= SAME_ROW_OVERLAP_FRACTION
+            )
+            same_row = (
+                same_row_extent
+                and line.bbox.x0 > prev.bbox.x1 - SAME_ROW_OVERLAP_ALLOWANCE_PT
                 and _same_run_style(prev, line)
             )
             if same_row:
@@ -227,16 +342,29 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
     if _has_page_heading_in(page, TOC_LIKE_HEADINGS):
         return []
 
+    raw_lines: list[PdfTextLine] = [
+        line for block in page.text_blocks for line in block.lines
+    ]
+    raw_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+
+    # A candidate row-remnant-corrected x0 per usable line, computed once from
+    # the unfiltered raw layout. This is deliberately *not* applied here: a
+    # candidate is only trusted in the main loop below, and only when it is
+    # the difference between reconnecting to the paragraph directly above and
+    # not -- never as an unconditional geometry rewrite. See the loop for why.
+    candidate_x0: dict[int, float] = {}
     lines: list[PdfTextLine] = []
-    for block in page.text_blocks:
-        for line in block.lines:
-            if _is_usable_paragraph_line(line):
-                lines.append(line)
+    for index, line in enumerate(raw_lines):
+        if not _is_usable_paragraph_line(line):
+            continue
+        effective_x0 = _effective_row_start_x(raw_lines, index)
+        if effective_x0 != line.bbox.x0:
+            candidate_x0[id(line)] = effective_x0
+        lines.append(line)
 
     if not lines:
         return []
 
-    lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
     lines = _merge_same_row_fragments(lines)
 
     paragraphs: list[list[PdfTextLine]] = []
@@ -250,12 +378,36 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
             continue
 
         vertical_gap = line.bbox.y0 - prev_line.bbox.y1
-        x_delta = abs(first_text_x(line) - first_text_x(prev_line))
-
         allowed_x_delta = (
             FIRST_LINE_INDENT_GROUP_TOLERANCE_PT if len(current) == 1 else X_GROUP_TOLERANCE_PT
         )
-        if vertical_gap <= MAX_PARAGRAPH_GAP_PT and x_delta <= allowed_x_delta:
+        x_delta = abs(first_text_x(line) - first_text_x(prev_line))
+        joins = vertical_gap <= MAX_PARAGRAPH_GAP_PT and x_delta <= allowed_x_delta
+
+        # An inline displayed equation, subscript, or superscript can split
+        # one physical text row so the surviving fragment starts partway
+        # across it -- x_delta above then looks too large to continue the
+        # paragraph even though it visually does. Retry with the row-remnant
+        # candidate only as a way to *reconnect* a break the plain check just
+        # found; if that candidate doesn't actually let this line join
+        # anything, discard it and keep the line's true, uncorrected geometry
+        # -- so an unrelated same-row coincidence (e.g. a run-in heading's
+        # own wrapped continuation sitting beside a genuinely new paragraph)
+        # never gets to silently zero out that paragraph's real indent.
+        if not joins and id(line) in candidate_x0:
+            corrected_x0 = candidate_x0[id(line)]
+            corrected_x_delta = abs(corrected_x0 - first_text_x(prev_line))
+            if vertical_gap <= MAX_PARAGRAPH_GAP_PT and corrected_x_delta <= allowed_x_delta:
+                line = PdfTextLine(
+                    spans=line.spans,
+                    bbox=BBox(x0=corrected_x0, y0=line.bbox.y0, x1=line.bbox.x1, y1=line.bbox.y1),
+                    text=line.text,
+                    line_dir=line.line_dir,
+                    wmode=line.wmode,
+                )
+                joins = True
+
+        if joins:
             current.append(line)
         else:
             if current:

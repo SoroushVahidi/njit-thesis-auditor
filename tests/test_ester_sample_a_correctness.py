@@ -79,6 +79,15 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     confirmed by Esther) and match, in side/magnitude, the bottom-margin false
     positives Esther confirmed on seven different real dissertations in that
     batch. See docs/status/p011_r011_batch_2026_08_false_positive_fix.md.
+
+    P015 dropped from 1 to 0 (total 20 -> 19) after the 2026-08 Esther/R015
+    row-remnant-absorption fix. Sample A page 77's single finding was the
+    same root cause as three Esther-confirmed R015 false positives in that
+    batch: a short fragment ("MPDPTWinstances.") on a split text row was
+    silently dropped by the paragraph-usability filter, leaving the row's
+    surviving remnant to start mid-row and orphan the true paragraph
+    continuation as a spurious "later paragraph missing indent". See
+    docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -89,14 +98,14 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
-    assert len(problem) == 20
+    assert len(problem) == 19
     assert by_rule["P038"] == 0
     assert by_rule["P011"] == 15
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0
     assert by_rule["P027"] == 0
-    assert by_rule["P015"] == 1
+    assert by_rule["P015"] == 0
     assert by_rule["P051"] == 0
 
 
