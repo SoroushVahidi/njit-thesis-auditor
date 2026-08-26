@@ -6,8 +6,39 @@ changed in the detector — each needs her judgment before any further code
 change. Wording below is neutral; nothing here is labeled as a confirmed
 false positive or true positive.
 
-**Repository state at time of writing:** `main` @ `a23f7093a6c4365539200d0f807a522046a80e7a`
-(R011 fix `7090b824`, R015 fix `a23f7093`, both committed, not pushed).
+**Authoritative package HEAD:** `main` @ `1c3b7ee4370bbecc6983208ebbf63a9973efbbf6`
+(R011 fix `7090b824`, R015 fix `a23f7093`, and follow-up-state commit `1c3b7ee` — all on
+`origin/main` when the evidence PDF and Drive/Sheet placement were finalized).
+
+### Human-review evidence package (2026-08-25)
+
+- **Combined PDF:** `docs/evaluation/ester_feedback/R011_R015_targeted_followup_Ester_20260825.pdf`
+- **Generation HEAD:** `1c3b7ee4370bbecc6983208ebbf63a9973efbbf6` (`main` == `origin/main`)
+- **Cases included (exactly three; no R016+):**
+  1. R015 / Youra — physical PDF page 101 / printed page 84
+  2. R011 / Muyeed — physical PDF page 36 / printed page 15
+  3. R011 / Patrick — physical PDF page 88 / printed page 76
+- **Reproduction verification (fresh auditor run at generation HEAD):**
+  - Youra R015: still present; `missing_later_indent`; HIGH; bbox `(108.4, 376.1, 540.4, 388.1)`; indent `0.0` pt / expected ~36 pt; 6-line paragraph group
+  - Muyeed R011: still present; bottom margin; MEDIUM; overflow `9.2` pt; affected text includes `clustering algorithm.`; highlight `(137.6, 717.2, 243.7, 729.2)`
+  - Patrick R011: still present; right margin; HIGH; overflow `18.0` pt; Weng Cho Chew reference line; highlight `(137.9, 304.7, 558.0, 316.7)`
+  - No discrepancies vs. the expected values recorded below
+- **PDF structure:** 7 pages — overview + (case summary + full highlighted source page) × 3
+- **PDF visual QA:** passed — correct source pages; R011/R015 labels only (no internal P0xx as primary labels); margin boundary + overflow callouts readable; Youra preceding bold/run-in context included; no clipped labels; highlights translucent (source text remains readable); no unrelated private pages; no missing-glyph / replacement characters observed
+
+### Placed into Esther workflow (2026-08-25)
+
+- **Date prepared:** 2026-08-25
+- **Uploaded Drive PDF name:** `R011_R015_Targeted_Followup_Ester_20260825.pdf`
+- **Drive file ID:** `1lWruaAo6HVLTwsjpKKQSstS9xOaKGnEe`
+- **Drive URL:** https://drive.google.com/file/d/1lWruaAo6HVLTwsjpKKQSstS9xOaKGnEe/view
+- **Drive location:** Shared Drive folder `PDF Rules` (`16w3qZgNRz965rPlgxlUiDDFBZexG97rG`); MIME `application/pdf`; 7 pages verified after upload
+- **Access:** no public/anyone link; inherits Shared Drive membership only (same model as prior Ester evaluation PDFs)
+- **Google Sheet:** [Audito feedback](https://docs.google.com/spreadsheets/d/1ZM7nJcw5KI5YGUkJBdE6hJyT7Y0Le-g1O1jiIb5RfBI/edit) (`1ZM7nJcw5KI5YGUkJBdE6hJyT7Y0Le-g1O1jiIb5RfBI`)
+- **New tab name:** `R011-R015 Follow-up`
+- **Tab contents:** note + Drive PDF hyperlink + exactly three blank-judgment cases (Youra R015, Muyeed R011, Patrick R011)
+- **Human labels:** none entered — `ESTER JUDGMENT` and `ESTER COMMENT` left blank for all three rows
+- **Existing tabs:** R011/R015 (and other rule tabs) left in place; Esther's prior cell judgments preserved (value-level verification after write)
 
 ---
 
