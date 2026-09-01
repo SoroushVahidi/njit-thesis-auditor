@@ -43,6 +43,15 @@ MIN_WORDS_FOR_CASE_CHECK = 6
 MAX_PREVIEW_LEN = 80
 SAME_MARGIN_TOLERANCE_PT = 2.0
 MAX_PARAGRAPH_GAP_RATIO = 1.2
+CAPTION_CONTINUATION_LEFT_TOLERANCE_PT = 12.0
+MAX_CAPTION_CONTINUATION_PITCH_RATIO = 1.35
+
+CAPTION_NOTE_START_RE = re.compile(
+    r"^(?:source|sources|note|notes|adapted from|reprinted from|"
+    r"all photographs were sourced|photographs? (?:by|courtesy)|"
+    r"images? (?:by|courtesy)|data source)\b",
+    re.IGNORECASE,
+)
 
 # Q-rule IDs for P017 findings per Ester's YES/NO audit matrix.
 # Keyed by (page_context, issue_type). Body-context findings have no direct Q-rule
@@ -142,8 +151,41 @@ def _line_preview(text: str) -> str:
     return text[:MAX_PREVIEW_LEN]
 
 
+def _caption_end_preview(text: str) -> str:
+    clean = normalize_caption_text(text)
+    if len(clean) <= MAX_PREVIEW_LEN:
+        return clean
+    return clean[-MAX_PREVIEW_LEN:]
+
+
 def _terminal_punctuation(text: str) -> bool:
     return bool(TERMINAL_PUNCT_RE.search(text))
+
+
+def _starts_new_caption(text: str) -> bool:
+    clean = normalize_caption_candidate_text(text)
+    match = CAPTION_START_RE.match(clean)
+    return bool(match and not _has_mixed_number_segment(match.group("number")))
+
+
+def _has_mixed_number_segment(number: str) -> bool:
+    """True for inline subfigure references such as ``3.2d`` or ``4a``.
+
+    The caption parser supports both Arabic and Roman numerals, but a single
+    segment that combines digits and Roman letters is ordinarily a subfigure or
+    subtable reference inside prose, not a standalone caption number.
+    """
+
+    for segment in re.split(r"[.\-]", number):
+        has_digit = any(char.isdigit() for char in segment)
+        has_alpha = any(char.isalpha() for char in segment)
+        if has_digit and has_alpha:
+            return True
+    return False
+
+
+def _starts_caption_note(text: str) -> bool:
+    return bool(CAPTION_NOTE_START_RE.match(normalize_caption_text(text)))
 
 
 def _reads_as_prose_sentence(caption_body: str) -> bool:
@@ -221,6 +263,45 @@ def _next_line_is_paragraph_continuation(
     return gap_below <= line_height * MAX_PARAGRAPH_GAP_RATIO
 
 
+def _is_caption_continuation_line(
+    previous: PdfTextLine,
+    following: PdfTextLine,
+) -> bool:
+    clean = normalize_caption_text(following.text)
+    if not clean or _is_page_number_line(clean):
+        return False
+    if _starts_new_caption(clean) or _starts_caption_note(clean):
+        return False
+    if abs(following.bbox.x0 - previous.bbox.x0) > CAPTION_CONTINUATION_LEFT_TOLERANCE_PT:
+        return False
+    pitch = following.bbox.y0 - previous.bbox.y0
+    if pitch <= 0:
+        return False
+    line_height = max(previous.bbox.height, following.bbox.height, 1.0)
+    return pitch <= line_height * MAX_CAPTION_CONTINUATION_PITCH_RATIO
+
+
+def _group_caption_text(
+    block_lines: list[PdfTextLine],
+    index: int,
+    first_body: str,
+) -> tuple[str, str]:
+    raw_parts = [normalize_caption_text(block_lines[index].text)]
+    body_parts = [first_body]
+    previous = block_lines[index]
+    for following in block_lines[index + 1 :]:
+        clean = normalize_caption_text(following.text)
+        if not _is_caption_continuation_line(previous, following):
+            break
+        raw_parts.append(clean)
+        body_parts.append(clean)
+        previous = following
+    return (
+        normalize_caption_text(" ".join(raw_parts)),
+        normalize_caption_text(" ".join(body_parts)),
+    )
+
+
 def _likely_title_case_issue(caption_body: str) -> bool:
     words = WORD_RE.findall(caption_body)
     if len(words) < MIN_WORDS_FOR_CASE_CHECK:
@@ -250,43 +331,52 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
     for page in pdf_document.pages:
         context = _page_context(page)
         page_lines = _reading_order_page_lines(page)
-        for index, line in enumerate(page_lines):
-            clean = normalize_caption_text(line.text)
-            if not clean or _is_page_number_line(clean):
-                continue
-            candidate_text = normalize_caption_candidate_text(clean)
-            match = CAPTION_START_RE.match(candidate_text)
-            if not match:
-                continue
-            body = normalize_caption_text(match.group("body"))
-            if len(body) < MIN_CAPTION_BODY_LEN:
-                continue
-            # Both table titles (title case) and figure descriptions (sentence case)
-            # capitalize the first word of the body. A lowercase-starting body after
-            # "Table/Figure N.N" is almost always an inline cross-reference in prose
-            # ("Table 3.1 compares…"), not a standalone caption/title. Same-margin
-            # continuation alone is not reliable when the first line's extracted
-            # left edge differs from the wrapped paragraph.
-            if _starts_with_lowercase_word(body):
-                continue
-            if _reads_as_prose_sentence(body):
-                continue
-            if _reads_as_prose_after_float_reference(body):
-                continue
-            if _next_line_is_paragraph_continuation(body, page_lines, index):
-                continue
-            label = match.group("label").lower()
-            caption_type = "table" if label == "table" else "figure"
-            candidates.append(
-                CaptionLine(
-                    page_number=page.page_number,
-                    raw_text=clean,
-                    caption_type=caption_type,
-                    caption_body=body,
-                    context=context,
-                    bbox=line.bbox,
+        page_line_ids = {id(line): index for index, line in enumerate(page_lines)}
+        for block in page.text_blocks:
+            block_lines = sorted(block.lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+            for block_index, line in enumerate(block_lines):
+                index = page_line_ids.get(id(line))
+                if index is None:
+                    continue
+                clean = normalize_caption_text(line.text)
+                if not clean or _is_page_number_line(clean):
+                    continue
+                candidate_text = normalize_caption_candidate_text(clean)
+                match = CAPTION_START_RE.match(candidate_text)
+                if not match:
+                    continue
+                if _has_mixed_number_segment(match.group("number")):
+                    continue
+                body = normalize_caption_text(match.group("body"))
+                if len(body) < MIN_CAPTION_BODY_LEN:
+                    continue
+                # Both table titles (title case) and figure descriptions (sentence case)
+                # capitalize the first word of the body. A lowercase-starting body after
+                # "Table/Figure N.N" is almost always an inline cross-reference in prose
+                # ("Table 3.1 compares…"), not a standalone caption/title. Same-margin
+                # continuation alone is not reliable when the first line's extracted
+                # left edge differs from the wrapped paragraph.
+                if _starts_with_lowercase_word(body):
+                    continue
+                if _reads_as_prose_sentence(body):
+                    continue
+                if _reads_as_prose_after_float_reference(body):
+                    continue
+                if _next_line_is_paragraph_continuation(body, page_lines, index):
+                    continue
+                raw_text, caption_body = _group_caption_text(block_lines, block_index, body)
+                label = match.group("label").lower()
+                caption_type = "table" if label == "table" else "figure"
+                candidates.append(
+                    CaptionLine(
+                        page_number=page.page_number,
+                        raw_text=raw_text,
+                        caption_type=caption_type,
+                        caption_body=caption_body,
+                        context=context,
+                        bbox=line.bbox,
+                    )
                 )
-            )
 
     return candidates
 
@@ -359,6 +449,7 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
             "caption_type": caption.caption_type,
             "issue_type": issue_type,
             "line_preview": _line_preview(caption.raw_text),
+            "caption_end_preview": _caption_end_preview(caption.raw_text),
             "confidence": confidence,
             "source_q_rule_id": q_rule_id,
         }

@@ -1230,6 +1230,259 @@ def test_figure_caption_without_terminal_punctuation_warns_p017(tmp_path: Path) 
     assert warning.details.get("issue_type") == "missing_terminal_punctuation"
 
 
+def _manual_caption_doc(
+    block_lines: list[str],
+    *,
+    following_blocks: list[list[str]] | None = None,
+    pitch: float = 14.0,
+) -> PdfDocument:
+    blocks: list[PdfTextBlock] = []
+    y = 140.0
+
+    def make_block(lines_text: list[str], start_y: float) -> PdfTextBlock:
+        lines: list[PdfTextLine] = []
+        for index, text in enumerate(lines_text):
+            y0 = start_y + (index * pitch)
+            width = min(435.0, max(90.0, len(text) * 5.3))
+            bbox = BBox(x0=108.0, y0=y0, x1=108.0 + width, y1=y0 + 12.0)
+            span = PdfTextSpan(text=text, bbox=bbox, size=12.0)
+            lines.append(PdfTextLine(spans=[span], bbox=bbox, text=text))
+        block_bbox = BBox(
+            x0=min(line.bbox.x0 for line in lines),
+            y0=min(line.bbox.y0 for line in lines),
+            x1=max(line.bbox.x1 for line in lines),
+            y1=max(line.bbox.y1 for line in lines),
+        )
+        return PdfTextBlock(
+            lines=lines,
+            bbox=block_bbox,
+            text="\n".join(line.text for line in lines),
+        )
+
+    blocks.append(make_block(block_lines, y))
+    y += (len(block_lines) * pitch) + 20.0
+    for extra_lines in following_blocks or []:
+        blocks.append(make_block(extra_lines, y))
+        y += (len(extra_lines) * pitch) + 20.0
+
+    page = PdfPage(
+        page_number=1,
+        width=612.0,
+        height=792.0,
+        text_blocks=blocks,
+    )
+    return PdfDocument(path="synthetic.pdf", pages=[page])
+
+
+def test_wrapped_figure_caption_final_punctuation_does_not_warn_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 1.1 Synthetic caption wraps before the final",
+            "logical caption line and ends with punctuation.",
+        ]
+    )
+
+    captions = detect_caption_lines(model)
+    assert captions[0].caption_body == (
+        "Synthetic caption wraps before the final logical caption line and ends "
+        "with punctuation."
+    )
+    assert check_pdf_captions(model) == []
+
+
+def test_wrapped_figure_caption_without_final_punctuation_warns_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 1.2 Synthetic caption wraps before the final",
+            "logical caption line without punctuation",
+        ]
+    )
+
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+    assert warning.details.get("caption_end_preview", "").endswith("punctuation")
+
+
+def test_wrapped_caption_grouping_does_not_consume_following_body_text_p017() -> None:
+    model = _manual_caption_doc(
+        ["Figure 1.3 Synthetic caption missing terminal punctuation"],
+        following_blocks=[
+            ["This following body sentence has punctuation but is not caption text."]
+        ],
+    )
+
+    captions = detect_caption_lines(model)
+    assert captions[0].caption_body == "Synthetic caption missing terminal punctuation"
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_wrapped_anthony_like_figure_caption_checks_complete_body_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 2.1. Representative synthetic specimens (Families: Alpha, Beta, and",
+            "Gamma). Comparison of five synthetic model items (top row, red",
+            "borders) and five synthetic comparison items analyzed from",
+            "northwestern region and southern region.",
+            "All photographs were sourced from a synthetic public archive.",
+        ]
+    )
+
+    captions = detect_caption_lines(model)
+    assert captions[0].caption_body.endswith("southern region.")
+    assert "photographs were sourced" not in captions[0].caption_body
+    assert check_pdf_captions(model) == []
+
+
+def test_wrapped_praneeth_like_figure_caption_checks_complete_body_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 1.1 Synthetic-dilution strategies for targeted absolute measurement of",
+            "proteins.",
+            "Source: Synthetic citation metadata.",
+        ]
+    )
+
+    captions = detect_caption_lines(model)
+    assert captions[0].caption_body == (
+        "Synthetic-dilution strategies for targeted absolute measurement of proteins."
+    )
+    assert check_pdf_captions(model) == []
+
+
+def test_wrapped_sebastian_like_figure_caption_checks_complete_body_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 1.1 The synthetic nuclei and adjacent area relative proximity",
+            "and interneuron projections.",
+            "Source: [1]",
+        ]
+    )
+
+    captions = detect_caption_lines(model)
+    assert captions[0].caption_body.endswith("interneuron projections.")
+    assert check_pdf_captions(model) == []
+
+
+def test_wrapped_table_caption_uses_logical_body_without_scope_expansion_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Table 2.1 Synthetic Results Across Experimental Groups",
+            "and Additional Measures",
+        ]
+    )
+
+    captions = [
+        caption for caption in detect_caption_lines(model) if caption.caption_type == "table"
+    ]
+    assert captions[0].caption_body == (
+        "Synthetic Results Across Experimental Groups and Additional Measures"
+    )
+    assert check_pdf_captions(model) == []
+
+
+def test_regular_numeric_figure_caption_remains_eligible_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 3.6. Figure illustrating a proposed synthetic reaction mechanism",
+            "with compared conditions and labeled explanatory panels",
+        ]
+    )
+
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+    assert warning.details.get("caption_end_preview", "").endswith("explanatory panels")
+
+
+def test_mixed_segment_subfigure_reference_first_visible_words_ignored_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 3.2d. Upon reviewing the synthetic region, the primary peak was",
+            "observed with a related feature on the next prose line.",
+        ]
+    )
+
+    assert detect_caption_lines(model) == []
+    assert check_pdf_captions(model) == []
+
+
+def test_inline_subfigure_reference_mid_paragraph_ignored_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "The preceding synthetic sentence introduces the next comparison.",
+            "Figure 3.5c. Upon reduction of the synthetic sample, the result was",
+            "continued as ordinary body prose with terminal punctuation.",
+        ]
+    )
+
+    assert detect_caption_lines(model) == []
+    assert check_pdf_captions(model) == []
+
+
+def test_subfigure_reference_without_period_is_not_caption_number_p017() -> None:
+    model = _manual_caption_doc(
+        ["Figure 4a shows the synthetic condition across the full experiment"]
+    )
+
+    assert detect_caption_lines(model) == []
+    assert check_pdf_captions(model) == []
+
+
+def test_praneeth_p87_like_inline_subfigure_reference_ignored_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 3.2d. Upon zooming into the synthetic analytical region, the",
+            "measurement continued as body prose and ended normally.",
+        ]
+    )
+
+    assert detect_caption_lines(model) == []
+    assert check_pdf_captions(model) == []
+
+
+def test_praneeth_p95_like_cross_page_subfigure_reference_ignored_p017() -> None:
+    first_page = _manual_caption_doc(
+        [
+            "Figure 3.5c. Upon reduction and deconvolution of the synthetic peak,",
+        ]
+    ).pages[0]
+    second_page = _manual_caption_doc(
+        ["the paragraph continued on the next page with terminal punctuation."]
+    ).pages[0]
+    second_page.page_number = 2
+    model = PdfDocument(path="synthetic.pdf", pages=[first_page, second_page])
+
+    assert detect_caption_lines(model) == []
+    assert check_pdf_captions(model) == []
+
+
+def test_praneeth_p102_like_regular_caption_without_punctuation_warns_p017() -> None:
+    model = _manual_caption_doc(
+        [
+            "Figure 3.6. Figure illustrating the proposed synthetic reaction mechanism",
+            "compared with an alternate synthetic acid condition a) first process",
+            "b) second process",
+        ]
+    )
+
+    captions = detect_caption_lines(model)
+    assert captions[0].caption_body.endswith("b) second process")
+    warning = next(f for f in check_pdf_captions(model) if f.rule_id == "P017")
+    assert warning.details.get("caption_type") == "figure"
+    assert warning.details.get("issue_type") == "missing_terminal_punctuation"
+
+
+def test_mixed_segment_table_reference_ignored_by_shared_caption_parser_p017() -> None:
+    model = _manual_caption_doc(
+        ["Table 2.1a. Upon reviewing synthetic rows, the body paragraph continued"]
+    )
+
+    assert detect_caption_lines(model) == []
+    assert check_pdf_captions(model) == []
+
+
 def test_table_title_with_acceptable_formatting_does_not_warn_p017(tmp_path: Path) -> None:
     pdf_path = tmp_path / "caption_table_ok.pdf"
     doc = fitz.open()
