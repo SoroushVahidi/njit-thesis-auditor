@@ -293,6 +293,47 @@ def _figure_caption_band_ranges(
     return bands
 
 
+def _bullet_block_band_ranges(
+    all_lines: list[PdfTextLine],
+    font_size: float,
+) -> list[tuple[float, float]]:
+    """Return vertical bands covering bullet/list items and wrapped lines.
+
+    P023 measures ordinary dissertation prose. Bullet items may be single-spaced
+    internally, so once a bullet marker anchors a row, contiguous single-spaced
+    continuation rows belong to that list item rather than to body prose.
+    """
+    if not all_lines:
+        return []
+    pitch_limit = max(font_size, 1.0) * _TABLE_ROW_PITCH_RATIO
+    rows = _group_into_rows(all_lines)
+    bands: list[tuple[float, float]] = []
+    row_index = 0
+    while row_index < len(rows):
+        row = rows[row_index]
+        leftmost = min(row, key=lambda ln: ln.bbox.x0)
+        clean = " ".join(leftmost.text.strip().split())
+        if not BULLET_PREFIX_RE.match(clean):
+            row_index += 1
+            continue
+        band_top = min(ln.bbox.y0 for ln in row)
+        band_bottom = max(ln.bbox.y1 for ln in row)
+        prev_top = band_top
+        next_index = row_index + 1
+        while next_index < len(rows):
+            next_row = rows[next_index]
+            next_top = min(ln.bbox.y0 for ln in next_row)
+            pitch = next_top - prev_top
+            if pitch > pitch_limit:
+                break
+            band_bottom = max(band_bottom, max(ln.bbox.y1 for ln in next_row))
+            prev_top = next_top
+            next_index += 1
+        bands.append((band_top, band_bottom))
+        row_index = next_index
+    return bands
+
+
 def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P023 warnings when body text appears not to be double-spaced.
 
@@ -340,6 +381,7 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
             page_font_size,
         )
         figure_bands = _figure_caption_band_ranges(all_lines, page_font_size)
+        bullet_bands = _bullet_block_band_ranges(all_lines, page_font_size)
 
         body_lines = [
             line
@@ -347,6 +389,7 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
             if _is_body_text_line(line, page.height)
             and not _line_in_bands(line, table_bands)
             and not _line_in_bands(line, figure_bands)
+            and not _line_in_bands(line, bullet_bands)
         ]
         # Only warn when actual body-text lines remain to be measured. If all
         # tight spacing lives inside a table or figure-caption region,

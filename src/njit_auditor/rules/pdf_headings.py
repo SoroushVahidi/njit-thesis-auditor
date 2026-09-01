@@ -23,6 +23,10 @@ EXPECTED_HEADINGS: tuple[str, ...] = (
     "LIST OF TABLES",
     "LIST OF FIGURES",
 )
+COMPACT_EXPECTED_HEADINGS: dict[str, str] = {
+    heading.replace(" ", ""): heading
+    for heading in ("TABLE OF CONTENTS", "LIST OF TABLES", "LIST OF FIGURES")
+}
 
 BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold)", re.IGNORECASE)
 
@@ -169,6 +173,13 @@ def find_body_start_page(pdf_doc: PdfDocument) -> int | None:
                 if _TOC_LEADER_RE.search(clean):
                     continue  # dotted leader → TOC entry, not a chapter heading
                 if _CHAPTER_HEADING_RE.match(clean) or _CHAPTER_HEADING_MASHED_RE.match(clean):
+                    if page.page_number in fm_page_numbers and not _line_centered(
+                        line,
+                        LEFT_MARGIN_PT,
+                        page.width - RIGHT_MARGIN_PT,
+                        page_width=page.width,
+                    ):
+                        continue
                     return page.page_number
                 # "CHAPTER" alone could be a TOC column header — skip on named FM pages.
                 if _CHAPTER_STANDALONE_RE.match(clean) and page.page_number not in fm_page_numbers:
@@ -190,7 +201,12 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                 raw_text = line.text.strip()
                 normalized = normalize_heading_text(raw_text)
                 normalized_upper = normalized.upper()
-                if normalized_upper not in expected_set:
+                heading = (
+                    normalized_upper
+                    if normalized_upper in expected_set
+                    else COMPACT_EXPECTED_HEADINGS.get(normalized_upper.replace(" ", ""))
+                )
+                if heading is None:
                     continue
 
                 centered, center_offset, centering_confidence = _line_centering(
@@ -199,7 +215,7 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                 text_area_center = (text_area_x0 + text_area_x1) / 2.0
                 matches.append(
                     HeadingMatch(
-                        heading=normalized_upper,
+                        heading=heading,
                         page_number=page.page_number,
                         centered=centered,
                         near_top=line.bbox.y0 <= TOP_ZONE_PT,

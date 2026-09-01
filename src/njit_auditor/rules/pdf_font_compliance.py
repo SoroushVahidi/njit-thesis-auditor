@@ -27,7 +27,13 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextSpan, format_bbox_detail
+from njit_auditor.pdf_models import (
+    PdfDocument,
+    PdfPage,
+    PdfTextLine,
+    PdfTextSpan,
+    format_bbox_detail,
+)
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -57,6 +63,8 @@ _SUBSET_PREFIX_RE = re.compile(r"^[A-Z]{6}\+")
 # Caption and bullet markers (mirrors P023).
 _CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
 _BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
+_SOURCE_NOTE_PREFIX_RE = re.compile(r"^\s*(?:source|sources|note|notes)\s*:", re.IGNORECASE)
+_SOURCE_NOTE_ROW_PITCH_PT = 18.0
 
 # Named headings used for page-skip and line-skip decisions.
 _NAMED_HEADINGS: frozenset[str] = frozenset(EXPECTED_HEADINGS) | frozenset(
@@ -165,6 +173,39 @@ def _page_has_named_heading(page: PdfPage, headings: frozenset[str]) -> bool:
     return False
 
 
+def _source_note_line_ids(lines: list[PdfTextLine]) -> set[int]:
+    """Return ids for figure/table source-note lines and tight continuations."""
+    result: set[int] = set()
+    ordered = sorted(lines, key=lambda ln: (ln.bbox.y0, ln.bbox.x0))
+    index = 0
+    while index < len(ordered):
+        line = ordered[index]
+        clean = " ".join(line.text.strip().split())
+        if not _SOURCE_NOTE_PREFIX_RE.match(clean):
+            index += 1
+            continue
+        result.add(id(line))
+        prev_top = line.bbox.y0
+        next_index = index + 1
+        while next_index < len(ordered):
+            next_line = ordered[next_index]
+            pitch = next_line.bbox.y0 - prev_top
+            if pitch <= 0:
+                result.add(id(next_line))
+                next_index += 1
+                continue
+            if pitch > _SOURCE_NOTE_ROW_PITCH_PT:
+                break
+            next_clean = " ".join(next_line.text.strip().split())
+            if _CAPTION_PREFIX_RE.match(next_clean) or _BULLET_PREFIX_RE.match(next_clean):
+                break
+            result.add(id(next_line))
+            prev_top = next_line.bbox.y0
+            next_index += 1
+        index = next_index
+    return result
+
+
 def _collect_body_spans(page: PdfPage) -> list[PdfTextSpan]:
     """Extract candidate body-text spans from a page.
 
@@ -174,6 +215,9 @@ def _collect_body_spans(page: PdfPage) -> list[PdfTextSpan]:
     top_limit = page.height * _TOP_ZONE_RATIO
     bottom_limit = page.height * (1.0 - _TOP_ZONE_RATIO)
     result: list[PdfTextSpan] = []
+
+    all_lines = [line for block in page.text_blocks for line in block.lines]
+    source_note_ids = _source_note_line_ids(all_lines)
 
     for block in page.text_blocks:
         if block.bbox.y1 <= top_limit or block.bbox.y0 >= bottom_limit:
@@ -191,6 +235,8 @@ def _collect_body_spans(page: PdfPage) -> list[PdfTextSpan]:
             if _CAPTION_PREFIX_RE.match(clean):
                 continue
             if _BULLET_PREFIX_RE.match(clean):
+                continue
+            if id(line) in source_note_ids:
                 continue
             if len(clean) < _MIN_LINE_LEN:
                 continue

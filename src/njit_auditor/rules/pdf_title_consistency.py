@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
@@ -65,6 +66,7 @@ _ABSTRACT_BODY_START_RE = re.compile(
     r"^(this|in this|the purpose|we |this dissertation|this thesis)\b",
     re.IGNORECASE,
 )
+_PERSON_NAME_LINE_RE = re.compile(r"^[A-Z][A-Za-z'.-]+(?:\s+[A-Z][A-Za-z'.-]+){1,4}$")
 
 
 @dataclass(frozen=True)
@@ -84,7 +86,9 @@ def _stable_title_hash(normalized: str) -> str:
 def normalize_title_for_comparison(text: str) -> str:
     """Lowercase, collapse whitespace, strip punctuation, normalize dash variants."""
 
-    lowered = text.lower().replace("\u00a0", " ")
+    normalized_text = unicodedata.normalize("NFKC", text)
+    lowered = normalized_text.lower().replace("\u00a0", " ")
+    lowered = lowered.replace("&", " and ")
     lowered = re.sub(r"[\u2010\u2011\u2012\u2013\u2014\u2212-]+", " ", lowered)
     lowered = re.sub(r"[^\w\s]", "", lowered)
     return " ".join(lowered.split())
@@ -117,6 +121,16 @@ def _is_metadata_or_noise_line(cleaned: str) -> bool:
     if len(cleaned) <= 2:
         return True
     return False
+
+
+def _looks_like_person_name_line(cleaned: str) -> bool:
+    """Return True for standalone author/name lines after a title block."""
+    if cleaned == cleaned.upper():
+        return False
+    if not _PERSON_NAME_LINE_RE.fullmatch(cleaned):
+        return False
+    words = cleaned.split()
+    return 2 <= len(words) <= 5
 
 
 def _confidence_for_title_text(text: str, normalized: str) -> str:
@@ -213,6 +227,8 @@ def _extract_below_heading_candidate(page: PdfPage, heading: str) -> str | None:
             if parts:
                 break
             continue
+        if parts and _looks_like_person_name_line(cleaned):
+            break
         if heading == _ABSTRACT_HEADING and not parts and _ABSTRACT_BODY_START_RE.match(
             cleaned
         ):

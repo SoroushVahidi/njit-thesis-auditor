@@ -215,6 +215,40 @@ def _make_manual_pdf_doc_with_right_overflow(
     return PdfDocument(path="synthetic.pdf", pages=[page])
 
 
+def _make_manual_pdf_doc_with_bottom_overflow(
+    *, overflow_pt: float, line_count: int = 1, text: str = "Synthetic bottom line"
+) -> PdfDocument:
+    lines: list[PdfTextLine] = []
+    for index in range(line_count):
+        bbox = BBox(
+            x0=108.0,
+            y0=708.0 + (index * 4.0),
+            x1=420.0,
+            y1=720.0 + overflow_pt + (index * 4.0),
+        )
+        span = PdfTextSpan(text=f"{text} {index}", bbox=bbox, size=12.0)
+        lines.append(PdfTextLine(spans=[span], bbox=bbox, text=span.text))
+    block_bbox = BBox(
+        x0=min(line.bbox.x0 for line in lines),
+        y0=min(line.bbox.y0 for line in lines),
+        x1=max(line.bbox.x1 for line in lines),
+        y1=max(line.bbox.y1 for line in lines),
+    )
+    page = PdfPage(
+        page_number=1,
+        width=612.0,
+        height=792.0,
+        text_blocks=[
+            PdfTextBlock(
+                lines=lines,
+                bbox=block_bbox,
+                text="\n".join(line.text for line in lines),
+            )
+        ],
+    )
+    return PdfDocument(path="synthetic.pdf", pages=[page])
+
+
 def _make_pdf_with_annotation(path: Path) -> None:
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -580,6 +614,52 @@ def test_p011_real_overflow_message_states_measured_overrun(tmp_path: Path) -> N
     assert f"{overflow:.1f} pt" in warning.message
     assert warning.details.get("confidence") == "high"
     assert warning.details.get("triage_tier") == "informational"
+
+
+def test_p011_latex_like_bottom_margin_variation_is_tolerated() -> None:
+    model = _make_manual_pdf_doc_with_bottom_overflow(overflow_pt=9.2)
+    findings = run_pdf_margin_rule(model)
+    assert not any(f.rule_id == "P011" and f.severity.value == "WARNING" for f in findings)
+    assert any(f.rule_id == "P011" and f.severity.value == "PASS" for f in findings)
+
+
+def test_p011_genuine_long_reference_right_protrusion_still_warns() -> None:
+    model = _make_manual_pdf_doc_with_right_overflow(overflow_pt=18.0, line_count=1)
+    findings = run_pdf_margin_rule(model)
+    warnings = [f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING"]
+    assert warnings
+    assert warnings[0].details.get("side") == "right_margin"
+    assert warnings[0].details.get("confidence") == "high"
+
+
+def test_p011_text_table_and_figure_text_margin_violations_remain_detectable() -> None:
+    lines: list[PdfTextLine] = []
+    for idx, text in enumerate(
+        [
+            "Synthetic body text overflow",
+            "Table 1 Synthetic table row overflow",
+            "Figure 1 Synthetic figure label overflow",
+        ]
+    ):
+        bbox = BBox(x0=108.0, y0=120.0 + idx * 18.0, x1=558.5, y1=132.0 + idx * 18.0)
+        span = PdfTextSpan(text=text, bbox=bbox, size=12.0)
+        lines.append(PdfTextLine(spans=[span], bbox=bbox, text=text))
+    page = PdfPage(
+        page_number=1,
+        width=612.0,
+        height=792.0,
+        text_blocks=[
+            PdfTextBlock(
+                lines=lines,
+                bbox=BBox(x0=108.0, y0=120.0, x1=558.5, y1=168.0),
+                text="\n".join(line.text for line in lines),
+            )
+        ],
+    )
+    findings = run_pdf_margin_rule(PdfDocument(path="synthetic.pdf", pages=[page]))
+    warning = next(f for f in findings if f.rule_id == "P011" and f.severity.value == "WARNING")
+    assert warning.details.get("side") == "right_margin"
+    assert warning.details.get("affected_line_count") == "3"
 
 
 def test_annotation_extraction_detects_comment(tmp_path: Path) -> None:
@@ -1203,6 +1283,34 @@ def test_p016_paragraph_gap_suppresses_redundant_line_gap(tmp_path: Path) -> Non
     assert "excessive_line_gap" not in issue_types
     assert "excessive_paragraph_gap" in issue_types
     assert len(warnings) == 1
+
+
+def test_p016_abstract_title_block_above_heading_not_paragraph_gap(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p016_abstract_title_above_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 50), "Synthetic Dissertation Title Line", fontsize=12)
+    page.insert_text((250, 120), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [150, 164, 178, 192])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_spacing(model) if f.rule_id == "P016"]
+    assert not any(f.details.get("issue_type") == "excessive_paragraph_gap" for f in warnings)
+
+
+def test_p016_gap_findings_include_drawable_bbox(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p016_gap_bbox.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
+    _draw_spacing_lines(page, [140, 154, 230, 244])
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next(f for f in check_pdf_spacing(model) if f.rule_id == "P016")
+    assert warning.details.get("bbox")
+    assert warning.details.get("confidence") == "medium"
 
 
 def test_figure_caption_with_terminal_punctuation_does_not_warn_p017(tmp_path: Path) -> None:
@@ -2148,6 +2256,47 @@ def test_roman_lower_sequence_no_warn_for_small_numbers(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P019" for f in findings)
 
 
+def test_p019_valid_roman_frontmatter_to_chapter_arabic_transition_no_mixed_warning(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p019_valid_regime_transition.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("APPROVAL PAGE", None, "ii"),
+            ("TABLE OF CONTENTS", None, "iii"),
+            (None, "CHAPTER 1 INTRODUCTION", "1"),
+            (None, None, "2"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert not any(
+        f.rule_id == "P019" and f.details.get("issue_type") == "mixed_numbering_style"
+        for f in findings
+    )
+
+
+def test_p019_missing_chapter_landmark_not_misdiagnosed_as_mixed_style(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p019_missing_chapter_intro.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", None, "xi"),
+            (None, "Introduction", "1"),
+            (None, None, "2"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert not any(
+        f.rule_id == "P019" and f.details.get("issue_type") == "mixed_numbering_style"
+        for f in findings
+    )
+
+
 def test_pdf_cli_command_runs_with_p019(tmp_path: Path) -> None:
     pdf_path = tmp_path / "cli_p019.pdf"
     _make_pdf_with_page_numbers(pdf_path, ["1", None, "3"])
@@ -2784,7 +2933,7 @@ def test_p020_lowercase_major_word_in_bold_heading_warns(tmp_path: Path) -> None
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "Machine learning Approaches to Signal Processing",
+        "2.1 Machine learning Approaches to Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -2804,7 +2953,7 @@ def test_p020_finding_includes_flagged_and_corrected_word(tmp_path: Path) -> Non
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "Machine learning Approaches to Signal Processing",
+        "2.1 Machine learning Approaches to Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -2948,6 +3097,115 @@ def test_p020_level2_heading_still_title_case_checked(tmp_path: Path) -> None:
     assert "3.2 " in (warning.details.get("line_preview") or "")
 
 
+def test_p020_level2_allows_vs_as_minor_word(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_level2_vs.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "2.2 Comparing Method A vs Method B",
+        fontsize=14,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(
+        f.rule_id == "P020" and f.details.get("flagged_word") == "vs"
+        for f in check_pdf_title_capitalization(model)
+    )
+
+
+def test_p020_bold_table_cells_are_not_heading_title_case_targets(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_table_cells.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 90),
+        "Table 8.6 Average Accuracy Across Synthetic Datasets",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    page.insert_text((108, 118), "Method", fontsize=10, fontname="Times-Bold")
+    page.insert_text(
+        (250, 118),
+        "Accuracy (ARI) vs Ground Truth",
+        fontsize=10,
+        fontname="Times-Bold",
+    )
+    page.insert_text((108, 145), "Default", fontsize=10)
+    page.insert_text((250, 145), "0.014", fontsize=10)
+    page.insert_text((108, 172), "ACE", fontsize=10)
+    page.insert_text((250, 172), "0.070", fontsize=10)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_title_capitalization(model)
+    assert not any(
+        f.details.get("line_preview") == "Accuracy (ARI) vs Ground Truth"
+        for f in findings
+    )
+
+
+def test_p020_lettered_panel_labels_are_not_heading_title_case_targets(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p020_lettered_panel_labels.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "c) Cell off", fontsize=12, fontname="Times-Bold")
+    page.insert_text((108, 160), "d) Cell on", fontsize=12, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
+
+
+def test_p020_level3_sentence_case_neutral_not_title_case_checked(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_level3_neutral.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "2.2.1 Publications with a neutral perspective on mimicry",
+        fontsize=12,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
+
+
+def test_p020_unclassified_wrapped_and_line_not_title_case_checked(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_wrapped_and.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 140), "and characterization", fontsize=12, fontname="Times-Bold")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P020" for f in check_pdf_title_capitalization(model))
+
+
+def test_p020_level2_lowercase_need_still_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p020_level2_need.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 140),
+        "1.1 Biological Importance of Proteins and need for Quantification",
+        fontsize=14,
+        fontname="Times-Bold",
+    )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warning = next((f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"), None)
+    assert warning is not None
+    assert warning.details.get("flagged_word") == "need"
+
+
 def test_p020_period_terminated_sentence_case_heading_not_title_cased(tmp_path: Path) -> None:
     """Level 4/5-style headings end with a period and must not get P020 title case."""
     pdf_path = tmp_path / "p020_period_heading.pdf"
@@ -3071,7 +3329,7 @@ def test_p020_first_word_lowercase_in_bold_heading_warns(tmp_path: Path) -> None
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "machine Learning Approaches to Signal Processing",
+        "2.1 machine Learning Approaches to Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -3091,7 +3349,7 @@ def test_p020_word_after_colon_lowercase_warns(tmp_path: Path) -> None:
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "Signal Processing: a Novel Approach to Learning",
+        "2.1 Signal Processing: a Novel Approach to Learning",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -3228,10 +3486,8 @@ def test_p020_level3_numbered_heading_excluded_from_title_case_check(tmp_path: P
     assert not findings, f"Level 3+ numbered headings must be excluded from P020; got: {findings}"
 
 
-def test_p020_same_heading_text_without_level3_prefix_still_warns(tmp_path: Path) -> None:
-    """The Level 3 exclusion above must be targeted, not a blanket suppression:
-    the identical heading text without a preceding Level 3+ number line is still
-    a bold heading and must still be checked."""
+def test_p020_same_heading_text_without_numbered_level_is_ignored(tmp_path: Path) -> None:
+    """Unnumbered bold text is not enough to infer Level 2 title-case scope."""
     pdf_path = tmp_path / "p020_no_level3_prefix.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -3245,7 +3501,7 @@ def test_p020_same_heading_text_without_level3_prefix_still_warns(tmp_path: Path
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
-    assert findings, "a bold heading without a Level 3+ number prefix must still be checked"
+    assert not findings, "P020 must classify heading level before applying title case"
 
 
 def test_p020_level2_numbered_heading_not_excluded(tmp_path: Path) -> None:
@@ -3274,7 +3530,7 @@ def test_p020_cli_pdf_run_includes_p020(tmp_path: Path) -> None:
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "machine learning Approaches for Signal Processing",
+        "2.1 machine learning Approaches for Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -3896,6 +4152,80 @@ def _p023_text_line(text: str, x0: float, y0: float, x1: float, y1: float) -> Pd
     bbox = BBox(x0=x0, y0=y0, x1=x1, y1=y1)
     span = PdfTextSpan(text=text, bbox=bbox, font="Times", size=12.0)
     return PdfTextLine(spans=[span], bbox=bbox, text=text)
+
+
+def test_p023_single_spaced_multiline_bullets_do_not_warn() -> None:
+    lines: list[PdfTextLine] = []
+    y = 120.0
+    for bullet in range(3):
+        lines.append(
+            _p023_text_line(
+                f"• Bullet item {bullet} starts with enough synthetic words for testing here.",
+                108,
+                y,
+                520,
+                y + 12,
+            )
+        )
+        lines.append(
+            _p023_text_line(
+                "Continuation of the same bullet item remains single spaced by design.",
+                126,
+                y + 12,
+                520,
+                y + 24,
+            )
+        )
+        lines.append(
+            _p023_text_line(
+                "Additional wrapped bullet text continues the same list item.",
+                126,
+                y + 24,
+                520,
+                y + 36,
+            )
+        )
+        y += 54.0
+
+    block = PdfTextBlock(lines=lines, bbox=BBox(x0=108, y0=120, x1=520, y1=y), text="")
+    page = PdfPage(page_number=1, width=612, height=792, text_blocks=[block])
+    findings = check_pdf_body_spacing(PdfDocument(path="synthetic.pdf", pages=[page]))
+    assert not any(f.rule_id == "P023" for f in findings)
+
+
+def test_p023_bullet_exception_does_not_suppress_later_under_spaced_body() -> None:
+    lines: list[PdfTextLine] = [
+        _p023_text_line(
+            "• Bullet item starts with enough synthetic words for testing here.",
+            108,
+            120,
+            520,
+            132,
+        ),
+        _p023_text_line(
+            "Continuation of the same bullet item remains single spaced.",
+            126,
+            132,
+            520,
+            144,
+        ),
+    ]
+    body_top = 205.0
+    for idx in range(11):
+        y = body_top + idx * 12
+        lines.append(_p023_text_line(_BODY_TEXT_TEMPLATE.format(idx=idx), 108, y, 520, y + 12))
+
+    block = PdfTextBlock(lines=lines, bbox=BBox(x0=108, y0=120, x1=520, y1=340), text="")
+    page = PdfPage(page_number=1, width=612, height=792, text_blocks=[block])
+    findings = [
+        f
+        for f in check_pdf_body_spacing(PdfDocument(path="synthetic.pdf", pages=[page]))
+        if f.rule_id == "P023"
+    ]
+    assert len(findings) == 1
+    bbox = findings[0].details.get("bbox")
+    assert bbox is not None
+    assert float(bbox.split(",")[1]) >= body_top
 
 
 def test_p023_figure_description_split_row_not_counted() -> None:
@@ -5167,6 +5497,33 @@ def test_p026_body_10pt_repeated_warns_size(tmp_path: Path) -> None:
     assert len(size_warnings) >= 1
 
 
+def test_p026_figure_source_note_10pt_not_treated_as_body_text(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p026_figure_source_note.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text(
+        (108, 120),
+        "Figure 2.1 Synthetic figure caption.",
+        fontsize=12,
+        fontname="tiro",
+    )
+    for idx in range(8):
+        prefix = "Sources: " if idx == 0 else ""
+        page.insert_text(
+            (108, 155 + idx * 12),
+            prefix + "Synthetic source note text beneath the figure for testing only.",
+            fontsize=10.0,
+            fontname="tiro",
+        )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    assert not any(
+        w.details.get("issue_type") == "possible_body_font_size_issue" for w in warnings
+    )
+
+
 def test_p026_body_14pt_repeated_warns_size(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p026_14pt_size.pdf"
     _make_body_page_with_font(pdf_path, "tiro", 14.0, line_count=12)
@@ -5949,6 +6306,47 @@ def test_p028_body_arabic_not_flagged_when_chapter_on_same_page(tmp_path: Path) 
     assert not false_positives
 
 
+def test_p028_body_begins_with_introduction_without_chapter_is_ambiguous_not_frontmatter(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p028_intro_no_chapter.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", None, "xi"),
+            (None, "Introduction", "1"),
+            (None, None, "2"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert not any(
+        f.page == 2 and f.details.get("issue_type") == "arabic_number_on_frontmatter_page"
+        for f in findings
+    )
+
+
+def test_p028_arabic_page_one_before_late_chapter_is_not_frontmatter_warning(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p028_intro_before_late_chapter.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("LIST OF FIGURES", None, "xi"),
+            (None, "INTRODUCTION", "1"),
+            (None, "continued body prose", "2"),
+            (None, "CHAPTER 1 METHODS", "3"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_page_numbering_regime(model) if f.rule_id == "P028"]
+    assert not any(
+        f.details.get("issue_type") == "arabic_number_on_frontmatter_page"
+        for f in findings
+    )
+
+
 # ---------------------------------------------------------------------------
 # Regression tests: body-start detection must not match TOC column header
 # (PR #378 regression — _CHAPTER_STANDALONE_RE was case-insensitive, matching
@@ -5988,6 +6386,31 @@ def test_find_body_start_page_toc_chapter_column_header_not_matched(tmp_path: Pa
         f"body_start should be page 2 (CHAPTER 1), not {body_start!r}; "
         "title-case 'Chapter' TOC column header must not match"
     )
+
+
+def test_find_body_start_page_compact_toc_appendix_entry_not_matched(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "compact_toc_appendix_entry.pdf"
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((250, 90), "TABLEOFCONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((108, 140), "APPENDIX B", fontsize=12, fontname="Times-Bold")
+    p1.insert_text((220, 140), "JENSEN'S INEQUALITY FOR CONVEX FUNCTIONALS", fontsize=12)
+    p1.insert_text((300, 760), "x", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((250, 90), "LISTOFFIGURES", fontsize=14, fontname="Times-Bold")
+    p2.insert_text((108, 140), "Figure", fontsize=12)
+    p2.insert_text((300, 760), "xi", fontsize=12)
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_text((230, 90), "CHAPTER1", fontsize=16, fontname="Times-Bold")
+    p3.insert_text((220, 120), "INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    p3.insert_text((300, 760), "1", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    assert find_body_start_page(model) == 3
 
 
 def test_find_body_start_page_all_caps_standalone_still_matches(tmp_path: Path) -> None:
@@ -6546,22 +6969,21 @@ def test_spans_bold_reason_math_font_excluded() -> None:
 
 # ---- Integration: P020 with fitz PDFs ----
 
-def test_p020_cmbx_heading_wrong_title_case_warns(tmp_path: Path) -> None:
-    """A CMBX-named heading with a title-case violation should trigger P020."""
+def test_p020_cmbx_level2_heading_wrong_title_case_warns(tmp_path: Path) -> None:
+    """A CMBX-named Level 2 heading with a title-case violation should trigger P020."""
     pdf_path = tmp_path / "p020_cmbx_bad.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     # Use a bold font for the heading line — fitz will embed it as bold.
     page.insert_text(
-        (108, 200), "results and discussion methods", fontsize=12, fontname="hebo"
+        (108, 200), "2.1 results and discussion methods", fontsize=12, fontname="hebo"
     )
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_title_capitalization(model)
-    # The bold Times-Bold or Helvetica-Bold line should trigger (font=hebo → bold=True).
+    # The bold Times-Bold or Helvetica-Bold Level 2 line should trigger (font=hebo → bold=True).
     warnings = [f for f in findings if f.rule_id == "P020"]
-    # Expect at least one P020 finding (bold heading with title-case issue).
     assert len(warnings) >= 1
 
 
@@ -6644,7 +7066,7 @@ def _make_repository_wrapper_then_thesis_pdf(path: Path) -> None:
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 180),
-        "Machine learning Approaches to Signal Processing",
+        "2.1 Machine learning Approaches to Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -6682,7 +7104,7 @@ def _make_repository_wrapper_title_page_warning_pdf(path: Path) -> None:
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 180),
-        "machine learning Approaches to Signal Processing",
+        "2.1 machine learning Approaches to Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -6910,7 +7332,7 @@ def test_p020_font_size_fallback_large_font_wrong_case_warns(tmp_path: Path) -> 
     # Non-bold heading at 14pt with title-case violation (must not start with a
     # minor word — those lines are treated as wrapped continuations).
     page.insert_text(
-        (108, 380), "machine learning results and discussion", fontsize=14, fontname="tiro"
+        (108, 380), "2.1 machine learning results and discussion", fontsize=14, fontname="tiro"
     )
     doc.save(pdf_path)
     doc.close()
@@ -7775,6 +8197,61 @@ def test_p033_case_and_punctuation_only_no_finding(tmp_path: Path) -> None:
         abstract_title_lines=["A STUDY OF SYNTHETIC SYSTEMS ARCHITECTURE!!!"],
         approval_title_lines=["a study of synthetic systems architecture."],
     )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_ampersand_and_unicode_ligature_normalization_no_finding(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_ampersand_ligature.pdf"
+    _make_title_consistency_pdf(
+        pdf_path,
+        title_page_title_lines=["Design & Quantification of Efficient Synthetic Systems"],
+        abstract_title_lines=["Design and Quantification of Eﬃcient Synthetic Systems"],
+        approval_title_lines=["Design and Quantification of Efficient Synthetic Systems"],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
+
+
+def test_p033_approval_page_author_line_not_part_of_title(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p033_approval_author_line.pdf"
+    doc = fitz.open()
+    title_lines = [
+        "DEVELOPMENT OF ULTRAFAST PROTEIN DIGESTION",
+        "AND STANDARDS FREE QUANTITATION METHODS FOR MASS",
+        "SPECTROMETRIC ANALYSIS",
+    ]
+    p1 = doc.new_page(width=612, height=792)
+    _insert_centered_title_lines(p1, title_lines, start_y=120.0)
+    p1.insert_text((108, 230), "A Dissertation", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    _insert_centered_title_lines(p2, title_lines, start_y=50.0)
+    p2.insert_textbox(
+        fitz.Rect(108, 84, 540, 110),
+        "ABSTRACT",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    p2.insert_text((108, 140), "This dissertation presents body text.", fontsize=12)
+    p3 = doc.new_page(width=612, height=792)
+    p3.insert_textbox(
+        fitz.Rect(108, 60, 540, 86),
+        "APPROVAL PAGE",
+        fontsize=14,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    _insert_centered_title_lines(p3, title_lines, start_y=100.0)
+    p3.insert_textbox(
+        fitz.Rect(108, 155, 540, 175),
+        "Praneeth Ivan Joel Fnu",
+        fontsize=12,
+        fontname="Times-Bold",
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    doc.save(pdf_path)
+    doc.close()
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P033" for f in check_pdf_title_consistency(model))
 
@@ -13685,7 +14162,7 @@ def _make_us_copyright_warning_then_thesis_pdf(path: Path) -> None:
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 180),
-        "Machine learning Approaches to Signal Processing",
+        "2.1 Machine learning Approaches to Signal Processing",
         fontsize=16,
         fontname="Times-Bold",
     )
@@ -13757,7 +14234,7 @@ def test_p020_still_triggered_on_real_heading_after_us_copyright_wrappers(tmp_pa
 
     findings = [f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"]
 
-    # Page 5 has "Machine learning Approaches…" — the word "learning" must be flagged.
+    # Page 5 has a Level 2 "Machine learning Approaches…" heading; flag "learning".
     assert any(
         f.page == 5 and f.details.get("flagged_word") == "learning" for f in findings
     ), f"Expected P020 on page 5 for 'learning'; got: {[(f.page, f.details) for f in findings]}"

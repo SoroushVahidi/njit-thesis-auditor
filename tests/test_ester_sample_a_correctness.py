@@ -110,7 +110,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
-    assert len(problem) == 15
+    assert len(problem) == 14
     assert by_rule["P038"] == 0
     assert by_rule["P011"] == 11
     assert by_rule["P013"] == 0
@@ -418,12 +418,8 @@ def test_ester_sample_b_p019_page57_58_embedded_reprint_not_flagged() -> None:
     assert noise == [], f"Sample B pages 57/58 must have zero P019/P013 false positives: {noise}"
 
 
-def test_ester_sample_b_p019_document_level_finding_still_surfaced_honestly() -> None:
-    """The document-level mixed-numbering-style P019 finding remains visible with
-    an honest "no highlight available" explanation rather than being silently
-    dropped for lacking a page anchor. See
-    docs/status/ester_sample_b_p019_page_numbering_highlights.md.
-    """
+def test_ester_sample_b_p019_valid_regime_transition_no_document_level_warning() -> None:
+    """A valid Roman-front-matter to Arabic-body transition is not a P019 warning."""
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
         return
@@ -432,15 +428,7 @@ def test_ester_sample_b_p019_document_level_finding_still_surfaced_honestly() ->
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
 
     doc_level = [f for f in view.findings if f.rule_id == "P019" and f.page is None]
-    assert doc_level, "expected the document-level P019 mixed-numbering finding to remain"
-    for f in doc_level:
-        assert f.has_highlight is False
-        # A location IS given (document-wide mixed-numbering description), so
-        # the reason must not claim there is no location -- see Ester's Sample
-        # B P038 Problem 43 complaint, which applies to this case too.
-        reason = f.no_highlight_reason.lower()
-        assert "does not correspond to a specific page or visual location" not in reason
-        assert "no specific pdf page" in reason
+    assert doc_level == []
 
 
 def test_ester_sample_b_p038_acknowledgements_page9_not_flagged() -> None:

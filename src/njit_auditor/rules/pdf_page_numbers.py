@@ -343,6 +343,61 @@ def _style_transition_pages(
     return transitions
 
 
+def _is_expected_frontmatter_to_body_style_transition(
+    pdf_doc: PdfDocument,
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> bool:
+    """Return True when mixed styles are just the NJIT front-matter/body split.
+
+    Roman numerals in front matter followed by Arabic page 1 at the CHAPTER 1
+    landmark is expected document structure. P019 should still report sequence
+    defects and per-page candidate problems, but it must not emit the old
+    document-wide "mixed numbering styles" warning for that normal transition.
+    """
+    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
+
+    body_start = find_body_start_page(pdf_doc)
+    if body_start is None:
+        return False
+
+    transitions = _style_transition_pages(filtered_by_page)
+    if len(transitions) != 1:
+        return False
+    prev_page, prev_style, new_page, new_style = transitions[0]
+    if not (prev_page < body_start == new_page):
+        return False
+    if prev_style != "roman_lower" or new_style != "arabic":
+        return False
+    primary = _primary_plausible_candidate(filtered_by_page.get(new_page, []))
+    return primary is not None and primary.value == 1
+
+
+def _is_unresolved_roman_to_arabic_body_landmark_transition(
+    pdf_doc: PdfDocument,
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> bool:
+    """Return True when mixed styles point to missing body-start classification.
+
+    If Arabic page 1 appears after Roman-numbered front matter but no CHAPTER 1
+    landmark is detected, Ester's feedback says the useful question is the
+    missing/incorrect chapter transition, not a confident page-number-style
+    mismatch. P019 has no chapter-heading issue type, so it should stay silent
+    on this document-level style check rather than mislabel the symptom.
+    """
+    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
+
+    if find_body_start_page(pdf_doc) is not None:
+        return False
+    transitions = _style_transition_pages(filtered_by_page)
+    if len(transitions) != 1:
+        return False
+    _prev_page, prev_style, new_page, new_style = transitions[0]
+    if prev_style != "roman_lower" or new_style != "arabic":
+        return False
+    primary = _primary_plausible_candidate(filtered_by_page.get(new_page, []))
+    return primary is not None and primary.value == 1
+
+
 def _primary_sequence_values(
     by_page: dict[int, list[PageNumberCandidate]],
     *,
@@ -738,11 +793,19 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Mixed dominant style across document (TOC noise filtered).
+    # Mixed dominant style across document (TOC noise filtered). A legitimate
+    # Roman front-matter -> CHAPTER 1 Arabic page 1 transition is expected and
+    # must not be diagnosed as suspicious merely because both styles coexist.
     style_counts = Counter(
         c.number_style for c in all_filtered_plausible if c.number_style != "other"
     )
-    if len([s for s in style_counts if style_counts[s] > 0]) > 1:
+    if (
+        len([s for s in style_counts if style_counts[s] > 0]) > 1
+        and not _is_expected_frontmatter_to_body_style_transition(pdf_doc, filtered_by_page)
+        and not _is_unresolved_roman_to_arabic_body_landmark_transition(
+            pdf_doc, filtered_by_page
+        )
+    ):
         observed_style_labels = sorted(_style_label(style) for style in style_counts)
         document_mixed_details: dict[str, str] = {
             "page_number": "-",
