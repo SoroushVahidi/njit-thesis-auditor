@@ -532,7 +532,7 @@
       <select id="filter-rule">
         <option value="">All rules</option>
         {% for rule in filter_rules %}
-        <option value="{{ rule }}">{{ rule }}</option>
+        <option value="{{ rule }}">{{ rule | display_rule_id }}</option>
         {% endfor %}
       </select>
     </div>
@@ -583,10 +583,10 @@
               {% if f.public_rule_reference_id %}
               <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id }}: see rule reference">{{ f.public_rule_reference_id }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
-              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
+              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id | display_rule_id }}: see rule reference">{{ f.rule_id | display_rule_id }}</a>
               {% elif is_p_rule_id(f.rule_id) %}
-              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id }}: see rule reference">{{ f.rule_id }}</a>
-              {% else %}{{ f.rule_id }}{% endif %}
+              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id | display_rule_id }}: see rule reference">{{ f.rule_id | display_rule_id }}</a>
+              {% else %}{{ f.rule_id | display_rule_id }}{% endif %}
             </strong>
           </div>
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
@@ -695,8 +695,8 @@
         <tr>
           <td><strong>
             {% if is_p_rule_id(row.rule_id) %}
-            <a href="/rules#{{ row.rule_id }}" class="rule-link" aria-label="{{ row.rule_id }}: see rule reference">{{ row.rule_id }}</a>
-            {% else %}{{ row.rule_id }}{% endif %}
+            <a href="/rules#{{ row.rule_id }}" class="rule-link" aria-label="{{ row.rule_id | display_rule_id }}: see rule reference">{{ row.rule_id | display_rule_id }}</a>
+            {% else %}{{ row.rule_id | display_rule_id }}{% endif %}
           </strong></td>
           <td>{{ row.count }}</td>
           <td><a href="/audits/{{ job_id }}/problems/category/{{ row.category | category_slug }}" class="rule-link">{{ row.category | humanize_cat }}</a></td>
@@ -734,10 +734,10 @@
             {% if problem.public_rule_reference_id %}
             <a href="/rules#{{ problem.public_rule_reference_id }}" class="rule-link" aria-label="{{ problem.public_rule_reference_id }}: see rule reference">{{ problem.public_rule_reference_id }}</a>
             {% elif public_rule_reference_href is defined and public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) %}
-            <a href="{{ public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
+            <a href="{{ public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) }}" class="rule-link" aria-label="{{ problem.rule_id | display_rule_id }}: see rule reference">{{ problem.rule_id | display_rule_id }}</a>
             {% elif is_p_rule_id(problem.rule_id) %}
-            <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id }}: see rule reference">{{ problem.rule_id }}</a>
-            {% else %}{{ problem.rule_id }}{% endif %}
+            <a href="/rules#{{ problem.rule_id }}" class="rule-link" aria-label="{{ problem.rule_id | display_rule_id }}: see rule reference">{{ problem.rule_id | display_rule_id }}</a>
+            {% else %}{{ problem.rule_id | display_rule_id }}{% endif %}
             {% if problem.issue_type_label %} · {{ problem.issue_type_label }}{% elif problem.issue_type %} · {{ problem.issue_type | humanize_detail_key }}{% endif %}
           </p>
             <div class="grouped-problem__summary">

@@ -23,6 +23,7 @@ from njit_auditor.report_outputs import (
     build_p038_frontmatter_heading_triage_summary,
     build_p044_abstract_indentation_triage_summary,
     compact_page_list,
+    public_display_rule_id,
     write_json_report,
     write_markdown_report,
 )
@@ -2320,3 +2321,41 @@ def test_p024_suggested_fix_and_confidence_remain_visible_with_entry_index(
     for f in p024_findings:
         assert f.suggested_fix
         assert f.confidence_level in {"medium"}
+
+
+def test_public_display_rule_id_maps_pxxx_to_rxxx() -> None:
+    """Ester requested Rxxx terminology for students; Pxxx stays the internal
+    catalog/test id (see public_display_rule_id's docstring for why a
+    repository-wide rename was rejected in favor of a display-boundary map)."""
+    assert public_display_rule_id("P019") == "R019"
+    assert public_display_rule_id("P001") == "R001"
+    assert public_display_rule_id("P028") == "R028"
+
+
+def test_public_display_rule_id_passes_through_non_pxxx_values() -> None:
+    """Anything that is not a plain Pddd id must be returned unchanged rather
+    than silently mangled."""
+    assert public_display_rule_id("Q019") == "Q019"
+    assert public_display_rule_id("") == ""
+    assert public_display_rule_id("P19") == "P19"
+    assert public_display_rule_id("R019") == "R019"
+
+
+def test_audit_findings_to_json_dict_carries_public_rule_id_without_renaming_internal() -> None:
+    """The exported JSON must expose a student-facing Rxxx id alongside the
+    stable internal Pxxx rule_id, not replace it (internal tooling/tests key
+    off rule_id, so it must never change)."""
+    finding = AuditFinding(
+        rule_id="P019",
+        severity=Severity.WARNING,
+        page=5,
+        message="Multiple plausible page-number candidates detected on one page.",
+        details={"issue_type": "multiple_page_numbers"},
+    )
+    payload = audit_findings_to_json_dict([finding], _metadata())
+    entry = payload["findings"][0]
+    assert entry["rule_id"] == "P019"
+    assert entry["public_rule_id"] == "R019"
+    assert payload["metadata"]["counts_by_rule_id"].get("P019") == 1
+    assert payload["metadata"]["counts_by_public_rule_id"].get("R019") == 1
+    assert "P019" not in payload["metadata"]["counts_by_public_rule_id"]

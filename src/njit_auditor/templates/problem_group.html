@@ -217,8 +217,8 @@
         <span class="page-legend__marker" aria-hidden="true">{{ entry.number }}</span>
         <span>
           {% if is_p_rule_id(entry.rule_id) %}
-          <a href="/rules#{{ entry.rule_id }}" class="rule-link">{{ entry.rule_id }}</a>
-          {% else %}<strong>{{ entry.rule_id }}</strong>{% endif %}
+          <a href="/rules#{{ entry.rule_id }}" class="rule-link">{{ entry.rule_id | display_rule_id }}</a>
+          {% else %}<strong>{{ entry.rule_id | display_rule_id }}</strong>{% endif %}
           — {{ entry.label }}
         </span>
       </li>
@@ -255,12 +255,12 @@
             {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
             {% if group_kind in ("category", "page") %}
               {% if example.public_rule_reference_id %}
-              <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.public_rule_reference_id }}: see rule reference">{{ example.public_rule_reference_id }}</a>
+              <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.public_rule_reference_id | display_rule_id }}: see rule reference">{{ example.public_rule_reference_id | display_rule_id }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
-              <a href="{{ public_rule_reference_href(example.rule_id, issue_type=example.issue_type) }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
+              <a href="{{ public_rule_reference_href(example.rule_id, issue_type=example.issue_type) }}" class="rule-link" aria-label="{{ example.rule_id | display_rule_id }}: see rule reference">{{ example.rule_id | display_rule_id }}</a>
               {% elif is_p_rule_id(example.rule_id) %}
-              <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id }}: see rule reference">{{ example.rule_id }}</a>
-              {% else %}{{ example.rule_id }}{% endif %}
+              <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id | display_rule_id }}: see rule reference">{{ example.rule_id | display_rule_id }}</a>
+              {% else %}{{ example.rule_id | display_rule_id }}{% endif %}
               {% if example.issue_type_label %} · {{ example.issue_type_label }}
               {% elif example.issue_type %} · {{ example.issue_type | humanize_detail_key }}
               {% elif example.rule_title %} · {{ example.rule_title }}{% endif %}

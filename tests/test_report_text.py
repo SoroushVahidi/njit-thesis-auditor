@@ -213,7 +213,7 @@ def test_repeated_same_page_punctuation_findings_consolidate_without_dropping_en
     assert "Problem 2 —" in text
     assert "Problem 3" not in text
     margin_start = text.index("Left margin boundary violation")
-    margin_end = text.index("Public rule reference: P011", margin_start)
+    margin_end = text.index("Public rule reference: R011", margin_start)
     assert "Affected locations" not in text[margin_start:margin_end]
 
 

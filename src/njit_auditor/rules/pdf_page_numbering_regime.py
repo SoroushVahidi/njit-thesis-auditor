@@ -28,6 +28,8 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_headings import find_body_start_page, find_named_frontmatter_headings
 from njit_auditor.rules.pdf_page_numbers import (
+    _dominant_page_number_pattern,
+    _filter_off_pattern_noise,
     _filter_toc_column_candidates,
     _primary_plausible_candidate,
     detect_page_number_candidates,
@@ -48,14 +50,19 @@ def _arabic_page_one_transition(pdf_doc: PdfDocument) -> int | None:
     for candidate in raw_candidates:
         if is_plausible_page_number_candidate(candidate):
             candidates_by_page.setdefault(candidate.page_number, []).append(candidate)
+    toc_filtered = {
+        page_number: _filter_toc_column_candidates(candidates, page_is_front_matter=True)
+        for page_number, candidates in candidates_by_page.items()
+    }
+    pattern = _dominant_page_number_pattern(toc_filtered)
+    candidates_by_page = {
+        page_number: _filter_off_pattern_noise(candidates, pattern)
+        for page_number, candidates in toc_filtered.items()
+    }
 
     prev_style: str | None = None
     for page_number in sorted(candidates_by_page):
-        filtered = _filter_toc_column_candidates(
-            candidates_by_page[page_number],
-            page_is_front_matter=True,
-        )
-        primary = _primary_plausible_candidate(filtered)
+        primary = _primary_plausible_candidate(candidates_by_page[page_number])
         if primary is None or primary.number_style == "other":
             continue
         if (
@@ -161,6 +168,18 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
     for candidate in raw_candidates:
         if is_plausible_page_number_candidate(candidate):
             candidates_by_page.setdefault(candidate.page_number, []).append(candidate)
+    toc_filtered_by_page: dict[int, list] = {}
+    for pn, page_candidates in candidates_by_page.items():
+        region = regions.get(pn, "ambiguous")
+        toc_filtered_by_page[pn] = _filter_toc_column_candidates(
+            page_candidates,
+            page_is_front_matter=(region == "front_matter"),
+        )
+    pattern = _dominant_page_number_pattern(toc_filtered_by_page)
+    candidates_by_page = {
+        pn: _filter_off_pattern_noise(page_candidates, pattern)
+        for pn, page_candidates in toc_filtered_by_page.items()
+    }
 
     # Deduplicate: one finding per (page, issue_type).
     seen: set[tuple[int, str]] = set()
@@ -172,11 +191,7 @@ def check_pdf_page_numbering_regime(pdf_doc: PdfDocument) -> list[AuditFinding]:
         region = regions.get(pn, "ambiguous")
         if region == "ambiguous":
             continue
-        filtered_candidates = _filter_toc_column_candidates(
-            page_candidates,
-            page_is_front_matter=(region == "front_matter"),
-        )
-        for candidate in filtered_candidates:
+        for candidate in page_candidates:
             issue_type: str | None = None
             expected: str | None = None
             q_rule: str = ""

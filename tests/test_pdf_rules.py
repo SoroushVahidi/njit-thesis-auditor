@@ -2703,6 +2703,84 @@ def test_p019_multiple_page_numbers_highlight_targets_dominant_candidate(
     assert 250 < x0 < 350, f"expected bottom-center bbox to be selected, got x0={x0}"
 
 
+def test_p019_off_baseline_lower_body_token_not_multiple_or_mixed(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p019_off_baseline_lower_body_token.pdf"
+    doc = fitz.open()
+    for page_number in range(1, 16):
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((300, 770), str(page_number), fontsize=12)
+        if page_number == 10:
+            page.insert_text((300, 720), "X", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    residual = [
+        f
+        for f in findings
+        if f.page == 10
+        and f.details.get("issue_type")
+        in {"multiple_page_numbers", "mixed_numbering_style"}
+    ]
+    assert residual == []
+
+
+def test_p019_landscape_page_rotated_folio_not_missing(tmp_path: Path) -> None:
+    """A wide table/figure page's folio is often rotated 90 degrees to read
+    correctly when the bound page is turned sideways, and printed near the
+    page's left/right edge instead of its top/bottom margin. The detector
+    must find it there rather than reporting a false missing-page-number gap
+    (see docs/status -- observed on a real dissertation's landscape table
+    pages, physical pages otherwise numbered correctly in sequence)."""
+    pdf_path = tmp_path / "p019_landscape_rotated_folio.pdf"
+    doc = fitz.open()
+    for page_number in range(1, 16):
+        if page_number == 10:
+            page = doc.new_page(width=792, height=612)
+            page.insert_text((50, 320), str(page_number), fontsize=12, rotate=90)
+        else:
+            page = doc.new_page(width=612, height=792)
+            page.insert_text((300, 760), str(page_number), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert not any(
+        f.page == 10 and f.details.get("issue_type") == "missing_page_number" for f in findings
+    )
+    assert not any(f.details.get("issue_type") == "sequence_gap" for f in findings)
+
+
+def test_p019_landscape_rotated_folio_not_flagged_as_multiple_or_mixed(
+    tmp_path: Path,
+) -> None:
+    """A stray horizontal token sitting in a landscape page's own left/right
+    edge zone (e.g. a table row label) must not compete with, or be treated
+    as equally plausible to, the page's actual rotated folio number."""
+    pdf_path = tmp_path / "p019_landscape_rotated_folio_with_noise.pdf"
+    doc = fitz.open()
+    for page_number in range(1, 16):
+        if page_number == 10:
+            page = doc.new_page(width=792, height=612)
+            page.insert_text((50, 320), str(page_number), fontsize=12, rotate=90)
+            # Horizontal (unrotated) text in the same left-edge zone -- must be
+            # ignored; only a *vertical* line there is treated as a folio candidate.
+            page.insert_text((40, 300), "3", fontsize=12)
+        else:
+            page = doc.new_page(width=612, height=792)
+            page.insert_text((300, 760), str(page_number), fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_number_sequence(model)
+    assert not any(f.page == 10 for f in findings)
+
+
 def test_p013_embedded_reprint_top_number_not_counted_as_duplicate(tmp_path: Path) -> None:
     """P013's own candidate count must apply the same dominant-location noise
     filter as P019 (see test_p019_embedded_reprint_top_number_not_flagged_as_multiple).
@@ -6304,6 +6382,160 @@ def test_p028_body_arabic_not_flagged_when_chapter_on_same_page(tmp_path: Path) 
         and f.details.get("page_region") == "body"
     ]
     assert not false_positives
+
+
+def test_p019_sequence_gap_belongs_to_p019_not_p028(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_sequence_gap_not_p028.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", None, "v"),
+            (None, "CHAPTER 1 INTRODUCTION", "1"),
+            (None, None, "2"),
+            (None, None, "4"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p019 = check_pdf_page_number_sequence(model)
+    p028 = check_pdf_page_numbering_regime(model)
+    assert any(f.details.get("issue_type") == "sequence_gap" for f in p019)
+    assert not any(f.rule_id == "P028" for f in p028)
+
+
+def test_p028_wrong_body_regime_belongs_to_p028_without_p019_duplicate(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p028_wrong_body_regime_not_p019.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", None, "v"),
+            (None, "CHAPTER 1 INTRODUCTION", "vi"),
+            (None, None, "vii"),
+            (None, None, "viii"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p019 = check_pdf_page_number_sequence(model)
+    p028 = check_pdf_page_numbering_regime(model)
+    assert not any(f.rule_id == "P019" for f in p019)
+    assert any(
+        f.rule_id == "P028"
+        and f.details.get("issue_type") == "roman_number_on_body_page"
+        for f in p028
+    )
+
+
+def test_p019_and_p028_both_fire_for_distinct_same_page_defects(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p019_p028_distinct_defects.pdf"
+    doc = fitz.open()
+    p1 = doc.new_page(width=612, height=792)
+    p1.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=14, fontname="Times-Bold")
+    p1.insert_text((300, 760), "v", fontsize=12)
+    p2 = doc.new_page(width=612, height=792)
+    p2.insert_text((220, 90), "CHAPTER 1 INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    p2.insert_text((300, 760), "i", fontsize=12)
+    p2.insert_text((560, 760), "99", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    p019 = check_pdf_page_number_sequence(model)
+    p028 = check_pdf_page_numbering_regime(model)
+    assert any(f.details.get("issue_type") == "multiple_page_numbers" for f in p019)
+    assert any(
+        f.rule_id == "P028"
+        and f.details.get("issue_type") == "roman_number_on_body_page"
+        for f in p028
+    )
+
+
+def test_p028_unrecognized_first_chapter_heading_no_per_page_cascade(
+    tmp_path: Path,
+) -> None:
+    """When Arabic numbering starts several pages before the auditor's own
+    CHAPTER/APPENDIX heading detector recognizes a landmark (e.g. an
+    unlabeled "Introduction" heading precedes a later, literally-worded
+    "CHAPTER 2"), the Arabic-page-1 transition already reclassifies those
+    orphan pages as body -- P028 must not re-flag each one individually as a
+    front-matter regime violation just because the heading detector lagged."""
+    pdf_path = tmp_path / "p028_late_chapter_heading_no_cascade.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", None, "v"),
+            (None, None, "1"),
+            (None, None, "2"),
+            (None, None, "3"),
+            (None, "CHAPTER2", "4"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p028 = check_pdf_page_numbering_regime(model)
+    assert p028 == []
+
+
+def test_p019_unrecognized_first_chapter_heading_single_summary_finding(
+    tmp_path: Path,
+) -> None:
+    """Same document shape as the P028 cascade test above: P019 should
+    report the Roman->Arabic style mismatch as one document-level finding,
+    not once per orphan Arabic page."""
+    pdf_path = tmp_path / "p019_late_chapter_heading_single_finding.pdf"
+    _make_regime_pdf(
+        pdf_path,
+        [
+            ("TABLE OF CONTENTS", None, "v"),
+            (None, None, "1"),
+            (None, None, "2"),
+            (None, None, "3"),
+            (None, "CHAPTER2", "4"),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    p019 = check_pdf_page_number_sequence(model)
+    per_page_multi_or_mixed = [
+        f
+        for f in p019
+        if f.page is not None
+        and f.details.get("issue_type") in {"multiple_page_numbers", "mixed_numbering_style"}
+    ]
+    assert per_page_multi_or_mixed == []
+    doc_level_mixed = [
+        f
+        for f in p019
+        if f.page is None and f.details.get("issue_type") == "mixed_numbering_style"
+    ]
+    assert len(doc_level_mixed) == 1
+
+
+def test_p028_off_baseline_lower_body_roman_token_not_regime_violation(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p028_off_baseline_lower_body_token.pdf"
+    doc = fitz.open()
+    for page_number in range(1, 16):
+        page = doc.new_page(width=612, height=792)
+        if page_number == 1:
+            page.insert_text(
+                (220, 90),
+                "CHAPTER 1 INTRODUCTION",
+                fontsize=14,
+                fontname="Times-Bold",
+            )
+        page.insert_text((300, 770), str(page_number), fontsize=12)
+        if page_number == 10:
+            page.insert_text((300, 720), "X", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_page_numbering_regime(model)
+    assert not any(
+        f.page == 10
+        and f.details.get("issue_type") == "roman_number_on_body_page"
+        for f in findings
+    )
 
 
 def test_p028_body_begins_with_introduction_without_chapter_is_ambiguous_not_frontmatter(

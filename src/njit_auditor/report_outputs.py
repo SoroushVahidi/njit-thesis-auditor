@@ -596,6 +596,25 @@ def _strip_internal_authoring_note(text: str) -> str:
     return stripped if stripped else text
 
 
+_PXXX_RULE_ID_RE = re.compile(r"^P(\d{3})$")
+
+
+def public_display_rule_id(rule_id: str) -> str:
+    """Map an internal ``Pxxx`` catalog id to the ``Rxxx`` id shown to students.
+
+    The detector catalog, tests, and rule registry use ``Pxxx`` internally
+    (stable identifiers, unrelated to Ester's own Q-rule numbering). Ester
+    asked that students only ever see the ``Rxxx`` form. Rather than rename
+    ~113 source files' ``rule_id="P019"`` literals -- a large, high-risk
+    change to identifiers tests and tooling key off of -- every
+    student-visible surface should call this at its final render/serialize
+    step. Anything that is not a plain ``Pddd`` id (already-external ids,
+    unexpected values) passes through unchanged.
+    """
+    match = _PXXX_RULE_ID_RE.match(str(rule_id).strip())
+    return f"R{match.group(1)}" if match else rule_id
+
+
 def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
     """Rewrite internal authoring language for public/student-facing display.
 
@@ -2045,6 +2064,7 @@ def audit_findings_to_json_dict(
         _, student_facing_role = _student_export_role(finding.rule_id, details)
         entry: dict[str, Any] = {
             "rule_id": finding.rule_id,
+            "public_rule_id": public_display_rule_id(finding.rule_id),
             "severity": finding.severity.value,
             "message": finding.message,
             "page": finding.page,
@@ -2090,6 +2110,10 @@ def audit_findings_to_json_dict(
         "inventory_finding_count": inventory_finding_count,
         "counts_by_severity": _severity_counts(prepared),
         "counts_by_rule_id": _rule_counts(prepared),
+        "counts_by_public_rule_id": {
+            public_display_rule_id(rule_id): count
+            for rule_id, count in _rule_counts(prepared).items()
+        },
         "counts_by_category": _category_counts(prepared),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "note": "Findings are heuristic signals and require human review.",

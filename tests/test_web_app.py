@@ -1998,8 +1998,12 @@ def test_results_page_advanced_rule_summary_is_collapsed(
     assert "Click a rule ID for rule reference" in html
     idx_heading = html.index("Advanced: rule-by-rule technical summary")
     idx_details = html.index("<details", idx_heading)
-    idx_rule_id = html.index(">P011<", idx_details)
+    # Rule ids are shown to students in their Rxxx form (Ester's requested
+    # terminology), never the internal Pxxx catalog id -- see
+    # public_display_rule_id in report_outputs.py.
+    idx_rule_id = html.index(">R011<", idx_details)
     assert idx_details != -1 and idx_rule_id > idx_details
+    assert ">P011<" not in html
 
 
 def test_results_page_review_action_labels_present_on_mobile_and_desktop(
@@ -2564,7 +2568,8 @@ def test_download_text_returns_plain_text_student_report(
     assert f"thesis_audit_report_{job_id[:8]}.txt" in disposition
     body = resp.content.decode("utf-8")
     assert "PDF PAGE" in body
-    assert "Public rule reference: P011" in body
+    assert "Public rule reference: R011" in body
+    assert "Public rule reference: P011" not in body
 
 
 def test_download_missing_job_returns_404(client: tuple[TestClient, Any]) -> None:
