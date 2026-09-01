@@ -7,6 +7,26 @@
 non-semantic metadata (see below) -- no finding was added, removed,
 reclassified, or changed in confidence/message/rule_id/page.
 
+## Current status as of 2026-09-01
+
+The evidence repair is implemented and committed at
+`ff5a78f23cef1de2b693448d920d6161e9d8317f`; CI for that commit was green. The
+detector itself has not been tuned based on any R019 correctness judgment.
+
+The repaired R019 reviewer PDF has since been uploaded as a new Drive file and
+the live R019 Sheet link has been repointed to it:
+
+- Current Drive file ID: `1uYHqjiihCCshMaEK0X7teZUwYIZrmsNh`
+- Filename: `R019_Ester_Auditor_Feedback_REPAIRED_20260901.pdf`
+- Size: `1,476,119` bytes
+- Pages: 23
+- Parent folder: `16w3qZgNRz965rPlgxlUiDDFBZexG97rG`
+
+The old placeholder Drive file
+`1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko` remains historical/obsolete and was not
+deleted. Ester has been notified. Current R019 state: waiting for Ester's human
+judgment.
+
 ## Why this task exists
 
 Ester Flaim reported that she reviewed every prepared feedback sheet through
@@ -244,17 +264,16 @@ access available in this session). Confirmed structurally:
   page and location line now supply that missing context. No sheet edit is
   proposed or needed beyond what the linked PDF already fixes.
 
-## Drive update strategy (not executed this session)
+## Historical Drive update strategy from the repair session
 
-Per task instruction, no Drive upload was performed. `ester_drive_pdf_map.json`
-still reflects the **old** uploaded file (`1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko`,
-~10.8 KB, `status: "uploaded"`) and was deliberately left untouched -- updating
-it to claim "uploaded" would misrepresent Drive state that has not actually
-changed. Recommended path once this package is reviewed and approved:
+Per the original repair-session task instruction, no Drive upload was performed
+in that session. At that time, `ester_drive_pdf_map.json` still reflected the
+**old** uploaded file (`1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko`, ~10.8 KB,
+`status: "uploaded"`) and was deliberately left untouched because updating it
+then would have misrepresented Drive state that had not actually changed. The
+later 2026-09-01 upload followed the safe fallback path below.
 
-1. Confirm this local PDF/xlsx pair is final (Ester has not yet been asked to
-   re-review; that should happen only after this diagnostic work itself is
-   reviewed).
+1. Confirm this local PDF/xlsx pair is final.
 2. Upload the new local PDF **content** to the *same* Drive file ID
    (`1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko`) if the available tooling supports an
    in-place content replace for that file -- this is strictly preferred, since
@@ -266,7 +285,8 @@ changed. Recommended path once this package is reviewed and approved:
    leave every Ester-entered field (there are none yet, for R019) untouched.
 4. Update `docs/evaluation/ester_feedback/ester_drive_pdf_map.json`'s R019
    entry (`file_id`, `url`, `size_bytes`, `status`) only after a real upload
-   has happened and been verified -- never speculatively.
+   has happened and been verified -- never speculatively. This current-state
+   metadata update was performed after the verified 2026-09-01 upload.
 
 ## Was P019 (detector) logic changed?
 
@@ -339,8 +359,5 @@ worktree state.
 
 ## Next action
 
-Evidence package is ready for a maintainer to review this diagnostic work
-itself (not yet sent to Ester). Once approved: execute the Drive update
-strategy above, then ask Ester to review the regenerated R019 PDF using her
-existing Drive link (if in-place replacement is used) or a Sheet-link update
-(if not).
+Wait for Ester's human judgment on R019. Do not tune P019 until that judgment is
+received and recorded as authoritative feedback.

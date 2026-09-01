@@ -22,36 +22,62 @@ a snapshot — it should change rarely and shouldn't need dated entries.
   synthetic web-demo fixtures, and cross-referencing tooling against Esther's raw
   rule/audit-matrix spreadsheets (`scripts/ester_rule_consistency_audit.py`).
 
+## Current Phase
+
+Human-feedback calibration before deployment. R011, R015, and R017 are closed;
+R019 evidence has been repaired and returned to Ester; deployment waits until
+the feedback cycle stabilizes and CI is green.
+
 ## Near-term engineering work
 
-- Delete stale merged-PR remote branches (~24 as of the 2026-07-13 audit; still open as of
-  2026-07-16 — not deleted by that pass, since branch deletion is a destructive action requiring
-  explicit authorization).
+1. Wait for Ester's R019 judgment on the repaired 23-page reviewer PDF.
+2. R024 audit/fix/validate. Known feedback: Anthony proper nouns/taxa and
+   Praneeth beta-casein/hyphen capitalization should not trigger the selected
+   sentence-case findings.
+3. R027 audit/fix/validate. Known feedback: a wrapped Level-4 heading period is
+   on the continuation line.
+4. R030 audit/fix/validate, plus a separate ownership audit for Ester's
+   chapter-title-spacing question.
+5. Prepare discussion evidence for R016/R018/R020/R023/R026/R028/R033, capture
+   Ester's decisions as authoritative ground truth, then tune those rules one
+   at a time.
+6. Continue with R034+ as Ester reviews them.
+7. Run a final global human-feedback regression audit.
+8. Deploy only after the feedback cycle stabilizes and CI is green.
+
+Repository-maintenance work remains separate from detector tuning:
+
+- Clean local branch clutter conservatively. Do not delete remote branches
+  without explicit authorization.
 - Continue the canonical-rule-registry consolidation started in this audit
-  (`docs/RULE_ARCHITECTURE.md`, Phase 4) — collapse the remaining duplication between detector
-  registration, public rule cards, Esther Q/P mappings, wording maps, and issue-type templates
-  one safe slice at a time. Do not attempt this as a single rewrite. The 2026-07-16
-  atomic-presentation pass took one more such slice: it unified `web_app.py`'s two classification
-  functions, closed the P014 wording gap and 8 other tracked wording gaps (see
-  `docs/status/atomic_presentation_inventory_20260716.md`), and added a static source-scanner
-  (`src/njit_auditor/rule_source_scan.py`) that keeps the wording-coverage ratchet honest against
-  the detector source instead of only the catalog's (often-unpopulated) `issue_types` field. The
-  4-way issue-type-source duplication itself is still open.
-- Make `scripts/ester_rule_consistency_audit.py` runnable in a fresh clone/CI (currently requires
-  untracked local `results/ester_feedback_raw/*.xlsx` input) — likely needs a redacted or
-  synthetic stand-in for Esther's raw spreadsheets, decided with her input.
+  (`docs/RULE_ARCHITECTURE.md`, Phase 4) by collapsing detector registration,
+  public rule cards, Ester Q/P mappings, wording maps, and issue-type templates
+  one safe slice at a time. Do not attempt this as a single rewrite.
+- Make `scripts/ester_rule_consistency_audit.py` runnable in a fresh clone/CI
+  by adding a redacted or synthetic stand-in for the local-only Ester workbook
+  inputs, if Ester approves that data strategy.
 
 ## Policy-dependent work (needs Esther, not engineering judgment)
 
 Do not implement any of these without an explicit answer from Esther — they are formatting-policy
 calls, not bugs:
 
-- Footer-zone P011 body-text margin policy (an 8-page cluster on Sample A).
-- P011 margin coverage for non-text elements (images/drawings), currently text-layer only.
-- 6 unreviewed Sample B medium-confidence P011 pages.
+- R016: page-one/blank-space false positives; why only a subset of LaTeX
+  documents are flagged.
+- R018: current selected findings look false-positive; Ester pointed to actual
+  TOC misalignments around 1.3.3 / 1.3.4 / 1.3.5.
+- R020: sentence case/title case details, including conjunctions,
+  prepositions, articles, and capitalization after punctuation.
+- R023: figure-description single spacing, bullet-point single-spacing
+  exceptions, and whether a bullet-spacing rule exists.
+- R026: whether figure-source text may be 10 pt and single-spaced.
+- R028: Philip false positive; Patrick may be meaningful but the underlying
+  issue may be missing `CHAPTER 1`.
+- R033: Praneeth title-consistency finding false positive; root cause still
+  needs investigation.
+- P011 margin coverage for non-text elements (images/drawings), currently
+  text-layer only.
 - Whether a new TOC-entry sentence-case rule is warranted.
-- P084 (next rule ID) — intentionally not started; scope needs a source requirement from Esther's
-  matrix before implementation begins.
 
 ## Longer-term / optional AI-VLM work
 

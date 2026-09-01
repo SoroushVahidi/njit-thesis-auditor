@@ -1,122 +1,116 @@
 # Current Status
 
-> **Canonical, current-only status.** This file replaces
-> `current_project_state_and_next_steps.md` as the entry point for "what's true right now."
-> That file's most recent snapshot (PR #407/#408) is over 100 commits stale as of this
-> writing; it is kept for historical/forensic context only — see the banner at its top.
+> **Canonical, current-only status.** This is the entry point for "what is true
+> right now." Older dated reports remain historical/forensic records.
 >
-> This file is intentionally short. Do not append dated snapshots here — open a new dated
-> report under `docs/status/` instead and link it from the relevant section below.
+> This file is intentionally short. Do not append long dated narratives here;
+> write detailed records under `docs/status/` and link them from this file.
 
-_Last verified: 2026-08-25, after the local R011/R015 Esther-feedback checkpoints._
+_Last verified: 2026-09-01, after the R017/P017 wrapped-caption and inline-reference fix._
 
-## Main branch
+## Main Branch
 
 | Field | Value |
 |---|---|
-| Integration base SHA | `989746a120f6e1bd865c17aa5f6380eafde7ccd2` (short `989746a`, current `origin/main`) |
-| Local HEAD SHA | `a23f7093a6c4365539200d0f807a522046a80e7a` (short `a23f709`) |
-| Local unpushed checkpoints | `7090b824` R011/P011 Esther false-positive fix; `a23f7093` R015/P015 Esther false-positive fix |
-| Last merged PR | [#530](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/530) — Pin Ruff version for reproducible CI |
-| CI (`.github/workflows/ci.yml`) | not re-checked remotely for local unpushed checkpoints |
+| Current `main` SHA | `336b28c6e894a6414247357a3f93f188e5150f75` (short `336b28c`) |
+| `origin/main` | same SHA; ahead/behind `0 / 0` |
+| Latest commit | `fix(p017): handle wrapped captions and inline references` |
+| CI | GitHub Actions run `33518881868`, green on Python 3.10 / 3.11 / 3.12 |
 | `ruff check .` | clean |
 | `mypy src` | clean, 113 source files |
-| `python -m pytest -q` | **3157 passed**, 3 warnings |
-| Rule coverage | P001–P084 implemented (including P075 and P084 inventory detectors; no remaining non-inventory project task IDs; next new rule ID is **P085**) |
+| `python -m pytest` | **3192 passed**, 3 warnings |
+| Live deployment worktree | detached at `7232305d89e97c233002bf0c8077bad01e9e3f44`; not updated by this pass |
+| Rule inventory | P001–P084 implemented; no remaining non-inventory project task IDs; next new internal rule ID remains P085 |
 
-Numbers above were measured directly on `main` at `a23f7093`, which is 2 commits ahead of
-`origin/main` and has not been pushed. If you're reading this later, re-run the validation
-commands yourself before trusting the counts.
+## Current Evaluation Corpus
 
-## Recent local checkpoints
+The current human-validation corpus is seven private dissertation PDFs: Youra,
+Anthony, Muyeed, Philip, Praneeth, Sebastian, and Patrick. Elbert is excluded.
+These files remain local under `data/evaluation/private/`, ignored by Git, and
+must not be quoted, uploaded, or committed.
 
-- R011/P011 correction completed and committed as
-  `7090b824a8c69e042ced2cb6240d51fbc559cdce`
-  (`fix(p011): incorporate Esther R011 false-positive feedback`). Esther reviewed 7 R011
-  findings and classified all 7 as false positives. The correction is documented in
-  `docs/status/p011_r011_batch_2026_08_false_positive_fix.md`.
-- R015/P015 correction completed and committed as
-  `a23f7093a6c4365539200d0f807a522046a80e7a`
-  (`fix(p015): incorporate Esther R015 false-positive feedback`). Esther reviewed 3 R015
-  findings and classified all 3 as false positives. The correction is documented in
-  `docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md`.
-- No R016 or later detector tuning has been performed from the all-rules feedback workbook:
-  current local artifacts contain candidate findings for later rules, but no Esther
-  correctness/false-positive judgments for R016+.
+## Feedback-Cycle Rule State
 
-## Active open PRs (as of this audit)
+| State | Rules |
+|---|---|
+| Closed | R011, R015, R017 |
+| Waiting on Ester | R019 |
+| Ready for engineering | R024, R027, R030 |
+| Friday discussion / frozen for tuning | R016, R018, R020, R023, R026, R028, R033 |
+| No current selected finding/action | R012-R014, R022, R025, R029, R031, R032 |
+| Not yet reviewed this cycle | R034 onward |
 
-None. Source PRs [#499](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/499),
-[#500](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/500),
-[#502](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/502),
-[#504](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/504), and
-[#483](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/483) were closed after #505
-merged. Branches for #499/#500/#502/#504 were deleted; #483's remote branch was left intact
-because its documentation commit is not an ancestor of `main`.
+Use human-facing `Rxxx` identifiers in reviewer/project-progress prose. Use
+internal `Pxxx` identifiers only when describing implementation files, tests, or
+rule registry entries.
 
-Reconstruction details: `docs/status/pr505_reduction_after_pr508_20260714.md`.
-Old #505 head backup tag: `backup/pr505-e772f5f-before-reduction-20260714`.
+## Closed Work
 
-## Stale remote branches
+- **R011 / P011 closed.** Latest relevant commit:
+  `090779ed84433dd8541d972eb9ba8037e38c1960`. Ester's feedback on the
+  bottom-margin boundary and reference-list right-margin cases has been
+  incorporated. Status records:
+  `docs/status/p011_r011_batch_2026_08_false_positive_fix.md` and
+  `docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md`.
+- **R015 / P015 closed.** Latest relevant commits include
+  `a23f7093a6c4365539200d0f807a522046a80e7a` and
+  `9dce0079358045995a5f3743b9cb884dbfea86b6`. The wrapped/run-in paragraph
+  attribution issue is resolved. A separate observation about unnumbered bold
+  text remains an ownership question, not an R015 defect.
+- **R017 / P017 closed.** Commit
+  `336b28c6e894a6414247357a3f93f188e5150f75`; CI green; full suite
+  `3192 passed`, 3 warnings. P017 now checks terminal punctuation against the
+  complete logical wrapped caption and no longer treats mixed digit/letter
+  subfigure references such as `3.2d` / `3.5c` as caption starts. Final
+  seven-document R017 counts: Youra 0, Anthony 0, Muyeed 0, Philip 0,
+  Praneeth 1, Sebastian 0, Patrick 0. The remaining Praneeth physical page 102
+  finding is an engineering-audited genuine caption candidate lacking terminal
+  punctuation; it has not been independently labeled by Ester.
 
-Many remote branches remain from already-merged PRs (repo does not auto-delete on merge).
-#505 reduction deleted only the closed source-PR branches listed above. Full historical list
-and further deletion candidates remain in
-`docs/status/repository_polish_and_organization_20260713.md`.
+## R019 Current State
 
-## Live deployment status
+R019 is not closed. The evidence-generation problem for document-level
+page-number-transition findings was repaired at
+`ff5a78f23cef1de2b693448d920d6161e9d8317f` without tuning P019 detector
+semantics. The repaired 23-page PDF was uploaded and the live R019 Sheet link
+was repointed to:
 
-**Not deployed and not verified against the running service in this pass** — port 8000 /
-systemd / nginx / Caddy / firewall / VPN / DNS were not touched.
+- Drive file ID: `1uYHqjiihCCshMaEK0X7teZUwYIZrmsNh`
+- Filename: `R019_Ester_Auditor_Feedback_REPAIRED_20260901.pdf`
+- Size: `1,476,119` bytes
+- Folder: `16w3qZgNRz965rPlgxlUiDDFBZexG97rG`
 
-Repository-derived lower bound only: the dedicated deploy worktree
-(`archives/njit-thesis-auditor-deploy`) was previously observed at `c4d4065` and will be further
-behind after #505/#508. Confirm with `GET /version` per `docs/DEPLOYMENT.md` before relying on
-UI behavior matching `main`.
+Ester has been notified. Current state: awaiting Ester's human judgment. The
+old 10,758-byte placeholder Drive file
+`1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko` remains historical/obsolete and was not
+deleted.
 
-## Current evaluation corpus
+## Next Work Sequence
 
-- `ester_sample_a` / `ester_sample_b` / `ester_sample_c` / `ester_sample_d` — private, EF-reviewed
-  dissertation PDFs under `data/raw/ester/` and `data/evaluation/generated/`. Never referenced by
-  filename/content in runtime `src/` conditionals (see anti-overfitting check in
-  `docs/status/repository_polish_and_organization_20260713.md`).
-- Synthetic fixtures under `tests/fixtures/web_demo/` (`clean_minimal.pdf`, `issues_pdf.pdf`,
-  `demo_project.zip`) — safe for the public web UI demo and CI.
-- Full inventory: `docs/EVALUATION_DATA.md` and the older
-  `docs/status/evaluation_data_manifest.md` / `docs/status/data_inventory_and_evaluation_sources.md`.
+**NEXT ENGINEERING TASK: R024.**
 
-## Unresolved engineering tasks
+1. Wait for Ester's R019 judgment.
+2. R024 audit/fix/validate.
+3. R027 audit/fix/validate.
+4. R030 audit/fix/validate, plus a separate ownership audit for chapter-title
+   spacing.
+5. Prepare discussion evidence for R016/R018/R020/R023/R026/R028/R033.
+6. Capture Ester's decisions as authoritative ground truth.
+7. Tune discussion rules one at a time after the meeting.
+8. Continue with R034+ as Ester reviews them.
+9. Run a final global human-feedback regression audit.
+10. Deploy only after the feedback cycle stabilizes and CI is green.
 
-- Delete additional stale merged-PR remote branches (see polish report) when explicitly
-  authorized.
-- Private evaluation binaries under `data/raw/ester/` include both Git LFS pointers and full Git
-  blobs; filenames often contain personal names. Keep the repo private; plan a later coordinated
-  history/LFS migration — do not rewrite history casually.
-- `scripts/ester_rule_consistency_audit.py` requires local, untracked, generated
-  `results/ester_feedback_raw/*.xlsx` input and cannot run in a fresh clone or CI.
-- Optional remaining-time work: privacy-safe duplicate-candidate aggregate audit; typed evaluation
-  labeling schema; lightweight CURRENT_STATUS drift prevention tests.
+## Repository Hygiene Notes
 
-## Unresolved Esther-policy questions
-
-Still unresolved (do **not** implement without Esther's explicit sign-off):
-
-- Footer-zone P011 body-text policy (Sample A cluster).
-- R011/P011 recurring single-line bottom-margin cases around 9.2 pt, just beyond the new
-  9.0 pt confirmed-false-positive tolerance.
-- R011/P011 reference-list overflow beyond the bounded reference allowance, especially
-  Patrick reference entries around 10.2-18.0 pt.
-- R015/P015 Youra physical page 101, printed page 84: run-in-heading-adjacent paragraph
-  boundary question surfaced after the row-remnant fix.
-- P011 non-text-element (image/drawing) margin coverage.
-- Unreviewed Sample B medium-confidence P011 pages.
-- A possible new TOC-entry sentence-case rule.
-- Whether any duplicate-warning candidates should ever auto-suppress (tooling remains
-  diagnostic-only).
-
-## Immediate recommended next actions
-
-1. Deploy only after an explicit maintainer decision (out of scope for the #505 overnight pass).
-2. Decide the Esther-policy questions above with Esther directly.
-3. Optionally run the privacy-safe duplicate-candidate aggregate audit and/or small labeling /
-   status-drift infrastructure PRs.
+- Known historical LFS hygiene debt: `git lfs fsck` reports 17 tracked binaries
+  that match current LFS patterns but exist as ordinary Git objects. No
+  migration was performed because correcting historical storage would require
+  history-sensitive work. Address separately only if needed.
+- Local branch clutter remains. Query 2 may delete only local branches that are
+  fully merged, have no unique commits, are not protected/preserved/live, and
+  are not checked out in any worktree. Remote branch deletion requires separate
+  explicit authorization.
+- `scripts/ester_rule_consistency_audit.py` still requires local, untracked
+  `results/ester_feedback_raw/*.xlsx` input and is not fresh-clone/CI runnable
+  without a redacted or synthetic stand-in.
