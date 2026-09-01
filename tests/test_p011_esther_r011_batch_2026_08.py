@@ -60,7 +60,7 @@ def _warnings(pdf_path: Path, side: str) -> list:
 
 
 def test_bottom_margin_overflow_just_under_tolerance_suppressed(tmp_path: Path) -> None:
-    """~8.3pt single-line bottom overflow (below the new 9.0pt tolerance,
+    """~8.3pt single-line bottom overflow (below the 9.3pt tolerance,
     matching Esther's confirmed 3.9-8.2pt false positives) must not warn."""
     doc = fitz.open()
     page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
@@ -73,11 +73,12 @@ def test_bottom_margin_overflow_just_under_tolerance_suppressed(tmp_path: Path) 
 
 
 def test_bottom_margin_overflow_just_over_tolerance_still_flagged(tmp_path: Path) -> None:
-    """~9.3pt single-line bottom overflow (just above the new tolerance) must
+    """~9.7pt single-line bottom overflow (just above the 9.3pt tolerance,
+    past the natural gap following the newly resolved ~9.2pt cluster) must
     still warn -- the tolerance has a ceiling, it is not a blanket exemption."""
     doc = fitz.open()
     page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
-    page.insert_text((150, 726.0), "Footer line crossing bottom margin boundary", fontsize=11)
+    page.insert_text((150, 726.411), "Footer line crossing bottom margin boundary", fontsize=11)
     pdf_path = tmp_path / "bottom_just_over.pdf"
     doc.save(pdf_path)
     doc.close()
@@ -86,6 +87,40 @@ def test_bottom_margin_overflow_just_over_tolerance_still_flagged(tmp_path: Path
     assert len(warnings) == 1
     assert float(warnings[0].details["worst_overflow_pt"]) > BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT
     assert warnings[0].details["confidence"] == "medium"
+
+
+def test_bottom_margin_overflow_at_esther_confirmed_9_2pt_cluster_suppressed(
+    tmp_path: Path,
+) -> None:
+    """Esther-confirmed false positive (R011-R015 follow-up, 2026-08-25): a
+    single trailing line ~9.2pt (9.17pt raw) below the bottom margin --
+    reproducing the exact geometry of the Muyeed physical-page-36
+    "clustering algorithm." finding she labeled NOT a violation -- must not
+    warn. This is the boundary case the prior 9.0pt tolerance deliberately
+    left open; see
+    docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md."""
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
+    page.insert_text((150, 725.881), "Trailing paragraph line.", fontsize=11)
+    pdf_path = tmp_path / "bottom_esther_9_2pt_cluster.pdf"
+    doc.save(pdf_path)
+    doc.close()
+
+    assert _warnings(pdf_path, "bottom_margin") == []
+
+
+def test_bottom_margin_overflow_just_inside_new_tolerance_suppressed(tmp_path: Path) -> None:
+    """~9.29pt single-line bottom overflow -- inside the natural gap-bounded
+    cluster immediately around Esther's confirmed ~9.2pt case -- must not
+    warn."""
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
+    page.insert_text((150, 726.001), "Trailing paragraph line.", fontsize=11)
+    pdf_path = tmp_path / "bottom_just_inside_new_tolerance.pdf"
+    doc.save(pdf_path)
+    doc.close()
+
+    assert _warnings(pdf_path, "bottom_margin") == []
 
 
 def test_bottom_margin_large_overflow_still_high_confidence(tmp_path: Path) -> None:
@@ -217,3 +252,29 @@ def test_references_entry_beyond_bound_still_flagged(tmp_path: Path) -> None:
     assert warnings[0].details["margin_content_kind"] == "references_hanging_indent"
     bound = OVERFLOW_TOLERANCE_PT + REFERENCES_MARGIN_EXTRA_TOLERANCE_PT
     assert float(warnings[0].details["worst_overflow_pt"]) > bound
+
+
+def test_references_entry_esther_confirmed_18pt_overflow_still_flagged(tmp_path: Path) -> None:
+    """Esther-confirmed genuine violation (R011-R015 follow-up, 2026-08-25):
+    a references-list entry overflowing the right margin by ~18pt --
+    reproducing the magnitude of the Patrick physical-page-88 "Weng Cho
+    Chew" reference finding she explicitly labeled a real R011 violation --
+    must still warn. Proves REFERENCES_MARGIN_EXTRA_TOLERANCE_PT was not
+    widened as part of resolving the unrelated bottom-margin question; see
+    docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md."""
+    text = "Author, A. An Unbreakable Long Citation Title That Cannot Wrap At All."
+    width = fitz.get_text_length(text, fontsize=12)
+    x0 = ALLOWED_X1 + 18.0 - width
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
+    page.insert_text((108, 100), "References", fontsize=14)
+    page.insert_text((x0, 300), text, fontsize=12)
+    pdf_path = tmp_path / "references_esther_18pt_overflow.pdf"
+    doc.save(pdf_path)
+    doc.close()
+
+    warnings = _warnings(pdf_path, "right_margin")
+    assert len(warnings) == 1
+    assert float(warnings[0].details["worst_overflow_pt"]) == 18.0
+    assert warnings[0].details["margin_content_kind"] == "references_hanging_indent"
+    assert warnings[0].details["confidence"] == "high"

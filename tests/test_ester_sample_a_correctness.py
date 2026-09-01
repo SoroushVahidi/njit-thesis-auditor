@@ -88,6 +88,18 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     surviving remnant to start mid-row and orphan the true paragraph
     continuation as a spurious "later paragraph missing indent". See
     docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md.
+
+    P011 dropped again from 15 to 11 (total 19 -> 15) after Esther's
+    2026-08-25 R011-R015 follow-up review directly confirmed the ~9.2pt
+    recurring bottom-margin footer-zone cluster
+    (BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT raised 9.0 -> 9.3pt) is NOT a
+    violation: Sample A pages 11, 42, 66, and 71 were single-line
+    bottom-margin findings at exactly that ~9.2pt (9.17pt raw) geometry, the
+    same recurring pattern as the Muyeed physical-page-36 "clustering
+    algorithm." finding Esther labeled a false positive. Pages 82 (9.8pt)
+    and 83 (11.0pt) sit past the natural gap above that cluster and remain
+    flagged. See
+    docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -98,9 +110,9 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     problem = view.findings
     by_rule = Counter(f.rule_id for f in problem)
 
-    assert len(problem) == 19
+    assert len(problem) == 15
     assert by_rule["P038"] == 0
-    assert by_rule["P011"] == 15
+    assert by_rule["P011"] == 11
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0

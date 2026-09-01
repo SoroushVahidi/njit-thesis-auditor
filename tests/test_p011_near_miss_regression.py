@@ -69,15 +69,18 @@ def test_ester_sample_b_visible_p011_count_is_26() -> None:
     assert 75 not in {f.page for f in view.findings if f.rule_id == "P011"}
 
 
-def test_ester_sample_a_visible_p011_count_is_15() -> None:
-    """15, not the prior 17: pages 26 (6.0pt) and 54 (5.7pt) were single-line
-    bottom-margin "probable TP" guesses in
-    docs/status/p011_precision_false_negative_audit_20260710.md S7 (never
-    confirmed by Esther) and are now suppressed by
-    BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT -- consistent with Esther's newly
-    confirmed 5.6pt bottom-margin false positive in the 2026-08 R011 batch. The
-    remaining bottom-margin cluster (pages 11, 42, 66, 71, 82, 83 at 9.2-11.0pt)
-    and all 9 reference hanging-indent left-margin cards are unchanged.
+def test_ester_sample_a_visible_p011_count_is_11() -> None:
+    """11, not the prior 15: pages 11, 42, 66, and 71 were single-line
+    bottom-margin findings at ~9.2pt (9.17pt raw), the exact recurring
+    footer-zone cluster docs/status/p011_precision_false_negative_audit_20260710.md
+    S7 flagged as an open policy question rather than a confirmed false
+    positive. Esther has since reviewed this cluster directly (Muyeed
+    physical PDF page 36, same ~9.2pt geometry) via the R011-R015 follow-up
+    sheet and confirmed it is NOT a violation -- see
+    docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md. Pages
+    82 (9.8pt) and 83 (11.0pt) sit past the natural gap above that cluster
+    and remain flagged, along with all 9 reference hanging-indent
+    left-margin cards, unchanged.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -85,6 +88,7 @@ def test_ester_sample_a_visible_p011_count_is_15() -> None:
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p011 = [f for f in view.findings if f.rule_id == "P011"]
-    assert len(p011) == 15
+    assert len(p011) == 11
     pages = {f.page for f in view.findings if f.rule_id == "P011"}
-    assert not ({26, 54} & pages)
+    assert not ({11, 26, 42, 54, 66, 71} & pages)
+    assert {82, 83}.issubset(pages)

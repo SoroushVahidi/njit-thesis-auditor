@@ -32,15 +32,35 @@ OVERFLOW_TOLERANCE_EPSILON_PT = 0.01
 # the bottom side only). A fully justified body line that lands last on an
 # otherwise full page routinely has its own descent/leading dip a few extra
 # points past the nominal 1-inch line -- normal single-line typographic slack,
-# not content placed outside the margin. Esther confirmed four such
-# single/short-line bottom-margin findings -- both Word and LaTeX source PDFs,
-# both prose and equation lines -- as false positives at 3.9-8.2pt overflow.
-# This is set just above the highest confirmed false positive (8.2pt) and
-# deliberately stops short of the ~9.2pt recurring footer-zone cluster that a
-# prior audit (docs/status/p011_precision_false_negative_audit_20260710.md,
-# S7 "Uncertain cases") flagged as an open policy question rather than a
-# confirmed false positive; this change does not resolve that open question.
-BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT = 9.0
+# not content placed outside the margin. Esther originally confirmed four
+# such single/short-line bottom-margin findings -- both Word and LaTeX source
+# PDFs, both prose and equation lines -- as false positives at 3.9-8.2pt
+# overflow, and the tolerance was set just above that (9.0pt), deliberately
+# stopping short of a recurring ~9.2pt footer-zone cluster that a prior audit
+# (docs/status/p011_precision_false_negative_audit_20260710.md, S7
+# "Uncertain cases") flagged as an open policy question.
+#
+# Esther has since reviewed that cluster directly (Muyeed physical PDF page
+# 36, "clustering algorithm.", MEDIUM confidence, measured 9.17pt raw / 9.2pt
+# displayed overflow) via the R011-R015 follow-up sheet and confirmed it is
+# NOT a violation -- see
+# docs/evaluation/ester_feedback/next_targeted_followup_after_r011_r015_20260825.md.
+# Re-auditing the full 8-12pt bottom-margin population across all seven
+# private evaluation dissertations (see
+# docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md) shows
+# this is not an isolated point: raw overflow of ~9.17pt recurs 47 times
+# across two independent LaTeX-source dissertations (Muyeed, Philip) on
+# prose, equations, table-of-contents dot-leaders, and reference URLs alike
+# -- a content-independent geometric constant, not a real placement issue --
+# and the population immediately above it (raw 9.05-9.29pt) is followed by a
+# clean, empty gap (no findings from 9.30-9.43pt raw) before the next,
+# unconfirmed cluster begins (~9.5pt+). The tolerance is raised only enough
+# to clear that confirmed cluster and its immediate neighbors up to the
+# natural gap, not the next cluster: it remains a narrow, evidence-anchored
+# band, not a blanket bottom-margin relaxation. Bottom-margin overflow at or
+# beyond ~9.5pt (e.g. Sample A pages 82-83, 9.8-11.0pt) is unaffected and
+# still reported.
+BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT = 9.3
 
 # Extra right/left-margin overflow tolerance for reference-list entries only
 # (added on top of OVERFLOW_TOLERANCE_PT). Bibliography/reference entries

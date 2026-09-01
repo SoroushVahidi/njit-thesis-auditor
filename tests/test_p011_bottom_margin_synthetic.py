@@ -29,8 +29,12 @@ def _bottom_warnings(pdf_path: Path) -> list:
 
 def test_bottom_margin_violation_detected(tmp_path: Path) -> None:
     """A line clearly below the bottom margin must produce a bottom_margin warning."""
-    # y_base=726 yields ~8.3pt measured overflow (above medium-confidence floor).
-    y_base = 726.0
+    # y_base=730 yields ~13.3pt measured overflow -- comfortably above
+    # BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT (9.3pt; see
+    # docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md), not
+    # a boundary case. Boundary-specific coverage lives in
+    # test_p011_esther_r011_batch_2026_08.py.
+    y_base = 730.0
     doc = fitz.open()
     page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
     page.insert_text((150, y_base), "Footer line crossing bottom margin boundary", fontsize=11)
