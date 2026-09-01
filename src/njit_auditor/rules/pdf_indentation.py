@@ -134,6 +134,40 @@ def _vertical_overlap_fraction(a: PdfTextLine, b: PdfTextLine) -> float:
     return overlap / shorter
 
 
+def _line_trailing_span_is_bold(line: PdfTextLine) -> bool:
+    return bool(line.spans) and line.spans[-1].bold
+
+
+def _is_run_in_heading_lead(candidate: PdfTextLine, following: PdfTextLine) -> bool:
+    """True when *candidate* is a bold run-in heading sharing a physical row
+    with *following*, regular-styled text (e.g. a LaTeX ``\\paragraph{...}``
+    lead-in). ``_merge_same_row_fragments`` correctly refuses to merge these
+    two into one text line (that would corrupt the heading's own text), but
+    paragraph grouping still needs to know the row's true left edge belongs
+    to the bold lead, not to wherever the regular continuation happens to
+    start -- otherwise the continuation reads as an orphaned, flush-left
+    paragraph start of its own. Requires the same same-row geometry as the
+    merge check, but the *opposite* style outcome (a genuine style
+    transition, not a same-style extraction split).
+    """
+    if not _line_trailing_span_is_bold(candidate):
+        return False
+    # A bare section number ("2.1.3.2") sharing a row with both its own
+    # title and the title's run-in body text is also bold and to the title's
+    # left -- but it is the distinct, already-handled split-heading marker
+    # (see _find_split_heading_following_paragraph_indices), not itself the
+    # heading's readable lead-in text. Treating it as the row's left anchor
+    # would attribute the paragraph's indent to the section number's
+    # position instead of the title's, the same trap
+    # _is_short_extraction_remnant already guards against.
+    candidate_clean = " ".join(candidate.text.strip().split())
+    if _SECTION_NUMBER_ONLY_RE.match(candidate_clean):
+        return False
+    if _same_run_style(candidate, following):
+        return False
+    return _vertical_overlap_fraction(candidate, following) >= SAME_ROW_OVERLAP_FRACTION
+
+
 # A row fragmented by an equation can land its pieces in a sort order that
 # does not match strict left-to-right reading order: two fragments visually on
 # the same row can carry slightly different y0 values (a subscript/superscript
@@ -162,6 +196,13 @@ def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
     extent, and (c) start to its left -- and returns the leftmost such x0. It
     never looks at or changes a fragment's text -- only which x0
     grouping/indent code sees for the surviving usable line.
+
+    The same window also covers a second, distinct source case: a bold
+    run-in heading sharing this line's row (see `_is_run_in_heading_lead`).
+    That fragment is fully usable on its own (not a short/symbol-heavy
+    remnant) but still marks the row's true visual left edge -- the
+    following regular-styled text is a continuation of the same paragraph
+    the run-in heading opens, not a fresh paragraph starting mid-row.
     """
     line = raw_lines[index]
     x0 = line.bbox.x0
@@ -173,11 +214,21 @@ def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
         candidate = raw_lines[i]
         if candidate.bbox.x0 >= x0:
             continue
+        if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
+            continue
+        if _is_run_in_heading_lead(candidate, line):
+            # A bold run-in heading's own text can span most of the column
+            # width before the regular continuation starts -- unlike a
+            # dropped subscript/equation remnant, this is not bounded by
+            # MAX_ROW_REMNANT_ABSORPTION_GAP_PT (calibrated for short
+            # discarded fragments, not a full heading phrase). Same-row
+            # vertical overlap plus the bold-to-regular style transition is
+            # itself the reliable signal here.
+            x0 = candidate.bbox.x0
+            continue
         if line.bbox.x0 - candidate.bbox.x0 > MAX_ROW_REMNANT_ABSORPTION_GAP_PT:
             continue
         if not _is_short_extraction_remnant(candidate):
-            continue
-        if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
             continue
         x0 = candidate.bbox.x0
     return x0
@@ -205,6 +256,26 @@ def _is_section_heading_line(line: PdfTextLine) -> bool:
     return bool(_BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean))
 
 
+def _paragraph_starts_with_run_in_heading(paragraph: list[PdfTextLine]) -> bool:
+    """True when a paragraph's own first line is a bold run-in heading whose
+    regular-styled continuation shares the same physical row (e.g. a LaTeX
+    ``\\paragraph{...}`` lead-in immediately followed by body prose).
+
+    Such a paragraph's real "first line", for indentation purposes, is the
+    bold lead-in itself, and a flush-left bold lead-in is the *expected*
+    style -- the same treatment already given to a paragraph that opens
+    right after a genuine section heading (`_is_section_heading_line`). The
+    row-remnant reconnection in `_effective_row_start_x` /
+    `_is_run_in_heading_lead` is what lets the regular continuation and any
+    later lines correctly join this same paragraph instead of the
+    continuation being misread as an orphaned new paragraph start; this
+    check is the matching indent-expectation half of that fix.
+    """
+    if len(paragraph) < 2:
+        return False
+    return _is_run_in_heading_lead(paragraph[0], paragraph[1])
+
+
 def _find_heading_exempt_paragraph_indices(
     page: PdfPage, paragraphs: list[list[PdfTextLine]]
 ) -> frozenset[int]:
@@ -218,7 +289,9 @@ def _find_heading_exempt_paragraph_indices(
                 heading_spans.append((line.bbox.y0, line.bbox.y1))
 
     for idx, paragraph in enumerate(paragraphs):
-        if _is_section_heading_line(paragraph[0]):
+        if _is_section_heading_line(paragraph[0]) or _paragraph_starts_with_run_in_heading(
+            paragraph
+        ):
             exempt.add(idx)
             continue
         if idx == 0 or not heading_spans:
