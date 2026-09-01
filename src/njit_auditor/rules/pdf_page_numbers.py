@@ -760,6 +760,36 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 f"{prev_page}:{prev_style}->{page:d}:{new_style}"
                 for prev_page, prev_style, page, new_style in transitions
             )
+            # Attach the already-detected candidate geometry for the first
+            # transition boundary so human-review evidence rendering can
+            # show the exact printed page-number token on each side of the
+            # transition, instead of this remaining a document-level
+            # finding with nothing displayable. Purely additive: does not
+            # change rule_id, severity, page (still document-level/None),
+            # message, confidence, or any detail key set above -- it only
+            # exposes geometry _style_transition_pages already computed
+            # from (candidates already used to pick the transition itself.
+            first_prev_page, first_prev_style, first_new_page, first_new_style = transitions[0]
+            prev_primary = _primary_plausible_candidate(filtered_by_page[first_prev_page])
+            new_primary = _primary_plausible_candidate(filtered_by_page[first_new_page])
+            if prev_primary is not None and prev_primary.bbox is not None:
+                document_mixed_details["transition_prev_page"] = str(first_prev_page)
+                document_mixed_details["transition_prev_bbox"] = format_bbox_detail(
+                    prev_primary.bbox
+                )
+                document_mixed_details["transition_prev_label"] = prev_primary.text
+                document_mixed_details["transition_prev_style_label"] = _style_label(
+                    first_prev_style
+                )
+            if new_primary is not None and new_primary.bbox is not None:
+                document_mixed_details["transition_new_page"] = str(first_new_page)
+                document_mixed_details["transition_new_bbox"] = format_bbox_detail(
+                    new_primary.bbox
+                )
+                document_mixed_details["transition_new_label"] = new_primary.text
+                document_mixed_details["transition_new_style_label"] = _style_label(
+                    first_new_style
+                )
         findings.append(
             AuditFinding(
                 rule_id="P019",

@@ -197,6 +197,107 @@ class EvidenceResult:
     affected_lines: list[str]
     page_size: tuple[float, float] | None
     has_highlight: bool
+    # Populated only for the document-level transition-pair path below (a
+    # finding with page=None that names two real, already-detected pages
+    # via matching *_page/*_bbox detail fields, e.g. P019's document-wide
+    # "mixed_numbering_style" transition_prev_page/transition_new_page).
+    # None for every ordinary single-page finding -- existing callers that
+    # do not know about this field are unaffected.
+    transition_pages: list[int] | None = None
+    transition_labels: list[str] | None = None
+
+
+def _parse_bbox_field(raw: str) -> tuple[float, float, float, float] | None:
+    parts = [part.strip() for part in str(raw).split(",")]
+    if len(parts) != 4:
+        return None
+    try:
+        return (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]))
+    except ValueError:
+        return None
+
+
+def _build_document_level_transition_evidence(
+    pdf_path: Path, details: dict[str, Any], out_pdf_path: Path
+) -> EvidenceResult | None:
+    """Render evidence for a document-level (page=None) finding that names
+    the exact pages responsible via a matched pair of detail fields:
+    ``{prefix}_prev_page``/``{prefix}_prev_bbox`` and
+    ``{prefix}_new_page``/``{prefix}_new_bbox`` (currently emitted only by
+    P019's document-wide "mixed_numbering_style" check, as
+    transition_prev_page/transition_prev_bbox and
+    transition_new_page/transition_new_bbox). The bboxes are real,
+    already-detected candidate geometry from the detector itself -- never a
+    guessed box. Returns None when the details do not carry this pairing
+    (every other page-less finding), so the caller falls back to its
+    existing, unchanged page-less behavior.
+    """
+    prev_page_raw = details.get("transition_prev_page")
+    new_page_raw = details.get("transition_new_page")
+    prev_box = _parse_bbox_field(str(details.get("transition_prev_bbox", "")))
+    new_box = _parse_bbox_field(str(details.get("transition_new_bbox", "")))
+    if not prev_page_raw or not new_page_raw or prev_box is None or new_box is None:
+        return None
+    try:
+        prev_page = int(prev_page_raw)
+        new_page = int(new_page_raw)
+    except ValueError:
+        return None
+
+    with fitz.open(pdf_path) as doc:
+        if not (1 <= prev_page <= doc.page_count) or not (1 <= new_page <= doc.page_count):
+            return None
+        page_size = (doc[prev_page - 1].rect.width, doc[prev_page - 1].rect.height)
+
+        def _excerpt(page_number: int, box: tuple[float, float, float, float]) -> str:
+            text = doc[page_number - 1].get_text("text", clip=fitz.Rect(*box)).strip()
+            return " ".join(text.split())
+
+        prev_text = _excerpt(prev_page, prev_box)
+        new_text = _excerpt(new_page, new_box)
+
+    prev_label = str(details.get("transition_prev_label", ""))
+    new_label = str(details.get("transition_new_label", ""))
+    prev_style_label = str(details.get("transition_prev_style_label", ""))
+    new_style_label = str(details.get("transition_new_style_label", ""))
+
+    tmp_prev = out_pdf_path.with_name(out_pdf_path.stem + "_transition_prev.pdf")
+    tmp_new = out_pdf_path.with_name(out_pdf_path.stem + "_transition_new.pdf")
+    prev_result = build_highlighted_single_page_pdf(
+        pdf_path, tmp_prev, source_page_number=prev_page, boxes=[prev_box]
+    )
+    new_result = build_highlighted_single_page_pdf(
+        pdf_path, tmp_new, source_page_number=new_page, boxes=[new_box]
+    )
+    if not prev_result.has_highlight or not new_result.has_highlight:
+        return None
+
+    combined = fitz.open()
+    combined.insert_pdf(fitz.open(str(tmp_prev)))
+    combined.insert_pdf(fitz.open(str(tmp_new)))
+    out_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    combined.save(str(out_pdf_path))
+    combined.close()
+    tmp_prev.unlink(missing_ok=True)
+    tmp_new.unlink(missing_ok=True)
+
+    location = (
+        f'Physical page {prev_page}: printed page number "{prev_label}"'
+        f' ({prev_style_label or "earlier style"}, last page in this style) -- '
+        f'physical page {new_page}: printed page number "{new_label}"'
+        f' ({new_style_label or "new style"}, first page in this style).'
+    )
+    affected_lines = [text for text in (prev_text, new_text) if text]
+
+    return EvidenceResult(
+        boxes=[prev_box, new_box],
+        location=location,
+        affected_lines=affected_lines,
+        page_size=page_size,
+        has_highlight=True,
+        transition_pages=[prev_page, new_page],
+        transition_labels=[prev_label, new_label],
+    )
 
 
 def build_evidence(
@@ -213,6 +314,11 @@ def build_evidence(
     boxes = parse_highlight_bboxes_from_details(details, rule_id=rule_id, issue_type=issue_type)
 
     if physical_page is None or physical_page < 1:
+        transition_evidence = _build_document_level_transition_evidence(
+            pdf_path, details, out_pdf_path
+        )
+        if transition_evidence is not None:
+            return transition_evidence
         return EvidenceResult([], "", [], None, False)
 
     with fitz.open(pdf_path) as doc:

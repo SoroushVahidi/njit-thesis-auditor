@@ -43,11 +43,15 @@ from reportlab.platypus import (
 def _structured_block(ester_id: str, row: dict[str, Any]) -> str:
     if row["no_finding"]:
         return f"No current auditor {ester_id} finding."
-    physical_page_text = (
-        row["physical_page"]
-        if row["physical_page"] is not None
-        else "not applicable (document-level finding)"
-    )
+    if row["physical_page"] is not None:
+        physical_page_text = str(row["physical_page"])
+    elif row.get("physical_page_display"):
+        physical_page_text = (
+            f"{row['physical_page_display']} (document-level finding; "
+            "see the two pages below where the numbering style changes)"
+        )
+    else:
+        physical_page_text = "not applicable (document-level finding)"
     lines = [
         f"Physical PDF page: {physical_page_text}",
         f"Printed/document page: {row['printed_page']}",
@@ -124,6 +128,19 @@ def _fill_evidence(internal_id: str, rows: list[dict[str, Any]], evidence_dir: P
         row["affected_lines"] = evidence.affected_lines
         row["evidence_pdf"] = out_path if out_path.exists() else None
         row["has_highlight"] = evidence.has_highlight
+        # Document-level finding (row["physical_page"] is None) that names
+        # two real pages via the evidence's transition pairing: show both
+        # physical pages and both printed-page labels explicitly instead of
+        # the generic "not applicable (document-level finding)" text, since
+        # this is now real, displayable evidence rather than nothing.
+        if evidence.transition_pages and evidence.transition_labels:
+            row["physical_page_display"] = " and ".join(
+                str(p) for p in evidence.transition_pages
+            )
+            row["printed_page"] = " / ".join(
+                f'"{label}" (physical p.{page})'
+                for page, label in zip(evidence.transition_pages, evidence.transition_labels)
+            )
 
 
 def _write_xlsx(ester_id: str, rows: list[dict[str, Any]], xlsx_path: Path) -> None:
@@ -208,10 +225,16 @@ def _write_overview_pdf(ester_id: str, rows: list[dict[str, Any]], out_path: Pat
                 ]
             )
         else:
+            if row["physical_page"] is not None:
+                pdf_page_text = str(row["physical_page"])
+            elif row.get("physical_page_display"):
+                pdf_page_text = row["physical_page_display"]
+            else:
+                pdf_page_text = "n/a"
             data.append(
                 [
                     row["document"],
-                    str(row["physical_page"]) if row["physical_page"] is not None else "n/a",
+                    Paragraph(pdf_page_text, cell_style),
                     Paragraph(row["printed_page"] or "n/a", cell_style),
                     Paragraph(row["location"] or "n/a", cell_style),
                     Paragraph(row["message"], cell_style),
@@ -221,7 +244,7 @@ def _write_overview_pdf(ester_id: str, rows: list[dict[str, Any]], out_path: Pat
 
     table = Table(
         data,
-        colWidths=[0.9 * inch, 0.6 * inch, 1.1 * inch, 1.3 * inch, 4.4 * inch, 0.8 * inch],
+        colWidths=[0.9 * inch, 0.8 * inch, 1.1 * inch, 1.3 * inch, 4.2 * inch, 0.8 * inch],
         repeatRows=1,
     )
     table.setStyle(
@@ -254,7 +277,12 @@ def _write_evidence_header_pdf(ester_id: str, row: dict[str, Any], out_path: Pat
         topMargin=0.5 * inch,
         bottomMargin=0.5 * inch,
     )
-    physical_page_short = row["physical_page"] if row["physical_page"] is not None else "n/a"
+    if row["physical_page"] is not None:
+        physical_page_short: str | int = row["physical_page"]
+    elif row.get("physical_page_display"):
+        physical_page_short = f"{row['physical_page_display']} (document-level finding)"
+    else:
+        physical_page_short = "n/a"
     lines = [
         f"<b>{row['document']}</b> — {ester_id} evidence",
         f"Physical PDF page: {physical_page_short} &nbsp;&nbsp; "

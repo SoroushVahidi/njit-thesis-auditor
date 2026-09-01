@@ -242,6 +242,70 @@ def test_document_wide_mixed_style_names_exact_transition_pages(tmp_path: Path) 
     assert "3:roman_lower->4:arabic" in transitions
 
 
+# ---------------------------------------------------------------------------
+# Document-wide mixed style: real transition-boundary geometry for human
+# review evidence rendering (R019/P019 2026-08-31 follow-up). Additive only:
+# must not change rule_id, severity, page (still None), message, confidence,
+# or any pre-existing detail key checked above.
+# ---------------------------------------------------------------------------
+
+
+def test_document_wide_mixed_style_carries_transition_boundary_geometry(
+    tmp_path: Path,
+) -> None:
+    pdf_path = _build_style_transition_doc(
+        tmp_path, front_matter=["i", "ii", "iii"], body=["1", "2", "3"]
+    )
+    findings = _run(pdf_path)
+    doc_level = [f for f in _findings_of(findings, "mixed_numbering_style") if f.page is None]
+    assert doc_level, "expected a document-wide mixed_numbering_style finding"
+    details = doc_level[0].details
+
+    # Existing semantics untouched.
+    assert doc_level[0].rule_id == "P019"
+    assert doc_level[0].page is None
+    assert details["confidence"] == "low"
+    assert doc_level[0].message == (
+        "Mixed numbering styles detected across candidate page-number regions."
+    )
+
+    # New, purely additive geometry for the first (here: only) transition.
+    assert details["transition_prev_page"] == "3"
+    assert details["transition_new_page"] == "4"
+    assert details["transition_prev_label"] == "iii"
+    assert details["transition_new_label"] == "1"
+    assert details["transition_prev_style_label"] == "lowercase Roman numerals"
+    assert details["transition_new_style_label"] == "Arabic numerals"
+
+    prev_box = tuple(float(v) for v in details["transition_prev_bbox"].split(","))
+    new_box = tuple(float(v) for v in details["transition_new_bbox"].split(","))
+    assert len(prev_box) == 4
+    assert len(new_box) == 4
+    # Both boxes sit in the bottom-center zone used by _add_bottom_center_number.
+    assert prev_box[1] > 700.0
+    assert new_box[1] > 700.0
+
+
+def test_page_level_mixed_style_finding_unaffected_by_transition_geometry_addition(
+    tmp_path: Path,
+) -> None:
+    """The existing per-page mixed_numbering_style finding (a different code
+    path/finding entirely) must not gain or lose any detail keys from this
+    change."""
+    doc = _new_doc()
+    page = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+    _add_bottom_center_number(page, "5")
+    _add_second_bottom_token(page, "v")
+    pdf_path = _save(doc, tmp_path / "mixed_style_one_page_unaffected.pdf")
+
+    findings = _run(pdf_path)
+    page_level = [f for f in _findings_of(findings, "mixed_numbering_style") if f.page is not None]
+    assert page_level, "expected a per-page mixed_numbering_style finding"
+    details = page_level[0].details
+    assert "transition_prev_page" not in details
+    assert "transition_new_page" not in details
+
+
 def test_document_wide_mixed_style_wording_names_transition_pages(tmp_path: Path) -> None:
     pdf_path = _build_style_transition_doc(
         tmp_path, front_matter=["i", "ii", "iii"], body=["1", "2", "3"]
