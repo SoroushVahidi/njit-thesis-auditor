@@ -79,6 +79,7 @@ MIN_ALPHA_COUNT = 15
 _TABLE_ROW_PITCH_RATIO = 1.7
 # Tolerance for treating a line as "below" a caption despite tiny bbox overlap.
 _CAPTION_OVERLAP_TOL_PT = 2.0
+_CAPTION_FIRST_ROW_MAX_GAP_PT = 36.0
 
 _ALL_NAMED_HEADINGS = frozenset(EXPECTED_HEADINGS)
 
@@ -93,8 +94,11 @@ REFERENCES_LIKE_HEADINGS = frozenset({
     "WORKS CITED",
 })
 
-CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
-BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
+CAPTION_PREFIX_RE = re.compile(
+    r"^(figure|table)\s*[\divxlcdm]+(?:[.-][\divxlcdm]+)*[.:)]?(?:\s+|(?=[A-Za-z]))",
+    re.IGNORECASE,
+)
+BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s*")
 
 # Bare "Figure N" / "Fig. N" anchor with nothing else on the line. Some PDFs
 # (LaTeX output with a wide caption-number/text gap) split a figure caption's
@@ -193,6 +197,8 @@ def _table_band_ranges(
     caption_bboxes: list[BBox],
     all_lines: list[PdfTextLine],
     font_size: float,
+    *,
+    row_pitch_ratio: float = _TABLE_ROW_PITCH_RATIO,
 ) -> list[tuple[float, float]]:
     """Return vertical (y0, y1) bands covering table captions and their rows.
 
@@ -204,12 +210,12 @@ def _table_band_ranges(
     """
     if not caption_bboxes:
         return []
-    pitch_limit = max(font_size, 1.0) * _TABLE_ROW_PITCH_RATIO
+    pitch_limit = max(font_size, 1.0) * row_pitch_ratio
     ordered = sorted(all_lines, key=lambda ln: (ln.bbox.y0, ln.bbox.x0))
     bands: list[tuple[float, float]] = []
     for caption_bbox in caption_bboxes:
         band_bottom = caption_bbox.y1
-        prev_top = caption_bbox.y0
+        prev_top = caption_bbox.y1
         for line in ordered:
             if line.bbox.y0 < caption_bbox.y1 - _CAPTION_OVERLAP_TOL_PT:
                 continue  # at or above the caption line itself
@@ -217,6 +223,14 @@ def _table_band_ranges(
             if pitch <= 0:
                 # Cell on the same row (side-by-side) — part of the table row.
                 band_bottom = max(band_bottom, line.bbox.y1)
+                continue
+            if (
+                pitch > pitch_limit
+                and prev_top == caption_bbox.y1
+                and pitch <= _CAPTION_FIRST_ROW_MAX_GAP_PT
+            ):
+                band_bottom = max(band_bottom, line.bbox.y1)
+                prev_top = line.bbox.y0
                 continue
             if pitch > pitch_limit:
                 break  # ordinary body spacing resumed — table region ended
@@ -272,7 +286,10 @@ def _figure_caption_band_ranges(
         row = rows[row_index]
         anchor_line = min(row, key=lambda ln: ln.bbox.x0)
         clean = " ".join(anchor_line.text.strip().split())
-        if not FIGURE_LABEL_ANCHOR_RE.match(clean):
+        if not (
+            FIGURE_LABEL_ANCHOR_RE.match(clean)
+            or (CAPTION_PREFIX_RE.match(clean) and clean.casefold().startswith("figure"))
+        ):
             row_index += 1
             continue
         band_top = min(ln.bbox.y0 for ln in row)

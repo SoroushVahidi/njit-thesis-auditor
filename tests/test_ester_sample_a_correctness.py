@@ -290,17 +290,8 @@ def test_ester_sample_b_p012_visibility_stable() -> None:
     assert "pages total" in p012.polished_comment
 
 
-def test_ester_sample_b_p016_page1_no_duplicate_spacing_finding() -> None:
-    """P016 no longer emits two 'Spacing / blank lines' cards for Sample B page 1.
-
-    Ester's Sample B feedback said the "Spacing / blank lines" section
-    appeared twice. Root cause: one large gap on page 1 cleared both the
-    line-gap and the stricter paragraph-gap threshold, so
-    excessive_line_gap and excessive_paragraph_gap both fired with the same
-    largest_gap_pt. Only the more specific paragraph-gap finding should
-    survive; see src/njit_auditor/rules/pdf_spacing.py and
-    docs/status/ester_sample_b_spacing_duplicate_section.md.
-    """
+def test_ester_sample_b_p016_page1_metadata_gap_is_not_spacing_finding() -> None:
+    """P016 ignores the intentional abstract title/author metadata gap."""
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
         return
@@ -309,8 +300,7 @@ def test_ester_sample_b_p016_page1_no_duplicate_spacing_finding() -> None:
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
 
     p016_page1 = [f for f in view.findings if f.rule_id == "P016" and f.page == 1]
-    assert len(p016_page1) == 1
-    assert p016_page1[0].category == "spacing_blank_lines"
+    assert p016_page1 == []
 
 
 def test_ester_sample_b_p023_page82_figure_description_not_flagged() -> None:

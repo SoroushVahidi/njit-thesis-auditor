@@ -28,11 +28,20 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import (
+    BBox,
     PdfDocument,
     PdfPage,
     PdfTextLine,
     PdfTextSpan,
     format_bbox_detail,
+)
+from njit_auditor.rules.pdf_body_spacing import (
+    CAPTION_PREFIX_RE as _BODY_CAPTION_PREFIX_RE,
+)
+from njit_auditor.rules.pdf_body_spacing import (
+    _estimate_font_size,
+    _line_in_bands,
+    _table_band_ranges,
 )
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
@@ -206,7 +215,24 @@ def _source_note_line_ids(lines: list[PdfTextLine]) -> set[int]:
     return result
 
 
-def _collect_body_spans(page: PdfPage) -> list[PdfTextSpan]:
+def _table_caption_bboxes_by_page(pdf_doc: PdfDocument) -> dict[int, list[BBox]]:
+    """Find table-caption anchors using P026-local extraction tolerance."""
+    result: dict[int, list[BBox]] = {}
+    for page in pdf_doc.pages:
+        for block in page.text_blocks:
+            for line in block.lines:
+                clean = " ".join(line.text.strip().split())
+                if not clean.casefold().startswith("table"):
+                    continue
+                if _BODY_CAPTION_PREFIX_RE.match(clean) is None:
+                    continue
+                result.setdefault(page.page_number, []).append(line.bbox)
+    return result
+
+
+def _collect_body_spans(
+    page: PdfPage, *, table_bands: list[tuple[float, float]] | None = None
+) -> list[PdfTextSpan]:
     """Extract candidate body-text spans from a page.
 
     Excludes margin zones, named headings, page-number lines, captions,
@@ -238,6 +264,8 @@ def _collect_body_spans(page: PdfPage) -> list[PdfTextSpan]:
                 continue
             if id(line) in source_note_ids:
                 continue
+            if table_bands and _line_in_bands(line, table_bands):
+                continue
             if len(clean) < _MIN_LINE_LEN:
                 continue
             alpha_count = sum(ch.isalpha() for ch in clean)
@@ -260,12 +288,22 @@ def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:
     of body-candidate spans on the page to show the same issue.
     """
     findings: list[AuditFinding] = []
+    table_caption_bboxes = _table_caption_bboxes_by_page(pdf_doc)
 
     for page in pdf_doc.pages:
         if _page_has_named_heading(page, _NAMED_HEADINGS):
             continue
 
-        body_spans = _collect_body_spans(page)
+        all_lines = [line for block in page.text_blocks for line in block.lines]
+        table_bands = _table_band_ranges(
+            table_caption_bboxes.get(page.page_number, []),
+            all_lines,
+            _estimate_font_size(all_lines),
+            # Table cells may be laid out at roughly double the 10pt table
+            # font's line height; they are still not ordinary body prose.
+            row_pitch_ratio=2.5,
+        )
+        body_spans = _collect_body_spans(page, table_bands=table_bands)
         if len(body_spans) < _MIN_CANDIDATE_SPANS:
             continue
 

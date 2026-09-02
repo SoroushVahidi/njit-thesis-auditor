@@ -78,6 +78,20 @@ def _page_has_heading_in(page: PdfPage, headings: set[str]) -> bool:
     return False
 
 
+def _abstract_metadata_cutoff(page: PdfPage) -> float | None:
+    """Return the end of the abstract title/author block when it is visible."""
+    if not _page_has_heading_in(page, {"ABSTRACT"}):
+        return None
+    lines = sorted(_collect_page_lines(page), key=lambda line: (line.bbox.y0, line.bbox.x0))
+    for index, line in enumerate(lines):
+        if normalize_heading_text(line.text).casefold() != "by":
+            continue
+        for candidate in lines[index + 1 :]:
+            if candidate.bbox.y0 >= line.bbox.y1:
+                return candidate.bbox.y1
+    return None
+
+
 def _front_matter_page(page: PdfPage) -> bool:
     return _page_has_heading_in(page, set(EXPECTED_HEADINGS))
 
@@ -133,6 +147,9 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
         # headings. That text is not part of the paragraph region below the
         # heading, so it must not participate in adjacent-line gap analysis.
         min_content_y = last_heading.bbox.y1 if last_heading is not None else None
+        abstract_cutoff = _abstract_metadata_cutoff(page)
+        if abstract_cutoff is not None:
+            min_content_y = max(min_content_y or abstract_cutoff, abstract_cutoff)
         text_lines = [
             line
             for line in all_lines
@@ -199,7 +216,7 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
                 },
             )
 
-        if last_heading is not None:
+        if last_heading is not None and abstract_cutoff is None:
             first_content_after_heading = next(
                 (line for line in text_lines if line.bbox.y0 >= last_heading.bbox.y1),
                 None,

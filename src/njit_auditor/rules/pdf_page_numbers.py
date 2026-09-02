@@ -528,12 +528,23 @@ def _is_unresolved_roman_to_arabic_body_landmark_transition(
     """
     from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
 
-    if find_body_start_page(pdf_doc) is not None:
-        return False
     transitions = _style_transition_pages(filtered_by_page)
     if len(transitions) != 1:
         return False
     _prev_page, prev_style, new_page, new_style = transitions[0]
+    body_start = find_body_start_page(pdf_doc)
+    if body_start is not None and body_start <= new_page:
+        return False
+    if body_start is not None:
+        chapter_page = next(
+            (page for page in pdf_doc.pages if page.page_number == body_start), None
+        )
+        if chapter_page is not None and not any(
+            re.match(r"^CHAPTER\s*1(?:\s|$)", line.text.strip())
+            for block in chapter_page.text_blocks
+            for line in block.lines
+        ):
+            return False
     if prev_style != "roman_lower" or new_style != "arabic":
         return False
     primary = _primary_plausible_candidate(filtered_by_page.get(new_page, []))

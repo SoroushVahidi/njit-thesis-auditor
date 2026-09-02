@@ -5709,6 +5709,28 @@ def test_p026_figure_source_note_10pt_not_treated_as_body_text(tmp_path: Path) -
     )
 
 
+def test_p026_tightly_packed_table_rows_10pt_not_treated_as_body_text(tmp_path: Path) -> None:
+    """Table cells are not body prose even when their 10pt rows dominate a page."""
+    pdf_path = tmp_path / "p026_table_rows.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 120), "Table 3.3. Synthetic table title", fontsize=12, fontname="tiro")
+    for idx in range(10):
+        page.insert_text(
+            (108, 155 + idx * 22),
+            f"Cell {idx} with table content and values",
+            fontsize=10.0,
+            fontname="tiro",
+        )
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_font_compliance(model) if f.rule_id == "P026"]
+    assert not any(
+        w.details.get("issue_type") == "possible_body_font_size_issue" for w in warnings
+    )
+
+
 def test_p026_body_14pt_repeated_warns_size(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p026_14pt_size.pdf"
     _make_body_page_with_font(pdf_path, "tiro", 14.0, line_count=12)
