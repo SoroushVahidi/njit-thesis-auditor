@@ -14001,6 +14001,30 @@ def test_p057_non_integer_page_skipped(tmp_path: Path) -> None:
     assert not findings
 
 
+def test_p057_ignores_wrapped_continuation_numbers(tmp_path: Path) -> None:
+    """Numbers in wrapped title lines are not listed page references."""
+    pdf_path = tmp_path / "p057_wrapped_continuation.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((72, 140), "Figure 1 First Figure Title", fontsize=12)
+    page.insert_text((500, 140), "16", fontsize=12)
+    # The extractor sees the embedded 10 as a candidate page number on the
+    # first wrapped line and the actual 22 on the continuation line.
+    page.insert_text((72, 162), "Figure 2 Title with 10 equal panels", fontsize=12)
+    page.insert_text((180, 176), "order of the method", fontsize=12)
+    page.insert_text((500, 176), "22", fontsize=12)
+    page.insert_text((72, 198), "Figure 3 Another Figure Title", fontsize=12)
+    page.insert_text((500, 198), "28", fontsize=12)
+    page.insert_text((72, 220), "Figure 4 Final Figure Title", fontsize=12)
+    page.insert_text((500, 220), "35", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_page_number_ordering(model) if f.rule_id == "P057"]
+    assert not findings
+
+
 def test_p057_toc_unaffected(tmp_path: Path) -> None:
     """TOC pages → P057 does not fire."""
     pdf_path = tmp_path / "p057_toc.pdf"
