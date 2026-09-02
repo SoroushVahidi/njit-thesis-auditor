@@ -8363,6 +8363,53 @@ def test_p036_wrapped_entry_internal_spacing_not_flagged(tmp_path: Path) -> None
     assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
 
 
+def test_p036_hanging_indent_continuation_not_treated_as_new_entry(tmp_path: Path) -> None:
+    """Regression: a wrapped continuation line using a hanging indent (indented
+    under the entry's text, not under its leading number -- a very common TOC/
+    List layout) must not be treated as the start of a new entry. Before the
+    fix, ``_group_lines_into_entries`` treated ANY line not confidently
+    recognized as a continuation (which requires near-identical x0) as a new
+    entry, so this entry's own single-line-height internal wrap gap was
+    miscounted as an unusually tight gap BETWEEN two entries."""
+    pdf_path = tmp_path / "p036_hanging_indent_continuation.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "1.1 Extended Chapter Title Continuing Across Multiple Lines Here",
+        "Additional wrapped title text with no leading chapter number",
+        first_y=140.0,
+        continuation_y=152.0,
+        first_x=108.0,
+        continuation_x=135.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
+
+
+def test_p036_tight_gap_to_next_entry_still_detected_after_hanging_indent(
+    tmp_path: Path,
+) -> None:
+    """The genuine gap to the NEXT real entry must still be measured from the
+    hanging-indent entry's true last line, and a too-tight gap there must
+    still be flagged (the fix must not silently swallow real findings)."""
+    pdf_path = tmp_path / "p036_hanging_indent_real_gap.pdf"
+    _make_wrapped_entry_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "1.1 Extended Chapter Title Continuing Across Multiple Lines Here",
+        "Additional wrapped title text with no leading chapter number",
+        first_y=140.0,
+        continuation_y=152.0,
+        first_x=108.0,
+        continuation_x=135.0,
+        extra_lines=[("1.2 Second Real Chapter Entry Title Text Here", 108.0, 182.0)],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
+    assert len(warnings) == 1
+    assert warnings[0].details.get("issue_type") == "toc_inter_entry_spacing_too_tight"
+
+
 def test_p036_sparse_single_entry_page_skipped(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_sparse.pdf"
     doc = fitz.open()

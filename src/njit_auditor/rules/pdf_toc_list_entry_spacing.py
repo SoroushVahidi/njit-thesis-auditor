@@ -7,12 +7,13 @@ from __future__ import annotations
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
-from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages
+from njit_auditor.rules.pdf_toc_alignment import _clean_text, detect_toc_like_pages
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
     _collect_entry_region_lines,
     _estimate_line_height,
     _has_intervening_page_number_line,
     _is_wrap_continuation_pair,
+    _looks_like_new_entry_start,
 )
 from njit_auditor.toc_list_student_preview import (
     gap_bbox_between_boxes,
@@ -35,6 +36,32 @@ SOURCE_Q_RULE_IDS_BY_SECTION = {
 }
 
 
+def _is_entry_boundary(
+    previous: PdfTextLine,
+    line: PdfTextLine,
+    page_type: str,
+) -> bool:
+    """Return True when *line* begins a new logical TOC/List entry.
+
+    ``_is_wrap_continuation_pair`` is tuned for P032's conservative "only
+    check a gap when we are SURE these two lines are the same wrapped
+    entry" purpose -- a False return there is a safe default to skip
+    checking, not proof the two lines belong to different entries. Treating
+    that negation directly as an entry boundary over-splits any entry whose
+    wrapped continuation uses a hanging indent (continuation lines indented
+    under the entry text rather than under its leading number), which is
+    common in this corpus and shifts x0 by more than
+    ``INDENT_CLUSTER_TOLERANCE_PT``. That over-split then makes each
+    entry's own internal single-line-height wrap gap look like an
+    unusually tight gap BETWEEN two entries. Require positive evidence of a
+    new entry start instead (numbered "N.N"/Chapter/Appendix line, or a
+    dot-leader entry line) so only genuinely separate entries are split.
+    """
+    if _is_wrap_continuation_pair(previous, line, page_type):
+        return False
+    return _looks_like_new_entry_start(_clean_text(line.text))
+
+
 def _group_lines_into_entries(
     lines: list[PdfTextLine],
     page_type: str,
@@ -45,10 +72,10 @@ def _group_lines_into_entries(
     entries: list[list[PdfTextLine]] = [[lines[0]]]
     for line in lines[1:]:
         previous = entries[-1][-1]
-        if _is_wrap_continuation_pair(previous, line, page_type):
-            entries[-1].append(line)
+        if _is_entry_boundary(previous, line, page_type):
+            entries.append([line])
             continue
-        entries.append([line])
+        entries[-1].append(line)
     return entries
 
 
