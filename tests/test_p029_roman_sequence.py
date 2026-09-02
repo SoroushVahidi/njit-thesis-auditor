@@ -195,4 +195,6 @@ def test_p029_cli_and_reports_include_findings(tmp_path: Path) -> None:
     content = json_out.read_text(encoding="utf-8")
     assert "P029" in content
     md_text = md_out.read_text(encoding="utf-8")
-    assert "### P029" in md_text
+    # Markdown is student-facing and shows the Rxxx display id (see
+    # public_display_rule_id); the JSON export above keeps the internal P029.
+    assert "### R029" in md_text

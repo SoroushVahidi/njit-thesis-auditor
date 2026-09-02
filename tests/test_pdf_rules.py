@@ -1936,6 +1936,110 @@ def test_inconsistent_leader_dots_warns_p018(tmp_path: Path) -> None:
     assert finding.details.get("worst_entry_index") == "3"
 
 
+def _leader_dots_isolation_pdf(pdf_path: Path) -> None:
+    """Entries 2 and 3 are a consecutive pair both missing leader dots (each
+    other's non-dotted neighbor); entry 5 is a lone missing-dots entry with
+    dotted neighbors on both sides -- a cleaner, more isolated single example
+    of the page's dominant dotted pattern than either of the adjacent pair."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)  # 0: dots
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Background ....", 500)  # 1: dots
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Related Work", 500)  # 2: no dots (paired)
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Methods", 500)  # 3: no dots (paired)
+    _draw_toc_entry(page, 220, 108, "Chapter 5 Results ....", 500)  # 4: dots
+    _draw_toc_entry(page, 240, 108, "Chapter 6 Discussion", 500)  # 5: no dots (isolated)
+    _draw_toc_entry(page, 260, 108, "Chapter 7 Conclusion ....", 500)  # 6: dots
+    doc.save(pdf_path)
+    doc.close()
+
+
+def test_p018_leader_dots_worst_entry_is_not_always_first(tmp_path: Path) -> None:
+    """Requirement: do not automatically select the first affected entry.
+
+    Three entries lack leader dots (indices 2, 3, 5); index 2 is first in
+    document order but is adjacent to another non-dotted entry, so it is a
+    weaker example than index 5, which is fully isolated between dotted
+    neighbors. The selection must prefer index 5, not simply entries[0] of
+    the affected set.
+    """
+    pdf_path = tmp_path / "toc_leader_dots_isolation.pdf"
+    _leader_dots_isolation_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    finding = next(f for f in warnings if f.details.get("issue_type") == "inconsistent_leader_dots")
+    assert finding.details.get("worst_entry_index") == "5"
+    assert finding.details.get("worst_entry_index") != "2"
+
+
+def test_p018_leader_dots_selected_entry_is_actually_affected(tmp_path: Path) -> None:
+    """The selected evidence entry must itself lack leader dots -- selection
+    logic must never point at a conforming (dotted) entry."""
+    pdf_path = tmp_path / "toc_leader_dots_isolation_affected.pdf"
+    _leader_dots_isolation_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    finding = next(f for f in warnings if f.details.get("issue_type") == "inconsistent_leader_dots")
+    assert finding.details.get("worst_entry_index") in {"2", "3", "5"}
+
+
+def test_p018_leader_dots_count_unchanged_by_selection_change(tmp_path: Path) -> None:
+    """Changing which entry is highlighted must not change how many entries
+    are classified as missing leader dots."""
+    pdf_path = tmp_path / "toc_leader_dots_isolation_count.pdf"
+    _leader_dots_isolation_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    finding = next(f for f in warnings if f.details.get("issue_type") == "inconsistent_leader_dots")
+    assert finding.details.get("affected_entry_count") == "3"
+
+
+def test_p018_leader_dots_bbox_matches_selected_entry(tmp_path: Path) -> None:
+    """The highlight bbox must correspond to the selected (index 5) entry,
+    drawn at y=240, not the first affected (index 2) entry, drawn at y=180."""
+    pdf_path = tmp_path / "toc_leader_dots_isolation_bbox.pdf"
+    _leader_dots_isolation_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+    finding = next(f for f in warnings if f.details.get("issue_type") == "inconsistent_leader_dots")
+    bbox = finding.details.get("bbox", "")
+    y0 = float(bbox.split(",")[1])
+    # Text-insertion y (240) is the glyph baseline; bbox.y0 sits somewhat above
+    # it (font ascent). What matters is that this is the index-5 entry's row,
+    # not index 2's (drawn at y=180, well below this window either way).
+    assert 215 < y0 < 240, f"expected bbox near the y=240 entry (index 5), got y0={y0}"
+
+
+def test_p018_leader_dots_tied_isolation_is_deterministic(tmp_path: Path) -> None:
+    """Two entries with identical isolation scores (both fully isolated
+    between dotted neighbors, no hierarchy-level info to break the tie) must
+    resolve to the same, lower-document-index entry every time -- not depend
+    on set/dict iteration order.
+    """
+    pdf_path = tmp_path / "toc_leader_dots_tied.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)  # 0: dots
+    _draw_toc_entry(page, 160, 108, "Chapter 2 Background", 500)  # 1: no dots, isolated
+    _draw_toc_entry(page, 180, 108, "Chapter 3 Related Work ....", 500)  # 2: dots
+    _draw_toc_entry(page, 200, 108, "Chapter 4 Methods", 500)  # 3: no dots, isolated
+    _draw_toc_entry(page, 220, 108, "Chapter 5 Results ....", 500)  # 4: dots
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+
+    results = set()
+    for _ in range(5):
+        warnings = [f for f in check_pdf_toc_alignment(model) if f.rule_id == "P018"]
+        finding = next(
+            f for f in warnings if f.details.get("issue_type") == "inconsistent_leader_dots"
+        )
+        results.add(finding.details.get("worst_entry_index"))
+    assert results == {"1"}, f"expected a stable tie-break to index 1 every run, got {results}"
+
+
 def test_hierarchy_indent_outlier_warns_p018(tmp_path: Path) -> None:
     pdf_path = tmp_path / "toc_indent_outlier.pdf"
     doc = fitz.open()
@@ -2316,7 +2420,9 @@ def test_json_and_markdown_report_include_p019(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0
     assert "P019" in json_out.read_text(encoding="utf-8")
-    assert "### P019" in md_out.read_text(encoding="utf-8")
+    # The Markdown report is student-facing and shows the Rxxx display id;
+    # the JSON report keeps the internal Pxxx rule_id (asserted above).
+    assert "### R019" in md_out.read_text(encoding="utf-8")
 
 
 def test_p019_sequence_gap_finding_has_triage_metadata(tmp_path: Path) -> None:
@@ -9065,13 +9171,16 @@ def test_p051_category_is_copyright_page_not_title_page(tmp_path: Path) -> None:
     json_finding = next(f for f in payload["findings"] if f["rule_id"] == "P051")
     assert json_finding["rule_id"] == "P051"
 
-    # Markdown export renders without error and keeps the P051 rule ID intact.
+    # Markdown export renders without error. It is student-facing, so it shows
+    # the Rxxx display id (see public_display_rule_id), not the internal P051
+    # kept intact in the JSON export above.
     from njit_auditor.report_outputs import write_markdown_report
 
     md_path = tmp_path / "report.md"
     write_markdown_report(findings, {"audit_type": "pdf"}, md_path)
     md_text = md_path.read_text()
-    assert "`P051`" in md_text
+    assert "`R051`" in md_text
+    assert "`P051`" not in md_text
     assert "copyright_page_metadata" in md_text
 
 

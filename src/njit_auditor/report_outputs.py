@@ -615,6 +615,31 @@ def public_display_rule_id(rule_id: str) -> str:
     return f"R{match.group(1)}" if match else rule_id
 
 
+_PXXX_TOKEN_RE = re.compile(r"\bP(\d{3})\b")
+
+
+def convert_pxxx_tokens_to_public_display(text: str) -> str:
+    """Replace every standalone ``Pxxx`` token in rendered, human-readable
+    student-facing text with its ``Rxxx`` display form.
+
+    This is the Markdown/plain-text-report counterpart of the Jinja
+    ``display_rule_id`` filter used by the web templates: rather than hunt
+    down every one of the many rule_id interpolations spread across this
+    module's ~15 Markdown-section formatter functions (headings, counts
+    tables, per-rule triage sections, cross-references, etc. -- a large,
+    easy-to-under-cover surface), this converts the *final rendered text* in
+    one pass, reusing public_display_rule_id as the single source of truth
+    for the id mapping itself. It must only ever be applied to text that is
+    about to be shown to a student (e.g. the assembled Markdown report just
+    before it is written to disk) -- never to JSON payloads or any other
+    structure internal tooling/tests parse by key, since those must keep
+    their real Pxxx values (see write_json_report, audit_findings_to_json_dict).
+    The \\b...\\b word-boundary anchors mean a longer digit run such as
+    "P0191" is left untouched -- only an exact "Pddd" token converts.
+    """
+    return _PXXX_TOKEN_RE.sub(lambda m: public_display_rule_id(m.group(0)), text)
+
+
 def _websafe_rule_text(rule_id: str, field: str, text: str) -> str:
     """Rewrite internal authoring language for public/student-facing display.
 
@@ -3931,4 +3956,6 @@ def write_markdown_report(
     lines.append("- Privacy: report output avoids dissertation body text and source line quotes.")
     lines.append("- Limitation: findings are heuristic and require human review.")
 
-    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    output_path.write_text(
+        convert_pxxx_tokens_to_public_display("\n".join(lines) + "\n"), encoding="utf-8"
+    )
