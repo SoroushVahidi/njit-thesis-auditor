@@ -32,6 +32,9 @@ FRONTMATTER_HEADING_VARIANTS: dict[str, str] = {
 
 GATE_CANONICAL_HEADINGS: tuple[str, ...] = EXPECTED_HEADINGS + ("DEDICATION",)
 _GATE_CANONICAL_SET = frozenset(GATE_CANONICAL_HEADINGS)
+_GATE_COMPACT_EXPECTED_HEADINGS: dict[str, str] = {
+    heading.replace(" ", ""): heading for heading in GATE_CANONICAL_HEADINGS
+}
 
 _MAX_GATE_LINE_CHARS = 40
 _MAX_GATE_LINE_TOKENS = 6
@@ -81,6 +84,10 @@ def resolve_gate_heading_from_line(text: str) -> tuple[str, str, str] | None:
         return raw_upper, "exact", "high"
     if punct_stripped in _GATE_CANONICAL_SET and punct_stripped != raw_upper:
         return punct_stripped, "variant_map", "medium"
+    compact = raw_upper.replace(" ", "")
+    canonical = _GATE_COMPACT_EXPECTED_HEADINGS.get(compact)
+    if canonical is not None:
+        return canonical, "compact_variant", "medium"
     canonical = FRONTMATTER_HEADING_VARIANTS.get(raw_upper)
     if canonical is not None:
         return canonical, "variant_map", "medium"

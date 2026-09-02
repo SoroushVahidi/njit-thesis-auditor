@@ -45,6 +45,7 @@ from njit_auditor.rules.pdf_font_compliance import (
     check_pdf_font_compliance,
     classify_font,
 )
+from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_matches_for_heading
 from njit_auditor.rules.pdf_frontmatter_headings import check_pdf_frontmatter_headings
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
     check_pdf_frontmatter_no_page_number,
@@ -12419,6 +12420,26 @@ def _make_biosketch_pdf(
 # ---------------------------------------------------------------------------
 # P045 tests
 # ---------------------------------------------------------------------------
+
+
+def test_p045_compact_heading_variant_is_detected(tmp_path: Path) -> None:
+    """BIOGRAPHICALSKETCH (no space) should resolve to the canonical heading gate."""
+    pdf_path = tmp_path / "p045_compact_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((200, 70), "BIOGRAPHICALSKETCH", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 110), "Synthetic pub entry first line text for testing purposes here.")
+    page.insert_text((126, 124), "Synthetic publication continuation line body text here only.")
+    page.insert_text((108, 146), "Another pub entry first line text for testing purposes here.")
+    page.insert_text((126, 160), "Another continuation line for synthetic publication entry text.")
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    matches = find_gate_matches_for_heading(model, "BIOGRAPHICAL SKETCH")
+    assert matches
+    findings = check_pdf_biosketch_publication_layout(model)
+    assert not any(f.rule_id == "P045" for f in findings)
 
 
 def test_p045_no_biosketch_page_no_findings(tmp_path: Path) -> None:
