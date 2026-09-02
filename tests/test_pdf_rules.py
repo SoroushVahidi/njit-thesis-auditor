@@ -8975,6 +8975,296 @@ def test_p034_finding_details_privacy_safe(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# P034: Title Page identification (structural, not positional page[0])
+#
+# The real Ester dissertation corpus places the ABSTRACT on physical page 1
+# and the actual Title Page later (immediately before the Copyright Page in
+# every observed case), which is exactly the layout that caused the original
+# "title_page = pdf_document.pages[0]" bug: it silently compared the
+# Copyright Page against the Abstract page instead, so Q010/Q011 mismatches
+# were never detected. These tests replicate that ordering directly.
+# ---------------------------------------------------------------------------
+
+_ABSTRACT_FIRST_TITLE_ECHO_LINES = [
+    "A Study of Synthetic Systems",
+    "by",
+    "Test Author",
+]
+_TRUE_TITLE_PAGE_LINES = [
+    "A Study of Synthetic Systems",
+    "by",
+    "Test Author",
+    "A Dissertation",
+    "Submitted to the Faculty of",
+    "New Jersey Institute of Technology",
+    "in Partial Fulfillment of the Requirements for the Degree of",
+    "Doctor of Philosophy in Mathematical Sciences",
+    "Department of Mathematical Sciences",
+    "May 2024",
+]
+
+
+def _make_abstract_before_title_page_pdf(
+    path: Path,
+    *,
+    true_title_page_lines: list[str] | None = None,
+    copyright_notice: str | None = "© 2024 Test Author. All Rights Reserved.",
+    include_approval_page: bool = True,
+) -> None:
+    """Build a PDF replicating the real Ester corpus front-matter order:
+    Abstract (page 1, echoes title/author but has no degree/institution/
+    graduation-month text) -> Title Page (page 2) -> Copyright Page (page 3)
+    -> Approval Page (page 4, optional, names an advisor, not the author).
+    """
+    doc = fitz.open()
+
+    p_abs = doc.new_page(width=612, height=792)
+    p_abs.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    for idx, line in enumerate(_ABSTRACT_FIRST_TITLE_ECHO_LINES):
+        p_abs.insert_text((108, 130 + idx * 20), line, fontsize=12)
+    p_abs.insert_text(
+        (108, 220),
+        "Synthetic abstract body text for title-page identification testing only.",
+        fontsize=12,
+    )
+
+    p_title = doc.new_page(width=612, height=792)
+    for idx, line in enumerate(
+        true_title_page_lines if true_title_page_lines is not None else _TRUE_TITLE_PAGE_LINES
+    ):
+        p_title.insert_text((108, 100 + idx * 20), line, fontsize=12)
+
+    if copyright_notice is not None:
+        p_copy = doc.new_page(width=612, height=792)
+        p_copy.insert_text((108, 360), copyright_notice, fontsize=12)
+
+    if include_approval_page:
+        p_appr = doc.new_page(width=612, height=792)
+        p_appr.insert_text((250, 90), "APPROVAL PAGE", fontsize=14, fontname="Times-Bold")
+        p_appr.insert_text((108, 130), "A Study of Synthetic Systems", fontsize=12)
+        p_appr.insert_text((108, 150), "Test Author", fontsize=12)
+        p_appr.insert_text((108, 180), "Dr. Committee Advisor, Dissertation Advisor", fontsize=12)
+
+    doc.save(path)
+    doc.close()
+
+
+def test_p034_year_mismatch_detected_when_abstract_precedes_title_page(tmp_path: Path) -> None:
+    """Reproduces the confirmed bug: with pages[0]==Abstract, the old code compared
+    against the Abstract page (no month/year text there) and silently found nothing.
+    The fix must identify physical page 2 as the Title Page and detect the mismatch."""
+    pdf_path = tmp_path / "p034_abstract_first_year_mismatch.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path, copyright_notice="© 2023 Test Author. All Rights Reserved."
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    year_warning = next(
+        w for w in warnings if w.details.get("issue_type") == "copyright_year_mismatch"
+    )
+    assert year_warning.details.get("title_page_year") == "2024"
+    assert year_warning.details.get("copyright_year") == "2023"
+    assert year_warning.details.get("title_page_number") == "2"
+    assert year_warning.details.get("confidence") == "high"
+
+
+def test_p034_no_finding_when_abstract_precedes_title_and_metadata_matches(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p034_abstract_first_matching.pdf"
+    _make_abstract_before_title_page_pdf(pdf_path)
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P034" for f in check_pdf_copyright_page(model))
+
+
+def test_p034_author_mismatch_detected_when_abstract_precedes_title_page(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "p034_abstract_first_author_mismatch.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path, copyright_notice="© 2024 Committee Advisor. All Rights Reserved."
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    author_warning = next(
+        w for w in warnings if w.details.get("issue_type") == "copyright_author_mismatch"
+    )
+    # Title author must come from the real Title Page (page 2), never the
+    # Approval Page's advisor name or the Abstract page.
+    assert author_warning.details.get("title_page_number") == "2"
+
+
+def test_p034_author_capitalization_variation_matches(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_author_case.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path, copyright_notice="© 2024 TEST AUTHOR. All Rights Reserved."
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(
+        f.rule_id == "P034" and f.details.get("issue_type") == "copyright_author_mismatch"
+        for f in check_pdf_copyright_page(model)
+    )
+
+
+def test_p034_author_unicode_accent_matches(tmp_path: Path) -> None:
+    title_lines = list(_TRUE_TITLE_PAGE_LINES)
+    title_lines[2] = "José Author"
+    pdf_path = tmp_path / "p034_author_unicode.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path,
+        true_title_page_lines=title_lines,
+        copyright_notice="© 2024 José Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(
+        f.rule_id == "P034" and f.details.get("issue_type") == "copyright_author_mismatch"
+        for f in check_pdf_copyright_page(model)
+    )
+
+
+def test_p034_author_suffix_tolerated(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_author_suffix.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path, copyright_notice="© 2024 Test Author Jr. All Rights Reserved."
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(
+        f.rule_id == "P034" and f.details.get("issue_type") == "copyright_author_mismatch"
+        for f in check_pdf_copyright_page(model)
+    )
+
+
+def test_p034_genuinely_different_author_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p034_author_different.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path, copyright_notice="© 2024 Completely Different Person. All Rights Reserved."
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert any(
+        f.rule_id == "P034" and f.details.get("issue_type") == "copyright_author_mismatch"
+        for f in check_pdf_copyright_page(model)
+    )
+
+
+def test_p034_missing_title_year_does_not_falsely_match_or_warn(tmp_path: Path) -> None:
+    """No graduation month/year line and no standalone year on the Title Page ->
+    title year is unextractable. Must not silently count as a match, and must
+    not fabricate a mismatch finding either -- the comparison simply cannot run."""
+    title_lines = [
+        "A Study of Synthetic Systems",
+        "by",
+        "Test Author",
+        "A Dissertation",
+        "Submitted to the Faculty of",
+        "New Jersey Institute of Technology",
+        "in Partial Fulfillment of the Requirements for the Degree of",
+        "Doctor of Philosophy in Mathematical Sciences",
+    ]
+    pdf_path = tmp_path / "p034_missing_title_year.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path,
+        true_title_page_lines=title_lines,
+        copyright_notice="© 2023 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(
+        f.rule_id == "P034" and f.details.get("issue_type") == "copyright_year_mismatch"
+        for f in check_pdf_copyright_page(model)
+    )
+
+
+def test_p034_standalone_year_format_on_title_page_extracted(tmp_path: Path) -> None:
+    """A bare '2024' line (no month) must still be usable as the graduation year."""
+    title_lines = list(_TRUE_TITLE_PAGE_LINES)
+    title_lines[-1] = "2024"
+    pdf_path = tmp_path / "p034_standalone_year.pdf"
+    _make_abstract_before_title_page_pdf(
+        pdf_path,
+        true_title_page_lines=title_lines,
+        copyright_notice="© 2023 Test Author. All Rights Reserved.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    year_warning = next(
+        w for w in warnings if w.details.get("issue_type") == "copyright_year_mismatch"
+    )
+    assert year_warning.details.get("title_page_year") == "2024"
+
+
+def test_p034_title_page_unidentifiable_skips_year_and_author_checks(tmp_path: Path) -> None:
+    """When neither structural evidence nor a corroborated positional fallback can
+    identify a Title Page, Q010/Q011 must be skipped rather than guessing page 0."""
+    doc = fitz.open()
+    p_abs = doc.new_page(width=612, height=792)
+    p_abs.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p_abs.insert_text((108, 130), "Unrelated abstract content only.", fontsize=12)
+    p_filler = doc.new_page(width=612, height=792)
+    p_filler.insert_text(
+        (108, 130), "Unrelated filler content with no title-page signal.", fontsize=12
+    )
+    p_copy = doc.new_page(width=612, height=792)
+    p_copy.insert_text((108, 360), "© 2024 Test Author. All Rights Reserved.", fontsize=12)
+    doc.save(pdf_path := tmp_path / "p034_no_identifiable_title_page.pdf")
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    assert not any(
+        w.details.get("issue_type") in {"copyright_year_mismatch", "copyright_author_mismatch"}
+        for w in warnings
+    )
+
+
+def test_p034_positional_fallback_uses_medium_confidence(tmp_path: Path) -> None:
+    """When the scan window has no page with BOTH degree+institution evidence, the
+    guarded fallback (page immediately before a confidently-detected Copyright
+    Page) may still fire, but only when it carries its own corroborating signal,
+    and any resulting finding must be explicitly lower-confidence than the
+    fully-evidenced case."""
+    doc = fitz.open()
+    p_abs = doc.new_page(width=612, height=792)
+    p_abs.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p_abs.insert_text((108, 130), "Unrelated abstract content only.", fontsize=12)
+    p_title = doc.new_page(width=612, height=792)
+    p_title.insert_text((108, 100), "by", fontsize=12)
+    p_title.insert_text((108, 120), "Test Author", fontsize=12)
+    p_copy = doc.new_page(width=612, height=792)
+    p_copy.insert_text((108, 360), "© 2023 Test Author. All Rights Reserved.", fontsize=12)
+    doc.save(pdf_path := tmp_path / "p034_fallback_medium_confidence.pdf")
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_copyright_page(model) if f.rule_id == "P034"]
+    # No degree/institution anywhere, so no year to compare -> no year finding,
+    # but the by-line author IS extractable via the guarded fallback, and the
+    # copyright author here matches it, so no author finding either. This test
+    # exists to prove the fallback path does not crash and does not silently
+    # promote itself to "high" confidence; assert directly on identification
+    # confidence via a genuine mismatch instead.
+    assert not warnings
+
+    doc2 = fitz.open()
+    p_abs2 = doc2.new_page(width=612, height=792)
+    p_abs2.insert_text((250, 90), "ABSTRACT", fontsize=14, fontname="Times-Bold")
+    p_abs2.insert_text((108, 130), "Unrelated abstract content only.", fontsize=12)
+    p_title2 = doc2.new_page(width=612, height=792)
+    p_title2.insert_text((108, 100), "by", fontsize=12)
+    p_title2.insert_text((108, 120), "Test Author", fontsize=12)
+    p_copy2 = doc2.new_page(width=612, height=792)
+    p_copy2.insert_text((108, 360), "© 2023 Different Person. All Rights Reserved.", fontsize=12)
+    doc2.save(pdf_path2 := tmp_path / "p034_fallback_medium_confidence_mismatch.pdf")
+    doc2.close()
+
+    model2 = load_pdf_layout(str(pdf_path2))
+    warnings2 = [f for f in check_pdf_copyright_page(model2) if f.rule_id == "P034"]
+    author_warning = next(
+        w for w in warnings2 if w.details.get("issue_type") == "copyright_author_mismatch"
+    )
+    assert author_warning.details.get("confidence") == "medium"
+    assert author_warning.details.get("title_page_number") == "2"
+
+
+# ---------------------------------------------------------------------------
 # P051: Copyright page year-format refinement
 # ---------------------------------------------------------------------------
 

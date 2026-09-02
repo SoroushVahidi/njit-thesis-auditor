@@ -2198,7 +2198,8 @@ def _privacy_safe_source_message(rule_id: str, issue_type: str, details: dict[st
     names) with a short structural description suitable for web export.
     """
     location = format_source_location(details)
-    rule_label = f"{rule_id} ({issue_type})" if issue_type else rule_id
+    public_rule_id = public_display_rule_id(rule_id)
+    rule_label = f"{public_rule_id} ({issue_type})" if issue_type else public_rule_id
     return f"{rule_label} issue detected at {location}. See polished comment for details."
 
 

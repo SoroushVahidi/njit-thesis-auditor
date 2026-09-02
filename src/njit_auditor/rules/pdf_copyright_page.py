@@ -26,12 +26,39 @@ from njit_auditor.pdf_models import (
     PdfTextLine,
     format_bbox_detail,
 )
+from njit_auditor.rules.pdf_frontmatter_structure import (
+    _DEGREE_RE,
+    _INSTITUTION_RE,
+)
 from njit_auditor.rules.pdf_headings import (
     find_named_frontmatter_headings,
     normalize_heading_text,
 )
 
 _COPYRIGHT_HEADING = "COPYRIGHT PAGE"
+# Named front-matter headings that only ever appear AFTER the Title Page in
+# NJIT's front-matter ordering. Used to bound how far the Title Page scan
+# looks, and to exclude those pages themselves from candidacy (a page under
+# one of these headings -- e.g. Abstract -- is never the Title Page even
+# when it happens to repeat the dissertation title and author "by" line).
+_TITLE_PAGE_BOUNDARY_HEADINGS = frozenset(
+    {
+        "APPROVAL PAGE",
+        "BIOGRAPHICAL SKETCH",
+        "ACKNOWLEDGEMENTS",
+        "ACKNOWLEDGMENTS",
+        "TABLE OF CONTENTS",
+        "LIST OF TABLES",
+        "LIST OF FIGURES",
+        "DEDICATION",
+        _COPYRIGHT_HEADING,
+    }
+)
+_TITLE_PAGE_MAX_SCAN_PAGES = 12
+_SUBMISSION_LANGUAGE_RE = re.compile(
+    r"\b(a dissertation|a thesis|submitted to the faculty|in partial fulfillment of)\b",
+    re.IGNORECASE,
+)
 _COPYRIGHT_RE = re.compile(r"\bcopyright\b|©|\(c\)", re.IGNORECASE)
 _COPYRIGHT_SCAN_PAGES = 6
 _TOP_ZONE_RATIO = 0.15
@@ -216,6 +243,146 @@ def _find_copyright_page(pdf_document: PdfDocument) -> PdfPage | None:
         if _COPYRIGHT_RE.search(full_text):
             if _page_has_meaningful_text(page):
                 return page
+    return None
+
+
+@dataclass(frozen=True)
+class _TitlePageMatch:
+    page: PdfPage
+    confidence: str
+    reason: str
+
+
+def _page_combined_text(page: PdfPage) -> str:
+    return " ".join(
+        rebuilt for line in _sorted_lines(page) if (rebuilt := _rebuild_line_text(line))
+    )
+
+
+def _page_has_month_year_line(page: PdfPage) -> bool:
+    for line in _sorted_lines(page):
+        cleaned = _rebuild_line_text(line) or normalize_heading_text(line.text)
+        if _MONTH_YEAR_RE.match(cleaned):
+            return True
+    return False
+
+
+def _title_page_boundary_page_number(
+    pdf_document: PdfDocument, copyright_page: PdfPage | None
+) -> int | None:
+    """Return the lowest page number that must come AFTER the Title Page, if any.
+
+    The Title Page always precedes the Copyright Page and every other named
+    front-matter heading (Approval Page, Biographical Sketch, TOC, ...) in
+    NJIT's front-matter ordering, so the earliest of those pages bounds how
+    far forward the Title Page scan needs to look.
+    """
+    boundaries: list[int] = []
+    if copyright_page is not None:
+        boundaries.append(copyright_page.page_number)
+    for match in find_named_frontmatter_headings(pdf_document):
+        if match.heading in _TITLE_PAGE_BOUNDARY_HEADINGS:
+            boundaries.append(match.page_number)
+    return min(boundaries) if boundaries else None
+
+
+def _title_page_excluded_pages(pdf_document: PdfDocument) -> frozenset[int]:
+    """Pages already confidently identified as a different named front-matter page.
+
+    A page under one of these headings (e.g. Abstract) is never itself the
+    Title Page, even when it repeats the dissertation title and the author
+    "by" line -- which is exactly the layout that caused the original bug.
+    """
+    return frozenset(match.page_number for match in find_named_frontmatter_headings(pdf_document))
+
+
+def _evaluate_title_page_evidence(page: PdfPage) -> dict[str, bool]:
+    combined_text = _page_combined_text(page)
+    return {
+        "degree_phrase": bool(_DEGREE_RE.search(combined_text)),
+        "institution_phrase": bool(_INSTITUTION_RE.search(combined_text)),
+        "graduation_month_year": _page_has_month_year_line(page),
+        "submission_language": bool(_SUBMISSION_LANGUAGE_RE.search(combined_text)),
+        "by_author_line": _extract_title_page_author(page) is not None,
+    }
+
+
+def _find_title_page(
+    pdf_document: PdfDocument, copyright_page: PdfPage | None
+) -> _TitlePageMatch | None:
+    """Identify the Title Page using positive structural evidence.
+
+    Primary strategy: scan candidate pages strictly before the earliest
+    confidently-located later front-matter page (Copyright Page, Approval
+    Page, etc. -- see :func:`_title_page_boundary_page_number`), excluding
+    any page already identified as a different named front-matter page (see
+    :func:`_title_page_excluded_pages`), and pick the page carrying BOTH the
+    NJIT degree phrase (e.g. "Doctor of Philosophy") and the institution name
+    -- the combination that, per NJIT's title-page template, appears only on
+    the actual Title Page and nowhere else in front matter (Abstract pages
+    repeat the title/author "by" line but never the degree+institution
+    submission block; Biographical Sketch repeats the degree name alone,
+    well after this scan's boundary). Ties are broken by strongest
+    corroborating evidence (graduation month/year line, submission-language
+    phrase, "by <author>" line), then by proximity to the boundary.
+
+    Guarded fallback: when no page in the scan window carries both signals,
+    but the Copyright Page itself is confidently identified, the page
+    immediately before it is accepted ONLY if it carries at least one
+    corroborating structural signal of its own (this is the "positional
+    fallback relative to a confidently detected Copyright Page" case --
+    never a bare, unguarded ``copyright_page - 1``).
+
+    Returns ``None`` when identification cannot be made reliably; never
+    silently falls back to page 0.
+    """
+    if not pdf_document.pages:
+        return None
+
+    boundary = _title_page_boundary_page_number(pdf_document, copyright_page)
+    if boundary is None:
+        boundary = min(pdf_document.pages[-1].page_number, _TITLE_PAGE_MAX_SCAN_PAGES) + 1
+    excluded = _title_page_excluded_pages(pdf_document)
+
+    candidates: list[tuple[PdfPage, dict[str, bool]]] = []
+    for page in pdf_document.pages:
+        if page.page_number >= boundary or page.page_number > _TITLE_PAGE_MAX_SCAN_PAGES:
+            break
+        if page.page_number in excluded:
+            continue
+        evidence = _evaluate_title_page_evidence(page)
+        if evidence["degree_phrase"] and evidence["institution_phrase"]:
+            candidates.append((page, evidence))
+
+    if candidates:
+        def _score(item: tuple[PdfPage, dict[str, bool]]) -> tuple[int, int]:
+            page, evidence = item
+            corroboration = sum(
+                evidence[key]
+                for key in ("graduation_month_year", "submission_language", "by_author_line")
+            )
+            return (corroboration, page.page_number)
+
+        page, evidence = max(candidates, key=_score)
+        reasons = [key for key, present in evidence.items() if present]
+        return _TitlePageMatch(page=page, confidence="high", reason="+".join(reasons))
+
+    if copyright_page is not None:
+        fallback_number = copyright_page.page_number - 1
+        if fallback_number not in excluded:
+            fallback_page = next(
+                (p for p in pdf_document.pages if p.page_number == fallback_number), None
+            )
+            if fallback_page is not None:
+                evidence = _evaluate_title_page_evidence(fallback_page)
+                if any(evidence.values()):
+                    reasons = ["positional_fallback_before_copyright_page"] + [
+                        key for key, present in evidence.items() if present
+                    ]
+                    return _TitlePageMatch(
+                        page=fallback_page, confidence="medium", reason="+".join(reasons)
+                    )
+
     return None
 
 
@@ -556,8 +723,9 @@ def _locate_copyright_year(copyright_page: PdfPage) -> _CopyrightYearContext:
 
 def _check_year_consistency(
     copyright_page: PdfPage,
-    title_page: PdfPage,
+    title_match: _TitlePageMatch,
 ) -> AuditFinding | None:
+    title_page = title_match.page
     copyright_year = _extract_copyright_year(copyright_page)
     title_year = _extract_title_page_year(title_page)
     if copyright_year is None or title_year is None:
@@ -576,16 +744,19 @@ def _check_year_consistency(
             "issue_type": "copyright_year_mismatch",
             "copyright_year": str(copyright_year),
             "title_page_year": str(title_year),
+            "title_page_number": str(title_page.page_number),
+            "title_page_identification_reason": title_match.reason,
             "source_q_rule_id": "Q010",
-            "confidence": "high",
+            "confidence": title_match.confidence,
         },
     )
 
 
 def _check_author_consistency(
     copyright_page: PdfPage,
-    title_page: PdfPage,
+    title_match: _TitlePageMatch,
 ) -> AuditFinding | None:
+    title_page = title_match.page
     title_author = _extract_title_page_author(title_page)
     copyright_author = _extract_copyright_author(copyright_page)
     if title_author is None or copyright_author is None:
@@ -608,9 +779,11 @@ def _check_author_consistency(
             "issue_type": "copyright_author_mismatch",
             "title_page_author_hash": title_hash,
             "copyright_author_hash": copyright_hash,
+            "title_page_number": str(title_page.page_number),
+            "title_page_identification_reason": title_match.reason,
             "comparison_basis": "normalized_author_name_hash",
             "source_q_rule_id": "Q011",
-            "confidence": "high",
+            "confidence": title_match.confidence,
         },
     )
 
@@ -699,22 +872,20 @@ def check_pdf_copyright_page(pdf_document: PdfDocument) -> list[AuditFinding]:
     if copyright_page is None:
         return []
 
-    if not pdf_document.pages:
-        return []
-
-    title_page = pdf_document.pages[0]
     findings: list[AuditFinding] = []
 
     header_finding = _check_top_margin_header(copyright_page)
     if header_finding is not None:
         findings.append(header_finding)
 
-    year_finding = _check_year_consistency(copyright_page, title_page)
-    if year_finding is not None:
-        findings.append(year_finding)
+    title_match = _find_title_page(pdf_document, copyright_page)
+    if title_match is not None:
+        year_finding = _check_year_consistency(copyright_page, title_match)
+        if year_finding is not None:
+            findings.append(year_finding)
 
-    author_finding = _check_author_consistency(copyright_page, title_page)
-    if author_finding is not None:
-        findings.append(author_finding)
+        author_finding = _check_author_consistency(copyright_page, title_match)
+        if author_finding is not None:
+            findings.append(author_finding)
 
     return findings

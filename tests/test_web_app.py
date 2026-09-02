@@ -3705,6 +3705,12 @@ def test_sanitize_report_for_web_export_unit_tex_label_removed() -> None:
     # Structural keys preserved
     assert result["findings"][0]["details"]["file"] == "main.tex"
     assert result["findings"][0]["details"]["line"] == "5"
+    # The fallback message must use the student-facing Rxxx id, never the
+    # internal Pxxx implementation id.
+    assert result["findings"][0]["message"].startswith("R002 ")
+    assert "P002" not in result["findings"][0]["message"]
+    assert result["findings"][1]["message"].startswith("R004 ")
+    assert "P004" not in result["findings"][1]["message"]
     assert result["findings"][0]["details"]["issue_type"] == "duplicate_label"
     # Finding count unchanged
     assert len(result["findings"]) == 2
