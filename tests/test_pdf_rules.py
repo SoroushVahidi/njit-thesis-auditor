@@ -10287,6 +10287,7 @@ def test_p037_bio_sketch_iv_no_finding(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p037_bio_iv_ok.pdf"
     _make_p037_pdf(pdf_path, [
         ("BIOGRAPHICAL SKETCH", None, "iv"),
+        (None, None, "v"),  # unheaded Dedication page, as in the real corpus
         ("ACKNOWLEDGEMENTS", None, "vi"),
         ("TABLE OF CONTENTS", None, "vii"),
         (None, "CHAPTER 1 INTRODUCTION", "1"),
@@ -10329,10 +10330,13 @@ def test_p037_globally_offset_sequence_flags_bio(tmp_path: Path) -> None:
 
 
 def test_p037_dedication_absent_ack_vi_passes(tmp_path: Path) -> None:
-    """Dedication not detected; ACK at vi is correct per template slot counting."""
+    """Dedication heading not detected, but its page still physically exists
+    (unheaded, as in the real corpus) with the correct numeral -- ACK at vi is
+    then correctly read off the actual preceding page, not guessed."""
     pdf_path = tmp_path / "p037_no_ded_ack_vi.pdf"
     _make_p037_pdf(pdf_path, [
         ("BIOGRAPHICAL SKETCH", None, "iv"),
+        (None, None, "v"),  # unheaded Dedication page, as in the real corpus
         ("ACKNOWLEDGEMENTS", None, "vi"),
         ("TABLE OF CONTENTS", None, "vii"),
         ("LIST OF TABLES", None, "viii"),
@@ -10425,6 +10429,112 @@ def test_p037_body_page_roman_not_checked(tmp_path: Path) -> None:
     findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
     body_pages = [f for f in findings if f.page == 2]
     assert not body_pages
+
+
+def test_p037_dedication_page_missing_ack_wrong_now_detected(tmp_path: Path) -> None:
+    """Regression: when NO physical page exists between Biographical Sketch and
+    Acknowledgements at all (not even an unheaded Dedication page), a genuine
+    Acknowledgements numbering error must still be caught -- the fix reads the
+    real preceding page rather than unconditionally trusting the observed
+    value whenever Dedication's heading goes undetected."""
+    pdf_path = tmp_path / "p037_no_dedication_page_ack_wrong.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGEMENTS", None, "vi"),  # should be "v" -- no Dedication page exists
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    ack = [f for f in findings if f.details.get("section_key") == "acknowledgements"]
+    assert ack
+    assert ack[0].details.get("expected_roman") == "v"
+    assert ack[0].details.get("observed_roman") == "vi"
+
+
+def test_p037_mashed_bio_sketch_heading_still_detected(tmp_path: Path) -> None:
+    """Regression: PDF text-layer extraction sometimes drops the space between
+    adjacent words (observed directly on several real Ester dissertations'
+    Biographical Sketch heading, e.g. "BIOGRAPHICALSKETCH"). The Biographical
+    Sketch gate must still recognize the heading and run the check -- silently
+    emitting nothing here is indistinguishable from "verified correct" to a
+    reader, but is actually "never checked". An unmashed ABSTRACT page is
+    included so front-matter page classification (a separate, shared
+    classifier this fix does not touch) succeeds the same way it does on the
+    real corpus, isolating this test to the Biographical Sketch heading
+    match itself."""
+    pdf_path = tmp_path / "p037_mashed_bio_heading.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("ABSTRACT", None, None),
+        ("BIOGRAPHICALSKETCH", None, "v"),  # mashed heading text, wrong numeral
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert any(f.details.get("issue_type") == "roman_bio_sketch_not_iv" for f in findings)
+
+
+def test_p037_acknowledgments_american_spelling_detected(tmp_path: Path) -> None:
+    """Regression: several Ester dissertations spell the heading "ACKNOWLEDGMENTS"
+    (no middle 'e'), matching this codebase's existing recognition of both
+    spellings elsewhere (pdf_frontmatter_structure.py, pdf_title_consistency.py).
+    A wrong numeral there must still be caught, not silently skipped."""
+    pdf_path = tmp_path / "p037_acknowledgments_spelling.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        ("ACKNOWLEDGMENTS", None, "ix"),  # American spelling; wrong numeral
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    ack = [f for f in findings if f.details.get("section_key") == "acknowledgements"]
+    assert ack
+    assert ack[0].details.get("expected_roman") == "v"
+    assert ack[0].details.get("observed_roman") == "ix"
+
+
+def test_p037_multipage_acknowledgements_shifts_toc_expectation_no_finding(
+    tmp_path: Path,
+) -> None:
+    """Regression (the confirmed Anthony/Praneeth bug): when Acknowledgements
+    spans two physical pages (a common real layout -- no repeated heading on
+    the continuation page), Table of Contents' expected value must shift
+    accordingly rather than stay pinned to the NJIT template's single-page
+    default slot. An unbroken sequence here must not be flagged."""
+    pdf_path = tmp_path / "p037_multipage_ack_toc_shift.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        (None, None, "v"),  # unheaded Dedication page
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        (None, None, "vii"),  # Acknowledgements continuation, no repeated heading
+        ("TABLE OF CONTENTS", None, "viii"),  # NOT "vii" -- correctly shifted
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    assert not findings
+
+
+def test_p037_multipage_acknowledgements_genuine_toc_error_still_detected(
+    tmp_path: Path,
+) -> None:
+    """The dynamic shift must not make the rule blind: a genuinely wrong Table
+    of Contents numeral after a multi-page Acknowledgements section must still
+    be flagged, against the correctly shifted expectation."""
+    pdf_path = tmp_path / "p037_multipage_ack_toc_still_wrong.pdf"
+    _make_p037_pdf(pdf_path, [
+        ("BIOGRAPHICAL SKETCH", None, "iv"),
+        (None, None, "v"),  # unheaded Dedication page
+        ("ACKNOWLEDGEMENTS", None, "vi"),
+        (None, None, "vii"),  # Acknowledgements continuation, no repeated heading
+        ("TABLE OF CONTENTS", None, "x"),  # wrong: should be "viii"
+        (None, "CHAPTER 1 INTRODUCTION", "1"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_roman_section_anchors(model) if f.rule_id == "P037"]
+    toc = [f for f in findings if f.details.get("section_key") == "table_of_contents"]
+    assert toc
+    assert toc[0].details.get("expected_roman") == "viii"
+    assert toc[0].details.get("observed_roman") == "x"
 
 
 def test_p037_finding_metadata_privacy_safe(tmp_path: Path) -> None:
