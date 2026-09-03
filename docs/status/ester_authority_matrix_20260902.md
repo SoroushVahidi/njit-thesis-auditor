@@ -88,6 +88,7 @@ Authority precedence: live Ester finding-level workbook; Ester Gmail; repeated a
 | R082 | P082 | - | Landscape Page-Number Orientation Advisory | NO | NO ESTER DECISION FOUND | Repository search completed; no rule-specific judgment found | Not established; No action; surface only if a concrete ambiguity matters. |
 | R083 | P083 | - | EF-Comment Coverage Taxonomy and In-Scope Gap Register | NO | NO ESTER DECISION FOUND | Repository search completed; no rule-specific judgment found | Not established; No action; surface only if a concrete ambiguity matters. |
 | R084 | P084 | Q023 | Biographical Sketch Birth Information | ANALOGOUS | ANALOGOUS GUIDANCE ONLY | data/specs/ester_q_matrix.json; catalog Q mapping | No clear conflict found; Preserve current behavior; no policy expansion. |
+| R085 | P085 | - | First Body Chapter Heading | YES | EXPLICIT - REQUIRED FINDING | live Ester feedback workbook; Ester Gmail | Yes after P085 implementation; require literal CHAPTER 1 at the first body chapter and keep it separate from P019/P028 numbering. |
 
 ## Live Provenance
 

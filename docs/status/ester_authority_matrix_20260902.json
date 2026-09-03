@@ -1512,6 +1512,24 @@
       ],
       "feedback_question": "",
       "feedback_remediation": ""
+    },
+    {
+      "public_rule": "R085",
+      "internal_rule": "P085",
+      "q_source": [],
+      "topic": "First Body Chapter Heading",
+      "ester_decision_exists": "YES",
+      "decision": "EXPLICIT - REQUIRED FINDING",
+      "evidence_source": "live Ester feedback workbook; Ester Gmail",
+      "confidence_in_interpretation": "High",
+      "current_detector_aligned": "Yes after P085 implementation",
+      "action": "Require literal CHAPTER 1 at the first body chapter; do not report the issue as a P019/P028 numbering symptom.",
+      "implementation_module": "njit_auditor.rules.pdf_first_chapter_heading",
+      "issue_types": [
+        "missing_first_chapter_one_heading"
+      ],
+      "feedback_question": "The first body page should begin with literal CHAPTER 1; Patrick's INTRODUCTION in that position is an error.",
+      "feedback_remediation": "Add the literal CHAPTER 1 heading at the beginning of the first body chapter."
     }
   ]
 }

@@ -376,6 +376,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "place-of-birth or date-of-birth information. Remove place of birth "
         "and date of birth from the Biographical Sketch."
     ),
+    ("P085", "missing_first_chapter_one_heading"): (
+        "The first body page on page {page} does not begin with the required "
+        "CHAPTER 1 heading. Add the literal CHAPTER 1 heading at the beginning "
+        "of the first body chapter."
+    ),
     ("P001", "risky_command"): (
         "Risky formatting command '\\{command}' at {location}. "
         "Manual overrides can break NJIT layout requirements."

@@ -1818,5 +1818,30 @@
     "remediation": "Remove place of birth and date of birth from the Biographical Sketch.",
     "source_file": "project_added",
     "notes": "Intentionally narrow: scans only the unique BIOGRAPHICAL SKETCH page, stops before Publications/Presentations."
+  },
+  {
+    "id": "P085",
+    "title": "First Body Chapter Heading",
+    "description": "Checks that the first body page begins with the required literal CHAPTER 1 heading.",
+    "section": "PDF body structure",
+    "question": "Does the first body chapter begin with the required CHAPTER 1 heading?",
+    "rule_definition": "Identify the first body page using the shared page-region classification and inspect its top heading. Accept normal spacing/case normalization, including extracted CHAPTER1, but do not accept a later CHAPTER 1 heading as satisfying the first-body requirement.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_first_chapter_heading",
+    "rule_type": "detection",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_first_chapter_heading.py",
+      "src/njit_auditor/rules/pdf_page_numbering_regime.py",
+      "src/njit_auditor/rules/pdf_headings.py"
+    ],
+    "issue_types": [
+      "missing_first_chapter_one_heading"
+    ],
+    "remediation": "Add the literal CHAPTER 1 heading at the beginning of the first body chapter.",
+    "source_file": "project_added",
+    "notes": "Atomic structural check derived from Ester's confirmed Patrick judgment. Does not check page numbering, capitalization, indentation, or later chapter headings."
   }
 ]

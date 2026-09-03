@@ -548,6 +548,11 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "or date-of-birth information. Remove place of birth and date of birth "
         "from the Biographical Sketch."
     ),
+    ("P085", "missing_first_chapter_one_heading"): (
+        "This means the first body page does not begin with the required "
+        "CHAPTER 1 heading. Add the literal CHAPTER 1 heading at the beginning "
+        "of the first body chapter."
+    ),
     ("P075", "toc_mixed_leader_styles"): (
         "The Table of Contents uses different leader styles, such as dots and "
         "hyphens, to connect entries to page numbers. Use one consistent "

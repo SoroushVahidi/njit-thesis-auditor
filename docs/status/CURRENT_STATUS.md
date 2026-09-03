@@ -20,7 +20,7 @@ _Last verified: 2026-09-01, after the R017/P017 wrapped-caption and inline-refer
 | `mypy src` | clean, 113 source files |
 | `python -m pytest` | **3192 passed**, 3 warnings |
 | Live deployment worktree | detached at `7232305d89e97c233002bf0c8077bad01e9e3f44`; not updated by this pass |
-| Rule inventory | P001–P084 implemented; no remaining non-inventory project task IDs; next new internal rule ID remains P085 |
+| Rule inventory | P001–P085 implemented; no remaining non-inventory project task IDs; next new internal rule ID remains P086 |
 
 ## Current Evaluation Corpus
 
