@@ -54,8 +54,10 @@ correct list and numbering format?
 **Evidence:** The current detector produces no positive R055 findings for the
 seven dissertations. Many extracted list entries begin with numeric labels
 such as `1.1` or `1`, so the detector deliberately does not infer the object
-type from the number alone. The question is whether that conservative gate is
-the intended policy, not whether zero findings prove compliance.
+type from the number alone. See the representative, non-finding context note
+at `docs/evaluation/ester_feedback/R055_numeric_only_context_20260902.md`.
+The question is whether that conservative gate is the intended policy, not
+whether zero findings prove compliance.
 
 **Why human judgment is required:** The available PDF evidence does not expose
 an explicit object-type prefix for many entries, and broadening the classifier
