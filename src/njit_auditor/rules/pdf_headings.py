@@ -1,6 +1,6 @@
 """Heuristic named front-matter heading checks for layout-aware PDF text lines."""
 
-from __future__ import annotations
+# # from __future__ import annotations
 
 import re
 from dataclasses import dataclass

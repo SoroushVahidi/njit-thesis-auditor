@@ -17,6 +17,10 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument
+from fitz import fitz
+from fitz import fitz
+from fitz import fitz
+from fitz import fitz
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
