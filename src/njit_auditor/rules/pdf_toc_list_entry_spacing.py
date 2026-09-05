@@ -5,6 +5,8 @@ Partial heuristic PDF coverage for Q057, Q067, and Q077.
 
 from __future__ import annotations
 
+import re
+
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import _clean_text, detect_toc_like_pages
@@ -79,6 +81,35 @@ def _group_lines_into_entries(
     return entries
 
 
+def _classify_entry_level(text: str, page_type: str) -> str:
+    """Classify the hierarchical level/kind of a TOC/List entry line."""
+    cleaned = _clean_text(text)
+    if page_type == "list_of_tables":
+        return "table_entry"
+    if page_type == "list_of_figures":
+        return "figure_entry"
+
+    normalized = cleaned.upper()
+    if normalized.startswith("CHAPTER") or normalized.startswith("APPENDIX"):
+        return "toc_level_1"
+    if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+", cleaned):
+        return "toc_level_3"
+    if re.match(r"^[0-9]+\.[0-9]+", cleaned):
+        return "toc_level_2"
+    if re.match(r"^[0-9]+\s", cleaned):
+        return "toc_level_1"
+    if re.match(r"^[IVXLCDM]+\s", cleaned):
+        return "toc_level_1"
+
+    words = [w for w in re.split(r"[.\s\d]+", normalized) if w]
+    if words:
+        first_word = words[0]
+        if first_word in ("REFERENCES", "BIBLIOGRAPHY", "VITA", "GLOSSARY", "INDEX"):
+            return "toc_level_1"
+
+    return "unknown"
+
+
 def _triage_tier(gap_ratio: float) -> str:
     if gap_ratio < 1.1:
         return "high"
@@ -106,6 +137,11 @@ def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFin
             last_line = previous_entry[-1]
             first_line = next_entry[0]
             if _has_intervening_page_number_line(context, last_line, first_line):
+                continue
+
+            prev_level = _classify_entry_level(previous_entry[0].text, context.page_type)
+            next_level = _classify_entry_level(next_entry[0].text, context.page_type)
+            if prev_level != next_level:
                 continue
 
             gap_pt = first_line.bbox.y0 - last_line.bbox.y1
