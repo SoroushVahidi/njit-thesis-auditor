@@ -580,6 +580,14 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Problem: A figure entry on page {page} appears in the List of Figures "
         "but describes a table. Move this entry to the List of Tables."
     ),
+    ("P055", "lot_entry_missing_table_prefix"): (
+        "Problem: A List of Tables entry on page {page} is missing the required 'Table' prefix "
+        "before its number. Prepend 'Table ' to each List of Tables entry."
+    ),
+    ("P055", "lof_entry_missing_figure_prefix"): (
+        "Problem: A List of Figures entry on page {page} is missing the required 'Figure' prefix "
+        "before its number. Prepend 'Figure ' to each List of Figures entry."
+    ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "Problem: Table of Contents page numbers on page {page} do not appear "
@@ -816,6 +824,8 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "",
     ("P055", "lof_entry_is_table"): "",
+    ("P055", "lot_entry_missing_table_prefix"): "",
+    ("P055", "lof_entry_missing_figure_prefix"): "",
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
 }
