@@ -65,7 +65,7 @@ mypy_path = "src"
 packages = ["njit_auditor"]
 
 [[tool.mypy.overrides]]
-module = ["fitz"]
+module = ["fitz", "pymupdf"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

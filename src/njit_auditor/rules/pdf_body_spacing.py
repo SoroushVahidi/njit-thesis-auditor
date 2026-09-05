@@ -50,13 +50,17 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_captions import detect_caption_lines
 from njit_auditor.rules.pdf_headings import (
-    EXPECTED_HEADINGS,
-    find_body_start_page,
-    normalize_heading_text,
+    find_body_start_page as pdf_headings_find_body_start_page,
 )
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, TOP_BOTTOM_ZONE_RATIO
 from njit_auditor.rules.pdf_references_citations_structural import (
     references_section_page_numbers,
+)
+
+# Import from utils instead of pdf_headings to break circular dependency
+from njit_auditor.utils.pdf_structural_headings import (
+    EXPECTED_HEADINGS,
+    normalize_heading_text,
 )
 
 DOUBLE_SPACING_RATIO_THRESHOLD = 1.55
@@ -363,7 +367,7 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     # Skip all pages that precede the first CHAPTER/APPENDIX heading. These are
     # front-matter pages (biographical sketch, publication lists, TOC continuation
     # pages, etc.) that are legitimately single-spaced or tightly formatted.
-    body_start = find_body_start_page(pdf_doc)
+    body_start = pdf_headings_find_body_start_page(pdf_doc)
 
     # Exclude the entire References/Bibliography section, including continuation
     # pages that do not repeat the heading. Reference-entry spacing has its own
