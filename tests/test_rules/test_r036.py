@@ -123,12 +123,30 @@ def test_r036_chapter_boundary_accepted():
     )
 
 
-def test_r036_appendix_boundary_accepted():
-    """TOC appendix structural rows should be ignored from spacing checks"""
+def test_r036_appendix_boundary_still_flagged_when_tight():
+    """A section's last entry ending tightly into the next chapter/appendix
+    heading is a genuine spacing defect, not a heading-to-child exemption --
+    only a heading immediately followed by its OWN first child is exempt."""
     doc = make_mock_toc_doc(
         [
             ("3.5 Conclusion ......... 77", 150.0, 162.0),
             ("APPENDIX", 172.0, 184.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_appendix_heading_to_first_child_accepted():
+    """An appendix heading immediately followed by its own first entry is
+    exempt, same as a chapter heading followed by its first subsection."""
+    doc = make_mock_toc_doc(
+        [
+            ("APPENDIX", 150.0, 162.0),
+            ("1.1 Supplementary Data ......... 130", 172.0, 184.0),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)

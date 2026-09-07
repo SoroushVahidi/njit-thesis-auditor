@@ -110,6 +110,30 @@ def _classify_entry_level(text: str, page_type: str) -> str:
     return "unknown"
 
 
+_TOC_LEVEL_DEPTH = {"toc_level_1": 1, "toc_level_2": 2, "toc_level_3": 3}
+
+
+def _is_heading_to_first_child_boundary(prev_level: str, next_level: str) -> bool:
+    """Return True only when *next* is the immediate first child of *prev*.
+
+    A chapter/appendix heading (or a numbered entry) followed directly by
+    its own first, more deeply nested child entry routinely has a looser
+    gap convention than peer-to-peer spacing -- that transition alone is
+    exempt. The reverse direction (a subsection's *last* entry followed by
+    the *next* chapter/appendix heading, e.g. "3.5 Conclusion" ->
+    "APPENDIX") is a different transition -- finishing one section and
+    starting the next -- and is not exempt: a genuinely tight gap there is
+    still a real spacing defect, not a heading-child layout artifact.
+    Same-level pairs and pairs involving an unclassifiable ("unknown")
+    entry are likewise never exempt by this check.
+    """
+    prev_depth = _TOC_LEVEL_DEPTH.get(prev_level)
+    next_depth = _TOC_LEVEL_DEPTH.get(next_level)
+    if prev_depth is None or next_depth is None:
+        return False
+    return prev_depth < next_depth
+
+
 def _triage_tier(gap_ratio: float) -> str:
     if gap_ratio < 1.1:
         return "high"
@@ -141,7 +165,7 @@ def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFin
 
             prev_level = _classify_entry_level(previous_entry[0].text, context.page_type)
             next_level = _classify_entry_level(next_entry[0].text, context.page_type)
-            if prev_level != next_level:
+            if _is_heading_to_first_child_boundary(prev_level, next_level):
                 continue
 
             gap_pt = first_line.bbox.y0 - last_line.bbox.y1
