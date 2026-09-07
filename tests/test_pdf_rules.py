@@ -4833,6 +4833,58 @@ def test_p024_lof_common_nouns_in_title_case_warn(tmp_path: Path) -> None:
     assert lof_findings[0].details.get("entry_index") == "0"
 
 
+def test_p024_lof_parenthetical_proper_names_do_not_tip_sentence_case_ratio(
+    tmp_path: Path,
+) -> None:
+    """Parenthetical taxonomic/proper-name lists are not title-case evidence."""
+    pdf_path = tmp_path / "lof_parenthetical_names.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            (
+                "Figure 1 Representative Neotropical snake species "
+                "(Families: Elapidae, Aniliidae, and Boidae) ....",
+                108,
+            ),
+            ("Figure 2 Overview of the experimental setup for this study ....", 108),
+            ("Figure 3 Summary of findings from pilot testing ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024"
+        and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        and f.details.get("entry_index") == "0"
+        for f in findings
+    )
+
+
+def test_p024_lot_non_latin_hyphenated_term_is_not_split_for_title_case(
+    tmp_path: Path,
+) -> None:
+    """A Greek-prefixed scientific term must not make its suffix look lowercase."""
+    pdf_path = tmp_path / "lot_scientific_hyphenated_term.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 Measurement of β-casein concentration across samples ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024"
+        and f.details.get("issue_type") == "list_of_tables_title_case"
+        and "casein" in f.message
+        for f in findings
+    )
+
+
 def test_p024_leader_dots_and_page_number_stripped_before_check(tmp_path: Path) -> None:
     """Leader dots and trailing page numbers must be stripped before capitalization check."""
     pdf_path = tmp_path / "lot_stripped.pdf"

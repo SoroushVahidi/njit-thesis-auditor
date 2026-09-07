@@ -349,7 +349,9 @@ def _is_statistical_notation_word(text: str, word: str, start: int, end: int) ->
     )
 
 
-def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
+def check_apa_title_case_phrase(
+    text: str, *, skip_hyphenated_fragments: bool = False
+) -> list[dict[str, str]]:
     """
     Check NJIT/APA title case for a phrase.
 
@@ -357,7 +359,10 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
     An empty list means no issues detected.
 
     Conservative: skips hyphenated words, all-caps acronyms, and words with
-    digits or special characters. Only flags clear under-capitalization.
+    digits or special characters. When requested, also skips alphabetic
+    fragments following a hyphen, which can be produced when a PDF extractor
+    drops a non-Latin prefix from a scientific term. Only flags clear
+    under-capitalization.
     Does not flag over-capitalization (e.g. 'The' in the middle).
     """
     words_with_info = _words_with_sep_info(text)
@@ -371,6 +376,13 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
 
         # Skip math/digit/equation tokens.
         if _should_skip_word(word):
+            continue
+
+        # A non-Latin hyphenated prefix (for example, a Greek letter in a
+        # scientific name) may be omitted by the word tokenizer, leaving only
+        # the suffix as an apparent standalone English word. This opt-in is
+        # used by P024's List of Tables path; P020 keeps its existing behavior.
+        if skip_hyphenated_fragments and start > 0 and text[start - 1] in "-‐‑‒–—":
             continue
 
         # Skip letter fragments glued to digits (10k / 5k / 1k).
