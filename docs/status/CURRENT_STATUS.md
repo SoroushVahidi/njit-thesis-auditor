@@ -7,7 +7,8 @@
 > write detailed records under `docs/status/` and link them from this file.
 
 _Last verified: 2026-09-07, on the `research/ester-feedback-through-r033-20260901` branch,
-after the R036 wrapped-entry false-positive fix. `main`'s own last verified state
+after R018 finding-level review, the R035 Praneeth text-fallback centering
+fix, and porting `main`'s P024 hardening. `main`'s own last verified state
 below is still 2026-09-01; the research branch is the current engineering
 front and has not yet been integrated back into `main` (see Research Branch
 section)._
@@ -25,16 +26,17 @@ section)._
 | `python -m pytest` | **3192 passed**, 3 warnings |
 | Live deployment worktree | detached at `7232305d89e97c233002bf0c8077bad01e9e3f44`; not updated by this pass |
 | Rule inventory | P001–P085 implemented; no remaining non-inventory project task IDs; next new internal rule ID remains P086 |
-| Uncommitted work | `pdf_title_capitalization.py` / `pdf_toc_list_formatting.py` / `tests/test_pdf_rules.py` — proactive P024 false-positive hardening (hyphenated-fragment title-case skip; parenthetical proper-noun exclusion from sentence-case scoring), not yet Ester-reviewed, tests pass (713/713), not yet ported to the research branch. Left in place; not destructive to touch. |
+| Uncommitted work | `pdf_title_capitalization.py` / `pdf_toc_list_formatting.py` / `tests/test_pdf_rules.py` — proactive P024 false-positive hardening (hyphenated-fragment title-case skip; parenthetical proper-noun exclusion from sentence-case scoring). **Now redundant**: reimplemented and committed on the research branch at `b80eff7` (not a cherry-pick — the two files had diverged too far). Still present, untouched, and safe to leave as-is or discard once main is reconciled with the research branch; nothing unique remains in it. |
 
 ## Research Branch (current engineering front, 2026-09-07)
 
 | Field | Value |
 |---|---|
 | Branch | `research/ester-feedback-through-r033-20260901` |
-| HEAD | `2a0289d` (local == origin at time of writing minus this session's 2 unpushed commits: `aea0e81` fix(r036) wrap-continuation FP, `2a0289d` R036 package regen) |
-| CI | green through `1d24080` (the commit immediately before this session's work) |
-| `python -m pytest` | 3330 passed, 2 skipped (clean venv, PyMuPDF 1.28.2) |
+| HEAD | `d5a1d0d`; **3 commits ahead of origin, not yet pushed** as of this update |
+| Commits this session (chronological) | `aea0e81` fix(r036) wrap-continuation FP · `2a0289d` R036 package regen · `4f9f96f` docs sync · (pushed, CI green) · `6facf49` fix(r035) text-fallback centering FP · `b80eff7` fix(r024) ported P024 hardening · `d5a1d0d` R024/R035 package regen (unpushed) |
+| CI | green through `4f9f96f` (last pushed commit, run `34147723480`); `6facf49`/`b80eff7`/`d5a1d0d` not yet pushed |
+| `python -m pytest` | 3335 passed, 2 skipped (clean venv, PyMuPDF 1.28.2) |
 | **Environment hazard** | The box's ambient/default `python3` venv has PyMuPDF 1.24.6, **below** the `>=1.25.0` floor `pyproject.toml` requires. Running the auditor or its evaluation tooling under that venv silently produces materially different (wrong) geometry results — confirmed directly (P036 counts differed by 4x between the two venvs on identical PDFs). Always use a venv with PyMuPDF `>=1.25.0` for any private-corpus evaluation. A correct one already exists at `/tmp/njit-auditor-final-gate-20260907105625`. |
 
 ## Current Evaluation Corpus
@@ -46,8 +48,8 @@ must not be quoted, uploaded, or committed.
 
 ## Feedback-Cycle Rule State
 
-_Updated 2026-09-07 — the table below was stale as of 2026-09-01: R016, R018,
-R020, R023, R026, R028, R033 were already resolved by
+_Updated 2026-09-07 (second pass) — the table below was stale as of 2026-09-01:
+R016, R018, R020, R023, R026, R028, R033 were already resolved by
 `docs/status/ester_authority_matrix_20260902.md` the very next day, and
 R035/R036/R055/R085 have since been implemented and regression-tested. See
 `docs/status/ester_authority_matrix.md` for the current pointer and known
@@ -55,11 +57,10 @@ deltas._
 
 | State | Rules |
 |---|---|
-| Closed, Ester-adjudicated, regression-tested against fresh audit | R011, R015, R016, R017, R019/R028 (page-number ownership split), R020, R023, R026 (except Latin Modern alias, still unresolved), R033, R036, R055 |
+| Closed, Ester-adjudicated, regression-tested against fresh audit | R011, R015, R016, R017, R019/R028 (page-number ownership split), R020, R023, R026 (except Latin Modern alias, still unresolved), R033, R035 (Anthony's reviewed false positives confirmed gone; a structural centering bug affecting Praneeth's page-72 finding was found and fixed independently of any Ester text — see `docs/status/r035_praneeth_text_fallback_fix_20260907.md`), R036, R055 |
 | Closed, engineering-confirmed genuine violation | R085 (Patrick's missing literal CHAPTER 1) |
-| Implemented but one case needs Ester clarification | R035 (Anthony's reviewed false positives confirmed gone; Praneeth still produces 4 live centering findings and this repo has no record of whether those match what Ester reviewed — see authority matrix pointer) |
-| Needs one more finding-level verification pass before calling closed | R018 (structural evidence-selection fix present and tests pass; have not independently confirmed the surviving Anthony/Praneeth findings are the retained genuine 1.3.3/1.3.4/1.3.5 misalignment rather than a reintroduced instance of a suppressed pattern) |
-| Genuinely unresolved — no Ester decision exists | R024, R034, Latin Modern font-alias expansion (R026 sub-issue) |
+| **Genuinely unresolved — searched exhaustively, no recoverable Ester verdict text exists in the repo, do not guess** | R018 (the authority matrix's "suppress the selected Anthony/Praneeth false positives" line is a directive, not a confirmation; no commit implements it; the tracked R018 xlsx was never returned by Ester; see `docs/status/r018_finding_level_review_20260907.md` for the full finding-level table and why this can't be resolved from repository evidence alone) |
+| Genuinely unresolved — no Ester decision exists, general correctness hardening applied proactively | R024 (P024 title-case/sentence-case hardening ported from `main`, reduces two false-positive classes; still awaiting an actual Ester review), R034, Latin Modern font-alias expansion (R026 sub-issue) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward |
 

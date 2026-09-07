@@ -12,22 +12,26 @@
 
 - **R035/R036/R055**: the 2026-09-02 matrix rows still read "NOT judged by
   Ester" / "needs Ester judgment." Ester's Sep-4 review resolved all three
-  (see commits `97cc8a3`, `1a90501`, `1d24080`, `aea0e81`). R055 requires the
-  literal word "Table"/"Figure" before an `X.x` List of Tables/Figures entry
-  number. R036 exempts only a heading-to-its-own-first-child spacing
-  transition, not the reverse. R035 fixed the reviewed Anthony false
-  positives via landscape-aware centering tolerance; **Praneeth still
-  produces 4 live centering findings post-fix, and this repo has no record
-  of whether those are the same pages Ester reviewed** (the review happened
-  outside this repo — Gmail/live Sheet — and the regenerated Sep-5 R035
-  package's Correct?/Notes columns were never returned). Treat as open until
-  confirmed against Ester's actual response, not as a settled false positive
-  or a settled regression.
+  (see commits `97cc8a3`, `1a90501`, `1d24080`, `aea0e81`, `6facf49`). R055
+  requires the literal word "Table"/"Figure" before an `X.x` List of
+  Tables/Figures entry number. R036 exempts only a heading-to-its-own-first-child
+  spacing transition, not the reverse. R035 fixed the reviewed Anthony false
+  positives via landscape-aware centering tolerance; Praneeth's page-72
+  finding turned out to be an unrelated structural bug (text fragments used
+  as a figure-body proxy when no graphic block was found), fixed at
+  `6facf49` — see `r035_praneeth_text_fallback_fix_20260907.md`. Her
+  remaining 3 findings (pages 67, 69, 100) were never sent to Ester and are
+  not, per project policy, false positives merely for being unreviewed.
 - **R016, R018, R020, R023, R026, R028, R033**: `CURRENT_STATUS.md`'s
   historical "Friday discussion / frozen for tuning" label predates this
   matrix and is stale; the 2026-09-02 matrix already records explicit
-  Ester decisions for all of these.
+  Ester decisions for all of these, **except R018**, whose row is a task
+  directive that was never confirmed as completed anywhere in this repo —
+  see `r018_finding_level_review_20260907.md`. R018 is genuinely
+  UNRESOLVED, not settled.
 - **R024**: still "NO ESTER DECISION FOUND" — accurate as of this writing.
-  Unrelated, not-yet-Ester-reviewed hardening exists uncommitted on the
-  `main` worktree (title-case hyphenated-fragment and parenthetical
-  proper-noun handling); not yet ported to the research branch.
+  The hardening that existed uncommitted on the `main` worktree (title-case
+  hyphenated-fragment and parenthetical proper-noun handling) has been
+  reimplemented and committed on the research branch at `b80eff7`; it is
+  general correctness work, not a response to an Ester decision (none
+  exists for R024).
