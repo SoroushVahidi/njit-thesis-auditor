@@ -1,0 +1,157 @@
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    PdfTextSpan,
+)
+from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_type
+
+
+def make_mock_list_doc(lines, page_type="list_of_tables"):
+    page = PdfPage(
+        page_number=1,
+        original_page_index=0,
+        original_page_number=1,
+        manuscript_page_index=0,
+        manuscript_page_number=1,
+        width=612.0,
+        height=792.0,
+        is_visually_landscape=False,
+        text_blocks=[],
+        graphic_blocks=[],
+    )
+
+    header_text = (
+        "LIST OF TABLES" if page_type == "list_of_tables" else "LIST OF FIGURES"
+    )
+    cap_bbox = BBox(x0=108.0, y0=100.0, x1=540.0, y1=115.0)
+    span = PdfTextSpan(text=header_text, bbox=cap_bbox)
+    line = PdfTextLine(spans=[span], bbox=cap_bbox, text=header_text)
+    block = PdfTextBlock(lines=[line], bbox=cap_bbox, text=header_text)
+    page.text_blocks.append(block)
+
+    for idx, (text, page_num) in enumerate(lines):
+        y0 = 150.0 + idx * 30.0
+        y1 = y0 + 12.0
+        full_text = f"{text} ..................................... {page_num}"
+        bbox = BBox(x0=108.0, y0=y0, x1=540.0, y1=y1)
+
+        span_text = PdfTextSpan(text=text, bbox=BBox(x0=108.0, y0=y0, x1=450.0, y1=y1))
+        span_dots = PdfTextSpan(
+            text=".....................................",
+            bbox=BBox(x0=450.0, y0=y0, x1=500.0, y1=y1),
+        )
+        span_num = PdfTextSpan(
+            text=str(page_num), bbox=BBox(x0=510.0, y0=y0, x1=540.0, y1=y1)
+        )
+
+        line = PdfTextLine(
+            spans=[span_text, span_dots, span_num], bbox=bbox, text=full_text
+        )
+        block = PdfTextBlock(lines=[line], bbox=bbox, text=full_text)
+        page.text_blocks.append(block)
+
+    doc = PdfDocument(path="mock.pdf", pages=[page])
+    return doc
+
+
+def test_r055_valid_table_prefix():
+    """Test valid Table 1.1 entry should not generate finding"""
+    doc = make_mock_list_doc(
+        [
+            ("Table 1.1 Experimental Results", 12),
+            ("Table 1.2 Quantitative Analysis", 15),
+        ],
+        "list_of_tables",
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert not any(
+        "lot_entry_is_figure" in f.details.get("issue_type", "") for f in findings
+    )
+    assert not any(
+        "lof_entry_is_table" in f.details.get("issue_type", "") for f in findings
+    )
+    assert not any(
+        "lot_entry_missing_table_prefix" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r055_numeric_only_lot_entry():
+    """Test numeric-only LoT entry should generate missing Table prefix finding"""
+    doc = make_mock_list_doc(
+        [
+            ("1.1 Experimental Results", 12),
+            ("1.2 Quantitative Analysis", 15),
+        ],
+        "list_of_tables",
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert any(
+        "lot_entry_missing_table_prefix" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r055_cross_type_lot():
+    """Test Figure 1.1 in List of Tables should generate wrong-type violation"""
+    doc = make_mock_list_doc(
+        [
+            ("Figure 1.1 Experimental Results", 12),
+            ("Table 1.2 Quantitative Analysis", 15),
+        ],
+        "list_of_tables",
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert any(
+        "lot_entry_is_figure" in f.details.get("issue_type", "") for f in findings
+    )
+
+
+def test_r055_cross_type_lof():
+    """Test Table 1.1 in List of Figures should generate wrong-type violation"""
+    doc = make_mock_list_doc(
+        [
+            ("Table 1.1 Experimental Results", 12),
+            ("Figure 1.2 Quantitative Analysis", 15),
+        ],
+        "list_of_figures",
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert any(
+        "lof_entry_is_table" in f.details.get("issue_type", "") for f in findings
+    )
+
+
+def test_r055_valid_figure_prefix():
+    """Test valid Figure 1.1 entry should not generate finding"""
+    doc = make_mock_list_doc(
+        [
+            ("Figure 1.1 System Architecture", 12),
+            ("Figure 1.2 Experimental Setup", 15),
+        ],
+        "list_of_figures",
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert not any(
+        "lof_entry_missing_figure_prefix" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r055_numeric_only_lof_entry():
+    """Test numeric-only LoF entry should generate missing Figure prefix finding"""
+    doc = make_mock_list_doc(
+        [
+            ("1.1 System Architecture", 12),
+            ("1.2 Experimental Setup", 15),
+        ],
+        "list_of_figures",
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert any(
+        "lof_entry_missing_figure_prefix" in f.details.get("issue_type", "")
+        for f in findings
+    )

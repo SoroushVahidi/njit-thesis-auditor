@@ -88,7 +88,10 @@ def test_help_contains_rule_id_definition(client: tuple[TestClient, Any]) -> Non
     resp = c.get("/help")
     body = resp.text
     assert "Rule ID" in body or "rule id" in body.lower()
-    assert "P013" in body or "P0" in body
+    # The help page shows the student-facing Rxxx form, not the internal
+    # Pxxx catalog id (see public_display_rule_id).
+    assert "R013" in body or "R0" in body
+    assert "P013" not in body
 
 
 def test_help_contains_high_volume_triage_explanation(client: tuple[TestClient, Any]) -> None:

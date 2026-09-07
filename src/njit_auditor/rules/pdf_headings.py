@@ -1,6 +1,6 @@
 """Heuristic named front-matter heading checks for layout-aware PDF text lines."""
 
-from __future__ import annotations
+# from __future__ import annotations
 
 import re
 from dataclasses import dataclass
@@ -9,11 +9,7 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
 
-INCH_TO_PT = 72.0
-TOP_ZONE_PT = 2.0 * INCH_TO_PT
-CENTER_TOLERANCE_PT = 18.0
-BORDERLINE_CENTER_TOLERANCE_PT = 26.0
-
+# Re-export expected headings and helper functions for backward compatibility
 EXPECTED_HEADINGS: tuple[str, ...] = (
     "ABSTRACT",
     "APPROVAL PAGE",
@@ -23,6 +19,11 @@ EXPECTED_HEADINGS: tuple[str, ...] = (
     "LIST OF TABLES",
     "LIST OF FIGURES",
 )
+
+COMPACT_EXPECTED_HEADINGS: dict[str, str] = {
+    heading.replace(" ", ""): heading
+    for heading in ("TABLE OF CONTENTS", "LIST OF TABLES", "LIST OF FIGURES")
+}
 
 BOLD_FONT_HINT_RE = re.compile(r"(bold|black|heavy|semibold)", re.IGNORECASE)
 
@@ -57,7 +58,6 @@ _CHAPTER_STANDALONE_RE = re.compile(r"^(CHAPTER|APPENDIX)\s*$")
 # Lines matching this pattern are TOC entries, not real chapter headings.
 _TOC_LEADER_RE = re.compile(r"\.{4,}")
 
-
 @dataclass(frozen=True)
 class HeadingMatch:
     heading: str
@@ -74,8 +74,12 @@ class HeadingMatch:
 
 def normalize_heading_text(text: str) -> str:
     """Normalize heading text for deterministic matching."""
-
     return " ".join(text.replace("\u00a0", " ").strip().split())
+
+INCH_TO_PT = 72.0
+TOP_ZONE_PT = 2.0 * INCH_TO_PT
+CENTER_TOLERANCE_PT = 18.0
+BORDERLINE_CENTER_TOLERANCE_PT = 26.0
 
 
 def _is_bold_line(line: PdfTextLine) -> bool:
@@ -104,12 +108,11 @@ def _line_centering(
 ) -> tuple[bool, float, str]:
     """Return whether *line* is centered within tolerance of a reference midpoint.
 
-  NJIT body margins are asymmetric (1.5" left, 1" right), so the text-area
-  midpoint and physical page midpoint differ by 18pt on letter paper. Named
-  front-matter headings are often centered on the page face rather than the
-  asymmetric text-area box; accept either reference when within tolerance.
+    NJIT body margins are asymmetric (1.5" left, 1" right), so the text-area
+    midpoint and physical page midpoint differ by 18pt on letter paper. Named
+    front-matter headings are often centered on the page face rather than the
+    asymmetric text-area box; accept either reference when within tolerance.
     """
-
     bbox = _visible_text_bbox(line)
     line_center = (bbox.x0 + bbox.x1) / 2.0
     text_area_center = (text_area_x0 + text_area_x1) / 2.0
@@ -169,6 +172,13 @@ def find_body_start_page(pdf_doc: PdfDocument) -> int | None:
                 if _TOC_LEADER_RE.search(clean):
                     continue  # dotted leader → TOC entry, not a chapter heading
                 if _CHAPTER_HEADING_RE.match(clean) or _CHAPTER_HEADING_MASHED_RE.match(clean):
+                    if page.page_number in fm_page_numbers and not _line_centered(
+                        line,
+                        LEFT_MARGIN_PT,
+                        page.width - RIGHT_MARGIN_PT,
+                        page_width=page.width,
+                    ):
+                        continue
                     return page.page_number
                 # "CHAPTER" alone could be a TOC column header — skip on named FM pages.
                 if _CHAPTER_STANDALONE_RE.match(clean) and page.page_number not in fm_page_numbers:
@@ -178,7 +188,6 @@ def find_body_start_page(pdf_doc: PdfDocument) -> int | None:
 
 def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMatch]:
     """Return detected named front-matter headings with derived layout/style flags."""
-
     matches: list[HeadingMatch] = []
     expected_set = set(EXPECTED_HEADINGS)
 
@@ -190,7 +199,12 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                 raw_text = line.text.strip()
                 normalized = normalize_heading_text(raw_text)
                 normalized_upper = normalized.upper()
-                if normalized_upper not in expected_set:
+                heading = (
+                    normalized_upper
+                    if normalized_upper in expected_set
+                    else COMPACT_EXPECTED_HEADINGS.get(normalized_upper.replace(" ", ""))
+                )
+                if heading is None:
                     continue
 
                 centered, center_offset, centering_confidence = _line_centering(
@@ -199,7 +213,7 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                 text_area_center = (text_area_x0 + text_area_x1) / 2.0
                 matches.append(
                     HeadingMatch(
-                        heading=normalized_upper,
+                        heading=heading,
                         page_number=page.page_number,
                         centered=centered,
                         near_top=line.bbox.y0 <= TOP_ZONE_PT,
@@ -211,13 +225,11 @@ def find_named_frontmatter_headings(pdf_document: PdfDocument) -> list[HeadingMa
                         text_area_center_pt=text_area_center,
                     )
                 )
-
     return matches
 
 
 def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P014 warnings when detected named front-matter headings fail heuristics."""
-
     findings: list[AuditFinding] = []
     for match in find_named_frontmatter_headings(pdf_document):
         if match.centered and match.near_top and match.bold and match.all_caps:
@@ -266,5 +278,4 @@ def check_named_frontmatter_headings(pdf_document: PdfDocument) -> list[AuditFin
                 },
             )
         )
-
     return findings

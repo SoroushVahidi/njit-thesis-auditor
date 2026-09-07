@@ -30,7 +30,13 @@ from njit_auditor.rules.pdf_margins import (
 )
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
-CENTER_TOLERANCE_PT = 15.0
+CENTER_TOLERANCE_PT = 18.0  # Portrait tolerance - strict for genuine centering
+
+# Landscape pages: use text area center but allow larger deviation due to rotation
+# Ester confirmed landscape page-number positioning follows normal convention
+# So centering inference should use effective content area center
+
+LANDSCAPE_CENTER_TOLERANCE_PT = 50.0  # Larger tolerance for landscape pages
 CAPTION_BODY_GAP_PT = 8.0
 MAX_BODY_SEARCH_GAP_PT = 120.0
 MIN_BODY_LINES = 2
@@ -262,9 +268,10 @@ def _candidate_graphic_blocks(
     return above, below
 
 
-def _centering_issue(page: PdfPage, body_bbox: BBox) -> tuple[bool, float]:
+def _centering_issue(page: PdfPage, body_bbox: BBox) -> tuple[bool, float, float]:
     center_delta = abs(_bbox_center_x(body_bbox) - _text_area_center(page))
-    return center_delta > CENTER_TOLERANCE_PT, center_delta
+    tolerance = LANDSCAPE_CENTER_TOLERANCE_PT if page.is_visually_landscape else CENTER_TOLERANCE_PT
+    return center_delta > tolerance, center_delta, tolerance
 
 
 def _cluster_looks_like_body_paragraph(
@@ -301,10 +308,16 @@ def _append_finding(
     page_number: int,
     float_number: str,
     center_delta: float | None = None,
+    allowed_center_delta: float | None = None,
     bbox: BBox | None = None,
     body_bbox: BBox | None = None,
     caption_bbox: BBox | None = None,
 ) -> None:
+    allowed_delta = (
+        allowed_center_delta
+        if allowed_center_delta is not None
+        else CENTER_TOLERANCE_PT
+    )
     details: dict[str, str] = {
         "issue_type": issue_type,
         "float_type": float_type,
@@ -312,7 +325,7 @@ def _append_finding(
         "body_page": str(page_number),
         "float_number": float_number,
         "triage_tier": "review",
-        "allowed_center_delta_points": str(int(CENTER_TOLERANCE_PT)),
+        "allowed_center_delta_points": str(int(allowed_delta)),
     }
     if center_delta is not None:
         details["center_delta_points"] = f"{center_delta:.1f}"
@@ -392,7 +405,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             if primary is None:
                 continue
             body_bbox = _union_bbox(primary)
-            not_centered, center_delta = _centering_issue(page, body_bbox)
+            not_centered, center_delta, tolerance = _centering_issue(page, body_bbox)
             if not_centered:
                 _append_finding(
                     findings,
@@ -401,6 +414,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     page_number=caption.page_number,
                     float_number=float_number,
                     center_delta=center_delta,
+                    allowed_center_delta=tolerance,
                     bbox=body_bbox,
                 )
             continue
@@ -413,7 +427,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
         wrong_side = _select_body_cluster(below)
         if primary_graphic is not None:
             body_bbox = _union_bbox(primary_graphic)
-            not_centered, center_delta = _centering_issue(page, body_bbox)
+            not_centered, center_delta, tolerance = _centering_issue(page, body_bbox)
             if not_centered:
                 _append_finding(
                     findings,
@@ -422,6 +436,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     page_number=caption.page_number,
                     float_number=float_number,
                     center_delta=center_delta,
+                    allowed_center_delta=tolerance,
                     bbox=body_bbox,
                     body_bbox=body_bbox,
                     caption_bbox=caption_bbox,
@@ -468,17 +483,12 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             continue
         if primary is None:
             continue
-        body_bbox = _union_bbox(primary)
-        not_centered, center_delta = _centering_issue(page, body_bbox)
-        if not_centered:
-            _append_finding(
-                findings,
-                issue_type="figure_body_not_centered",
-                float_type="figure",
-                page_number=caption.page_number,
-                float_number=float_number,
-                center_delta=center_delta,
-                bbox=body_bbox,
-            )
+        # ``primary`` here is a text-block fallback, not a confirmed graphic
+        # body (that case already returned above via ``primary_graphic``).
+        # Text fragments above a figure caption -- axis labels, callouts,
+        # legend text extracted as their own blocks -- do not reliably
+        # represent the figure's true visual extent, so their union bbox is
+        # not a valid centering measurement. Centering is only meaningful
+        # against the actual image geometry; skip it on this fallback path.
 
     return findings

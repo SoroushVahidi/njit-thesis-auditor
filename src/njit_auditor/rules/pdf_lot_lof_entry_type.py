@@ -5,8 +5,10 @@ Heuristic PDF coverage for Q063/Q072:
   - Q072: LIST OF FIGURES column header is "Figure" — entries should be figure entries.
 
 Emits an advisory when:
-  - A complete List of Tables entry starts with "Figure" (lot_entry_is_figure).
-  - A complete List of Figures entry starts with "Table" (lof_entry_is_table).
+  - A List of Tables entry starts with "Figure" (lot_entry_is_figure) or
+    is numeric-only (lot_entry_missing_table_prefix).
+  - A List of Figures entry starts with "Table" (lof_entry_is_table) or
+    is numeric-only (lof_entry_missing_figure_prefix).
 
 TOC pages are excluded. Findings contain only structural metadata — no title text.
 """
@@ -26,17 +28,15 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 MIN_ENTRY_TEXT_LEN = 10
 
-_FIGURE_PREFIX_RE = re.compile(r"^figure\s+\d", re.IGNORECASE)
-_TABLE_PREFIX_RE = re.compile(r"^table\s+\d", re.IGNORECASE)
-
-
-def _get_entry_type_prefix(cleaned_text: str) -> str | None:
-    """Return 'table', 'figure', or None for a clear type prefix at the start of an entry."""
-    if _FIGURE_PREFIX_RE.match(cleaned_text):
-        return "figure"
-    if _TABLE_PREFIX_RE.match(cleaned_text):
-        return "table"
-    return None
+_FIGURE_PREFIX_RE = re.compile(
+    r"^figure\s+([0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)", re.IGNORECASE
+)
+_TABLE_PREFIX_RE = re.compile(
+    r"^table\s+([0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)", re.IGNORECASE
+)
+_NUMERIC_PREFIX_RE = re.compile(
+    r"^([0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)", re.IGNORECASE
+)
 
 
 def _check_lot_entry_type_page(
@@ -48,34 +48,58 @@ def _check_lot_entry_type_page(
     for idx, entry in enumerate(entries):
         if entry.page_number_token is None:
             continue
-        if len(entry.cleaned_text.strip()) < MIN_ENTRY_TEXT_LEN:
+        text = entry.cleaned_text.strip()
+        if len(text) < MIN_ENTRY_TEXT_LEN:
             continue
-        prefix = _get_entry_type_prefix(entry.cleaned_text.strip())
-        if prefix != "figure":
-            continue
-        findings.append(
-            AuditFinding(
-                rule_id="P055",
-                severity=Severity.WARNING,
-                page=context.page.page_number,
-                message=(
-                    "List of Tables entry starts with 'Figure'. "
-                    "NJIT guidelines require that the List of Tables "
-                    "contain only table entries."
-                ),
-                details={
-                    "issue_type": "lot_entry_is_figure",
-                    "page": str(context.page.page_number),
-                    "section_type": "list_of_tables",
-                    "entry_index": str(page_entry_offset + idx),
-                    "observed_entry_type": "figure",
-                    "expected_entry_type": "table",
-                    "page_number_token_present": "true",
-                    "triage_tier": "medium",
-                    "source_q_rule_id": "Q063",
-                },
+
+        if _FIGURE_PREFIX_RE.match(text):
+            findings.append(
+                AuditFinding(
+                    rule_id="P055",
+                    severity=Severity.WARNING,
+                    page=context.page.page_number,
+                    message=(
+                        "List of Tables entry starts with 'Figure'. "
+                        "NJIT guidelines require that the List of Tables "
+                        "contain only table entries."
+                    ),
+                    details={
+                        "issue_type": "lot_entry_is_figure",
+                        "page": str(context.page.page_number),
+                        "section_type": "list_of_tables",
+                        "entry_index": str(page_entry_offset + idx),
+                        "observed_entry_type": "figure",
+                        "expected_entry_type": "table",
+                        "page_number_token_present": "true",
+                        "triage_tier": "medium",
+                        "source_q_rule_id": "Q063",
+                    },
+                )
             )
-        )
+        elif _NUMERIC_PREFIX_RE.match(text):
+            findings.append(
+                AuditFinding(
+                    rule_id="P055",
+                    severity=Severity.WARNING,
+                    page=context.page.page_number,
+                    message=(
+                        "List of Tables entry is missing the required 'Table' prefix. "
+                        "NJIT guidelines require that each entry in the List of Tables "
+                        "begin with the word 'Table'."
+                    ),
+                    details={
+                        "issue_type": "lot_entry_missing_table_prefix",
+                        "page": str(context.page.page_number),
+                        "section_type": "list_of_tables",
+                        "entry_index": str(page_entry_offset + idx),
+                        "observed_entry_type": "numeric_only",
+                        "expected_entry_type": "table",
+                        "page_number_token_present": "true",
+                        "triage_tier": "medium",
+                        "source_q_rule_id": "Q063",
+                    },
+                )
+            )
     return findings
 
 
@@ -88,39 +112,63 @@ def _check_lof_entry_type_page(
     for idx, entry in enumerate(entries):
         if entry.page_number_token is None:
             continue
-        if len(entry.cleaned_text.strip()) < MIN_ENTRY_TEXT_LEN:
+        text = entry.cleaned_text.strip()
+        if len(text) < MIN_ENTRY_TEXT_LEN:
             continue
-        prefix = _get_entry_type_prefix(entry.cleaned_text.strip())
-        if prefix != "table":
-            continue
-        findings.append(
-            AuditFinding(
-                rule_id="P055",
-                severity=Severity.WARNING,
-                page=context.page.page_number,
-                message=(
-                    "List of Figures entry starts with 'Table'. "
-                    "NJIT guidelines require that the List of Figures "
-                    "contain only figure entries."
-                ),
-                details={
-                    "issue_type": "lof_entry_is_table",
-                    "page": str(context.page.page_number),
-                    "section_type": "list_of_figures",
-                    "entry_index": str(page_entry_offset + idx),
-                    "observed_entry_type": "table",
-                    "expected_entry_type": "figure",
-                    "page_number_token_present": "true",
-                    "triage_tier": "medium",
-                    "source_q_rule_id": "Q072",
-                },
+
+        if _TABLE_PREFIX_RE.match(text):
+            findings.append(
+                AuditFinding(
+                    rule_id="P055",
+                    severity=Severity.WARNING,
+                    page=context.page.page_number,
+                    message=(
+                        "List of Figures entry starts with 'Table'. "
+                        "NJIT guidelines require that the List of Figures "
+                        "contain only figure entries."
+                    ),
+                    details={
+                        "issue_type": "lof_entry_is_table",
+                        "page": str(context.page.page_number),
+                        "section_type": "list_of_figures",
+                        "entry_index": str(page_entry_offset + idx),
+                        "observed_entry_type": "table",
+                        "expected_entry_type": "figure",
+                        "page_number_token_present": "true",
+                        "triage_tier": "medium",
+                        "source_q_rule_id": "Q072",
+                    },
+                )
             )
-        )
+        elif _NUMERIC_PREFIX_RE.match(text):
+            findings.append(
+                AuditFinding(
+                    rule_id="P055",
+                    severity=Severity.WARNING,
+                    page=context.page.page_number,
+                    message=(
+                        "List of Figures entry is missing the required 'Figure' prefix. "
+                        "NJIT guidelines require that each entry in the List of Figures "
+                        "begin with the word 'Figure'."
+                    ),
+                    details={
+                        "issue_type": "lof_entry_missing_figure_prefix",
+                        "page": str(context.page.page_number),
+                        "section_type": "list_of_figures",
+                        "entry_index": str(page_entry_offset + idx),
+                        "observed_entry_type": "numeric_only",
+                        "expected_entry_type": "figure",
+                        "page_number_token_present": "true",
+                        "triage_tier": "medium",
+                        "source_q_rule_id": "Q072",
+                    },
+                )
+            )
     return findings
 
 
 def check_pdf_lot_lof_entry_type(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P055 warnings for cross-type LoT/LoF entries."""
+    """Emit P055 warnings for cross-type or missing prefix LoT/LoF entries."""
     findings: list[AuditFinding] = []
     entry_offset = 0
     for context in detect_toc_like_pages(pdf_document):

@@ -12,7 +12,11 @@ import pytest
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.polished_comments import build_polished_comment
-from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.report_outputs import (
+    audit_findings_to_json_dict,
+    public_display_rule_id,
+    write_markdown_report,
+)
 from njit_auditor.report_view import build_report_view
 
 _GENERIC_MARKERS = (
@@ -314,7 +318,9 @@ def test_p029_p037_markdown_matches_web_polished_comment() -> None:
             continue
         # Markdown should carry the same substantive problem sentence (minus Review needed prefix).
         core = fv.polished_comment.removeprefix("Review needed: ").strip()
-        assert core[:40] in md_text or fv.rule_id in md_text
+        # The Markdown report shows the student-facing Rxxx display id, not
+        # the internal Pxxx rule_id (see public_display_rule_id).
+        assert core[:40] in md_text or public_display_rule_id(fv.rule_id) in md_text
 
 
 def test_p044_abstract_indent_comment_names_page_role() -> None:

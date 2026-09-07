@@ -376,6 +376,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "place-of-birth or date-of-birth information. Remove place of birth "
         "and date of birth from the Biographical Sketch."
     ),
+    ("P085", "missing_first_chapter_one_heading"): (
+        "The first body page on page {page} does not begin with the required "
+        "CHAPTER 1 heading. Add the literal CHAPTER 1 heading at the beginning "
+        "of the first body chapter."
+    ),
     ("P001", "risky_command"): (
         "Risky formatting command '\\{command}' at {location}. "
         "Manual overrides can break NJIT layout requirements."
@@ -574,6 +579,14 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ("P055", "lof_entry_is_table"): (
         "Problem: A figure entry on page {page} appears in the List of Figures "
         "but describes a table. Move this entry to the List of Tables."
+    ),
+    ("P055", "lot_entry_missing_table_prefix"): (
+        "Problem: A List of Tables entry on page {page} is missing the required 'Table' prefix "
+        "before its number. Prepend 'Table ' to each List of Tables entry."
+    ),
+    ("P055", "lof_entry_missing_figure_prefix"): (
+        "Problem: A List of Figures entry on page {page} is missing the required 'Figure' prefix "
+        "before its number. Prepend 'Figure ' to each List of Figures entry."
     ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
@@ -811,6 +824,8 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "",
     ("P055", "lof_entry_is_table"): "",
+    ("P055", "lot_entry_missing_table_prefix"): "",
+    ("P055", "lof_entry_missing_figure_prefix"): "",
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
 }

@@ -111,6 +111,26 @@ def build_rule_rows(internal_id: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _fallback_affected_lines(details: dict[str, Any]) -> list[str]:
+    """Expose identifiable adjacent entries when a finding has no line bbox text.
+
+    P036 stores the comparison context as previews plus a gap bbox.  Keeping
+    that context in the Ester-facing summary makes the highlighted gap
+    understandable without changing detector output or selection.
+    """
+    issue_type = str(details.get("issue_type", ""))
+    if issue_type != "toc_inter_entry_spacing_too_tight":
+        return []
+    lines = []
+    previous = str(details.get("previous_entry_preview", "")).strip()
+    following = str(details.get("next_entry_preview", "")).strip()
+    if previous:
+        lines.append(f"Previous entry: {previous}")
+    if following:
+        lines.append(f"Next entry: {following}")
+    return lines
+
+
 def _fill_evidence(internal_id: str, rows: list[dict[str, Any]], evidence_dir: Path) -> None:
     for row in rows:
         if row["no_finding"]:
@@ -126,6 +146,8 @@ def _fill_evidence(internal_id: str, rows: list[dict[str, Any]], evidence_dir: P
         )
         row["location"] = evidence.location
         row["affected_lines"] = evidence.affected_lines
+        if not row["affected_lines"]:
+            row["affected_lines"] = _fallback_affected_lines(row["details"])
         row["evidence_pdf"] = out_path if out_path.exists() else None
         row["has_highlight"] = evidence.has_highlight
         # Document-level finding (row["physical_page"] is None) that names

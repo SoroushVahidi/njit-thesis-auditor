@@ -51,6 +51,7 @@ from njit_auditor.report_outputs import (
     build_audit_report,
     category_display_label,
     compact_page_list,
+    public_display_rule_id,
     sanitize_report_for_web_export,
     write_markdown_report,
 )
@@ -449,6 +450,10 @@ def _humanize_cat(category: str) -> str:
 
 
 _templates.env.filters["humanize_cat"] = _humanize_cat
+# Every place a rule id is displayed as text/aria-label to a student must go
+# through this filter (Ester requested Rxxx terminology; the catalog/tests
+# keep the internal Pxxx id -- see public_display_rule_id's docstring).
+_templates.env.filters["display_rule_id"] = public_display_rule_id
 
 
 def humanize_detail_key(value: str) -> str:

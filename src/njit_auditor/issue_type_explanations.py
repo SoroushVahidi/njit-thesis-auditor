@@ -114,6 +114,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_entry_has_terminal_period": "TOC entry has terminal period",
     "lot_entry_is_figure": "List of Tables entry describes a figure",
     "lof_entry_is_table": "List of Figures entry describes a table",
+    "lot_entry_missing_table_prefix": "List of Tables entry missing 'Table' prefix",
+    "lof_entry_missing_figure_prefix": "List of Figures entry missing 'Figure' prefix",
     "lof_entry_missing_terminal_punctuation": "List of Figures entry missing terminal punctuation",
     "toc_l2_not_indented_relative_to_l1": "TOC level-2 entry not indented relative to level-1",
     "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
@@ -548,6 +550,11 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "or date-of-birth information. Remove place of birth and date of birth "
         "from the Biographical Sketch."
     ),
+    ("P085", "missing_first_chapter_one_heading"): (
+        "This means the first body page does not begin with the required "
+        "CHAPTER 1 heading. Add the literal CHAPTER 1 heading at the beginning "
+        "of the first body chapter."
+    ),
     ("P075", "toc_mixed_leader_styles"): (
         "The Table of Contents uses different leader styles, such as dots and "
         "hyphens, to connect entries to page numbers. Use one consistent "
@@ -693,6 +700,16 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P055", "lof_entry_is_table"): (
         "This means a figure entry appears in the List of Figures but describes "
         "a table. Move this entry to the List of Tables."
+    ),
+    ("P055", "lot_entry_missing_table_prefix"): (
+        "This means a List of Tables entry is missing the required 'Table' prefix "
+        "before its number. Each entry in the List of Tables should begin with the "
+        "word 'Table' (e.g., Table 1.1 ...)."
+    ),
+    ("P055", "lof_entry_missing_figure_prefix"): (
+        "This means a List of Figures entry is missing the required 'Figure' prefix "
+        "before its number. Each entry in the List of Figures should begin with the "
+        "word 'Figure' (e.g., Figure 1.1 ...)."
     ),
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "This means Table of Contents page numbers do not appear in ascending "

@@ -23,6 +23,8 @@ from njit_auditor.report_outputs import (
     build_p038_frontmatter_heading_triage_summary,
     build_p044_abstract_indentation_triage_summary,
     compact_page_list,
+    convert_pxxx_tokens_to_public_display,
+    public_display_rule_id,
     write_json_report,
     write_markdown_report,
 )
@@ -620,22 +622,30 @@ def test_markdown_report_includes_p013_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "report_p013.md"
     write_markdown_report(_p013_findings(8), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P013 Page-Number Candidate Inventory" in text
+    assert "R013 Page-Number Candidate Inventory" in text
+    assert "P013 Page-Number Candidate Inventory" not in text
     assert "bottom_center/arabic" in text
     assert "Calibration buckets" in text
     assert "Document pattern label" in text
     assert "detector entries are retained as inventory evidence" in text
     assert "Issue type counts" in text
-    triage_pos = text.index("P013 Page-Number Candidate Inventory")
+    triage_pos = text.index("R013 Page-Number Candidate Inventory")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
 
 
 def _extract_findings_by_rule_subsection(text: str, rule_id: str) -> str:
-    """Return the text of one rule's "### {rule_id}" block under "## Findings by Rule"."""
+    """Return the text of one rule's "### {rule_id}" block under "## Findings by Rule".
+
+    ``rule_id`` is the internal Pxxx id (matching how test fixtures build
+    AuditFinding objects); the rendered Markdown shows the Rxxx display form
+    (see public_display_rule_id / convert_pxxx_tokens_to_public_display), so
+    the heading searched for here is the converted form.
+    """
+    display_rule_id = public_display_rule_id(rule_id)
     findings_by_rule_idx = text.index("## Findings by Rule")
     section = text[findings_by_rule_idx:]
-    heading = f"### {rule_id}"
+    heading = f"### {display_rule_id}"
     start = section.index(heading) + len(heading)
     rest = section[start:]
     next_heading_idx = rest.find("\n### ")
@@ -702,7 +712,8 @@ def test_markdown_findings_by_rule_omits_routine_only_p013_candidates(
     text = output_path.read_text(encoding="utf-8")
     findings_by_rule = text.split("## Findings by Rule", 1)[1]
 
-    assert "P013 Page-Number Candidate Inventory" in text
+    assert "R013 Page-Number Candidate Inventory" in text
+    assert "### R013" not in findings_by_rule
     assert "### P013" not in findings_by_rule
 
 
@@ -729,7 +740,7 @@ def test_markdown_p013_informational_summary_breaks_down_by_page_position_style(
     assert "Pages:" in section
     assert "Position:" in section
     assert "Number style:" in section
-    assert "P013 Page-Number Candidate Inventory" in section
+    assert "R013 Page-Number Candidate Inventory" in section
 
 
 def test_markdown_findings_by_rule_unaffected_for_non_p013_rules(tmp_path: Path) -> None:
@@ -843,13 +854,14 @@ def test_markdown_report_includes_p026_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "report_p026.md"
     write_markdown_report(_p026_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P026 Body Font Compliance Triage" in text
+    assert "R026 Body Font Compliance Triage" in text
+    assert "P026 Body Font Compliance Triage" not in text
     assert "CMR12" in text
     assert "Calibration buckets" in text
     assert "Document pattern label" in text
     assert "not suppressed or re-scored" in text
     assert "Issue type counts" in text
-    triage_pos = text.index("P026 Body Font Compliance Triage")
+    triage_pos = text.index("R026 Body Font Compliance Triage")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
 
@@ -900,11 +912,12 @@ def test_markdown_report_includes_p011_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "report_p011.md"
     write_markdown_report(_p011_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P011 Margin/Overflow Triage" in text
+    assert "R011 Margin/Overflow Triage" in text
+    assert "P011 Margin/Overflow Triage" not in text
     assert "left_margin" in text
     assert "Overflow distance by side" in text
-    triage_pos = text.index("P011 Margin/Overflow Triage")
-    p013_pos = text.find("P013 Page-Number Candidate Inventory")
+    triage_pos = text.index("R011 Margin/Overflow Triage")
+    p013_pos = text.find("R013 Page-Number Candidate Inventory")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
     if p013_pos >= 0:
@@ -1018,9 +1031,10 @@ def test_markdown_report_includes_p012_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "report_p012.md"
     write_markdown_report(_p012_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P012 Annotation/Comment Triage" in text
+    assert "R012 Annotation/Comment Triage" in text
+    assert "P012 Annotation/Comment Triage" not in text
     assert "Annotation type counts" in text
-    triage_pos = text.index("P012 Annotation/Comment Triage")
+    triage_pos = text.index("R012 Annotation/Comment Triage")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
     triage_section = text[triage_pos:findings_pos]
@@ -1042,7 +1056,7 @@ def test_markdown_p012_triage_section_distinguishes_from_auditor_highlight(
     output_path = tmp_path / "report_p012_wording.md"
     write_markdown_report(_p012_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    triage_pos = text.index("P012 Annotation/Comment Triage")
+    triage_pos = text.index("R012 Annotation/Comment Triage")
     findings_pos = text.index("Findings by Rule")
     triage_section = text[triage_pos:findings_pos]
     assert "uploaded PDF" in triage_section
@@ -1278,10 +1292,12 @@ def test_markdown_problems_section_orders_findings_by_page(tmp_path: Path) -> No
     rule_id_order = []
     for number, _ in headings:
         block = problems_section[problems_section.index(f"### Problem {number} —") :]
-        match = re.search(r"- Rule: `(P\d+)`", block)
+        # The rendered Markdown shows the student-facing Rxxx form, not the
+        # internal Pxxx id (see public_display_rule_id).
+        match = re.search(r"- Rule: `(R\d+)`", block)
         assert match is not None
         rule_id_order.append(match.group(1))
-    assert rule_id_order == ["P015", "P027", "P021", "P014", "P068"]
+    assert rule_id_order == ["R015", "R027", "R021", "R014", "R068"]
 
     # A source Q-rule ID attached to one finding must not leak into the
     # student-facing markdown export.
@@ -1296,9 +1312,12 @@ def test_markdown_report_is_written_and_parent_created(tmp_path: Path) -> None:
     text = output_path.read_text(encoding="utf-8")
     assert "# NJIT PDF Audit Report" in text
     assert "## Summary" in text
-    assert "### P011" in text
-    assert "### P013" in text
-    assert "### P014" in text
+    assert "### R011" in text
+    assert "### R013" in text
+    assert "### R014" in text
+    assert "### P011" not in text
+    assert "### P013" not in text
+    assert "### P014" not in text
 
 
 def test_markdown_report_includes_grouped_summary_section(tmp_path: Path) -> None:
@@ -1306,7 +1325,8 @@ def test_markdown_report_includes_grouped_summary_section(tmp_path: Path) -> Non
     write_markdown_report(_p026_findings(10), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
     assert "Repeated Findings Summary" in text
-    assert "P026" in text
+    assert "R026" in text
+    assert "P026" not in text
 
 
 def test_markdown_report_grouped_summary_before_findings_by_rule(tmp_path: Path) -> None:
@@ -1372,7 +1392,8 @@ def test_markdown_grouped_section_keeps_useful_problem_info(tmp_path: Path) -> N
     output_path = tmp_path / "report.md"
     write_markdown_report(_repeated_synthetic_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "### P099" in text
+    assert "### R099" in text
+    assert "### P099" not in text
     assert "2 occurrences" in text
     assert "Issue type: Possible synthetic marker issue" in text
     assert "Suggested fix: Re-check this item against the NJIT format requirements." in text
@@ -1463,8 +1484,8 @@ def test_markdown_grouped_section_shows_suggested_fix_for_every_group(
     section_end = text.index("\n## ", section_start + len("## Advanced grouped summaries"))
     grouped_section = text[section_start:section_end]
 
-    first_heading = grouped_section.index("### P099")
-    second_heading = grouped_section.index("### P098")
+    first_heading = grouped_section.index("### R099")
+    second_heading = grouped_section.index("### R098")
     assert first_heading < second_heading
 
     first_block = grouped_section[first_heading:second_heading]
@@ -1477,7 +1498,7 @@ def test_markdown_grouped_section_shows_suggested_fix_for_every_group(
     assert "Suggested fix: Fix the second synthetic issue." not in first_block
     assert "Suggested fix: Fix the first synthetic issue." not in second_block
     # Headings must be separated by a blank line, not run together.
-    assert "\n\n### P098" in grouped_section
+    assert "\n\n### R098" in grouped_section
 
 
 def test_markdown_grouped_section_does_not_expose_blocked_detail_text(tmp_path: Path) -> None:
@@ -1838,7 +1859,8 @@ def test_markdown_report_includes_p019_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "p019_report.md"
     write_markdown_report(_p019_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P019 Page-Numbering Triage Summary" in text
+    assert "R019 Page-Numbering Triage Summary" in text
+    assert "P019 Page-Numbering Triage Summary" not in text
     assert "Check first" in text
     assert "Review carefully" in text
     assert "Spot check" in text
@@ -1929,11 +1951,13 @@ def test_markdown_report_includes_p036_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "p036_report.md"
     write_markdown_report(_p036_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P036 TOC/List Spacing Triage" in text
+    assert "R036 TOC/List Spacing Triage" in text
+    assert "P036 TOC/List Spacing Triage" not in text
     assert "Spacing gap bucket counts" in text
     assert "Triage tier counts" not in text
-    assert "Raw per-page P036 findings are listed under **Findings by Rule → P036** below." in text
-    triage_pos = text.index("P036 TOC/List Spacing Triage")
+    assert "Raw per-page R036 findings are listed under **Findings by Rule → R036** below." in text
+    assert "P036" not in text
+    triage_pos = text.index("R036 TOC/List Spacing Triage")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
 
@@ -2032,14 +2056,16 @@ def test_markdown_report_includes_p038_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "p038_report.md"
     write_markdown_report(_p038_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "P038 Front-Matter Heading Triage" in text
+    assert "R038 Front-Matter Heading Triage" in text
+    assert "P038 Front-Matter Heading Triage" not in text
     assert "Missing heading counts" in text
     assert "Triage tier counts" not in text
     assert (
-        "Raw per-page P038 findings are listed under **Findings by Rule → P038** below."
+        "Raw per-page R038 findings are listed under **Findings by Rule → R038** below."
         in text
     )
-    triage_pos = text.index("P038 Front-Matter Heading Triage")
+    assert "P038" not in text
+    triage_pos = text.index("R038 Front-Matter Heading Triage")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
 
@@ -2169,16 +2195,18 @@ def test_markdown_report_includes_p044_triage_section(tmp_path: Path) -> None:
     output_path = tmp_path / "p044_report.md"
     write_markdown_report(_p044_mixed_findings(), _metadata(), output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "## P044 Abstract Indentation Triage" in text
+    assert "## R044 Abstract Indentation Triage" in text
+    assert "P044 Abstract Indentation Triage" not in text
     assert "Source Q-rule counts" not in text
     assert "Q002" not in text
     assert "Q003" not in text
     assert "Triage tier counts" not in text
     assert (
-        "Raw per-page P044 findings are listed under **Findings by Rule → P044** below."
+        "Raw per-page R044 findings are listed under **Findings by Rule → R044** below."
         in text
     )
-    triage_pos = text.index("P044 Abstract Indentation Triage")
+    assert "P044" not in text
+    triage_pos = text.index("R044 Abstract Indentation Triage")
     findings_pos = text.index("Findings by Rule")
     assert triage_pos < findings_pos
 
@@ -2320,3 +2348,96 @@ def test_p024_suggested_fix_and_confidence_remain_visible_with_entry_index(
     for f in p024_findings:
         assert f.suggested_fix
         assert f.confidence_level in {"medium"}
+
+
+def test_public_display_rule_id_maps_pxxx_to_rxxx() -> None:
+    """Ester requested Rxxx terminology for students; Pxxx stays the internal
+    catalog/test id (see public_display_rule_id's docstring for why a
+    repository-wide rename was rejected in favor of a display-boundary map)."""
+    assert public_display_rule_id("P019") == "R019"
+    assert public_display_rule_id("P001") == "R001"
+    assert public_display_rule_id("P028") == "R028"
+
+
+def test_public_display_rule_id_passes_through_non_pxxx_values() -> None:
+    """Anything that is not a plain Pddd id must be returned unchanged rather
+    than silently mangled."""
+    assert public_display_rule_id("Q019") == "Q019"
+    assert public_display_rule_id("") == ""
+    assert public_display_rule_id("P19") == "P19"
+    assert public_display_rule_id("R019") == "R019"
+
+
+def test_audit_findings_to_json_dict_carries_public_rule_id_without_renaming_internal() -> None:
+    """The exported JSON must expose a student-facing Rxxx id alongside the
+    stable internal Pxxx rule_id, not replace it (internal tooling/tests key
+    off rule_id, so it must never change)."""
+    finding = AuditFinding(
+        rule_id="P019",
+        severity=Severity.WARNING,
+        page=5,
+        message="Multiple plausible page-number candidates detected on one page.",
+        details={"issue_type": "multiple_page_numbers"},
+    )
+    payload = audit_findings_to_json_dict([finding], _metadata())
+    entry = payload["findings"][0]
+    assert entry["rule_id"] == "P019"
+    assert entry["public_rule_id"] == "R019"
+    assert payload["metadata"]["counts_by_rule_id"].get("P019") == 1
+    assert payload["metadata"]["counts_by_public_rule_id"].get("R019") == 1
+    assert "P019" not in payload["metadata"]["counts_by_public_rule_id"]
+
+
+def test_convert_pxxx_tokens_to_public_display_word_boundary() -> None:
+    """The Markdown-text converter must only touch standalone Pddd tokens,
+    reusing public_display_rule_id as its single mapping source -- never a
+    longer digit run, and never a token that isn't P-prefixed."""
+    text = "See P019 and P028. A longer id like P0191 must stay untouched. Q052 is unrelated."
+    converted = convert_pxxx_tokens_to_public_display(text)
+    assert converted == (
+        "See R019 and R028. A longer id like P0191 must stay untouched. Q052 is unrelated."
+    )
+
+
+def test_markdown_report_representative_multi_rule_converts_all_public_surfaces(
+    tmp_path: Path,
+) -> None:
+    """End-to-end: a report covering several internal Pxxx rules (including
+    ones with dedicated triage sections) must show only Rxxx to the reader
+    everywhere -- counts, headings, triage sections, findings, and
+    cross-references -- while nothing downstream that parses the report by
+    key (this test's own construction of the findings, using rule_id="Pxxx")
+    is affected.
+    """
+    findings = (
+        _p013_findings(8)
+        + _p026_findings(5)
+        + _p011_mixed_findings()
+        + _p019_mixed_findings()
+    )
+    output_path = tmp_path / "representative_report.md"
+    write_markdown_report(findings, _metadata(), output_path)
+    text = output_path.read_text(encoding="utf-8")
+
+    # Rxxx present everywhere a rule id is shown to the reader.
+    assert "- `R013`:" in text
+    assert "- `R026`:" in text
+    assert "- `R011`:" in text
+    assert "- `R019`:" in text
+    assert "### R013" in text
+    assert "### R026" in text
+    assert "### R011" in text
+    assert "### R019" in text
+    assert "R013 Page-Number Candidate Inventory" in text
+    assert "R026 Body Font Compliance Triage" in text
+    assert "R011 Margin/Overflow Triage" in text
+    assert "R019 Page-Numbering Triage Summary" in text
+
+    # No raw Pxxx token survives in the rendered report.
+    for rule_id in ("P013", "P026", "P011", "P019"):
+        assert rule_id not in text, f"found un-mapped internal id {rule_id!r} in student report"
+
+    # The findings used to build this report keep their real internal ids --
+    # this test constructed them with rule_id="P013" etc., and nothing in
+    # the Markdown pipeline mutates the AuditFinding objects themselves.
+    assert {f.rule_id for f in findings} == {"P013", "P026", "P011", "P019"}

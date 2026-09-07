@@ -31,6 +31,7 @@ from njit_auditor.highlight_targeting import (
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import join_content_span_texts
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.rules.pdf_body_spacing import _line_in_bands, _table_band_ranges
 from njit_auditor.rules.pdf_captions import (
     CAPTION_START_RE,
     detect_caption_lines,
@@ -104,6 +105,7 @@ MINOR_WORDS: frozenset[str] = frozenset(
         "within",
         "without",
         "versus",
+        "vs",
     ]
 )
 
@@ -161,6 +163,8 @@ _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
 # following line as a Level 3+ (sentence-case) heading and exclude it, per this
 # module's documented scope (Level 3+ is not checked by P020).
 _LEVEL3PLUS_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+){2,4}$")
+_LEVEL2_NUMBER_ONLY_RE = re.compile(r"^\d+\.\d+$")
+_SAME_LINE_LEVEL2_HEADING_RE = re.compile(r"^\d+\.\d+\s+\S")
 
 # Same-line Level 3+ numbered heading (3–5 numeric components), after optional
 # reconstruction of a missing space between the number and the title text.
@@ -168,6 +172,7 @@ _LEVEL3PLUS_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+){2,4}$")
 _SAME_LINE_LEVEL3PLUS_HEADING_RE = re.compile(
     r"^\d+(?:\.\d+){2,4}\s+\S"
 )
+_LIST_MARKER_PREFIX_RE = re.compile(r"^[A-Za-z][.)]\s+")
 
 # PDF extraction sometimes concatenates the section number span with the title
 # span when the visual space is missing from the text layer, e.g.
@@ -249,6 +254,11 @@ def normalize_numbered_heading_text(text: str) -> str:
 def _is_same_line_level3plus_heading(text: str) -> bool:
     """Return True for same-line Level 3–5 numbered headings (sentence case)."""
     return bool(_SAME_LINE_LEVEL3PLUS_HEADING_RE.match(text))
+
+
+def _is_same_line_level2_heading(text: str) -> bool:
+    """Return True for same-line Level 2 numbered headings (title case)."""
+    return bool(_SAME_LINE_LEVEL2_HEADING_RE.match(text))
 
 
 def tokenize_title_words(text: str) -> list[str]:
@@ -339,7 +349,9 @@ def _is_statistical_notation_word(text: str, word: str, start: int, end: int) ->
     )
 
 
-def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
+def check_apa_title_case_phrase(
+    text: str, *, skip_hyphenated_fragments: bool = False
+) -> list[dict[str, str]]:
     """
     Check NJIT/APA title case for a phrase.
 
@@ -347,7 +359,10 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
     An empty list means no issues detected.
 
     Conservative: skips hyphenated words, all-caps acronyms, and words with
-    digits or special characters. Only flags clear under-capitalization.
+    digits or special characters. When requested, also skips alphabetic
+    fragments following a hyphen, which can be produced when a PDF extractor
+    drops a non-Latin prefix from a scientific term. Only flags clear
+    under-capitalization.
     Does not flag over-capitalization (e.g. 'The' in the middle).
     """
     words_with_info = _words_with_sep_info(text)
@@ -361,6 +376,13 @@ def check_apa_title_case_phrase(text: str) -> list[dict[str, str]]:
 
         # Skip math/digit/equation tokens.
         if _should_skip_word(word):
+            continue
+
+        # A non-Latin hyphenated prefix (for example, a Greek letter in a
+        # scientific name) may be omitted by the word tokenizer, leaving only
+        # the suffix as an apparent standalone English word. This opt-in is
+        # used by P024's List of Tables path; P020 keeps its existing behavior.
+        if skip_hyphenated_fragments and start > 0 and text[start - 1] in "-‐‑‒–—":
             continue
 
         # Skip letter fragments glued to digits (10k / 5k / 1k).
@@ -594,12 +616,15 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
     results: list[TitleLikeLine] = []
 
     # 1. Table caption/title bodies only (figure captions use sentence case — skip).
+    table_caption_bboxes_by_page: dict[int, list[BBox]] = {}
     for caption in detect_caption_lines(working_doc):
         if caption.context in {"references", "toc"}:
             continue
         # NJIT: table titles are title case; figure descriptions are sentence case.
         if caption.caption_type != "table":
             continue
+        if caption.bbox is not None:
+            table_caption_bboxes_by_page.setdefault(caption.page_number, []).append(caption.bbox)
         results.append(
             TitleLikeLine(
                 page_number=caption.page_number,
@@ -619,67 +644,81 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
             continue
         if _is_template_frontmatter_page(page):
             continue  # Title/Approval Page boilerplate — not subject to generic P020
-        prev_is_level3plus_number = False
-        l3plus_block_y1: float | None = None
+        all_lines = [line for block in page.text_blocks for line in block.lines]
+        table_bands = _table_band_ranges(
+            table_caption_bboxes_by_page.get(page.page_number, []),
+            all_lines,
+            body_size,
+        )
+        prev_numbered_heading_level: int | None = None
+        numbered_heading_block_y1: float | None = None
         for block in page.text_blocks:
             for line in block.lines:
                 clean = normalize_numbered_heading_text(line.text)
                 if not clean:
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 if _is_page_number_line(clean):
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 if _is_frontmatter_allcaps_label(clean):
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 if len(clean) > MAX_HEADING_LINE_LEN:
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 if CAPTION_START_RE.match(normalize_caption_candidate_text(clean)):
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue  # already covered by caption detection above
+                if _LIST_MARKER_PREFIX_RE.match(clean):
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
+                    continue
                 if _is_prose_paragraph_line(clean):
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue  # prose body text, not a heading
                 if _is_same_line_level3plus_heading(clean):
                     # Level 3–5 numbered headings use sentence case (P027), not
                     # Title Case. Keep the number-only split-line state machine
                     # from also treating a following bold line as L2 title case.
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 # NJIT Level 4/5 headings end with a period and use sentence case.
                 # Level 2 titles and table titles do not. A bold line that already
                 # ends with '.' is therefore out of P020 title-case scope (it may
                 # be an unnumbered/run-in Level 4–5 heading or a bolded phrase).
                 if clean.endswith(".") and not clean.endswith("..."):
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 if _has_same_baseline_run_in_body(page, line):
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
+                    continue
+                if _line_in_bands(line, table_bands):
+                    prev_numbered_heading_level = None
+                    numbered_heading_block_y1 = None
                     continue
                 if _starts_with_minor_word(clean):
-                    # Wrapped continuation ("and …"); if still inside a Level 3+
+                    # Wrapped continuation ("and …"); if still inside a numbered
                     # heading block, keep the block open for further wraps.
                     if not (
-                        prev_is_level3plus_number
-                        and l3plus_block_y1 is not None
-                        and (line.bbox.y0 - l3plus_block_y1)
+                        prev_numbered_heading_level is not None
+                        and numbered_heading_block_y1 is not None
+                        and (line.bbox.y0 - numbered_heading_block_y1)
                         <= max(8.0, (line.bbox.y1 - line.bbox.y0) * 1.3)
                     ):
-                        prev_is_level3plus_number = False
-                        l3plus_block_y1 = None
+                        prev_numbered_heading_level = None
+                        numbered_heading_block_y1 = None
                     else:
-                        l3plus_block_y1 = line.bbox.y1
+                        numbered_heading_block_y1 = line.bbox.y1
                     continue
 
                 detection_reason = _spans_bold_reason(line)
@@ -689,30 +728,41 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                     if _is_font_size_heading(line, body_size):
                         detection_reason = "font_size_heading_fallback"
 
-                is_level3plus_number = (
-                    detection_reason is not None
-                    and bool(_LEVEL3PLUS_NUMBER_ONLY_RE.match(clean))
+                is_level2_number = detection_reason is not None and bool(
+                    _LEVEL2_NUMBER_ONLY_RE.match(clean)
+                )
+                is_level3plus_number = detection_reason is not None and bool(
+                    _LEVEL3PLUS_NUMBER_ONLY_RE.match(clean)
                 )
 
-                if is_level3plus_number:
-                    prev_is_level3plus_number = True
-                    l3plus_block_y1 = line.bbox.y1
+                if is_level2_number:
+                    prev_numbered_heading_level = 2
+                    numbered_heading_block_y1 = line.bbox.y1
                     continue
 
-                if prev_is_level3plus_number and detection_reason is not None:
-                    # Bold line(s) for a Level 3+ heading whose number lives on a
-                    # previous line, including wrapped continuation lines that stay
-                    # close vertically (sentence case — out of P020 scope).
-                    if l3plus_block_y1 is None or (
-                        line.bbox.y0 - l3plus_block_y1
-                    ) <= max(8.0, (line.bbox.y1 - line.bbox.y0) * 1.3):
-                        l3plus_block_y1 = line.bbox.y1
-                        prev_is_level3plus_number = True
-                        continue
-                    prev_is_level3plus_number = False
-                    l3plus_block_y1 = None
+                if is_level3plus_number:
+                    prev_numbered_heading_level = 3
+                    numbered_heading_block_y1 = line.bbox.y1
+                    continue
 
-                if detection_reason is not None:
+                if prev_numbered_heading_level is not None and detection_reason is not None:
+                    # Bold line(s) for a numbered heading whose number lives on a
+                    # previous line. Level 2 is in P020 scope; Level 3+ is sentence
+                    # case and remains out of scope.
+                    if numbered_heading_block_y1 is None or (
+                        line.bbox.y0 - numbered_heading_block_y1
+                    ) <= max(8.0, (line.bbox.y1 - line.bbox.y0) * 1.3):
+                        numbered_heading_block_y1 = line.bbox.y1
+                        if prev_numbered_heading_level != 2:
+                            continue
+                    else:
+                        prev_numbered_heading_level = None
+                        numbered_heading_block_y1 = None
+
+                if detection_reason is not None and (
+                    _is_same_line_level2_heading(clean)
+                    or prev_numbered_heading_level == 2
+                ):
                     results.append(
                         TitleLikeLine(
                             page_number=page.page_number,
@@ -725,8 +775,8 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
                         )
                     )
 
-                prev_is_level3plus_number = False
-                l3plus_block_y1 = None
+                prev_numbered_heading_level = None
+                numbered_heading_block_y1 = None
 
     return results
 

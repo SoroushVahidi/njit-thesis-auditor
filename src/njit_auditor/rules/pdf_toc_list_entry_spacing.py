@@ -5,14 +5,17 @@ Partial heuristic PDF coverage for Q057, Q067, and Q077.
 
 from __future__ import annotations
 
+import re
+
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
-from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages
+from njit_auditor.rules.pdf_toc_alignment import _clean_text, detect_toc_like_pages
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
     _collect_entry_region_lines,
     _estimate_line_height,
     _has_intervening_page_number_line,
     _is_wrap_continuation_pair,
+    _looks_like_new_entry_start_given_previous,
 )
 from njit_auditor.toc_list_student_preview import (
     gap_bbox_between_boxes,
@@ -35,6 +38,32 @@ SOURCE_Q_RULE_IDS_BY_SECTION = {
 }
 
 
+def _is_entry_boundary(
+    previous: PdfTextLine,
+    line: PdfTextLine,
+    page_type: str,
+) -> bool:
+    """Return True when *line* begins a new logical TOC/List entry.
+
+    ``_is_wrap_continuation_pair`` is tuned for P032's conservative "only
+    check a gap when we are SURE these two lines are the same wrapped
+    entry" purpose -- a False return there is a safe default to skip
+    checking, not proof the two lines belong to different entries. Treating
+    that negation directly as an entry boundary over-splits any entry whose
+    wrapped continuation uses a hanging indent (continuation lines indented
+    under the entry text rather than under its leading number), which is
+    common in this corpus and shifts x0 by more than
+    ``INDENT_CLUSTER_TOLERANCE_PT``. That over-split then makes each
+    entry's own internal single-line-height wrap gap look like an
+    unusually tight gap BETWEEN two entries. Require positive evidence of a
+    new entry start instead (numbered "N.N"/Chapter/Appendix line, or a
+    dot-leader entry line) so only genuinely separate entries are split.
+    """
+    if _is_wrap_continuation_pair(previous, line, page_type):
+        return False
+    return _looks_like_new_entry_start_given_previous(previous, _clean_text(line.text))
+
+
 def _group_lines_into_entries(
     lines: list[PdfTextLine],
     page_type: str,
@@ -45,11 +74,64 @@ def _group_lines_into_entries(
     entries: list[list[PdfTextLine]] = [[lines[0]]]
     for line in lines[1:]:
         previous = entries[-1][-1]
-        if _is_wrap_continuation_pair(previous, line, page_type):
-            entries[-1].append(line)
+        if _is_entry_boundary(previous, line, page_type):
+            entries.append([line])
             continue
-        entries.append([line])
+        entries[-1].append(line)
     return entries
+
+
+def _classify_entry_level(text: str, page_type: str) -> str:
+    """Classify the hierarchical level/kind of a TOC/List entry line."""
+    cleaned = _clean_text(text)
+    if page_type == "list_of_tables":
+        return "table_entry"
+    if page_type == "list_of_figures":
+        return "figure_entry"
+
+    normalized = cleaned.upper()
+    if normalized.startswith("CHAPTER") or normalized.startswith("APPENDIX"):
+        return "toc_level_1"
+    if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+", cleaned):
+        return "toc_level_3"
+    if re.match(r"^[0-9]+\.[0-9]+", cleaned):
+        return "toc_level_2"
+    if re.match(r"^[0-9]+\s", cleaned):
+        return "toc_level_1"
+    if re.match(r"^[IVXLCDM]+\s", cleaned):
+        return "toc_level_1"
+
+    words = [w for w in re.split(r"[.\s\d]+", normalized) if w]
+    if words:
+        first_word = words[0]
+        if first_word in ("REFERENCES", "BIBLIOGRAPHY", "VITA", "GLOSSARY", "INDEX"):
+            return "toc_level_1"
+
+    return "unknown"
+
+
+_TOC_LEVEL_DEPTH = {"toc_level_1": 1, "toc_level_2": 2, "toc_level_3": 3}
+
+
+def _is_heading_to_first_child_boundary(prev_level: str, next_level: str) -> bool:
+    """Return True only when *next* is the immediate first child of *prev*.
+
+    A chapter/appendix heading (or a numbered entry) followed directly by
+    its own first, more deeply nested child entry routinely has a looser
+    gap convention than peer-to-peer spacing -- that transition alone is
+    exempt. The reverse direction (a subsection's *last* entry followed by
+    the *next* chapter/appendix heading, e.g. "3.5 Conclusion" ->
+    "APPENDIX") is a different transition -- finishing one section and
+    starting the next -- and is not exempt: a genuinely tight gap there is
+    still a real spacing defect, not a heading-child layout artifact.
+    Same-level pairs and pairs involving an unclassifiable ("unknown")
+    entry are likewise never exempt by this check.
+    """
+    prev_depth = _TOC_LEVEL_DEPTH.get(prev_level)
+    next_depth = _TOC_LEVEL_DEPTH.get(next_level)
+    if prev_depth is None or next_depth is None:
+        return False
+    return prev_depth < next_depth
 
 
 def _triage_tier(gap_ratio: float) -> str:
@@ -79,6 +161,11 @@ def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFin
             last_line = previous_entry[-1]
             first_line = next_entry[0]
             if _has_intervening_page_number_line(context, last_line, first_line):
+                continue
+
+            prev_level = _classify_entry_level(previous_entry[0].text, context.page_type)
+            next_level = _classify_entry_level(next_entry[0].text, context.page_type)
+            if _is_heading_to_first_child_boundary(prev_level, next_level):
                 continue
 
             gap_pt = first_line.bbox.y0 - last_line.bbox.y1

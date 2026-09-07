@@ -231,7 +231,7 @@ def _build_style_transition_doc(
 
 def test_document_wide_mixed_style_names_exact_transition_pages(tmp_path: Path) -> None:
     pdf_path = _build_style_transition_doc(
-        tmp_path, front_matter=["i", "ii", "iii"], body=["1", "2", "3"]
+        tmp_path, front_matter=["i", "ii", "iii"], body=["7", "8", "9"]
     )
     findings = _run(pdf_path)
     doc_level = [f for f in _findings_of(findings, "mixed_numbering_style") if f.page is None]
@@ -254,7 +254,7 @@ def test_document_wide_mixed_style_carries_transition_boundary_geometry(
     tmp_path: Path,
 ) -> None:
     pdf_path = _build_style_transition_doc(
-        tmp_path, front_matter=["i", "ii", "iii"], body=["1", "2", "3"]
+        tmp_path, front_matter=["i", "ii", "iii"], body=["7", "8", "9"]
     )
     findings = _run(pdf_path)
     doc_level = [f for f in _findings_of(findings, "mixed_numbering_style") if f.page is None]
@@ -273,7 +273,7 @@ def test_document_wide_mixed_style_carries_transition_boundary_geometry(
     assert details["transition_prev_page"] == "3"
     assert details["transition_new_page"] == "4"
     assert details["transition_prev_label"] == "iii"
-    assert details["transition_new_label"] == "1"
+    assert details["transition_new_label"] == "7"
     assert details["transition_prev_style_label"] == "lowercase Roman numerals"
     assert details["transition_new_style_label"] == "Arabic numerals"
 
@@ -308,7 +308,7 @@ def test_page_level_mixed_style_finding_unaffected_by_transition_geometry_additi
 
 def test_document_wide_mixed_style_wording_names_transition_pages(tmp_path: Path) -> None:
     pdf_path = _build_style_transition_doc(
-        tmp_path, front_matter=["i", "ii", "iii"], body=["1", "2", "3"]
+        tmp_path, front_matter=["i", "ii", "iii"], body=["7", "8", "9"]
     )
     findings = _run(pdf_path)
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})

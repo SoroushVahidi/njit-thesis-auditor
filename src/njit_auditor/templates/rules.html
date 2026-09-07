@@ -149,9 +149,9 @@
      data-category="{{ rule.section }}"
      data-severity="{{ rule.severity_label }}"
      data-checkability="{{ rule.checkability_label }}"
-     data-searchtext="{{ rule.id }} {{ rule.title }} {{ rule.section }} {{ rule.what_it_checks }} {{ rule.how_to_correct }}">
+     data-searchtext="{{ rule.id }} {{ rule.id | display_rule_id }} {{ rule.title }} {{ rule.section }} {{ rule.what_it_checks }} {{ rule.how_to_correct }}">
   <p class="rule-card__title">
-    <span class="rule-card__id">{{ rule.id }}</span>
+    <span class="rule-card__id">{{ rule.id | display_rule_id }}</span>
     {% if rule.title %}— {{ rule.title }}{% endif %}
     {% if rule.is_experimental %}
     <span class="badge badge-experimental" style="font-size:0.75rem;vertical-align:middle;margin-left:0.4rem;">Experimental — opt-in only</span>

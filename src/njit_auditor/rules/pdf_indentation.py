@@ -30,7 +30,7 @@ SAME_ROW_Y_TOLERANCE_PT = 1.0
 # word's box begins) even though the two fragments are genuinely two pieces
 # of one row. _merge_same_row_fragments tolerates that much overlap; anything
 # more is treated as two visually distinct, non-adjacent elements.
-SAME_ROW_OVERLAP_ALLOWANCE_PT = 5.0
+SAME_ROW_OVERLAP_ALLOWANCE_PT = 8.0
 
 # A row split by an inline displayed equation, subscript, or superscript need
 # not land its fragments at nearly-identical y0/y1 the way a plain same-baseline
@@ -425,14 +425,14 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
     # candidate is only trusted in the main loop below, and only when it is
     # the difference between reconnecting to the paragraph directly above and
     # not -- never as an unconditional geometry rewrite. See the loop for why.
-    candidate_x0: dict[int, float] = {}
+    candidate_x0: dict[tuple[float, float], float] = {}
     lines: list[PdfTextLine] = []
     for index, line in enumerate(raw_lines):
         if not _is_usable_paragraph_line(line):
             continue
         effective_x0 = _effective_row_start_x(raw_lines, index)
         if effective_x0 != line.bbox.x0:
-            candidate_x0[id(line)] = effective_x0
+            candidate_x0[(line.bbox.y0, line.bbox.x0)] = effective_x0
         lines.append(line)
 
     if not lines:
@@ -467,8 +467,9 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
         # -- so an unrelated same-row coincidence (e.g. a run-in heading's
         # own wrapped continuation sitting beside a genuinely new paragraph)
         # never gets to silently zero out that paragraph's real indent.
-        if not joins and id(line) in candidate_x0:
-            corrected_x0 = candidate_x0[id(line)]
+        line_key = (line.bbox.y0, line.bbox.x0)
+        if not joins and line_key in candidate_x0:
+            corrected_x0 = candidate_x0[line_key]
             corrected_x_delta = abs(corrected_x0 - first_text_x(prev_line))
             if vertical_gap <= MAX_PARAGRAPH_GAP_PT and corrected_x_delta <= allowed_x_delta:
                 line = PdfTextLine(

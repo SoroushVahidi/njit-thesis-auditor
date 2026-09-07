@@ -561,7 +561,7 @@ def test_markdown_report_p036_groups_same_gap_repeats_while_listing_individually
 
     headings = [line for line in text.splitlines() if line.startswith("### Problem")]
     assert len(headings) == 2
-    assert "### P036 — 2 occurrences" in text
+    assert "### R036 — 2 occurrences" in text
 
 
 def test_markdown_report_p036_never_quotes_blocked_detail_text(

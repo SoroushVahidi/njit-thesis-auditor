@@ -44,12 +44,12 @@ def _add_bottom_center_number(page: fitz.Page, text: str) -> None:
 
 
 def _build_transition_doc(tmp_path: Path) -> Path:
-    """A small synthetic dissertation: roman front matter, then arabic body."""
+    """A small synthetic dissertation with a suspicious numbering-style jump."""
     doc = fitz.open()
     for value in ("i", "ii", "iii"):
         page = doc.new_page(width=_PAGE_W, height=_PAGE_H)
         _add_bottom_center_number(page, value)
-    for value in ("1", "2"):
+    for value in ("7", "8"):
         page = doc.new_page(width=_PAGE_W, height=_PAGE_H)
         _add_bottom_center_number(page, value)
     path = tmp_path / "transition_doc.pdf"
@@ -91,7 +91,7 @@ def test_document_level_transition_finding_renders_two_page_evidence(tmp_path: P
 
     assert result.has_highlight is True
     assert result.transition_pages == [3, 4]
-    assert result.transition_labels == ["iii", "1"]
+    assert result.transition_labels == ["iii", "7"]
     assert out_path.exists()
 
     with fitz.open(out_path) as evidence_doc:
@@ -99,7 +99,7 @@ def test_document_level_transition_finding_renders_two_page_evidence(tmp_path: P
         first_text = evidence_doc[0].get_text("text")
         second_text = evidence_doc[1].get_text("text")
         assert "iii" in first_text
-        assert "1" in second_text
+        assert "7" in second_text
 
 
 def test_document_level_transition_evidence_highlights_are_visible(tmp_path: Path) -> None:
@@ -128,7 +128,7 @@ def test_document_level_transition_evidence_location_names_both_pages(tmp_path: 
     assert "page 3" in result.location.lower()
     assert "page 4" in result.location.lower()
     assert "iii" in result.location
-    assert '"1"' in result.location
+    assert '"7"' in result.location
 
 
 # ---------------------------------------------------------------------------

@@ -73,6 +73,7 @@ from njit_auditor.rules.pdf_dedication_centering_italic import (
 )
 from njit_auditor.rules.pdf_dedication_page import check_pdf_dedication_page
 from njit_auditor.rules.pdf_figure_table_layout import check_pdf_figure_table_layout
+from njit_auditor.rules.pdf_first_chapter_heading import check_pdf_first_chapter_heading
 from njit_auditor.rules.pdf_font_compliance import check_pdf_font_compliance
 from njit_auditor.rules.pdf_frontmatter_headings import check_pdf_frontmatter_headings
 from njit_auditor.rules.pdf_frontmatter_no_page_number import (
@@ -283,6 +284,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_captions(content_doc))
     findings.extend(check_pdf_figure_table_layout(content_doc))
     findings.extend(check_pdf_heading_level_styles(content_doc))
+    findings.extend(check_pdf_first_chapter_heading(content_doc))
     findings.extend(check_pdf_toc_alignment(content_doc))
     findings.extend(check_pdf_toc_leader_consistency(content_doc))
     findings.extend(check_pdf_toc_list_formatting(content_doc))

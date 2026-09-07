@@ -18,6 +18,8 @@ Findings contain only structural metadata — no entry text, titles, or captions
 
 from __future__ import annotations
 
+import re
+
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument
 from njit_auditor.rules.pdf_toc_alignment import (
@@ -30,6 +32,11 @@ from njit_auditor.rules.pdf_toc_alignment import (
 MIN_ENTRY_TEXT_LEN = 10
 MIN_COMPARABLE_ENTRIES = 3
 MIN_INVERSIONS_TO_FLAG = 2
+RIGHT_COLUMN_MIN_FRACTION = 0.82
+_ENTRY_START_RE = re.compile(
+    r"^(?:(?:table|figure|appendix)\s+)?\d+(?:\.\d+)*\s+",
+    re.IGNORECASE,
+)
 
 _SECTION_CONFIG = {
     "list_of_tables": ("lot_page_numbers_not_nondecreasing", "Q069"),
@@ -57,6 +64,21 @@ def _check_ordering(
         if entry.page_number_token is None:
             continue
         if len(entry.cleaned_text.strip()) < MIN_ENTRY_TEXT_LEN:
+            continue
+        # The shared extractor can retain wrapped continuation lines as
+        # separate candidates.  Their embedded numbers are title content,
+        # not listed page references; accept only entries with a label/number
+        # start shape (e.g. "2.1 ..." or "Figure 2.1 ...").
+        if _ENTRY_START_RE.match(entry.cleaned_text.strip()) is None:
+            continue
+        # A numeric span in the title body can pass the extractor's relaxed
+        # candidate test.  Listed page numbers must also occupy the right
+        # column, not merely be the rightmost number on the line.
+        page_width = context.page.width or 612.0
+        if (
+            entry.page_number_right_x is None
+            or entry.page_number_right_x < page_width * RIGHT_COLUMN_MIN_FRACTION
+        ):
             continue
         n = _parse_page_num(entry.page_number_token)
         if n is not None:

@@ -6,7 +6,7 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -78,6 +78,20 @@ def _page_has_heading_in(page: PdfPage, headings: set[str]) -> bool:
     return False
 
 
+def _abstract_metadata_cutoff(page: PdfPage) -> float | None:
+    """Return the end of the abstract title/author block when it is visible."""
+    if not _page_has_heading_in(page, {"ABSTRACT"}):
+        return None
+    lines = sorted(_collect_page_lines(page), key=lambda line: (line.bbox.y0, line.bbox.x0))
+    for index, line in enumerate(lines):
+        if normalize_heading_text(line.text).casefold() != "by":
+            continue
+        for candidate in lines[index + 1 :]:
+            if candidate.bbox.y0 >= line.bbox.y1:
+                return candidate.bbox.y1
+    return None
+
+
 def _front_matter_page(page: PdfPage) -> bool:
     return _page_has_heading_in(page, set(EXPECTED_HEADINGS))
 
@@ -88,6 +102,15 @@ def _line_height(line: PdfTextLine) -> float:
 
 def _line_gap_pt(upper: PdfTextLine, lower: PdfTextLine) -> float:
     return lower.bbox.y0 - upper.bbox.y1
+
+
+def _gap_bbox(upper: PdfTextLine, lower: PdfTextLine) -> BBox:
+    return BBox(
+        x0=min(upper.bbox.x0, lower.bbox.x0),
+        y0=upper.bbox.y1,
+        x1=max(upper.bbox.x1, lower.bbox.x1),
+        y1=lower.bbox.y0,
+    )
 
 
 def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
@@ -113,12 +136,27 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
         if not all_lines:
             continue
 
-        text_lines = [line for line in all_lines if _is_usable_text_line(line)]
-        if len(text_lines) < 2:
-            continue
-
         caption_count = sum(1 for line in all_lines if _is_caption_line(line))
         if caption_count / max(len(all_lines), 1) >= CAPTION_HEAVY_PAGE_RATIO:
+            continue
+
+        heading_lines = [line for line in all_lines if _is_named_heading_line(line)]
+        heading_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+        last_heading = heading_lines[-1] if heading_lines else None
+        # Front-matter pages can carry title metadata above ABSTRACT/APPROVAL
+        # headings. That text is not part of the paragraph region below the
+        # heading, so it must not participate in adjacent-line gap analysis.
+        min_content_y = last_heading.bbox.y1 if last_heading is not None else None
+        abstract_cutoff = _abstract_metadata_cutoff(page)
+        if abstract_cutoff is not None:
+            min_content_y = max(min_content_y or abstract_cutoff, abstract_cutoff)
+        text_lines = [
+            line
+            for line in all_lines
+            if _is_usable_text_line(line)
+            and (min_content_y is None or line.bbox.y0 >= min_content_y - 2.0)
+        ]
+        if len(text_lines) < 2:
             continue
 
         text_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
@@ -131,18 +169,19 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
 
         page_issue_findings: dict[str, AuditFinding] = {}
 
-        excessive_gaps: list[float] = []
-        paragraph_gaps: list[float] = []
+        excessive_gaps: list[tuple[float, PdfTextLine, PdfTextLine]] = []
+        paragraph_gaps: list[tuple[float, PdfTextLine, PdfTextLine]] = []
         for upper, lower in zip(text_lines, text_lines[1:]):
             gap_pt = _line_gap_pt(upper, lower)
             if gap_pt > excessive_gap_threshold:
-                excessive_gaps.append(gap_pt)
+                excessive_gaps.append((gap_pt, upper, lower))
             if gap_pt > paragraph_gap_threshold:
-                paragraph_gaps.append(gap_pt)
+                paragraph_gaps.append((gap_pt, upper, lower))
 
         context = "front_matter"
 
         if len(excessive_gaps) >= MIN_EXCESSIVE_GAP_COUNT_FOR_WARNING:
+            largest_gap, upper, lower = max(excessive_gaps, key=lambda item: item[0])
             page_issue_findings["excessive_line_gap"] = AuditFinding(
                 rule_id="P016",
                 severity=Severity.WARNING,
@@ -151,13 +190,16 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
                 details={
                     "page_number": str(page.page_number),
                     "issue_type": "excessive_line_gap",
-                    "largest_gap_pt": f"{max(excessive_gaps):.1f}",
+                    "largest_gap_pt": f"{largest_gap:.1f}",
                     "affected_gap_count": str(len(excessive_gaps)),
                     "context": context,
+                    "confidence": "medium",
+                    "bbox": format_bbox_detail(_gap_bbox(upper, lower)),
                 },
             )
 
         if paragraph_gaps:
+            largest_gap, upper, lower = max(paragraph_gaps, key=lambda item: item[0])
             page_issue_findings["excessive_paragraph_gap"] = AuditFinding(
                 rule_id="P016",
                 severity=Severity.WARNING,
@@ -166,16 +208,15 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
                 details={
                     "page_number": str(page.page_number),
                     "issue_type": "excessive_paragraph_gap",
-                    "largest_gap_pt": f"{max(paragraph_gaps):.1f}",
+                    "largest_gap_pt": f"{largest_gap:.1f}",
                     "affected_gap_count": str(len(paragraph_gaps)),
                     "context": context,
+                    "confidence": "medium",
+                    "bbox": format_bbox_detail(_gap_bbox(upper, lower)),
                 },
             )
 
-        heading_lines = [line for line in all_lines if _is_named_heading_line(line)]
-        if heading_lines:
-            heading_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
-            last_heading = heading_lines[-1]
+        if last_heading is not None and abstract_cutoff is None:
             first_content_after_heading = next(
                 (line for line in text_lines if line.bbox.y0 >= last_heading.bbox.y1),
                 None,
@@ -196,6 +237,10 @@ def check_pdf_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
                             "largest_gap_pt": f"{heading_gap:.1f}",
                             "affected_gap_count": "1",
                             "context": "front_matter",
+                            "confidence": "medium",
+                            "bbox": format_bbox_detail(
+                                _gap_bbox(last_heading, first_content_after_heading)
+                            ),
                             # The measured gap is between the heading and the first
                             # content line below it, i.e. AFTER the heading.
                             "heading_gap_position": "after",

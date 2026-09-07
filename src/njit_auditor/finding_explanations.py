@@ -710,6 +710,14 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A figure entry appears in the List of Figures but describes a table. "
         "Move this entry to the List of Tables."
     ),
+    ("P055", "lot_entry_missing_table_prefix"): (
+        "A List of Tables entry on this page is missing the required 'Table' prefix. "
+        "Each entry in the List of Tables must begin with the word 'Table' (e.g., Table 1.1)."
+    ),
+    ("P055", "lof_entry_missing_figure_prefix"): (
+        "A List of Figures entry on this page is missing the required 'Figure' prefix. "
+        "Each entry in the List of Figures must begin with the word 'Figure' (e.g., Figure 1.1)."
+    ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "Table of Contents page numbers on this page do not appear in ascending "

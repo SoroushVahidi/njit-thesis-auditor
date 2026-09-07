@@ -46,7 +46,7 @@ TRAILING_RIGHT_COLUMN_PAGE_NUM_RE = re.compile(
 )
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
-SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)[\s:]")
+SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?[\s:]")
 SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)*$")
 LINE_PREVIEW_MAX_LEN = 80
 RIGHT_EDGE_TOLERANCE_PT = 10.0
@@ -64,7 +64,7 @@ TOC_ENTRY_MAX_LEFT_FRACTION = 0.55
 PREFIX_ENTRY_MIN_LEN = 4
 DEFAULT_ENTRY_MIN_LEN = 8
 PREFIX_ENTRY_RE = re.compile(r"^(TABLE|FIGURE|CHAPTER|APPENDIX)\b", re.IGNORECASE)
-NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\s")
+NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\.?\s")
 INDENT_CLUSTER_TOLERANCE_PT = 12.0
 MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON = 3
 HIERARCHY_INDENT_TOLERANCE_PT = 10.0
@@ -387,8 +387,32 @@ def _has_prefix_entry_shape(cleaned_text: str) -> bool:
     return bool(PREFIX_ENTRY_RE.match(upper) or NUMERIC_PREFIX_RE.match(cleaned_text))
 
 
+_LEADER_DOT_SPAN_RE = re.compile(r"[.…][.…\s]*[.…]")
+
+
 def _has_leader_dot_pattern(cleaned_text: str) -> bool:
-    return "..." in cleaned_text or cleaned_text.rstrip().endswith("....")
+    """True when *cleaned_text* ends in a visible dot/ellipsis leader run.
+
+    PDF text extraction renders TOC leader runs inconsistently: some are a
+    literal run of ASCII periods, others are Unicode horizontal-ellipsis
+    characters (``…``, each visually three dots), and wrapped (two-line)
+    entries often extract as two separate dot clusters joined by a single
+    space (the second line's leader run does not visually start flush with
+    the first). All of these are the same visible leader-dot pattern to a
+    reader; only literal ASCII runs were previously recognized, which
+    produced false "missing dots" findings for any entry using an
+    ellipsis-based or wrap-split leader. A run is scored by visible dot
+    weight (an ellipsis counts as 3, a period as 1) rather than raw
+    character count, so a short two-ellipsis leader (``……``, six visible
+    dots) is not missed just because it is only two characters wide.
+    """
+    if "..." in cleaned_text or cleaned_text.rstrip().endswith("...."):
+        return True
+    for match in _LEADER_DOT_SPAN_RE.finditer(cleaned_text):
+        dot_weight = sum(3 if ch == "…" else 1 for ch in match.group() if ch in ".…")
+        if dot_weight >= 3:
+            return True
+    return False
 
 
 def _likely_entry_line(cleaned_text: str, *, has_page_number_signal: bool = False) -> bool:
@@ -475,7 +499,7 @@ def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
         page_number_token=page_num,
         page_number_right_x=page_right_x,
         indent_x=line.bbox.x0,
-        has_leader_dots="..." in cleaned or " ." in cleaned,
+        has_leader_dots=_has_leader_dot_pattern(cleaned),
     )
 
 
@@ -726,6 +750,80 @@ def _find_hierarchy_indent_outliers(
     return outlier_pairs
 
 
+def _local_dot_conformity_score(
+    entry: TocEntryLine,
+    entries: list[TocEntryLine],
+    entry_positions: dict[TocEntryLine, int],
+) -> int:
+    """Count this entry's immediate document-order neighbors (previous/next)
+    that DO have leader dots -- 0, 1, or 2.
+
+    A singleton non-dotted entry surrounded by dotted neighbors on both sides
+    (score 2) is a cleaner, more representative single example of "this entry
+    breaks the page's dotted pattern" than one that is part of a consecutive
+    run of non-dotted entries (score 0 or 1), where the departure is shared
+    and no single entry stands out as *the* example.
+    """
+    idx = entry_positions[entry]
+    score = 0
+    if idx - 1 >= 0 and entries[idx - 1].has_leader_dots:
+        score += 1
+    if idx + 1 < len(entries) and entries[idx + 1].has_leader_dots:
+        score += 1
+    return score
+
+
+def _hierarchy_group_dot_conformity_ratio(
+    entry: TocEntryLine, entries: list[TocEntryLine]
+) -> float:
+    """Return the fraction of *entry*'s same-hierarchy-level peers that have
+    leader dots -- how strongly that level's own comparison group (the same
+    grouping used by _find_hierarchy_indent_outliers) conforms to the dotted
+    style. A level with too few peers for a meaningful pattern (below
+    MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON) scores 0.0, the lowest priority,
+    since no real "dominant pattern" can be established there.
+    """
+    level = _parse_toc_hierarchy_level(entry.cleaned_text)
+    peers = [e for e in entries if _parse_toc_hierarchy_level(e.cleaned_text) == level]
+    if len(peers) < MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON:
+        return 0.0
+    return sum(1 for e in peers if e.has_leader_dots) / len(peers)
+
+
+def _select_worst_leader_dots_entry(
+    entries: list[TocEntryLine],
+    missing_dots_entries: list[TocEntryLine],
+    entry_positions: dict[TocEntryLine, int],
+) -> TocEntryLine:
+    """Pick the missing-dots entry that best demonstrates departure from the
+    page's dominant leader-dot pattern, instead of always the first affected
+    entry in document order.
+
+    Mirrors misaligned_page_number_column's magnitude-based worst-case
+    selection (deviation from a median, argmax): ranked by
+    (local isolation, hierarchy-group conformity ratio, document order)
+    descending --
+
+    1. Local isolation (_local_dot_conformity_score): an entry whose immediate
+       neighbors both have dots stands out more clearly than one buried in a
+       run of non-dotted entries.
+    2. Hierarchy-group conformity ratio (_hierarchy_group_dot_conformity_ratio):
+       ties go to the entry whose own hierarchy level has the stronger dotted
+       majority -- a bigger departure from *that* level's dominant pattern.
+    3. Document order (lowest index): final deterministic tiebreak so ties
+       never depend on set/dict iteration order.
+    """
+
+    def sort_key(entry: TocEntryLine) -> tuple[int, float, int]:
+        return (
+            _local_dot_conformity_score(entry, entries, entry_positions),
+            _hierarchy_group_dot_conformity_ratio(entry, entries),
+            -entry_positions[entry],
+        )
+
+    return max(missing_dots_entries, key=sort_key)
+
+
 def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P018 warnings for strong likely TOC/List alignment issues."""
 
@@ -825,7 +923,9 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
                 if entry.page_number_right_x is not None and not entry.has_leader_dots
             ]
             if missing_dots_entries:
-                worst_entry = missing_dots_entries[0]
+                worst_entry = _select_worst_leader_dots_entry(
+                    entries, missing_dots_entries, entry_positions
+                )
                 page_issue_findings["inconsistent_leader_dots"] = AuditFinding(
                     rule_id="P018",
                     severity=Severity.WARNING,

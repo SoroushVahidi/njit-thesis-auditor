@@ -142,7 +142,19 @@ def _sentence_case_violation_words(text: str) -> list[str]:
     long minors here would falsely tip borderline sentence-case figure
     titles that contain a few proper nouns (e.g. ``… with Marching Cubes``).
     """
-    words = _WORD_RE.findall(text)
+    words: list[str] = []
+    depth = 0
+    last_end = 0
+    for match in _WORD_RE.finditer(text):
+        between = text[last_end : match.start()]
+        for char in between:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth = max(0, depth - 1)
+        if depth == 0:
+            words.append(match.group())
+        last_end = match.end()
     if len(words) < 4:
         return []
     later = [
@@ -258,7 +270,9 @@ def _check_lot_page(
             continue
         if len(tokenize_title_words(entry_text)) < MIN_ENTRY_WORDS:
             continue
-        issues = check_apa_title_case_phrase(entry_text)
+        issues = check_apa_title_case_phrase(
+            entry_text, skip_hyphenated_fragments=True
+        )
         if issues:
             first = issues[0]
             findings.append(

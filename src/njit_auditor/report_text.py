@@ -42,6 +42,7 @@ from njit_auditor.report_outputs import (
     audit_findings_to_json_dict,
     category_display_label,
     individual_finding_comment_and_fix,
+    public_display_rule_id,
 )
 
 PublicRuleReferenceFn = Callable[..., str]
@@ -476,7 +477,7 @@ def _render_record(record: _Record) -> list[str]:
     if record.confidence:
         lines.append(f"  Confidence: {record.confidence}")
     if record.rule_reference:
-        lines.append(f"  Public rule reference: {record.rule_reference}")
+        lines.append(f"  Public rule reference: {public_display_rule_id(record.rule_reference)}")
     lines.append("")
     return lines
 

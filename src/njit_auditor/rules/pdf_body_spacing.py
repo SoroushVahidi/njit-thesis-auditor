@@ -50,13 +50,17 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_captions import detect_caption_lines
 from njit_auditor.rules.pdf_headings import (
-    EXPECTED_HEADINGS,
-    find_body_start_page,
-    normalize_heading_text,
+    find_body_start_page as pdf_headings_find_body_start_page,
 )
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, TOP_BOTTOM_ZONE_RATIO
 from njit_auditor.rules.pdf_references_citations_structural import (
     references_section_page_numbers,
+)
+
+# Import from utils instead of pdf_headings to break circular dependency
+from njit_auditor.utils.pdf_structural_headings import (
+    EXPECTED_HEADINGS,
+    normalize_heading_text,
 )
 
 DOUBLE_SPACING_RATIO_THRESHOLD = 1.55
@@ -79,6 +83,7 @@ MIN_ALPHA_COUNT = 15
 _TABLE_ROW_PITCH_RATIO = 1.7
 # Tolerance for treating a line as "below" a caption despite tiny bbox overlap.
 _CAPTION_OVERLAP_TOL_PT = 2.0
+_CAPTION_FIRST_ROW_MAX_GAP_PT = 36.0
 
 _ALL_NAMED_HEADINGS = frozenset(EXPECTED_HEADINGS)
 
@@ -93,8 +98,11 @@ REFERENCES_LIKE_HEADINGS = frozenset({
     "WORKS CITED",
 })
 
-CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
-BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
+CAPTION_PREFIX_RE = re.compile(
+    r"^(figure|table)\s*[\divxlcdm]+(?:[.-][\divxlcdm]+)*[.:)]?(?:\s+|(?=[A-Za-z]))",
+    re.IGNORECASE,
+)
+BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s*")
 
 # Bare "Figure N" / "Fig. N" anchor with nothing else on the line. Some PDFs
 # (LaTeX output with a wide caption-number/text gap) split a figure caption's
@@ -193,6 +201,8 @@ def _table_band_ranges(
     caption_bboxes: list[BBox],
     all_lines: list[PdfTextLine],
     font_size: float,
+    *,
+    row_pitch_ratio: float = _TABLE_ROW_PITCH_RATIO,
 ) -> list[tuple[float, float]]:
     """Return vertical (y0, y1) bands covering table captions and their rows.
 
@@ -204,12 +214,12 @@ def _table_band_ranges(
     """
     if not caption_bboxes:
         return []
-    pitch_limit = max(font_size, 1.0) * _TABLE_ROW_PITCH_RATIO
+    pitch_limit = max(font_size, 1.0) * row_pitch_ratio
     ordered = sorted(all_lines, key=lambda ln: (ln.bbox.y0, ln.bbox.x0))
     bands: list[tuple[float, float]] = []
     for caption_bbox in caption_bboxes:
         band_bottom = caption_bbox.y1
-        prev_top = caption_bbox.y0
+        prev_top = caption_bbox.y1
         for line in ordered:
             if line.bbox.y0 < caption_bbox.y1 - _CAPTION_OVERLAP_TOL_PT:
                 continue  # at or above the caption line itself
@@ -217,6 +227,14 @@ def _table_band_ranges(
             if pitch <= 0:
                 # Cell on the same row (side-by-side) — part of the table row.
                 band_bottom = max(band_bottom, line.bbox.y1)
+                continue
+            if (
+                pitch > pitch_limit
+                and prev_top == caption_bbox.y1
+                and pitch <= _CAPTION_FIRST_ROW_MAX_GAP_PT
+            ):
+                band_bottom = max(band_bottom, line.bbox.y1)
+                prev_top = line.bbox.y0
                 continue
             if pitch > pitch_limit:
                 break  # ordinary body spacing resumed — table region ended
@@ -272,7 +290,51 @@ def _figure_caption_band_ranges(
         row = rows[row_index]
         anchor_line = min(row, key=lambda ln: ln.bbox.x0)
         clean = " ".join(anchor_line.text.strip().split())
-        if not FIGURE_LABEL_ANCHOR_RE.match(clean):
+        if not (
+            FIGURE_LABEL_ANCHOR_RE.match(clean)
+            or (CAPTION_PREFIX_RE.match(clean) and clean.casefold().startswith("figure"))
+        ):
+            row_index += 1
+            continue
+        band_top = min(ln.bbox.y0 for ln in row)
+        band_bottom = max(ln.bbox.y1 for ln in row)
+        prev_top = band_top
+        next_index = row_index + 1
+        while next_index < len(rows):
+            next_row = rows[next_index]
+            next_top = min(ln.bbox.y0 for ln in next_row)
+            pitch = next_top - prev_top
+            if pitch > pitch_limit:
+                break
+            band_bottom = max(band_bottom, max(ln.bbox.y1 for ln in next_row))
+            prev_top = next_top
+            next_index += 1
+        bands.append((band_top, band_bottom))
+        row_index = next_index
+    return bands
+
+
+def _bullet_block_band_ranges(
+    all_lines: list[PdfTextLine],
+    font_size: float,
+) -> list[tuple[float, float]]:
+    """Return vertical bands covering bullet/list items and wrapped lines.
+
+    P023 measures ordinary dissertation prose. Bullet items may be single-spaced
+    internally, so once a bullet marker anchors a row, contiguous single-spaced
+    continuation rows belong to that list item rather than to body prose.
+    """
+    if not all_lines:
+        return []
+    pitch_limit = max(font_size, 1.0) * _TABLE_ROW_PITCH_RATIO
+    rows = _group_into_rows(all_lines)
+    bands: list[tuple[float, float]] = []
+    row_index = 0
+    while row_index < len(rows):
+        row = rows[row_index]
+        leftmost = min(row, key=lambda ln: ln.bbox.x0)
+        clean = " ".join(leftmost.text.strip().split())
+        if not BULLET_PREFIX_RE.match(clean):
             row_index += 1
             continue
         band_top = min(ln.bbox.y0 for ln in row)
@@ -305,7 +367,7 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
     # Skip all pages that precede the first CHAPTER/APPENDIX heading. These are
     # front-matter pages (biographical sketch, publication lists, TOC continuation
     # pages, etc.) that are legitimately single-spaced or tightly formatted.
-    body_start = find_body_start_page(pdf_doc)
+    body_start = pdf_headings_find_body_start_page(pdf_doc)
 
     # Exclude the entire References/Bibliography section, including continuation
     # pages that do not repeat the heading. Reference-entry spacing has its own
@@ -340,6 +402,7 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
             page_font_size,
         )
         figure_bands = _figure_caption_band_ranges(all_lines, page_font_size)
+        bullet_bands = _bullet_block_band_ranges(all_lines, page_font_size)
 
         body_lines = [
             line
@@ -347,6 +410,7 @@ def check_pdf_body_spacing(pdf_doc: PdfDocument) -> list[AuditFinding]:
             if _is_body_text_line(line, page.height)
             and not _line_in_bands(line, table_bands)
             and not _line_in_bands(line, figure_bands)
+            and not _line_in_bands(line, bullet_bands)
         ]
         # Only warn when actual body-text lines remain to be measured. If all
         # tight spacing lives inside a table or figure-caption region,

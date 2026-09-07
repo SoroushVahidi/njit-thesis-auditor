@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
+from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
@@ -14,6 +15,7 @@ ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
 DECIMAL_SECTION_NUMBER_RE = re.compile(r"\d+\.\d+")
 LONG_NUMERIC_ID_RE = re.compile(r"^\d{5,}$")
 TOP_BOTTOM_ZONE_RATIO = 0.15
+LANDSCAPE_EDGE_ZONE_RATIO = 0.10
 POSITION_CENTER_TOLERANCE_PT = 24.0
 POSITION_RIGHT_TOLERANCE_PT = 72.0
 POSITION_DOMINANT_MISMATCH_THRESHOLD = 2
@@ -24,9 +26,16 @@ _POSITION_SCORE = {
     "bottom_right": 3,
     "top_center": 2,
     "top_right": 2,
+    "left_center": 4,
+    "right_center": 4,
     "other": 0,
 }
 _STYLE_SCORE = {"arabic": 2, "roman_lower": 2, "roman_upper": 2, "other": 0}
+# Position types that only occur on landscape pages (rotated folio along the
+# bound edge) vs. the normal portrait top/bottom-of-page positions. Kept
+# separate so a document's dominant portrait footer pattern never competes
+# with, or suppresses, the small number of landscape pages' own numbering.
+_LANDSCAPE_POSITION_TYPES = frozenset({"left_center", "right_center"})
 
 # (triage_tier, p019_triage_category, triage_reason)
 _P019_TRIAGE_MAP: dict[str, tuple[str, str, str]] = {
@@ -80,12 +89,43 @@ class _SequenceCandidate:
     bbox: tuple[float, float, float, float] | None = None
 
 
+@dataclass(frozen=True)
+class _DominantPageNumberPattern:
+    position_type: str
+    location: str
+    median_y0: float
+    y_tolerance_pt: float
+
+
 def _is_top_or_bottom_zone(
     y0: float, y1: float, page_height: float, zone_ratio: float = TOP_BOTTOM_ZONE_RATIO
 ) -> bool:
     top_limit = page_height * zone_ratio
     bottom_limit = page_height * (1.0 - zone_ratio)
     return y1 <= top_limit or y0 >= bottom_limit
+
+
+def _is_left_or_right_zone(
+    x0: float, x1: float, page_width: float, zone_ratio: float = LANDSCAPE_EDGE_ZONE_RATIO
+) -> bool:
+    left_limit = page_width * zone_ratio
+    right_limit = page_width * (1.0 - zone_ratio)
+    return x1 <= left_limit or x0 >= right_limit
+
+
+def _is_vertical_line_direction(line_dir: tuple[float, float] | None) -> bool:
+    """Return True when a line's PDF writing-direction vector is vertical.
+
+    Landscape-inserted pages (wide tables/figures) often carry their folio
+    number rotated 90 degrees so it reads correctly when the bound page is
+    turned sideways. Such a line's ``dir`` vector points along the page's
+    y-axis rather than its x-axis; a normal horizontal line has ``dir``
+    close to (1, 0).
+    """
+    if line_dir is None:
+        return False
+    dx, dy = line_dir
+    return abs(dx) < 0.5 and abs(dy) > 0.5
 
 
 def _normalize_candidate_text(text: str) -> str:
@@ -155,17 +195,33 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
     candidates: list[PageNumberCandidate] = []
     for page in pdf_doc.pages:
         for block in page.text_blocks:
-            if not _is_top_or_bottom_zone(block.bbox.y0, block.bbox.y1, page.height):
+            in_top_bottom = _is_top_or_bottom_zone(block.bbox.y0, block.bbox.y1, page.height)
+            in_left_right = page.is_visually_landscape and _is_left_or_right_zone(
+                block.bbox.x0, block.bbox.x1, page.width
+            )
+            if not in_top_bottom and not in_left_right:
                 continue
             for line in block.lines:
                 clean = " ".join(line.text.strip().split())
                 if not clean or not PAGE_NUM_RE.match(clean):
                     continue
-                location = "top" if line.bbox.y1 <= page.height * 0.15 else "bottom"
+                if not in_top_bottom:
+                    # Landscape edge zone only: a rotated folio number is the
+                    # one thing worth pulling out of a wide table/figure
+                    # page's margin -- unrotated text here (e.g. a table
+                    # cell or caption that happens to sit near the edge) is
+                    # left alone.
+                    if not _is_vertical_line_direction(line.line_dir):
+                        continue
+                    line_center_x = (line.bbox.x0 + line.bbox.x1) / 2.0
+                    location = "left" if line_center_x <= page.width / 2.0 else "right"
+                    position_type = "left_center" if location == "left" else "right_center"
+                else:
+                    location = "top" if line.bbox.y1 <= page.height * 0.15 else "bottom"
+                    position_type = _classify_position_type(
+                        line.bbox.x0, line.bbox.x1, line.bbox.y1, page.width, page.height
+                    )
                 number_style, value = _classify_style_and_value(clean)
-                position_type = _classify_position_type(
-                    line.bbox.x0, line.bbox.x1, line.bbox.y1, page.width, page.height
-                )
                 candidates.append(
                     PageNumberCandidate(
                         page_number=page.page_number,
@@ -268,6 +324,10 @@ def _primary_plausible_candidate(
 
 _MIN_DOMINANT_LOCATION_SAMPLE = 10
 _MIN_DOMINANT_LOCATION_RATIO = 0.9
+_MIN_DOMINANT_PATTERN_SAMPLE = 10
+_MIN_DOMINANT_PATTERN_RATIO = 0.85
+_DOMINANT_PATTERN_MIN_Y_TOLERANCE_PT = 18.0
+_DOMINANT_PATTERN_MAX_Y_TOLERANCE_PT = 24.0
 
 
 def _dominant_location(
@@ -316,6 +376,88 @@ def _filter_secondary_location_noise(
     return dominant_here
 
 
+def _dominant_page_number_pattern(
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> _DominantPageNumberPattern | None:
+    """Infer the document's stable page-number position and vertical baseline.
+
+    Real dissertations usually print page numbers on a consistent footer/header
+    baseline. Lower-page body text can still enter the broad top/bottom candidate
+    zone; once a stable baseline is known, those off-baseline tokens should not
+    compete with the actual page number on the same page.
+    """
+    primary_candidates = [
+        primary
+        for page in sorted(filtered_by_page)
+        if (primary := _primary_plausible_candidate(filtered_by_page[page])) is not None
+        and primary.bbox is not None
+        and primary.position_type != "other"
+    ]
+    if len(primary_candidates) < _MIN_DOMINANT_PATTERN_SAMPLE:
+        return None
+
+    position_type, count = Counter(c.position_type for c in primary_candidates).most_common(1)[0]
+    if count / len(primary_candidates) < _MIN_DOMINANT_PATTERN_RATIO:
+        return None
+
+    dominant_candidates = [c for c in primary_candidates if c.position_type == position_type]
+    y_values = [c.bbox[1] for c in dominant_candidates if c.bbox is not None]
+    if len(y_values) < _MIN_DOMINANT_PATTERN_SAMPLE:
+        return None
+    median_y = median(y_values)
+    deviations = [abs(y - median_y) for y in y_values]
+    median_deviation = median(deviations) if deviations else 0.0
+    tolerance = min(
+        _DOMINANT_PATTERN_MAX_Y_TOLERANCE_PT,
+        max(_DOMINANT_PATTERN_MIN_Y_TOLERANCE_PT, median_deviation * 3.0),
+    )
+    location = Counter(c.location for c in dominant_candidates).most_common(1)[0][0]
+    return _DominantPageNumberPattern(
+        position_type=position_type,
+        location=location,
+        median_y0=median_y,
+        y_tolerance_pt=tolerance,
+    )
+
+
+def _matches_dominant_page_number_pattern(
+    candidate: PageNumberCandidate,
+    pattern: _DominantPageNumberPattern,
+) -> bool:
+    if candidate.position_type in _LANDSCAPE_POSITION_TYPES:
+        # A rotated landscape-page folio is never "off pattern" relative to a
+        # portrait-page baseline (and vice versa) -- they are different page
+        # geometries with their own valid numbering location, not competing
+        # candidates for the same footer. Too few landscape pages typically
+        # exist in one document to establish a reliable landscape-specific
+        # baseline of its own, so these candidates simply bypass this filter.
+        return pattern.position_type in _LANDSCAPE_POSITION_TYPES
+    if pattern.position_type in _LANDSCAPE_POSITION_TYPES:
+        return False
+    if candidate.bbox is None:
+        return False
+    if candidate.location != pattern.location:
+        return False
+    return abs(candidate.bbox[1] - pattern.median_y0) <= pattern.y_tolerance_pt
+
+
+def _filter_off_pattern_noise(
+    plausible: list[PageNumberCandidate],
+    pattern: _DominantPageNumberPattern | None,
+) -> list[PageNumberCandidate]:
+    """Drop off-baseline tokens when an on-pattern page number exists."""
+    if pattern is None or len(plausible) <= 1:
+        return plausible
+    on_pattern = [
+        candidate
+        for candidate in plausible
+        if _matches_dominant_page_number_pattern(candidate, pattern)
+    ]
+    if not on_pattern:
+        return plausible
+    return on_pattern
+
+
 def _format_candidate_tokens(candidates: list[PageNumberCandidate]) -> str:
     return "; ".join(f"{_position_label(c.position_type)}: {c.text}" for c in candidates)
 
@@ -341,6 +483,72 @@ def _style_transition_pages(
         if style != prev_style:
             transitions.append((prev_page, prev_style, page, style))
     return transitions
+
+
+def _is_expected_frontmatter_to_body_style_transition(
+    pdf_doc: PdfDocument,
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> bool:
+    """Return True when mixed styles are just the NJIT front-matter/body split.
+
+    Roman numerals in front matter followed by Arabic page 1 at the CHAPTER 1
+    landmark is expected document structure. P019 should still report sequence
+    defects and per-page candidate problems, but it must not emit the old
+    document-wide "mixed numbering styles" warning for that normal transition.
+    """
+    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
+
+    body_start = find_body_start_page(pdf_doc)
+    if body_start is None:
+        return False
+
+    transitions = _style_transition_pages(filtered_by_page)
+    if len(transitions) != 1:
+        return False
+    prev_page, prev_style, new_page, new_style = transitions[0]
+    if not (prev_page < body_start == new_page):
+        return False
+    if prev_style != "roman_lower" or new_style != "arabic":
+        return False
+    primary = _primary_plausible_candidate(filtered_by_page.get(new_page, []))
+    return primary is not None and primary.value == 1
+
+
+def _is_unresolved_roman_to_arabic_body_landmark_transition(
+    pdf_doc: PdfDocument,
+    filtered_by_page: dict[int, list[PageNumberCandidate]],
+) -> bool:
+    """Return True when mixed styles point to missing body-start classification.
+
+    If Arabic page 1 appears after Roman-numbered front matter but no CHAPTER 1
+    landmark is detected, Ester's feedback says the useful question is the
+    missing/incorrect chapter transition, not a confident page-number-style
+    mismatch. P019 has no chapter-heading issue type, so it should stay silent
+    on this document-level style check rather than mislabel the symptom.
+    """
+    from njit_auditor.rules.pdf_headings import find_body_start_page  # noqa: PLC0415
+
+    transitions = _style_transition_pages(filtered_by_page)
+    if len(transitions) != 1:
+        return False
+    _prev_page, prev_style, new_page, new_style = transitions[0]
+    body_start = find_body_start_page(pdf_doc)
+    if body_start is not None and body_start <= new_page:
+        return False
+    if body_start is not None:
+        chapter_page = next(
+            (page for page in pdf_doc.pages if page.page_number == body_start), None
+        )
+        if chapter_page is not None and not any(
+            re.match(r"^CHAPTER\s*1(?:\s|$)", line.text.strip())
+            for block in chapter_page.text_blocks
+            for line in block.lines
+        ):
+            return False
+    if prev_style != "roman_lower" or new_style != "arabic":
+        return False
+    primary = _primary_plausible_candidate(filtered_by_page.get(new_page, []))
+    return primary is not None and primary.value == 1
 
 
 def _primary_sequence_values(
@@ -425,17 +633,14 @@ def _document_label_details(candidate: PageNumberCandidate | _SequenceCandidate)
 
 
 def _candidate_confidence(candidate: PageNumberCandidate) -> str:
-    if candidate.position_type in {"bottom_center", "bottom_right"} and candidate.number_style in {
-        "arabic",
-        "roman_lower",
-        "roman_upper",
-    }:
-        return "medium"
-    if candidate.position_type in {"top_center", "top_right"} and candidate.number_style in {
-        "arabic",
-        "roman_lower",
-        "roman_upper",
-    }:
+    if candidate.position_type in {
+        "bottom_center",
+        "bottom_right",
+        "top_center",
+        "top_right",
+        "left_center",
+        "right_center",
+    } and candidate.number_style in {"arabic", "roman_lower", "roman_upper"}:
         return "medium"
     return "low"
 
@@ -446,6 +651,8 @@ def _position_label(position_type: str) -> str:
         "bottom_right": "bottom right",
         "top_center": "top center",
         "top_right": "top right",
+        "left_center": "left edge (rotated, landscape page)",
+        "right_center": "right edge (rotated, landscape page)",
         "other": "an unexpected location",
     }
     return labels.get(position_type, "an unexpected location")
@@ -601,6 +808,11 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         )
         for pg, pc in by_page.items()
     }
+    dominant_pattern = _dominant_page_number_pattern(filtered_by_page)
+    filtered_by_page = {
+        pg: _filter_off_pattern_noise(pc, dominant_pattern)
+        for pg, pc in filtered_by_page.items()
+    }
 
     pages_with_plausible_primary: set[int] = set()
     for page, page_candidates in by_page.items():
@@ -738,11 +950,19 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 )
             )
 
-    # Mixed dominant style across document (TOC noise filtered).
+    # Mixed dominant style across document (TOC noise filtered). A legitimate
+    # Roman front-matter -> CHAPTER 1 Arabic page 1 transition is expected and
+    # must not be diagnosed as suspicious merely because both styles coexist.
     style_counts = Counter(
         c.number_style for c in all_filtered_plausible if c.number_style != "other"
     )
-    if len([s for s in style_counts if style_counts[s] > 0]) > 1:
+    if (
+        len([s for s in style_counts if style_counts[s] > 0]) > 1
+        and not _is_expected_frontmatter_to_body_style_transition(pdf_doc, filtered_by_page)
+        and not _is_unresolved_roman_to_arabic_body_landmark_transition(
+            pdf_doc, filtered_by_page
+        )
+    ):
         observed_style_labels = sorted(_style_label(style) for style in style_counts)
         document_mixed_details: dict[str, str] = {
             "page_number": "-",
