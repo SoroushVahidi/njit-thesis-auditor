@@ -46,7 +46,7 @@ TRAILING_RIGHT_COLUMN_PAGE_NUM_RE = re.compile(
 )
 ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
-SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)[\s:]")
+SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?[\s:]")
 SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)*$")
 LINE_PREVIEW_MAX_LEN = 80
 RIGHT_EDGE_TOLERANCE_PT = 10.0
@@ -64,7 +64,7 @@ TOC_ENTRY_MAX_LEFT_FRACTION = 0.55
 PREFIX_ENTRY_MIN_LEN = 4
 DEFAULT_ENTRY_MIN_LEN = 8
 PREFIX_ENTRY_RE = re.compile(r"^(TABLE|FIGURE|CHAPTER|APPENDIX)\b", re.IGNORECASE)
-NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\s")
+NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\.?\s")
 INDENT_CLUSTER_TOLERANCE_PT = 12.0
 MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON = 3
 HIERARCHY_INDENT_TOLERANCE_PT = 10.0
@@ -387,8 +387,32 @@ def _has_prefix_entry_shape(cleaned_text: str) -> bool:
     return bool(PREFIX_ENTRY_RE.match(upper) or NUMERIC_PREFIX_RE.match(cleaned_text))
 
 
+_LEADER_DOT_SPAN_RE = re.compile(r"[.…][.…\s]*[.…]")
+
+
 def _has_leader_dot_pattern(cleaned_text: str) -> bool:
-    return "..." in cleaned_text or cleaned_text.rstrip().endswith("....")
+    """True when *cleaned_text* ends in a visible dot/ellipsis leader run.
+
+    PDF text extraction renders TOC leader runs inconsistently: some are a
+    literal run of ASCII periods, others are Unicode horizontal-ellipsis
+    characters (``…``, each visually three dots), and wrapped (two-line)
+    entries often extract as two separate dot clusters joined by a single
+    space (the second line's leader run does not visually start flush with
+    the first). All of these are the same visible leader-dot pattern to a
+    reader; only literal ASCII runs were previously recognized, which
+    produced false "missing dots" findings for any entry using an
+    ellipsis-based or wrap-split leader. A run is scored by visible dot
+    weight (an ellipsis counts as 3, a period as 1) rather than raw
+    character count, so a short two-ellipsis leader (``……``, six visible
+    dots) is not missed just because it is only two characters wide.
+    """
+    if "..." in cleaned_text or cleaned_text.rstrip().endswith("...."):
+        return True
+    for match in _LEADER_DOT_SPAN_RE.finditer(cleaned_text):
+        dot_weight = sum(3 if ch == "…" else 1 for ch in match.group() if ch in ".…")
+        if dot_weight >= 3:
+            return True
+    return False
 
 
 def _likely_entry_line(cleaned_text: str, *, has_page_number_signal: bool = False) -> bool:
@@ -475,7 +499,7 @@ def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
         page_number_token=page_num,
         page_number_right_x=page_right_x,
         indent_x=line.bbox.x0,
-        has_leader_dots="..." in cleaned or " ." in cleaned,
+        has_leader_dots=_has_leader_dot_pattern(cleaned),
     )
 
 
