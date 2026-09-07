@@ -7,11 +7,15 @@
 > write detailed records under `docs/status/` and link them from this file.
 
 _Last verified: 2026-09-07, on the `research/ester-feedback-through-r033-20260901` branch,
-after R018 finding-level review, the R035 Praneeth text-fallback centering
-fix, and porting `main`'s P024 hardening. `main`'s own last verified state
-below is still 2026-09-01; the research branch is the current engineering
-front and has not yet been integrated back into `main` (see Research Branch
-section)._
+after the live Ester feedback sheet was checked directly and found to
+contain explicit verdicts for R018 and R024. Both fixed at the root cause
+(a Unicode-ellipsis leader-dot detection bug and a trailing-period
+section-number regex bug in `pdf_toc_alignment.py`, shared by R018/R024/
+R055) and reconciled against Ester's authority — see
+`docs/status/r018_r024_ester_sheet_authority_20260907.md`. `main`'s own
+last verified state below is still 2026-09-01; the research branch is the
+current engineering front and has not yet been integrated back into `main`
+(see Research Branch section)._
 
 ## Main Branch
 
@@ -33,10 +37,10 @@ section)._
 | Field | Value |
 |---|---|
 | Branch | `research/ester-feedback-through-r033-20260901` |
-| HEAD | `d5a1d0d`; **3 commits ahead of origin, not yet pushed** as of this update |
-| Commits this session (chronological) | `aea0e81` fix(r036) wrap-continuation FP · `2a0289d` R036 package regen · `4f9f96f` docs sync · (pushed, CI green) · `6facf49` fix(r035) text-fallback centering FP · `b80eff7` fix(r024) ported P024 hardening · `d5a1d0d` R024/R035 package regen (unpushed) |
-| CI | green through `4f9f96f` (last pushed commit, run `34147723480`); `6facf49`/`b80eff7`/`d5a1d0d` not yet pushed |
-| `python -m pytest` | 3335 passed, 2 skipped (clean venv, PyMuPDF 1.28.2) |
+| HEAD | `3267cd3`; **3 commits ahead of origin, not yet pushed** as of this update |
+| Commits this session (chronological) | `aea0e81` fix(r036) wrap-continuation FP · `2a0289d` R036 package regen · `4f9f96f` docs sync · `6facf49` fix(r035) text-fallback centering FP · `b80eff7` fix(r024) ported P024 hardening · `d5a1d0d` R024/R035 package regen · `7727c5c` docs sync (all pushed, CI green through here) · `f80a014` fix(r018) ellipsis-dot/trailing-period bugs · `3267cd3` R018/R024/R055 package regen (unpushed) |
+| CI | green through `7727c5c` (last pushed commit, run `34149744830`); `f80a014`/`3267cd3` not yet pushed |
+| `python -m pytest` | 3348 passed, 2 skipped (clean venv, PyMuPDF 1.28.2) |
 | **Environment hazard** | The box's ambient/default `python3` venv has PyMuPDF 1.24.6, **below** the `>=1.25.0` floor `pyproject.toml` requires. Running the auditor or its evaluation tooling under that venv silently produces materially different (wrong) geometry results — confirmed directly (P036 counts differed by 4x between the two venvs on identical PDFs). Always use a venv with PyMuPDF `>=1.25.0` for any private-corpus evaluation. A correct one already exists at `/tmp/njit-auditor-final-gate-20260907105625`. |
 
 ## Current Evaluation Corpus
@@ -48,19 +52,18 @@ must not be quoted, uploaded, or committed.
 
 ## Feedback-Cycle Rule State
 
-_Updated 2026-09-07 (second pass) — the table below was stale as of 2026-09-01:
-R016, R018, R020, R023, R026, R028, R033 were already resolved by
-`docs/status/ester_authority_matrix_20260902.md` the very next day, and
-R035/R036/R055/R085 have since been implemented and regression-tested. See
-`docs/status/ester_authority_matrix.md` for the current pointer and known
-deltas._
+_Updated 2026-09-07 (third pass) — the live Ester feedback sheet was checked
+directly and carries explicit verdicts for R018 and R024 that repository
+evidence alone could not previously confirm. Both are now resolved and
+moved out of "unresolved" below. See
+`docs/status/r018_r024_ester_sheet_authority_20260907.md`._
 
 | State | Rules |
 |---|---|
-| Closed, Ester-adjudicated, regression-tested against fresh audit | R011, R015, R016, R017, R019/R028 (page-number ownership split), R020, R023, R026 (except Latin Modern alias, still unresolved), R033, R035 (Anthony's reviewed false positives confirmed gone; a structural centering bug affecting Praneeth's page-72 finding was found and fixed independently of any Ester text — see `docs/status/r035_praneeth_text_fallback_fix_20260907.md`), R036, R055 |
+| Closed, Ester-adjudicated, regression-tested against fresh audit | R011, R015, R016, R017, R018 (both reviewed false positives — Anthony, Praneeth's Section-1.1-area leader-dot finding — confirmed absent after fixing two general TOC extraction bugs; see `docs/status/r018_r024_ester_sheet_authority_20260907.md`), R019/R028 (page-number ownership split), R020, R023, R024 (both reviewed false positives — Anthony's proper-noun/species-name case, Praneeth's hyphenated-fragment case — confirmed against the already-ported `b80eff7` hardening), R026 (except Latin Modern alias, still unresolved), R033, R035 (Anthony's reviewed false positives confirmed gone; a structural centering bug affecting Praneeth's page-72 finding was found and fixed independently of any Ester text — see `docs/status/r035_praneeth_text_fallback_fix_20260907.md`), R036, R055 (package regenerated 2026-09-07 against the 2026-09-05 Table/Figure-prefix fix) |
 | Closed, engineering-confirmed genuine violation | R085 (Patrick's missing literal CHAPTER 1) |
-| **Genuinely unresolved — searched exhaustively, no recoverable Ester verdict text exists in the repo, do not guess** | R018 (the authority matrix's "suppress the selected Anthony/Praneeth false positives" line is a directive, not a confirmation; no commit implements it; the tracked R018 xlsx was never returned by Ester; see `docs/status/r018_finding_level_review_20260907.md` for the full finding-level table and why this can't be resolved from repository evidence alone) |
-| Genuinely unresolved — no Ester decision exists, general correctness hardening applied proactively | R024 (P024 title-case/sentence-case hardening ported from `main`, reduces two false-positive classes; still awaiting an actual Ester review), R034, Latin Modern font-alias expansion (R026 sub-issue) |
+| **Open policy question — Ester asked a question, not a confirmed second verdict** | R018's note that sections 1.3.3/1.3.4/1.3.5 "do not align": after the leader-dot fix, all three read as dotted, correctly indented, and column-aligned; no current geometric check has a basis to flag them, and none was added to force one — see `docs/status/r018_r024_ester_sheet_authority_20260907.md` |
+| Genuinely unresolved — no Ester decision exists | R034, Latin Modern font-alias expansion (R026 sub-issue) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward |
 
@@ -136,13 +139,15 @@ described below. Retaining for history; do not treat as the current queue._
 9. Run a final global human-feedback regression audit.
 10. Deploy only after the feedback cycle stabilizes and CI is green.
 
-**Actual current queue (2026-09-07):** R024 and R034 remain genuinely
-unresolved (no Ester decision exists for either); R018's surviving
-Anthony/Praneeth findings need one finding-level verification pass; R035's
-Praneeth findings need confirmation against Ester's actual Sep-4 response
-before being called either closed or regressed; the uncommitted `main` P024
-hardening needs porting to this branch once R024 engineering resumes; R037
-onward have not been reviewed this cycle.
+**Actual current queue (2026-09-07, third pass):** R018, R024, and R035 are
+now resolved against the live Ester feedback sheet (see
+`docs/status/r018_r024_ester_sheet_authority_20260907.md`); one open policy
+question remains on R018 (1.3.3/1.3.4/1.3.5, see above). R034 remains
+genuinely unresolved (no Ester decision exists). The uncommitted `main`
+P024 hardening is redundant now that it is ported and committed on this
+branch (`b80eff7`) — safe to clean up. This branch needs to be pushed,
+green CI confirmed on the new HEAD, and a PR opened to `main`. R037 onward
+have not been reviewed this cycle.
 
 ## Repository Hygiene Notes
 

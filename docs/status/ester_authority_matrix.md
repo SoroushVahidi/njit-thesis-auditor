@@ -25,13 +25,23 @@
 - **R016, R018, R020, R023, R026, R028, R033**: `CURRENT_STATUS.md`'s
   historical "Friday discussion / frozen for tuning" label predates this
   matrix and is stale; the 2026-09-02 matrix already records explicit
-  Ester decisions for all of these, **except R018**, whose row is a task
-  directive that was never confirmed as completed anywhere in this repo —
-  see `r018_finding_level_review_20260907.md`. R018 is genuinely
-  UNRESOLVED, not settled.
-- **R024**: still "NO ESTER DECISION FOUND" — accurate as of this writing.
-  The hardening that existed uncommitted on the `main` worktree (title-case
-  hyphenated-fragment and parenthetical proper-noun handling) has been
-  reimplemented and committed on the research branch at `b80eff7`; it is
-  general correctness work, not a response to an Ester decision (none
-  exists for R024).
+  Ester decisions for all of these. R018's row previously read as
+  UNRESOLVED here (`r018_finding_level_review_20260907.md` — no
+  implementing commit or returned xlsx was found in-repo). The live Ester
+  feedback sheet was checked directly the same day and does carry explicit
+  verdicts: Anthony's and Praneeth's reviewed R018 findings are both false
+  positives. Both are now confirmed absent from current output — see
+  `r018_r024_ester_sheet_authority_20260907.md`, which supersedes
+  `r018_finding_level_review_20260907.md`'s conclusion (not its method).
+  One open item remains: Ester's note that sections 1.3.3/1.3.4/1.3.5
+  "do not align" is a question, not a confirmed second verdict, and no
+  current geometric check has a basis to flag them — see that document.
+- **R024**: previously "NO ESTER DECISION FOUND". The live Ester feedback
+  sheet was checked directly on 2026-09-07 and does carry explicit
+  verdicts: Anthony's and Praneeth's reviewed R024 findings are both false
+  positives (proper nouns/species names; hyphenated-fragment
+  capitalization, respectively). The general hardening already committed
+  at `b80eff7` (reimplemented from `main`'s uncommitted work before any
+  authority was known) matches both rationales and is confirmed against
+  the fresh seven-document audit — see
+  `r018_r024_ester_sheet_authority_20260907.md`.
