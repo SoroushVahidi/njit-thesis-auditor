@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Soroush Vahidi" }]
 dependencies = [
-  "pymupdf>=1.24.0",
+  "pymupdf>=1.25.0",
   "pdfplumber>=0.11.0",
   "pypdf>=5.0.0",
   "typer>=0.12.0",
