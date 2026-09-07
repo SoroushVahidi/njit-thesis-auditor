@@ -483,18 +483,12 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             continue
         if primary is None:
             continue
-        body_bbox = _union_bbox(primary)
-        not_centered, center_delta, tolerance = _centering_issue(page, body_bbox)
-        if not_centered:
-            _append_finding(
-                findings,
-                issue_type="figure_body_not_centered",
-                float_type="figure",
-                page_number=caption.page_number,
-                float_number=float_number,
-                center_delta=center_delta,
-                allowed_center_delta=tolerance,
-                bbox=body_bbox,
-            )
+        # ``primary`` here is a text-block fallback, not a confirmed graphic
+        # body (that case already returned above via ``primary_graphic``).
+        # Text fragments above a figure caption -- axis labels, callouts,
+        # legend text extracted as their own blocks -- do not reliably
+        # represent the figure's true visual extent, so their union bbox is
+        # not a valid centering measurement. Centering is only meaningful
+        # against the actual image geometry; skip it on this fallback path.
 
     return findings

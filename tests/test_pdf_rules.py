@@ -10076,16 +10076,23 @@ def test_p035_raster_figure_below_caption_warns_and_highlights_figure(
 
 
 def test_p035_off_center_figure_body_warns(tmp_path: Path) -> None:
+    # A figure's centering must be measured against its actual visual (raster
+    # image) extent, not a text-row stand-in -- see
+    # test_r035_figure_text_fallback_not_used_for_centering for why a text
+    # fallback is never a valid centering proxy. Use a real embedded image,
+    # shifted well past the 18pt portrait tolerance from the 324pt text-area
+    # center.
     pdf_path = tmp_path / "p035_figure_off_center.pdf"
-    _make_p035_body_page_pdf(
-        pdf_path,
-        float_type="figure",
-        caption_text=_P035_FIGURE_CAPTION,
-        caption_y=260.0,
-        body_x0=108.0,
-        body_y=180.0,
-    )
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 1 INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    _insert_p035_raster_figure(page, fitz.Rect(100, 180, 388, 250))
+    page.insert_text((108, 260.0), _P035_FIGURE_CAPTION, fontsize=11)
+    doc.save(pdf_path)
+    doc.close()
+
     model = load_pdf_layout(str(pdf_path))
+    assert model.pages[0].graphic_blocks
     warnings = [f for f in check_pdf_figure_table_layout(model) if f.rule_id == "P035"]
     assert any(w.details.get("issue_type") == "figure_body_not_centered" for w in warnings)
 

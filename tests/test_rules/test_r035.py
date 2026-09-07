@@ -122,3 +122,49 @@ def test_r035_landscape_figure_just_beyond_tolerance():
     doc = make_mock_doc(is_landscape=True, caption_type="figure", body_x0=414.1, body_x1=514.1)
     findings = check_pdf_figure_table_layout(doc)
     assert any("figure_body_not_centered" in f.details.get("issue_type", "") for f in findings)
+
+
+def test_r035_figure_text_fallback_not_used_for_centering():
+    """When no qualifying graphic block exists above a figure caption, any
+    text fragments found there (axis labels, callouts extracted as separate
+    blocks) must not be treated as the figure's visual body for centering
+    purposes -- their bbox is not a reliable proxy for where the actual
+    image sits, and can be badly off-center even when the real image is
+    fine (e.g. an axis-label block flush against the left margin)."""
+    page = PdfPage(
+        page_number=1,
+        original_page_index=0,
+        original_page_number=1,
+        manuscript_page_index=0,
+        manuscript_page_number=1,
+        width=612.0,
+        height=792.0,
+        is_visually_landscape=False,
+        text_blocks=[],
+        graphic_blocks=[],
+    )
+    cap_text = "Figure 1.1 Experimental Results of the Mantel Test."
+    cap_bbox = BBox(x0=108.0, y0=300.0, x1=540.0, y1=315.0)
+    cap_span = PdfTextSpan(text=cap_text, bbox=cap_bbox)
+    cap_line = PdfTextLine(spans=[cap_span], bbox=cap_bbox, text=cap_text)
+    cap_block = PdfTextBlock(lines=[cap_line], bbox=cap_bbox, text=cap_text)
+    page.text_blocks.append(cap_block)
+
+    # Two small, badly off-center single-line text fragments above the
+    # caption -- no graphic block is present at all, mimicking axis-label
+    # text extracted separately from an actual embedded image.
+    for text, y0, y1 in [
+        ("Concentration (mg/L) axis label", 200.0, 212.0),
+        ("Time (hours) secondary axis note", 213.0, 225.0),
+    ]:
+        frag_bbox = BBox(x0=50.0, y0=y0, x1=140.0, y1=y1)
+        span = PdfTextSpan(text=text, bbox=frag_bbox)
+        line = PdfTextLine(spans=[span], bbox=frag_bbox, text=text)
+        block = PdfTextBlock(lines=[line], bbox=frag_bbox, text=text)
+        page.text_blocks.append(block)
+
+    doc = PdfDocument(path="mock.pdf", pages=[page])
+    findings = check_pdf_figure_table_layout(doc)
+    assert not any(
+        f.details.get("issue_type") == "figure_body_not_centered" for f in findings
+    )
