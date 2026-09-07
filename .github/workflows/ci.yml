@@ -20,8 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # CI uses synthetic fixtures and mocked sample-copy paths; no test opens Git LFS assets.
-          lfs: false
+          # Some tests exercise real Ester sample PDFs/fixtures tracked via Git LFS
+          # (data/raw/ester/, tests/fixtures/web_demo/); fetch the real content.
+          lfs: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
