@@ -702,12 +702,14 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "a table. Move this entry to the List of Tables."
     ),
     ("P055", "lot_entry_missing_table_prefix"): (
-        "This means a List of Tables entry is missing the required 'Table' prefix before its number. "
-        "Each entry in the List of Tables should begin with the word 'Table' (e.g., Table 1.1 ...)."
+        "This means a List of Tables entry is missing the required 'Table' prefix "
+        "before its number. Each entry in the List of Tables should begin with the "
+        "word 'Table' (e.g., Table 1.1 ...)."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
-        "This means a List of Figures entry is missing the required 'Figure' prefix before its number. "
-        "Each entry in the List of Figures should begin with the word 'Figure' (e.g., Figure 1.1 ...)."
+        "This means a List of Figures entry is missing the required 'Figure' prefix "
+        "before its number. Each entry in the List of Figures should begin with the "
+        "word 'Figure' (e.g., Figure 1.1 ...)."
     ),
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "This means Table of Contents page numbers do not appear in ascending "
