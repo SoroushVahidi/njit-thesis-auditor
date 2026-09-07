@@ -64,6 +64,34 @@ def _looks_like_new_entry_start(cleaned: str) -> bool:
     return _likely_entry_line(cleaned) and ("...." in cleaned or "..." in cleaned)
 
 
+def _looks_like_new_entry_start_given_previous(
+    previous: PdfTextLine, cleaned: str
+) -> bool:
+    """Like ``_looks_like_new_entry_start``, but aware that a dot-leader
+    line only signals a genuinely NEW entry when the entry currently being
+    built already reached its own dot-leader/page-number column (i.e. is
+    already complete). A wrapped entry's title normally spans a line with
+    no dot leaders followed by a line that finishes with dot leaders (and,
+    on the actual PDF page, a page number -- which text extraction may
+    split off onto its own short numeric line and which
+    ``_collect_entry_region_lines`` then discards, so the page number
+    itself cannot be relied on as the signal). That finishing line must
+    complete the still-open previous entry, not start another one, even
+    though it has the same dot-leader shape as a real new entry. Checking
+    whether *previous* itself already has dot leaders avoids that
+    extraction quirk: if it does, previous is already a complete entry and
+    this line is a new one; if it does not, previous is still an open
+    title and this line's dots complete it. The strong numbered/Chapter/
+    Appendix prefix signal is unaffected: it always means a new entry.
+    """
+    if NEW_ENTRY_START_RE.match(cleaned):
+        return True
+    if not (_likely_entry_line(cleaned) and ("...." in cleaned or "..." in cleaned)):
+        return False
+    previous_text = _clean_text(previous.text)
+    return "...." in previous_text or "..." in previous_text
+
+
 def _classify_entry_kind(page_type: str, cleaned: str) -> str:
     if page_type == "list_of_tables":
         return "table_entry"

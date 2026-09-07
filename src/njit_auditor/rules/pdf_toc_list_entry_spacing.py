@@ -15,7 +15,7 @@ from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
     _estimate_line_height,
     _has_intervening_page_number_line,
     _is_wrap_continuation_pair,
-    _looks_like_new_entry_start,
+    _looks_like_new_entry_start_given_previous,
 )
 from njit_auditor.toc_list_student_preview import (
     gap_bbox_between_boxes,
@@ -61,7 +61,7 @@ def _is_entry_boundary(
     """
     if _is_wrap_continuation_pair(previous, line, page_type):
         return False
-    return _looks_like_new_entry_start(_clean_text(line.text))
+    return _looks_like_new_entry_start_given_previous(previous, _clean_text(line.text))
 
 
 def _group_lines_into_entries(

@@ -169,3 +169,45 @@ def test_r036_arbitrary_all_caps_not_exempted():
         "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
         for f in findings
     )
+
+
+def test_r036_wrapped_entry_title_not_split_into_two_entries():
+    """A single entry whose title wraps onto a second physical line (first
+    line has no dot leaders yet, second line finishes with dot leaders and
+    a page number) must not be scored as two tightly-spaced entries, even
+    though the second physical line's dot-leader shape looks like a new
+    entry start in isolation."""
+    doc = make_mock_toc_doc(
+        [
+            ("2.3 A Very Long Section Title That Continues", 150.0, 162.0),
+            ("Onto The Next Physical Line Segment ......... 45", 163.0, 175.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert not any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_genuine_tight_gap_after_wrapped_entry_still_flagged():
+    """A wrapped entry's own internal gap must be exempt, but a genuinely
+    tight gap between that (now-complete) entry and the NEXT distinct entry
+    must still be reported."""
+    doc = make_mock_toc_doc(
+        [
+            ("2.3 A Very Long Section Title That Continues", 150.0, 162.0),
+            ("Onto The Next Physical Line Segment ......... 45", 163.0, 175.0),
+            ("2.4 Another Distinct Section Title ......... 60", 176.0, 188.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    tight = [
+        f
+        for f in findings
+        if "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+    ]
+    assert len(tight) == 1
+    assert tight[0].details.get("previous_entry_preview", "").startswith(
+        "Onto The Next Physical Line"
+    )
