@@ -39,6 +39,7 @@ from njit_auditor.review_ledger.identifiers import (
 )
 from njit_auditor.review_ledger.importers.authority_matrix import import_authority_matrix
 from njit_auditor.review_ledger.importers.case_migration import migrate_known_cases
+from njit_auditor.review_ledger.importers.known_policies import migrate_known_policies
 from njit_auditor.review_ledger.importers.thesis_registry import register_corpus
 from njit_auditor.review_ledger.importers.xlsx_packages import scan_xlsx_packages
 from njit_auditor.review_ledger.models import (
@@ -168,6 +169,7 @@ def migrate(ledger_root: Path = PRIVATE_LEDGER_ROOT) -> GroundTruthReport:
         imported_at=imported_at,
     )
     xlsx_summary = scan_xlsx_packages(ESTER_FEEDBACK_PACKAGES_DIR)
+    policy_summary = migrate_known_policies(ledger, imported_at=imported_at)
 
     print("=== Authority matrix import ===")
     print(f"  rules_in_matrix={matrix_summary.rules_in_matrix}")
@@ -190,9 +192,14 @@ def migrate(ledger_root: Path = PRIVATE_LEDGER_ROOT) -> GroundTruthReport:
     print(f"  rows_blank={xlsx_summary.rows_blank}")
     print(f"  rows_unparseable={xlsx_summary.rows_unparseable}")
     print()
+    print("=== Known policy (email/manual-record) import ===")
+    print(f"  total_known_policies={policy_summary.total_known_policies}")
+    print(f"  policies_created={policy_summary.policies_created}")
+    print(f"  policies_already_present={policy_summary.policies_already_present}")
+    print()
 
     report = run_replay(ledger, current_findings, code_sha=code_sha, checked_at=imported_at)
-    _print_replay_report(report)
+    _print_replay_report(report, ledger)
     return report
 
 
@@ -248,13 +255,27 @@ def run_replay(
     return report
 
 
-def _print_replay_report(report: GroundTruthReport) -> None:
+def policy_guidance_total(ledger: EsterReviewLedger) -> int:
+    """Count of rule-wide (not case-level) policy ``Resolution`` rows --
+    ``case_id=None`` and ``policy_reference`` set. Covers both the dated
+    authority-matrix import (``importers.authority_matrix``) and hand-cited
+    email/manual-record policy (``importers.known_policies``, e.g. R055) --
+    it is a ledger-wide count, not tied to one importer."""
+    return sum(
+        1
+        for r in ledger.resolutions.all()
+        if r.get("case_id") is None and r.get("policy_reference")
+    )
+
+
+def _print_replay_report(report: GroundTruthReport, ledger: EsterReviewLedger) -> None:
     print("=== Ground-truth replay ===")
     print(f"  ESTER_REVIEWED_FP_TOTAL = {report.ester_reviewed_fp_total}")
     print(f"  ESTER_FP_REMAINING = {report.ester_fp_remaining}")
     print(f"  ESTER_REVIEWED_TP_TOTAL = {report.ester_reviewed_tp_total}")
     print(f"  ESTER_TP_MISSING = {report.ester_tp_missing}")
     print(f"  UNRESOLVED_POLICY_CASES = {report.unresolved_policy_cases}")
+    print(f"  POLICY_GUIDANCE_TOTAL = {policy_guidance_total(ledger)}")
     print()
     print("  RULE | FP_TOTAL | FP_REGRESSIONS | TP_TOTAL | TP_REGRESSIONS | UNRESOLVED | STATUS")
     for rule_id, s in sorted(report.per_rule.items()):
@@ -284,7 +305,7 @@ def main() -> None:
             ledger, code_sha, imported_at
         )
         report = run_replay(ledger, current_findings, code_sha=code_sha, checked_at=imported_at)
-        _print_replay_report(report)
+        _print_replay_report(report, ledger)
 
 
 if __name__ == "__main__":

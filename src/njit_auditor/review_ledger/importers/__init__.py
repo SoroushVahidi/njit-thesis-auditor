@@ -10,6 +10,10 @@
 - ``known_cases`` / ``case_migration``: hand-transcribed, case-level
   historical adjudications with real page/structural detail, and the
   logic that turns them into ledger records.
+- ``known_policies``: hand-transcribed, rule-wide (not case-level) policy
+  guidance sourced from a direct email/manual record rather than a
+  sheet-tab finding row (e.g. R055) -- becomes a ``Resolution`` with
+  ``case_id=None``, the same shape ``authority_matrix`` uses.
 - ``thesis_registry``: maps the private corpus's short document names to
   ``Thesis``/``ThesisVersion`` records via a real SHA-256 content hash.
 """

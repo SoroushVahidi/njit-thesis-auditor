@@ -2,10 +2,12 @@
 
 Phase 2 of the review-ledger work (2026-09-07), corrected 2026-09-07 after
 the initial pass was found to be materially incomplete (see "Correction:
-the initial migration undercounted the real authority" below), and again
+the initial migration undercounted the real authority" below), again
 2026-09-08 after R019 was found to have been populated in the live sheet
-after the 2026-09-01 export was taken (see "Correction 2: R019" below).
-Builds on
+after the 2026-09-01 export was taken (see "Correction 2: R019" below),
+and again 2026-09-08 after Ester's R055 policy, sent by email rather than
+recorded on the R055 sheet tab, was reported (see "Correction 3: R055
+email policy" below). Builds on
 `docs/evaluation/ESTER_REVIEW_DATA_MODEL.md` (read that first). Code:
 `src/njit_auditor/review_ledger/importers/`, `ground_truth.py`,
 `new_review_gate.py`, `cli.py`. Tests: `tests/test_review_ledger/`
@@ -63,6 +65,35 @@ cases replay `CLEAN` (P019 finding absent from every reviewed document,
 confirmed against a corrected environment -- see "Running it yourself"
 below for the PyMuPDF-version note this surfaced). No detector semantics
 were changed.
+
+## Correction 3: R055 email policy
+
+This document previously reported R055 as carrying no recoverable
+authority at all (see "What is still not migrated" below, now updated).
+That was correct for the sheet: `R055`'s tab has zero populated findings
+for any of the seven documents in the 2026-09-08 live export -- every row
+reads exactly `"No current auditor R055 finding."`, verified cell by
+cell, not an adjudication under this migration's own normalization rule
+E. It was not correct for Ester's authority as a whole: she separately
+emailed an explicit, rule-wide policy statement about R055 on 2026-09-04
+(reported by the repository owner, who has direct access to the email;
+neither the live sheet nor Gmail is stored in this checkout, consistent
+with the authority matrix's own `source_limitations` field -- see
+`docs/status/r055_ester_email_policy_20260904.md` for the full record).
+
+Because no document/page finding exists to attach a case to, this is
+recorded as **rule-wide policy guidance, not a case-level adjudication**:
+a `Resolution` with `case_id=None` and
+`policy_reference="R055@email:2026-09-04"`, via the new
+`importers.known_policies` module (same shape `importers.authority_matrix`
+already uses for the dated-JSON-sourced policy rows). No
+`TRUE_VIOLATION`/`FALSE_POSITIVE` was fabricated for R055 on any of the
+seven documents, and R055 is deliberately absent from the per-rule
+case-level table below -- it has no cases. `POLICY_GUIDANCE_TOTAL` (a new
+metric this correction adds, counting every `Resolution` with
+`case_id=None` across both `authority_matrix` and `known_policies`) grew
+from 36 to 37; `ESTER_REVIEWED_FP_TOTAL`/`ESTER_REVIEWED_TP_TOTAL` are
+unchanged at 46/3 (case-level metrics only). No detector code was changed.
 
 ## What actually exists to migrate
 
@@ -155,9 +186,13 @@ genuinely has no page/verdict recorded anywhere yet.
   `docs/status/r019_ester_sheet_authority_20260908.md`. (This bullet
   originally reported R019 as unrepresented; that was true only of the
   2026-09-01 export, not the live sheet.)
-- **R055**: still blank in the 2026-09-01 export, consistent with its
-  existing policy-only treatment (`ester_decision_exists: NO` in the
-  authority matrix, or no row at all) -- unchanged from the first pass.
+- **R055**: the sheet tab itself is still blank (no case-level finding
+  for any document, confirmed against the 2026-09-08 live export) -- but
+  an explicit rule-wide policy was reported by email on 2026-09-04 and is
+  now migrated as policy guidance (not a case). See "Correction 3: R055
+  email policy" above and `docs/status/r055_ester_email_policy_20260904.md`.
+  (This bullet originally reported R055 as carrying no authority at all;
+  that was true only of the sheet, not of Ester's authority as a whole.)
 - **Everything past `R036`** in the live-sheet export was blank in the
   2026-09-01 snapshot. Not migrated for the same reason as R019/R055: no
   populated source exists yet on this machine.
@@ -343,6 +378,14 @@ while `auditor_runs.jsonl` (14→28), `regression_results.jsonl` (86→184),
 and `review_rounds.jsonl` (2→4) grew as expected -- the same idempotency
 property holds after this correction as before it.
 
+Re-verified again after the R055 email-policy correction: two more
+consecutive real runs showed `policies_created`/`policies_already_present`
+go `1→0`/`0→1`, `resolutions.jsonl` staying fixed at 37 across the second
+run (identical to `review_cases.jsonl`/`adjudications.jsonl` staying fixed
+at 50), while `auditor_runs.jsonl` (28→42→56), `regression_results.jsonl`
+(184→282→380), and `review_rounds.jsonl` (4→6→8) kept growing as
+expected. Same property, third time.
+
 One practical note for anyone re-running a *requalified* case (i.e. one
 whose `issue_type` in `known_cases.py` changes, as several did in the
 correction above when `qualify_issue_type` was introduced): case identity
@@ -364,12 +407,14 @@ regeneration of gitignored derived data).
 Authority matrix: 85 rules, 36 Resolutions created (25 explicit + 11 analogous), 49 skipped (no decision)
 Known cases: 50/50 migrated, 0 version_unresolved
 XLSX packages: 72 scanned, 504 rows read, 0 with a verdict
+Known policies (email/manual-record): 1/1 migrated (R055)
 
 ESTER_REVIEWED_FP_TOTAL = 46
 ESTER_FP_REMAINING = 5
 ESTER_REVIEWED_TP_TOTAL = 3
 ESTER_TP_MISSING = 0
 UNRESOLVED_POLICY_CASES = 1
+POLICY_GUIDANCE_TOTAL = 37   (36 from the authority matrix + 1 email-sourced R055 policy)
 
 RULE | FP_TOTAL | FP_REGRESSIONS | TP_TOTAL | TP_REGRESSIONS | UNRESOLVED | STATUS
 P011 | 8 | 0 | 1 | 0 | 0 | CLEAN
