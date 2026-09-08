@@ -2,7 +2,10 @@
 
 Phase 2 of the review-ledger work (2026-09-07), corrected 2026-09-07 after
 the initial pass was found to be materially incomplete (see "Correction:
-the initial migration undercounted the real authority" below). Builds on
+the initial migration undercounted the real authority" below), and again
+2026-09-08 after R019 was found to have been populated in the live sheet
+after the 2026-09-01 export was taken (see "Correction 2: R019" below).
+Builds on
 `docs/evaluation/ESTER_REVIEW_DATA_MODEL.md` (read that first). Code:
 `src/njit_auditor/review_ledger/importers/`, `ground_truth.py`,
 `new_review_gate.py`, `cli.py`. Tests: `tests/test_review_ledger/`
@@ -41,6 +44,26 @@ this migration, not migration bugs -- see "Replay failures: root-caused,
 not fixed" below. No detector semantics were changed to make these numbers
 better.
 
+## Correction 2: R019
+
+This document originally reported (see "What is still not migrated" below,
+now updated) that no populated R019 verdict text existed in any located
+source. That was an accurate read of the 2026-09-01 export at the time,
+but not of the live sheet: the sheet's Drive `modifiedTime` is
+2026-09-04T19:51:44Z, three days after that export was taken, and a direct
+check against the live sheet on 2026-09-08 found R019's `Comment` column
+populated with six explicit `FALSE POSITIVE:` verdicts (Youra, Muyeed,
+Philip, Praneeth, Sebastian, Patrick -- Anthony's row is still blank).
+See `docs/status/r019_ester_sheet_authority_20260908.md` for the full
+transcription, the cell-by-cell diff against the cached export (confirming
+R019 is the only rule with genuinely new case-level verdicts since
+2026-09-01), and the fresh-audit verification. `known_cases.py` grew from
+44 to 50 entries; `ESTER_REVIEWED_FP_TOTAL` grew from 40 to 46. All six new
+cases replay `CLEAN` (P019 finding absent from every reviewed document,
+confirmed against a corrected environment -- see "Running it yourself"
+below for the PyMuPDF-version note this surfaced). No detector semantics
+were changed.
+
 ## What actually exists to migrate
 
 Before writing the first version of any importer, every plausible source
@@ -64,9 +87,13 @@ complete picture is:
    carry populated `Correct? (Y/N)`/comment cells (a mix of `Y`/`N`,
    `CORRECT`/`FALSE POSITIVE`/`TRUE VIOLATION` spellings, and free-text
    rationale); `R011-R015 Follow-up` is a separate, later round with its
-   own distinct cases; tabs beyond `R036` and `R019`/`R055` specifically
-   were still blank in this snapshot -- honestly represented here as *not
-   migrated*, not fabricated (see "What is still not migrated" below).
+   own distinct cases; tabs beyond `R036` and `R055` were still blank in
+   this snapshot -- honestly represented here as *not migrated*, not
+   fabricated (see "What is still not migrated" below). `R019` was blank
+   in this same snapshot but was populated in the live sheet by
+   2026-09-04 (three days after the export) and migrated separately on
+   2026-09-08 by checking the live sheet directly -- see "Correction 2:
+   R019" above.
 
 **The 72 `Rxxx_Ester_Auditor_Feedback.xlsx` review packages under
 `docs/evaluation/ester_feedback/` remain, as originally found, sources
@@ -124,13 +151,10 @@ genuinely has no page/verdict recorded anywhere yet.
 
 ## What is still not migrated (and why that's the honest answer)
 
-- **R019**: no populated verdict text was found in *any* located source
-  for this rule -- not the live-sheet export (its `R019` tab, if one
-  exists in the sheet, was not captured in the 2026-09-01 snapshot), not
-  any `docs/status/*.md` file. This is a real gap, not a decision to
-  exclude it; it is reported here rather than fabricated. A future pass
-  needs either a newer sheet export or a direct relay of R019's verdicts
-  before it can be migrated.
+- **R019**: migrated 2026-09-08 -- see "Correction 2: R019" above and
+  `docs/status/r019_ester_sheet_authority_20260908.md`. (This bullet
+  originally reported R019 as unrepresented; that was true only of the
+  2026-09-01 export, not the live sheet.)
 - **R055**: still blank in the 2026-09-01 export, consistent with its
   existing policy-only treatment (`ester_decision_exists: NO` in the
   authority matrix, or no row at all) -- unchanged from the first pass.
@@ -285,6 +309,17 @@ existing `data/evaluation/private/` entry -- no `.gitignore` change was
 needed). Neither ever prints dissertation body text -- findings are
 summarized structurally (rule, issue type, page) only.
 
+**PyMuPDF version note (found 2026-09-08):** the editable install can
+silently resolve to a stale sibling worktree's `njit_auditor` package
+(`pip show njit-thesis-auditor` reveals the `Location`/egg-link target) if
+`pip install -e ".[dev]"` was last run from a different checkout, and that
+stale install was pinned to `pymupdf==1.24.6` -- below this project's own
+`pyproject.toml` floor of `pymupdf>=1.25.0`. Re-running
+`pip install -e ".[dev]"` from *this* checkout fixes both problems at
+once (correct source tree, `pymupdf` upgraded to a `>=1.25.0` release).
+Always confirm with `python -c "import njit_auditor; print(njit_auditor.__file__)"`
+before trusting a real-corpus run's output.
+
 **Idempotency, verified**: re-running `migrate` twice against the same
 ledger creates zero additional `Thesis`/`ThesisVersion`/`ReviewCase`/
 `Adjudication`/`Resolution` rows (all deduplicated by deterministic id or,
@@ -298,6 +333,15 @@ the same one (verified: `auditor_runs.jsonl` 7→14 lines,
 `regression_results.jsonl` 43→86, `review_rounds.jsonl` 1→2 across two
 consecutive real runs, while every identity-bearing file's line count
 stayed fixed).
+
+Re-verified 2026-09-08 after the R019 correction (known cases now 50, not
+44): two more consecutive real runs showed `cases_created`/
+`adjudications_created` go `6→0` (the 6 new R019 cases, then none) with
+`*_already_present` correspondingly `44→50`, `review_cases.jsonl` and
+`adjudications.jsonl` both staying fixed at 50 across the second run,
+while `auditor_runs.jsonl` (14→28), `regression_results.jsonl` (86→184),
+and `review_rounds.jsonl` (2→4) grew as expected -- the same idempotency
+property holds after this correction as before it.
 
 One practical note for anyone re-running a *requalified* case (i.e. one
 whose `issue_type` in `known_cases.py` changes, as several did in the
@@ -318,10 +362,10 @@ regeneration of gitignored derived data).
 
 ```
 Authority matrix: 85 rules, 36 Resolutions created (25 explicit + 11 analogous), 49 skipped (no decision)
-Known cases: 44/44 migrated, 0 version_unresolved
+Known cases: 50/50 migrated, 0 version_unresolved
 XLSX packages: 72 scanned, 504 rows read, 0 with a verdict
 
-ESTER_REVIEWED_FP_TOTAL = 40
+ESTER_REVIEWED_FP_TOTAL = 46
 ESTER_FP_REMAINING = 5
 ESTER_REVIEWED_TP_TOTAL = 3
 ESTER_TP_MISSING = 0
@@ -333,6 +377,7 @@ P015 | 4 | 0 | 0 | 0 | 0 | CLEAN
 P016 | 3 | 0 | 0 | 0 | 0 | CLEAN
 P017 | 3 | 0 | 0 | 0 | 0 | CLEAN
 P018 | 2 | 0 | 0 | 0 | 0 | CLEAN
+P019 | 6 | 0 | 0 | 0 | 0 | CLEAN
 P020 | 3 | 0 | 1 | 0 | 0 | CLEAN
 P023 | 4 | 0 | 0 | 0 | 0 | CLEAN
 P024 | 2 | 0 | 0 | 0 | 0 | CLEAN
@@ -353,12 +398,14 @@ reason=blocked: ESTER_FP_REMAINING=5, ESTER_TP_MISSING=0
 This was computed, not assumed going in, and it is **not** the clean
 `FP_REMAINING=0` result the first (incomplete) pass reported. All 3
 reviewed true violations (`P011`/Patrick p88, `P020`/Praneeth p20,
-`P085`/Patrick p13) still fire correctly. 35 of the 40 reviewed false
-positives correctly stay suppressed. The remaining 5 are the real,
-individually-investigated regressions in "Replay failures: root-caused,
-not fixed" above (`P027` ×1, `P030` ×2, `P036` ×2) -- not migration
-artifacts, not fixed as part of this task, and the new-review gate
-correctly reports `allowed=False` as a direct, honest consequence.
+`P085`/Patrick p13) still fire correctly. 41 of the 46 reviewed false
+positives correctly stay suppressed, including all 6 of R019's. The
+remaining 5 are the real, individually-investigated regressions in
+"Replay failures: root-caused, not fixed" above (`P027` ×1, `P030` ×2,
+`P036` ×2) -- pre-existing (confirmed unchanged by the R019 addition; see
+"Correction 2" above), not migration artifacts, not fixed as part of this
+task, and the new-review gate correctly reports `allowed=False` as a
+direct, honest consequence.
 
 ## Invariant
 
