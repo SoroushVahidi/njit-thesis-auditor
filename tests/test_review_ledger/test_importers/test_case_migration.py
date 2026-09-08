@@ -257,3 +257,39 @@ def test_reimporting_is_idempotent(tmp_path) -> None:
     assert second.adjudications_already_present == 1
     assert len(ledger.review_cases.all()) == 1
     assert len(ledger.adjudications.all()) == 1
+
+
+def test_document_level_case_with_no_physical_page_migrates(tmp_path) -> None:
+    """A genuinely document-level finding (e.g. P019's mixed_numbering_style,
+    which the auditor itself reports with no page) must migrate with
+    ``physical_page=None`` preserved, not rejected or coerced to a
+    placeholder page number."""
+    ledger, review_round_id, run_ids, registered = _base_ledger_with_registration(tmp_path)
+
+    document_level_case = KnownHistoricalCase(
+        document_short_name="SynthDoc",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="synthetic document-level reviewer comment",
+        source_reference="tests/synthetic_source_document_level.md",
+        decided_at="2026-01-01",
+    )
+
+    summary = migrate_known_cases(
+        ledger,
+        review_round_id=review_round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-01-02T00:00:00+00:00",
+        known_cases=(document_level_case,),
+    )
+
+    assert summary.cases_created == 1
+    assert summary.adjudications_created == 1
+    (case,) = ledger.review_cases.all()
+    assert case["physical_page"] is None
