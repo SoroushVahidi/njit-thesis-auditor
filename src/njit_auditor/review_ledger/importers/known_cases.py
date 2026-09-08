@@ -21,10 +21,21 @@ either programmatically -- treat it as a curated, reviewable data table):
    numbers from the export, but whose ``Comment``/verdict column was
    still blank in this snapshot -- their FALSE_POSITIVE verdict here
    comes from a direct, dated relay of the live sheet, not from this
-   file; see each entry's ``source_reference``). R019, R055, and most of
-   R037 onward were not yet populated in this export at all and are not
+   file; see each entry's ``source_reference``). R055 and most of R037
+   onward were not yet populated in this export at all and are not
    represented here -- see ``docs/evaluation/ESTER_FEEDBACK_MIGRATION.md``
    for the full accounting of what is and is not covered.
+
+   R019's six reviewed cases (all "FALSE POSITIVE:") were added to the
+   live sheet after this 2026-09-01 export was taken (the sheet's Drive
+   ``modifiedTime`` is 2026-09-04) and were checked directly against the
+   live sheet on 2026-09-08 -- see ``docs/status/r019_ester_sheet_authority_20260908.md``,
+   which also records the full diff against this cached export confirming
+   R019 is the only rule with new case-level verdicts since 2026-09-01
+   (R035/R036's comment cells were also filled in by that point, but their
+   verdicts already match what a prior 2026-09-07 direct check had
+   recorded; R015's Youra comment gained an extra sentence that does not
+   change its verdict).
 
 Every finding's page/issue_type here was independently re-verified
 against a real run of the current auditor on the real private PDF as
@@ -58,7 +69,10 @@ class KnownHistoricalCase:
     document_short_name: str
     internal_rule_id: str
     issue_type: str
-    physical_page: int
+    # None for a genuinely document-level finding (e.g. P019's
+    # mixed_numbering_style, which the auditor itself reports with no page
+    # -- see pdf_page_numbers.py) -- never a placeholder for "page unknown".
+    physical_page: int | None
     structural_location: str
     volatile_detail: str
     summary: str
@@ -379,6 +393,119 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         ),
         source_reference="docs/status/r018_r024_ester_sheet_authority_20260907.md",
         decided_at="2026-09-07",
+    ),
+    # -- R019/P019 (live sheet, checked directly, 2026-09-08) --------------------
+    # Document-level finding (no physical page -- see pdf_page_numbers.py's
+    # "mixed dominant style across document" check, which reports page=None
+    # by design). All six reviewed cases are explicit "FALSE POSITIVE:" --
+    # unambiguous per the migration's verdict-normalization rule A, not a
+    # "CORRECT, but..." case needing NEEDS_CLARIFICATION treatment.
+    KnownHistoricalCase(
+        document_short_name="Youra",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (same policy guidance as Philip's R019 case: "
+            "the auditor should treat the page with the literal 'CHAPTER 1' "
+            "heading as Arabic page 1, and the 'Approval Page' as Roman iv, "
+            "with sequential Roman numerals in between)."
+        ),
+        source_reference="docs/status/r019_ester_sheet_authority_20260908.md",
+        decided_at="2026-09-08",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Muyeed",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (same policy guidance as Philip's R019 case)."
+        ),
+        source_reference="docs/status/r019_ester_sheet_authority_20260908.md",
+        decided_at="2026-09-08",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Philip",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive. Policy guidance: can the auditor treat the "
+            "page beginning with the literal 'CHAPTER 1' heading as Arabic page "
+            "1, and the page beginning 'Approval Page' as Roman numeral iv, "
+            "with Roman numerals applied sequentially in between and stopping "
+            "once 'CHAPTER 1' appears at the top of a page?"
+        ),
+        source_reference="docs/status/r019_ester_sheet_authority_20260908.md",
+        decided_at="2026-09-08",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (same policy guidance as Philip's R019 case)."
+        ),
+        source_reference="docs/status/r019_ester_sheet_authority_20260908.md",
+        decided_at="2026-09-08",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Sebastian",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (same policy guidance as Philip's R019 case)."
+        ),
+        source_reference="docs/status/r019_ester_sheet_authority_20260908.md",
+        decided_at="2026-09-08",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Patrick",
+        internal_rule_id="P019",
+        issue_type="mixed_numbering_style",
+        physical_page=None,
+        structural_location="document_level:mixed_numbering_style",
+        volatile_detail="",
+        summary="Document-wide mixed page-numbering style warning.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        # Nuanced record like R028's Patrick case: Ester explicitly wrote
+        # "FALSE POSITIVE:" here (unambiguous, unlike R028's "CORRECT: but"
+        # phrasing), so this migrates as a plain FALSE_POSITIVE, not
+        # NEEDS_CLARIFICATION. She additionally names the same underlying
+        # defect as R028/R085: the missing literal "CHAPTER 1" heading. That
+        # root cause is already migrated as Patrick's P085 TRUE_VIOLATION
+        # case below; recorded here as context, not a second verdict.
+        reviewer_comment=(
+            'Ester: "FALSE POSITIVE: This case is a little different: There is '
+            'an error on page 1: the student did not add the CHAPTER 1 header '
+            'and instead wrote introduction." -- root cause is P085 (missing '
+            "CHAPTER 1 heading), not P019; see Patrick's P085 case."
+        ),
+        source_reference="docs/status/r019_ester_sheet_authority_20260908.md",
+        decided_at="2026-09-08",
     ),
     # -- R020/P020 -----------------------------------------------------------------
     KnownHistoricalCase(
