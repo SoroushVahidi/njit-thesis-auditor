@@ -310,6 +310,46 @@ def test_rules_no_private_content(client: tuple[TestClient, Any]) -> None:
     assert "src/njit_auditor" not in body
 
 
+# Legacy/internal rule-catalog identifiers (the ``Pxxx`` implementation id and
+# Ester's own ``Qxxx`` YES/NO audit-matrix numbering) must never leak into a
+# rule's student-facing title, "what it checks" text, or remediation text --
+# only the single ``rule.id | display_rule_id`` badge (converted to its
+# ``Rxxx`` public form) may show a bare rule number. Add an entry here only
+# with a comment explaining why a specific (rule_id, field) pair is allowed to
+# keep a legacy id -- there is no such exception today.
+_LEGACY_ID_TEXT_FIELD_EXCEPTIONS: set[tuple[str, str]] = set()
+
+_LEGACY_ID_PATTERN = re.compile(r"\bP\d{3}[A-Z]?\b|\bQ\d{3}[A-Z]?\b")
+
+
+def test_rules_student_fields_have_no_legacy_p_q_identifiers(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Regression guard for the R014-style leak: a rule's canonical JSON text
+    (or an un-overridden default) must never expose a raw ``Pxxx``/``Qxxx``
+    catalog/cross-reference id in the fields rendered (or indexed for
+    client-side search) on the public /rules page. See
+    ``_RULE_TEXT_OVERRIDES`` in report_outputs.py -- the fix for a leak found
+    here is to add/extend an override there, not to relax this test."""
+    _, wa = client
+    catalog = wa._build_rule_catalog()
+
+    offenders: list[str] = []
+    for rule in catalog["student_rules"]:
+        rule_id = str(rule.get("id", ""))
+        for field in ("title", "what_it_checks", "how_to_correct"):
+            if (rule_id, field) in _LEGACY_ID_TEXT_FIELD_EXCEPTIONS:
+                continue
+            text = rule.get(field, "") or ""
+            found = _LEGACY_ID_PATTERN.findall(text)
+            if found:
+                offenders.append(f"{rule_id}.{field}: {found} in {text!r}")
+
+    assert not offenders, "Legacy P/Q identifiers leaked into student-facing rule text:\n" + "\n".join(
+        offenders
+    )
+
+
 def test_rules_contains_student_catalog_section(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/rules")
