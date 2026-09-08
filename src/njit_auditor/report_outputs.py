@@ -596,31 +596,39 @@ def _strip_internal_authoring_note(text: str) -> str:
     return stripped if stripped else text
 
 
-_PXXX_RULE_ID_RE = re.compile(r"^P(\d{3})$")
+_PXXX_RULE_ID_RE = re.compile(r"^P(\d{3})([A-Z]?)$")
 
 
 def public_display_rule_id(rule_id: str) -> str:
-    """Map an internal ``Pxxx`` catalog id to the ``Rxxx`` id shown to students.
+    """Map an internal ``Pxxx``/``PxxxA`` catalog id to its ``Rxxx``/``RxxxA``
+    id shown to students.
 
     The detector catalog, tests, and rule registry use ``Pxxx`` internally
-    (stable identifiers, unrelated to Ester's own Q-rule numbering). Ester
-    asked that students only ever see the ``Rxxx`` form. Rather than rename
-    ~113 source files' ``rule_id="P019"`` literals -- a large, high-risk
-    change to identifiers tests and tooling key off of -- every
-    student-visible surface should call this at its final render/serialize
-    step. Anything that is not a plain ``Pddd`` id (already-external ids,
-    unexpected values) passes through unchanged.
+    (stable identifiers, unrelated to Ester's own Q-rule numbering). Broad
+    parent rules such as P018 are further split into lettered atomic
+    sub-rules (``P018A``, ``P018B``, ... -- see the catalog entries in
+    ``web_app.py``) for the public rule-reference page; a finding can carry
+    one of these directly as its ``rule_id``/reference id. Ester asked that
+    students only ever see the ``Rxxx`` form. Rather than rename ~113 source
+    files' ``rule_id="P019"`` literals -- a large, high-risk change to
+    identifiers tests and tooling key off of -- every student-visible
+    surface should call this at its final render/serialize step. The
+    optional trailing letter is preserved, not dropped: ``P018D`` becomes
+    ``R018D``, not ``R018`` -- collapsing it would point students at the
+    wrong atomic sub-rule. Anything that is not a plain ``Pddd``/``PdddX``
+    id (already-external ids, unexpected values) passes through unchanged.
     """
     match = _PXXX_RULE_ID_RE.match(str(rule_id).strip())
-    return f"R{match.group(1)}" if match else rule_id
+    return f"R{match.group(1)}{match.group(2)}" if match else rule_id
 
 
-_PXXX_TOKEN_RE = re.compile(r"\bP(\d{3})\b")
+_PXXX_TOKEN_RE = re.compile(r"\bP(\d{3})([A-Z]?)\b")
 
 
 def convert_pxxx_tokens_to_public_display(text: str) -> str:
-    """Replace every standalone ``Pxxx`` token in rendered, human-readable
-    student-facing text with its ``Rxxx`` display form.
+    """Replace every standalone ``Pxxx``/``PxxxA`` token in rendered,
+    human-readable student-facing text with its ``Rxxx``/``RxxxA`` display
+    form.
 
     This is the Markdown/plain-text-report counterpart of the Jinja
     ``display_rule_id`` filter used by the web templates: rather than hunt
@@ -635,7 +643,9 @@ def convert_pxxx_tokens_to_public_display(text: str) -> str:
     structure internal tooling/tests parse by key, since those must keep
     their real Pxxx values (see write_json_report, audit_findings_to_json_dict).
     The \\b...\\b word-boundary anchors mean a longer digit run such as
-    "P0191" is left untouched -- only an exact "Pddd" token converts.
+    "P0191" is left untouched -- only an exact "Pddd" or "PdddX" (single
+    trailing uppercase letter, matching the atomic-sub-rule catalog ids)
+    token converts.
     """
     return _PXXX_TOKEN_RE.sub(lambda m: public_display_rule_id(m.group(0)), text)
 

@@ -581,7 +581,7 @@
           <div class="finding-card__rule">
             <strong>
               {% if f.public_rule_reference_id %}
-              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id }}: see rule reference">{{ f.public_rule_reference_id }}</a>
+              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id | display_rule_id }}: see rule reference">{{ f.public_rule_reference_id | display_rule_id }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
               <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id | display_rule_id }}: see rule reference">{{ f.rule_id | display_rule_id }}</a>
               {% elif is_p_rule_id(f.rule_id) %}
@@ -732,7 +732,7 @@
             <p class="grouped-problem__title">
             {% if problem.problem_number_label %}{{ problem.problem_number_label }} — {% endif %}
             {% if problem.public_rule_reference_id %}
-            <a href="/rules#{{ problem.public_rule_reference_id }}" class="rule-link" aria-label="{{ problem.public_rule_reference_id }}: see rule reference">{{ problem.public_rule_reference_id }}</a>
+            <a href="/rules#{{ problem.public_rule_reference_id }}" class="rule-link" aria-label="{{ problem.public_rule_reference_id | display_rule_id }}: see rule reference">{{ problem.public_rule_reference_id | display_rule_id }}</a>
             {% elif public_rule_reference_href is defined and public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) %}
             <a href="{{ public_rule_reference_href(problem.rule_id, issue_type=problem.issue_type) }}" class="rule-link" aria-label="{{ problem.rule_id | display_rule_id }}: see rule reference">{{ problem.rule_id | display_rule_id }}</a>
             {% elif is_p_rule_id(problem.rule_id) %}

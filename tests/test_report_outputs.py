@@ -2368,6 +2368,30 @@ def test_public_display_rule_id_passes_through_non_pxxx_values() -> None:
     assert public_display_rule_id("R019") == "R019"
 
 
+def test_public_display_rule_id_preserves_atomic_sub_rule_suffix() -> None:
+    """Broad parent rules such as P018 are split into lettered atomic
+    sub-rules (P018A..P018Q in the current catalog; P024D/E, P032B/C are
+    also live) for the public rule-reference page, and a finding can carry
+    one of these directly as its rule_id/reference id. The suffix identifies
+    a distinct atomic rule -- it must be preserved, never collapsed to the
+    parent id, or a student would be pointed at the wrong rule reference."""
+    assert public_display_rule_id("P018D") == "R018D"
+    assert public_display_rule_id("P018A") == "R018A"
+    assert public_display_rule_id("P018Q") == "R018Q"
+    assert public_display_rule_id("P024D") == "R024D"
+    assert public_display_rule_id("P032C") == "R032C"
+
+
+def test_public_display_rule_id_rejects_malformed_suffix_shapes() -> None:
+    """Only the established grammar (Pddd or PdddX, one trailing uppercase
+    letter) converts; anything else passes through unchanged rather than
+    being guessed at."""
+    assert public_display_rule_id("P018DD") == "P018DD"
+    assert public_display_rule_id("P018d") == "P018d"
+    assert public_display_rule_id("P0181") == "P0181"
+    assert public_display_rule_id("P018-D") == "P018-D"
+
+
 def test_audit_findings_to_json_dict_carries_public_rule_id_without_renaming_internal() -> None:
     """The exported JSON must expose a student-facing Rxxx id alongside the
     stable internal Pxxx rule_id, not replace it (internal tooling/tests key
@@ -2397,6 +2421,16 @@ def test_convert_pxxx_tokens_to_public_display_word_boundary() -> None:
     assert converted == (
         "See R019 and R028. A longer id like P0191 must stay untouched. Q052 is unrelated."
     )
+
+
+def test_convert_pxxx_tokens_to_public_display_preserves_atomic_suffix() -> None:
+    """A standalone atomic-sub-rule token (e.g. P018D) embedded in free text
+    must also convert with its suffix intact, not be left untouched or
+    collapsed to the parent id -- the same grammar public_display_rule_id
+    itself uses."""
+    text = "See P018D for the leader-dot consistency requirement."
+    converted = convert_pxxx_tokens_to_public_display(text)
+    assert converted == "See R018D for the leader-dot consistency requirement."
 
 
 def test_markdown_report_representative_multi_rule_converts_all_public_surfaces(
