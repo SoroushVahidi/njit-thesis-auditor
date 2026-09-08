@@ -113,20 +113,43 @@ def _classify_entry_level(text: str, page_type: str) -> str:
 _TOC_LEVEL_DEPTH = {"toc_level_1": 1, "toc_level_2": 2, "toc_level_3": 3}
 
 
-def _is_heading_to_first_child_boundary(prev_level: str, next_level: str) -> bool:
-    """Return True only when *next* is the immediate first child of *prev*.
+def _is_exempt_structural_transition(prev_level: str, next_level: str) -> bool:
+    """Return True for a transition exempt from tight-spacing detection
+    because it borders a structural row (a chapter/appendix/top-level
+    heading), not an ordinary peer-to-peer entry gap.
 
-    A chapter/appendix heading (or a numbered entry) followed directly by
-    its own first, more deeply nested child entry routinely has a looser
-    gap convention than peer-to-peer spacing -- that transition alone is
-    exempt. The reverse direction (a subsection's *last* entry followed by
-    the *next* chapter/appendix heading, e.g. "3.5 Conclusion" ->
-    "APPENDIX") is a different transition -- finishing one section and
-    starting the next -- and is not exempt: a genuinely tight gap there is
-    still a real spacing defect, not a heading-child layout artifact.
-    Same-level pairs and pairs involving an unclassifiable ("unknown")
-    entry are likewise never exempt by this check.
+    Two exempt shapes, both confirmed against real Ester-reviewed cases
+    (see docs/evaluation/ESTER_FEEDBACK_MIGRATION.md, P036/Anthony p12 and
+    the R036 email/sheet policy: "the relevant spacing transitions
+    involve structural rows such as chapter or appendix headings, and the
+    auditor should allow appropriate flexibility rather than treating
+    them like ordinary peer entries"):
+
+    1. *prev* is a heading (or any entry) immediately followed by its own
+       first, more deeply nested child entry (``prev_depth < next_depth``)
+       -- a parent-to-first-child transition.
+    2. *next* is itself a top-level structural row (``toc_level_1`` --
+       CHAPTER/APPENDIX/REFERENCES/etc., see ``_classify_entry_level``)
+       and *prev* is at a strictly deeper level -- finishing a nested
+       subsection and entering a new top-level section (e.g. "3.5
+       Conclusion" -> "APPENDIX", the reviewed Anthony p12 case: a
+       level-2 entry finishing right before an APPENDIX heading). A
+       top-level-to-top-level peer pair (e.g. "Chapter 3" -> "Chapter 4")
+       is deliberately NOT covered by this shape -- ``prev_level`` must
+       differ from ``toc_level_1``, or two chapter headings back-to-back
+       would wrongly become exempt as "ordinary peer entries", which is
+       exactly what Ester's policy says should stay checked.
+
+    A same-depth peer pair (e.g. "1.1" -> "1.2") or a pair that merely
+    finishes a nested subsection and returns to an ordinary (non-level-1)
+    peer (e.g. "1.2.3" -> "1.3") is deliberately NOT exempted by shape 2 --
+    only entering a genuine top-level structural row is. Broadening this
+    further without further reviewed evidence would risk silently
+    suppressing genuine spacing defects across the corpus. Pairs
+    involving an unclassifiable ("unknown") entry are never exempt.
     """
+    if next_level == "toc_level_1" and prev_level != "toc_level_1":
+        return True
     prev_depth = _TOC_LEVEL_DEPTH.get(prev_level)
     next_depth = _TOC_LEVEL_DEPTH.get(next_level)
     if prev_depth is None or next_depth is None:
@@ -165,7 +188,7 @@ def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFin
 
             prev_level = _classify_entry_level(previous_entry[0].text, context.page_type)
             next_level = _classify_entry_level(next_entry[0].text, context.page_type)
-            if _is_heading_to_first_child_boundary(prev_level, next_level):
+            if _is_exempt_structural_transition(prev_level, next_level):
                 continue
 
             gap_pt = first_line.bbox.y0 - last_line.bbox.y1
