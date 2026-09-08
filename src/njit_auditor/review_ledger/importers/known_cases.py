@@ -1,28 +1,41 @@
 """Hand-transcribed, case-level historical Ester adjudications.
 
-Unlike ``authority_matrix.py`` (rule-level policy, machine-parsed from a
-structured JSON snapshot) and ``xlsx_packages.py`` (found nothing to
-import -- see its module docstring), the well-documented *case-level*
-historical decisions in this repository exist only as prose in dated
-``docs/status/*.md`` files. Each entry below was read and transcribed by
-hand from exactly the cited document, cross-checked against a real run of
-the current auditor against the real private PDF (see
-``docs/evaluation/ESTER_FEEDBACK_MIGRATION.md`` for how each was
-verified) -- this module does not parse those markdown files
-programmatically; treat it as a curated, reviewable data table, not a
-generic importer.
+Two source shapes, both hand-transcribed (this module does not parse
+either programmatically -- treat it as a curated, reviewable data table):
 
-Two cases with real historical detail but insufficient confidence to
-pin to a specific current page/instance are deliberately **not** listed
-here (R024's Praneeth hyphenated-fragment case, and R035's Anthony
-landscape-geometry case -- both real, both already resolved as *policy*
-via the authority-matrix/matrix-delta path, neither confidently
-re-locatable as one specific current case). Listing a page number for
-either would be fabrication; leaving them out and noting it in the
-migration report is the honest choice for this pass.
+1. Prose in dated ``docs/status/*.md`` files (the R018/R024/R035/R085
+   cases, and the R011/R015 follow-up round -- these predate having any
+   populated sheet export on this machine).
+2. ``data/evaluation/private/ester_sheet_exports/audito_feedback_20260901.xlsx``
+   (gitignored, private -- a 2026-09-01 export of the live Ester feedback
+   Google Sheet, spreadsheet id ``1ZM7nJcw5KI5YGUkJBdE6hJyT7Y0Le-g1O1jiIb5RfBI``,
+   located on this machine outside the repo and copied into the private
+   evaluation area for this migration). This is the *initial* per-rule
+   review round -- structurally and chronologically distinct from the
+   R011/R015 follow-up round in (1): both are kept as separate
+   ``KnownHistoricalCase`` entries even where the same rule and document
+   recur, because they are genuinely different cases (different pages --
+   see e.g. R011 Muyeed's initial page 19 vs. the follow-up's page 36).
+   The export's own populated rows only go through R033 plus a handful of
+   later rules (R035/R036 Anthony+Praneeth, sourced with their exact page
+   numbers from the export, but whose ``Comment``/verdict column was
+   still blank in this snapshot -- their FALSE_POSITIVE verdict here
+   comes from a direct, dated relay of the live sheet, not from this
+   file; see each entry's ``source_reference``). R019, R055, and most of
+   R037 onward were not yet populated in this export at all and are not
+   represented here -- see ``docs/evaluation/ESTER_FEEDBACK_MIGRATION.md``
+   for the full accounting of what is and is not covered.
 
-Do NOT add an entry here without a citable source document and a page
-number/structural fact actually stated in that document (or independently
+Every finding's page/issue_type here was independently re-verified
+against a real run of the current auditor on the real private PDF as
+part of this migration (not merely transcribed and trusted) -- several
+entries' exact ``issue_type`` (see ``ground_truth.qualify_issue_type``)
+exists specifically because that verification surfaced a real ambiguity
+(the same page carrying more than one same-rule finding) that a naive
+transcription would have gotten wrong.
+
+Do NOT add an entry here without a citable source and a page number/
+structural fact actually stated in that source (or independently
 reproducible against the real corpus, as every entry below was).
 """
 
@@ -31,6 +44,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from njit_auditor.review_ledger.models import AdjudicationVerdict
+
+_SHEET_EXPORT_REF = "data/evaluation/private/ester_sheet_exports/audito_feedback_20260901.xlsx"
+# The export's capture date, used as a documented upper bound on when each
+# of its populated verdicts was actually recorded -- the sheet does not
+# retain per-cell edit timestamps, and no earlier reference to most of
+# these specific rows exists in this repository.
+_SHEET_EXPORT_DATE = "2026-09-01"
 
 
 @dataclass(frozen=True)
@@ -49,12 +69,13 @@ class KnownHistoricalCase:
 
 
 KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
+    # -- R011/P011: follow-up round (docs/status/*, 2026-08-31) ------------------
     KnownHistoricalCase(
         document_short_name="Muyeed",
         internal_rule_id="P011",
-        issue_type="margin_boundary_violation",
+        issue_type="margin_boundary_violation:bottom_margin",
         physical_page=36,
-        structural_location="bottom_margin:paragraph_trailing_line",
+        structural_location="bottom_margin:paragraph_trailing_line:follow_up",
         volatile_detail="worst_overflow_pt=9.2",
         summary="Bottom-margin overflow at the ~9.2pt boundary cluster.",
         verdict=AdjudicationVerdict.FALSE_POSITIVE,
@@ -67,9 +88,9 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
     KnownHistoricalCase(
         document_short_name="Patrick",
         internal_rule_id="P011",
-        issue_type="margin_boundary_violation",
+        issue_type="margin_boundary_violation:right_margin",
         physical_page=88,
-        structural_location="right_margin:reference_entry",
+        structural_location="right_margin:reference_entry:follow_up",
         volatile_detail="worst_overflow_pt=18.0",
         summary="Right-margin overflow, Weng Cho Chew reference-list entry.",
         verdict=AdjudicationVerdict.TRUE_VIOLATION,
@@ -79,12 +100,115 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         source_reference="docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md",
         decided_at="2026-08-31",
     ),
+    # -- R011/P011: initial round (sheet export, page differs from follow-up) ----
+    KnownHistoricalCase(
+        document_short_name="Youra",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:bottom_margin",
+        physical_page=42,
+        structural_location="bottom_margin:body_text:initial_round",
+        volatile_detail="template=latex",
+        summary="Bottom-margin overflow, body text.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive -- this dissertation was written using LaTeX "
+            "and the margins of the template are set up this way; she does not "
+            "ask students to make this correction."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:right_margin",
+        physical_page=48,
+        structural_location="right_margin:body_text:initial_round",
+        volatile_detail="template=word",
+        summary="Right-margin overflow, body text.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive -- this dissertation was written in Word.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Muyeed",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:bottom_margin",
+        physical_page=19,
+        structural_location="bottom_margin:body_text:initial_round",
+        volatile_detail="template=latex",
+        summary="Bottom-margin overflow, body text.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive -- this dissertation was written using LaTeX "
+            "and the margins of the template are set up this way."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Philip",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:bottom_margin",
+        physical_page=55,
+        structural_location="bottom_margin:displayed_equation:initial_round",
+        volatile_detail="template=latex",
+        summary="Bottom-margin overflow, displayed-equation lines.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive -- this dissertation was written using LaTeX "
+            "and the margins of the template are set up this way."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:right_margin",
+        physical_page=56,
+        structural_location="right_margin:methods_body_text:initial_round",
+        volatile_detail="worst_overflow_pt=3.0",
+        summary="Right-margin overflow, methods-section body text.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Sebastian",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:bottom_margin",
+        physical_page=16,
+        structural_location="bottom_margin:body_text:initial_round",
+        volatile_detail="template=word",
+        summary="Bottom-margin overflow, body text.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive -- this dissertation was written in Word.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Patrick",
+        internal_rule_id="P011",
+        issue_type="margin_boundary_violation:right_margin",
+        physical_page=87,
+        structural_location="right_margin:reference_entry:initial_round",
+        volatile_detail="location=reference_list",
+        summary="Right-margin overflow, reference-list entries.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R015/P015: follow-up round --------------------------------------------
     KnownHistoricalCase(
         document_short_name="Youra",
         internal_rule_id="P015",
         issue_type="missing_later_indent",
         physical_page=101,
-        structural_location="body_paragraph:run_in_bold_phrase",
+        structural_location="body_paragraph:run_in_bold_phrase:follow_up",
         volatile_detail="misread_paragraph_start=true",
         summary="Paragraph-start misread as a continuation line after a bold run-in phrase.",
         verdict=AdjudicationVerdict.FALSE_POSITIVE,
@@ -95,6 +219,136 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         source_reference="docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md",
         decided_at="2026-08-31",
     ),
+    # -- R015/P015: initial round (different pages from the follow-up case) ----
+    KnownHistoricalCase(
+        document_short_name="Youra",
+        internal_rule_id="P015",
+        issue_type="missing_later_indent",
+        physical_page=86,
+        structural_location="body_paragraph:near_page_center:initial_round",
+        volatile_detail="",
+        summary="Later paragraph appears to be missing expected first-line indentation.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Muyeed",
+        internal_rule_id="P015",
+        issue_type="unexpected_indent_on_continuation_line",
+        physical_page=144,
+        structural_location="body_paragraph:after_displayed_equation:initial_round",
+        volatile_detail="",
+        summary=(
+            "Line continuing the previous sentence after a displayed equation "
+            "has a paragraph-style indent."
+        ),
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Philip",
+        internal_rule_id="P015",
+        issue_type="unexpected_indent_on_continuation_line",
+        physical_page=17,
+        structural_location="body_paragraph:after_displayed_equation:initial_round",
+        volatile_detail="",
+        summary=(
+            "Line continuing the previous sentence after a displayed equation "
+            "has a paragraph-style indent."
+        ),
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R016/P016 ---------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Youra",
+        internal_rule_id="P016",
+        issue_type="excessive_paragraph_gap",
+        physical_page=1,
+        structural_location="page_1:paragraph_group_spacing",
+        volatile_detail="",
+        summary="Detected excessive blank space likely between paragraph groups.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Muyeed",
+        internal_rule_id="P016",
+        issue_type="excessive_paragraph_gap",
+        physical_page=1,
+        structural_location="page_1:paragraph_group_spacing",
+        volatile_detail="",
+        summary="Detected excessive blank space likely between paragraph groups.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P016",
+        issue_type="excessive_line_gap",
+        physical_page=1,
+        structural_location="page_1:adjacent_line_spacing",
+        volatile_detail="",
+        summary="Detected excessive vertical spacing between adjacent text lines.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R017/P017 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P017",
+        issue_type="missing_terminal_punctuation",
+        physical_page=47,
+        structural_location="figure_caption:near_page_center",
+        volatile_detail="",
+        summary="Figure caption appears to be missing terminal punctuation.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive -- the figure is not missing punctuation; the "
+            "auditor appears to be looking only at the first line of the description."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P017",
+        issue_type="missing_terminal_punctuation",
+        physical_page=28,
+        structural_location="figure_caption:near_page_center",
+        volatile_detail="",
+        summary="Figure caption appears to be missing terminal punctuation.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive -- same reasoning as Anthony's case.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Sebastian",
+        internal_rule_id="P017",
+        issue_type="missing_terminal_punctuation",
+        physical_page=19,
+        structural_location="figure_caption:near_page_center",
+        volatile_detail="",
+        summary="Figure caption appears to be missing terminal punctuation.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive -- same reasoning as Anthony's case.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R018/P018 (live sheet, checked directly, 2026-09-07) --------------------
     KnownHistoricalCase(
         document_short_name="Anthony",
         internal_rule_id="P018",
@@ -126,10 +380,132 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         source_reference="docs/status/r018_r024_ester_sheet_authority_20260907.md",
         decided_at="2026-09-07",
     ),
+    # -- R020/P020 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        physical_page=19,
+        structural_location="title_like_text:near_page_center",
+        volatile_detail="word=neutral",
+        summary="Possible title capitalization issue: 'neutral' may need to be capitalized.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false -- this title is in sentence case and is fine as-is.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Muyeed",
+        internal_rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        physical_page=180,
+        structural_location="title_like_text:top_of_page",
+        volatile_detail="word=vs",
+        summary="Possible title capitalization issue: 'vs' may need to be capitalized.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false -- 'vs' is a preposition and should be lowercase.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Philip",
+        internal_rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        physical_page=3,
+        structural_location="title_like_text:body_text",
+        volatile_detail="word=and",
+        summary="Possible title capitalization issue: 'and' may need to be capitalized.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- conjunctions (for, and, nor, but, or, yet, so), "
+            "prepositions, and articles are always lowercase in titles."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P020",
+        issue_type="possible_title_capitalization_issue",
+        physical_page=20,
+        structural_location="title_like_text:top_of_page",
+        volatile_detail="word=need",
+        summary="Possible title capitalization issue: 'need' may need to be capitalized.",
+        verdict=AdjudicationVerdict.TRUE_VIOLATION,
+        reviewer_comment="Ester: correct.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R023/P023 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Youra",
+        internal_rule_id="P023",
+        issue_type="possible_body_text_not_double_spaced",
+        physical_page=102,
+        structural_location="body_text:figure_description",
+        volatile_detail="",
+        summary="Body text appears under-spaced (figure description region).",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- single space in the figure description, then a "
+            "blank line, then double-spaced text is correct."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P023",
+        issue_type="possible_body_text_not_double_spaced",
+        physical_page=55,
+        structural_location="body_text:figure_description",
+        volatile_detail="",
+        summary="Body text appears under-spaced (figure description region).",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- single space in the figure description, then a "
+            "blank line, then double-spaced text is correct."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Muyeed",
+        internal_rule_id="P023",
+        issue_type="possible_body_text_not_double_spaced",
+        physical_page=32,
+        structural_location="body_text:bullet_list",
+        volatile_detail="",
+        summary="Body text appears under-spaced (bullet-list region).",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- bullet points are single-spaced within the bullet "
+            "and maintain double spacing between them."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Philip",
+        internal_rule_id="P023",
+        issue_type="possible_body_text_not_double_spaced",
+        physical_page=51,
+        structural_location="body_text:bullet_list",
+        volatile_detail="",
+        summary="Body text appears under-spaced (bullet-list region).",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- bullet points are single-spaced within the bullet "
+            "and maintain double spacing between them."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R024/P024 -----------------------------------------------------------------
     KnownHistoricalCase(
         document_short_name="Anthony",
         internal_rule_id="P024",
-        issue_type="list_of_figures_sentence_case",
+        issue_type="list_of_figures_sentence_case:Neotropical",
         physical_page=14,
         structural_location="list_of_figures:parenthetical_proper_noun_list",
         volatile_detail="capitalized_terms=species_names",
@@ -139,9 +515,183 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         ),
         verdict=AdjudicationVerdict.FALSE_POSITIVE,
         reviewer_comment=(
-            "Ester: false positive -- capitalized words are proper nouns/species names."
+            "Ester: false -- the capitalized words are proper nouns (names of "
+            "snake species)."
         ),
         source_reference="docs/status/r018_r024_ester_sheet_authority_20260907.md",
+        decided_at="2026-09-07",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P024",
+        issue_type="list_of_tables_title_case:casein",
+        physical_page=14,
+        structural_location="list_of_tables:hyphenated_fragment",
+        volatile_detail="word=casein",
+        summary=(
+            "List of Tables entry may have title-case issue: 'casein' may need "
+            "to be capitalized."
+        ),
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- the word following a hyphen is not supposed to be "
+            "capitalized in this construction (a non-Latin hyphenated prefix, "
+            "e.g. a Greek letter, was dropped by PDF text extraction)."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R026/P026 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P026",
+        issue_type="possible_body_font_size_issue",
+        physical_page=35,
+        structural_location="body_text:figure_source_credit",
+        volatile_detail="",
+        summary="Body text may not use the required 12pt font size.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false -- sources are in 10pt size under the figure description.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R027/P027 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P027",
+        issue_type="level4_sentence_case_or_punctuation_issue",
+        physical_page=69,
+        structural_location="level4_heading:wrapped_across_lines",
+        volatile_detail="",
+        summary="Level 4 heading may be missing a required terminal period.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive -- the period is there, but the auditor does "
+            "not recognize that this title ends on the second line."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R028/P028 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Philip",
+        internal_rule_id="P028",
+        issue_type="roman_number_on_body_page",
+        physical_page=12,
+        structural_location="page_footer:page_number_regime",
+        volatile_detail="",
+        summary="Page-number candidate does not match the expected regime for that region.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false positive.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Patrick",
+        internal_rule_id="P028",
+        issue_type="arabic_number_on_frontmatter_page",
+        physical_page=13,
+        structural_location="page_footer:page_number_regime",
+        volatile_detail="",
+        summary="Page-number candidate does not match the expected regime for that region.",
+        # Nuanced record, not a simple TRUE_VIOLATION -- see module docstring
+        # and docs/evaluation/ESTER_FEEDBACK_MIGRATION.md: Ester marked this
+        # "CORRECT" but explained the real error is the missing literal
+        # "CHAPTER 1" heading (the student forgot it), not the page number
+        # itself. That is Patrick's R085 case, migrated separately as a
+        # TRUE_VIOLATION and confirmed still detected. Forcing P028 itself to
+        # keep reporting this would be wrong now that responsibility for the
+        # actual defect sits with P085 -- recorded as NEEDS_CLARIFICATION so
+        # it is preserved and visible without being scored as a P028 case.
+        verdict=AdjudicationVerdict.NEEDS_CLARIFICATION,
+        reviewer_comment=(
+            'Ester: "CORRECT: but we need to talk about this. the auditor has '
+            "detected that this should not be page 1. Page one starts at "
+            "CHAPTER 1: this is a case where the student forgot to add the "
+            "title CHAPTER 1. The real error is not the page number but the "
+            'absence of the header \\"CHAPTER 1\\"." -- root cause is R085, '
+            "not R028; see Patrick's R085 case."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R030/P030 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P030",
+        issue_type="missing_continued_heading",
+        physical_page=11,
+        structural_location="table_of_contents:continuation_page",
+        volatile_detail="",
+        summary="Multi-page TOC continuation page appears to be missing a continued heading.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment='Ester: false -- the "(Continued)" text is there.',
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P030",
+        issue_type="missing_continued_heading",
+        physical_page=12,
+        structural_location="table_of_contents:continuation_page",
+        volatile_detail="",
+        summary="Multi-page TOC continuation page appears to be missing a continued heading.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="Ester: false -- same reasoning as Anthony's case.",
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R033/P033 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P033",
+        issue_type="frontmatter_title_mismatch",
+        physical_page=6,
+        structural_location="frontmatter:title_consistency",
+        volatile_detail="",
+        summary="Dissertation title text may be inconsistent across front-matter pages.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false -- checked this student's Abstract, Title page, and "
+            "Approval page; the title is consistent."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R035/P035 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P035",
+        issue_type="table_body_not_centered",
+        physical_page=60,
+        structural_location="table:inferred_body_block",
+        volatile_detail="",
+        summary="Inferred table body block may not be centered within the text area.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (landscape/geometry context; live feedback "
+            "sheet, page confirmed from the 2026-09-01 export)."
+        ),
+        source_reference="docs/status/r035_praneeth_text_fallback_fix_20260907.md",
+        decided_at="2026-09-07",
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P035",
+        issue_type="figure_body_not_centered",
+        physical_page=29,
+        structural_location="figure:inferred_body_block",
+        volatile_detail="",
+        summary="Inferred figure body block may not be centered within the text area.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: the figure is centered (live feedback sheet; page confirmed "
+            "from the 2026-09-01 export -- consistent with this page no longer "
+            "appearing among Praneeth's current P035 findings, see "
+            "docs/status/r035_praneeth_text_fallback_fix_20260907.md)."
+        ),
+        source_reference="docs/status/r035_praneeth_text_fallback_fix_20260907.md",
         decided_at="2026-09-07",
     ),
     KnownHistoricalCase(
@@ -160,6 +710,40 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         source_reference="docs/status/r035_praneeth_text_fallback_fix_20260907.md",
         decided_at="2026-09-07",
     ),
+    # -- R036/P036 -----------------------------------------------------------------
+    KnownHistoricalCase(
+        document_short_name="Anthony",
+        internal_rule_id="P036",
+        issue_type="toc_inter_entry_spacing_too_tight",
+        physical_page=12,
+        structural_location="table_of_contents:entry_pair_spacing",
+        volatile_detail="gap_ratio=1.08",
+        summary="Consecutive TOC entries appear to have insufficient inter-entry vertical spacing.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (live feedback sheet, page and measured "
+            "gap ratio confirmed)."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    KnownHistoricalCase(
+        document_short_name="Praneeth",
+        internal_rule_id="P036",
+        issue_type="toc_inter_entry_spacing_too_tight",
+        physical_page=11,
+        structural_location="table_of_contents:entry_pair_spacing",
+        volatile_detail="gap_ratio=1.19",
+        summary="Consecutive TOC entries appear to have insufficient inter-entry vertical spacing.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Ester: false positive (live feedback sheet, page and measured "
+            "gap ratio confirmed)."
+        ),
+        source_reference=_SHEET_EXPORT_REF,
+        decided_at=_SHEET_EXPORT_DATE,
+    ),
+    # -- R085/P085 -----------------------------------------------------------------
     KnownHistoricalCase(
         document_short_name="Patrick",
         internal_rule_id="P085",
