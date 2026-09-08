@@ -25,7 +25,12 @@ import datetime as dt
 from pathlib import Path
 
 from njit_auditor.audit_runner import run_audit_for_uploaded_file
-from njit_auditor.review_ledger.ground_truth import CurrentFinding, GroundTruthReport, replay_ledger
+from njit_auditor.review_ledger.ground_truth import (
+    CurrentFinding,
+    GroundTruthReport,
+    qualify_issue_type,
+    replay_ledger,
+)
 from njit_auditor.review_ledger.identifiers import (
     make_history_event_id,
     make_regression_result_id,
@@ -93,7 +98,12 @@ def run_current_auditor_and_record(
         finding_counts: dict[str, int] = {}
         for finding in result.findings:
             finding_counts[finding.rule_id] = finding_counts.get(finding.rule_id, 0) + 1
-            issue_type = str(finding.details.get("issue_type", ""))
+            issue_type = qualify_issue_type(
+                finding.rule_id,
+                str(finding.details.get("issue_type", "")),
+                finding.details,
+                finding.message,
+            )
             all_findings.append(
                 CurrentFinding(
                     thesis_version_id=doc.thesis_version_id,

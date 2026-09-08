@@ -28,13 +28,67 @@ migrated cases share the same rule/issue_type/page for one thesis
 version) but is a real, documented simplification a future phase should
 tighten only if it starts producing false matches (see
 ``docs/evaluation/ESTER_FEEDBACK_MIGRATION.md``).
+
+For a handful of rules, plain ``issue_type`` is not fine-grained enough on
+its own -- see ``qualify_issue_type()`` below, which both case migration
+and current-run replay-input construction call to append a rule-specific
+discriminator before it ever reaches this module. Two found during the
+second migration pass:
+
+- P011: "margin_boundary_violation" covers left/right/bottom margin
+  overflow, each a genuinely different violation that can coexist on one
+  page. A reviewed P011 right-margin false positive and an unrelated,
+  unreviewed bottom-margin finding shared a page and would otherwise have
+  matched as "the same case". Discriminated by the ``side`` details field.
+- P024: "list_of_tables_title_case"/"list_of_figures_sentence_case" can
+  fire once per flagged word on the same List of Tables/Figures page --
+  the specific word is not a structured details field, only embedded in
+  the message (e.g. "'casein' may need to be capitalized"). Discriminated
+  by extracting the single-quoted word from the message text.
 """
 
 from __future__ import annotations
 
+import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from njit_auditor.review_ledger.models import AdjudicationVerdict, RegressionOutcome
+
+_QUOTED_WORD_RE = re.compile(r"'([^']+)'")
+
+
+def _p024_flagged_word(details: Mapping[str, object], message: str) -> str | None:
+    match = _QUOTED_WORD_RE.search(message)
+    return match.group(1) if match else None
+
+
+# Rules whose generic issue_type collapses multiple, independently-adjudicable
+# structural variants onto one page -- see module docstring for the two real
+# cases this was found from. Each extractor takes (details, message) and
+# returns the discriminator value, or None if it can't find one (in which
+# case qualify_issue_type falls back to the plain issue_type).
+_ISSUE_TYPE_DISCRIMINATORS: dict[str, Callable[[Mapping[str, object], str], object]] = {
+    "P011": lambda details, message: details.get("side"),
+    "P024": _p024_flagged_word,
+}
+
+
+def qualify_issue_type(
+    rule_id: str, issue_type: str, details: Mapping[str, object], message: str = ""
+) -> str:
+    """Append a rule-specific discriminator to ``issue_type`` when one is
+    needed to keep same-page findings distinguishable (see module
+    docstring). Both case migration (``known_cases.py``) and current-run
+    replay-input construction (``cli.py``) must call this the same way, or
+    matching silently degrades back to the coarser, collision-prone form."""
+    extractor = _ISSUE_TYPE_DISCRIMINATORS.get(rule_id)
+    if extractor is None:
+        return issue_type
+    discriminator = extractor(details, message)
+    if not discriminator:
+        return issue_type
+    return f"{issue_type}:{discriminator}"
 
 _PASS_FAIL_VERDICTS = frozenset(
     {
