@@ -18,6 +18,7 @@ from njit_auditor.pdf_models import (
     PdfTextBlock,
     PdfTextLine,
     PdfTextSpan,
+    format_bbox_detail,
 )
 from njit_auditor.report_view import enriched_pdf_location_label
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_word_count
@@ -55,8 +56,11 @@ from njit_auditor.rules.pdf_frontmatter_structure import (
     check_pdf_title_page_graduation_month,
 )
 from njit_auditor.rules.pdf_heading_levels import (
+    _gather_wrapped_heading,
     _is_all_caps_phrase,
+    _is_tight_wrap_gap,
     _looks_like_title_case_violation,
+    _union_bbox,
     check_pdf_heading_level_styles,
 )
 from njit_auditor.rules.pdf_headings import check_named_frontmatter_headings, find_body_start_page
@@ -110,7 +114,10 @@ from njit_auditor.rules.pdf_title_consistency import (
 )
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_appendix_format import check_pdf_toc_appendix_format
-from njit_auditor.rules.pdf_toc_continued_headings import check_pdf_toc_continued_headings
+from njit_auditor.rules.pdf_toc_continued_headings import (
+    _continued_heading_status,
+    check_pdf_toc_continued_headings,
+)
 from njit_auditor.rules.pdf_toc_entry_hierarchy import check_pdf_toc_entry_hierarchy
 from njit_auditor.rules.pdf_toc_entry_number_ordering import (
     check_pdf_toc_entry_number_ordering,
@@ -6281,6 +6288,196 @@ def test_p027_level3_message_uses_exact_change_replacement(tmp_path: Path) -> No
     )
 
 
+# ---- wrapped (multi-line) heading tests ----
+#
+# Ester-reviewed regression (P027/Praneeth, page 69): a Level 4 heading
+# wraps across two physical PDF lines, the terminal period lands on the
+# second line, and the auditor previously checked only the heading's
+# first physical line -- see docs/evaluation/ESTER_FEEDBACK_MIGRATION.md
+# and known_cases.py's P027/Praneeth entry.
+
+
+def _make_wrapped_bold_pdf(path: Path, first_line: str, second_line: str) -> Path:
+    """Two bold lines close enough together (14pt gap, 12pt font) to land
+    in the same PyMuPDF text block -- the same physical layout a genuinely
+    wrapped heading produces, verified against real single-page synthetic
+    PDFs during this fix's development."""
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 200), first_line, fontsize=12, fontname="Times-Bold")
+    page.insert_text((108, 214), second_line, fontsize=12, fontname="Times-Bold")
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def test_p027_level4_wrapped_heading_with_period_on_second_line_no_warning(
+    tmp_path: Path,
+) -> None:
+    """The exact shape of the reviewed false positive: the complete
+    heading ends with a period, but only after wrapping to a second
+    physical line. Must NOT warn."""
+    pdf_path = _make_wrapped_bold_pdf(
+        tmp_path / "p027_l4_wrap_period.pdf",
+        "1.1.1.1 Background theory here spanning",
+        "onto a second physical line.",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    punct = [
+        f
+        for f in findings
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    assert not punct
+
+
+def test_p027_level4_wrapped_heading_missing_period_still_warns(tmp_path: Path) -> None:
+    """A genuinely incomplete wrapped heading (no period anywhere across
+    either physical line) must still be flagged -- the fix must not
+    silence real violations, only recognize punctuation on the correct,
+    complete text."""
+    pdf_path = _make_wrapped_bold_pdf(
+        tmp_path / "p027_l4_wrap_noperiod.pdf",
+        "1.1.1.1 Background theory here spanning",
+        "onto a second physical line without one",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    punct = [
+        f
+        for f in findings
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    assert len(punct) == 1
+
+
+def test_p027_wrapped_heading_bbox_spans_both_physical_lines(tmp_path: Path) -> None:
+    """A wrapped heading's finding should highlight the whole heading, not
+    just its first physical line."""
+    pdf_path = _make_wrapped_bold_pdf(
+        tmp_path / "p027_l4_wrap_bbox.pdf",
+        "1.1.1.1 Background theory here spanning",
+        "onto a second physical line without one",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = [
+        f
+        for f in check_pdf_heading_level_styles(model)
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    assert len(findings) == 1
+    bbox = findings[0].details.get("bbox", "")
+    first_line_page = model.pages[0]
+    first_block = first_line_page.text_blocks[0]
+    assert first_block.lines[0].bbox.y0 != first_block.lines[1].bbox.y0
+    # The recorded bbox detail must reflect both lines' vertical extent,
+    # not just the first line's.
+    assert (
+        format_bbox_detail(_union_bbox(first_block.lines[0].bbox, first_block.lines[1].bbox))
+        == bbox
+    )
+
+
+def test_p027_unrelated_bold_line_after_heading_not_merged_as_continuation(
+    tmp_path: Path,
+) -> None:
+    """A second bold line that is itself a NEW heading (matches a numbered
+    or chapter pattern) must never be merged into the previous heading's
+    text -- only genuine continuation lines are gathered."""
+    pdf_path = _make_wrapped_bold_pdf(
+        tmp_path / "p027_l4_not_continuation.pdf",
+        "1.1.1.1 Background theory here",
+        "1.1.1.2 A completely different heading",
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    punct = [
+        f
+        for f in findings
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    # Both are separate, independently-checked Level 4 headings, each
+    # missing its own terminal period -- not one merged heading.
+    assert len(punct) == 2
+    previews = {f.details.get("line_preview") for f in punct}
+    assert "1.1.1.1 Background theory here" in previews
+    assert "1.1.1.2 A completely different heading" in previews
+
+
+def _bold_line(
+    text: str, y0: float, y1: float, x0: float = 108.0, x1: float = 300.0
+) -> PdfTextLine:
+    bbox = BBox(x0=x0, y0=y0, x1=x1, y1=y1)
+    return PdfTextLine(
+        text=text,
+        bbox=bbox,
+        spans=[PdfTextSpan(text=text, bbox=bbox, font="Times-Bold", bold=True)],
+    )
+
+
+def test_gather_wrapped_heading_stops_at_paragraph_break_same_block() -> None:
+    """Regression guard for the real failure mode found while fixing this
+    (P027/Praneeth p69, real corpus PDF): PyMuPDF grouped a heading's tight
+    two-line wrap *and* the following bold body paragraph (an amino-acid
+    sequence) into one text block, with no boundary between the wrap and
+    the body paragraph except a larger vertical gap. Same block is
+    necessary but not sufficient -- only ``_is_tight_wrap_gap`` actually
+    stops the merge at the heading's real end. Line geometry below is the
+    exact bbox data measured from that real page (heading line0/line1
+    gap ratio ~0.04; line1-to-body-line2 gap ratio ~1.08)."""
+    heading_line0 = _bold_line(
+        "2.3.3.1 Protein sequence of Cytochrome C (Surrogate peptide GATLFK is",
+        y0=499.378, y1=512.662,
+    )
+    heading_line1 = _bold_line("highlighted in bold).", y0=513.178, y1=526.462)
+    body_line2 = _bold_line(
+        "MTEFKAGSAKKGATLFKTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQ", y0=540.778, y1=554.062
+    )
+    block_lines = [heading_line0, heading_line1, body_line2]
+
+    merged, last_line = _gather_wrapped_heading(
+        block_lines,
+        0,
+        "Protein sequence of Cytochrome C (Surrogate peptide GATLFK is",
+    )
+
+    assert merged.endswith("highlighted in bold).")
+    assert "MTEFKAGSAKKGATLFKTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQ" not in merged
+    assert last_line is heading_line1
+
+
+def test_is_tight_wrap_gap_matches_real_measured_ratios() -> None:
+    """Pins the exact real-world gap ratios this fix was tuned against, so
+    a future threshold change is caught if it stops distinguishing them."""
+    heading_line0 = _bold_line("first physical line", y0=499.378, y1=512.662)
+    heading_line1 = _bold_line("wrapped continuation", y0=513.178, y1=526.462)
+    body_line2 = _bold_line("unrelated body paragraph", y0=540.778, y1=554.062)
+
+    assert _is_tight_wrap_gap(heading_line0, heading_line1) is True
+    assert _is_tight_wrap_gap(heading_line1, body_line2) is False
+
+
+def test_p027_single_line_heading_still_correct_after_wrap_fix(tmp_path: Path) -> None:
+    """Regression guard: an ordinary single-line heading (the common case,
+    no continuation line present at all) must behave exactly as before."""
+    pdf_path = tmp_path / "p027_l4_single_still_ok.pdf"
+    _make_single_page_pdf(pdf_path, [(200, "1.1.1.1 Background theory here.")])
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_heading_level_styles(model)
+    punct = [
+        f
+        for f in findings
+        if f.details.get("inferred_level") == "4"
+        and "punctuation" in f.details.get("issue_type", "")
+    ]
+    assert not punct
+
+
 def test_p027_cli_includes_p027(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p027_cli.pdf"
     _make_single_page_pdf(pdf_path, [(200, "1.1.1 Background Theory and Methods Study")])
@@ -7907,6 +8104,132 @@ def test_p030_heading_variants_with_punctuation_and_continued_suffix_accepted(
     assert not any(f.rule_id == "P030" for f in check_pdf_toc_continued_headings(model))
 
 
+# ---- "(Continued)" split across PyMuPDF text blocks ----
+#
+# Ester-reviewed regression (P030/Anthony p11, P030/Praneeth p12): a real
+# reviewed PDF renders "TABLE OF CONTENTS" and "(Continued)" as two
+# separate, single-line PyMuPDF text blocks (no font/size difference
+# needed to reproduce this in the real corpus -- it is a PDF-producer
+# layout quirk, not something reliably reproducible via fitz.insert_text
+# in a synthetic test). The prior _continued_heading_status returned as
+# soon as it found the bare "TABLE OF CONTENTS" line, in the first block,
+# never reaching the second block's "(Continued)" line. These tests
+# construct that exact block-split page structure directly rather than
+# relying on PyMuPDF's synthetic-PDF block segmentation, which does not
+# reproduce this real layout (verified during this fix's development).
+
+
+def _text_line(text: str, y0: float = 100.0) -> PdfTextLine:
+    return PdfTextLine(text=text, bbox=BBox(x0=190, y0=y0, x1=190 + len(text) * 6, y1=y0 + 14))
+
+
+def _block(*lines: PdfTextLine) -> PdfTextBlock:
+    ys0 = [line.bbox.y0 for line in lines]
+    ys1 = [line.bbox.y1 for line in lines]
+    xs0 = [line.bbox.x0 for line in lines]
+    xs1 = [line.bbox.x1 for line in lines]
+    return PdfTextBlock(
+        lines=list(lines),
+        bbox=BBox(x0=min(xs0), y0=min(ys0), x1=max(xs1), y1=max(ys1)),
+        text=" ".join(line.text for line in lines),
+    )
+
+
+def test_continued_heading_status_recognizes_marker_split_across_blocks() -> None:
+    """The exact real-corpus shape: "TABLE OF CONTENTS" and "(Continued)"
+    in two separate blocks, nothing else between them."""
+    page = PdfPage(
+        page_number=11,
+        width=612,
+        height=792,
+        text_blocks=[
+            _block(_text_line("TABLE OF CONTENTS", y0=80.5)),
+            _block(_text_line("(Continued)", y0=94.3)),
+            _block(_text_line("Chapter", y0=130.0)),
+        ],
+    )
+    is_continued, preview = _continued_heading_status(page, "table_of_contents")
+    assert is_continued is True
+    assert "TABLE OF CONTENTS" in preview
+
+
+def test_continued_heading_status_missing_marker_still_warns() -> None:
+    """Regression guard: a heading genuinely lacking any continuation
+    marker (bare heading followed only by column headers) must still be
+    reported as not continued -- the fix must not silence real
+    violations, only recognize a marker that is actually present."""
+    page = PdfPage(
+        page_number=12,
+        width=612,
+        height=792,
+        text_blocks=[
+            _block(_text_line("TABLE OF CONTENTS", y0=80.5)),
+            _block(_text_line("Chapter", y0=94.3), _text_line("Page", y0=94.3, )),
+        ],
+    )
+    is_continued, _ = _continued_heading_status(page, "table_of_contents")
+    assert is_continued is False
+
+
+def test_continued_heading_status_unrelated_next_line_not_treated_as_marker() -> None:
+    """A line that merely follows the heading but is not a bare
+    "(Continued)"/"Continued" marker must never be treated as one."""
+    page = PdfPage(
+        page_number=13,
+        width=612,
+        height=792,
+        text_blocks=[
+            _block(_text_line("LIST OF FIGURES", y0=80.5)),
+            _block(_text_line("Figure 2.1 continued from the prior discussion", y0=94.3)),
+        ],
+    )
+    is_continued, _ = _continued_heading_status(page, "list_of_figures")
+    assert is_continued is False
+
+
+def test_p030_end_to_end_no_warning_when_marker_split_across_blocks(tmp_path: Path) -> None:
+    """End-to-end guard: a genuine two-page TOC where the continuation
+    page's "(Continued)" is its own separate physical line (a realistic
+    layout fitz.insert_text does not reproduce, but which real reviewed
+    PDFs do produce -- see the module-level comment above) must not warn.
+    Builds the PdfDocument directly rather than through the PDF-rendering
+    helper, for the same reason as the unit tests above."""
+    from njit_auditor.pdf_models import PdfDocument
+
+    toc_page_1 = PdfPage(
+        page_number=1,
+        width=612,
+        height=792,
+        text_blocks=[
+            _block(_text_line("TABLE OF CONTENTS", y0=80.5)),
+            _block(
+                *[
+                    _text_line(f"{label} .... 1{idx}", y0=130.0 + idx * 20)
+                    for idx, (label, _x) in enumerate(_P030_TOC_ENTRIES)
+                ]
+            ),
+        ],
+    )
+    toc_page_2 = PdfPage(
+        page_number=2,
+        width=612,
+        height=792,
+        text_blocks=[
+            _block(_text_line("TABLE OF CONTENTS", y0=80.5)),
+            _block(_text_line("(Continued)", y0=94.3)),
+            _block(
+                *[
+                    _text_line(f"{label} .... 2{idx}", y0=130.0 + idx * 20)
+                    for idx, (label, _x) in enumerate(_P030_TOC_ENTRIES)
+                ]
+            ),
+        ],
+    )
+    document = PdfDocument(path="synthetic.pdf", pages=[toc_page_1, toc_page_2])
+    warnings = [f for f in check_pdf_toc_continued_headings(document) if f.rule_id == "P030"]
+    assert not warnings
+
+
 def test_p030_non_consecutive_toc_pages_not_flagged(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p030_non_consecutive.pdf"
     doc = fitz.open()
@@ -8521,6 +8844,69 @@ def test_p036_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     assert long_entry1 not in warning.message
     assert warning.details.get("entry_pair_index") == "0"
     assert warning.details.get("gap_points")
+
+
+# ---- structural-boundary exemption (subsection finishing -> new top-level section) ----
+#
+# Ester-reviewed regression (P036/Anthony p12): "3.5 Conclusion" (a
+# level-2 subsection entry) immediately followed by "APPENDIX" (a
+# top-level structural row) was flagged as too-tight spacing, even though
+# this transition -- finishing a nested section and entering a new
+# top-level one -- has a looser gap convention than ordinary peer entries
+# (see docs/evaluation/ESTER_FEEDBACK_MIGRATION.md).
+
+
+def test_p036_subsection_finishing_into_appendix_heading_exempt(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p036_subsection_to_appendix.pdf"
+    _make_two_entry_list_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "3.5 Conclusion ....",
+        "APPENDIX ....",
+        first_y=140.0,
+        second_y=170.0,  # same tight gap as test_p036_toc_tight_entries_warns
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
+
+
+def test_p036_appendix_to_appendix_peer_transition_still_warns(tmp_path: Path) -> None:
+    """Regression guard for the bug caught during this fix's own
+    development: a naive "next entry is a top-level heading" exemption
+    would incorrectly also exempt top-level-to-top-level peer pairs
+    (e.g. "APPENDIX A" -> "APPENDIX B", or "Chapter 3" -> "Chapter 4",
+    already covered by test_p036_toc_tight_entries_warns). Only a
+    transition where *prev* is at a strictly deeper level is exempt."""
+    pdf_path = tmp_path / "p036_appendix_to_appendix.pdf"
+    _make_two_entry_list_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "APPENDIX A ....",
+        "APPENDIX B ....",
+        first_y=140.0,
+        second_y=170.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
+    assert len(warnings) == 1
+
+
+def test_p036_subsection_to_ordinary_peer_still_warns(tmp_path: Path) -> None:
+    """A subsection finishing and returning to an ORDINARY (non-top-level)
+    peer entry -- e.g. "1.2.3" -> "1.3" -- must remain checked; only
+    entering a genuine top-level structural row is exempt."""
+    pdf_path = tmp_path / "p036_subsection_to_ordinary_peer.pdf"
+    _make_two_entry_list_pdf(
+        pdf_path,
+        "TABLE OF CONTENTS",
+        "1.2.3 Study limitations ....",
+        "1.3 Next Section ....",
+        first_y=140.0,
+        second_y=170.0,
+    )
+    model = load_pdf_layout(str(pdf_path))
+    warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
+    assert len(warnings) == 1
 
 
 def test_p036_wired_in_cli_pdf_audit(tmp_path: Path) -> None:

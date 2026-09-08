@@ -5,10 +5,11 @@ Partial heuristic coverage for Q048, Q062, and Q071 on compiled PDFs only.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_toc_alignment import (
     TocPageContext,
@@ -19,6 +20,17 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 HEADING_PREVIEW_MAX_LEN = 80
 MIN_CONTINUATION_ENTRIES = 1
+
+# A "(Continued)"/"Continued" marker printed on its own physical line,
+# separate from the main heading line -- a real reviewed PDF (P030,
+# Anthony p11 and Praneeth p12) was found to place "TABLE OF CONTENTS"
+# and "(Continued)" in two different PyMuPDF text blocks even though they
+# are the same logical heading (see
+# docs/evaluation/ESTER_FEEDBACK_MIGRATION.md). classify_toc_heading_line
+# only recognizes "(Continued)" as a same-line suffix (e.g. "TABLE OF
+# CONTENTS (Continued)"), so a standalone marker line needs this separate
+# check.
+_BARE_CONTINUED_RE = re.compile(r"^\(?\s*continued\s*\)?[.:]?$", re.IGNORECASE)
 
 EXPECTED_CONTINUED_HEADINGS = {
     "table_of_contents": "TABLE OF CONTENTS (Continued)",
@@ -45,19 +57,52 @@ def _group_consecutive_pages(contexts: list[TocPageContext]) -> list[list[TocPag
     return groups
 
 
+def _flatten_lines(page: PdfPage) -> list[PdfTextLine]:
+    """Physical lines in reading order across every text block. Block
+    boundaries are a PyMuPDF layout artifact, not a reliable signal of
+    logical grouping -- the real regression this guards against split one
+    logical heading ("TABLE OF CONTENTS" + "(Continued)") across two
+    separate blocks with nothing between them but a normal line gap."""
+    return [line for block in page.text_blocks for line in block.lines]
+
+
+def _is_bare_continued_marker(line: PdfTextLine) -> bool:
+    cleaned = " ".join(line.text.strip().split())
+    return bool(_BARE_CONTINUED_RE.match(cleaned))
+
+
 def _continued_heading_status(page: PdfPage, page_type: str) -> tuple[bool, str]:
-    for block in page.text_blocks:
-        for line in block.lines:
-            normalized = normalize_heading_text(line.text)
-            classified = classify_toc_heading_line(normalized)
-            if classified is None:
-                continue
-            found_type, is_continued = classified
-            if found_type != page_type:
-                continue
-            preview = normalize_heading_text(line.text)[:HEADING_PREVIEW_MAX_LEN]
-            return is_continued, preview
-    return False, ""
+    """Return whether *any* occurrence of the ``page_type`` heading on this
+    page carries a continuation marker, and a preview of what was found.
+
+    Does not stop at the first matching heading line found: the prior
+    behavior returned as soon as it saw a bare "TABLE OF CONTENTS" line,
+    even when a separate "(Continued)" line immediately followed it (a
+    real reviewed false positive, not a hypothetical -- see module
+    docstring). Checks the same-line suffix first (the common case), then
+    falls back to a bare continuation marker on the very next physical
+    line, before concluding this occurrence lacks "(Continued)" and
+    moving on to check for another occurrence elsewhere on the page.
+    """
+    lines = _flatten_lines(page)
+    fallback_preview = ""
+    for index, line in enumerate(lines):
+        normalized = normalize_heading_text(line.text)
+        classified = classify_toc_heading_line(normalized)
+        if classified is None:
+            continue
+        found_type, is_continued = classified
+        if found_type != page_type:
+            continue
+        preview = normalize_heading_text(line.text)[:HEADING_PREVIEW_MAX_LEN]
+        if not fallback_preview:
+            fallback_preview = preview
+        if is_continued:
+            return True, preview
+        if index + 1 < len(lines) and _is_bare_continued_marker(lines[index + 1]):
+            next_text = " ".join(lines[index + 1].text.strip().split())
+            return True, f"{preview} {next_text}"[:HEADING_PREVIEW_MAX_LEN]
+    return False, fallback_preview
 
 
 def check_pdf_toc_continued_headings(pdf_document: PdfDocument) -> list[AuditFinding]:

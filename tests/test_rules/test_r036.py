@@ -123,14 +123,42 @@ def test_r036_chapter_boundary_accepted():
     )
 
 
-def test_r036_appendix_boundary_still_flagged_when_tight():
+def test_r036_appendix_boundary_exempt_when_finishing_subsection():
     """A section's last entry ending tightly into the next chapter/appendix
-    heading is a genuine spacing defect, not a heading-to-child exemption --
-    only a heading immediately followed by its OWN first child is exempt."""
+    heading is exempt, not a genuine spacing defect -- corrected per an
+    Ester-reviewed real case (P036/Anthony p12, "3.5 Conclusion" ->
+    "APPENDIX", explicit FALSE_POSITIVE: "the relevant spacing transitions
+    involve structural rows such as chapter or appendix headings, and the
+    auditor should allow appropriate flexibility rather than treating them
+    like ordinary peer entries" -- see
+    docs/evaluation/ESTER_FEEDBACK_MIGRATION.md). This test previously
+    asserted the opposite (a design assumption made before this reviewed
+    evidence was available); see
+    test_r036_appendix_to_appendix_still_flagged_when_tight below for the
+    boundary this exemption does NOT cover (top-level peer transitions)."""
     doc = make_mock_toc_doc(
         [
             ("3.5 Conclusion ......... 77", 150.0, 162.0),
             ("APPENDIX", 172.0, 184.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert not any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_appendix_to_appendix_still_flagged_when_tight():
+    """Unlike a subsection finishing into an appendix (exempt, see above),
+    a top-level-to-top-level peer transition -- e.g. one appendix directly
+    followed by the next -- is an ordinary peer pair and must still be
+    flagged when tight. Only a transition where *prev* is at a strictly
+    deeper level than the new top-level row is exempt."""
+    doc = make_mock_toc_doc(
+        [
+            ("APPENDIX A", 150.0, 162.0),
+            ("APPENDIX B", 172.0, 184.0),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)

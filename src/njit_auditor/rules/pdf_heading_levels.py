@@ -154,6 +154,88 @@ def _sentence_case_example(number_prefix: str, heading_text: str) -> str:
     return f"{number_prefix} {' '.join(rewritten)}"
 
 
+def _union_bbox(a: BBox, b: BBox) -> BBox:
+    return BBox(x0=min(a.x0, b.x0), y0=min(a.y0, b.y0), x1=max(a.x1, b.x1), y1=max(a.y1, b.y1))
+
+
+# A wrapped heading's second physical line sits immediately below the
+# first with no blank line (verified against a real reviewed case: 0.5pt
+# gap on a 13.3pt line height, ratio ~0.04). A real corpus PDF can pack a
+# heading's wrap *and* the following body paragraph into the same PyMuPDF
+# text block when nothing resets block segmentation between them -- e.g.
+# a bold amino-acid-sequence line directly below a heading, same block,
+# but a full extra line of leading below it (ratio ~1.08 in that case).
+# This ratio is what actually distinguishes "still the heading" from
+# "next paragraph, coincidentally bold" -- being in the same block is
+# necessary but not sufficient.
+_MAX_WRAP_LINE_GAP_RATIO = 0.6
+
+
+def _is_tight_wrap_gap(prev_line: PdfTextLine, next_line: PdfTextLine) -> bool:
+    prev_height = max(prev_line.bbox.height, 1.0)
+    gap = next_line.bbox.y0 - prev_line.bbox.y1
+    return gap <= _MAX_WRAP_LINE_GAP_RATIO * prev_height
+
+
+def _is_continuation_line(line: PdfTextLine) -> bool:
+    """A physical line that continues a wrapped heading onto a new line:
+    bold (same requirement as a heading's own first line) and not itself
+    the start of a new numbered or chapter/appendix heading. Does not by
+    itself check vertical proximity -- see ``_is_tight_wrap_gap``, checked
+    separately by the caller against the actual previous line consumed."""
+    if not _is_bold_line(line):
+        return False
+    clean = " ".join(line.text.strip().split())
+    if not clean:
+        return False
+    if any(pattern.match(clean) for pattern in (_L5_RE, _L4_RE, _L3_RE, _L2_RE)):
+        return False
+    if _CHAPTER_RE.match(clean):
+        return False
+    if normalize_heading_text(clean).upper() in _SKIP_HEADINGS | _TOC_LIST_HEADINGS:
+        return False
+    return True
+
+
+def _gather_wrapped_heading(
+    block_lines: list[PdfTextLine], start_index: int, heading_text: str
+) -> tuple[str, PdfTextLine]:
+    """Numbered NJIT headings (Level 2-5) are a single bold run that can
+    wrap across more than one physical PDF line -- e.g. a long Level 4
+    heading whose terminal period lands on the second line. Checking only
+    the first physical line (the prior behavior) means that period is
+    never seen, which is exactly the false positive Ester reported
+    (level4_sentence_case_or_punctuation_issue, "the period is there, but
+    the auditor does not recognize that this title ends on the second
+    line" -- see docs/evaluation/ESTER_FEEDBACK_MIGRATION.md).
+
+    Gather any immediately-following bold, non-heading continuation lines
+    that sit tightly below the previous one (``_is_tight_wrap_gap``) and
+    append their text, so every downstream check sees the complete
+    logical heading. Same PyMuPDF text block is necessary but not
+    sufficient on its own -- a real corpus PDF was found (during this
+    fix's own verification) to pack a heading's wrap *and* the following
+    body paragraph into one block with no other boundary between them, so
+    the gap check is what actually stops the merge at the heading's real
+    end. Returns the merged text and the last physical line consumed
+    (used for the finding's bbox, so a wrapped heading's highlight still
+    spans what was actually flagged). For a single-line heading (the
+    common case), no continuation line qualifies and this is a no-op:
+    merged text and last line both equal the input.
+    """
+    merged = heading_text
+    last_line = block_lines[start_index]
+    for line in block_lines[start_index + 1 :]:
+        if not _is_continuation_line(line):
+            break
+        if not _is_tight_wrap_gap(last_line, line):
+            break
+        continuation = " ".join(line.text.strip().split())
+        merged = f"{merged} {continuation}"
+        last_line = line
+    return merged, last_line
+
+
 def _is_qualified_heading(text: str) -> bool:
     """Return True when heading text looks like a real heading title (not noise/equations).
 
@@ -204,7 +286,8 @@ def _finding(
     )
 
 
-def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
+def _check_line(page: PdfPage, block_lines: list[PdfTextLine], index: int) -> list[AuditFinding]:
+    line = block_lines[index]
     if _in_margin_zone(line, page.height):
         return []
     clean = " ".join(line.text.strip().split())
@@ -232,6 +315,15 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
             # pattern but is not a heading — NJIT numbered headings are bold.
             break
 
+        # A wrapped heading's terminal period (or a title-case violation
+        # spanning the wrap) can land on a later physical line — see
+        # _gather_wrapped_heading's docstring. finding_bbox spans the full
+        # heading when it wrapped, or is just the single line otherwise.
+        heading_text, last_line = _gather_wrapped_heading(block_lines, index, heading_text)
+        finding_bbox = (
+            line.bbox if last_line is line else _union_bbox(line.bbox, last_line.bbox)
+        )
+
         if level == 2:
             issues = check_apa_title_case_phrase(heading_text)
             high_conf = [i for i in issues if i.get("confidence") == "high"]
@@ -252,7 +344,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     ),
                     line_preview=preview,
                     confidence="medium",
-                    bbox=line.bbox,
+                    bbox=finding_bbox,
                 ))
 
         else:  # level 3, 4, 5
@@ -282,7 +374,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     line_preview=preview,
                     confidence="medium",
                     source_q_rule_id=q_rule,
-                    bbox=line.bbox,
+                    bbox=finding_bbox,
                 )
                 if example:
                     finding.details["corrected_example"] = example
@@ -304,7 +396,7 @@ def _check_line(page: PdfPage, line: PdfTextLine) -> list[AuditFinding]:
                     line_preview=preview,
                     confidence="low",
                     source_q_rule_id=q_rule,
-                    bbox=line.bbox,
+                    bbox=finding_bbox,
                 ))
         break  # apply only the most specific matched level
 
@@ -345,6 +437,6 @@ def check_pdf_heading_level_styles(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if _page_has_any_heading(page, _TOC_LIST_HEADINGS):
             continue
         for block in page.text_blocks:
-            for line in block.lines:
-                findings.extend(_check_line(page, line))
+            for index in range(len(block.lines)):
+                findings.extend(_check_line(page, block.lines, index))
     return findings
