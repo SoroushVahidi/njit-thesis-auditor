@@ -2006,6 +2006,58 @@ def test_results_page_advanced_rule_summary_is_collapsed(
     assert ">P011<" not in html
 
 
+def test_results_page_atomic_sub_rule_finding_card_shows_r_form_not_raw_p_form(
+    client: tuple[TestClient, Any],
+) -> None:
+    """Regression guard: a P018 finding with issue_type
+    "inconsistent_leader_dots" resolves to the atomic sub-rule reference
+    P018D (see _P018_BACKEND_ISSUE_MAP in web_app.py). Its finding-card rule
+    link's visible text and aria-label must show the public R018D form, not
+    leak the raw internal P018D id -- this is the exact leak a live smoke
+    test found. Reproducing it requires the real audit pipeline (POST
+    /audits -> _run_audit_task), not the simplified test-injection helper:
+    only that path populates each finding's public_rule_reference_id (the
+    precomputed /rules anchor id used for both the href and, before this
+    fix, the unfiltered visible label too -- see job.html)."""
+    from njit_auditor.models import AuditFinding, Severity
+
+    def _fake_leader_dots_dispatch(pdf_path: Path, **kwargs: Any) -> Any:
+        from njit_auditor.audit_runner import UploadedAuditResult
+        from njit_auditor.upload_handling import UploadKind
+
+        finding = AuditFinding(
+            rule_id="P018",
+            severity=Severity.WARNING,
+            page=11,
+            message="TOC/List entries show inconsistent visible leader-dot usage.",
+            details={
+                "issue_type": "inconsistent_leader_dots",
+                "page_type": "table_of_contents",
+                "confidence": "medium",
+            },
+        )
+        return UploadedAuditResult(
+            upload_kind=UploadKind.PDF, audit_type="pdf", findings=[finding]
+        )
+
+    c, wa = client
+    with patch.object(wa, "run_audit_for_uploaded_file", _fake_leader_dots_dispatch):
+        post = c.post(
+            "/audits",
+            files={"file": ("thesis.pdf", io.BytesIO(_MINIMAL_PDF), "application/pdf")},
+            follow_redirects=True,
+        )
+    assert "/audits/" in str(post.url)
+    html = post.content.decode()
+    # The href legitimately keeps the raw internal anchor id (it must match
+    # the /rules page's own DOM id for that atomic sub-rule) -- only the
+    # visible label and aria-label are student-facing and must show R018D.
+    assert 'href="/rules#P018D"' in html
+    assert 'aria-label="R018D: see rule reference">R018D</a>' in html
+    assert ">P018D<" not in html
+    assert 'aria-label="P018D' not in html
+
+
 def test_results_page_review_action_labels_present_on_mobile_and_desktop(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
