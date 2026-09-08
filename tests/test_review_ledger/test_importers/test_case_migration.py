@@ -118,6 +118,119 @@ def test_unavailable_document_is_version_unresolved_not_fabricated(tmp_path) -> 
     assert len(ledger.review_cases.all()) == 0
 
 
+def test_same_document_same_rule_different_page_are_distinct_cases(tmp_path) -> None:
+    """Two genuinely different findings for the same document+rule (e.g. an
+    initial-round case and a later follow-up-round case, or two separate
+    false positives on the same rule) must not collapse into one case just
+    because thesis+rule match -- only page/structural facts distinguish
+    them, and migration must preserve both."""
+    ledger, review_round_id, run_ids, registered = _base_ledger_with_registration(tmp_path)
+
+    initial_round_case = KnownHistoricalCase(
+        document_short_name="SynthDoc",
+        internal_rule_id="P900",
+        issue_type="synthetic_issue",
+        physical_page=7,
+        structural_location="synthetic:initial_round",
+        volatile_detail="",
+        summary="Initial-round synthetic finding.",
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment="initial round comment",
+        source_reference="tests/synthetic_source_initial.md",
+        decided_at="2026-01-01",
+    )
+    follow_up_case = KnownHistoricalCase(
+        document_short_name="SynthDoc",
+        internal_rule_id="P900",
+        issue_type="synthetic_issue",
+        physical_page=42,
+        structural_location="synthetic:follow_up_round",
+        volatile_detail="",
+        summary="Follow-up-round synthetic finding, different page.",
+        verdict=AdjudicationVerdict.TRUE_VIOLATION,
+        reviewer_comment="follow-up round comment",
+        source_reference="tests/synthetic_source_followup.md",
+        decided_at="2026-02-01",
+    )
+
+    summary = migrate_known_cases(
+        ledger,
+        review_round_id=review_round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-02-02T00:00:00+00:00",
+        known_cases=(initial_round_case, follow_up_case),
+    )
+
+    assert summary.cases_created == 2
+    assert summary.adjudications_created == 2
+    all_cases = ledger.review_cases.all()
+    assert len(all_cases) == 2
+    pages = {c["physical_page"] for c in all_cases}
+    assert pages == {7, 42}
+    case_ids = {c["case_id"] for c in all_cases}
+    assert len(case_ids) == 2  # distinct fingerprints -> distinct case ids
+
+
+def test_provenance_preserved_on_case_and_adjudication(tmp_path) -> None:
+    """Source reference, reviewer comment, and decision date must survive
+    migration unmodified -- these are the audit trail back to the original
+    Ester judgment and must never be paraphrased or dropped."""
+    ledger, review_round_id, run_ids, registered = _base_ledger_with_registration(tmp_path)
+
+    migrate_known_cases(
+        ledger,
+        review_round_id=review_round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-01-02T00:00:00+00:00",
+        known_cases=(_SYNTHETIC_CASE,),
+    )
+
+    (case,) = ledger.review_cases.all()
+    assert case["evidence_reference"] == "tests/synthetic_source.md"
+
+    (adjudication,) = ledger.adjudications.all()
+    assert adjudication["source_reference"] == "tests/synthetic_source.md"
+    assert adjudication["reviewer_comment"] == "synthetic reviewer comment"
+    assert adjudication["decided_at"] == "2026-01-01"
+    assert adjudication["reviewer"] == "Ester"
+
+
+def test_needs_clarification_verdict_migrates_without_forcing_true_violation(tmp_path) -> None:
+    """A nuanced record (e.g. Ester marking something 'CORRECT' but
+    explaining the real defect lives elsewhere) must migrate with whatever
+    verdict was actually recorded -- NEEDS_CLARIFICATION here -- not be
+    silently promoted to TRUE_VIOLATION just because the case exists."""
+    ledger, review_round_id, run_ids, registered = _base_ledger_with_registration(tmp_path)
+
+    nuanced_case = KnownHistoricalCase(
+        document_short_name="SynthDoc",
+        internal_rule_id="P900",
+        issue_type="synthetic_issue",
+        physical_page=13,
+        structural_location="synthetic:nuanced",
+        volatile_detail="",
+        summary="Nuanced case: correct per se, real defect is elsewhere.",
+        verdict=AdjudicationVerdict.NEEDS_CLARIFICATION,
+        reviewer_comment="CORRECT, but the real error is a different rule's responsibility.",
+        source_reference="tests/synthetic_source_nuanced.md",
+        decided_at="2026-01-01",
+    )
+
+    migrate_known_cases(
+        ledger,
+        review_round_id=review_round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-01-02T00:00:00+00:00",
+        known_cases=(nuanced_case,),
+    )
+
+    (adjudication,) = ledger.adjudications.all()
+    assert adjudication["verdict"] == AdjudicationVerdict.NEEDS_CLARIFICATION.value
+
+
 def test_reimporting_is_idempotent(tmp_path) -> None:
     ledger, review_round_id, run_ids, registered = _base_ledger_with_registration(tmp_path)
 

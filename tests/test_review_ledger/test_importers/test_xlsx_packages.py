@@ -119,3 +119,66 @@ def test_scan_directory_aggregates_across_packages(tmp_path: Path) -> None:
     assert summary.rows_with_verdict == 1
     assert summary.rows_blank == 1
     assert summary.verdict_rows[0].ester_id == "R901"
+
+
+def test_blank_and_no_finding_rows_never_become_verdicts(tmp_path: Path) -> None:
+    """'No current auditor Rxxx finding' describes what was sent, and a
+    blank Correct?/Notes pair means nobody has reviewed it yet -- neither
+    is an Ester adjudication, and both must be excluded from
+    ``verdict_rows`` (the only list a caller could mistake for real
+    verdicts) rather than fabricated as one."""
+    _write_synthetic_package(
+        tmp_path / "R950_Ester_Auditor_Feedback.xlsx",
+        [
+            ["Synthetic-A", "No current auditor R950 finding.", None, None],
+            [
+                "Synthetic-B",
+                (
+                    "Physical PDF page: 4\nPrinted/document page: 3\n"
+                    "Location: body text\nPossible violation: example\n"
+                    "Measured amount: n/a\nAuditor confidence: LOW"
+                ),
+                None,
+                None,
+            ],
+        ],
+    )
+    summary = scan_xlsx_packages(tmp_path)
+    assert summary.rows_with_verdict == 0
+    assert summary.verdict_rows == []
+    assert summary.rows_blank == 1  # the no_finding row is skipped before rows_blank counting
+
+
+def test_verdict_letter_lowercase_and_whitespace_are_normalized(tmp_path: Path) -> None:
+    """A verdict cell like ' y ' or 'n' (lowercase, stray whitespace --
+    plausible manual-entry variance) must still be recognized, not
+    silently dropped into rows_unparseable."""
+    _write_synthetic_package(
+        tmp_path / "R951_Ester_Auditor_Feedback.xlsx",
+        [
+            [
+                "Synthetic-A",
+                (
+                    "Physical PDF page: 4\nPrinted/document page: 3\n"
+                    "Location: body text\nPossible violation: example\n"
+                    "Measured amount: n/a\nAuditor confidence: LOW"
+                ),
+                " y ",
+                None,
+            ],
+            [
+                "Synthetic-B",
+                (
+                    "Physical PDF page: 5\nPrinted/document page: 4\n"
+                    "Location: body text\nPossible violation: example\n"
+                    "Measured amount: n/a\nAuditor confidence: LOW"
+                ),
+                "n",
+                "false positive",
+            ],
+        ],
+    )
+    summary = scan_xlsx_packages(tmp_path)
+    assert summary.rows_with_verdict == 2
+    assert summary.rows_unparseable == 0
+    assert {r.verdict_letter for r in summary.verdict_rows} == {"Y", "N"}
