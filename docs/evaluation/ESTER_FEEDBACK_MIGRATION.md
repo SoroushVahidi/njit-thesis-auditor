@@ -1,38 +1,85 @@
 # Ester Feedback Migration and Ground-Truth Replay
 
-Phase 2 of the review-ledger work (2026-09-07). Builds on
+Phase 2 of the review-ledger work (2026-09-07), corrected 2026-09-07 after
+the initial pass was found to be materially incomplete (see "Correction:
+the initial migration undercounted the real authority" below). Builds on
 `docs/evaluation/ESTER_REVIEW_DATA_MODEL.md` (read that first). Code:
 `src/njit_auditor/review_ledger/importers/`, `ground_truth.py`,
 `new_review_gate.py`, `cli.py`. Tests: `tests/test_review_ledger/`
 (synthetic) plus a real run against the private ledger (not tracked, not
 reproducible from CI -- see "Running it yourself" below).
 
+## Correction: the initial migration undercounted the real authority
+
+The first migration pass (below, `known_cases.py` with 8 entries) treated
+the repository-tracked `Rxxx_Ester_Auditor_Feedback.xlsx` packages and
+`docs/status/*.md` prose as the only available sources, and concluded --
+correctly, for those sources -- that they carried almost no case-level
+verdicts. **The root cause of the gap was source selection, not parsing:**
+those XLSX packages are outgoing snapshots (sent for review) that were
+never the destination Ester actually recorded her judgments in. The
+live Ester feedback Google Sheet (spreadsheet id
+`1ZM7nJcw5KI5YGUkJBdE6hJyT7Y0Le-g1O1jiIb5RfBI`) is the real, current
+record, and a populated export of it
+(`data/evaluation/private/ester_sheet_exports/audito_feedback_20260901.xlsx`,
+gitignored, 2026-09-01 snapshot) contains explicit, dated verdicts across
+tabs `R011` through `R036` (and further, mostly-blank tabs beyond that)
+that the first pass never looked at.
+
+`known_cases.py` was rewritten from 8 to 44 entries against this export
+(see "What actually exists to migrate" and "Actual result", both updated
+below). Every new entry's page/issue_type was independently re-verified
+against a real run of the current auditor on the real private PDF -- this
+surfaced two real matching-granularity bugs (`P011`'s
+`margin_boundary_violation` and `P024`'s per-word title-case findings each
+collapse multiple, independently-adjudicable variants onto one page) fixed
+generically via `ground_truth.qualify_issue_type()`, and surfaced four
+genuine, previously-unknown detector regressions (`P027`/Praneeth p69,
+`P030`/Anthony p11, `P030`/Praneeth p12, `P036`/Anthony p12, `P036`/Praneeth
+p11 -- five regressed cases across three rules) that are real findings of
+this migration, not migration bugs -- see "Replay failures: root-caused,
+not fixed" below. No detector semantics were changed to make these numbers
+better.
+
 ## What actually exists to migrate
 
-Before writing any importer, every plausible source under
-`docs/evaluation/ester_feedback/` and `docs/status/` was inventoried. Two
-real, structurally different kinds of authority exist, and nothing else:
+Before writing the first version of any importer, every plausible source
+under `docs/evaluation/ester_feedback/` and `docs/status/` was inventoried.
+That inventory was itself incomplete (see the correction above); the
+complete picture is:
 
 1. **Rule-level policy** -- `docs/status/ester_authority_matrix_20260902.json`,
    a dated snapshot recording, per public rule (`R001`-`R085`), whether an
    explicit Ester decision existed as of 2026-09-02, its text, and its
    evidence source. This has no per-document, per-page granularity.
-2. **Case-level history** -- exists only as prose in dated
-   `docs/status/*.md` files (e.g.
-   `p011_r011_ester_9_2pt_boundary_resolution_20260831.md`,
+2. **Case-level history, prose form** -- dated `docs/status/*.md` files
+   (e.g. `p011_r011_ester_9_2pt_boundary_resolution_20260831.md`,
    `r018_r024_ester_sheet_authority_20260907.md`,
    `r035_praneeth_text_fallback_fix_20260907.md`,
-   `patrick_chapter1_rule_gap_20260902.md`). No structured export of these
-   exists.
+   `patrick_chapter1_rule_gap_20260902.md`) -- each records a specific,
+   dated relay of an Ester verdict, not a bulk export.
+3. **Case-level history, live sheet export** -- the authoritative source:
+   `data/evaluation/private/ester_sheet_exports/audito_feedback_20260901.xlsx`,
+   a 2026-09-01 export of the live Google Sheet. Tabs `R011` through `R036`
+   carry populated `Correct? (Y/N)`/comment cells (a mix of `Y`/`N`,
+   `CORRECT`/`FALSE POSITIVE`/`TRUE VIOLATION` spellings, and free-text
+   rationale); `R011-R015 Follow-up` is a separate, later round with its
+   own distinct cases; tabs beyond `R036` and `R019`/`R055` specifically
+   were still blank in this snapshot -- honestly represented here as *not
+   migrated*, not fabricated (see "What is still not migrated" below).
 
-**The 72 `Rxxx_Ester_Auditor_Feedback.xlsx` review packages contain zero
-recoverable verdicts.** This was verified programmatically, not assumed:
-every package's `Correct? (Y/N)` and `Notes` columns are blank across all
-504 rows (72 packages × 7 documents) -- `scan_xlsx_packages()` (Phase 2's
-generic XLSX importer) confirms this on every run. These are outgoing
-packages (sent for review), not returned ones. A row reading
-`"No current auditor Rxxx finding."` is a statement about what was sent,
-never a verdict -- the importer never treats it as one.
+**The 72 `Rxxx_Ester_Auditor_Feedback.xlsx` review packages under
+`docs/evaluation/ester_feedback/` remain, as originally found, sources
+with zero recoverable verdicts** -- verified programmatically, not
+assumed: every package's `Correct? (Y/N)` and `Notes` columns are blank
+across all 504 rows (72 packages × 7 documents) -- `scan_xlsx_packages()`
+confirms this on every run. These are outgoing packages (sent for
+review), never returned, and this is the reason the first migration pass
+undercounted: it treated "these are blank" as "no case-level authority
+exists" instead of going to look for the live sheet the review actually
+happened in. A row reading `"No current auditor Rxxx finding."` is a
+statement about what was sent, never a verdict -- the importer never
+treats it as one.
 
 `docs/evaluation/ester_feedback/live_sheet_pending_content.json` is the
 same story in a different format: a snapshot of the *questions sent*
@@ -57,13 +104,10 @@ same reason.
 - **`importers/known_cases.py`** + **`importers/case_migration.py`** --
   the real case-level history. `known_cases.py` is a curated, reviewable
   Python table, **hand-transcribed** from the cited `docs/status/*.md`
-  files, not machine-parsed (that prose has no consistent enough
-  structure to parse safely). Every entry cites its source document and
-  states only what that document actually says. Two real, well-documented
-  historical decisions were deliberately **not** given a case-level entry
-  (R024's Praneeth hyphenated-fragment case, R035's Anthony
-  landscape-geometry case) because neither is confidently re-locatable to
-  one specific current page -- see "What was not migrated" below.
+  files and the populated live-sheet export, not machine-parsed (neither
+  source has a structure safe to parse mechanically without a human
+  transcribing the verdict/rationale text). Every entry cites its source
+  document/export and states only what that source actually says.
   `case_migration.py` turns each entry into a `ReviewCase` (fingerprinted
   from the entry's own recorded page/issue-type/structural facts, **never
   re-derived from a fresh run** -- these are the facts as originally
@@ -71,24 +115,32 @@ same reason.
   the document short name to a real `ThesisVersion` via
   `importers/thesis_registry.py`.
 
-## What was not migrated (and why that's the honest answer)
+Both of the first pass's two "not migrated" cases (R024's Praneeth
+hyphenated-fragment case, R035's Anthony landscape-geometry case) turned
+out to have concrete physical pages once checked against the live sheet
+export and are now real case-level entries (R024/Praneeth page 14,
+R035/Anthony page 60) -- see "What is still not migrated" below for what
+genuinely has no page/verdict recorded anywhere yet.
 
-- **R024, Praneeth's hyphenated-fragment case**: real, resolved (the
-  `skip_hyphenated_fragments` fix), but her current draft's List of
-  Tables no longer contains a hyphen-adjacent word matching the reviewed
-  shape at all (confirmed by direct search, not assumed) -- there is no
-  page to attach a case to without guessing. Migrated as policy only (via
-  the authority-matrix path once a matrix snapshot records it), not as a
-  case.
-- **R035, Anthony's landscape-geometry case**: real, resolved (the
-  landscape-aware centering-tolerance fix), but no specific page was
-  recorded for it in the cited source at the time it was written. Same
-  treatment.
+## What is still not migrated (and why that's the honest answer)
 
-Both are true, resolved false positives with real fix commits; neither is
-a case-level `ReviewCase` in this pass. A future pass with either a
-returned original review package or a more specific status doc can add
-them without any schema change.
+- **R019**: no populated verdict text was found in *any* located source
+  for this rule -- not the live-sheet export (its `R019` tab, if one
+  exists in the sheet, was not captured in the 2026-09-01 snapshot), not
+  any `docs/status/*.md` file. This is a real gap, not a decision to
+  exclude it; it is reported here rather than fabricated. A future pass
+  needs either a newer sheet export or a direct relay of R019's verdicts
+  before it can be migrated.
+- **R055**: still blank in the 2026-09-01 export, consistent with its
+  existing policy-only treatment (`ester_decision_exists: NO` in the
+  authority matrix, or no row at all) -- unchanged from the first pass.
+- **Everything past `R036`** in the live-sheet export was blank in the
+  2026-09-01 snapshot. Not migrated for the same reason as R019/R055: no
+  populated source exists yet on this machine.
+
+A future pass with a newer sheet export can extend `known_cases.py`
+further without any schema change -- the importer and fingerprinting
+design were built generic for exactly this.
 
 ## Thesis identity and version matching
 
@@ -99,11 +151,13 @@ current PDF. Elbert is excluded, matching existing project convention.
 
 Every migrated case in this pass resolved to the corpus's **current** PDF
 version -- no `VERSION_UNRESOLVED` case exists, because every one of the
-eight curated cases' recorded page/issue-type facts were independently
+44 curated cases' recorded page/issue-type facts were independently
 re-verified against the current file before being added to
-`known_cases.py` (see each entry's cited source; the R011/R015 cases were
-additionally confirmed present/absent exactly as expected during this
-migration's own development). If a corpus PDF is ever replaced with a
+`known_cases.py` (see each entry's cited source; every case was confirmed
+present/absent exactly as expected -- or, for the five genuine
+regressions, confirmed still present with an exact-value cross-check, not
+just a page match -- during this migration's own development). If a
+corpus PDF is ever replaced with a
 different version, the deterministic `ThesisVersion` id changes (new
 SHA-256) and any case migrated against the old version's id would need
 re-verification before being trusted against the new one -- this is a
@@ -125,6 +179,73 @@ two migrated cases share rule+issue_type+page on the same thesis
 version) — but a future rule whose migrated cases *do* collide on one
 page would need this tightened; watch for it rather than assuming it
 will never happen.
+
+**Two such collisions were found and fixed during this migration pass,**
+not hypothetically -- a first, crude verification script that checked
+only `(rule_id, page)` flagged several candidate cases as "regressions"
+that turned out to be false alarms on closer inspection:
+
+- **`P011`** (`margin_boundary_violation`): a reviewed Praneeth
+  right-margin false positive at page 56 (3.0pt overflow, methods-section
+  body text) and an unrelated, never-reviewed bottom-margin finding at the
+  same page (13.8pt overflow, different text) would otherwise have
+  matched as "the same case".
+- **`P024`** (`list_of_tables_title_case` / `list_of_figures_sentence_case`):
+  these fire once per flagged word on the same List of Tables/Figures
+  page. A reviewed Praneeth false positive about the word `'casein'` at
+  page 14 and an unrelated, still-present finding about a different word
+  (`'peptide'`) on the same page would otherwise have matched.
+
+Both are fixed generically by `ground_truth.qualify_issue_type(rule_id,
+issue_type, details, message)`, which appends a rule-specific
+discriminator (`P011`: the `side` details field; `P024`: the single-quoted
+word extracted from the message) before either a migrated case's
+`issue_type` or a live run's `CurrentFinding.issue_type` ever reaches the
+matching logic in `replay_ledger`. Both `known_cases.py` (at authoring
+time) and `cli.py`'s `run_current_auditor_and_record` (at replay time)
+must call it the same way, or matching silently degrades back to the
+coarser, collision-prone form -- see the regression tests in
+`test_ground_truth.py` (`test_qualify_issue_type_p011_discriminates_by_side`,
+`test_qualify_issue_type_p024_discriminates_by_flagged_word`,
+`test_p011_side_discrimination_prevents_false_regression_in_replay`) for
+the specific collision each one guards against.
+
+## Replay failures: root-caused, not fixed
+
+Five cases across three rules replay as genuine `FP_REGRESSION`s against
+the current codebase. Each was investigated individually -- checked at
+message/measured-value granularity, not just rule+page -- to rule out a
+migration or matching bug before being accepted as a real, currently
+unresolved detector issue. Per the task constraint this migration was
+scoped under, **no detector code was changed to make any of these zero**;
+they are reported here for a separate correction task.
+
+| Case | Root cause found |
+|---|---|
+| `P027`/Praneeth p69 | The reviewed finding (`level4_sentence_case_or_punctuation_issue`, "period is there but the auditor does not recognize that this title ends on the second line") is still produced verbatim by the current heading-punctuation check -- the multi-line-heading period detection Ester described as broken has not been fixed. A second, unrelated `level4_sentence_case_issue` about "Cytochrome C" capitalization also fires on the same page (a real, never-reviewed possible issue) but does not affect this determination -- the two are distinguished by `issue_type`. |
+| `P030`/Anthony p11 | Reviewed as false ("the `(Continued)` text is there"); the current `missing_continued_heading` check still fires at the same page against the same recorded `expected_heading` value (`'TABLE OF CONTENTS (Continued)'`), confirmed by exact-value cross-check against the original review, not just a page match. |
+| `P030`/Praneeth p12 | Same root cause and same confirmation method as Anthony's case above. |
+| `P036`/Anthony p12 | Reviewed as false; the current `toc_inter_entry_spacing_too_tight` check still fires at the same page with the exact same measured `gap_ratio=1.08` recorded in the original review. |
+| `P036`/Praneeth p11 | Same root cause and same confirmation method as Anthony's case above (`gap_ratio=1.19`). |
+
+By contrast, the bulk `(rule_id, page)`-only check's other flagged
+candidates (`P011`/Praneeth p56, `P024`/Praneeth p14) were **not** real
+regressions once checked in detail -- see the `qualify_issue_type`
+discussion above; this is exactly the kind of false alarm careful,
+per-case verification is meant to catch before it gets reported as a
+detector bug that doesn't exist.
+
+`P028`/Patrick p13 is intentionally excluded from both the regression
+count and the clean count: Ester's comment ("CORRECT, but... the real
+error is not the page number but the absence of the header 'CHAPTER 1'")
+is a nuanced case-adjudication-plus-root-cause record, not a simple
+instruction to keep `P028` reporting this page. The actual defect's
+responsibility sits with `P085` (already migrated separately as a
+`TRUE_VIOLATION`, confirmed still detected -- see the table below), so
+this case is recorded with verdict `NEEDS_CLARIFICATION` rather than
+forced into either `TRUE_VIOLATION` or `FALSE_POSITIVE` for `P028`
+itself. It is counted in `UNRESOLVED_POLICY_CASES`, not in
+`ESTER_REVIEWED_FP_TOTAL`/`ESTER_REVIEWED_TP_TOTAL`.
 
 Verdict handling:
 
@@ -169,41 +290,75 @@ ledger creates zero additional `Thesis`/`ThesisVersion`/`ReviewCase`/
 `Adjudication`/`Resolution` rows (all deduplicated by deterministic id or,
 for the authority matrix, by `policy_reference`) -- the second run's
 `cases_created`/`adjudications_created`/`resolutions_created` are all
-`0`, with the corresponding `*_already_present` counts matching. Event-
-style rows (`AuditorRun`, `RegressionResult`, the `HistoryEvent`s tied to
-them) correctly grow with each run -- each execution is a genuinely new
-event, not a duplicate of the same one.
+`0`, with the corresponding `*_already_present` counts matching (44/44,
+44/44, 36 already-present respectively). Event- style rows (`AuditorRun`,
+`RegressionResult`, the `HistoryEvent`s tied to them) correctly grow with
+each run -- each execution is a genuinely new event, not a duplicate of
+the same one (verified: `auditor_runs.jsonl` 7→14 lines,
+`regression_results.jsonl` 43→86, `review_rounds.jsonl` 1→2 across two
+consecutive real runs, while every identity-bearing file's line count
+stayed fixed).
 
-### Actual result as of this migration pass
+One practical note for anyone re-running a *requalified* case (i.e. one
+whose `issue_type` in `known_cases.py` changes, as several did in the
+correction above when `qualify_issue_type` was introduced): case identity
+is fingerprinted from `issue_type` among other fields, so changing it
+changes the case's deterministic id. Because the private ledger's own
+JSONL files are gitignored, untracked, local working data -- never
+committed, never shared -- this is not an append-only-history concern;
+the corrected pass simply deleted and regenerated
+`data/evaluation/private/ester_review_ledger/` from a clean state rather
+than leaving the old, now-orphaned unqualified-`issue_type` cases mixed in
+with the new qualified ones. This is not available or appropriate for
+anything actually committed to git (the ledger design's append-only
+invariant is about the ledger's own row semantics, not about local
+regeneration of gitignored derived data).
+
+### Actual result as of this corrective migration pass
 
 ```
 Authority matrix: 85 rules, 36 Resolutions created (25 explicit + 11 analogous), 49 skipped (no decision)
-Known cases: 8/8 migrated, 0 version_unresolved
+Known cases: 44/44 migrated, 0 version_unresolved
 XLSX packages: 72 scanned, 504 rows read, 0 with a verdict
 
-ESTER_REVIEWED_FP_TOTAL = 6
-ESTER_FP_REMAINING = 0
-ESTER_REVIEWED_TP_TOTAL = 2
+ESTER_REVIEWED_FP_TOTAL = 40
+ESTER_FP_REMAINING = 5
+ESTER_REVIEWED_TP_TOTAL = 3
 ESTER_TP_MISSING = 0
-UNRESOLVED_POLICY_CASES = 0
+UNRESOLVED_POLICY_CASES = 1
 
-RULE | FP_TOTAL | FP_REGRESSIONS | TP_TOTAL | TP_REGRESSIONS | STATUS
-P011 | 1 | 0 | 1 | 0 | CLEAN
-P015 | 1 | 0 | 0 | 0 | CLEAN
-P018 | 2 | 0 | 0 | 0 | CLEAN
-P024 | 1 | 0 | 0 | 0 | CLEAN
-P035 | 1 | 0 | 0 | 0 | CLEAN
-P085 | 0 | 0 | 1 | 0 | CLEAN
+RULE | FP_TOTAL | FP_REGRESSIONS | TP_TOTAL | TP_REGRESSIONS | UNRESOLVED | STATUS
+P011 | 8 | 0 | 1 | 0 | 0 | CLEAN
+P015 | 4 | 0 | 0 | 0 | 0 | CLEAN
+P016 | 3 | 0 | 0 | 0 | 0 | CLEAN
+P017 | 3 | 0 | 0 | 0 | 0 | CLEAN
+P018 | 2 | 0 | 0 | 0 | 0 | CLEAN
+P020 | 3 | 0 | 1 | 0 | 0 | CLEAN
+P023 | 4 | 0 | 0 | 0 | 0 | CLEAN
+P024 | 2 | 0 | 0 | 0 | 0 | CLEAN
+P026 | 1 | 0 | 0 | 0 | 0 | CLEAN
+P027 | 1 | 1 | 0 | 0 | 0 | REGRESSION
+P028 | 1 | 0 | 0 | 0 | 1 | PARTIAL
+P030 | 2 | 2 | 0 | 0 | 0 | REGRESSION
+P033 | 1 | 0 | 0 | 0 | 0 | CLEAN
+P035 | 3 | 0 | 0 | 0 | 0 | CLEAN
+P036 | 2 | 2 | 0 | 0 | 0 | REGRESSION
+P085 | 0 | 0 | 1 | 0 | 0 | CLEAN
 
-New-review gate: allowed=True
+New-review gate: allowed=False
+reason=blocked: ESTER_FP_REMAINING=5, ESTER_TP_MISSING=0
+(pass override=True and a non-empty override_reason to bypass explicitly)
 ```
 
-Every one of the 8 migrated cases replayed correctly against the current
-codebase: every reviewed false positive stays suppressed, the one
-reviewed true violation (R085/Patrick) stays detected. This was computed,
-not assumed going in -- the migration code would have reported a nonzero
-`ESTER_FP_REMAINING`/`ESTER_TP_MISSING` and this document would say so if
-it had.
+This was computed, not assumed going in, and it is **not** the clean
+`FP_REMAINING=0` result the first (incomplete) pass reported. All 3
+reviewed true violations (`P011`/Patrick p88, `P020`/Praneeth p20,
+`P085`/Patrick p13) still fire correctly. 35 of the 40 reviewed false
+positives correctly stay suppressed. The remaining 5 are the real,
+individually-investigated regressions in "Replay failures: root-caused,
+not fixed" above (`P027` ×1, `P030` ×2, `P036` ×2) -- not migration
+artifacts, not fixed as part of this task, and the new-review gate
+correctly reports `allowed=False` as a direct, honest consequence.
 
 ## Invariant
 
@@ -211,4 +366,8 @@ it had.
 adjudicated false positive is being reported or a previously adjudicated
 true violation is missing.** `check_new_review_gate` is the enforcement
 point a future round-generator must call; this phase does not yet contain
-that generator.
+that generator. As of this corrective pass, the gate correctly blocks
+(`allowed=False`) because five such false positives are, in fact, still
+being reported -- see "Replay failures" above for what a future
+correction task needs to fix before the gate can open again without an
+explicit override.
