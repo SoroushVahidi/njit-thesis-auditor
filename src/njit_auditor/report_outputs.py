@@ -290,6 +290,17 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         ),
     },
     "P028": {
+        "rule_definition": (
+            "NJIT requires front-matter pages that show page numbers to use "
+            "lowercase Roman numerals (i, ii, iii, ...) and main-body pages "
+            "to use Arabic numerals (1, 2, 3, ...). This rule detects the "
+            "front-matter and body regions from named headings and "
+            "chapter/body heading detection, then checks that detected "
+            "page-number candidates match the expected style for their "
+            "region. Pages that should show no page number at all "
+            "(Abstract, Approval Page, Title page) are excluded and are "
+            "covered by a separate check."
+        ),
         "remediation": (
             "Use lowercase Roman numerals for numbered front-matter pages, "
             "and use Arabic numerals for body pages."
@@ -311,6 +322,17 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "indentation style: first paragraph flush-left and subsequent "
             "paragraphs indented?"
         ),
+        "rule_definition": (
+            "Detects the Acknowledgements page and extracts its body "
+            "paragraphs. Checks that the first paragraph's first line is "
+            "flush-left with the page's left margin, and that each "
+            "subsequent paragraph's first line is indented relative to "
+            "that margin. Skips pages where the Acknowledgements heading "
+            "is not detected or fewer than 2 paragraphs are found. "
+            "Complements the general indentation check, which may miss "
+            "short Acknowledgements pages due to conservative thresholds. "
+            "Findings contain only geometry metadata -- no paragraph text."
+        ),
         "remediation": (
             "Remove any first-line indent from the first Acknowledgements "
             "paragraph, and apply a first-line indent to each subsequent "
@@ -322,6 +344,18 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Does the Abstract page follow the correct paragraph "
             "indentation style: first paragraph flush-left and subsequent "
             "paragraphs indented?"
+        ),
+        "rule_definition": (
+            "Detects the Abstract page and extracts its body paragraphs. "
+            "Checks that the first paragraph's first line is flush-left "
+            "with the page's left margin, and that each subsequent "
+            "paragraph's first line is indented relative to that margin. "
+            "Skips pages where the Abstract page is not detected; skips "
+            "the subsequent-paragraph check if fewer than 2 paragraphs are "
+            "found. Complements the general indentation check, which "
+            "partially covers the abstract opening but not subsequent "
+            "paragraphs. Findings contain only geometry metadata -- no "
+            "paragraph text."
         ),
         "remediation": (
             "Remove any first-line indent from the first Abstract "
@@ -363,6 +397,19 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "question": (
             "Is the left-column header, \"Table\" or \"Figure,\" formatted in "
             "bold in the List of Tables or List of Figures?"
+        ),
+        "rule_definition": (
+            "Conservative check: detects List of Tables/List of Figures "
+            "pages with at least 3 entries whose page-number position is "
+            "confidently detected. Locates the left-column header label "
+            "('Table' for the List of Tables, 'Figure' for the List of "
+            "Figures) in the expected header zone. If the header text is "
+            "reliably detected as not bold, flags a bold-style issue. "
+            "Skips pages without a detected left header, sparse pages, "
+            "image-only pages, and pages where font metadata is "
+            "unavailable or ambiguous. Findings contain style metadata "
+            "only -- no entry text, captions, titles, header text, or "
+            "private content."
         ),
         "remediation": (
             "Format the \"Table\" or \"Figure\" column header in bold."
@@ -445,6 +492,19 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Is the \"Page\" column header in the List of Tables or List of "
             "Figures bold and right-aligned over the page-number column?"
         ),
+        "rule_definition": (
+            "Conservative check: detects List of Tables/List of Figures "
+            "pages with at least 3 entries whose page-number position is "
+            "confidently detected. Derives the expected right-column "
+            "position from the median position of those entries. Locates "
+            "the 'Page' header label in the expected header zone. If the "
+            "header's right edge deviates from the expected position by "
+            "more than about 25pt, flags a right-alignment issue. If the "
+            "header text is reliably detected as not bold, flags a "
+            "bold-style issue. Skips pages without a detected 'Page' "
+            "header. Findings contain geometry and style metadata only -- "
+            "no entry text, captions, titles, or private content."
+        ),
         "remediation": (
             "Format the \"Page\" column header in bold and align it over the "
             "page-number column on the right."
@@ -474,6 +534,16 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "question": (
             "Are all List of Tables entries free of a final period?"
         ),
+        "rule_definition": (
+            "Conservative automated check. NJIT guidelines require that "
+            "List of Tables entry titles use title case with no terminal "
+            "period. This rule emits a warning when a complete List of "
+            "Tables entry ends with a period after stripping leaders and "
+            "the 'Table X' prefix. Mirrors the separate check that List of "
+            "Figures entries DO have terminal punctuation. Findings "
+            "contain only structural metadata -- no entry text, no table "
+            "titles."
+        ),
         "remediation": (
             "Remove the final period from each List of Tables entry. Table "
             "titles should use title case without terminal punctuation."
@@ -483,6 +553,16 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "question": (
             "Are all Table of Contents entries free of a final period?"
         ),
+        "rule_definition": (
+            "Conservative automated check. NJIT guidelines require TOC "
+            "entries at all levels to be in specific case styles (all-caps "
+            "for level 1, title case for level 2, sentence case for level "
+            "3) without terminal punctuation. This rule emits a warning "
+            "when a complete TOC entry ends with a period after stripping "
+            "leaders and any level prefix. Mirrors the separate check that "
+            "List of Tables entries must not have a terminal period. "
+            "Findings contain only structural metadata -- no heading text."
+        ),
         "remediation": (
             "Remove the final period from each Table of Contents entry."
         ),
@@ -491,6 +571,16 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "question": (
             "Are table entries listed only in the List of Tables and figure "
             "entries listed only in the List of Figures?"
+        ),
+        "rule_definition": (
+            "Conservative automated check. NJIT guidelines define the "
+            "List of Tables as containing only table entries and the List "
+            "of Figures as containing only figure entries. This rule "
+            "emits an advisory when a complete List of Tables entry starts "
+            "with 'Figure', or a complete List of Figures entry starts "
+            "with 'Table'. This catches misplaced entries that indicate a "
+            "copy-paste error or misconfigured template. Findings contain "
+            "only structural metadata -- no title text."
         ),
         "remediation": (
             "Move each misplaced entry to the correct section: table entries "
@@ -513,6 +603,16 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Is the Abstract text free of the words \"paper\" or \"article\" "
             "and free of first-person pronouns?"
         ),
+        "rule_definition": (
+            "Locates the Abstract page and extracts its body text. Matches "
+            "words like \"paper\"/\"papers\"/\"article\"/\"articles\" and "
+            "first-person pronouns like \"I\"/\"me\"/\"my\"/\"mine\"/\"we\"/"
+            "\"us\"/\"our\"/\"ours\" against the body text. Emits one "
+            "warning per unique matched word (deduplicated, "
+            "case-insensitive). Does not scan headings, Table of Contents, "
+            "body chapters, references, or acknowledgements. If no "
+            "Abstract page is found, returns no findings."
+        ),
         "remediation": (
             "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" "
             "\"work,\" or \"research.\" Rewrite sentences to remove "
@@ -525,6 +625,20 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Do publication and presentation entries in the Biographical Sketch "
             "use the required layout: hanging indent, internal single spacing, "
             "and a blank line between entries?"
+        ),
+        "rule_definition": (
+            "Detects the Biographical Sketch page and groups its text lines "
+            "below the heading into entry blocks. For multi-line entries "
+            "with a hanging-indent pattern, checks: if no entries have a "
+            "hanging indent despite two or more multi-line entries, flags "
+            "a missing hanging indent; if consecutive hanging-indent "
+            "entries have less than 20pt of space between them, flags "
+            "incorrect entry spacing; if a hanging-indent entry's wrapped "
+            "lines have more than 16pt of space between them, flags "
+            "incorrect line spacing within an entry. Skips pages where the "
+            "Biographical Sketch heading is absent or fewer than 2 "
+            "multi-line entries are found. Findings are geometry-only -- "
+            "no publication text, citation content, or names."
         ),
         "remediation": (
             "Format each publication or presentation entry with a hanging indent. "
@@ -571,6 +685,128 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Add the required advisor or committee role label and the "
             "signature/date structural block for each committee entry on the "
             "Approval Page."
+        ),
+    },
+    "P014": {
+        "rule_definition": (
+            "Detect named front-matter headings and warn when any fail the "
+            "required format: centered, bold, all caps, near top of page."
+        ),
+        "remediation": (
+            "Format each front-matter heading in all-caps, bold, centered, "
+            "at the top of its page."
+        ),
+    },
+    "P017": {
+        "rule_definition": (
+            "Automatically detect punctuation and case-style issues in "
+            "figure/table caption-like PDF lines. Figure captions (body) "
+            "and List of Figures entries: check terminal punctuation and "
+            "sentence case. Table titles (body) and List of Tables "
+            "entries: check title case and unexpected terminal period."
+        ),
+    },
+    "P022": {
+        "rule_definition": (
+            "NJIT requires no visible page number on the Abstract page, "
+            "Title page, Approval page, and Copyright page. This rule "
+            "detects page-number-like candidates (numeric or Roman "
+            "numeral tokens) in the top/bottom margin zone on these "
+            "specific named pages and emits one warning per affected page. "
+            "Years (1900-2099) in the title-page zone are suppressed to "
+            "avoid false positives. Copyright page detection is "
+            "conservative: only flagged when clear copyright signals are "
+            "found in the first four pages."
+        ),
+    },
+    "P034": {
+        "rule_definition": (
+            "Conservative check on a confidently identified Copyright "
+            "Page: flags visible non-page-number text in the top margin; "
+            "compares copyright year to Title Page graduation year and "
+            "author name to Title Page author after 'by' only when both "
+            "sides are confidently extracted. Skips ambiguous, image-only, "
+            "or undetected copyright pages. Does not quote author names or "
+            "title text in findings."
+        ),
+    },
+    "P037": {
+        "rule_definition": (
+            "Conservative check anchored on the detected BIOGRAPHICAL "
+            "SKETCH page: requires visible Roman numeral iv (4) on that "
+            "page. Dedication, Acknowledgements, and Table of Contents are "
+            "checked against fixed NJIT template slots when present. List "
+            "of Tables is checked against the next Roman numeral after the "
+            "page immediately before List of Tables, because a multi-page "
+            "Table of Contents shifts the expected value away from any "
+            "fixed slot. Emits nothing when BIOGRAPHICAL SKETCH heading is "
+            "not detected. Skips pages with no confident lowercase-Roman-"
+            "numeral candidate. Does not duplicate the separate Roman-"
+            "numeral regime or sequence checks."
+        ),
+    },
+    "P038": {
+        "rule_definition": (
+            "Conservative check: (1) flags a missing required heading when "
+            "APPROVAL PAGE, BIOGRAPHICAL SKETCH, ACKNOWLEDGEMENTS, or "
+            "TABLE OF CONTENTS is not detected in the front-matter region; "
+            "(2) flags a non-exact heading phrase when a known curated "
+            "spelling variant (e.g. ACKNOWLEDGMENTS) is found instead of "
+            "the canonical NJIT phrase. Gated: no findings if no headings "
+            "at all are detected (flattened/image-only PDFs). Optional "
+            "sections (DEDICATION, LIST OF TABLES, LIST OF FIGURES) are "
+            "not flagged as missing. Does not duplicate the separate "
+            "heading style check (bold/centered/near-top/all-caps) or the "
+            "separate structure check."
+        ),
+    },
+    "P051": {
+        "rule_definition": (
+            "Conservative check extension of the Copyright Page check. "
+            "Uses the same page-detection gate. Attempts year extraction "
+            "using the existing method, plus an additional method that "
+            "looks for a copyright marker on one line and a standalone "
+            "year on the next line. If neither method extracts a year and "
+            "no year token exists anywhere on the page, emits a "
+            "low-confidence advisory. Skips pages where a year token is "
+            "present but not confidently extractable (conservative "
+            "false-negative preference). Findings contain only structural "
+            "metadata -- no copyright text, author names, or private "
+            "content."
+        ),
+    },
+    "P052": {
+        "rule_definition": (
+            "Conservative check extension of the Copyright Page checks. "
+            "Uses the same page-detection gate. Requires that a copyright "
+            "year was already found. Attempts author extraction using the "
+            "existing method, plus an additional method that looks for a "
+            "year on one line and an author-like string on the next line. "
+            "If neither method extracts an author and a year was found, "
+            "emits a low-confidence advisory. Skips pages where no year "
+            "was found. Findings contain only structural metadata -- no "
+            "author names, no copyright text, no private content."
+        ),
+    },
+    "P056": {
+        "rule_definition": (
+            "Conservative automated check. NJIT formatting guidelines "
+            "imply that List of Tables and List of Figures entries should "
+            "follow a consistent naming convention. This rule emits an "
+            "advisory when a complete List of Tables or List of Figures "
+            "section contains a mix of chapter-based numbering (e.g., "
+            "Table 1.2) and plain sequential numbering (e.g., Table 1). "
+            "Findings contain only structural metadata -- no title text."
+        ),
+    },
+    "P063": {
+        "rule_definition": (
+            "Body-page appendix headings must follow NJIT labeling rules: "
+            "if there is one appendix, its heading must be APPENDIX "
+            "(without a letter); if there are multiple appendices, each "
+            "heading must be APPENDIX A, APPENDIX B, APPENDIX C, etc. with "
+            "consecutive letter identifiers. Applies to body pages only; "
+            "the Table of Contents side is handled by a separate check."
         ),
     },
 }
