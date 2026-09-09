@@ -345,8 +345,9 @@ def test_rules_student_fields_have_no_legacy_p_q_identifiers(
             if found:
                 offenders.append(f"{rule_id}.{field}: {found} in {text!r}")
 
-    assert not offenders, "Legacy P/Q identifiers leaked into student-facing rule text:\n" + "\n".join(
-        offenders
+    assert not offenders, (
+        "Legacy P/Q identifiers leaked into student-facing rule text:\n"
+        + "\n".join(offenders)
     )
 
 
