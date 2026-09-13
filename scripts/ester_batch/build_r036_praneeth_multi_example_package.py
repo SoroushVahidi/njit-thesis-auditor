@@ -81,6 +81,35 @@ COVER_NOTE = (
     "examples."
 )
 
+# Reviewer-facing legend text drawn directly on the page-11 map page, so
+# that page is self-explanatory without needing the overview page or any
+# header page open at the same time. Deliberately says only who reviewed
+# which example -- no claim about correctness either way.
+MAP_LEGEND_REVIEWED_TEXT = "= previously reviewed by Ester (example 1)"
+MAP_LEGEND_ADDITIONAL_TEXT = "= additional example (not previously reviewed individually)"
+
+# xlsx header row: hoisted to a module constant so both the writer and
+# tests can reference the same list without duplicating it.
+XLSX_HEADERS = [
+    "Example #",
+    "Previously reviewed by Ester?",
+    "Physical PDF page",
+    "Previous entry",
+    "Next entry",
+    "Transition type / levels",
+    "Gap ratio",
+    "Required threshold (gap ratio)",
+    "Brief neutral description",
+    "Ester decision",
+    "Ester notes",
+]
+# Column widths (openpyxl width units, roughly characters). "Previously
+# reviewed by Ester?" and "Required threshold (gap ratio)" are widened here
+# (rather than left at a narrower width with wrap-only) so the header text
+# is visible without the reviewer needing to resize any column on open.
+XLSX_COLUMN_WIDTHS = [10, 32, 12, 42, 42, 24, 10, 32, 46, 14, 30]
+XLSX_HEADER_ROW_HEIGHT = 30
+
 
 def is_previously_reviewed(details: dict[str, Any]) -> bool:
     """Return True only for the exact pair Ester already reviewed."""
@@ -126,6 +155,19 @@ def _classify_transition_label(details: dict[str, Any]) -> str:
     return f"{_level(prev_text)} -> {_level(next_text)}"
 
 
+def _normalize_display_whitespace(text: str) -> str:
+    """Collapse runs of whitespace to a single space for display only.
+
+    Presentation-layer only: this never touches ``details`` (the raw
+    finding data used by ``is_previously_reviewed`` for matching, or by
+    ``validate_package``/live-detector comparisons) -- it is applied only
+    to the copy of the entry text shown to the reviewer, so the xlsx and
+    pdf render the same text instead of the xlsx's raw double space
+    surviving while ReportLab's Paragraph silently collapses its copy.
+    """
+    return " ".join(text.split())
+
+
 def build_example_rows(
     page_findings: list[dict[str, Any]], doc_report: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -140,8 +182,12 @@ def build_example_rows(
                 "previously_reviewed": reviewed,
                 "physical_page": physical_page,
                 "printed_page": printed_page_for(doc_report, physical_page),
-                "previous_entry": str(details.get("previous_entry_preview", "")),
-                "next_entry": str(details.get("next_entry_preview", "")),
+                "previous_entry": _normalize_display_whitespace(
+                    str(details.get("previous_entry_preview", ""))
+                ),
+                "next_entry": _normalize_display_whitespace(
+                    str(details.get("next_entry_preview", ""))
+                ),
                 "transition_label": _classify_transition_label(details),
                 "gap_ratio": str(details.get("gap_ratio", "")),
                 "required_gap_points": str(details.get("required_gap_points", "")),
@@ -187,24 +233,16 @@ def _write_xlsx(rows: list[dict[str, Any]], xlsx_path: Path) -> None:
     header_font = Font(name="Calibri", size=11, bold=True)
     regular_font = Font(name="Calibri", size=11, bold=False)
 
-    headers = [
-        "Example #",
-        "Previously reviewed by Ester?",
-        "Physical PDF page",
-        "Previous entry",
-        "Next entry",
-        "Transition type / levels",
-        "Gap ratio",
-        "Required threshold (gap ratio)",
-        "Brief neutral description",
-        "Ester decision",
-        "Ester notes",
-    ]
-    for col, header in enumerate(headers, start=1):
-        ws.cell(row=1, column=col, value=header).font = header_font
+    for col, header in enumerate(XLSX_HEADERS, start=1):
+        header_cell = ws.cell(row=1, column=col, value=header)
+        header_cell.font = header_font
+        # Widened columns (below) already fit the longest headers without
+        # wrapping, but wrap+top-align is set defensively so no header is
+        # ever silently clipped in a narrower viewer/print layout.
+        header_cell.alignment = Alignment(wrap_text=True, vertical="center")
+    ws.row_dimensions[1].height = XLSX_HEADER_ROW_HEIGHT
 
-    widths = [10, 14, 12, 42, 42, 24, 10, 14, 46, 14, 30]
-    for col, width in enumerate(widths, start=1):
+    for col, width in enumerate(XLSX_COLUMN_WIDTHS, start=1):
         ws.column_dimensions[chr(64 + col)].width = width
 
     for r, row in enumerate(rows, start=2):
@@ -239,6 +277,19 @@ def _write_overview_pdf(rows: list[dict[str, Any]], out_path: Path) -> None:
     cell_style = ParagraphStyle("cell", parent=styles["BodyText"], fontSize=8, leading=10)
     title_style = ParagraphStyle("title", parent=styles["Title"], fontSize=16)
     note_style = ParagraphStyle("note", parent=styles["BodyText"], fontSize=10, leading=13)
+    # Header cells are rendered as Paragraphs (not bare strings) so long
+    # headers wrap inside their own column instead of overflowing into the
+    # next one -- this is what previously made "Example #" run into
+    # "Reviewed?" with no visible gap when the plain-string header text was
+    # wider than its column.
+    header_cell_style = ParagraphStyle(
+        "header_cell",
+        parent=styles["BodyText"],
+        fontSize=9,
+        leading=11,
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+    )
 
     doc = SimpleDocTemplate(
         str(out_path),
@@ -259,12 +310,12 @@ def _write_overview_pdf(rows: list[dict[str, Any]], out_path: Path) -> None:
     ]
 
     header = [
-        "Example #",
-        "Reviewed?",
-        "Previous entry",
-        "Next entry",
-        "Transition",
-        "Gap ratio",
+        Paragraph("Example #", header_cell_style),
+        Paragraph("Reviewed?", header_cell_style),
+        Paragraph("Previous entry", header_cell_style),
+        Paragraph("Next entry", header_cell_style),
+        Paragraph("Transition", header_cell_style),
+        Paragraph("Gap ratio", header_cell_style),
     ]
     data = [header]
     for row in rows:
@@ -279,9 +330,12 @@ def _write_overview_pdf(rows: list[dict[str, Any]], out_path: Path) -> None:
             ]
         )
 
+    # "Example #" widened from 0.6in to 0.8in and "Reviewed?" from 0.7in to
+    # 0.95in -- headers now wrap as Paragraphs regardless, but the wider
+    # columns also mean neither needs to wrap onto more than one line.
     table = Table(
         data,
-        colWidths=[0.6 * inch, 0.7 * inch, 2.6 * inch, 2.6 * inch, 1.6 * inch, 0.7 * inch],
+        colWidths=[0.8 * inch, 0.95 * inch, 2.45 * inch, 2.45 * inch, 1.5 * inch, 0.65 * inch],
         repeatRows=1,
     )
     table.setStyle(
@@ -327,6 +381,33 @@ def _draw_page11_map(rows: list[dict[str, Any]], out_path: Path) -> None:
                 if row["previously_reviewed"]:
                     label += "*"
                 page.insert_text((x1 + 3, y1), label, fontsize=8, color=color)
+
+            # Legend, drawn directly on this page so it is self-explanatory
+            # without the overview page or any header page open alongside
+            # it. Placed in the blank band between the last TOC entry
+            # (ends ~y=638 on this page) and the printed-page-number
+            # footer (~y=738) -- verified empty via the real page's own
+            # text geometry, not assumed.
+            legend_top = 672.0
+            reviewed_swatch = fitz.Rect(80.0, legend_top, 90.0, legend_top + 10.0)
+            page.draw_rect(reviewed_swatch, color=(0.85, 0.1, 0.1), fill=(0.85, 0.1, 0.1))
+            page.insert_text(
+                (96.0, legend_top + 9.0),
+                MAP_LEGEND_REVIEWED_TEXT,
+                fontsize=9,
+                color=(0, 0, 0),
+            )
+            additional_swatch = fitz.Rect(80.0, legend_top + 16.0, 90.0, legend_top + 26.0)
+            page.draw_rect(
+                additional_swatch, color=(0.1, 0.35, 0.85), fill=(0.1, 0.35, 0.85)
+            )
+            page.insert_text(
+                (96.0, legend_top + 25.0),
+                MAP_LEGEND_ADDITIONAL_TEXT,
+                fontsize=9,
+                color=(0, 0, 0),
+            )
+
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out.save(str(out_path))
 

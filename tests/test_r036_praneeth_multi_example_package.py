@@ -26,8 +26,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "ester_batch"))
 
 from build_r036_praneeth_multi_example_package import (  # noqa: E402
+    MAP_LEGEND_ADDITIONAL_TEXT,
+    MAP_LEGEND_REVIEWED_TEXT,
     REVIEWED_NEXT_PREVIEW,
     REVIEWED_PREVIOUS_PREVIEW,
+    XLSX_COLUMN_WIDTHS,
+    XLSX_HEADERS,
+    _normalize_display_whitespace,
     build_example_rows,
     is_previously_reviewed,
     select_all_findings_for_page,
@@ -162,3 +167,89 @@ def test_build_example_rows_preserves_entry_text_verbatim() -> None:
     reviewed_row = next(r for r in rows if r["previously_reviewed"])
     assert reviewed_row["previous_entry"] == REVIEWED_PREVIOUS_PREVIEW
     assert reviewed_row["next_entry"] == REVIEWED_NEXT_PREVIEW
+
+
+# --- Presentation-polish regression tests -----------------------------------
+#
+# These cover the four QA-identified presentation fixes (overview header
+# collision, map-page legend, xlsx header readability, PDF/xlsx whitespace
+# consistency) without pinning exact pixel positions, column-width numbers,
+# or font metrics -- only the properties QA actually asked for.
+
+
+def test_display_whitespace_normalization_collapses_runs_but_preserves_content() -> None:
+    raw = "1.4.2 Ultrafast microdroplet digestion.…  …"
+    normalized = _normalize_display_whitespace(raw)
+
+    assert normalized == "1.4.2 Ultrafast microdroplet digestion.… …"
+    # No run of two-or-more plain spaces should survive.
+    assert "  " not in normalized
+
+
+def test_display_whitespace_normalization_never_changes_reviewed_match() -> None:
+    # The reviewed-pair match must key off the RAW details text, not the
+    # normalized display copy -- normalizing must not be able to break
+    # identification of the previously-reviewed example.
+    raw_details = {
+        "previous_entry_preview": REVIEWED_PREVIOUS_PREVIEW,
+        "next_entry_preview": REVIEWED_NEXT_PREVIEW,
+    }
+    assert is_previously_reviewed(raw_details) is True
+    assert _normalize_display_whitespace(REVIEWED_PREVIOUS_PREVIEW) == REVIEWED_PREVIOUS_PREVIEW
+
+
+def test_build_example_rows_display_text_has_no_double_spaces() -> None:
+    findings = [
+        _finding(
+            11,
+            13,
+            "1.4.1 Acceleration of reaction in charged microdroplets.…",
+            "1.4.2 Ultrafast microdroplet digestion.…  …",
+        )
+    ]
+    rows = build_example_rows(findings, {"findings": []})
+
+    assert "  " not in rows[0]["previous_entry"]
+    assert "  " not in rows[0]["next_entry"]
+
+
+def test_map_legend_text_is_neutral_and_distinguishes_reviewed_from_additional() -> None:
+    for legend_text in (MAP_LEGEND_REVIEWED_TEXT, MAP_LEGEND_ADDITIONAL_TEXT):
+        lowered = legend_text.lower()
+        for forbidden in ("false positive", "true positive", "valid", "invalid", "accepted"):
+            assert forbidden not in lowered
+
+    assert "reviewed" in MAP_LEGEND_REVIEWED_TEXT.lower()
+    assert "additional" in MAP_LEGEND_ADDITIONAL_TEXT.lower()
+    # The two legend lines must remain visually/textually distinguishable
+    # from one another.
+    assert MAP_LEGEND_REVIEWED_TEXT != MAP_LEGEND_ADDITIONAL_TEXT
+
+
+def test_xlsx_headers_include_all_reviewer_facing_fields() -> None:
+    expected_fields = {
+        "Example #",
+        "Previously reviewed by Ester?",
+        "Physical PDF page",
+        "Previous entry",
+        "Next entry",
+        "Transition type / levels",
+        "Gap ratio",
+        "Required threshold (gap ratio)",
+        "Brief neutral description",
+        "Ester decision",
+        "Ester notes",
+    }
+    assert set(XLSX_HEADERS) == expected_fields
+
+
+def test_xlsx_column_widths_fit_their_own_header_text() -> None:
+    # A width in openpyxl's units is roughly one default-font character;
+    # requiring width >= header length (with a little slack) is enough to
+    # catch a column too narrow for its own header without pinning an exact
+    # number that would make this test brittle against minor style tweaks.
+    assert len(XLSX_COLUMN_WIDTHS) == len(XLSX_HEADERS)
+    for header, width in zip(XLSX_HEADERS, XLSX_COLUMN_WIDTHS):
+        assert width >= len(header) - 5, (
+            f"column for {header!r} (width {width}) looks too narrow for its own header"
+        )
