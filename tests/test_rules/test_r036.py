@@ -239,3 +239,217 @@ def test_r036_genuine_tight_gap_after_wrapped_entry_still_flagged():
     assert tight[0].details.get("previous_entry_preview", "").startswith(
         "Onto The Next Physical Line"
     )
+
+
+# ---------------------------------------------------------------------------
+# Ester's 2026-09-14 policy clarification regression suite
+#
+# "The TOC must be double spaced except for titles that run longer than one
+# line in which case these titles must be single spaced." The single/double
+# pitch values below (13.8pt / 27.6pt at 12pt font) are the exact
+# baseline-to-baseline measurements taken from the real Praneeth PDF -- see
+# docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md for the full
+# forensic derivation.
+# ---------------------------------------------------------------------------
+
+
+def test_r036_wrapped_entry_then_correct_double_spacing_no_warning():
+    """Case C: a wrapped (2-line) entry followed by a properly double-spaced
+    next entry must not be flagged. Mirrors the real Praneeth page-11
+    "1.1 Biological Importance..." / "Characterization..." / "1.2 Protein
+    Quantification..." sequence exactly (13.8pt single pitch within the
+    wrapped entry, 27.6pt = 2x pitch to the next entry)."""
+    doc = make_mock_toc_doc(
+        [
+            ("1.1 Biological Importance of Proteins and Need for", 169.09, 182.37),
+            ("Characterization ......... 12", 182.89, 196.17),
+            ("1.2 Protein Quantification Using Mass Spectrometry ......... 15", 210.49, 223.77),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert not any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_wrapped_entry_then_insufficient_spacing_still_flagged():
+    """Case C, insufficient variant: the same wrapped entry, but the next
+    entry starts only single-spaced (no visible double spacing) after it --
+    must still be flagged, proving the fix does not blanket-suppress
+    findings after any wrapped entry."""
+    doc = make_mock_toc_doc(
+        [
+            ("1.1 Biological Importance of Proteins and Need for", 169.09, 182.37),
+            ("Characterization ......... 12", 182.89, 196.17),
+            ("1.2 Protein Quantification Using Mass Spectrometry ......... 15", 196.69, 209.97),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    tight = [
+        f
+        for f in findings
+        if "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+    ]
+    assert len(tight) == 1
+    assert tight[0].details.get("previous_entry_preview", "").startswith("Characterization")
+    assert tight[0].details.get("next_entry_preview", "").startswith("1.2 Protein")
+
+
+def test_r036_deeper_level_entries_double_spaced_no_warning():
+    """Deeper-level (level-3) peer entries with genuine double spacing must
+    not be flagged."""
+    doc = make_mock_toc_doc(
+        [
+            ("1.1.1 First Subsection Detail ......... 12", 150.0, 162.0),
+            ("1.1.2 Second Subsection Detail ......... 14", 182.0, 194.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert not any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_deeper_level_entries_insufficient_spacing_flagged():
+    """Deeper-level (level-3) peer entries with insufficient spacing must
+    still be flagged -- the level-3 depth itself is not an exemption."""
+    doc = make_mock_toc_doc(
+        [
+            ("1.1.1 First Subsection Detail ......... 12", 150.0, 162.0),
+            ("1.1.2 Second Subsection Detail ......... 14", 168.0, 180.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_level_change_without_structural_heading_still_checked():
+    """A level-3-to-level-2 transition with no structural (CHAPTER/APPENDIX/
+    REFERENCES/etc.) heading involved -- e.g. "1.2.3" finishing back to an
+    ordinary "1.3" peer -- is NOT covered by the structural-boundary
+    exemption (only entering a genuine top-level row is) and must still be
+    checked and flagged when tight."""
+    doc = make_mock_toc_doc(
+        [
+            ("1.2.3 Study Limitations Detail ......... 49", 150.0, 162.0),
+            ("1.3 Next Ordinary Section ......... 50", 168.0, 180.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    assert any(
+        "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+        for f in findings
+    )
+
+
+def test_r036_references_after_appendix_grouped_separately_and_checked():
+    """Regression for a real grouping bug fixed alongside the 2026-09-14
+    policy update (Anthony page 12): a short, complete, all-caps structural
+    row like "REFERENCES ... 117" immediately following another complete
+    structural row like "APPENDIX ... 80" was previously swallowed into the
+    preceding entry (it fails ``_likely_entry_line``'s all-caps-short-line
+    filter and, since it already has its own page number, also fails the
+    wrap-continuation check -- falling through the boundary check
+    entirely). APPENDIX and REFERENCES must be recognized as two separate
+    entries, and a genuinely tight gap between them must be reported
+    naming both."""
+    doc = make_mock_toc_doc(
+        [
+            ("APPENDIX ......... 80", 150.0, 162.0),
+            ("REFERENCES ......... 117", 168.0, 180.0),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    tight = [
+        f
+        for f in findings
+        if "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+    ]
+    assert len(tight) == 1
+    assert tight[0].details.get("previous_entry_preview", "").startswith("APPENDIX")
+    assert tight[0].details.get("next_entry_preview", "").startswith("REFERENCES")
+
+
+def test_r036_unnumbered_allcaps_chapter_title_grouped_correctly():
+    """Regression for a real grouping bug fixed alongside the 2026-09-14
+    policy update (Anthony page 11): an unnumbered, no-"CHAPTER"-prefix,
+    ALL-CAPS chapter title that wraps across two physical lines (its first
+    physical line has no dot leaders yet, exactly like any wrapped title's
+    first line) was previously swallowed into the PRECEDING, already-
+    complete entry ("2.5Conclusion...50" wrongly absorbing "HETEROGENEOUS
+    CORAL SNAKE COLOR PATTERN CONVERGENCE AS A" / "RESULT OF ENVIRONMENTAL
+    SIMILARITY IN THE NEOTROPICS...52"). The fix must recognize the
+    all-caps title as a new entry (because the preceding line is already a
+    rigorously-confirmed complete entry: real dot leaders AND a real page
+    number) and still report a genuinely tight gap between them, naming
+    both -- proving this is a real entry split, not a lucky side effect of
+    both readings producing the same (absent) finding."""
+    doc = make_mock_toc_doc(
+        [
+            ("2.5 Conclusion ......... 50", 150.0, 162.0),
+            ("HETEROGENEOUS CORAL SNAKE COLOR PATTERN CONVERGENCE AS A", 165.0, 178.28),
+            (
+                "RESULT OF ENVIRONMENTAL SIMILARITY IN THE NEOTROPICS ......... 52",
+                178.80,
+                192.08,
+            ),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    tight = [
+        f
+        for f in findings
+        if "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+    ]
+    assert len(tight) == 1
+    assert tight[0].details.get("previous_entry_preview", "").startswith("2.5 Conclusion")
+    assert tight[0].details.get("next_entry_preview", "").startswith("HETEROGENEOUS")
+
+
+def test_r036_praneeth_page11_real_geometry_all_examples_clean():
+    """The 12 actual Praneeth page-11 examples Ester reviewed on 2026-09-14
+    ("All of these are False positives"), reproduced with the exact real
+    baseline-to-baseline coordinates and text extracted from the real PDF
+    (see docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md).
+    Every one of these pairs is a genuinely double-spaced (or exempt
+    parent-to-first-child) TOC transition; none may be reported.
+
+    R036 findings on the 12 Ester-reviewed cases = 0.
+    """
+    doc = make_mock_toc_doc(
+        [
+            ("1    INTRODUCTION…....……………………………………", 141.49, 154.77),
+            ("1.1 Biological Importance of Proteins and Need for", 169.09, 182.37),
+            ("Characterization ……………………. ……………………..", 182.89, 196.17),
+            ("1.2 Protein Quantification Using Mass Spectrometry…………………...", 210.49, 223.77),
+            ("1.2.1 Introduction to protein quantification …………………...", 238.12, 251.40),
+            ("1.2.2 Relative protein quantification using mass spectrometry………", 265.72, 279.00),
+            ("1.2.3 Absolute quantitation in mass spectrometry proteomics…….", 293.32, 306.60),
+            ("1.3 Coulometric Mass Spectrometry……………………. ………….", 320.92, 334.20),
+            ("1.3.1 Introduction of coulometric mass spectrometry………………...", 348.52, 361.80),
+            ("1.3.2 Small molecule quantitation with coulometric spectrometry……", 376.12, 389.40),
+            ("1.3.3 Quantification of oxidizable peptides and proteins", 403.74, 417.02),
+            ("mass spectrometry………………………. ……………….", 417.54, 430.82),
+            ("1.3.4 Quantification of peptides and proteins with coulometric mass", 445.14, 458.42),
+            ("spectrometry using derivatization strategy …….……....", 458.94, 472.22),
+            ("1.3.5 Quantification of post-translationally modified peptides", 486.54, 499.82),
+            ("with coulometric mass spectrometry derivatization ….…….", 500.34, 513.62),
+            ("1.4 Ultrafast Protein Digestion by Microdroplets……………………", 527.94, 541.22),
+            ("1.4.1 Acceleration of reaction in charged microdroplets.…....", 555.54, 568.82),
+            ("1.4.2 Ultrafast microdroplet digestion.…....................", 583.17, 596.45),
+            ("1.4.3 Microdroplet digestion of LC-separated antibodies..", 610.77, 624.05),
+            ("1.4.4 Online digestion of LC-separated proteins fractionation ………", 638.37, 651.65),
+        ]
+    )
+    findings = check_pdf_toc_list_entry_spacing(doc)
+    tight = [
+        f
+        for f in findings
+        if "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
+    ]
+    assert tight == []

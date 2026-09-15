@@ -28,7 +28,52 @@ FALLBACK_LINE_HEIGHT_PT = 12.0
 MIN_CONTINUATION_TEXT_LEN = 8
 ENTRY_START_BELOW_HEADING_PT = 20.0
 
-NEW_ENTRY_START_RE = re.compile(r"^(?:chapter|appendix|\d+\.\d+)", re.IGNORECASE)
+# The bare-number alternative (``\d+(?:\.|\s)\s*(?-i:[A-Z])``) recognizes a
+# top-level chapter/section heading numbered without the word "CHAPTER" and
+# without a decimal sub-number, in either extraction style actually seen in
+# the real corpus: with a space ("3 ULTRAFAST MICRODROPLET DIGESTION...")
+# or with the space dropped after the period ("4.BINOCULARLY NORMAL
+# CONTROLS...", "1.INTRODUCTION" -- a PDF text-extraction artifact, not a
+# real missing space in the source document). Both match the same shape
+# ``NUMERIC_PREFIX_RE`` in pdf_toc_alignment.py already treats as an entry
+# prefix elsewhere in this pipeline. Without this, a bare-numbered heading
+# whose own title wraps across two physical lines is invisible to
+# `_looks_like_new_entry_start[_given_previous]` (its first physical line
+# has no dot leaders and doesn't match "chapter"/"appendix"/"N.N"), so it
+# gets silently absorbed as a "continuation" of whatever entry precedes it
+# -- corrupting any single-vs-double-spacing measurement that trusts the
+# resulting (bogus, oversized) "entry" as calibration data. See
+# docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md for the
+# real Praneeth page-12 case ("2.4 Conclusions" wrongly swallowing "3
+# ULTRAFAST MICRODROPLET DIGESTION OF PROTEINS FOLLOWING") and Sebastian
+# page-9 case ("Discussion" wrongly swallowing "4.BINOCULARLY NORMAL
+# CONTROLS COMPARED TO TYPICALLY-" / "OCCCURING CONVERGENCE
+# INSUFFICIENCY") this fixes. The uppercase requirement (scoped off from
+# the outer IGNORECASE via ``(?-i:...)``) keeps this narrow to ALL-CAPS/
+# Title-Case heading style and avoids matching an ordinary LOT/LOF caption
+# continuation sentence that happens to start with a lowercase numeral-led
+# word (e.g. "3 replicate trials were performed"); requiring an explicit
+# period-or-whitespace separator (not zero of both) avoids matching a
+# digit fused directly onto a word with no separator at all.
+#
+# The ``references|bibliography|vita|glossary|index`` alternatives cover
+# the other top-level structural headings ``_classify_entry_level`` in
+# pdf_toc_list_entry_spacing.py already recognizes as ``toc_level_1`` (kept
+# as a literal, cross-referenced list here rather than a shared import to
+# avoid a deeper cross-module refactor for this fix). Without them, a
+# short (<=4-word) all-caps heading like "REFERENCES ... 117" fails
+# ``_likely_entry_line``'s all-caps-short-line filter (designed to reject
+# noise, not to reject a genuine structural heading) and, since it also
+# correctly fails ``_is_wrap_continuation_pair`` (it has its own page
+# number), fell through the boundary check entirely and was silently
+# appended to the PRECEDING entry by ``_group_lines_into_entries``'s
+# default-to-continuation behavior -- the real Anthony page-12 case this
+# fixes ("APPENDIX ... 80" wrongly swallowing "REFERENCES ... 117").
+NEW_ENTRY_START_RE = re.compile(
+    r"^(?:chapter|appendix|references|bibliography|vita|glossary|index"
+    r"|\d+\.\d+|\d+(?:\.|\s)\s*(?-i:[A-Z]))",
+    re.IGNORECASE,
+)
 COLUMN_HEADER_TOKENS = frozenset({"page", "pages", "table", "tables", "figure", "figures"})
 
 
@@ -83,13 +128,49 @@ def _looks_like_new_entry_start_given_previous(
     this line is a new one; if it does not, previous is still an open
     title and this line's dots complete it. The strong numbered/Chapter/
     Appendix prefix signal is unaffected: it always means a new entry.
+
+    A rigorously-confirmed page number on *previous* -- both an actual
+    dot-leader run AND ``_line_has_page_number`` agreeing there is a page
+    number token, not just the raw "..." substring test used below for
+    *cleaned* -- is an even stronger, unconditional signal: *previous* is
+    unambiguously a finished entry, so *cleaned* must start a new one even
+    when *cleaned* itself has no dot leaders yet -- e.g. because it is the
+    first physical line of the NEXT entry's own wrapped (multi-line)
+    title/caption, which by definition has no dot leaders on this line.
+    Two real, previously-mis-grouped cases this covers: Anthony page 11
+    (an unnumbered, no-prefix ALL-CAPS chapter title -- "HETEROGENEOUS
+    CORAL SNAKE COLOR PATTERN CONVERGENCE AS A" / "RESULT OF ENVIRONMENTAL
+    SIMILARITY IN THE NEOTROPICS...52" -- swallowed into the preceding,
+    page-numbered "2.5Conclusion...50") and Anthony page 14's List of
+    Figures (a wrapping figure caption's first line swallowed into the
+    preceding, page-numbered caption).
+
+    Requiring an actual dot-leader run on *previous* in addition to
+    ``_line_has_page_number`` (rather than trusting either alone) matters
+    because ``_line_has_page_number``'s short-roman-numeral branch has no
+    dot-leader requirement of its own and readily false-triggers on an
+    ordinary trailing word that happens to be spelled entirely with roman
+    numeral letters -- confirmed on the real Praneeth PDF, where a List of
+    Figures caption line ending "...the LC and Glycated LC" (a
+    biochemistry abbreviation, not a page number) was misread as ending in
+    the roman numeral "LC" (=150) and wrongly split the caption's own
+    wrapped continuation into a bogus second entry. The plain "..."
+    substring test *previous* uses below for *cleaned* is looser still (it
+    also matches ordinary prose containing an ellipsis or a run of
+    periods with no page number at all), which caused unacceptable
+    over-splitting across the corpus (verified empirically) when tried as
+    the unconditional trigger instead of this rigorous one. See
+    docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md.
     """
     if NEW_ENTRY_START_RE.match(cleaned):
         return True
+    previous_text = _clean_text(previous.text)
+    previous_has_dot_leader = "...." in previous_text or "..." in previous_text
+    if previous_has_dot_leader and _line_has_page_number(previous, previous_text):
+        return True
     if not (_likely_entry_line(cleaned) and ("...." in cleaned or "..." in cleaned)):
         return False
-    previous_text = _clean_text(previous.text)
-    return "...." in previous_text or "..." in previous_text
+    return previous_has_dot_leader
 
 
 def _classify_entry_kind(page_type: str, cleaned: str) -> str:

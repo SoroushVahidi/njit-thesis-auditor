@@ -26,13 +26,19 @@ _BBOX_STRING_RE = re.compile(r"^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,
 
 
 def _make_tight_toc_pdf(path: Path) -> None:
+    # 20pt row-to-row pitch at 12pt font is single-spaced, well under the
+    # ~22pt (1.6x the ~13.8pt single-line pitch) required for genuine
+    # double spacing -- see
+    # docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md. Kept
+    # above the ~16.5pt line-box height these synthetic rows render at so
+    # the two boxes still leave a small positive, drawable visual gap.
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
     page.insert_text((108, 140), "Chapter 3 Literature Review and Background ....", fontsize=12)
     page.insert_text((500, 140), "10", fontsize=12)
-    page.insert_text((108, 170), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
-    page.insert_text((500, 170), "12", fontsize=12)
+    page.insert_text((108, 160), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
+    page.insert_text((500, 160), "12", fontsize=12)
     doc.save(path)
     doc.close()
 

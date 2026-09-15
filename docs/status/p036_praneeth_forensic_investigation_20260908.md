@@ -1,5 +1,14 @@
 # P036/Praneeth: Forensic Investigation of the Last Ground-Truth Blocker (2026-09-08)
 
+> **Superseded 2026-09-14**: the ambiguity this document's "Decision: no
+> code change" left open is resolved — Ester reviewed all 12 candidates
+> described below and confirmed all 12 false positive, with an explicit
+> governing rule. See
+> `docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md`. This
+> document is kept as-is below for its forensic record (the recovered
+> exact reviewed pair, the arbitrary x-coordinate selection mechanism);
+> only its "no code change" conclusion no longer holds.
+
 ## Why this document exists
 
 After the P027/P030/P036 fixes in PR #535 (merged as `efd32d9`), the ground-truth

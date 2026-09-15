@@ -8708,7 +8708,7 @@ def test_p036_toc_tight_entries_warns(tmp_path: Path) -> None:
         "Chapter 3 Literature Review and Background ....",
         "Chapter 4 Extended Dissertation Topic Title ....",
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
@@ -8724,7 +8724,7 @@ def test_p036_lot_tight_entries_warns(tmp_path: Path) -> None:
         "Table 3.1 Summary of Experimental Setup ....",
         "Table 3.2 Additional Results Overview ....",
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
@@ -8740,7 +8740,7 @@ def test_p036_lof_tight_entries_warns(tmp_path: Path) -> None:
         "Figure 2.1 Overview of Experimental Apparatus ....",
         "Figure 2.2 Detailed Component Layout ....",
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
@@ -8789,7 +8789,11 @@ def test_p036_tight_gap_to_next_entry_still_detected_after_hanging_indent(
 ) -> None:
     """The genuine gap to the NEXT real entry must still be measured from the
     hanging-indent entry's true last line, and a too-tight gap there must
-    still be flagged (the fix must not silently swallow real findings)."""
+    still be flagged (the fix must not silently swallow real findings).
+    The wrapped entry's own 12pt internal pitch (152 - 140) becomes the
+    page's local single-line-pitch calibration, so a 15pt gap to the next
+    entry (well under the required 1.6x = 19.2pt) is genuinely tight -- see
+    docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md."""
     pdf_path = tmp_path / "p036_hanging_indent_real_gap.pdf"
     _make_wrapped_entry_pdf(
         pdf_path,
@@ -8800,7 +8804,7 @@ def test_p036_tight_gap_to_next_entry_still_detected_after_hanging_indent(
         continuation_y=152.0,
         first_x=108.0,
         continuation_x=135.0,
-        extra_lines=[("1.2 Second Real Chapter Entry Title Text Here", 108.0, 182.0)],
+        extra_lines=[("1.2 Second Real Chapter Entry Title Text Here", 108.0, 167.0)],
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
@@ -8835,7 +8839,7 @@ def test_p036_finding_details_are_privacy_safe(tmp_path: Path) -> None:
         long_entry1,
         long_entry2,
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
     warning = next(f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036")
@@ -8864,7 +8868,7 @@ def test_p036_subsection_finishing_into_appendix_heading_exempt(tmp_path: Path) 
         "3.5 Conclusion ....",
         "APPENDIX ....",
         first_y=140.0,
-        second_y=170.0,  # same tight gap as test_p036_toc_tight_entries_warns
+        second_y=156.0,  # same tight gap as test_p036_toc_tight_entries_warns
     )
     model = load_pdf_layout(str(pdf_path))
     assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
@@ -8884,7 +8888,7 @@ def test_p036_appendix_to_appendix_peer_transition_still_warns(tmp_path: Path) -
         "APPENDIX A ....",
         "APPENDIX B ....",
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
@@ -8902,7 +8906,7 @@ def test_p036_subsection_to_ordinary_peer_still_warns(tmp_path: Path) -> None:
         "1.2.3 Study limitations ....",
         "1.3 Next Section ....",
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
@@ -8917,7 +8921,7 @@ def test_p036_wired_in_cli_pdf_audit(tmp_path: Path) -> None:
         "Chapter 3 Literature Review and Background ....",
         "Chapter 4 Extended Dissertation Topic Title ....",
         first_y=140.0,
-        second_y=170.0,
+        second_y=156.0,
     )
     json_out = tmp_path / "report.json"
     result = runner.invoke(
