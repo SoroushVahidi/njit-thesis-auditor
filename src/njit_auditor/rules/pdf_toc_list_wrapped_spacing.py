@@ -28,6 +28,42 @@ FALLBACK_LINE_HEIGHT_PT = 12.0
 MIN_CONTINUATION_TEXT_LEN = 8
 ENTRY_START_BELOW_HEADING_PT = 20.0
 
+# A LaTeX tocloft-style TOC lays out each entry's number, title, and page
+# number in three separate tab-stop columns on one visual row. PyMuPDF's
+# text-extraction line segmentation treats each column as its own line
+# object even though all three share one baseline (identical, or within
+# sub-point rounding of, y0) -- confirmed on the real corpus (Muyeed "7" /
+# "CONTROLLING NEURAL NETWORK GENERALIZATION..."; Patrick "2.2" /
+# "Scattering by Two Elastic Disks..."; Youra "1.1" / "Solar Wind..."),
+# see docs/status/r036_split_section_number_recovery_20260914.md. A lone
+# number fragment is either too short to survive
+# ``MIN_CONTINUATION_TEXT_LEN`` (e.g. "2.2") or, for a bare integer like
+# "7", indistinguishable from a page number by ``NUMERIC_ONLY_RE`` alone,
+# so it is silently discarded before ``_reassemble_split_row_fragments``
+# runs -- breaking both entry-boundary detection (the numbered title no
+# longer looks like a new entry start) and the structural parent-to-
+# first-child spacing exemption (``_classify_entry_level`` sees no digit
+# prefix and returns "unknown"). The same row-splitting also detaches a
+# trailing dot-leader run from its title on some rows (observed gap
+# ~0.3pt, e.g. Youra "1 INTRODUCTION" / "..............."); left alone,
+# that stray fragment becomes a second "physical line" of what is really
+# a single-line entry, corrupting the Ester 2026-09-14 pitch model's
+# same-entry internal-pitch calibration with a near-zero sample. Both are
+# fixed by the same row-reassembly pass below.
+HIERARCHY_NUMBER_RE = re.compile(r"^[0-9]+(?:\.[0-9]+){0,3}\.?$")
+DOT_LEADER_ONLY_RE = re.compile(r"^[.\s․‥…]+$")
+# Generous enough to absorb the observed sub-point baseline rounding
+# between a title and its own detached number/dot-leader fragment
+# (~0.3pt), while staying far below the smallest genuine inter-line pitch
+# in the corpus (~13-14pt for single-spaced wrapped titles), so two
+# actually-different physical lines are never merged into one.
+DETACHED_FRAGMENT_ROW_TOLERANCE_PT = 2.0
+# Observed real number-to-title gaps are ~10-13pt (roughly one character);
+# this is a generous multiple of that, while remaining far short of a
+# typical dot-leader run (150pt+), so it cannot bridge a number column to
+# an unrelated far-away fragment.
+MAX_NUMBER_TO_TITLE_GAP_PT = 40.0
+
 # The bare-number alternative (``\d+(?:\.|\s)\s*(?-i:[A-Z])``) recognizes a
 # top-level chapter/section heading numbered without the word "CHAPTER" and
 # without a decimal sub-number, in either extraction style actually seen in
@@ -187,10 +223,106 @@ def _classify_entry_kind(page_type: str, cleaned: str) -> str:
     return "unknown"
 
 
+def _cluster_rows_by_y0(candidates: list[PdfTextLine]) -> list[list[int]]:
+    """Group candidate-list indices into visual rows: consecutive (by y0)
+    fragments where each one sits within ``DETACHED_FRAGMENT_ROW_TOLERANCE_PT``
+    of the previous fragment in the same row. Sequential/greedy rather than
+    a fixed grid (``round(y0 / tol)``) so two fragments a hair apart never
+    land in different buckets just because they straddle a grid boundary.
+    """
+    order = sorted(range(len(candidates)), key=lambda i: candidates[i].bbox.y0)
+    rows: list[list[int]] = []
+    for index in order:
+        gap = candidates[index].bbox.y0 - candidates[rows[-1][-1]].bbox.y0 if rows else None
+        if gap is not None and gap <= DETACHED_FRAGMENT_ROW_TOLERANCE_PT:
+            rows[-1].append(index)
+        else:
+            rows.append([index])
+    return rows
+
+
+def _reassemble_split_row_fragments(candidates: list[PdfTextLine]) -> list[PdfTextLine]:
+    """Reassemble one logical TOC row that PDF text extraction split into
+    multiple line objects at (or within sub-point rounding of) one shared
+    baseline -- a leading hierarchy-number fragment (e.g. "7", "2.2",
+    "1.1.1"), the title itself, and sometimes a trailing dot-leader run,
+    each in its own tab-stop column. See the module-level comment above
+    ``HIERARCHY_NUMBER_RE`` for why this is necessary and what each half
+    fixes.
+
+    Only ever merges onto a row's single unambiguous "primary" fragment --
+    the one that is neither a hierarchy-number shape, a plain page-number
+    shape, nor a pure dot-leader run. A row with zero or more than one such
+    fragment is left completely untouched (nothing safe to reassemble: no
+    identifiable title, or more than one candidate title on the same
+    baseline). A leading number is only attached when it sits immediately
+    to the *left* of the primary fragment within a sensible gap -- never
+    an arbitrary nearby numeral -- and a trailing dot-leader run only when
+    it sits immediately to the *right*. A page-number fragment (already
+    handled by the existing ``NUMERIC_ONLY_RE`` filter) is never merged
+    onto anything.
+    """
+    consumed: set[int] = set()
+    merged_text: dict[int, str] = {}
+
+    for row in _cluster_rows_by_y0(candidates):
+        if len(row) < 2:
+            continue
+        row = sorted(row, key=lambda i: candidates[i].bbox.x0)
+
+        def _shape(i: int) -> str:
+            cleaned = _clean_text(candidates[i].text)
+            if HIERARCHY_NUMBER_RE.match(cleaned) or NUMERIC_ONLY_RE.match(cleaned):
+                return "number"
+            if DOT_LEADER_ONLY_RE.match(candidates[i].text.strip()):
+                return "dots"
+            return "primary"
+
+        primary_positions = [pos for pos, i in enumerate(row) if _shape(i) == "primary"]
+        if len(primary_positions) != 1:
+            continue
+        primary_pos = primary_positions[0]
+        primary_index = row[primary_pos]
+        primary_line = candidates[primary_index]
+        merged = primary_line.text.strip()
+        changed = False
+
+        if primary_pos > 0:
+            left_index = row[primary_pos - 1]
+            left_line = candidates[left_index]
+            cleaned_left = _clean_text(left_line.text)
+            gap = primary_line.bbox.x0 - left_line.bbox.x1
+            if HIERARCHY_NUMBER_RE.match(cleaned_left) and 0 <= gap <= MAX_NUMBER_TO_TITLE_GAP_PT:
+                merged = f"{cleaned_left} {merged}"
+                consumed.add(left_index)
+                changed = True
+
+        if primary_pos + 1 < len(row):
+            right_index = row[primary_pos + 1]
+            right_line = candidates[right_index]
+            if DOT_LEADER_ONLY_RE.match(right_line.text.strip()):
+                merged = f"{merged} {right_line.text.strip()}"
+                consumed.add(right_index)
+                changed = True
+
+        if changed:
+            merged_text[primary_index] = merged
+
+    result: list[PdfTextLine] = []
+    for index, line in enumerate(candidates):
+        if index in consumed:
+            continue
+        if index in merged_text:
+            result.append(line.model_copy(update={"text": merged_text[index]}))
+        else:
+            result.append(line)
+    return result
+
+
 def _collect_entry_region_lines(context: TocPageContext) -> list[PdfTextLine]:
     entry_start_y = context.heading_bottom_y + ENTRY_START_BELOW_HEADING_PT
     header_y_min = context.heading_bottom_y - HEADER_ZONE_ABOVE_HEADING_PT
-    lines: list[PdfTextLine] = []
+    candidates: list[PdfTextLine] = []
     for block in context.page.text_blocks:
         for line in block.lines:
             if line.bbox.y0 <= context.heading_bottom_y + 2:
@@ -200,16 +332,23 @@ def _collect_entry_region_lines(context: TocPageContext) -> list[PdfTextLine]:
             if line.bbox.y0 <= entry_start_y:
                 continue
             cleaned = _clean_text(line.text)
+            if not cleaned:
+                continue
             if classify_toc_heading_line(normalize_heading_text(line.text)) is not None:
                 continue
             if _is_column_header_line(cleaned):
                 continue
-            if NUMERIC_ONLY_RE.match(cleaned):
-                continue
-            if len(cleaned) < MIN_CONTINUATION_TEXT_LEN:
-                continue
-            lines.append(line)
-    lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+            candidates.append(line)
+    candidates.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+
+    lines: list[PdfTextLine] = []
+    for line in _reassemble_split_row_fragments(candidates):
+        cleaned = _clean_text(line.text)
+        if NUMERIC_ONLY_RE.match(cleaned):
+            continue
+        if len(cleaned) < MIN_CONTINUATION_TEXT_LEN:
+            continue
+        lines.append(line)
     return lines
 
 
