@@ -1,0 +1,210 @@
+{
+  "Design 0 suppression/abstain only": {
+    "candidates": 448,
+    "suppressed": 345,
+    "abstained": 103,
+    "reported": 0,
+    "known_fp_reported": 0,
+    "reports": [],
+    "per_doc": {
+      "Youra": {
+        "candidates": 70,
+        "suppressed": 58,
+        "abstained": 12,
+        "reported": 0
+      },
+      "Anthony": {
+        "candidates": 34,
+        "suppressed": 26,
+        "abstained": 8,
+        "reported": 0
+      },
+      "Muyeed": {
+        "candidates": 162,
+        "suppressed": 123,
+        "abstained": 39,
+        "reported": 0
+      },
+      "Philip": {
+        "candidates": 48,
+        "suppressed": 38,
+        "abstained": 10,
+        "reported": 0
+      },
+      "Praneeth": {
+        "candidates": 51,
+        "suppressed": 35,
+        "abstained": 16,
+        "reported": 0
+      },
+      "Sebastian": {
+        "candidates": 15,
+        "suppressed": 15,
+        "abstained": 0,
+        "reported": 0
+      },
+      "Patrick": {
+        "candidates": 68,
+        "suppressed": 50,
+        "abstained": 18,
+        "reported": 0
+      }
+    }
+  },
+  "Design 1 Model E + strong local anomaly gate": {
+    "candidates": 448,
+    "suppressed": 345,
+    "abstained": 103,
+    "reported": 0,
+    "known_fp_reported": 0,
+    "reports": [],
+    "per_doc": {
+      "Youra": {
+        "candidates": 70,
+        "suppressed": 58,
+        "abstained": 12,
+        "reported": 0
+      },
+      "Anthony": {
+        "candidates": 34,
+        "suppressed": 26,
+        "abstained": 8,
+        "reported": 0
+      },
+      "Muyeed": {
+        "candidates": 162,
+        "suppressed": 123,
+        "abstained": 39,
+        "reported": 0
+      },
+      "Philip": {
+        "candidates": 48,
+        "suppressed": 38,
+        "abstained": 10,
+        "reported": 0
+      },
+      "Praneeth": {
+        "candidates": 51,
+        "suppressed": 35,
+        "abstained": 16,
+        "reported": 0
+      },
+      "Sebastian": {
+        "candidates": 15,
+        "suppressed": 15,
+        "abstained": 0,
+        "reported": 0
+      },
+      "Patrick": {
+        "candidates": 68,
+        "suppressed": 50,
+        "abstained": 18,
+        "reported": 0
+      }
+    }
+  },
+  "Design 2 Model E + local + page-tail confirmation": {
+    "candidates": 448,
+    "suppressed": 345,
+    "abstained": 103,
+    "reported": 0,
+    "known_fp_reported": 0,
+    "reports": [],
+    "per_doc": {
+      "Youra": {
+        "candidates": 70,
+        "suppressed": 58,
+        "abstained": 12,
+        "reported": 0
+      },
+      "Anthony": {
+        "candidates": 34,
+        "suppressed": 26,
+        "abstained": 8,
+        "reported": 0
+      },
+      "Muyeed": {
+        "candidates": 162,
+        "suppressed": 123,
+        "abstained": 39,
+        "reported": 0
+      },
+      "Philip": {
+        "candidates": 48,
+        "suppressed": 38,
+        "abstained": 10,
+        "reported": 0
+      },
+      "Praneeth": {
+        "candidates": 51,
+        "suppressed": 35,
+        "abstained": 16,
+        "reported": 0
+      },
+      "Sebastian": {
+        "candidates": 15,
+        "suppressed": 15,
+        "abstained": 0,
+        "reported": 0
+      },
+      "Patrick": {
+        "candidates": 68,
+        "suppressed": 50,
+        "abstained": 18,
+        "reported": 0
+      }
+    }
+  },
+  "Design 3 Model E + multi-signal reporting gate": {
+    "candidates": 448,
+    "suppressed": 345,
+    "abstained": 103,
+    "reported": 0,
+    "known_fp_reported": 0,
+    "reports": [],
+    "per_doc": {
+      "Youra": {
+        "candidates": 70,
+        "suppressed": 58,
+        "abstained": 12,
+        "reported": 0
+      },
+      "Anthony": {
+        "candidates": 34,
+        "suppressed": 26,
+        "abstained": 8,
+        "reported": 0
+      },
+      "Muyeed": {
+        "candidates": 162,
+        "suppressed": 123,
+        "abstained": 39,
+        "reported": 0
+      },
+      "Philip": {
+        "candidates": 48,
+        "suppressed": 38,
+        "abstained": 10,
+        "reported": 0
+      },
+      "Praneeth": {
+        "candidates": 51,
+        "suppressed": 35,
+        "abstained": 16,
+        "reported": 0
+      },
+      "Sebastian": {
+        "candidates": 15,
+        "suppressed": 15,
+        "abstained": 0,
+        "reported": 0
+      },
+      "Patrick": {
+        "candidates": 68,
+        "suppressed": 50,
+        "abstained": 18,
+        "reported": 0
+      }
+    }
+  }
+}

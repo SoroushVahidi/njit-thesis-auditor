@@ -234,7 +234,14 @@ def test_current_production_r036_anthony_count_remains_zero() -> None:
     assert len(findings) == 0
 
 
-def test_production_detector_still_uses_fixed_threshold_for_now() -> None:
+def test_production_detector_uses_page_relative_policy_not_fixed_threshold() -> None:
+    """The production R036 rule no longer reports on the retired fixed 1.6
+    ratio. A tight 2-entry TOC produces no student-facing finding (it
+    abstains: the single eligible gap makes the page sparse, and positive
+    detection is unvalidated on real ground truth). The diagnostic model is
+    still available and, on the same page, abstains for the same
+    sparse-page reason -- confirming the production and diagnostic paths
+    share the page-relative decision core."""
     doc = _make_doc(
         [
             _line("1.1 Alpha ......... 1", 150.0),
@@ -247,7 +254,7 @@ def test_production_detector_still_uses_fixed_threshold_for_now() -> None:
         collect_r036_spacing_candidates(doc, document_name="synthetic")
     )
 
-    assert len(production_findings) == 1
+    assert production_findings == []
     assert (
         diagnostic[0].decisions[DiagnosticModel.NEIGHBOR_RELATIVE].outcome
         == DiagnosticOutcome.INSUFFICIENT_CONTEXT

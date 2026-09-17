@@ -63,7 +63,6 @@ from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
 )
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
-from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 # ---------------------------------------------------------------------------
@@ -2419,10 +2418,19 @@ def _make_batch2_p036_pdf(path: Path) -> None:
 def test_p036_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_batch2_tight_spacing.pdf"
     _make_batch2_p036_pdf(pdf_path)
+    # Under the selected suppression/abstention-only gate the production rule
+    # emits no findings (no real true positive validated), so build the
+    # finding via the production finding builder against a record produced by
+    # the policy to verify the bbox/view passthrough.
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        _build_finding,
+        classify_r036_spacing_candidates,
+    )
+
     model = load_pdf_layout(str(pdf_path))
-    findings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(findings) == 1
-    finding = findings[0]
+    records = classify_r036_spacing_candidates(model)
+    assert records
+    finding = _build_finding(records[0])
     assert finding.details.get("issue_type") == "toc_inter_entry_spacing_too_tight"
 
     bbox_str = finding.details.get("bbox")

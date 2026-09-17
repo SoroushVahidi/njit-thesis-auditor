@@ -8700,7 +8700,11 @@ def test_p036_toc_double_spaced_entries_no_warning(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
 
 
-def test_p036_toc_tight_entries_warns(tmp_path: Path) -> None:
+def test_p036_toc_tight_entries_not_reported(tmp_path: Path) -> None:
+    """A 2-entry tight TOC no longer produces a student-facing finding under
+    the production page-relative policy (fixed 1.6 retired; positive
+    detection unvalidated on real ground truth). The single eligible gap
+    also makes the page sparse, so the candidate abstains."""
     pdf_path = tmp_path / "p036_toc_tight.pdf"
     _make_two_entry_list_pdf(
         pdf_path,
@@ -8712,11 +8716,10 @@ def test_p036_toc_tight_entries_warns(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(warnings) == 1
-    assert warnings[0].details.get("issue_type") == "toc_inter_entry_spacing_too_tight"
+    assert warnings == []
 
 
-def test_p036_lot_tight_entries_warns(tmp_path: Path) -> None:
+def test_p036_lot_tight_entries_not_reported(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_lot_tight.pdf"
     _make_two_entry_list_pdf(
         pdf_path,
@@ -8728,11 +8731,10 @@ def test_p036_lot_tight_entries_warns(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(warnings) == 1
-    assert warnings[0].details.get("issue_type") == "lot_inter_entry_spacing_too_tight"
+    assert warnings == []
 
 
-def test_p036_lof_tight_entries_warns(tmp_path: Path) -> None:
+def test_p036_lof_tight_entries_not_reported(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_lof_tight.pdf"
     _make_two_entry_list_pdf(
         pdf_path,
@@ -8744,8 +8746,7 @@ def test_p036_lof_tight_entries_warns(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(warnings) == 1
-    assert warnings[0].details.get("issue_type") == "lof_inter_entry_spacing_too_tight"
+    assert warnings == []
 
 
 def test_p036_wrapped_entry_internal_spacing_not_flagged(tmp_path: Path) -> None:
@@ -8784,16 +8785,14 @@ def test_p036_hanging_indent_continuation_not_treated_as_new_entry(tmp_path: Pat
     assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
 
 
-def test_p036_tight_gap_to_next_entry_still_detected_after_hanging_indent(
+def test_p036_tight_gap_to_next_entry_measured_not_reported(
     tmp_path: Path,
 ) -> None:
-    """The genuine gap to the NEXT real entry must still be measured from the
-    hanging-indent entry's true last line, and a too-tight gap there must
-    still be flagged (the fix must not silently swallow real findings).
-    The wrapped entry's own 12pt internal pitch (152 - 140) becomes the
-    page's local single-line-pitch calibration, so a 15pt gap to the next
-    entry (well under the required 1.6x = 19.2pt) is genuinely tight -- see
-    docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md."""
+    """The genuine gap to the NEXT real entry is still measured from the
+    hanging-indent entry's true last line (the reconstruction is correct),
+    but under the production page-relative policy it is not reported on a
+    fixed ratio; the candidate abstains (no student-facing finding). This
+    page has a single eligible gap, so it is also a sparse-page abstention."""
     pdf_path = tmp_path / "p036_hanging_indent_real_gap.pdf"
     _make_wrapped_entry_pdf(
         pdf_path,
@@ -8808,8 +8807,7 @@ def test_p036_tight_gap_to_next_entry_still_detected_after_hanging_indent(
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(warnings) == 1
-    assert warnings[0].details.get("issue_type") == "toc_inter_entry_spacing_too_tight"
+    assert warnings == []
 
 
 def test_p036_sparse_single_entry_page_skipped(tmp_path: Path) -> None:
@@ -8829,7 +8827,17 @@ def test_p036_sparse_single_entry_page_skipped(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
 
 
-def test_p036_finding_details_are_privacy_safe(tmp_path: Path) -> None:
+def test_p036_finding_details_are_privacy_safe_when_reported(tmp_path: Path) -> None:
+    """If the reporting gate is enabled (a future, true-positive-validated
+    state), a reported finding's details must not leak full entry text. This
+    exercises the finding-builder's preview sanitization directly against a
+    record produced by the production policy (the record exists even though
+    the candidate abstains under the selected gate)."""
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        _build_finding,
+        classify_r036_spacing_candidates,
+    )
+
     pdf_path = tmp_path / "p036_privacy_safe.pdf"
     long_entry1 = "Chapter 3 " + ("X" * 200)
     long_entry2 = "Chapter 4 " + ("Y" * 200)
@@ -8842,12 +8850,15 @@ def test_p036_finding_details_are_privacy_safe(tmp_path: Path) -> None:
         second_y=156.0,
     )
     model = load_pdf_layout(str(pdf_path))
-    warning = next(f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036")
-    assert long_entry1 not in str(warning.details)
-    assert long_entry2 not in str(warning.details)
-    assert long_entry1 not in warning.message
-    assert warning.details.get("entry_pair_index") == "0"
-    assert warning.details.get("gap_points")
+    records = classify_r036_spacing_candidates(model)
+    assert records
+    record = records[0]
+    finding = _build_finding(record)
+    assert long_entry1 not in str(finding.details)
+    assert long_entry2 not in str(finding.details)
+    assert long_entry1 not in finding.message
+    assert finding.details.get("entry_pair_index") == "0"
+    assert finding.details.get("gap_points")
 
 
 # ---- structural-boundary exemption (subsection finishing -> new top-level section) ----
@@ -8874,13 +8885,11 @@ def test_p036_subsection_finishing_into_appendix_heading_exempt(tmp_path: Path) 
     assert not any(f.rule_id == "P036" for f in check_pdf_toc_list_entry_spacing(model))
 
 
-def test_p036_appendix_to_appendix_peer_transition_still_warns(tmp_path: Path) -> None:
-    """Regression guard for the bug caught during this fix's own
-    development: a naive "next entry is a top-level heading" exemption
-    would incorrectly also exempt top-level-to-top-level peer pairs
-    (e.g. "APPENDIX A" -> "APPENDIX B", or "Chapter 3" -> "Chapter 4",
-    already covered by test_p036_toc_tight_entries_warns). Only a
-    transition where *prev* is at a strictly deeper level is exempt."""
+def test_p036_appendix_to_appendix_peer_transition_not_reported(tmp_path: Path) -> None:
+    """A top-level-to-top-level peer pair (APPENDIX A -> APPENDIX B) is an
+    ordinary peer pair (not exempted by the deeper-level structural rule),
+    but under the production page-relative policy it is not reported on a
+    fixed ratio; the tight candidate abstains (no student-facing finding)."""
     pdf_path = tmp_path / "p036_appendix_to_appendix.pdf"
     _make_two_entry_list_pdf(
         pdf_path,
@@ -8892,13 +8901,15 @@ def test_p036_appendix_to_appendix_peer_transition_still_warns(tmp_path: Path) -
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(warnings) == 1
+    assert warnings == []
 
 
-def test_p036_subsection_to_ordinary_peer_still_warns(tmp_path: Path) -> None:
+def test_p036_subsection_to_ordinary_peer_not_reported(tmp_path: Path) -> None:
     """A subsection finishing and returning to an ORDINARY (non-top-level)
-    peer entry -- e.g. "1.2.3" -> "1.3" -- must remain checked; only
-    entering a genuine top-level structural row is exempt."""
+    peer entry -- e.g. "1.2.3" -> "1.3" -- is still *checked* (not exempt
+    by the structural rule), but under the production page-relative policy
+    it is not reported on a fixed ratio; the candidate abstains (no
+    student-facing finding)."""
     pdf_path = tmp_path / "p036_subsection_to_ordinary_peer.pdf"
     _make_two_entry_list_pdf(
         pdf_path,
@@ -8910,10 +8921,15 @@ def test_p036_subsection_to_ordinary_peer_still_warns(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     warnings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(warnings) == 1
+    assert warnings == []
 
 
-def test_p036_wired_in_cli_pdf_audit(tmp_path: Path) -> None:
+def test_p036_wired_in_cli_pdf_audit_no_finding_under_suppression(tmp_path: Path) -> None:
+    """The R036 production rule is wired into the CLI PDF audit path. Under
+    the selected suppression/abstention-only gate (no real true positive
+    validated), a tight 2-entry TOC produces no P036 finding. This verifies
+    the rule still runs in the audit pipeline (exit 0, report written)
+    without reporting on the retired fixed ratio."""
     pdf_path = tmp_path / "p036_cli.pdf"
     _make_two_entry_list_pdf(
         pdf_path,
@@ -8931,7 +8947,7 @@ def test_p036_wired_in_cli_pdf_audit(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text())
     rule_ids = {finding["rule_id"] for finding in payload["findings"]}
-    assert "P036" in rule_ids
+    assert "P036" not in rule_ids
 
 
 # ---------------------------------------------------------------------------

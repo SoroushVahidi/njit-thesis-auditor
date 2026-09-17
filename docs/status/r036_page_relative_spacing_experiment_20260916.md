@@ -1,5 +1,13 @@
 # R036 Page-Relative Spacing Experiment (2026-09-16)
 
+> **Production design (2026-09-16):** the reliable parts of this diagnostic
+> work have been productionized. See
+> `r036_production_page_relative_suppression_design_20260916.md` for the
+> selected production policy (suppress/abstain only, with the fixed 1.6 ratio
+> retired as the decisive reporting rule and a disabled strong multi-signal
+> reporting gate retained for future enablement once a real true positive is
+> validated).
+
 This is a diagnostic experiment only. Production R036 behavior is unchanged.
 
 ## Why this experiment exists

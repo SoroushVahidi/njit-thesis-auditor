@@ -26,35 +26,28 @@ from __future__ import annotations
 import re
 import statistics
 
-from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
-from njit_auditor.rules.pdf_toc_alignment import _clean_text, detect_toc_like_pages
+from njit_auditor.models import AuditFinding
+from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.rules.pdf_toc_alignment import _clean_text
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
-    _collect_entry_region_lines,
-    _estimate_line_height,
-    _has_intervening_page_number_line,
     _is_wrap_continuation_pair,
     _looks_like_new_entry_start_given_previous,
 )
-from njit_auditor.toc_list_student_preview import (
-    gap_bbox_between_boxes,
-    sanitize_toc_list_entry_preview,
-)
 
-# Required ratio of the inter-entry line PITCH (baseline-to-baseline, i.e.
+# REQUIRED ratio of the inter-entry line PITCH (baseline-to-baseline, i.e.
 # ``next_line.bbox.y0 - previous_line.bbox.y0``) to the page's own local
-# single-line pitch. Genuine double spacing means the entry-to-entry pitch
-# is ~2.0x the single-line pitch, by definition (double spacing doubles
-# the line advance); genuine single/tight spacing measures ~1.0x-1.2x.
-# 1.6 sits with a comfortable margin below the true-double value (2.0) and
-# above the true-single value (~1.2) -- confirmed against the real, mixed
-# corpus in docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md,
-# where every genuinely double-spaced pair measured >= 1.9 and every
-# genuinely single/tight pair measured <= 1.2 under this model, leaving a
-# wide unused margin around 1.6. This is a ratio of pitch to pitch (a
-# spacing-mode discriminator), not a ratio of points to font size, so it
-# is expected to generalize across fonts/documents where the old
-# font-size-normalized threshold did not.
+# single-line pitch.
+#
+# RETIRED AS THE PRODUCTION REPORTING RULE (2026-09-16). This fixed 1.6
+# ratio is retained ONLY for backward compatibility of imports and for
+# :func:`_triage_tier`'s tiering of a reported finding; it no longer controls
+# whether a finding is emitted. Production reporting is governed by the
+# page-relative suppression/abstention policy in
+# ``njit_auditor.rules.r036_production_page_relative_spacing`` (see
+# ``docs/status/r036_production_page_relative_suppression_design_20260916.md``),
+# because 24 Ester-confirmed false positives (normalized ratios 1.00-1.56)
+# contradicted the fixed 1.6 threshold as a reliable discriminator. Do not
+# reintroduce this constant as a decisive reporting threshold.
 MIN_INTER_ENTRY_GAP_RATIO = 1.6
 
 # Only used as a fallback when a page has no same-entry wrapped-title line
@@ -272,84 +265,29 @@ def _local_single_line_pitch_pt(
 
 
 def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P036 warnings when consecutive TOC/List entries appear too tightly spaced."""
+    """Emit P036 findings under the production page-relative policy.
 
-    findings: list[AuditFinding] = []
+    Production R036 uses the page-relative suppression/abstention policy in
+    ``njit_auditor.rules.r036_production_page_relative_spacing`` (see
+    ``docs/status/r036_production_page_relative_suppression_design_20260916.md``):
+    it suppresses gaps that match normal local page rhythm, abstains when
+    context is unreliable (sparse page, ambiguous reconstruction, or an
+    untrustworthy neighborhood), and reports only under a strong,
+    multi-signal gate. The fixed ``MIN_INTER_ENTRY_GAP_RATIO`` (1.6) is
+    retired as the decisive reporting rule; it is no longer consulted to
+    decide whether a finding is emitted.
 
-    for context in detect_toc_like_pages(pdf_document):
-        lines = _collect_entry_region_lines(context)
-        entries = _group_lines_into_entries(lines, context.page_type)
-        if len(entries) < 2:
-            continue
+    Under the currently selected gate (``suppression_abstention_only``) the
+    function emits no findings until a real Ester-confirmed R036 true
+    positive is validated and the reporting gate is enabled, because no
+    true positive exists in the evaluation corpus to validate positive
+    detection. This is intentional: suppression and abstention are
+    empirically supported; positive detection on real dissertations is not
+    yet validated.
+    """
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        run_r036_production,
+    )
 
-        issue_type = ISSUE_TYPE_BY_SECTION.get(context.page_type)
-        if issue_type is None:
-            continue
-
-        page_fallback_height = _estimate_line_height(lines[0], lines[0]) or FALLBACK_LINE_HEIGHT_PT
-        heading_pitches, entry_pitches = _internal_wrap_pitches_by_role(entries, context.page_type)
-
-        for pair_index, (previous_entry, next_entry) in enumerate(zip(entries, entries[1:])):
-            last_line = previous_entry[-1]
-            first_line = next_entry[0]
-            if _has_intervening_page_number_line(context, last_line, first_line):
-                continue
-
-            prev_level = _classify_entry_level(previous_entry[0].text, context.page_type)
-            next_level = _classify_entry_level(next_entry[0].text, context.page_type)
-            if _is_exempt_structural_transition(prev_level, next_level):
-                continue
-
-            pitch_pt = first_line.bbox.y0 - last_line.bbox.y0
-            if pitch_pt <= 0:
-                continue
-
-            local_single_line_pitch = _local_single_line_pitch_pt(
-                prev_level, heading_pitches, entry_pitches, page_fallback_height
-            )
-            if local_single_line_pitch <= 0:
-                continue
-
-            gap_ratio = pitch_pt / local_single_line_pitch
-            if gap_ratio >= MIN_INTER_ENTRY_GAP_RATIO:
-                continue
-
-            required_gap_pt = local_single_line_pitch * MIN_INTER_ENTRY_GAP_RATIO
-            triage_tier = _triage_tier(gap_ratio)
-
-            previous_preview = sanitize_toc_list_entry_preview(last_line.text)
-            next_preview = sanitize_toc_list_entry_preview(first_line.text)
-            gap_bbox = gap_bbox_between_boxes(last_line.bbox, first_line.bbox)
-            details: dict[str, str] = {
-                "page_number": str(context.page.page_number),
-                "section_type": context.page_type,
-                "issue_type": issue_type,
-                "entry_pair_index": str(pair_index),
-                "gap_points": f"{pitch_pt:.1f}",
-                "required_gap_points": f"{required_gap_pt:.1f}",
-                "local_single_line_pitch_points": f"{local_single_line_pitch:.1f}",
-                "gap_ratio": f"{gap_ratio:.2f}",
-                "triage_tier": triage_tier,
-                "source_q_rule_ids": SOURCE_Q_RULE_IDS_BY_SECTION[context.page_type],
-            }
-            if previous_preview:
-                details["previous_entry_preview"] = previous_preview
-            if next_preview:
-                details["next_entry_preview"] = next_preview
-            if gap_bbox is not None:
-                details["bbox"] = format_bbox_detail(gap_bbox)
-
-            findings.append(
-                AuditFinding(
-                    rule_id="P036",
-                    severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message=(
-                        "Consecutive TOC/List entries appear to have insufficient "
-                        "inter-entry vertical spacing."
-                    ),
-                    details=details,
-                )
-            )
-
+    findings, _records = run_r036_production(pdf_document)
     return findings

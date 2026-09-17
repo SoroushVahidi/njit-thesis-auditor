@@ -247,10 +247,18 @@ def test_recovered_parent_to_first_child_is_exempt():
     )
 
 
-def test_recovered_same_level_peers_still_flagged_when_tight():
-    """Two same-level peer entries whose leading numbers were both
-    detached must still be recognized as ordinary peers (not exempt) and
-    still flagged when genuinely under-spaced."""
+def test_recovered_same_level_peers_recognized_not_reported():
+    """Two same-level peer entries whose leading numbers were both detached
+    must still be recognized as ordinary peers (not exempt). Under the
+    production page-relative policy the tight gap between them is not
+    reported on a retired fixed ratio; the candidate abstains (no
+    student-facing finding). The record count (2 eligible gaps: the
+    recovered peer gap plus the one to the implicit next boundary) and the
+    entry previews confirm the split-section-number recovery is intact."""
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        classify_r036_spacing_candidates,
+    )
+
     doc = _make_mock_toc_doc_with_columns(
         [
             [
@@ -264,11 +272,10 @@ def test_recovered_same_level_peers_still_flagged_when_tight():
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)
-    tight = [
-        f
-        for f in findings
-        if "toc_inter_entry_spacing_too_tight" in f.details.get("issue_type", "")
-    ]
-    assert len(tight) == 1
-    assert tight[0].details.get("previous_entry_preview", "").startswith("2.2")
-    assert tight[0].details.get("next_entry_preview", "").startswith("2.3")
+    assert findings == []
+    records = classify_r036_spacing_candidates(doc)
+    assert any(r["entry_pair_index"] == 0 for r in records)
+    prev_texts = {r["previous_entry"] for r in records}
+    assert any(t.startswith("2.2") for t in prev_texts)
+    next_texts = {r["next_entry"] for r in records}
+    assert any(t.startswith("2.3") for t in next_texts)
