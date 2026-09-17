@@ -26,7 +26,7 @@ Ester has rejected both reviewed R036 batches as false positives: the original 1
 | Model B - Robust z-score | 29 | 14 | 28 | 391 |
 | Model C - Lower-tail percentile | 44 | 13 | 28 | 376 |
 | Model D - Two-mode clustering | 1 | 1 | 28 | 419 |
-| Model E - Neighbor-relative anomaly | 2 | 2 | 28 | 418 |
+| Model E - Neighbor-relative anomaly | 0 | 0 | 99 | 349 |
 
 ## Selected Diagnostic Candidate
 
@@ -41,8 +41,8 @@ Use page-local modeling only when a page has at least five eligible inter-entry 
 ## Section-Type Results
 
 - TOC: {'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 221, 'INSUFFICIENT_CONTEXT': 14}
-- LOF: {'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 150, 'INSUFFICIENT_CONTEXT': 11, 'POTENTIAL_PAGE_RELATIVE_ANOMALY': 2}
-- LOT: {'INSUFFICIENT_CONTEXT': 3, 'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 47}
+- LOF: {'INSUFFICIENT_CONTEXT': 54, 'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 109}
+- LOT: {'INSUFFICIENT_CONTEXT': 31, 'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 19}
 
 ## 18 Unrepresented-Finding Diagnostic Table
 
@@ -50,24 +50,24 @@ The prior audit supplied the authoritative 31/47/18 coverage counts. This script
 
 | # | Document | Page | Section | Pair | Ratio | Diagnostic Outcome | Reason |
 | ---: | --- | ---: | --- | ---: | ---: | --- | --- |
-| 1 | Patrick | 11 | LOF | 2 | 1.09 | PARSER/STRUCTURAL_CONCERN | gap/nearby median ratio 0.68 <= 0.72 |
-| 2 | Patrick | 11 | LOF | 7 | 1.09 | PARSER/STRUCTURAL_CONCERN | gap/nearby median ratio 0.70 <= 0.72 |
-| 3 | Muyeed | 10 | TOC | 21 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 4 | Muyeed | 12 | TOC | 7 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 5 | Muyeed | 12 | TOC | 8 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 6 | Muyeed | 12 | TOC | 9 | 1.11 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 0.89 is consistent with local rhythm |
-| 7 | Muyeed | 12 | TOC | 10 | 1.38 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.11 is consistent with local rhythm |
-| 8 | Muyeed | 14 | TOC | 0 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 9 | Muyeed | 14 | TOC | 2 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 10 | Muyeed | 14 | TOC | 3 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 11 | Muyeed | 14 | TOC | 5 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 12 | Muyeed | 14 | TOC | 6 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 13 | Muyeed | 14 | TOC | 7 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 14 | Muyeed | 14 | TOC | 8 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 15 | Muyeed | 14 | TOC | 9 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 16 | Muyeed | 14 | TOC | 11 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 17 | Muyeed | 14 | TOC | 12 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 18 | Muyeed | 14 | TOC | 13 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 1 | Muyeed | 10 | TOC | 21 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 2 | Muyeed | 12 | TOC | 7 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 3 | Muyeed | 12 | TOC | 8 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 4 | Muyeed | 12 | TOC | 9 | 1.11 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 0.89 is consistent with local rhythm |
+| 5 | Muyeed | 12 | TOC | 10 | 1.38 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.11 is consistent with local rhythm |
+| 6 | Muyeed | 14 | TOC | 0 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 7 | Muyeed | 14 | TOC | 2 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 8 | Muyeed | 14 | TOC | 3 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 9 | Muyeed | 14 | TOC | 5 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 10 | Muyeed | 14 | TOC | 6 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 11 | Muyeed | 14 | TOC | 7 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 12 | Muyeed | 14 | TOC | 8 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 13 | Muyeed | 14 | TOC | 9 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 14 | Muyeed | 14 | TOC | 11 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 15 | Muyeed | 14 | TOC | 12 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 16 | Muyeed | 14 | TOC | 13 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 17 | Muyeed | 14 | TOC | 14 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+| 18 | Muyeed | 14 | TOC | 16 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
 
 ## Production Status
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from njit_auditor.pdf_models import PdfDocument
@@ -39,6 +39,11 @@ NEIGHBOR_RELATIVE_FLOOR = 0.72
 NORMAL_NEIGHBOR_FLOOR = 0.90
 CLUSTER_SEPARATION_RATIO = 0.80
 WRAP_Y0_TOLERANCE_PT = 2.0
+# A continuation line indented at the caption-continuation column sits this
+# far (in points) to the right of the entry-number column. Patrick's LOF
+# uses entry numbers at x0 ~108-137 and caption continuations at x0 ~149,
+# so 12pt separates the two columns without touching genuine first lines.
+CONTINUATION_INDENT_OFFSET_PT = 12.0
 
 
 class DiagnosticOutcome(str, Enum):
@@ -91,10 +96,33 @@ class SpacingCandidate:
     local_single_line_pitch_pt: float
     normalized_ratio: float
     page_stats: PageSpacingStats | None = None
+    previous_first_x0: float | None = None
+    previous_entry_is_reconstructed: bool = False
+    previous_entry_is_single_line: bool = False
+    previous_entry_page_type: str = ""
 
     @property
     def key(self) -> tuple[str, int, int]:
         return (self.document, self.page_number, self.entry_pair_index)
+
+
+def _page_number_column_for_page(
+    candidates: list[SpacingCandidate],
+) -> float | None:
+    """Return the page's entry-number column: the leftmost first-line x0 over
+    all of the page's candidates.
+
+    Computed as the minimum over the whole page (not a running minimum) so a
+    later entry that starts further left than an earlier one (e.g. "5.10" at
+    x0=108 vs "5.1" at x0=137) still sets the column correctly. Returns
+    ``None`` when the page has no candidates.
+    """
+    values = [
+        candidate.previous_first_x0
+        for candidate in candidates
+        if candidate.previous_first_x0 is not None
+    ]
+    return min(values) if values else None
 
 
 @dataclass(frozen=True)
@@ -231,6 +259,15 @@ def collect_r036_spacing_candidates(
             if local_single_line_pitch <= 0:
                 continue
 
+            previous_first_x0 = previous_entry[0].bbox.x0
+            previous_x0 = previous_first_x0
+            next_x0 = first_line.bbox.x0
+            # The entry-number column is the page's leftmost first-line x0
+            # (computed over the whole page in a second pass below). A
+            # single-line entry whose first visual line starts at the
+            # caption-continuation indent (to the right of that column) is a
+            # reassembly artifact; the flag is filled in after the page's
+            # column is known.
             page_candidates.append(
                 SpacingCandidate(
                     document=document_name,
@@ -243,13 +280,34 @@ def collect_r036_spacing_candidates(
                     next_level=next_level,
                     previous_wraps=_wraps(previous_entry),
                     next_wraps=_wraps(next_entry),
-                    previous_x0=last_line.bbox.x0,
-                    next_x0=first_line.bbox.x0,
+                    previous_x0=previous_x0,
+                    next_x0=next_x0,
                     pitch_pt=pitch_pt,
                     local_single_line_pitch_pt=local_single_line_pitch,
                     normalized_ratio=pitch_pt / local_single_line_pitch,
+                    previous_first_x0=previous_first_x0,
+                    previous_entry_is_single_line=len(previous_entry) == 1,
+                    previous_entry_page_type=context.page_type,
                 )
             )
+
+        page_number_column = _page_number_column_for_page(page_candidates)
+        page_candidates = [
+            candidate
+            if not candidate.previous_entry_is_single_line
+            else replace(
+                candidate,
+                previous_entry_is_reconstructed=(
+                    candidate.previous_entry_page_type
+                    in {"list_of_figures", "list_of_tables"}
+                    and candidate.previous_first_x0 is not None
+                    and page_number_column is not None
+                    and candidate.previous_first_x0
+                    >= page_number_column + CONTINUATION_INDENT_OFFSET_PT
+                ),
+            )
+            for candidate in page_candidates
+        ]
 
         stats = _page_stats(
             document_name, context.page.page_number, context.page_type, page_candidates
@@ -272,6 +330,10 @@ def collect_r036_spacing_candidates(
                 local_single_line_pitch_pt=candidate.local_single_line_pitch_pt,
                 normalized_ratio=candidate.normalized_ratio,
                 page_stats=stats,
+                previous_first_x0=candidate.previous_first_x0,
+                previous_entry_is_reconstructed=candidate.previous_entry_is_reconstructed,
+                previous_entry_is_single_line=candidate.previous_entry_is_single_line,
+                previous_entry_page_type=candidate.previous_entry_page_type,
             )
             for candidate in page_candidates
         )
@@ -425,13 +487,144 @@ def _evaluate_two_mode(candidate: SpacingCandidate) -> ModelDecision:
     )
 
 
-def _neighbor_pitches(candidates: list[SpacingCandidate], index: int) -> list[float]:
+def _is_contaminated_candidate(candidate: SpacingCandidate) -> bool:
+    """Return True when a candidate's gap is not a clean inter-entry gap.
+
+    Scoped to LOF/LOT (not TOC): a gap is contaminated when one side of it
+    is a mis-reconstructed entry -- a wrapped entry whose extracted physical
+    lines are non-contiguous (its lines span a larger y-range than a true
+    wrap allows because text extraction detached one of the entry's lines
+    onto its own baseline/row) -- which makes the measured pitch a
+    typography/extraction artifact rather than the true visual spacing
+    between two entries. TOC pages are excluded because their wrapped
+    headings are common and legitimate and the original fixed-window
+    neighbor behavior was already validated against the reviewed TOC false
+    positives.
+    """
+    if candidate.section_type not in {"list_of_figures", "list_of_tables"}:
+        return False
+    return candidate.previous_wraps or candidate.next_wraps
+
+
+def _is_fixed_window_page(candidate: SpacingCandidate) -> bool:
+    """Return True when the page keeps the original fixed-window neighbor
+    behavior. TOC pages always use the fixed window (preserving the pre-fix
+    behavior already validated against the reviewed TOC false positives).
+    LOF/LOT pages use the fixed window when they have no wrapped entries at
+    all (the common case: a page of single-line captions), and the
+    clean-neighbor behavior only when wrapped entries are present (the case
+    where extraction is more likely to have detached a line)."""
+    if candidate.section_type == "table_of_contents":
+        return True
+    return not (candidate.previous_wraps or candidate.next_wraps)
+
+
+def _fixed_window_neighbor_pitches(
+    candidates: list[SpacingCandidate], index: int
+) -> list[float]:
+    """Return the original fixed-window neighbor pitches (offsets -2, -1,
+    +1, +2) for TOC pages, preserving the pre-fix behavior that was already
+    validated against the reviewed TOC false positives."""
     out: list[float] = []
     for offset in (-2, -1, 1, 2):
         neighbor_index = index + offset
         if 0 <= neighbor_index < len(candidates):
             out.append(candidates[neighbor_index].pitch_pt)
     return out
+
+
+def _is_structurally_reconstructed(candidate: SpacingCandidate) -> bool:
+    """Return True when the gap's previous entry was reassembled by the
+    structural/grouping logic rather than read directly as its own visual
+    line.
+
+    The diagnostic collector measures a gap from the last line of one
+    reconstructed entry to the first line of the next. When the previous
+    entry is a *single-line* entry whose first visual line starts at the
+    caption-continuation indent (at least ``CONTINUATION_INDENT_OFFSET_PT``
+    to the right of the page's entry-number column) instead of at the
+    entry-number column, that entry is a reassembly artifact: the entry's
+    true first visual line was detached by text extraction and the grouping
+    logic reattached a continuation line as the entry's start. The measured
+    gap then spans a reassembled boundary, not a single visual inter-entry
+    gap, and the candidate is a structural artifact of entry reconstruction.
+
+    The flag is computed in one pass by the collector (see
+    :func:`collect_r036_spacing_candidates`) using the running minimum of
+    first-line x0 as the page's entry-number column, so no second scan is
+    needed at evaluation time. It is scoped to LOF/LOT single-line entries
+    because TOC pages do not use the same two-column number/caption layout.
+    """
+    return candidate.previous_entry_is_reconstructed
+
+
+def _clean_neighbor_pitches(candidates: list[SpacingCandidate], index: int) -> list[float]:
+    """Return the pitches of the nearest clean, non-lower-tail neighbors on
+    each side of the candidate (scanning outward from the candidate).
+
+    A neighbor is *clean* when it is not itself a contaminated gap (see
+    :func:`_is_contaminated_candidate`) and not a lower-tail point that would
+    drag the baseline down: a neighbor whose pitch is at or below
+    ``NEIGHBOR_RELATIVE_FLOOR`` times the median of the remaining clean
+    neighbors is excluded. When no clean, non-lower-tail neighbor exists on a
+    side, the nearest available gap on that side is used as a fallback so a
+    genuinely isolated dip is not silenced by an all-contaminated
+    neighborhood.
+    """
+    other_clean = [
+        candidates[i].pitch_pt
+        for i in range(len(candidates))
+        if i != index and not _is_contaminated_candidate(candidates[i])
+    ]
+    reference = statistics.median(other_clean) if other_clean else None
+
+    def _is_lower_tail(neighbor_index: int) -> bool:
+        if reference is None or reference <= 0:
+            return False
+        return candidates[neighbor_index].pitch_pt <= NEIGHBOR_RELATIVE_FLOOR * reference
+
+    out: list[float] = []
+    for direction in (-1, 1):
+        found = False
+        for offset in range(1, len(candidates)):
+            neighbor_index = index + direction * offset
+            if not 0 <= neighbor_index < len(candidates):
+                break
+            neighbor = candidates[neighbor_index]
+            if _is_contaminated_candidate(neighbor):
+                continue
+            if _is_lower_tail(neighbor_index):
+                continue
+            out.append(neighbor.pitch_pt)
+            found = True
+            break
+        if not found:
+            for offset in range(1, len(candidates)):
+                neighbor_index = index + direction * offset
+                if 0 <= neighbor_index < len(candidates):
+                    out.append(candidates[neighbor_index].pitch_pt)
+                    break
+    return out
+
+
+def _neighbor_pitches(candidates: list[SpacingCandidate], index: int) -> list[float]:
+    """Return the neighbor baseline for Model E's page-relative comparison.
+
+    Gaps whose own previous entry was reassembled by the structural/grouping
+    logic (see :func:`_is_structurally_reconstructed`) do not correspond to a
+    single visual inter-entry gap, so they abstain instead of being scored
+    against a baseline that mixes clean and reconstructed gaps.
+
+    TOC pages keep the original fixed-window neighbor behavior (preserving
+    the pre-fix behavior already validated against the reviewed TOC false
+    positives); LOF/LOT pages use the clean-neighbor behavior that skips
+    contaminated gaps.
+    """
+    if _is_structurally_reconstructed(candidates[index]):
+        return []
+    if _is_fixed_window_page(candidates[index]):
+        return _fixed_window_neighbor_pitches(candidates, index)
+    return _clean_neighbor_pitches(candidates, index)
 
 
 def _evaluate_neighbor_relative(
@@ -446,7 +639,7 @@ def _evaluate_neighbor_relative(
             model,
             DiagnosticOutcome.INSUFFICIENT_CONTEXT,
             None,
-            "fewer than two nearby gaps available",
+            "fewer than two nearby clean gaps available",
         )
     neighbor_median = statistics.median(neighbors)
     if neighbor_median <= 0:

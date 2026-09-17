@@ -79,8 +79,15 @@ def _make_page(
     return page
 
 
-def _make_doc(lines: list[tuple[str, float, float, float]]) -> PdfDocument:
-    return PdfDocument(path="mock.pdf", pages=[_make_page(1, lines)])
+def _make_doc(
+    lines: list[tuple[str, float, float, float]],
+    page_type: str = "table_of_contents",
+) -> PdfDocument:
+    return PdfDocument(path="mock.pdf", pages=[_make_page(1, lines, page_type=page_type)])
+
+
+def _lof_doc(lines: list[tuple[str, float, float, float]]) -> PdfDocument:
+    return _make_doc(lines, page_type="list_of_figures")
 
 
 def _selected_outcomes(doc: PdfDocument) -> list[DiagnosticOutcome]:
@@ -245,3 +252,111 @@ def test_production_detector_still_uses_fixed_threshold_for_now() -> None:
         diagnostic[0].decisions[DiagnosticModel.NEIGHBOR_RELATIVE].outcome
         == DiagnosticOutcome.INSUFFICIENT_CONTEXT
     )
+
+
+def test_paired_wrapped_entry_lof_anomalies_resolve_to_structural_abstain() -> None:
+    """Real-style Patrick p11 LOF pair-2 / pair-7 shape, generalized.
+
+    A wrapped entry whose extracted physical lines are non-contiguous (the
+    entry's own lines are detached onto separate baselines by text
+    extraction) makes the measured inter-entry pitch an extraction artifact
+    rather than a genuine visual gap. When such a wrapped entry sits between
+    two clean single-line entries, the two flanking gaps each look like an
+    isolated lower-tail dip against the clean page rhythm -- the exact
+    shape that produced the two Patrick p11 LOF diagnostic anomalies.
+
+    The neighbor-selection fix must resolve both flanking gaps to
+    INSUFFICIENT_CONTEXT (structural abstain) rather than scoring them as
+    anomalies, because their baseline is contaminated by the wrapped
+    entry's non-contiguous extraction.
+    """
+    # 7 visual lines, uniform 28pt rhythm, 14pt single-line pitch.
+    # line[1] is the continuation of a wrapped entry whose number was
+    # detached, so it starts at the caption-continuation indent (x0=149)
+    # instead of the entry-number column (x0=108).
+    doc = _lof_doc(
+        [
+            _line("5.1 First entry with a single line caption", 140.0),
+            _line("Second entry first visual line of a wrapped caption", 168.0),
+            _line("continuation line of the wrapped caption", 182.0, x0=149.0),
+            _line("5.3 Third entry with a single line caption", 210.0),
+            _line("5.4 Fourth entry with a single line caption", 238.0),
+            _line("5.5 Fifth entry with a single line caption", 266.0),
+            _line("5.6 Sixth entry with a single line caption", 294.0),
+        ]
+    )
+
+    candidates = collect_r036_spacing_candidates(doc, document_name="synthetic")
+    evaluated = evaluate_page_relative_models(candidates)
+    outcomes_by_pair = {
+        item.candidate.entry_pair_index: selected_candidate_decision(item).outcome
+        for item in evaluated
+    }
+    # The two gaps flanking the wrapped entry must abstain (structural
+    # artifact), not be scored as anomalies.
+    assert outcomes_by_pair.get(1) == DiagnosticOutcome.INSUFFICIENT_CONTEXT
+    assert outcomes_by_pair.get(2) == DiagnosticOutcome.INSUFFICIENT_CONTEXT
+    # No gap on the page may be scored as an anomaly.
+    assert DiagnosticOutcome.ANOMALY not in outcomes_by_pair.values()
+
+
+def test_clean_single_line_lof_page_uniform_rhythm_has_no_anomaly() -> None:
+    """A page of single-line LOF captions with uniform rhythm must not flag.
+
+    This is the LOF/LOT counterpart of the TOC uniform-rhythm test and
+    guards that the clean-neighbor behavior does not over-abstain on pages
+    with no wrapped entries.
+    """
+    doc = _lof_doc(
+        [
+            _line("5.1 First entry with a single line caption", 140.0),
+            _line("5.2 Second entry with a single line caption", 168.0),
+            _line("5.3 Third entry with a single line caption", 196.0),
+            _line("5.4 Fourth entry with a single line caption", 224.0),
+            _line("5.5 Fifth entry with a single line caption", 252.0),
+            _line("5.6 Sixth entry with a single line caption", 280.0),
+        ]
+    )
+
+    assert _selected_outcomes(doc) == [DiagnosticOutcome.SUPPRESSED] * 5
+
+
+def test_isolated_genuine_tight_single_line_lof_gap_is_still_detected() -> None:
+    """A genuine isolated tight gap among clean single-line LOF entries is
+    still detected as an anomaly (the model keeps its lower-tail signal)."""
+    doc = _lof_doc(
+        [
+            _line("5.1 First entry with a single line caption", 140.0),
+            _line("5.2 Second entry with a single line caption", 168.0),
+            _line("5.3 Third entry with a single line caption", 196.0),
+            _line("5.4 Fourth entry with a single line caption", 210.0),
+            _line("5.5 Fifth entry with a single line caption", 238.0),
+            _line("5.6 Sixth entry with a single line caption", 266.0),
+            _line("5.7 Seventh entry with a single line caption", 294.0),
+        ]
+    )
+
+    candidates = collect_r036_spacing_candidates(doc, document_name="synthetic")
+    evaluated = evaluate_page_relative_models(candidates)
+    anomaly_pairs = [
+        item.candidate.entry_pair_index
+        for item in evaluated
+        if selected_candidate_decision(item).outcome == DiagnosticOutcome.ANOMALY
+    ]
+    assert anomaly_pairs == [2]
+
+
+def test_sparse_unreliable_neighborhood_abstains() -> None:
+    """A page with too few eligible gaps abstains rather than flagging."""
+    doc = _lof_doc(
+        [
+            _line("5.1 First entry with a single line caption", 140.0),
+            _line("5.2 Second entry with a single line caption", 168.0),
+            _line("5.3 Third entry with a single line caption", 196.0),
+        ]
+    )
+
+    assert _selected_outcomes(doc) == [
+        DiagnosticOutcome.INSUFFICIENT_CONTEXT,
+        DiagnosticOutcome.INSUFFICIENT_CONTEXT,
+    ]

@@ -55,10 +55,8 @@
       "current_production_findings_remaining": 1
     },
     "Model E - Neighbor-relative anomaly": {
-      "suppressed": 418,
-      "abstentions": 28,
-      "all_candidate_anomalies": 2,
-      "current_production_findings_remaining": 2
+      "suppressed": 349,
+      "abstentions": 99
     }
   },
   "best_diagnostic_model": "Model E - Neighbor-relative anomaly",
@@ -70,13 +68,12 @@
       "INSUFFICIENT_CONTEXT": 14
     },
     "LOT": {
-      "INSUFFICIENT_CONTEXT": 3,
-      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 47
+      "INSUFFICIENT_CONTEXT": 31,
+      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 19
     },
     "LOF": {
-      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 150,
-      "INSUFFICIENT_CONTEXT": 11,
-      "POTENTIAL_PAGE_RELATIVE_ANOMALY": 2
+      "INSUFFICIENT_CONTEXT": 54,
+      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 109
     }
   },
   "signature_coverage_counts_for_current_96": {
@@ -90,106 +87,6 @@
     "not_represented_or_genuinely_unreviewed": 18
   },
   "unrepresented_18_analysis": [
-    {
-      "document": "Patrick",
-      "page": 11,
-      "section_type": "list_of_figures",
-      "entry_pair_index": 2,
-      "previous_entry": "5.1 One Newton iteration (5.6) with \u03c9= 0.5,1,2 where \u0393\u2217is a disk of radius",
-      "next_entry": "2.5usingaplanewavewithincidentangle\u03d1 =",
-      "previous_level": "figure_entry",
-      "next_level": "figure_entry",
-      "previous_wraps": false,
-      "next_wraps": false,
-      "pitch_pt": 15.673,
-      "local_single_line_pitch_pt": 14.347,
-      "normalized_ratio": 1.092,
-      "ratio_band": "<1.2",
-      "structural_shape": "same_level_peer_unwrapped",
-      "page_gap_count": 14,
-      "page_median_pitch": 22.284194946289062,
-      "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-      "selected_reason": "gap/nearby median ratio 0.68 <= 0.72",
-      "diagnostic_classification": "PARSER/STRUCTURAL_CONCERN",
-      "models": {
-        "Model A - Median-relative ratio": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.7033162446068486,
-          "reason": "gap/page median ratio 0.70 <= 0.72"
-        },
-        "Model B - Robust z-score": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": -97414.90174917936,
-          "reason": "robust z-score -97414.90 <= -2.50"
-        },
-        "Model C - Lower-tail percentile": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.0,
-          "reason": "gap rank percentile 0.00 <= 0.10"
-        },
-        "Model D - Two-mode clustering": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.7033377761237618,
-          "reason": "lower spacing mode is separated from dominant mode (0.70)"
-        },
-        "Model E - Neighbor-relative anomaly": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.6829693359145782,
-          "reason": "gap/nearby median ratio 0.68 <= 0.72"
-        }
-      }
-    },
-    {
-      "document": "Patrick",
-      "page": 11,
-      "section_type": "list_of_figures",
-      "entry_pair_index": 7,
-      "previous_entry": "5.6 OneNewtoniteration(5.6)wherethescatterer\u0393\u2217isanellipse.Figure",
-      "next_entry": "5.6aplotsaplanewavereconstructionandFigures5.6b,5.6cplotsa beamreconstructionwithRinc= 4,\u03d1 = 0andc = 1,5.",
-      "previous_level": "figure_entry",
-      "next_level": "figure_entry",
-      "previous_wraps": false,
-      "next_wraps": true,
-      "pitch_pt": 15.674,
-      "local_single_line_pitch_pt": 14.347,
-      "normalized_ratio": 1.092,
-      "ratio_band": "<1.2",
-      "structural_shape": "same_level_peer_next_wrapped",
-      "page_gap_count": 14,
-      "page_median_pitch": 22.284194946289062,
-      "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-      "selected_reason": "gap/nearby median ratio 0.70 <= 0.72",
-      "diagnostic_classification": "PARSER/STRUCTURAL_CONCERN",
-      "models": {
-        "Model A - Median-relative ratio": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.7033607524426243,
-          "reason": "gap/page median ratio 0.70 <= 0.72"
-        },
-        "Model B - Robust z-score": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": -97400.28778272404,
-          "reason": "robust z-score -97400.29 <= -2.50"
-        },
-        "Model C - Lower-tail percentile": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.07692307692307693,
-          "reason": "gap rank percentile 0.08 <= 0.10"
-        },
-        "Model D - Two-mode clustering": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.7033377761237618,
-          "reason": "candidate is not in a smaller, clearly separated tight mode"
-        },
-        "Model E - Neighbor-relative anomaly": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.7033617156767084,
-          "reason": "gap/nearby median ratio 0.70 <= 0.72"
-        }
-      }
-    },
     {
       "document": "Muyeed",
       "page": 10,
@@ -986,6 +883,106 @@
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
           "score": 1.0000407142178573,
+          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+        }
+      }
+    },
+    {
+      "document": "Muyeed",
+      "page": 14,
+      "section_type": "table_of_contents",
+      "entry_pair_index": 14,
+      "previous_entry": "8.3.4 Merginglabels",
+      "next_entry": "8.4 Experiments",
+      "previous_level": "toc_level_3",
+      "next_level": "toc_level_2",
+      "previous_wraps": false,
+      "next_wraps": false,
+      "pitch_pt": 23.611,
+      "local_single_line_pitch_pt": 17.673,
+      "normalized_ratio": 1.336,
+      "ratio_band": "1.3-1.39",
+      "structural_shape": "hierarchy_level_change_unwrapped",
+      "page_gap_count": 15,
+      "page_median_pitch": 23.61102294921875,
+      "page_median_normalized_ratio": 1.336026040632366,
+      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "models": {
+        "Model A - Median-relative ratio": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 1.0,
+          "reason": "gap/page median ratio 1.00 is within page rhythm"
+        },
+        "Model B - Robust z-score": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.0,
+          "reason": "robust z-score 0.00 is not extreme"
+        },
+        "Model C - Lower-tail percentile": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.5714285714285714,
+          "reason": "gap rank percentile 0.57 is not an extreme lower-tail point"
+        },
+        "Model D - Two-mode clustering": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.9999579950317816,
+          "reason": "candidate is not in a smaller, clearly separated tight mode"
+        },
+        "Model E - Neighbor-relative anomaly": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.9999799664340834,
+          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+        }
+      }
+    },
+    {
+      "document": "Muyeed",
+      "page": 14,
+      "section_type": "table_of_contents",
+      "entry_pair_index": 16,
+      "previous_entry": "8.4.1 Memory",
+      "next_entry": "8.4.2 Runtime",
+      "previous_level": "toc_level_3",
+      "next_level": "toc_level_3",
+      "previous_wraps": false,
+      "next_wraps": false,
+      "pitch_pt": 23.611,
+      "local_single_line_pitch_pt": 17.673,
+      "normalized_ratio": 1.336,
+      "ratio_band": "1.3-1.39",
+      "structural_shape": "same_level_peer_unwrapped",
+      "page_gap_count": 15,
+      "page_median_pitch": 23.61102294921875,
+      "page_median_normalized_ratio": 1.336026040632366,
+      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "models": {
+        "Model A - Median-relative ratio": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 1.0,
+          "reason": "gap/page median ratio 1.00 is within page rhythm"
+        },
+        "Model B - Robust z-score": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.0,
+          "reason": "robust z-score 0.00 is not extreme"
+        },
+        "Model C - Lower-tail percentile": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.5714285714285714,
+          "reason": "gap rank percentile 0.57 is not an extreme lower-tail point"
+        },
+        "Model D - Two-mode clustering": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.9999579950317816,
+          "reason": "candidate is not in a smaller, clearly separated tight mode"
+        },
+        "Model E - Neighbor-relative anomaly": {
+          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+          "score": 0.9999799664340834,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2461,9 +2458,9 @@
       "page_gap_count": 17,
       "page_median_pitch": 23.621002197265625,
       "page_median_normalized_ratio": 1.6465208789806207,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -2486,9 +2483,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -2537,7 +2534,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000006459843995,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2587,7 +2584,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000006459843995,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2637,7 +2634,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000006459843995,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2687,7 +2684,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999987080320356,
+          "score": 0.9999993540156005,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2737,7 +2734,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000012919696335,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2787,7 +2784,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000006459843995,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2837,7 +2834,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000006459843995,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2887,7 +2884,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000006459843995,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2937,7 +2934,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999987080320356,
+          "score": 0.9999993540156005,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -2987,7 +2984,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993540164351,
+          "score": 1.0000012919696335,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3137,7 +3134,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999974160674097,
+          "score": 0.9999987080320356,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3261,9 +3258,9 @@
       "page_gap_count": 17,
       "page_median_pitch": 23.621002197265625,
       "page_median_normalized_ratio": 1.6465208789806207,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -3286,9 +3283,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999987080320356,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -3311,9 +3308,9 @@
       "page_gap_count": 16,
       "page_median_pitch": 23.620994567871094,
       "page_median_normalized_ratio": 1.6465203471675638,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -3336,9 +3333,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999996770079046,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -3387,7 +3384,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993540160178,
+          "score": 0.9999990310243397,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3437,7 +3434,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000003229920955,
+          "score": 0.9999996770081132,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3487,7 +3484,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000003229920955,
+          "score": 0.9999993540164351,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3537,7 +3534,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000012919679644,
+          "score": 1.0000006459835649,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3587,7 +3584,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999987080320356,
+          "score": 0.9999974160674097,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3687,7 +3684,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993540156005,
+          "score": 0.9999980620493053,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3737,7 +3734,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000019379531984,
+          "score": 1.0000012919679644,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -3811,9 +3808,9 @@
       "page_gap_count": 16,
       "page_median_pitch": 23.620994567871094,
       "page_median_normalized_ratio": 1.6465203471675638,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -3836,9 +3833,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000012919679644,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -3861,9 +3858,9 @@
       "page_gap_count": 16,
       "page_median_pitch": 23.620994567871094,
       "page_median_normalized_ratio": 1.6465203471675638,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -3886,9 +3883,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000002583939267,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -3987,7 +3984,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999987080320356,
+          "score": 0.9999974160674097,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -4011,9 +4008,9 @@
       "page_gap_count": 16,
       "page_median_pitch": 23.620994567871094,
       "page_median_normalized_ratio": 1.6465203471675638,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -4036,9 +4033,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000002583939267,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -4061,9 +4058,9 @@
       "page_gap_count": 16,
       "page_median_pitch": 23.620994567871094,
       "page_median_normalized_ratio": 1.6465203471675638,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -4086,9 +4083,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999987080320356,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -4111,9 +4108,9 @@
       "page_gap_count": 8,
       "page_median_pitch": 23.621002197265625,
       "page_median_normalized_ratio": 1.6465217546223887,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -4136,9 +4133,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000003229920955,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -4161,9 +4158,9 @@
       "page_gap_count": 8,
       "page_median_pitch": 23.621002197265625,
       "page_median_normalized_ratio": 1.6465217546223887,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -4186,9 +4183,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -4211,9 +4208,9 @@
       "page_gap_count": 8,
       "page_median_pitch": 23.621002197265625,
       "page_median_normalized_ratio": 1.6465217546223887,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -4236,9 +4233,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993540160178,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -4337,7 +4334,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000003229920955,
+          "score": 1.0,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -5761,9 +5758,9 @@
       "page_gap_count": 9,
       "page_median_pitch": 31.800048828125,
       "page_median_normalized_ratio": 2.4047267253718787,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.01 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -5786,9 +5783,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.008974186137802,
-          "reason": "gap/nearby median ratio 1.01 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -5812,7 +5809,7 @@
       "page_median_pitch": 31.800048828125,
       "page_median_normalized_ratio": 2.4047267253718787,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.98 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.99 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -5837,8 +5834,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9822110314745669,
-          "reason": "gap/nearby median ratio 0.98 is consistent with local rhythm"
+          "score": 0.9910266364372462,
+          "reason": "gap/nearby median ratio 0.99 is consistent with local rhythm"
         }
       }
     },
@@ -5887,7 +5884,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0181118755958958,
+          "score": 1.018112364122481,
           "reason": "gap/nearby median ratio 1.02 is consistent with local rhythm"
         }
       }
@@ -5912,7 +5909,7 @@
       "page_median_pitch": 31.800048828125,
       "page_median_normalized_ratio": 2.4047267253718787,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.99 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -5937,8 +5934,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.9910255675624139,
+          "reason": "gap/nearby median ratio 0.99 is consistent with local rhythm"
         }
       }
     },
@@ -6062,7 +6059,7 @@
       "page_median_pitch": 31.800048828125,
       "page_median_normalized_ratio": 2.4047267253718787,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.02 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.01 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -6087,8 +6084,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0181142921577988,
-          "reason": "gap/nearby median ratio 1.02 is consistent with local rhythm"
+          "score": 1.0086619207777237,
+          "reason": "gap/nearby median ratio 1.01 is consistent with local rhythm"
         }
       }
     },
@@ -6137,7 +6134,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0187423886037064,
+          "score": 1.018742877433069,
           "reason": "gap/nearby median ratio 1.02 is consistent with local rhythm"
         }
       }
@@ -6161,9 +6158,9 @@
       "page_gap_count": 9,
       "page_median_pitch": 31.800048828125,
       "page_median_normalized_ratio": 2.4047267253718787,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.98 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -6186,9 +6183,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9819053537631729,
-          "reason": "gap/nearby median ratio 0.98 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10511,9 +10508,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10536,9 +10533,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000206797966142,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10561,9 +10558,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10586,9 +10583,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999586412620619,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10611,9 +10608,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10636,9 +10633,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000206797966142,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10661,9 +10658,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10686,9 +10683,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999793202033858,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10737,7 +10734,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000426529901363,
+          "score": 1.000021972298102,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -10787,7 +10784,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993537425736,
+          "score": 0.9999786739459597,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -10861,9 +10858,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10886,9 +10883,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10911,9 +10908,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10936,9 +10933,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000042653017701,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -10961,9 +10958,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -10986,9 +10983,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11011,9 +11008,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11036,9 +11033,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11111,9 +11108,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11136,9 +11133,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11187,7 +11184,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999754427415206,
+          "score": 0.9999560562841452,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -11237,7 +11234,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000219723123016,
+          "score": 1.000001292462231,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -11287,7 +11284,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999806126656163,
+          "score": 0.9999599336708384,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -11311,9 +11308,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11336,9 +11333,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000180948220374,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11361,9 +11358,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11386,9 +11383,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999806126656163,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11411,9 +11408,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11436,9 +11433,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000041360448554,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11461,9 +11458,9 @@
       "page_gap_count": 20,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11486,9 +11483,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999793202033858,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11511,9 +11508,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.89 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11536,9 +11533,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.8893624418703842,
-          "reason": "gap/nearby median ratio 0.89 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11561,9 +11558,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.25 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11586,9 +11583,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.2488019572693854,
-          "reason": "gap/nearby median ratio 1.25 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11611,9 +11608,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.89 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11636,9 +11633,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.8893624418703842,
-          "reason": "gap/nearby median ratio 0.89 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11661,9 +11658,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.11 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11686,9 +11683,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.1105742371814529,
-          "reason": "gap/nearby median ratio 1.11 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11711,9 +11708,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.84 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11736,9 +11733,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.8428065422460862,
-          "reason": "gap/nearby median ratio 0.84 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11762,7 +11759,7 @@
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.11 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.05 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -11787,8 +11784,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.1106389221166044,
-          "reason": "gap/nearby median ratio 1.11 is consistent with local rhythm"
+          "score": 1.0524508927368528,
+          "reason": "gap/nearby median ratio 1.05 is consistent with local rhythm"
         }
       }
     },
@@ -11811,9 +11808,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11836,9 +11833,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11861,9 +11858,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11886,9 +11883,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000042653017701,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11911,9 +11908,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11936,9 +11933,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -11961,9 +11958,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -11986,9 +11983,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12011,9 +12008,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12036,9 +12033,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000042653017701,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12061,9 +12058,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12086,9 +12083,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12111,9 +12108,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12136,9 +12133,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12161,9 +12158,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12186,9 +12183,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999773814578361,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12237,7 +12234,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000219723123016,
+          "score": 0.996730460054415,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12287,7 +12284,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9934199387101735,
+          "score": 0.9901501566493528,
           "reason": "gap/nearby median ratio 0.99 is consistent with local rhythm"
         }
       }
@@ -12311,9 +12308,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.01 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12336,9 +12333,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0065826462677443,
-          "reason": "gap/nearby median ratio 1.01 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12411,9 +12408,9 @@
       "page_gap_count": 19,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6458231402497394,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12436,9 +12433,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9967548654473687,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12461,9 +12458,9 @@
       "page_gap_count": 13,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -12486,9 +12483,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999796433186302,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -12537,7 +12534,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000420067055626,
+          "score": 1.0000426529901363,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12637,7 +12634,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
+          "score": 1.000042653017701,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12687,7 +12684,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
+          "score": 1.0,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12737,7 +12734,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
+          "score": 1.000042653017701,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12837,7 +12834,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000219723123016,
+          "score": 1.000042653017701,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12887,7 +12884,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999579950046367,
+          "score": 0.9999793201766574,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12937,7 +12934,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000193873093257,
+          "score": 1.0000200335659166,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -12987,7 +12984,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000041360448554,
+          "score": 1.0000420067327098,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -13037,7 +13034,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999599336708384,
+          "score": 1.0000006462574262,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -13061,9 +13058,9 @@
       "page_gap_count": 13,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -13086,9 +13083,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999793202033858,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -13111,9 +13108,9 @@
       "page_gap_count": 15,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.94 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -13136,9 +13133,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9414109435876352,
-          "reason": "gap/nearby median ratio 0.94 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -13162,7 +13159,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.89 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.94 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13187,8 +13184,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.8894233441258393,
-          "reason": "gap/nearby median ratio 0.89 is consistent with local rhythm"
+          "score": 0.9414965865398265,
+          "reason": "gap/nearby median ratio 0.94 is consistent with local rhythm"
         }
       }
     },
@@ -13337,7 +13334,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
+          "score": 1.000042653017701,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -13412,7 +13409,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.95 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13437,8 +13434,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.947630458439404,
+          "reason": "gap/nearby median ratio 0.95 is consistent with local rhythm"
         }
       }
     },
@@ -13462,7 +13459,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.95 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13487,8 +13484,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999786739459597,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.9475900408646176,
+          "reason": "gap/nearby median ratio 0.95 is consistent with local rhythm"
         }
       }
     },
@@ -13512,7 +13509,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.95 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13537,8 +13534,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.947630458439404,
+          "reason": "gap/nearby median ratio 0.95 is consistent with local rhythm"
         }
       }
     },
@@ -13562,7 +13559,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.89 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.84 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13587,8 +13584,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.889388640305641,
-          "reason": "gap/nearby median ratio 0.89 is consistent with local rhythm"
+          "score": 0.8428117649436327,
+          "reason": "gap/nearby median ratio 0.84 is consistent with local rhythm"
         }
       }
     },
@@ -13611,9 +13608,9 @@
       "page_gap_count": 15,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.11 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -13636,9 +13633,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.1105944027473145,
-          "reason": "gap/nearby median ratio 1.11 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -13661,9 +13658,9 @@
       "page_gap_count": 15,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -13686,9 +13683,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000219723123016,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -13712,7 +13709,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.95 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13737,8 +13734,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999560563409408,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.9475696668556864,
+          "reason": "gap/nearby median ratio 0.95 is consistent with local rhythm"
         }
       }
     },
@@ -13761,9 +13758,9 @@
       "page_gap_count": 15,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -13786,9 +13783,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000041360448554,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -13811,9 +13808,9 @@
       "page_gap_count": 15,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.5085090359610533,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -13836,9 +13833,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999806126656163,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -13912,7 +13909,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13937,8 +13934,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999586412620619,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.0585246673751445,
+          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
     },
@@ -13962,7 +13959,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -13987,8 +13984,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000206797966142,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.0585684484301927,
+          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
     },
@@ -14062,7 +14059,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -14087,8 +14084,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.0585684484301927,
+          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
     },
@@ -14112,7 +14109,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -14137,8 +14134,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.0585684484301927,
+          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
     },
@@ -14162,7 +14159,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -14187,8 +14184,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000213260540403,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.0585923457358513,
+          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
     },
@@ -14212,7 +14209,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.12 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -14237,8 +14234,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999573488015013,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.1243505376445657,
+          "reason": "gap/nearby median ratio 1.12 is consistent with local rhythm"
         }
       }
     },
@@ -14261,9 +14258,9 @@
       "page_gap_count": 9,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.89 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -14286,9 +14283,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.889403729991476,
-          "reason": "gap/nearby median ratio 0.89 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -15961,9 +15958,9 @@
       "page_gap_count": 12,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6457111132854876,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -15986,9 +15983,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -16011,9 +16008,9 @@
       "page_gap_count": 12,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6457111132854876,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -16036,9 +16033,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -16087,7 +16084,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 0.9999789970883503,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -16162,7 +16159,7 @@
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6457111132854876,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.95 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -16187,8 +16184,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9481583348627767,
-          "reason": "gap/nearby median ratio 0.95 is consistent with local rhythm"
+          "score": 0.9733787431322213,
+          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
         }
       }
     },
@@ -16212,7 +16209,7 @@
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6457111132854876,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.95 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -16237,8 +16234,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9481589476044702,
-          "reason": "gap/nearby median ratio 0.95 is consistent with local rhythm"
+          "score": 0.973379066018271,
+          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
         }
       }
     },
@@ -16312,7 +16309,7 @@
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6457111132854876,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.03 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -16337,8 +16334,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0265996230288128,
-          "reason": "gap/nearby median ratio 1.03 is consistent with local rhythm"
+          "score": 0.9999786739459597,
+          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
     },
@@ -16387,7 +16384,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0265982608395658,
+          "score": 1.026600304124792,
           "reason": "gap/nearby median ratio 1.03 is consistent with local rhythm"
         }
       }
@@ -16487,7 +16484,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000020447319187,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -16511,9 +16508,9 @@
       "page_gap_count": 12,
       "page_median_pitch": 23.610992431640625,
       "page_median_normalized_ratio": 1.6457111132854876,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -16536,9 +16533,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000020447319187,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -18087,7 +18084,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999977885842295,
+          "score": 0.9999986178639972,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18411,9 +18408,9 @@
       "page_gap_count": 9,
       "page_median_pitch": 27.600021362304688,
       "page_median_normalized_ratio": 2.000003317130991,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -18436,9 +18433,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9994576681387629,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -18487,7 +18484,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0010863585978511,
+          "score": 1.0010860818705045,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18537,7 +18534,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.000000552854554,
+          "score": 0.9994579439665461,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18587,7 +18584,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9996360773616079,
+          "score": 0.9999991707179399,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18637,7 +18634,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999986178639972,
+          "score": 0.999636906041563,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18737,7 +18734,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999994471457517,
+          "score": 0.9996374588963497,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18787,7 +18784,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999988942921147,
+          "score": 0.9999994471457517,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -18811,9 +18808,9 @@
       "page_gap_count": 9,
       "page_median_pitch": 27.600021362304688,
       "page_median_normalized_ratio": 2.000003317130991,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -18836,9 +18833,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000011057091078,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21211,9 +21208,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21236,9 +21233,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999793202033858,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21287,7 +21284,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.999999353743409,
+          "score": 1.0000006462574262,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -21337,7 +21334,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000410373067894,
+          "score": 1.0000420067327098,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -21387,7 +21384,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.99997996644703,
+          "score": 0.9999806126781453,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -21437,7 +21434,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000203566682144,
+          "score": 1.0000416835905275,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -21461,9 +21458,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21486,9 +21483,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999573488015013,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21511,9 +21508,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21536,9 +21533,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21562,7 +21559,7 @@
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.94 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -21587,8 +21584,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9373934598427658,
-          "reason": "gap/nearby median ratio 0.94 is consistent with local rhythm"
+          "score": 1.0000432993035275,
+          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
     },
@@ -21637,7 +21634,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.1335757989344954,
+          "score": 1.1336248819770849,
           "reason": "gap/nearby median ratio 1.13 is consistent with local rhythm"
         }
       }
@@ -21687,7 +21684,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.1335757989344954,
+          "score": 1.1336248819770849,
           "reason": "gap/nearby median ratio 1.13 is consistent with local rhythm"
         }
       }
@@ -21711,9 +21708,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.94 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21736,9 +21733,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9373522673441621,
-          "reason": "gap/nearby median ratio 0.94 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21761,9 +21758,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21786,9 +21783,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000206797966142,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21837,7 +21834,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999586412620619,
+          "score": 0.9999806126656163,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -21861,9 +21858,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 23.61199951171875,
       "page_median_normalized_ratio": 1.645893339573273,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21886,9 +21883,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000206797966142,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21911,9 +21908,9 @@
       "page_gap_count": 10,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21936,9 +21933,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999583181603898,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -21961,9 +21958,9 @@
       "page_gap_count": 10,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -21986,9 +21983,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22087,7 +22084,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999996768849643,
+          "score": 0.9967506838250142,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -22187,7 +22184,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999793202033858,
+          "score": 0.9999812588979844,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -22262,7 +22259,7 @@
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.01 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -22287,8 +22284,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0032723323553725,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.0065851400781527,
+          "reason": "gap/nearby median ratio 1.01 is consistent with local rhythm"
         }
       }
     },
@@ -22361,9 +22358,9 @@
       "page_gap_count": 10,
       "page_median_pitch": 23.61102294921875,
       "page_median_normalized_ratio": 1.6458252675019678,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -22386,9 +22383,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.003291197020546,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22411,9 +22408,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.24 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -22436,9 +22433,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.2441436400123496,
-          "reason": "gap/nearby median ratio 1.24 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22462,7 +22459,7 @@
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.13 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -22487,8 +22484,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.134493474835225,
+          "reason": "gap/nearby median ratio 1.13 is consistent with local rhythm"
         }
       }
     },
@@ -22511,9 +22508,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-      "selected_reason": "gap/nearby median ratio 0.68 <= 0.72",
-      "diagnostic_classification": "PARSER/STRUCTURAL_CONCERN",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
@@ -22536,9 +22533,9 @@
           "reason": "lower spacing mode is separated from dominant mode (0.70)"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.6829693359145782,
-          "reason": "gap/nearby median ratio 0.68 <= 0.72"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22561,9 +22558,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -22586,9 +22583,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000003423680848,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22611,9 +22608,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -22636,9 +22633,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0595851179288078,
-          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22712,7 +22709,7 @@
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.17 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -22737,8 +22734,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993152631272,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 1.1741469848453359,
+          "reason": "gap/nearby median ratio 1.17 is consistent with local rhythm"
         }
       }
     },
@@ -22761,9 +22758,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-      "selected_reason": "gap/nearby median ratio 0.70 <= 0.72",
-      "diagnostic_classification": "PARSER/STRUCTURAL_CONCERN",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
@@ -22786,9 +22783,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "POTENTIAL_PAGE_RELATIVE_ANOMALY",
-          "score": 0.7033617156767084,
-          "reason": "gap/nearby median ratio 0.70 <= 0.72"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22812,7 +22809,7 @@
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -22837,8 +22834,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993152631272,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.9710880650205184,
+          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
         }
       }
     },
@@ -22887,7 +22884,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0595426642426982,
+          "score": 1.0595415759819202,
           "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
@@ -22911,9 +22908,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -22936,9 +22933,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9710897177593634,
-          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -22987,7 +22984,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0595362977773517,
+          "score": 1.0595373860301003,
           "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
         }
       }
@@ -23037,7 +23034,7 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0,
+          "score": 1.0000010271028477,
           "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
@@ -23061,9 +23058,9 @@
       "page_gap_count": 14,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.5532286231475592,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -23086,9 +23083,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9710923775212881,
-          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -23111,9 +23108,9 @@
       "page_gap_count": 6,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.4217469059062557,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -23136,9 +23133,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9710900598412987,
-          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     },
@@ -23212,7 +23209,7 @@
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.4217469059062557,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -23237,8 +23234,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0000003423680848,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.971090705558605,
+          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
         }
       }
     },
@@ -23262,7 +23259,7 @@
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.4217469059062557,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -23287,8 +23284,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9710893756772006,
-          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
+          "score": 0.9999989728957458,
+          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
         }
       }
     },
@@ -23312,7 +23309,7 @@
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.4217469059062557,
       "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.00 is consistent with local rhythm",
+      "selected_reason": "gap/nearby median ratio 0.97 is consistent with local rhythm",
       "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
       "models": {
         "Model A - Median-relative ratio": {
@@ -23337,8 +23334,8 @@
         },
         "Model E - Neighbor-relative anomaly": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 0.9999993152640649,
-          "reason": "gap/nearby median ratio 1.00 is consistent with local rhythm"
+          "score": 0.9710906863356257,
+          "reason": "gap/nearby median ratio 0.97 is consistent with local rhythm"
         }
       }
     },
@@ -23361,9 +23358,9 @@
       "page_gap_count": 6,
       "page_median_pitch": 22.284194946289062,
       "page_median_normalized_ratio": 1.4217469059062557,
-      "selected_outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-      "selected_reason": "gap/nearby median ratio 1.06 is consistent with local rhythm",
-      "diagnostic_classification": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
+      "selected_outcome": "INSUFFICIENT_CONTEXT",
+      "selected_reason": "fewer than two nearby clean gaps available",
+      "diagnostic_classification": "INSUFFICIENT_CONTEXT",
       "models": {
         "Model A - Median-relative ratio": {
           "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
@@ -23386,9 +23383,9 @@
           "reason": "candidate is not in a smaller, clearly separated tight mode"
         },
         "Model E - Neighbor-relative anomaly": {
-          "outcome": "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM",
-          "score": 1.0595409320155804,
-          "reason": "gap/nearby median ratio 1.06 is consistent with local rhythm"
+          "outcome": "INSUFFICIENT_CONTEXT",
+          "score": null,
+          "reason": "fewer than two nearby clean gaps available"
         }
       }
     }
