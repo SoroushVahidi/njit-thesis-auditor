@@ -14,7 +14,6 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from njit_auditor.pdf_layout import load_pdf_layout  # noqa: E402
 from njit_auditor.rules.pdf_toc_list_entry_spacing import (  # noqa: E402
-    MIN_INTER_ENTRY_GAP_RATIO,
     check_pdf_toc_list_entry_spacing,
 )
 from njit_auditor.rules.r036_page_relative_spacing_experiment import (  # noqa: E402
@@ -275,7 +274,15 @@ def _write_markdown(report: dict[str, Any]) -> None:
     lines = [
         "# R036 Page-Relative Spacing Experiment (2026-09-16)",
         "",
-        "This is a diagnostic experiment only. Production R036 behavior is unchanged.",
+        (
+            "This began as a diagnostic experiment. As of the "
+            "`fix/r036-production-page-relative-suppression-20260916` branch, "
+            "the reliable parts of this work are productionized through the "
+            "conservative SUPPRESS/ABSTAIN policy documented in "
+            "`r036_production_page_relative_suppression_design_20260916.md`; "
+            "the reporting gate remains disabled because no real "
+            "Ester-confirmed R036 true positive exists."
+        ),
         "",
         "## Why this experiment exists",
         "",
@@ -309,7 +316,7 @@ def _write_markdown(report: dict[str, Any]) -> None:
         "## Model Comparison",
         "",
         (
-            "| Model | All diagnostic anomalies | Current 1.6 findings remaining | "
+            "| Model | All diagnostic anomalies | Current production findings remaining | "
             "Abstentions | Suppressed |"
         ),
         "| --- | ---: | ---: | ---: | ---: |",
@@ -347,20 +354,22 @@ def _write_markdown(report: dict[str, Any]) -> None:
             f"- LOF: {report['section_type_results'].get('LOF', {})}",
             f"- LOT: {report['section_type_results'].get('LOT', {})}",
             "",
-            "## 18 Unrepresented-Finding Diagnostic Table",
+            "## Current Production Finding Diagnostic Table",
             "",
             (
-                "The prior audit supplied the authoritative 31/47/18 coverage counts. "
-                "This script also records a reproducible signature-based approximation; "
-                "if that approximation differs, use the authoritative audit count for "
-                "review-planning language."
+                "On the production page-relative branch, current production R036 "
+                "findings should be zero. If any production findings exist, this "
+                "table records their diagnostic context for review planning."
             ),
             "",
             "| # | Document | Page | Section | Pair | Ratio | Diagnostic Outcome | Reason |",
             "| ---: | --- | ---: | --- | ---: | ---: | --- | --- |",
         ]
     )
-    for index, row in enumerate(report["unrepresented_18_analysis"], start=1):
+    current_finding_analysis = report["current_production_finding_analysis"]
+    if not current_finding_analysis:
+        lines.append("|  | No current production R036 findings |  |  |  |  |  |  |")
+    for index, row in enumerate(current_finding_analysis, start=1):
         lines.append(
             f"| {index} | {row['document']} | {row['page']} | "
             f"{SECTION_LABELS.get(row['section_type'], row['section_type'])} | "
@@ -370,10 +379,10 @@ def _write_markdown(report: dict[str, Any]) -> None:
     lines.extend(
         [
             "",
-            "## Production Status",
+            "## Current Branch Production Status",
             "",
-            "- Production R036 code path changed: NO",
-            f"- Current fixed threshold: {MIN_INTER_ENTRY_GAP_RATIO}",
+            f"- Production R036 code path changed: {report['production_r036_changed']}",
+            "- Fixed threshold as production decision rule: retired",
             f"- Current production findings: {report['current_production_findings']}",
             "- Email sent: NO",
             "- Drive upload performed: NO",
@@ -437,7 +446,7 @@ def run() -> dict[str, Any]:
         "source_branch": "fix/r036-recover-split-section-number-classification-20260914",
         "source_sha": "4ce9f778de10da97a59dc65800c8579ad9cb7370",
         "experiment_branch": "experiment/r036-page-relative-spacing-model-20260916",
-        "production_r036_changed": "NO",
+        "production_r036_changed": "YES",
         "known_ester_false_positive_count": len(labels),
         "known_ester_false_positive_set_complete": "YES" if len(labels) == 24 else "NO",
         "known_ester_false_positives_matched_to_current_candidates": len(gt_evaluations),
@@ -461,13 +470,13 @@ def run() -> dict[str, Any]:
             "diagnostic outcome is INSUFFICIENT_CONTEXT rather than a finding."
         ),
         "section_type_results": _section_type_results(all_evaluated),
-        "signature_coverage_counts_for_current_96": dict(coverage_counts),
-        "authoritative_review_coverage_counts_for_current_96": {
+        "signature_coverage_counts_for_current_production_findings": dict(coverage_counts),
+        "historical_authoritative_review_coverage_counts_for_former_96": {
             "directly_represented_by_ester_rejected_cluster": 31,
             "closely_represented": 47,
             "not_represented_or_genuinely_unreviewed": 18,
         },
-        "unrepresented_18_analysis": _make_unrepresented_rows(
+        "current_production_finding_analysis": _make_unrepresented_rows(
             all_evaluated, production_keys, reviewed_post_examples
         ),
         "all_candidates": [_candidate_dict(item) for item in all_evaluated],

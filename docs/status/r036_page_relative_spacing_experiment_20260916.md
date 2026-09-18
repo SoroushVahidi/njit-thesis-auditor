@@ -1,14 +1,6 @@
 # R036 Page-Relative Spacing Experiment (2026-09-16)
 
-> **Production design (2026-09-16):** the reliable parts of this diagnostic
-> work have been productionized. See
-> `r036_production_page_relative_suppression_design_20260916.md` for the
-> selected production policy (suppress/abstain only, with the fixed 1.6 ratio
-> retired as the decisive reporting rule and a disabled strong multi-signal
-> reporting gate retained for future enablement once a real true positive is
-> validated).
-
-This is a diagnostic experiment only. Production R036 behavior is unchanged.
+This began as a diagnostic experiment. As of the `fix/r036-production-page-relative-suppression-20260916` branch, the reliable parts of this work are productionized through the conservative SUPPRESS/ABSTAIN policy documented in `r036_production_page_relative_suppression_design_20260916.md`; the reporting gate remains disabled because no real Ester-confirmed R036 true positive exists.
 
 ## Why this experiment exists
 
@@ -28,12 +20,12 @@ Ester has rejected both reviewed R036 batches as false positives: the original 1
 
 ## Model Comparison
 
-| Model | All diagnostic anomalies | Current 1.6 findings remaining | Abstentions | Suppressed |
+| Model | All diagnostic anomalies | Current production findings remaining | Abstentions | Suppressed |
 | --- | ---: | ---: | ---: | ---: |
-| Model A - Median-relative ratio | 2 | 2 | 28 | 418 |
-| Model B - Robust z-score | 29 | 14 | 28 | 391 |
-| Model C - Lower-tail percentile | 44 | 13 | 28 | 376 |
-| Model D - Two-mode clustering | 1 | 1 | 28 | 419 |
+| Model A - Median-relative ratio | 2 | 0 | 28 | 418 |
+| Model B - Robust z-score | 29 | 0 | 28 | 391 |
+| Model C - Lower-tail percentile | 44 | 0 | 28 | 376 |
+| Model D - Two-mode clustering | 1 | 0 | 28 | 419 |
 | Model E - Neighbor-relative anomaly | 0 | 0 | 99 | 349 |
 
 ## Selected Diagnostic Candidate
@@ -52,36 +44,19 @@ Use page-local modeling only when a page has at least five eligible inter-entry 
 - LOF: {'INSUFFICIENT_CONTEXT': 54, 'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 109}
 - LOT: {'INSUFFICIENT_CONTEXT': 31, 'SUPPRESSED_AS_NORMAL_PAGE_RHYTHM': 19}
 
-## 18 Unrepresented-Finding Diagnostic Table
+## Current Production Finding Diagnostic Table
 
-The prior audit supplied the authoritative 31/47/18 coverage counts. This script also records a reproducible signature-based approximation; if that approximation differs, use the authoritative audit count for review-planning language.
+On the production page-relative branch, current production R036 findings should be zero. If any production findings exist, this table records their diagnostic context for review planning.
 
 | # | Document | Page | Section | Pair | Ratio | Diagnostic Outcome | Reason |
 | ---: | --- | ---: | --- | ---: | ---: | --- | --- |
-| 1 | Muyeed | 10 | TOC | 21 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 2 | Muyeed | 12 | TOC | 7 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 3 | Muyeed | 12 | TOC | 8 | 1.24 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 4 | Muyeed | 12 | TOC | 9 | 1.11 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 0.89 is consistent with local rhythm |
-| 5 | Muyeed | 12 | TOC | 10 | 1.38 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.11 is consistent with local rhythm |
-| 6 | Muyeed | 14 | TOC | 0 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 7 | Muyeed | 14 | TOC | 2 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 8 | Muyeed | 14 | TOC | 3 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 9 | Muyeed | 14 | TOC | 5 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 10 | Muyeed | 14 | TOC | 6 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 11 | Muyeed | 14 | TOC | 7 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 12 | Muyeed | 14 | TOC | 8 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 13 | Muyeed | 14 | TOC | 9 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 14 | Muyeed | 14 | TOC | 11 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 15 | Muyeed | 14 | TOC | 12 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 16 | Muyeed | 14 | TOC | 13 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 17 | Muyeed | 14 | TOC | 14 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
-| 18 | Muyeed | 14 | TOC | 16 | 1.34 | SUPPRESSED_AS_NORMAL_PAGE_RHYTHM | gap/nearby median ratio 1.00 is consistent with local rhythm |
+|  | No current production R036 findings |  |  |  |  |  |  |
 
-## Production Status
+## Current Branch Production Status
 
-- Production R036 code path changed: NO
-- Current fixed threshold: 1.6
-- Current production findings: 96
+- Production R036 code path changed: YES
+- Fixed threshold as production decision rule: retired
+- Current production findings: 0
 - Email sent: NO
 - Drive upload performed: NO
 - Merged: NO

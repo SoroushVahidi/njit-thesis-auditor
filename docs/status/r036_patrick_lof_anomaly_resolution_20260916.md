@@ -1,7 +1,12 @@
 # R036 Patrick LOF Anomaly Resolution (2026-09-16)
 
-Companion to `r036_page_relative_spacing_experiment_20260916.md`. This is a
-diagnostic experiment only; production R036 behavior is unchanged.
+Companion to `r036_page_relative_spacing_experiment_20260916.md`. This began
+as a diagnostic experiment. As of the
+`fix/r036-production-page-relative-suppression-20260916` branch, the reliable
+parts are productionized through the conservative SUPPRESS/ABSTAIN policy in
+`r036_production_page_relative_suppression_design_20260916.md`; the reporting
+gate remains disabled because no real Ester-confirmed R036 true positive
+exists.
 
 ## Scope
 
@@ -227,7 +232,8 @@ No Patrick-specific exceptions were introduced. Production R036
   suppressed).
 - Praneeth production count: **0** (unchanged).
 - Anthony production count: **0** (unchanged).
-- Current production findings: 96 (unchanged: Muyeed 71, Philip 9,
+- Production findings at the time of this diagnostic run: 96 (unchanged:
+  Muyeed 71, Philip 9,
   Patrick 16).
 - Model E diagnostic anomalies: **0** (was 2).
 - Model E diagnostic abstentions: **99** (was 28) — the increase is LOF/LOT
@@ -309,11 +315,11 @@ not productionized by this experiment.
 - ruff: clean.
 - mypy (src): clean (134 files).
 
-## Production status
+## Original Diagnostic-Run Production Status
 
-- Production R036 code path changed: **NO**
-- Current fixed threshold: 1.6 (unchanged)
-- Current production findings: 96 (unchanged)
+- Production R036 code path changed at the time of this diagnostic run: **NO**
+- Fixed threshold at the time of this diagnostic run: 1.6
+- Production findings at the time of this diagnostic run: 96
 - Email sent: NO
 - Drive upload performed: NO
 - Merged: NO

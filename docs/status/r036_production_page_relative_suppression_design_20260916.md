@@ -1,7 +1,7 @@
 # R036 Production Page-Relative Suppression/Abstention Design (2026-09-16)
 
-Status: **production design proposal** (not yet merged or deployed). This is
-the productionization of the page-relative diagnostic work documented in
+Status: **production branch implementation** (not yet merged or deployed). This
+is the productionization of the page-relative diagnostic work documented in
 `r036_page_relative_spacing_experiment_20260916.md`.
 
 ## 1. Why the fixed 1.6 threshold was retired
