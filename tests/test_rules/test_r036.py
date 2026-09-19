@@ -53,8 +53,8 @@ def test_r036_toc_acceptable_spacing():
     """TOC entries with sufficient spacing (ratio >= 1.4) must pass"""
     doc = make_mock_toc_doc(
         [
-            ("1.1 Biological Importance ......... 12", 150.0, 162.0),
-            ("1.2 Protein Quantification ......... 15", 182.0, 194.0),
+            ("1.1 Synthetic Topic A ......... 12", 150.0, 162.0),
+            ("1.2 Synthetic Topic B ......... 15", 182.0, 194.0),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)
@@ -75,8 +75,8 @@ def test_r036_toc_insufficient_spacing():
     sparse-page abstention either way."""
     doc = make_mock_toc_doc(
         [
-            ("1.1 Biological Importance ......... 12", 150.0, 162.0),
-            ("1.2 Protein Quantification ......... 15", 172.0, 184.0),
+            ("1.1 Synthetic Topic A ......... 12", 150.0, 162.0),
+            ("1.2 Synthetic Topic B ......... 15", 172.0, 184.0),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)
@@ -102,8 +102,8 @@ def test_r036_lof_acceptable_spacing():
     """LoF entries with sufficient spacing must pass"""
     doc = make_mock_toc_doc(
         [
-            ("Figure 1.1 Mass Spectrometry System ......... 12", 150.0, 162.0),
-            ("Figure 1.2 Reaction Microdroplets ......... 15", 182.0, 194.0),
+            ("Figure 1.1 Synthetic apparatus diagram ......... 12", 150.0, 162.0),
+            ("Figure 1.2 Synthetic reaction diagram ......... 15", 182.0, 194.0),
         ],
         page_type="list_of_figures",
     )
@@ -118,7 +118,7 @@ def test_r036_chapter_boundary_accepted():
     doc = make_mock_toc_doc(
         [
             ("1     INTRODUCTION", 150.0, 162.0),
-            ("1.1 Biological Importance ......... 12", 172.0, 184.0),
+            ("1.1 Synthetic Topic A ......... 12", 172.0, 184.0),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)
@@ -257,14 +257,14 @@ def test_r036_genuine_tight_gap_after_wrapped_entry_not_reported():
 def test_r036_wrapped_entry_then_correct_double_spacing_no_warning():
     """Case C: a wrapped (2-line) entry followed by a properly double-spaced
     next entry must not be flagged. Mirrors the real Praneeth page-11
-    "1.1 Biological Importance..." / "Characterization..." / "1.2 Protein
-    Quantification..." sequence exactly (13.8pt single pitch within the
+    "1.1 Synthetic Topic A..." / "Continuation..." / "1.2 Synthetic Topic B..."
+    sequence exactly (13.8pt single pitch within the
     wrapped entry, 27.6pt = 2x pitch to the next entry)."""
     doc = make_mock_toc_doc(
         [
-            ("1.1 Biological Importance of Proteins and Need for", 169.09, 182.37),
-            ("Characterization ......... 12", 182.89, 196.17),
-            ("1.2 Protein Quantification Using Mass Spectrometry ......... 15", 210.49, 223.77),
+            ("1.1 Synthetic Topic A With Long Wrapped Text", 169.09, 182.37),
+            ("Continuation ......... 12", 182.89, 196.17),
+            ("1.2 Synthetic Topic B With Long Text ......... 15", 210.49, 223.77),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)
@@ -282,9 +282,9 @@ def test_r036_wrapped_entry_then_insufficient_spacing_not_reported():
     positive detection is unvalidated on real ground truth."""
     doc = make_mock_toc_doc(
         [
-            ("1.1 Biological Importance of Proteins and Need for", 169.09, 182.37),
-            ("Characterization ......... 12", 182.89, 196.17),
-            ("1.2 Protein Quantification Using Mass Spectrometry ......... 15", 196.69, 209.97),
+            ("1.1 Synthetic Topic A With Long Wrapped Text", 169.09, 182.37),
+            ("Continuation ......... 12", 182.89, 196.17),
+            ("1.2 Synthetic Topic B With Long Text ......... 15", 196.69, 209.97),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)
@@ -364,9 +364,8 @@ def test_r036_unnumbered_allcaps_chapter_title_grouped_correctly_not_reported():
     policy update (Anthony page 11): an unnumbered, no-"CHAPTER"-prefix,
     ALL-CAPS chapter title that wraps across two physical lines was
     previously swallowed into the PRECEDING, already-complete entry
-    ("2.5Conclusion...50" wrongly absorbing "HETEROGENEOUS CORAL SNAKE
-    COLOR PATTERN CONVERGENCE AS A" / "RESULT OF ENVIRONMENTAL SIMILARITY
-    IN THE NEOTROPICS...52"). The fix must recognize the all-caps title as
+    a complete numbered entry wrongly absorbing a following unnumbered
+    all-caps wrapped chapter title). The fix must recognize the all-caps title as
     a new entry (a real entry split, not a lucky side effect of both
     readings producing the same absent finding); under the production
     page-relative policy the tight gap between them is not reported on a
@@ -374,9 +373,9 @@ def test_r036_unnumbered_allcaps_chapter_title_grouped_correctly_not_reported():
     doc = make_mock_toc_doc(
         [
             ("2.5 Conclusion ......... 50", 150.0, 162.0),
-            ("HETEROGENEOUS CORAL SNAKE COLOR PATTERN CONVERGENCE AS A", 165.0, 178.28),
+            ("SYNTHETIC ALL CAPS CHAPTER TITLE THAT WRAPS AS A", 165.0, 178.28),
             (
-                "RESULT OF ENVIRONMENTAL SIMILARITY IN THE NEOTROPICS ......... 52",
+                "SECOND SYNTHETIC ALL CAPS TITLE LINE ......... 52",
                 178.80,
                 192.08,
             ),
@@ -399,26 +398,26 @@ def test_r036_praneeth_page11_real_geometry_all_examples_clean():
     doc = make_mock_toc_doc(
         [
             ("1    INTRODUCTION…....……………………………………", 141.49, 154.77),
-            ("1.1 Biological Importance of Proteins and Need for", 169.09, 182.37),
-            ("Characterization ……………………. ……………………..", 182.89, 196.17),
-            ("1.2 Protein Quantification Using Mass Spectrometry…………………...", 210.49, 223.77),
-            ("1.2.1 Introduction to protein quantification …………………...", 238.12, 251.40),
-            ("1.2.2 Relative protein quantification using mass spectrometry………", 265.72, 279.00),
-            ("1.2.3 Absolute quantitation in mass spectrometry proteomics…….", 293.32, 306.60),
-            ("1.3 Coulometric Mass Spectrometry……………………. ………….", 320.92, 334.20),
-            ("1.3.1 Introduction of coulometric mass spectrometry………………...", 348.52, 361.80),
-            ("1.3.2 Small molecule quantitation with coulometric spectrometry……", 376.12, 389.40),
-            ("1.3.3 Quantification of oxidizable peptides and proteins", 403.74, 417.02),
-            ("mass spectrometry………………………. ……………….", 417.54, 430.82),
-            ("1.3.4 Quantification of peptides and proteins with coulometric mass", 445.14, 458.42),
-            ("spectrometry using derivatization strategy …….……....", 458.94, 472.22),
-            ("1.3.5 Quantification of post-translationally modified peptides", 486.54, 499.82),
-            ("with coulometric mass spectrometry derivatization ….…….", 500.34, 513.62),
-            ("1.4 Ultrafast Protein Digestion by Microdroplets……………………", 527.94, 541.22),
-            ("1.4.1 Acceleration of reaction in charged microdroplets.…....", 555.54, 568.82),
-            ("1.4.2 Ultrafast microdroplet digestion.…....................", 583.17, 596.45),
-            ("1.4.3 Microdroplet digestion of LC-separated antibodies..", 610.77, 624.05),
-            ("1.4.4 Online digestion of LC-separated proteins fractionation ………", 638.37, 651.65),
+            ("1.1 Synthetic Topic A With Long Wrapped Text", 169.09, 182.37),
+            ("Continuation ……………………. ……………………..", 182.89, 196.17),
+            ("1.2 Synthetic Topic B With Long Text…………………...", 210.49, 223.77),
+            ("1.2.1 Synthetic Subtopic B1 …………………...", 238.12, 251.40),
+            ("1.2.2 Synthetic Subtopic B2………", 265.72, 279.00),
+            ("1.2.3 Synthetic Subtopic B3…….", 293.32, 306.60),
+            ("1.3 Synthetic Topic C……………………. ………….", 320.92, 334.20),
+            ("1.3.1 Synthetic Subtopic C1………………...", 348.52, 361.80),
+            ("1.3.2 Synthetic Subtopic C2……", 376.12, 389.40),
+            ("1.3.3 Synthetic Wrapped Subtopic C3", 403.74, 417.02),
+            ("continuation text………………………. ……………….", 417.54, 430.82),
+            ("1.3.4 Synthetic Wrapped Subtopic C4", 445.14, 458.42),
+            ("continuation text …….……....", 458.94, 472.22),
+            ("1.3.5 Synthetic Wrapped Subtopic C5", 486.54, 499.82),
+            ("continuation text ….…….", 500.34, 513.62),
+            ("1.4 Synthetic Topic D……………………", 527.94, 541.22),
+            ("1.4.1 Synthetic Subtopic D1.…....", 555.54, 568.82),
+            ("1.4.2 Synthetic Subtopic D2.…....................", 583.17, 596.45),
+            ("1.4.3 Synthetic Subtopic D3..", 610.77, 624.05),
+            ("1.4.4 Synthetic Subtopic D4 ………", 638.37, 651.65),
         ]
     )
     findings = check_pdf_toc_list_entry_spacing(doc)

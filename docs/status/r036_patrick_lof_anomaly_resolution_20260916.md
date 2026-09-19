@@ -31,11 +31,9 @@ gaps.
 
 ### Pair 2 (anomaly)
 
-- Previous entry (reconstructed, single line): `5.1 One Newton iteration
-  (5.6) with ω= 0.5,1,2 where Γ∗is a disk of radius` — first-line x0 =
+- Previous entry (reconstructed, single line): `[private LOF caption text redacted]` — first-line x0 =
   137.29, last-line y0 = 228.52.
-- Next entry (reconstructed, single line): `2.5usingaplanewavewithincident
-  angleϑ = 0.............` — first-line x0 = **148.98** (caption-
+- Next entry (reconstructed, single line): `[private continuation text redacted]` — first-line x0 = **148.98** (caption-
   continuation indent, not the entry-number column), first-line y0 =
   244.20.
 - Measured pitch = 244.20 − 228.52 = **15.673 pt** (one single-line
@@ -47,12 +45,10 @@ gaps.
 
 ### Pair 7 (anomaly)
 
-- Previous entry (reconstructed, single line): `5.6 OneNewtoniteration
-  (5.6)wherethescattererΓ∗isanellipse.Figure` — first-line x0 = 137.29,
+- Previous entry (reconstructed, single line): `[private LOF caption text redacted]` — first-line x0 = 137.29,
   last-line y0 = 447.00.
-- Next entry (reconstructed, two lines, wrapped): `5.6aplotsaplanewave
-  reconstructionandFigures5.6b,5.6cplotsa` (first-line x0 = 148.98) then
-  `beamreconstructionwithRinc= 4,ϑ = 0andc = 1,5.` (first-line y0 =
+- Next entry (reconstructed, two lines, wrapped): `[private continuation text redacted]` (first-line x0 = 148.98) then
+  `[private continuation text redacted]` (first-line y0 =
   477.02).
 - Measured pitch = 462.68 − 447.00 = **15.674 pt**; local single-line
   pitch = 14.347 pt; normalized ratio = 1.092.
@@ -70,18 +66,15 @@ used as the ground-truth proxy; both regions were cross-checked against the
 ### Pair 2 region (5.1)
 
 Raw words at y0 = 229.8 (5.1's first visual line) include `5.1`, `One`,
-`Newton`, `iteration`, `(5.6)`, `with`, `ω`, `=`, `0.5,`, `1,`, `2`,
-`where`, `a`, `disk`, `of`, `radius` — but **not** the expected
-`Γ∗is a disk` word group: a separate `Γ∗is` word sits at y0 = 228.5
+the expected first-line word sequence — but **not** the expected
+one expected word group: a separate detached word group sits at y0 = 228.5
 (x0 = 406.2), detached from the main line by a sub-point baseline
 difference. The entry's true first visual line is
-`5.1 One Newton iteration (5.6) with ω = 0.5, 1, 2 where Γ∗is a disk of
-radius`, but the reconstruction's *measured* last line and the next
+`[private LOF caption text redacted]`, but the reconstruction's *measured* last line and the next
 entry's first line do not correspond to the two visual lines that bound a
 single inter-entry gap on the rendered page.
 
-The next entry's first visual line (y0 = 244.2) reads `2.5 using a plane
-wave with incident angle ϑ = 0. . . . . 61` — a continuation-indented line
+The next entry's first visual line (y0 = 244.2) reads `[private continuation text redacted]` — a continuation-indented line
 (x0 = 149.0) with a dot-leader run and a page number, i.e. it is the
 continuation of 5.1's caption, not the first line of a new entry. The
 grouping logic nonetheless split it into its own reconstructed entry
@@ -91,12 +84,10 @@ previous line has no dot leaders of its own.
 
 ### Pair 7 region (5.6)
 
-Raw words at y0 = 448.3 (5.6's first visual line) read `5.6 One Newton
-iteration (5.6) where the scatterer Γ∗is an ellipse. Figure` — a single
-visual line. The next visual line (y0 = 462.7) reads `5.6a plots a plane
-wave reconstruction and Figures 5.6b, 5.6c plots a` at the caption-
+Raw words at y0 = 448.3 (5.6's first visual line) read `[private LOF caption text redacted]` — a single
+visual line. The next visual line (y0 = 462.7) reads `[private continuation text redacted]` at the caption-
 continuation indent (x0 = 149.0), and the line after (y0 = 477.0) reads
-`beam reconstruction with Rinc = 4, ϑ = 0 and c = 1, 5. . . . . 64` with
+`[private continuation text redacted]` with
 a dot-leader run and a page number. These are the continuation of 5.6's
 own caption, not a separate entry. The grouping logic split the
 continuation-indented line into its own reconstructed (wrapped) entry, so
@@ -108,20 +99,20 @@ single-line pitch (15.674 pt), not the inter-entry gap that exists between
 
 | Case | Question | Answer |
 | --- | --- | --- |
-| Pair 2 | Separate LOF entries? | No — "2.5 using…" is the continuation of 5.1's caption. |
+| Pair 2 | Separate LOF entries? | No -- the next reconstructed entry is actually a continuation line of the previous caption. |
 | Pair 2 | Caption wrap? | Yes — 5.1's caption wraps; extraction detached one line. |
-| Pair 2 | Extraction split? | Yes — `Γ∗is` detached; continuation line mis-grouped as a new entry. |
+| Pair 2 | Extraction split? | Yes -- a word fragment detached; continuation line mis-grouped as a new entry. |
 | Pair 2 | Figure number detached? | No. |
 | Pair 2 | Page-number/dot-leader mistaken for content? | No — the page number (61) and dot leaders are on the continuation line, correctly excluded from the measured pitch. |
-| Pair 2 | Gap tighter than neighbors on rendered page? | No — the visual inter-entry gap (end of 5.1's caption → start of 5.2) is the normal ~22 pt rhythm. |
+| Pair 2 | Gap tighter than neighbors on rendered page? | No -- the visual inter-entry gap to the next real entry is the normal ~22 pt rhythm. |
 | Pair 2 | Typography/geometry artifact? | Yes. |
 | **Pair 2** | **Classification** | **STRUCTURAL_GROUPING_ARTIFACT** |
-| Pair 7 | Separate LOF entries? | No — "5.6a plots…" and "beam reconstruction…" are the continuation of 5.6's caption. |
+| Pair 7 | Separate LOF entries? | No -- the reconstructed wrapped entry is actually continuation text of the previous caption. |
 | Pair 7 | Caption wrap? | Yes — 5.6's caption wraps across two continuation lines. |
 | Pair 7 | Extraction split? | Yes — continuation lines mis-grouped as a separate (wrapped) entry. |
 | Pair 7 | Figure number detached? | No. |
 | Pair 7 | Page-number/dot-leader mistaken for content? | No — the page number (64) and dot leaders are on the final caption line. |
-| Pair 7 | Gap tighter than neighbors on rendered page? | No — the visual inter-entry gap (end of 5.6's caption → start of 5.7) is the normal ~22 pt rhythm. |
+| Pair 7 | Gap tighter than neighbors on rendered page? | No -- the visual inter-entry gap to the next real entry is the normal ~22 pt rhythm. |
 | Pair 7 | Typography/geometry artifact? | Yes. |
 | **Pair 7** | **Classification** | **STRUCTURAL_GROUPING_ARTIFACT** |
 
@@ -134,20 +125,20 @@ true (normal-rhythm) visual gap between two entries.
 
 | pair | previous (first line) | next (first line) | pitch | local | ratio | wraps | ME score (before) | ME score (after) | outcome (before) | outcome (after) |
 | ---: | --- | --- | ---: | ---: | ---: | :---: | ---: | ---: | --- | --- |
-| 0 | 4.5 Numerical validation… (wrapped) | 4.6 The pressure… (wrapped) | 23.61 | 14.35 | 1.646 | WW | 1.244 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
-| 1 | 4.6 The pressure… (wrapped) | 5.1 One Newton… | 22.28 | 14.35 | 1.553 | W- | 1.000 | 1.13 | SUPPRESSED | SUPPRESSED |
-| 2 | 5.1 One Newton… | 2.5 using a plane wave… | 15.67 | 14.35 | 1.092 | -- | 0.683 | abstain | **ANOMALY** | INSUFFICIENT_CONTEXT |
-| 3 | 2.5 using a plane wave… | 5.2 One Newton… | 22.28 | 14.35 | 1.553 | -- | 1.000 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
-| 4 | 5.2 One Newton… | 5.3 One Newton… (wrapped) | 23.61 | 14.35 | 1.646 | -W | 1.060 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
-| 5 | 5.3 One Newton… (wrapped) | 5.5 One Newton… (wrapped) | 22.28 | 14.35 | 1.553 | WW | 1.000 | 1.000 | SUPPRESSED | SUPPRESSED |
-| 6 | 5.5 One Newton… (wrapped) | 5.6 One Newton… | 22.28 | 14.35 | 1.553 | W- | 1.000 | 1.17 | SUPPRESSED | SUPPRESSED |
-| 7 | 5.6 One Newton… | 5.6a plots a plane wave… (wrapped) | 15.67 | 14.35 | 1.092 | -W | 0.703 | abstain | **ANOMALY** | INSUFFICIENT_CONTEXT |
-| 8 | 5.6a plots… (wrapped) | 5.7 Three Newton… (wrapped) | 22.28 | 14.35 | 1.553 | WW | 1.000 | 0.971 | SUPPRESSED | SUPPRESSED |
-| 9 | 5.7 Three Newton… (wrapped) | 5.8 The curvature… | 23.61 | 14.35 | 1.646 | W- | 1.060 | 1.060 | SUPPRESSED | SUPPRESSED |
-| 10 | 5.8 The curvature… | 5.9 Three Newton… (wrapped) | 22.28 | 14.35 | 1.553 | -W | 0.971 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
-| 11 | 5.9 Three Newton… (wrapped) | 5.10 The curvature… (wrapped) | 23.61 | 14.35 | 1.646 | WW | 1.060 | 1.060 | SUPPRESSED | SUPPRESSED |
-| 12 | 5.10 The curvature… (wrapped) | 5.11 Three Newton… (wrapped) | 22.28 | 14.35 | 1.553 | WW | 1.000 | 1.000 | SUPPRESSED | SUPPRESSED |
-| 13 | 5.11 Three Newton… (wrapped) | 5.12 Three Newton… (wrapped) | 22.28 | 14.35 | 1.553 | WW | 0.971 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
+| 0 | wrapped entry A | wrapped entry B | 23.61 | 14.35 | 1.646 | WW | 1.244 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
+| 1 | wrapped entry B | single-line entry C | 22.28 | 14.35 | 1.553 | W- | 1.000 | 1.13 | SUPPRESSED | SUPPRESSED |
+| 2 | single-line entry C | continuation artifact D | 15.67 | 14.35 | 1.092 | -- | 0.683 | abstain | **ANOMALY** | INSUFFICIENT_CONTEXT |
+| 3 | continuation artifact D | single-line entry E | 22.28 | 14.35 | 1.553 | -- | 1.000 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
+| 4 | single-line entry E | wrapped entry F | 23.61 | 14.35 | 1.646 | -W | 1.060 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
+| 5 | wrapped entry F | wrapped entry G | 22.28 | 14.35 | 1.553 | WW | 1.000 | 1.000 | SUPPRESSED | SUPPRESSED |
+| 6 | wrapped entry G | single-line entry H | 22.28 | 14.35 | 1.553 | W- | 1.000 | 1.17 | SUPPRESSED | SUPPRESSED |
+| 7 | single-line entry H | continuation artifact I | 15.67 | 14.35 | 1.092 | -W | 0.703 | abstain | **ANOMALY** | INSUFFICIENT_CONTEXT |
+| 8 | continuation artifact I | wrapped entry J | 22.28 | 14.35 | 1.553 | WW | 1.000 | 0.971 | SUPPRESSED | SUPPRESSED |
+| 9 | wrapped entry J | single-line entry K | 23.61 | 14.35 | 1.646 | W- | 1.060 | 1.060 | SUPPRESSED | SUPPRESSED |
+| 10 | single-line entry K | wrapped entry L | 22.28 | 14.35 | 1.553 | -W | 0.971 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
+| 11 | wrapped entry L | wrapped entry M | 23.61 | 14.35 | 1.646 | WW | 1.060 | 1.060 | SUPPRESSED | SUPPRESSED |
+| 12 | wrapped entry M | wrapped entry N | 22.28 | 14.35 | 1.553 | WW | 1.000 | 1.000 | SUPPRESSED | SUPPRESSED |
+| 13 | wrapped entry N | wrapped entry O | 22.28 | 14.35 | 1.553 | WW | 0.971 | abstain | SUPPRESSED | INSUFFICIENT_CONTEXT |
 
 Pair 2 and pair 7 are isolated because of *entry reconstruction* (the
 grouping logic split wrapped captions' continuation lines into their own

@@ -15,9 +15,10 @@ _Last updated: 2026-09-18, during the R036 final integration-readiness pass on
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
-| R036 relation to `origin/main` at preflight | 5 commits ahead, 0 behind |
+| R036 relation to `origin/main` at preflight | 6 commits ahead, 0 behind |
 | Deployment | Not updated by this pass |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
+| R036 final-pass validation | Re-run during final R036 pass; see final integration report |
 | Rule inventory | P001–P085 implemented; no remaining non-inventory project task IDs; next new internal rule ID is P086 |
 
 ## Current Evaluation Corpus

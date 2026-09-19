@@ -25,9 +25,9 @@ for all three cases reported by QA:
 
 | Case | Number span | Title span | Same y0? | Gap (number x1 → title x0) |
 |---|---|---|---|---|
-| Muyeed p13 | `"7"` @ x0=108.36 | `"CONTROLLING NEURAL NETWORK GENERALIZATION..."` @ x0=124.75 | y0=622.77 both | 10.5pt |
-| Patrick p7 | `"2.2"` @ x0=124.39 | `"Scattering by Two Elastic Disks..."` @ x0=151.32 | y0=487.30 both | 12.0pt |
-| Youra p12 | `"1.1"` @ x0=125.10 | `"Solar"` (title start) @ x0=152.59 | y0=163.02 both | 12.5pt |
+| Muyeed p13 | leading number @ x0=108.36 | synthetic title span @ x0=124.75 | y0=622.77 both | 10.5pt |
+| Patrick p7 | leading number @ x0=124.39 | synthetic title span @ x0=151.32 | y0=487.30 both | 12.0pt |
+| Youra p12 | leading number @ x0=125.10 | synthetic title start @ x0=152.59 | y0=163.02 both | 12.5pt |
 
 A lone detached number fragment is either too short to survive
 `MIN_CONTINUATION_TEXT_LEN` (8 chars -- "2.2", "1.1.1") or, for a bare
@@ -40,9 +40,8 @@ fix. This broke two things downstream:
 1. **Entry-boundary detection** (`_looks_like_new_entry_start_given_previous`):
    a numbered title with no number in its own text no longer matches
    `NEW_ENTRY_START_RE`, so it can be silently absorbed as a
-   "continuation" of the preceding entry (confirmed: Muyeed's "6.9
-   Conclusion" was swallowing "7 CONTROLLING NEURAL NETWORK
-   GENERALIZATION").
+   "continuation" of the preceding entry (confirmed on a real
+   level-2-to-top-level transition).
 2. **Structural exemption classification** (`_classify_entry_level` /
    `_is_exempt_structural_transition`): with no digit prefix,
    `_classify_entry_level` returns `"unknown"` for both sides of a pair,
@@ -53,7 +52,7 @@ fix. This broke two things downstream:
 
 A second, related artifact was found while validating the fix: some rows
 also detach a **trailing dot-leader run** from the title (observed gap
-~0.3pt, e.g. Youra `"1 INTRODUCTION"` / `"..............."`). Left alone,
+~0.3pt, e.g. a heading / detached dot-leader fragment). Left alone,
 that stray fragment becomes a spurious second "physical line" of what is
 really a single-line entry, corrupting the September 14 pitch model's
 same-entry internal-pitch calibration (`_internal_wrap_pitches_by_role`)
@@ -181,12 +180,11 @@ strength:
 1. **Recovered parent-to-first-child exemption.** A conservative,
    evidence-backed lower bound is 32 (the pre-fix static per-side audit
    above) -- confirmed with full detail for the three original QA cases
-   (Muyeed "7"→"7.1", Patrick "2.2"→"2.2.1", Youra "1.1"→"1.1.1", plus
-   Muyeed's "6.9"→"7" finishing-into-heading case, all now exempt and
+   (same-document top-level-to-first-child transitions and a finishing-into-heading case, all now exempt and
    spot-checked directly against `_is_exempt_structural_transition`).
 2. **Corrected entry grouping.** Recovering a heading's own number often
    also fixes which physical lines get grouped into which entry (the
-   "6.9 Conclusion" / "7 CONTROLLING..." merge bug above is one instance)
+   level-2-to-top-level merge bug above is one instance)
    -- this changes which pairs exist to be evaluated at all, independent
    of the exemption outcome, and is not captured by the static per-side
    audit.

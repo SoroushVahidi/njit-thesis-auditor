@@ -7,9 +7,8 @@ separate line objects sharing one baseline. A lone number fragment was
 previously discarded as noise, breaking both entry-boundary detection and
 the structural parent-to-first-child spacing exemption. See
 docs/status/r036_split_section_number_recovery_20260914.md for the full
-forensic derivation (Muyeed "7"/"CONTROLLING NEURAL NETWORK
-GENERALIZATION...", Patrick "2.2"/"Scattering by Two Elastic Disks...",
-Youra "1.1"/"Solar Wind...").
+forensic derivation (real cases are represented here with synthetic entry
+text and the same geometry).
 """
 
 from njit_auditor.pdf_models import (
@@ -53,10 +52,10 @@ def _merged_texts(lines: list[PdfTextLine]) -> list[str]:
 def test_detached_bare_chapter_number_7_reattaches():
     lines = [
         _line("7", x0=108.36, y0=622.77, x1=114.22),
-        _line("CONTROLLINGNEURALNETWORKGENERALIZATION.......", x0=124.75, y0=622.77),
+        _line("SYNTHETICTOPLEVELHEADING.......", x0=124.75, y0=622.77),
     ]
     result = _merged_texts(lines)
-    assert result == ["7 CONTROLLINGNEURALNETWORKGENERALIZATION......."]
+    assert result == ["7 SYNTHETICTOPLEVELHEADING......."]
 
 
 def test_detached_level2_number_7_1_reattaches():
@@ -71,41 +70,41 @@ def test_detached_level2_number_7_1_reattaches():
 def test_detached_number_2_2_reattaches():
     lines = [
         _line("2.2", x0=124.39, y0=487.30, x1=139.36),
-        _line("ScatteringbyTwoElasticDisksofFluidWave.............", x0=151.32, y0=487.30),
+        _line("SyntheticLevelTwoEntryText.............", x0=151.32, y0=487.30),
     ]
     result = _merged_texts(lines)
-    assert result == ["2.2 ScatteringbyTwoElasticDisksofFluidWave............."]
+    assert result == ["2.2 SyntheticLevelTwoEntryText............."]
 
 
 def test_detached_number_2_2_1_reattaches():
     lines = [
         _line("2.2.1", x0=151.31, y0=510.91, x1=175.39),
-        _line("Fourierseriessolution.......................", x0=186.45, y0=510.91),
+        _line("SyntheticLevelThreeEntry.......................", x0=186.45, y0=510.91),
     ]
     result = _merged_texts(lines)
-    assert result == ["2.2.1 Fourierseriessolution......................."]
+    assert result == ["2.2.1 SyntheticLevelThreeEntry......................."]
 
 
 def test_detached_number_1_1_reattaches():
     lines = [
         _line("1.1", x0=125.10, y0=163.02, x1=140.06),
         _line(
-            "SolarWind-Magnetosphere-IonosphereCouplingastheFramework",
+            "SyntheticWrappedEntryStartText",
             x0=152.59,
             y0=163.02,
         ),
     ]
     result = _merged_texts(lines)
-    assert result == ["1.1 SolarWind-Magnetosphere-IonosphereCouplingastheFramework"]
+    assert result == ["1.1 SyntheticWrappedEntryStartText"]
 
 
 def test_detached_number_1_1_1_reattaches():
     lines = [
         _line("1.1.1", x0=152.59, y0=200.99, x1=176.67),
-        _line("Solar-windforcingofgeospace..................", x0=188.46, y0=200.99),
+        _line("SyntheticNestedEntryText..................", x0=188.46, y0=200.99),
     ]
     result = _merged_texts(lines)
-    assert result == ["1.1.1 Solar-windforcingofgeospace.................."]
+    assert result == ["1.1.1 SyntheticNestedEntryText.................."]
 
 
 # ---------------------------------------------------------------------------
@@ -119,12 +118,12 @@ def test_page_number_fragment_not_attached_as_prefix():
     the leading number (small x0, immediately left of the title) merges."""
     lines = [
         _line("7", x0=108.36, y0=622.77, x1=114.22),
-        _line("CONTROLLINGNEURALNETWORKGENERALIZATION.......", x0=124.75, y0=622.77, x1=511.47),
+        _line("SYNTHETICTOPLEVELHEADING.......", x0=124.75, y0=622.77, x1=511.47),
         _line("120", x0=522.81, y0=622.77, x1=540.38),
     ]
     result = _merged_texts(lines)
     assert result == [
-        "7 CONTROLLINGNEURALNETWORKGENERALIZATION.......",
+        "7 SYNTHETICTOPLEVELHEADING.......",
         "120",
     ]
 
@@ -233,7 +232,7 @@ def test_recovered_parent_to_first_child_is_exempt():
             [("6.9 Conclusion ......... 50", 151.68, 150.0, 162.0)],
             [
                 ("7", 108.36, 172.0, 184.0),
-                ("CONTROLLING NEURAL NETWORK GENERALIZATION ....... 51", 124.75, 172.0, 184.0),
+                ("SYNTHETIC TOP LEVEL HEADING ....... 51", 124.75, 172.0, 184.0),
             ],
             [
                 ("7.1", 124.75, 176.0, 188.0),
@@ -263,7 +262,7 @@ def test_recovered_same_level_peers_recognized_not_reported():
         [
             [
                 ("2.2", 124.39, 150.0, 162.0),
-                ("Scattering by Two Disks of Fluid Wave ......... 25", 151.32, 150.0, 162.0),
+                ("Synthetic Level Two Entry ......... 25", 151.32, 150.0, 162.0),
             ],
             [
                 ("2.3", 124.39, 166.0, 178.0),

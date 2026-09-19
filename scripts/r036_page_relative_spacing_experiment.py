@@ -124,8 +124,6 @@ def _candidate_dict(evaluated: Any) -> dict[str, Any]:
         "page": candidate.page_number,
         "section_type": candidate.section_type,
         "entry_pair_index": candidate.entry_pair_index,
-        "previous_entry": candidate.previous_entry,
-        "next_entry": candidate.next_entry,
         "previous_level": candidate.previous_level,
         "next_level": candidate.next_level,
         "previous_wraps": candidate.previous_wraps,
@@ -476,10 +474,13 @@ def run() -> dict[str, Any]:
             "closely_represented": 47,
             "not_represented_or_genuinely_unreviewed": 18,
         },
+        "candidate_detail_policy": (
+            "Per-candidate extracted TOC/LOT/LOF text is omitted from the checked-in "
+            "artifact because the source PDFs are private evaluation dissertations."
+        ),
         "current_production_finding_analysis": _make_unrepresented_rows(
             all_evaluated, production_keys, reviewed_post_examples
         ),
-        "all_candidates": [_candidate_dict(item) for item in all_evaluated],
     }
 
     OUTPUT_JSON_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")

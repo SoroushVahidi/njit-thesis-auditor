@@ -11,8 +11,8 @@ those two lines belong to the same logical entry (a wrapped title's own
 continuation -- expected single spaced) or to two different, consecutive
 entries (expected double spaced). See
 ``docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md`` for the
-forensic measurement (on the real Praneeth PDF) that this model is based
-on: a genuinely double-spaced entry pair advances by *exactly* 2x the
+forensic measurement that this model is based on: a genuinely
+double-spaced entry pair advances by *exactly* 2x the
 page's own single-line pitch (baseline-to-baseline), never by 2x the
 nominal font size -- the previous bbox-gap/font-size model conflated the
 two and measured real double spacing at ~1.19x, below its own 1.4x
@@ -165,9 +165,9 @@ def _is_exempt_structural_transition(prev_level: str, next_level: str) -> bool:
     2. *next* is itself a top-level structural row (``toc_level_1`` --
        CHAPTER/APPENDIX/REFERENCES/etc., see ``_classify_entry_level``)
        and *prev* is at a strictly deeper level -- finishing a nested
-       subsection and entering a new top-level section (e.g. "3.5
-       Conclusion" -> "APPENDIX", the reviewed Anthony p12 case: a
-       level-2 entry finishing right before an APPENDIX heading). A
+       subsection and entering a new top-level section (the reviewed
+       structural-boundary case: a level-2 entry finishing right before
+       an APPENDIX heading). A
        top-level-to-top-level peer pair (e.g. "Chapter 3" -> "Chapter 4")
        is deliberately NOT covered by this shape -- ``prev_level`` must
        differ from ``toc_level_1``, or two chapter headings back-to-back
@@ -212,13 +212,13 @@ def _internal_wrap_pitches_by_role(
     """Bucket every wrapped-title's own internal (same-entry, consecutive-
     physical-line) baseline-to-baseline pitch into ``(heading_pitches,
     entry_pitches)``, split by the structural role of the entry it came
-    from (a top-level ``toc_level_1`` heading such as "3 ULTRAFAST
-    MICRODROPLET DIGESTION..." vs an ordinary numbered sub-entry).
+    from (a top-level ``toc_level_1`` heading vs an ordinary numbered
+    sub-entry).
 
     A page can legitimately use a different single-line pitch for its
     top-level headings than for its ordinary entries even at the *same*
-    font size (confirmed on the real Praneeth PDF, page 12: both measure
-    12pt, but a wrapped chapter heading's own two physical lines advance
+    font size (confirmed on the real corpus: both measure 12pt in the
+    motivating case, but a wrapped chapter heading's own two physical lines advance
     by 20.6pt while an ordinary wrapped sub-entry advances by 13.8pt --
     see docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md).
     A single page-wide pitch blindly mixes these two populations and can

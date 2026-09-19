@@ -39,7 +39,7 @@ font), the true single-line baseline-to-baseline pitch (`next.bbox.y0 -
 prev.bbox.y0` between two physical lines of the *same* wrapped title) is
 **13.8pt**. A genuinely double-spaced entry-to-entry transition advances by
 **exactly 2x that** — **27.6pt** — confirmed on Praneeth's own page 11 (the
-gap from "Characterization..." to "1.2 Protein Quantification...", entry
+gap between a wrapped-entry continuation and the next numbered entry, entry
 1.1 to entry 1.2, is 210.49 − 182.89 = 27.60pt) and independently on page 12
 (27.6pt again, different entries, same document) and on Sebastian's page 9
 (the one real wrapped title there also has an internal pitch of 13.8pt).
@@ -123,7 +123,7 @@ fixed, all three in `NEW_ENTRY_START_RE` /
 
 1. **Bare-numbered top-level headings** ("3 ULTRAFAST MICRODROPLET
    DIGESTION OF PROTEINS FOLLOWING" / "CHROMATOGRAPHIC SEPARATION...",
-   Praneeth page 12; "4.BINOCULARLY NORMAL CONTROLS..." with the space
+   Praneeth page 12; a numbered all-caps heading with a dropped space with the space
    after the period dropped by extraction, Sebastian page 9) were not
    recognized as starting a new entry because they have neither a decimal
    sub-number nor the word "CHAPTER"/"APPENDIX", and their own first
@@ -132,16 +132,14 @@ fixed, all three in `NEW_ENTRY_START_RE` /
    `NUMERIC_PREFIX_RE` in `pdf_toc_alignment.py` treats as an entry
    prefix elsewhere in this pipeline).
 2. **Other structural headings** — "REFERENCES", "BIBLIOGRAPHY", "VITA",
-   "GLOSSARY", "INDEX" (Anthony page 12: "APPENDIX ... 80" wrongly
-   swallowing "REFERENCES ... 117"; Patrick page 8, same shape) — fail
+   "GLOSSARY", "INDEX" (Anthony page 12: one structural row wrongly swallowing the following references row; Patrick page 8, same shape) — fail
    `_likely_entry_line`'s all-caps-short-line noise filter and have no
    recognized prefix. Added as literal keyword alternatives to
    `NEW_ENTRY_START_RE` (mirrors the keyword list already in
    `_classify_entry_level`, `pdf_toc_list_entry_spacing.py`).
-3. **Unnumbered, no-prefix ALL-CAPS chapter titles** (Anthony page 11:
-   "HETEROGENEOUS CORAL SNAKE COLOR PATTERN CONVERGENCE AS A" / "RESULT OF
-   ENVIRONMENTAL SIMILARITY IN THE NEOTROPICS...52", wrongly swallowed into
-   the preceding "2.5Conclusion...50") have no recognizable shape at all —
+3. **Unnumbered, no-prefix ALL-CAPS chapter titles** (a real wrapped
+   chapter title wrongly swallowed into the preceding complete numbered
+   entry) have no recognizable shape at all —
    this is the hard case: the first physical line of a genuinely new,
    unnumbered wrapped title is textually indistinguishable from an
    ordinary continuation line. The signal that does generalize: if the
@@ -197,7 +195,7 @@ Every document's total finding count went down or stayed the same — no
 document became newly noisy. The 3 new findings (2 in Muyeed, 1 in Patrick)
 are pairs that were previously invisible to the checker entirely because
 they were on the wrong side of one of the three grouping bugs above (e.g.
-Patrick's `APPENDIX:FORMULAS` → `REFERENCES`, ratio 1.00 — exactly
+a structural appendix-to-references transition, ratio 1.00 — exactly
 single-spaced, genuinely unmeasured before the REFERENCES-grouping fix, now
 correctly evaluated); none is evidence of new over-triggering from the
 measurement-model change itself. Muyeed and Patrick still carry the

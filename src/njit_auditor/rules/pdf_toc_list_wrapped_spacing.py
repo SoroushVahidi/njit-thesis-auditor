@@ -32,9 +32,8 @@ ENTRY_START_BELOW_HEADING_PT = 20.0
 # number in three separate tab-stop columns on one visual row. PyMuPDF's
 # text-extraction line segmentation treats each column as its own line
 # object even though all three share one baseline (identical, or within
-# sub-point rounding of, y0) -- confirmed on the real corpus (Muyeed "7" /
-# "CONTROLLING NEURAL NETWORK GENERALIZATION..."; Patrick "2.2" /
-# "Scattering by Two Elastic Disks..."; Youra "1.1" / "Solar Wind..."),
+# sub-point rounding of, y0) -- confirmed on the real corpus and represented
+# in tests with synthetic entry text plus matching geometry,
 # see docs/status/r036_split_section_number_recovery_20260914.md. A lone
 # number fragment is either too short to survive
 # ``MIN_CONTINUATION_TEXT_LEN`` (e.g. "2.2") or, for a bare integer like
@@ -45,7 +44,7 @@ ENTRY_START_BELOW_HEADING_PT = 20.0
 # first-child spacing exemption (``_classify_entry_level`` sees no digit
 # prefix and returns "unknown"). The same row-splitting also detaches a
 # trailing dot-leader run from its title on some rows (observed gap
-# ~0.3pt, e.g. Youra "1 INTRODUCTION" / "..............."); left alone,
+# ~0.3pt on a numbered heading / dot-leader split); left alone,
 # that stray fragment becomes a second "physical line" of what is really
 # a single-line entry, corrupting the Ester 2026-09-14 pitch model's
 # same-entry internal-pitch calibration with a near-zero sample. Both are
@@ -67,10 +66,9 @@ MAX_NUMBER_TO_TITLE_GAP_PT = 40.0
 # The bare-number alternative (``\d+(?:\.|\s)\s*(?-i:[A-Z])``) recognizes a
 # top-level chapter/section heading numbered without the word "CHAPTER" and
 # without a decimal sub-number, in either extraction style actually seen in
-# the real corpus: with a space ("3 ULTRAFAST MICRODROPLET DIGESTION...")
-# or with the space dropped after the period ("4.BINOCULARLY NORMAL
-# CONTROLS...", "1.INTRODUCTION" -- a PDF text-extraction artifact, not a
-# real missing space in the source document). Both match the same shape
+# the real corpus: with a space after the number or with the space dropped
+# after the period (a PDF text-extraction artifact, not a real missing space
+# in the source document). Both match the same shape
 # ``NUMERIC_PREFIX_RE`` in pdf_toc_alignment.py already treats as an entry
 # prefix elsewhere in this pipeline. Without this, a bare-numbered heading
 # whose own title wraps across two physical lines is invisible to
@@ -80,11 +78,7 @@ MAX_NUMBER_TO_TITLE_GAP_PT = 40.0
 # -- corrupting any single-vs-double-spacing measurement that trusts the
 # resulting (bogus, oversized) "entry" as calibration data. See
 # docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md for the
-# real Praneeth page-12 case ("2.4 Conclusions" wrongly swallowing "3
-# ULTRAFAST MICRODROPLET DIGESTION OF PROTEINS FOLLOWING") and Sebastian
-# page-9 case ("Discussion" wrongly swallowing "4.BINOCULARLY NORMAL
-# CONTROLS COMPARED TO TYPICALLY-" / "OCCCURING CONVERGENCE
-# INSUFFICIENCY") this fixes. The uppercase requirement (scoped off from
+# real cases this fixes. The uppercase requirement (scoped off from
 # the outer IGNORECASE via ``(?-i:...)``) keeps this narrow to ALL-CAPS/
 # Title-Case heading style and avoids matching an ordinary LOT/LOF caption
 # continuation sentence that happens to start with a lowercase numeral-led
@@ -97,14 +91,13 @@ MAX_NUMBER_TO_TITLE_GAP_PT = 40.0
 # pdf_toc_list_entry_spacing.py already recognizes as ``toc_level_1`` (kept
 # as a literal, cross-referenced list here rather than a shared import to
 # avoid a deeper cross-module refactor for this fix). Without them, a
-# short (<=4-word) all-caps heading like "REFERENCES ... 117" fails
+# short (<=4-word) all-caps structural heading fails
 # ``_likely_entry_line``'s all-caps-short-line filter (designed to reject
 # noise, not to reject a genuine structural heading) and, since it also
 # correctly fails ``_is_wrap_continuation_pair`` (it has its own page
 # number), fell through the boundary check entirely and was silently
 # appended to the PRECEDING entry by ``_group_lines_into_entries``'s
-# default-to-continuation behavior -- the real Anthony page-12 case this
-# fixes ("APPENDIX ... 80" wrongly swallowing "REFERENCES ... 117").
+# default-to-continuation behavior -- the real structural-row case this fixes.
 NEW_ENTRY_START_RE = re.compile(
     r"^(?:chapter|appendix|references|bibliography|vita|glossary|index"
     r"|\d+\.\d+|\d+(?:\.|\s)\s*(?-i:[A-Z]))",
@@ -173,13 +166,10 @@ def _looks_like_new_entry_start_given_previous(
     when *cleaned* itself has no dot leaders yet -- e.g. because it is the
     first physical line of the NEXT entry's own wrapped (multi-line)
     title/caption, which by definition has no dot leaders on this line.
-    Two real, previously-mis-grouped cases this covers: Anthony page 11
-    (an unnumbered, no-prefix ALL-CAPS chapter title -- "HETEROGENEOUS
-    CORAL SNAKE COLOR PATTERN CONVERGENCE AS A" / "RESULT OF ENVIRONMENTAL
-    SIMILARITY IN THE NEOTROPICS...52" -- swallowed into the preceding,
-    page-numbered "2.5Conclusion...50") and Anthony page 14's List of
-    Figures (a wrapping figure caption's first line swallowed into the
-    preceding, page-numbered caption).
+    Two real, previously-mis-grouped cases this covers: an unnumbered,
+    no-prefix all-caps chapter title swallowed into the preceding complete
+    numbered entry, and a wrapping List of Figures caption's first line
+    swallowed into the preceding page-numbered caption.
 
     Requiring an actual dot-leader run on *previous* in addition to
     ``_line_has_page_number`` (rather than trusting either alone) matters
