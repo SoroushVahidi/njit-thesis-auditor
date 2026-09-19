@@ -100,6 +100,12 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     and 83 (11.0pt) sit past the natural gap above that cluster and remain
     flagged. See
     docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md.
+
+    P015 is 1 under the 2026-09 R015 paragraph-boundary follow-up: a later
+    bold run-in paragraph start is now eligible for missing-indent reporting
+    instead of being heading-exempt. This mirrors Ester's Youra page-101
+    correction: report the true paragraph-start line, not the following
+    continuation line.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -122,7 +128,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0
     assert by_rule["P027"] == 0
-    assert by_rule["P015"] == 0
+    assert by_rule["P015"] == 1
     assert by_rule["P051"] == 0
 
 

@@ -4,14 +4,14 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-19, after the R036 merge and post-merge R011 targeted
-follow-up validation._
+_Last updated: 2026-09-18, on the R015 Ester paragraph-indentation follow-up
+branch._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `88ffe32043fa0c909b4568e380cb2d6aac72fc1e` |
+| Current `origin/main` SHA | `40d285a4f03cf393f7497b1a795f00642d1bc0ad` |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -97,6 +97,45 @@ Primary R011 records:
 - `tests/test_p011_esther_r011_batch_2026_08.py`
 - `tests/test_p011_bottom_margin_synthetic.py`
 
+## R015 Current Follow-Up State
+
+R015/P015 covers body paragraph indentation. The current follow-up branch is
+`fix/r015-ester-paragraph-indentation-followup-20260918`; it is not merged.
+
+Ester's latest adjudication says the Youra physical-page-101 R015 candidate was
+reported on the wrong line: the following continuation line should not be
+reported, but the actual paragraph-start line immediately above is a real R015
+missing-indent violation and should be reported. Earlier adjudicated false
+positives on Youra physical page 86, Muyeed physical page 144, and Philip
+physical page 17 must remain non-reported because they are continuation/math
+fragmentation cases rather than true paragraph starts.
+
+The selected policy keeps the existing geometry-based paragraph grouping and
+math/special-character reassembly, but separates run-in paragraphs from heading
+exemptions:
+
+- bold run-in phrase plus same-row regular continuation remains one paragraph;
+- the bold run-in line is the paragraph-start/report anchor for R015;
+- run-in paragraphs are not heading-exempt from `missing_later_indent`;
+- run-in paragraphs are still excluded from page-style baseline estimation so
+  they do not distort unrelated page confidence gates.
+
+The separate unnumbered-bold-heading issue Ester noted is not implemented in
+R015. No existing P020/P027/P026 rule currently owns it; it is recorded as a
+future rule gap.
+
+Current seven-dissertation R015 branch audit: Youra 1, Anthony 0, Muyeed 1,
+Philip 6, Praneeth 0, Sebastian 0, Patrick 0; total 8. Relative to the
+pre-follow-up behavior, the only material change is the intended Youra
+page-101 correct-line recovery.
+
+Primary R015 records:
+
+- `docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md`
+- `docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md`
+- `tests/test_p015_esther_r015_batch_2026_08.py`
+- `tests/test_p015_r015_ester_run_in_heading_20260831.py`
+
 ## Feedback-Cycle Rule State
 
 Use human-facing `Rxxx` identifiers in reviewer/project-progress prose. Use
@@ -114,9 +153,8 @@ rule registry entries.
 
 ## Next Work Sequence
 
-After review and merge of any R011 post-R036 status/validation PR, the next
-engineering task should be the Ester-adjudicated R015 follow-up. Do not begin
-R015 until the R011 task is closed.
+After review and merge of the R015 PR, proceed to the next
+Ester-adjudicated feedback rule as a separate task.
 
 ## Repository Hygiene Notes
 
