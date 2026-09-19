@@ -262,14 +262,11 @@ def _paragraph_starts_with_run_in_heading(paragraph: list[PdfTextLine]) -> bool:
     ``\\paragraph{...}`` lead-in immediately followed by body prose).
 
     Such a paragraph's real "first line", for indentation purposes, is the
-    bold lead-in itself, and a flush-left bold lead-in is the *expected*
-    style -- the same treatment already given to a paragraph that opens
-    right after a genuine section heading (`_is_section_heading_line`). The
-    row-remnant reconnection in `_effective_row_start_x` /
-    `_is_run_in_heading_lead` is what lets the regular continuation and any
-    later lines correctly join this same paragraph instead of the
-    continuation being misread as an orphaned new paragraph start; this
-    check is the matching indent-expectation half of that fix.
+    bold lead-in itself. The row-remnant reconnection in
+    `_effective_row_start_x` / `_is_run_in_heading_lead` is what lets the
+    regular continuation and any later lines correctly join this same
+    paragraph instead of the continuation being misread as an orphaned new
+    paragraph start.
     """
     if len(paragraph) < 2:
         return False
@@ -289,9 +286,7 @@ def _find_heading_exempt_paragraph_indices(
                 heading_spans.append((line.bbox.y0, line.bbox.y1))
 
     for idx, paragraph in enumerate(paragraphs):
-        if _is_section_heading_line(paragraph[0]) or _paragraph_starts_with_run_in_heading(
-            paragraph
-        ):
+        if _is_section_heading_line(paragraph[0]):
             exempt.add(idx)
             continue
         if idx == 0 or not heading_spans:
@@ -601,6 +596,11 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
 
         heading_exempt = _find_heading_exempt_paragraph_indices(page, paragraphs)
         split_heading_exempt = _find_split_heading_following_paragraph_indices(page, paragraphs)
+        style_baseline_exempt = heading_exempt | frozenset(
+            idx
+            for idx, paragraph in enumerate(paragraphs)
+            if _paragraph_starts_with_run_in_heading(paragraph)
+        )
 
         paragraph_data: list[tuple[int, list[PdfTextLine], float]] = []
         for idx, paragraph in enumerate(paragraphs):
@@ -613,7 +613,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
         likely_indented_count = 0
         likely_not_indented_count = 0
         for idx, paragraph, indent_pt in paragraph_data:
-            if idx in heading_exempt:
+            if idx in style_baseline_exempt:
                 continue
             if idx in split_heading_exempt:
                 continue

@@ -2,15 +2,11 @@
 
 See docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md for the
 full diagnosis. Summary: Esther's new judgment on the previously-disclosed
-Youra p101 open item (see
-docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md,
-"Youra page 101 -- investigated in depth") is that the auditor was
-identifying the wrong line as a paragraph's start. The paragraph actually
-begins at the preceding bold run-in phrase ("Comparison with the Type 4 SMFR
-scenario"), sharing its physical row with the paragraph's own regular-text
-opening ("Case 1 provides an observational..."); the later flush-left line
-the detector had been flagging ("counterpart to the Type 4 SMFR
-configuration...") is ordinary continuation text, not a new paragraph start.
+Youra p101 open item is that the auditor was identifying the wrong line as a
+paragraph's start. The paragraph actually begins at the preceding bold run-in
+phrase, sharing its physical row with the paragraph's own regular-text
+opening; the later flush-left line the detector had been flagging is ordinary
+continuation text, not a new paragraph start.
 
 Root cause: `_merge_same_row_fragments` correctly refuses to merge a bold
 run-in heading with its same-row regular continuation (that would corrupt
@@ -37,12 +33,12 @@ Fix (`src/njit_auditor/rules/pdf_indentation.py`):
    window also accepts a run-in-heading lead as a correction source, without
    `MAX_ROW_REMNANT_ABSORPTION_GAP_PT` (calibrated for short dropped
    fragments, not a full heading phrase's width).
-3. `_paragraph_starts_with_run_in_heading` (new) +
-   `_find_heading_exempt_paragraph_indices` (extended): a paragraph whose
-   own first line is a bold run-in heading is now exempt from the
-   missing-indent checks, the same treatment already given to a paragraph
-   that opens immediately after a genuine section heading -- a flush-left
-   run-in-heading paragraph is the *expected* style, not a violation.
+3. `_paragraph_starts_with_run_in_heading`: the grouped paragraph's real
+   first line is the bold lead-in itself. The R015 missing-indent check
+   should therefore report that line when the paragraph is unindented,
+   rather than reporting the following continuation line or exempting the
+   paragraph entirely. Ester's separate bold-without-section-number feedback
+   remains outside R015.
 
 None of `_merge_same_row_fragments`'s own merge decision,
 `_paragraph_starts_like_continuation`, `_find_split_heading_following_paragraph_indices`,
@@ -140,12 +136,12 @@ def _regular_line(text: str, *, x0: float, x1: float, y0: float, y1: float) -> P
 
 # ---------------------------------------------------------------------------
 # 1. Youra-style case: bold phrase begins paragraph, regular continuation
-#    shares its row, later flush-left continuation lines follow -- no R015
-#    violation anywhere in the (now-correctly-grouped) paragraph.
+#    shares its row, later flush-left continuation lines follow. R015 should
+#    report the actual paragraph start, not the following continuation line.
 # ---------------------------------------------------------------------------
 
 
-def test_youra_style_bold_run_in_paragraph_not_flagged_missing_indent() -> None:
+def test_youra_style_bold_run_in_paragraph_reports_bold_start_not_continuation() -> None:
     para1 = [
         _line(
             "Indented synthetic paragraph opener establishing page style one.",
@@ -177,62 +173,69 @@ def test_youra_style_bold_run_in_paragraph_not_flagged_missing_indent() -> None:
     run_in_para_rest = [_line(_CONT, x0=108.0, y0=y, y1=y + 12) for y in (244.0, 258.0, 272.0)]
 
     doc = _doc(_page(40, _block(*para1, *para2, heading_line, body_lead_line, *run_in_para_rest)))
-    findings = [f for f in check_pdf_indentation(doc) if f.rule_id == "P015"]
-    assert not findings
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015" and f.details.get("issue_type") == "missing_later_indent"
+    ]
+    assert len(findings) == 1
+    assert findings[0].details["bbox"] == "108.0,220.0,280.0,232.0"
+    assert findings[0].details["paragraph_index"] == "3"
+    assert all(f.details["bbox"] != "108.0,244.0,504.0,256.0" for f in findings)
 
 
 # ---------------------------------------------------------------------------
-# 2. A genuinely new, later paragraph -- unrelated to the run-in heading --
-#    that is missing its expected indent must still be reported. The new
-#    exemption must not leak past the paragraph it actually applies to.
+# 2. A correctly indented run-in paragraph must not mask a genuinely new,
+#    later paragraph -- unrelated to the run-in heading -- that is missing
+#    its expected indent.
 # ---------------------------------------------------------------------------
 
 
 def test_missing_indent_later_paragraph_still_flagged_alongside_run_in_heading() -> None:
-    para1 = [
-        _line(
-            "Indented synthetic paragraph opener establishing page style one.",
-            x0=144.0,
-            y0=80.0,
-            y1=92.0,
-        ),
-        *[_line(_CONT, x0=108.0, y0=y, y1=y + 12) for y in (94.0, 108.0, 122.0)],
-    ]
-    para2 = [
-        _line(
-            "Second indented synthetic paragraph opener for page style two.",
-            x0=144.0,
-            y0=136.0,
-            y1=148.0,
-        ),
-        _line(_CONT, x0=108.0, y0=150.0, y1=162.0),
-    ]
+    y = 80.0
+    indented_style_paragraphs: list[PdfTextLine] = []
+    for index in range(4):
+        indented_style_paragraphs.append(
+            _line(
+                f"Indented synthetic paragraph opener establishing page style {index}.",
+                x0=144.0,
+                y0=y,
+                y1=y + 12,
+            )
+        )
+        y += 14.0
+        for _ in range(3):
+            indented_style_paragraphs.append(_line(_CONT, x0=108.0, y0=y, y1=y + 12))
+            y += 14.0
+        y += 14.0
+
     heading_line = _bold_line(
-        "Synthetic run-in heading phrase", x0=108.0, x1=280.0, y0=176.0, y1=188.0
+        "Synthetic run-in heading phrase", x0=144.0, x1=280.0, y0=y, y1=y + 12
     )
     body_lead_line = _regular_line(
         "Body prose begins on the same row as the heading here",
         x0=292.0,
         x1=540.0,
-        y0=176.0,
-        y1=188.0,
+        y0=y,
+        y1=y + 12,
     )
-    run_in_para_rest = [_line(_CONT, x0=108.0, y0=y, y1=y + 12) for y in (200.0, 214.0)]
+    y += 24.0
+    run_in_para_rest = [_line(_CONT, x0=144.0, y0=y, y1=y + 12)]
+    y += 28.0
     # A genuinely new, unrelated, flush-left later paragraph with no bold
     # run-in lead at all -- must still be flagged.
     unindented_para = [
         _line(
             "Flush-left synthetic paragraph missing its expected indent.", x0=108.0, y0=y, y1=y + 12
         )
-        for y in (242.0, 256.0, 270.0, 284.0)
+        for y in (y, y + 14.0, y + 28.0, y + 42.0)
     ]
 
     doc = _doc(
         _page(
             41,
             _block(
-                *para1,
-                *para2,
+                *indented_style_paragraphs,
                 heading_line,
                 body_lead_line,
                 *run_in_para_rest,
@@ -246,7 +249,7 @@ def test_missing_indent_later_paragraph_still_flagged_alongside_run_in_heading()
         if f.rule_id == "P015" and f.details.get("issue_type") == "missing_later_indent"
     ]
     assert len(findings) == 1
-    assert findings[0].details["bbox"] == "108.0,242.0,504.0,254.0"
+    assert findings[0].details["bbox"] == "108.0,412.0,504.0,424.0"
 
 
 # ---------------------------------------------------------------------------
@@ -306,8 +309,7 @@ def test_ordinary_indented_paragraph_unaffected() -> None:
 # 5. Regression lock: a numbered sub-heading ("2.1.3.2" + bold title) sharing
 #    its row with run-in body text (the real Muyeed p34 shape found while
 #    validating this fix) must anchor on the title, not the bare section
-#    number -- and must not corrupt the existing split-numbered-heading
-#    exemption or the Muyeed/Philip 2026-08 fixtures.
+#    number.
 # ---------------------------------------------------------------------------
 
 
@@ -343,10 +345,6 @@ def test_numbered_heading_with_run_in_body_anchors_on_title_not_number() -> None
     # (x0=108.0) -- both are bold, but the number is explicitly excluded.
     assert paragraph[1].bbox.x0 == 160.0
     assert _paragraph_starts_with_run_in_heading(paragraph) is True
-
-    doc = _doc(page)
-    findings = [f for f in check_pdf_indentation(doc) if f.rule_id == "P015"]
-    assert not findings
 
 
 def test_effective_row_start_x_ignores_bare_section_number_as_run_in_lead() -> None:
