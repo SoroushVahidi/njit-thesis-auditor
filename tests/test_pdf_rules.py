@@ -12189,6 +12189,165 @@ def test_p054_toc_entry_with_period_warns(tmp_path: Path) -> None:
     _assert_student_message_hides_source_q_ids(findings[0])
 
 
+def test_p054_ascii_dot_leaders_do_not_warn(tmp_path: Path) -> None:
+    """ASCII leader dots after a TOC title are not terminal punctuation."""
+    pdf_path = tmp_path / "p054_ascii_leaders.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction and Background . . . . . . .", "1"),
+        ("Chapter 2 Literature Review and Related Work . . . .", "15"),
+        ("Chapter 3 Methodology and Experimental Design . . .", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_unicode_ellipsis_leaders_do_not_warn(tmp_path: Path) -> None:
+    """Unicode ellipsis leaders after a TOC title are not terminal punctuation."""
+    pdf_path = tmp_path / "p054_unicode_leaders.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction and Background……………. ………….", "1"),
+        ("Chapter 2 Literature Review and Related Work…………", "15"),
+        ("Chapter 3 Methodology and Experimental Design…………", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_middle_dot_leaders_do_not_warn(tmp_path: Path) -> None:
+    """Middle-dot leaders after a TOC title are not terminal punctuation."""
+    pdf_path = tmp_path / "p054_middle_dot_leaders.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction and Background········", "1"),
+        ("Chapter 2 Literature Review and Related Work······", "15"),
+        ("Chapter 3 Methodology and Experimental Design····", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_semantic_period_before_unicode_leaders_warns(tmp_path: Path) -> None:
+    """A semantic title period remains a violation before separated leaders."""
+    pdf_path = tmp_path / "p054_real_period_before_leaders.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Introduction and Background. …………", "1"),
+        ("Chapter 2 Literature Review and Related Work…………", "15"),
+        ("Chapter 3 Methodology and Experimental Design…………", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "toc_entry_has_terminal_period"
+
+
+def test_p054_internal_abbreviation_period_no_finding(tmp_path: Path) -> None:
+    """Internal abbreviation periods are not terminal punctuation."""
+    pdf_path = tmp_path / "p054_internal_abbreviation.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Prior Dr. Example Studies…………", "1"),
+        ("Chapter 2 Literature Review and Related Work…………", "15"),
+        ("Chapter 3 Methodology and Experimental Design…………", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_detached_leader_span_no_finding() -> None:
+    """Leader dots in a separate span are stripped before punctuation checks."""
+    title = PdfTextSpan(
+        text="Chapter 1 Synthetic Detached Leader Title",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=72.0, y0=140.0, x1=310.0, y1=152.0),
+    )
+    leader = PdfTextSpan(
+        text="…………….",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=315.0, y0=140.0, x1=430.0, y1=152.0),
+    )
+    page_number = PdfTextSpan(
+        text="1",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=500.0, y0=140.0, x1=508.0, y1=152.0),
+    )
+    line = PdfTextLine(
+        text="Chapter 1 Synthetic Detached Leader Title……………. 1",
+        bbox=BBox(x0=72.0, y0=140.0, x1=508.0, y1=152.0),
+        spans=[title, leader, page_number],
+    )
+    page = PdfPage(
+        page_number=1,
+        width=612.0,
+        height=792.0,
+        text_blocks=[
+            PdfTextBlock(
+                bbox=BBox(x0=190.0, y0=90.0, x1=360.0, y1=106.0),
+                text="TABLE OF CONTENTS",
+                lines=[
+                    PdfTextLine(
+                        text="TABLE OF CONTENTS",
+                        bbox=BBox(x0=190.0, y0=90.0, x1=360.0, y1=106.0),
+                        spans=[],
+                    )
+                ],
+            ),
+            PdfTextBlock(bbox=line.bbox, text=line.text, lines=[line]),
+            PdfTextBlock(
+                bbox=BBox(x0=72.0, y0=162.0, x1=508.0, y1=174.0),
+                text="Chapter 2 Another Synthetic Entry………… 15",
+                lines=[
+                    PdfTextLine(
+                        text="Chapter 2 Another Synthetic Entry………… 15",
+                        bbox=BBox(x0=72.0, y0=162.0, x1=508.0, y1=174.0),
+                        spans=[],
+                    )
+                ],
+            ),
+        ],
+    )
+    doc = PdfDocument(path="synthetic", pages=[page])
+    findings = [f for f in check_pdf_toc_terminal_period(doc) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_attached_leader_fragment_no_finding(tmp_path: Path) -> None:
+    """A first leader dot attached to the final title token is still a leader."""
+    pdf_path = tmp_path / "p054_attached_leader.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Synthetic Attached Leader Title.…………", "1"),
+        ("Chapter 2 Literature Review and Related Work…………", "15"),
+        ("Chapter 3 Methodology and Experimental Design…………", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
+def test_p054_wrapped_title_final_row_leaders_no_finding(tmp_path: Path) -> None:
+    """Wrapped TOC titles are checked before final-row leaders."""
+    pdf_path = tmp_path / "p054_wrapped_leaders.pdf"
+    _make_toc_terminal_period_pdf(pdf_path, [
+        ("Chapter 1 Synthetic Wrapped Chapter Title That Starts", None),
+        ("  on the Next Row Without Terminal Period…………", "1"),
+        ("Chapter 2 Literature Review and Related Work…………", "15"),
+        ("Chapter 3 Methodology and Experimental Design…………", "30"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_toc_terminal_period(model) if f.rule_id == "P054"]
+    assert not findings
+
+
 def test_p054_period_before_hyphen_leaders_warns(tmp_path: Path) -> None:
     """A title period remains terminal punctuation before hyphen leaders."""
     pdf_path = tmp_path / "p054_period_hyphen_leaders.pdf"
