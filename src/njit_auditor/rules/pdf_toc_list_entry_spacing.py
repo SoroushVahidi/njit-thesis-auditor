@@ -1,28 +1,62 @@
 """Conservative inter-entry spacing checks for TOC/List pages (P036).
 
 Partial heuristic PDF coverage for Q057, Q067, and Q077.
+
+Ester's 2026-09-14 clarification is the authoritative policy this module
+implements: "The TOC must be double spaced except for titles that run
+longer than one line in which case these titles must be single spaced."
+That is, spacing is a property of the relationship between two adjacent
+*physical lines*, and it means something different depending on whether
+those two lines belong to the same logical entry (a wrapped title's own
+continuation -- expected single spaced) or to two different, consecutive
+entries (expected double spaced). See
+``docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md`` for the
+forensic measurement that this model is based on: a genuinely
+double-spaced entry pair advances by *exactly* 2x the
+page's own single-line pitch (baseline-to-baseline), never by 2x the
+nominal font size -- the previous bbox-gap/font-size model conflated the
+two and measured real double spacing at ~1.19x, below its own 1.4x
+threshold, on effectively every double-spaced TOC in the corpus (not
+merely on Praneeth), which was the actual root cause of all 12
+Ester-reviewed false positives.
 """
 
 from __future__ import annotations
 
 import re
+import statistics
 
-from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
-from njit_auditor.rules.pdf_toc_alignment import _clean_text, detect_toc_like_pages
+from njit_auditor.models import AuditFinding
+from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.rules.pdf_toc_alignment import _clean_text
 from njit_auditor.rules.pdf_toc_list_wrapped_spacing import (
-    _collect_entry_region_lines,
-    _estimate_line_height,
-    _has_intervening_page_number_line,
     _is_wrap_continuation_pair,
     _looks_like_new_entry_start_given_previous,
 )
-from njit_auditor.toc_list_student_preview import (
-    gap_bbox_between_boxes,
-    sanitize_toc_list_entry_preview,
-)
 
-MIN_INTER_ENTRY_GAP_RATIO = 1.4
+# REQUIRED ratio of the inter-entry line PITCH (baseline-to-baseline, i.e.
+# ``next_line.bbox.y0 - previous_line.bbox.y0``) to the page's own local
+# single-line pitch.
+#
+# RETIRED AS THE PRODUCTION REPORTING RULE (2026-09-16). This fixed 1.6
+# ratio is retained ONLY for backward compatibility of imports and for
+# :func:`_triage_tier`'s tiering of a reported finding; it no longer controls
+# whether a finding is emitted. Production reporting is governed by the
+# page-relative suppression/abstention policy in
+# ``njit_auditor.rules.r036_production_page_relative_spacing`` (see
+# ``docs/status/r036_production_page_relative_suppression_design_20260916.md``),
+# because 24 Ester-confirmed false positives (normalized ratios 1.00-1.56)
+# contradicted the fixed 1.6 threshold as a reliable discriminator. Do not
+# reintroduce this constant as a decisive reporting threshold.
+MIN_INTER_ENTRY_GAP_RATIO = 1.6
+
+# Only used as a fallback when a page has no same-entry wrapped-title line
+# pairs to locally calibrate a single-line pitch from (see
+# ``_local_single_line_pitch_pt``). 1.15 is a standard single-line-spacing
+# leading factor relative to nominal font size; it is not load-bearing for
+# any page that has at least one multi-line entry, which is the common
+# case for TOC pages long enough to trigger this rule at all.
+SINGLE_LINE_PITCH_FALLBACK_MULTIPLIER = 1.15
 FALLBACK_LINE_HEIGHT_PT = 12.0
 
 ISSUE_TYPE_BY_SECTION = {
@@ -131,9 +165,9 @@ def _is_exempt_structural_transition(prev_level: str, next_level: str) -> bool:
     2. *next* is itself a top-level structural row (``toc_level_1`` --
        CHAPTER/APPENDIX/REFERENCES/etc., see ``_classify_entry_level``)
        and *prev* is at a strictly deeper level -- finishing a nested
-       subsection and entering a new top-level section (e.g. "3.5
-       Conclusion" -> "APPENDIX", the reviewed Anthony p12 case: a
-       level-2 entry finishing right before an APPENDIX heading). A
+       subsection and entering a new top-level section (the reviewed
+       structural-boundary case: a level-2 entry finishing right before
+       an APPENDIX heading). A
        top-level-to-top-level peer pair (e.g. "Chapter 3" -> "Chapter 4")
        is deliberately NOT covered by this shape -- ``prev_level`` must
        differ from ``toc_level_1``, or two chapter headings back-to-back
@@ -157,88 +191,103 @@ def _is_exempt_structural_transition(prev_level: str, next_level: str) -> bool:
     return prev_depth < next_depth
 
 
+# Ratio boundary (of the same pitch/pitch measure as MIN_INTER_ENTRY_GAP_RATIO)
+# below which an under-spaced pair is triaged "high" rather than "medium": a
+# ratio at or below this is close to the ~1.0-1.2x single-line-pitch range,
+# i.e. no meaningfully extra spacing was added between entries at all.
+HIGH_TRIAGE_RATIO_CEILING = 1.3
+
+
 def _triage_tier(gap_ratio: float) -> str:
-    if gap_ratio < 1.1:
+    if gap_ratio < HIGH_TRIAGE_RATIO_CEILING:
         return "high"
     if gap_ratio < MIN_INTER_ENTRY_GAP_RATIO:
         return "medium"
     return "low"
 
 
+def _internal_wrap_pitches_by_role(
+    entries: list[list[PdfTextLine]], page_type: str
+) -> tuple[list[float], list[float]]:
+    """Bucket every wrapped-title's own internal (same-entry, consecutive-
+    physical-line) baseline-to-baseline pitch into ``(heading_pitches,
+    entry_pitches)``, split by the structural role of the entry it came
+    from (a top-level ``toc_level_1`` heading vs an ordinary numbered
+    sub-entry).
+
+    A page can legitimately use a different single-line pitch for its
+    top-level headings than for its ordinary entries even at the *same*
+    font size (confirmed on the real corpus: both measure 12pt in the
+    motivating case, but a wrapped chapter heading's own two physical lines advance
+    by 20.6pt while an ordinary wrapped sub-entry advances by 13.8pt --
+    see docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md).
+    A single page-wide pitch blindly mixes these two populations and can
+    land on the wrong one depending on which happens to have more
+    same-page samples. Splitting by role and picking the bucket matching
+    the specific transition being checked (see
+    ``_local_single_line_pitch_pt``) avoids that.
+    """
+    heading_pitches: list[float] = []
+    entry_pitches: list[float] = []
+    for entry in entries:
+        if len(entry) < 2:
+            continue
+        level = _classify_entry_level(entry[0].text, page_type)
+        bucket = heading_pitches if level == "toc_level_1" else entry_pitches
+        for first, second in zip(entry, entry[1:]):
+            pitch = second.bbox.y0 - first.bbox.y0
+            if pitch > 0:
+                bucket.append(pitch)
+    return heading_pitches, entry_pitches
+
+
+def _local_single_line_pitch_pt(
+    prev_level: str,
+    heading_pitches: list[float],
+    entry_pitches: list[float],
+    fallback_line_height: float,
+) -> float:
+    """Return the single-line pitch to compare an inter-entry gap against:
+    the median same-role internal wrap pitch (preferring the bucket
+    matching *prev_level*, i.e. the entry the gap is measured FROM), else
+    the other role's bucket, else a font-size-based fallback when the page
+    has no multi-line entries to calibrate from at all.
+    """
+    preferred, other = (
+        (heading_pitches, entry_pitches)
+        if prev_level == "toc_level_1"
+        else (entry_pitches, heading_pitches)
+    )
+    for bucket in (preferred, other):
+        if bucket:
+            return statistics.median(bucket)
+    return fallback_line_height * SINGLE_LINE_PITCH_FALLBACK_MULTIPLIER
+
+
 def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P036 warnings when consecutive TOC/List entries appear too tightly spaced."""
+    """Emit P036 findings under the production page-relative policy.
 
-    findings: list[AuditFinding] = []
+    Production R036 uses the page-relative suppression/abstention policy in
+    ``njit_auditor.rules.r036_production_page_relative_spacing`` (see
+    ``docs/status/r036_production_page_relative_suppression_design_20260916.md``):
+    it suppresses gaps that match normal local page rhythm, abstains when
+    context is unreliable (sparse page, ambiguous reconstruction, or an
+    untrustworthy neighborhood), and reports only under a strong,
+    multi-signal gate. The fixed ``MIN_INTER_ENTRY_GAP_RATIO`` (1.6) is
+    retired as the decisive reporting rule; it is no longer consulted to
+    decide whether a finding is emitted.
 
-    for context in detect_toc_like_pages(pdf_document):
-        lines = _collect_entry_region_lines(context)
-        entries = _group_lines_into_entries(lines, context.page_type)
-        if len(entries) < 2:
-            continue
+    Under the currently selected gate (``suppression_abstention_only``) the
+    function emits no findings until a real Ester-confirmed R036 true
+    positive is validated and the reporting gate is enabled, because no
+    true positive exists in the evaluation corpus to validate positive
+    detection. This is intentional: suppression and abstention are
+    empirically supported; positive detection on real dissertations is not
+    yet validated.
+    """
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        run_r036_production,
+    )
 
-        issue_type = ISSUE_TYPE_BY_SECTION.get(context.page_type)
-        if issue_type is None:
-            continue
-
-        for pair_index, (previous_entry, next_entry) in enumerate(zip(entries, entries[1:])):
-            last_line = previous_entry[-1]
-            first_line = next_entry[0]
-            if _has_intervening_page_number_line(context, last_line, first_line):
-                continue
-
-            prev_level = _classify_entry_level(previous_entry[0].text, context.page_type)
-            next_level = _classify_entry_level(next_entry[0].text, context.page_type)
-            if _is_exempt_structural_transition(prev_level, next_level):
-                continue
-
-            gap_pt = first_line.bbox.y0 - last_line.bbox.y1
-            if gap_pt <= 0:
-                continue
-
-            line_height = _estimate_line_height(last_line, first_line)
-            if line_height <= 0:
-                line_height = FALLBACK_LINE_HEIGHT_PT
-
-            gap_ratio = gap_pt / line_height
-            if gap_ratio >= MIN_INTER_ENTRY_GAP_RATIO:
-                continue
-
-            required_gap_pt = line_height * MIN_INTER_ENTRY_GAP_RATIO
-            triage_tier = _triage_tier(gap_ratio)
-
-            previous_preview = sanitize_toc_list_entry_preview(last_line.text)
-            next_preview = sanitize_toc_list_entry_preview(first_line.text)
-            gap_bbox = gap_bbox_between_boxes(last_line.bbox, first_line.bbox)
-            details: dict[str, str] = {
-                "page_number": str(context.page.page_number),
-                "section_type": context.page_type,
-                "issue_type": issue_type,
-                "entry_pair_index": str(pair_index),
-                "gap_points": f"{gap_pt:.1f}",
-                "required_gap_points": f"{required_gap_pt:.1f}",
-                "local_line_height_points": f"{line_height:.1f}",
-                "gap_ratio": f"{gap_ratio:.2f}",
-                "triage_tier": triage_tier,
-                "source_q_rule_ids": SOURCE_Q_RULE_IDS_BY_SECTION[context.page_type],
-            }
-            if previous_preview:
-                details["previous_entry_preview"] = previous_preview
-            if next_preview:
-                details["next_entry_preview"] = next_preview
-            if gap_bbox is not None:
-                details["bbox"] = format_bbox_detail(gap_bbox)
-
-            findings.append(
-                AuditFinding(
-                    rule_id="P036",
-                    severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message=(
-                        "Consecutive TOC/List entries appear to have insufficient "
-                        "inter-entry vertical spacing."
-                    ),
-                    details=details,
-                )
-            )
-
+    findings, _records = run_r036_production(pdf_document)
     return findings

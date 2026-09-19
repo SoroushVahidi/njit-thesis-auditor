@@ -1,47 +1,26 @@
 # Current Status
 
 > **Canonical, current-only status.** This is the entry point for "what is true
-> right now." Older dated reports remain historical/forensic records.
->
-> This file is intentionally short. Do not append long dated narratives here;
-> write detailed records under `docs/status/` and link them from this file.
+> right now." Older dated reports remain historical/forensic records under
+> `docs/status/`.
 
-_Last verified: 2026-09-07, on the `research/ester-feedback-through-r033-20260901` branch,
-after the live Ester feedback sheet was checked directly and found to
-contain explicit verdicts for R018 and R024. Both fixed at the root cause
-(a Unicode-ellipsis leader-dot detection bug and a trailing-period
-section-number regex bug in `pdf_toc_alignment.py`, shared by R018/R024/
-R055) and reconciled against Ester's authority — see
-`docs/status/r018_r024_ester_sheet_authority_20260907.md`. `main`'s own
-last verified state below is still 2026-09-01; the research branch is the
-current engineering front and has not yet been integrated back into `main`
-(see Research Branch section)._
+_Last updated: 2026-09-19, during the R036 final integration-readiness pass on
+`fix/r036-production-page-relative-suppression-20260916`._
 
-## Main Branch
+## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `main` SHA | `336b28c6e894a6414247357a3f93f188e5150f75` (short `336b28c`) |
-| `origin/main` | same SHA; ahead/behind `0 / 0` |
-| Latest commit | `fix(p017): handle wrapped captions and inline references` |
-| CI | GitHub Actions run `33518881868`, green on Python 3.10 / 3.11 / 3.12 |
-| `ruff check .` | clean |
-| `mypy src` | clean, 113 source files |
-| `python -m pytest` | **3192 passed**, 3 warnings |
-| Live deployment worktree | detached at `7232305d89e97c233002bf0c8077bad01e9e3f44`; not updated by this pass |
-| Rule inventory | P001–P085 implemented; no remaining non-inventory project task IDs; next new internal rule ID remains P086 |
-| Uncommitted work | `pdf_title_capitalization.py` / `pdf_toc_list_formatting.py` / `tests/test_pdf_rules.py` — proactive P024 false-positive hardening (hyphenated-fragment title-case skip; parenthetical proper-noun exclusion from sentence-case scoring). **Now redundant**: reimplemented and committed on the research branch at `b80eff7` (not a cherry-pick — the two files had diverged too far). Still present, untouched, and safe to leave as-is or discard once main is reconciled with the research branch; nothing unique remains in it. |
-
-## Research Branch (current engineering front, 2026-09-07)
-
-| Field | Value |
-|---|---|
-| Branch | `research/ester-feedback-through-r033-20260901` |
-| HEAD | `3267cd3`; **3 commits ahead of origin, not yet pushed** as of this update |
-| Commits this session (chronological) | `aea0e81` fix(r036) wrap-continuation FP · `2a0289d` R036 package regen · `4f9f96f` docs sync · `6facf49` fix(r035) text-fallback centering FP · `b80eff7` fix(r024) ported P024 hardening · `d5a1d0d` R024/R035 package regen · `7727c5c` docs sync (all pushed, CI green through here) · `f80a014` fix(r018) ellipsis-dot/trailing-period bugs · `3267cd3` R018/R024/R055 package regen (unpushed) |
-| CI | green through `7727c5c` (last pushed commit, run `34149744830`); `f80a014`/`3267cd3` not yet pushed |
-| `python -m pytest` | 3348 passed, 2 skipped (clean venv, PyMuPDF 1.28.2) |
-| **Environment hazard** | The box's ambient/default `python3` venv has PyMuPDF 1.24.6, **below** the `>=1.25.0` floor `pyproject.toml` requires. Running the auditor or its evaluation tooling under that venv silently produces materially different (wrong) geometry results — confirmed directly (P036 counts differed by 4x between the two venvs on identical PDFs). Always use a venv with PyMuPDF `>=1.25.0` for any private-corpus evaluation. A correct one already exists at `/tmp/njit-auditor-final-gate-20260907105625`. |
+| Current `origin/main` SHA | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
+| R036 production branch | `fix/r036-production-page-relative-suppression-20260916` |
+| R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
+| R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
+| R036 implementation/privacy-audited HEAD | `b277f34fe8ec7e01a32c83a1a23af82d5f7f8556`; superseded only by final documentation/privacy reconciliation |
+| R036 relation to `origin/main` after final documentation/privacy reconciliation | 9 commits ahead, 0 behind |
+| Deployment | Not updated by this pass |
+| Manifest status snapshot | `336b28c`; **3192 passed** |
+| R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3544 passed**, 3 warnings |
+| Rule inventory | P001–P085 implemented; no remaining non-inventory project task IDs; next new internal rule ID is P086 |
 
 ## Current Evaluation Corpus
 
@@ -50,115 +29,70 @@ Anthony, Muyeed, Philip, Praneeth, Sebastian, and Patrick. Elbert is excluded.
 These files remain local under `data/evaluation/private/`, ignored by Git, and
 must not be quoted, uploaded, or committed.
 
+## R036 Current State
+
+R036/P036 covers inter-entry spacing between distinct entries on Table of
+Contents, List of Tables, and List of Figures pages. Ester's authoritative
+policy is:
+
+- Separate TOC/List entries should be double spaced.
+- Wrapped physical lines belonging to the same long title may be single spaced.
+
+As of the September 14 and September 16, 2026 reviewer feedback, there are 24
+known Ester-confirmed R036 false positives and 0 Ester-confirmed R036 true
+positives. The production branch therefore intentionally uses a conservative
+page-relative policy with three internal outcomes:
+
+- `SUPPRESS`: the candidate matches normal local page rhythm.
+- `ABSTAIN`: the context is too sparse, structurally reconstructed, or otherwise
+  unreliable.
+- `REPORT`: reserved for a future strong positive gate, currently disabled
+  because no real R036 true positive has been reviewed.
+
+The retired fixed `1.6` spacing ratio remains only for compatibility; it must
+not control production reporting. Expected production behavior on the
+seven-dissertation corpus is zero reported R036 findings: 448 candidates, 345
+suppressed, 103 abstained, 0 reported. All 24 known Ester-confirmed false
+positives must remain `SUPPRESS` or `ABSTAIN`, never `REPORT`.
+
+Primary R036 records:
+
+- `docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md`
+- `docs/status/r036_split_section_number_recovery_20260914.md`
+- `docs/status/r036_page_relative_spacing_experiment_20260916.md`
+- `docs/status/r036_patrick_lof_anomaly_resolution_20260916.md`
+- `docs/status/r036_production_page_relative_suppression_design_20260916.md`
+- `data/evaluation/r036_ester_false_positive_ground_truth_20260916.json`
+
 ## Feedback-Cycle Rule State
-
-_Updated 2026-09-07 (third pass) — the live Ester feedback sheet was checked
-directly and carries explicit verdicts for R018 and R024 that repository
-evidence alone could not previously confirm. Both are now resolved and
-moved out of "unresolved" below. See
-`docs/status/r018_r024_ester_sheet_authority_20260907.md`._
-
-| State | Rules |
-|---|---|
-| Closed, Ester-adjudicated, regression-tested against fresh audit | R011, R015, R016, R017, R018 (both reviewed false positives — Anthony, Praneeth's Section-1.1-area leader-dot finding — confirmed absent after fixing two general TOC extraction bugs; see `docs/status/r018_r024_ester_sheet_authority_20260907.md`), R019/R028 (page-number ownership split), R020, R023, R024 (both reviewed false positives — Anthony's proper-noun/species-name case, Praneeth's hyphenated-fragment case — confirmed against the already-ported `b80eff7` hardening), R026 (except Latin Modern alias, still unresolved), R033, R035 (Anthony's reviewed false positives confirmed gone; a structural centering bug affecting Praneeth's page-72 finding was found and fixed independently of any Ester text — see `docs/status/r035_praneeth_text_fallback_fix_20260907.md`), R036, R055 (package regenerated 2026-09-07 against the 2026-09-05 Table/Figure-prefix fix) |
-| Closed, engineering-confirmed genuine violation | R085 (Patrick's missing literal CHAPTER 1) |
-| **Open policy question — Ester asked a question, not a confirmed second verdict** | R018's note that sections 1.3.3/1.3.4/1.3.5 "do not align": after the leader-dot fix, all three read as dotted, correctly indented, and column-aligned; no current geometric check has a basis to flag them, and none was added to force one — see `docs/status/r018_r024_ester_sheet_authority_20260907.md` |
-| Genuinely unresolved — no Ester decision exists | R034, Latin Modern font-alias expansion (R026 sub-issue) |
-| No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
-| Not yet reviewed this cycle | R037 onward |
 
 Use human-facing `Rxxx` identifiers in reviewer/project-progress prose. Use
 internal `Pxxx` identifiers only when describing implementation files, tests, or
 rule registry entries.
 
-## Closed Work
-
-- **R011 / P011 closed.** Latest relevant commit:
-  `090779ed84433dd8541d972eb9ba8037e38c1960`. Ester's feedback on the
-  bottom-margin boundary and reference-list right-margin cases has been
-  incorporated. Status records:
-  `docs/status/p011_r011_batch_2026_08_false_positive_fix.md` and
-  `docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md`.
-- **R015 / P015 closed.** Latest relevant commits include
-  `a23f7093a6c4365539200d0f807a522046a80e7a` and
-  `9dce0079358045995a5f3743b9cb884dbfea86b6`. The wrapped/run-in paragraph
-  attribution issue is resolved. A separate observation about unnumbered bold
-  text remains an ownership question, not an R015 defect.
-- **R017 / P017 closed.** Commit
-  `336b28c6e894a6414247357a3f93f188e5150f75`; CI green; full suite
-  `3192 passed`, 3 warnings. P017 now checks terminal punctuation against the
-  complete logical wrapped caption and no longer treats mixed digit/letter
-  subfigure references such as `3.2d` / `3.5c` as caption starts. Final
-  seven-document R017 counts: Youra 0, Anthony 0, Muyeed 0, Philip 0,
-  Praneeth 1, Sebastian 0, Patrick 0. The remaining Praneeth physical page 102
-  finding is an engineering-audited genuine caption candidate lacking terminal
-  punctuation; it has not been independently labeled by Ester.
-
-## R019 Current State
-
-_Update 2026-09-07: this section's 2026-09-01 "awaiting Ester's human
-judgment" claim is stale. `docs/status/ester_authority_matrix_20260902.md`
-(the next day) already records an EXPLICIT decision for R019 (Roman
-front-matter-through-CHAPTER-1 boundary expected; missing literal CHAPTER 1
-owned by R028/P028, not a P019 symptom), and the ownership-split
-implementation (commit `c309af6`) is confirmed present and correct against
-the fresh seven-document audit (P019=0, P028=0 everywhere except Patrick's
-genuine R085 case). Retaining the original repair record below for history._
-
-The evidence-generation problem for document-level page-number-transition
-findings was repaired at `ff5a78f23cef1de2b693448d920d6161e9d8317f` without
-tuning P019 detector semantics. The repaired 23-page PDF was uploaded and the
-live R019 Sheet link was repointed to:
-
-- Drive file ID: `1uYHqjiihCCshMaEK0X7teZUwYIZrmsNh`
-- Filename: `R019_Ester_Auditor_Feedback_REPAIRED_20260901.pdf`
-- Size: `1,476,119` bytes
-- Folder: `16w3qZgNRz965rPlgxlUiDDFBZexG97rG`
-
-The old 10,758-byte placeholder Drive file
-`1CWOYO4Hy4ULjbE6YTdXzBkRmgorwpTko` remains historical/obsolete and was not
-deleted.
+| State | Rules |
+|---|---|
+| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R055 |
+| Closed, engineering-confirmed genuine violation | R085 |
+| Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5 |
+| Genuinely unresolved | R034, Latin Modern font-alias expansion |
+| No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
+| Not yet reviewed this cycle | R037 onward, except separately handled R055/R085 |
 
 ## Next Work Sequence
 
-_Update 2026-09-07: superseded by the actual state above — R016/R018/R019/
-R020/R023/R026/R028/R033/R035/R036/R055/R085 are past the "next work" stage
-described below. Retaining for history; do not treat as the current queue._
-
-**NEXT ENGINEERING TASK (as of 2026-09-01): R024.**
-
-1. Wait for Ester's R019 judgment.
-2. R024 audit/fix/validate.
-3. R027 audit/fix/validate.
-4. R030 audit/fix/validate, plus a separate ownership audit for chapter-title
-   spacing.
-5. Prepare discussion evidence for R016/R018/R020/R023/R026/R028/R033.
-6. Capture Ester's decisions as authoritative ground truth.
-7. Tune discussion rules one at a time after the meeting.
-8. Continue with R034+ as Ester reviews them.
-9. Run a final global human-feedback regression audit.
-10. Deploy only after the feedback cycle stabilizes and CI is green.
-
-**Actual current queue (2026-09-07, third pass):** R018, R024, and R035 are
-now resolved against the live Ester feedback sheet (see
-`docs/status/r018_r024_ester_sheet_authority_20260907.md`); one open policy
-question remains on R018 (1.3.3/1.3.4/1.3.5, see above). R034 remains
-genuinely unresolved (no Ester decision exists). The uncommitted `main`
-P024 hardening is redundant now that it is ported and committed on this
-branch (`b80eff7`) — safe to clean up. This branch needs to be pushed,
-green CI confirmed on the new HEAD, and a PR opened to `main`. R037 onward
-have not been reviewed this cycle.
+After R036 is merged, the next engineering task should be the newly
+Ester-adjudicated R011 targeted follow-up cases. Do not start R011 from the
+R036 production branch.
 
 ## Repository Hygiene Notes
 
-- Known historical LFS hygiene debt: `git lfs fsck` reports 17 tracked binaries
-  that match current LFS patterns but exist as ordinary Git objects. No
-  migration was performed because correcting historical storage would require
-  history-sensitive work. Address separately only if needed.
-- Local branch clutter remains. Query 2 may delete only local branches that are
-  fully merged, have no unique commits, are not protected/preserved/live, and
-  are not checked out in any worktree. Remote branch deletion requires separate
-  explicit authorization.
+- Known historical LFS hygiene debt remains: some tracked binaries match current
+  LFS patterns but exist as ordinary Git objects. No history rewrite has been
+  performed.
+- Private evaluation dissertations stay local and ignored. Do not commit
+  reviewer packages or dissertation content unless a task explicitly requires a
+  redacted/synthetic artifact.
 - `scripts/ester_rule_consistency_audit.py` still requires local, untracked
   `results/ester_feedback_raw/*.xlsx` input and is not fresh-clone/CI runnable
   without a redacted or synthetic stand-in.

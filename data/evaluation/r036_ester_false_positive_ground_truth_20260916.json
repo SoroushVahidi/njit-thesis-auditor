@@ -1,0 +1,236 @@
+{
+  "rule_id": "P036",
+  "reviewer": "Ester",
+  "created": "2026-09-16",
+  "policy": "Reviewed examples are false positives only. No true positives are inferred.",
+  "labels": [
+    {
+      "id": "praneeth_p11_01",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 1,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_02",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 3,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_03",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 4,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_04",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 5,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_05",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 7,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_06",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 8,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_07",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 9,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_08",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 10,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_09",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 11,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_10",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 13,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_11",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 14,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "praneeth_p11_12",
+      "dissertation": "Praneeth",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 15,
+      "section_type": "Table of Contents",
+      "review_batch": "R036_Praneeth_Page11_All_Examples",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "muyeed_p10_toc_01",
+      "dissertation": "Muyeed",
+      "physical_pdf_page": 10,
+      "entry_pair_index": 1,
+      "section_type": "Table of Contents",
+      "normalized_ratio": 1.24,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "muyeed_p10_toc_02",
+      "dissertation": "Muyeed",
+      "physical_pdf_page": 10,
+      "entry_pair_index": 13,
+      "section_type": "Table of Contents",
+      "normalized_ratio": 1.24,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "muyeed_p12_toc_01",
+      "dissertation": "Muyeed",
+      "physical_pdf_page": 12,
+      "entry_pair_index": 1,
+      "section_type": "Table of Contents",
+      "normalized_ratio": 1.24,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "muyeed_p17_lot_01",
+      "dissertation": "Muyeed",
+      "physical_pdf_page": 17,
+      "entry_pair_index": 2,
+      "section_type": "List of Tables",
+      "normalized_ratio": 1.46,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "muyeed_p17_lot_02",
+      "dissertation": "Muyeed",
+      "physical_pdf_page": 17,
+      "entry_pair_index": 4,
+      "section_type": "List of Tables",
+      "normalized_ratio": 1.46,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "muyeed_p20_lof_01",
+      "dissertation": "Muyeed",
+      "physical_pdf_page": 20,
+      "entry_pair_index": 14,
+      "section_type": "List of Figures",
+      "normalized_ratio": 1.51,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "philip_p13_toc_01",
+      "dissertation": "Philip",
+      "physical_pdf_page": 13,
+      "entry_pair_index": 0,
+      "section_type": "Table of Contents",
+      "normalized_ratio": 1.0,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "philip_p13_toc_02",
+      "dissertation": "Philip",
+      "physical_pdf_page": 13,
+      "entry_pair_index": 3,
+      "section_type": "Table of Contents",
+      "normalized_ratio": 1.0,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "philip_p15_lof_01",
+      "dissertation": "Philip",
+      "physical_pdf_page": 15,
+      "entry_pair_index": 4,
+      "section_type": "List of Figures",
+      "normalized_ratio": 1.56,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "patrick_p11_lof_01",
+      "dissertation": "Patrick",
+      "physical_pdf_page": 11,
+      "entry_pair_index": 10,
+      "section_type": "List of Figures",
+      "normalized_ratio": 1.55,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "patrick_p12_lof_01",
+      "dissertation": "Patrick",
+      "physical_pdf_page": 12,
+      "entry_pair_index": 2,
+      "section_type": "List of Figures",
+      "normalized_ratio": 1.42,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    },
+    {
+      "id": "patrick_p12_lof_02",
+      "dissertation": "Patrick",
+      "physical_pdf_page": 12,
+      "entry_pair_index": 5,
+      "section_type": "List of Figures",
+      "normalized_ratio": 1.51,
+      "review_batch": "R036_PostRecovery_Remaining_Findings_Validation_20260914",
+      "label": "ESTER_FALSE_POSITIVE"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
 | Term | Meaning |
 |---|---|
 | **Q-rule** | A rule from Esther's original formatting-review spreadsheets (`data/specs/ester_q_matrix.json`, `data/specs/ester_p_rule_feedback.json`). Not all Q-rules are automatable; many require human/manual review. |
-| **P-rule** ("project-added rule") | This project's internal rule ID (`P001`–`P083` today). A P-rule may implement one Q-rule, several Q-rules (a "broad" rule), or no Q-rule at all (project-added, e.g. infrastructure rules). |
+| **P-rule** ("project-added rule") | This project's internal rule ID (`P001`-`P085` today). A P-rule may implement one Q-rule, several Q-rules (a "broad" rule), or no Q-rule at all (project-added, e.g. infrastructure rules). |
 | **Public question / public rule card** | The student-facing rendering of a P-rule on `/rules` and per-finding pages. Not every P-rule is a standalone public card — see "Detector vs. reporting-only" below. |
 | **Issue type** | A specific machine-readable string a detector emits (e.g. `possible_body_font_size_issue`). One P-rule can emit several issue types. |
 | **Detector** | The `src/njit_auditor/rules/*.py` function that actually inspects the document and produces `AuditFinding` objects. |
@@ -22,7 +22,7 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
 
 ## Detector vs. reporting-only vs. experimental vs. evaluation-only
 
-- **Detector rules** (most of P011–P068, P074, P078, P082): have a dedicated module under
+- **Detector rules** (most of P011-P068, P074, P078, P084, P085, and opt-in P082): have a dedicated module under
   `src/njit_auditor/rules/`, are called directly from `audit_runner.py`, and can produce
   standalone `AuditFinding`s with their own issue types.
 - **Reporting-only / infrastructure rules** (P069–P073, P076, P077, P079, P081): improve
@@ -32,8 +32,8 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
   (`tests/test_rule_registry_consistency.py::test_reporting_only_rules_have_no_issue_types`).
 - **Experimental rules** (P082 today): implemented but disabled by default. Public rule pages and
   the default web/CLI audit must not present these as active findings unless explicitly enabled.
-- **Evaluation-task rules** (P083): produce an analysis artifact (`data/processed/ef_comment_coverage.json`),
-  not runtime findings at all.
+- **Infrastructure/evaluation-task rules** (P080, P083): produce metadata reports or analysis
+  artifacts, not runtime findings at all.
 
 The web UI's `_classify_rule()` and `_technical_reason()` (`src/njit_auditor/web_app.py`) are the
 current source of truth for this classification at render time, driven by the JSON catalog's
@@ -51,10 +51,10 @@ the old code really did disagree on mixed-case input).
 | Metadata | Canonical-ish source today | Notes |
 |---|---|---|
 | Internal rule ID, section, question, rule definition, severity, phase, checkability, priority | `data/processed/rules/project_added_rules.json`, loaded/validated by `src/njit_auditor/rule_loader.py` (`RuleDefinition`) | This is the closest thing to a canonical registry. See "Schema drift" below — the Pydantic model did not (until this audit) type several fields that are actually present in the JSON. |
-| Public name / title / description | `title` / `description` fields in the same JSON — **present on only 22/82 entries** | Falls back to `question`/`rule_definition` text elsewhere; not consistently populated. |
-| Detector vs. reporting-only vs. experimental vs. evaluation-task classification | `rule_type` field in the same JSON (present on 13/82 entries) + `phase` field, re-derived independently in two places in `web_app.py` | See duplication note above. |
-| Esther Q-rule mapping | `source_q_rule_ids` field (present on 22/82 entries) **and** `docs/status/ester_q_p_rule_public_rule_mapping.md` **and** `src/njit_auditor/specs/q_rule_coverage.py` | Three places that should agree; `scripts/ester_rule_consistency_audit.py` is the only thing that cross-checks all three, and it requires local, untracked, generated Ester spreadsheet exports to run (not runnable in a fresh clone or CI today). |
-| Emitted issue types | `issue_types` field in the JSON (present on 26/82 entries) **and** the literal `issue_type=` strings detectors actually emit in `src/njit_auditor/rules/*.py` **and** the keys of `_ISSUE_TYPE_LABELS` in `src/njit_auditor/issue_type_explanations.py` **and** the `(rule_id, issue_type)` keys of `_ISSUE_TEMPLATES` in `src/njit_auditor/polished_comments.py` | Four places. Only the detector source is ground truth; the other three are supposed to be supersets/mirrors of it and can silently drift (this is exactly the class of bug PR #505 fixed: P057/P059/P062/P065/P078 issue types had zero `_ISSUE_TEMPLATES` coverage and fell through to a fallback that leaked the raw `rule_id`). |
+| Public name / title / description | `title` / `description` fields in the same JSON | Falls back to `question`/`rule_definition` text elsewhere when not populated. |
+| Detector vs. reporting-only vs. experimental vs. evaluation-task classification | `rule_type` field in the same JSON + `phase` field, rendered through `web_app.py` classification helpers | See duplication note above. |
+| Esther Q-rule mapping | `source_q_rule_ids` field (present on 25/85 entries) **and** `docs/status/ester_q_p_rule_public_rule_mapping.md` **and** `src/njit_auditor/specs/q_rule_coverage.py` | Three places that should agree; `scripts/ester_rule_consistency_audit.py` is the only thing that cross-checks all three, and it requires local, untracked, generated Ester spreadsheet exports to run (not runnable in a fresh clone or CI today). |
+| Emitted issue types | `issue_types` field in the JSON (present on 29/85 entries) **and** the literal `issue_type=` strings detectors actually emit in `src/njit_auditor/rules/*.py` **and** the keys of `_ISSUE_TYPE_LABELS` in `src/njit_auditor/issue_type_explanations.py` **and** the `(rule_id, issue_type)` keys of `_ISSUE_TEMPLATES` in `src/njit_auditor/polished_comments.py` | Four places. Only the detector source is ground truth; the other three are supposed to be supersets/mirrors of it and can silently drift (this is exactly the class of bug PR #505 fixed: P057/P059/P062/P065/P078 issue types had zero `_ISSUE_TEMPLATES` coverage and fell through to a fallback that leaked the raw `rule_id`). |
 | Confidence policy | Computed inline, per detector, in each `src/njit_auditor/rules/*.py` module | Not centralized; no single "confidence policy" registry exists. Out of scope to centralize in this pass — would risk changing detector output, which the task that produced this document explicitly forbids. |
 | Highlight capability | `src/njit_auditor/pdf_highlight.py` (`has_visible_highlight`, `is_drawable_bbox`) evaluated per-finding from stored geometry, not declared per-rule | A rule's highlight support is an emergent property of whether its findings happen to carry a valid bbox, not a static fact you can look up by rule ID. |
 | Wording/remediation coverage | `src/njit_auditor/polished_comments.py` (`_ISSUE_TEMPLATES`, `_RULE_FALLBACKS`, `_REMEDIATION_OVERRIDES`, `_ISSUE_REMEDIATION_OVERRIDES`) | Four separate dicts with different keying (`rule_id` alone vs. `(rule_id, issue_type)` tuples); a rule can have partial coverage across some but not all of them. |
@@ -62,14 +62,14 @@ the old code really did disagree on mixed-case input).
 ## Schema drift found and fixed in this audit
 
 `data/processed/rules/project_added_rules.json` entries actually carry these fields beyond what
-`RuleDefinition` (in `rule_loader.py`) validated before this audit:
+`RuleDefinition` (in `rule_loader.py`) validated before the July architecture audit:
 
 `title`, `description`, `rule_type`, `issue_types`, `source_q_rule_ids`, `source_files`,
 `scope_doc`, `triage_tier`, `affected_rules`, `source_q_rule_basis`
 
 Because Pydantic v2 silently ignores unmodeled fields by default, `load_rule_file()` — the one
 function meant to validate this catalog — was accepting the file while silently dropping 9 of its
-fields for every rule that used them (13–26 of 82 rules per field). Nothing caught this because
+fields for every rule that used them. Nothing caught this because
 `load_rule_file()` is exercised only by `tests/test_rule_inventory.py` and `tests/test_basic.py`,
 which check structural things (uniqueness, required fields) rather than round-tripping every field.
 
@@ -109,7 +109,7 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 | Q005 | Abstract first-person pronouns |
 | Q006 | Graduation month validation (Aug/Dec/May) |
 
-### PDF layout audit (P011–P068, P074, P078 standalone; P069–P073/P076/P077/P079/P081 infrastructure)
+### PDF layout audit (P011-P068, P074, P078, P084, P085 standalone; P069-P073/P076/P077/P079/P081 infrastructure)
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -173,11 +173,14 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 | P068 | Front matter | Approval Page committee/signature-block structural check |
 | P074 | Front matter | Title Page graduation month validation (Aug/Dec/May) |
 | P078 | Abstract | PDF Abstract forbidden-term (Q004) and first-person pronoun (Q005) check |
+| P084 | Biographical Sketch | High-confidence birth-information pattern check for place/date of birth (Q023); Biographical Sketch page only |
+| P085 | PDF body structure | First body chapter must begin with the required literal CHAPTER 1 heading |
 | P082 | Page numbering | **Experimental, opt-in.** Landscape page-number orientation/position advisory; disabled by default |
 
 **Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading
 gate recall; P070 TOC/LoT/LoF entry parser recall; P071 references-section localization recall
-(P064 companion); P072 approval-page heading-gate recall; P073 P019 triage rollup; P076 P036
+(P064 companion); P072 approval-page heading-gate recall; P073 P019 triage rollup; P080 DOCX
+comment/tracked-change extraction; P076 P036
 triage rollup; P077 P038 triage rollup; P079 P044 triage rollup; P081 P013/P026 calibration
 refinement.
 

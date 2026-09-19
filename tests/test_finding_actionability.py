@@ -63,7 +63,6 @@ from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
 )
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
-from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 # ---------------------------------------------------------------------------
@@ -2400,13 +2399,18 @@ def test_p024_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
 
 
 def _make_batch2_p036_pdf(path: Path) -> None:
+    # 20pt row-to-row pitch at 12pt font is single-spaced, well under the
+    # ~22pt required for genuine double spacing, but still above the
+    # ~16.5pt line-box height these synthetic rows render at (so the gap
+    # bbox stays positive/drawable) -- see
+    # docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md.
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
     page.insert_text((108, 140), "Chapter 3 Literature Review and Background ....", fontsize=12)
     page.insert_text((500, 140), "10", fontsize=12)
-    page.insert_text((108, 170), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
-    page.insert_text((500, 170), "12", fontsize=12)
+    page.insert_text((108, 160), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
+    page.insert_text((500, 160), "12", fontsize=12)
     doc.save(path)
     doc.close()
 
@@ -2414,10 +2418,19 @@ def _make_batch2_p036_pdf(path: Path) -> None:
 def test_p036_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_batch2_tight_spacing.pdf"
     _make_batch2_p036_pdf(pdf_path)
+    # Under the selected suppression/abstention-only gate the production rule
+    # emits no findings (no real true positive validated), so build the
+    # finding via the production finding builder against a record produced by
+    # the policy to verify the bbox/view passthrough.
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        _build_finding,
+        classify_r036_spacing_candidates,
+    )
+
     model = load_pdf_layout(str(pdf_path))
-    findings = [f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036"]
-    assert len(findings) == 1
-    finding = findings[0]
+    records = classify_r036_spacing_candidates(model)
+    assert records
+    finding = _build_finding(records[0])
     assert finding.details.get("issue_type") == "toc_inter_entry_spacing_too_tight"
 
     bbox_str = finding.details.get("bbox")

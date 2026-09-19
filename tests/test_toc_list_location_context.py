@@ -16,7 +16,6 @@ from njit_auditor.report_view import build_report_view, enriched_pdf_location_la
 from njit_auditor.rules.pdf_lot_lof_entry_number_alignment import (
     check_pdf_lot_lof_entry_number_alignment,
 )
-from njit_auditor.rules.pdf_toc_list_entry_spacing import check_pdf_toc_list_entry_spacing
 from njit_auditor.toc_list_student_preview import (
     gap_bbox_between_boxes,
     sanitize_toc_list_entry_preview,
@@ -26,13 +25,19 @@ _BBOX_STRING_RE = re.compile(r"^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,
 
 
 def _make_tight_toc_pdf(path: Path) -> None:
+    # 20pt row-to-row pitch at 12pt font is single-spaced, well under the
+    # ~22pt (1.6x the ~13.8pt single-line pitch) required for genuine
+    # double spacing -- see
+    # docs/status/r036_toc_wrapped_title_spacing_policy_20260914.md. Kept
+    # above the ~16.5pt line-box height these synthetic rows render at so
+    # the two boxes still leave a small positive, drawable visual gap.
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
     page.insert_text((108, 140), "Chapter 3 Literature Review and Background ....", fontsize=12)
     page.insert_text((500, 140), "10", fontsize=12)
-    page.insert_text((108, 170), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
-    page.insert_text((500, 170), "12", fontsize=12)
+    page.insert_text((108, 160), "Chapter 4 Extended Dissertation Topic Title ....", fontsize=12)
+    page.insert_text((500, 160), "12", fontsize=12)
     doc.save(path)
     doc.close()
 
@@ -61,11 +66,27 @@ def _parse_bbox(bbox_str: str) -> tuple[float, float, float, float]:
     return (parts[0], parts[1], parts[2], parts[3])
 
 
+def _p036_finding_for_tight_pdf(pdf_path: Path):
+    """Build a P036 finding for a tight TOC via the production finding
+    builder. Under the selected suppression/abstention-only gate the
+    production rule emits no findings (no real true positive validated), so
+    the view/formatting tests exercise the builder directly against a record
+    produced by the production policy."""
+    from njit_auditor.rules.r036_production_page_relative_spacing import (
+        _build_finding,
+        classify_r036_spacing_candidates,
+    )
+
+    model = load_pdf_layout(str(pdf_path))
+    records = classify_r036_spacing_candidates(model)
+    assert records
+    return _build_finding(records[0])
+
+
 def test_p036_gap_bbox_is_drawable_and_between_entry_lines(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_gap_bbox.pdf"
     _make_tight_toc_pdf(pdf_path)
-    model = load_pdf_layout(str(pdf_path))
-    finding = next(f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036")
+    finding = _p036_finding_for_tight_pdf(pdf_path)
 
     bbox_str = finding.details.get("bbox")
     assert bbox_str is not None
@@ -82,8 +103,7 @@ def test_p036_gap_bbox_is_drawable_and_between_entry_lines(tmp_path: Path) -> No
 def test_p036_finding_view_highlights_gap_with_entry_snippets(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_gap_actionability.pdf"
     _make_tight_toc_pdf(pdf_path)
-    model = load_pdf_layout(str(pdf_path))
-    finding = next(f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036")
+    finding = _p036_finding_for_tight_pdf(pdf_path)
     view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
     fv = view.findings[0]
 
@@ -199,8 +219,7 @@ def test_gap_bbox_helper_requires_positive_vertical_gap() -> None:
 def test_markdown_p036_uses_entry_snippets_not_index_only(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p036_markdown_snippets.pdf"
     _make_tight_toc_pdf(pdf_path)
-    model = load_pdf_layout(str(pdf_path))
-    finding = next(f for f in check_pdf_toc_list_entry_spacing(model) if f.rule_id == "P036")
+    finding = _p036_finding_for_tight_pdf(pdf_path)
     md_path = tmp_path / "report.md"
     write_markdown_report([finding], {"audit_type": "pdf"}, md_path)
     text = md_path.read_text(encoding="utf-8")

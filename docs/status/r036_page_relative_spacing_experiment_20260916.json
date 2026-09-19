@@ -1,0 +1,83 @@
+{
+  "source_branch": "fix/r036-recover-split-section-number-classification-20260914",
+  "source_sha": "4ce9f778de10da97a59dc65800c8579ad9cb7370",
+  "experiment_branch": "experiment/r036-page-relative-spacing-model-20260916",
+  "production_r036_changed": "YES",
+  "known_ester_false_positive_count": 24,
+  "known_ester_false_positive_set_complete": "YES",
+  "known_ester_false_positives_matched_to_current_candidates": 24,
+  "known_ester_false_positives_flagged_by_best_model": 0,
+  "known_ester_false_positives_suppressed_by_best_model": 24,
+  "all_24_known_false_positives_suppressed": true,
+  "current_production_counts": {
+    "Youra": 0,
+    "Anthony": 0,
+    "Muyeed": 0,
+    "Philip": 0,
+    "Praneeth": 0,
+    "Sebastian": 0,
+    "Patrick": 0
+  },
+  "current_production_findings": 0,
+  "page_statistics_summary": {
+    "toc_list_pages": 42,
+    "pages_by_section": {
+      "table_of_contents": 20,
+      "list_of_tables": 5,
+      "list_of_figures": 17
+    },
+    "pages_with_too_few_candidate_gaps": 10,
+    "candidate_gaps": 448
+  },
+  "model_summary": {
+    "Model A - Median-relative ratio": {
+      "suppressed": 418,
+      "abstentions": 28,
+      "all_candidate_anomalies": 2
+    },
+    "Model B - Robust z-score": {
+      "suppressed": 391,
+      "all_candidate_anomalies": 29,
+      "abstentions": 28
+    },
+    "Model C - Lower-tail percentile": {
+      "suppressed": 376,
+      "all_candidate_anomalies": 44,
+      "abstentions": 28
+    },
+    "Model D - Two-mode clustering": {
+      "suppressed": 419,
+      "abstentions": 28,
+      "all_candidate_anomalies": 1
+    },
+    "Model E - Neighbor-relative anomaly": {
+      "suppressed": 349,
+      "abstentions": 99
+    }
+  },
+  "best_diagnostic_model": "Model E - Neighbor-relative anomaly",
+  "best_model_rationale": "Model E is the most interpretable diagnostic candidate: it compares a gap against nearby gaps on the same page, suppressing uniform page rhythm while still surfacing isolated lower-tail spacing dips. It abstains on sparse pages.",
+  "sparse_page_policy": "Use page-local modeling only when a page has at least five eligible inter-entry gaps after reconstruction and structural exemptions; otherwise diagnostic outcome is INSUFFICIENT_CONTEXT rather than a finding.",
+  "section_type_results": {
+    "TOC": {
+      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 221,
+      "INSUFFICIENT_CONTEXT": 14
+    },
+    "LOT": {
+      "INSUFFICIENT_CONTEXT": 31,
+      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 19
+    },
+    "LOF": {
+      "INSUFFICIENT_CONTEXT": 54,
+      "SUPPRESSED_AS_NORMAL_PAGE_RHYTHM": 109
+    }
+  },
+  "signature_coverage_counts_for_current_production_findings": {},
+  "historical_authoritative_review_coverage_counts_for_former_96": {
+    "directly_represented_by_ester_rejected_cluster": 31,
+    "closely_represented": 47,
+    "not_represented_or_genuinely_unreviewed": 18
+  },
+  "candidate_detail_policy": "Per-candidate extracted TOC/LOT/LOF text is omitted from the checked-in artifact because the source PDFs are private evaluation dissertations.",
+  "current_production_finding_analysis": []
+}
