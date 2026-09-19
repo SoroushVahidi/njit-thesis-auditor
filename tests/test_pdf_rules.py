@@ -11882,6 +11882,128 @@ def test_p053_lot_entry_with_period_warns(tmp_path: Path) -> None:
     _assert_student_message_hides_source_q_ids(findings[0])
 
 
+def test_p053_lot_entry_unicode_leader_dots_do_not_warn(tmp_path: Path) -> None:
+    """Unicode/ASCII leader dots after a title are not terminal punctuation."""
+    pdf_path = tmp_path / "p053_unicode_leaders.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Synthetic Table Title…………….", "5"),
+        ("Table 2 Another Synthetic Entry…………", "12"),
+        ("Table 3 Third Synthetic Entry…………", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_lot_entry_real_period_before_separated_leaders_warns(tmp_path: Path) -> None:
+    """A semantic title period remains a violation before a separated leader run."""
+    pdf_path = tmp_path / "p053_real_period_before_leaders.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Synthetic Table Title. …………", "5"),
+        ("Table 2 Another Synthetic Entry…………", "12"),
+        ("Table 3 Third Synthetic Entry…………", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert len(findings) == 1
+    assert findings[0].details.get("issue_type") == "lot_entry_has_terminal_period"
+
+
+def test_p053_lot_entry_internal_abbreviation_period_no_finding(tmp_path: Path) -> None:
+    """Internal abbreviation periods are not terminal punctuation."""
+    pdf_path = tmp_path / "p053_internal_abbreviation.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Synthetic Dr. Example Dataset…………", "5"),
+        ("Table 2 Another Synthetic Entry…………", "12"),
+        ("Table 3 Third Synthetic Entry…………", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_lot_entry_detached_leader_span_no_finding() -> None:
+    """Leader dots in a separate span are stripped before punctuation checks."""
+    title = PdfTextSpan(
+        text="Table 1 Synthetic Detached Leader Title",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=72.0, y0=140.0, x1=300.0, y1=152.0),
+    )
+    leader = PdfTextSpan(
+        text="…………….",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=305.0, y0=140.0, x1=430.0, y1=152.0),
+    )
+    page_number = PdfTextSpan(
+        text="5",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=500.0, y0=140.0, x1=508.0, y1=152.0),
+    )
+    line = PdfTextLine(
+        text="Table 1 Synthetic Detached Leader Title……………. 5",
+        bbox=BBox(x0=72.0, y0=140.0, x1=508.0, y1=152.0),
+        spans=[title, leader, page_number],
+    )
+    page = PdfPage(
+        page_number=1,
+        width=612.0,
+        height=792.0,
+        text_blocks=[
+            PdfTextBlock(
+                bbox=BBox(x0=190.0, y0=90.0, x1=330.0, y1=106.0),
+                text="LIST OF TABLES",
+                lines=[
+                    PdfTextLine(
+                        text="LIST OF TABLES",
+                        bbox=BBox(x0=190.0, y0=90.0, x1=330.0, y1=106.0),
+                        spans=[],
+                    )
+                ],
+            ),
+            PdfTextBlock(bbox=line.bbox, text=line.text, lines=[line]),
+        ],
+    )
+    doc = PdfDocument(path="synthetic", pages=[page])
+    findings = [f for f in check_pdf_lot_terminal_period(doc) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_lot_entry_attached_leader_fragment_no_finding(tmp_path: Path) -> None:
+    """A first leader dot attached to the final title token is still a leader."""
+    pdf_path = tmp_path / "p053_attached_leader.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Synthetic Attached Leader Title.…………", "5"),
+        ("Table 2 Another Synthetic Entry…………", "12"),
+        ("Table 3 Third Synthetic Entry…………", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
+def test_p053_lot_entry_wrapped_title_final_row_leaders_no_finding(tmp_path: Path) -> None:
+    """Wrapped titles are classified by semantic title text before final-row leaders."""
+    pdf_path = tmp_path / "p053_wrapped_leaders.pdf"
+    _make_lot_terminal_period_pdf(pdf_path, [
+        ("Table 1 Synthetic Wrapped Table Title That Starts", None),
+        ("  on the Next Row Without Terminal Period…………", "5"),
+        ("Table 2 Another Synthetic Entry…………", "12"),
+        ("Table 3 Third Synthetic Entry…………", "20"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert not findings
+
+
 def test_p053_wrap_continuation_skipped(tmp_path: Path) -> None:
     """Lines without page-number tokens (leading wrap lines) are not flagged."""
     pdf_path = tmp_path / "p053_wrap.pdf"

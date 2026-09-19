@@ -4,14 +4,14 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-18, on the R015 Ester paragraph-indentation follow-up
-branch._
+_Last updated: 2026-09-18, on the R053 Ester leader-dot terminal-period
+follow-up branch._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `40d285a4f03cf393f7497b1a795f00642d1bc0ad` |
+| Current `origin/main` SHA | `9884627a8f567d75de99163f6eb7646de9428561` |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -97,10 +97,10 @@ Primary R011 records:
 - `tests/test_p011_esther_r011_batch_2026_08.py`
 - `tests/test_p011_bottom_margin_synthetic.py`
 
-## R015 Current Follow-Up State
+## R015 Current State
 
 R015/P015 covers body paragraph indentation. The current follow-up branch is
-`fix/r015-ester-paragraph-indentation-followup-20260918`; it is not merged.
+merged on current main by PR #540.
 
 Ester's latest adjudication says the Youra physical-page-101 R015 candidate was
 reported on the wrong line: the following continuation line should not be
@@ -129,12 +129,51 @@ Philip 6, Praneeth 0, Sebastian 0, Patrick 0; total 8. Relative to the
 pre-follow-up behavior, the only material change is the intended Youra
 page-101 correct-line recovery.
 
+Post-merge validation passed: `ruff check .` clean, `mypy src` clean,
+`python -m pytest` with 3544 passed and 3 warnings, targeted R015 with 77
+passed, shared regressions with 145 passed and 643 deselected, and the
+seven-document R015 corpus audit.
+
 Primary R015 records:
 
 - `docs/status/p015_r015_esther_feedback_false_positive_fix_20260825.md`
 - `docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md`
 - `tests/test_p015_esther_r015_batch_2026_08.py`
 - `tests/test_p015_r015_ester_run_in_heading_20260831.py`
+
+## R053 Current Follow-Up State
+
+R053/P053 covers List of Tables entries that should not end with a terminal
+period. The current follow-up branch is
+`fix/r053-leader-dot-terminal-period-followup-20260918`; it is not merged.
+
+Ester's latest R053 adjudication says the Praneeth physical-page-14 /
+printed-page-xi List of Tables finding is a false positive. The apparent
+terminal periods are leader dots between the title and the page number, not
+punctuation belonging to the semantic title.
+
+The selected policy remains local to P053:
+
+- keep the existing page-number and legacy ASCII leader stripping behavior;
+- additionally strip trailing visual dot leaders made from ASCII periods,
+  Unicode ellipses, or middle-dot characters;
+- preserve an isolated title-ending period before separated leaders, so genuine
+  semantic terminal periods still report;
+- avoid student-, page-, title-, or dissertation-specific exceptions.
+
+Current seven-dissertation R053 branch audit: Youra 0, Anthony 0, Muyeed 1,
+Philip 0, Praneeth 0, Sebastian 0, Patrick 0; total 1. Relative to the
+pre-follow-up behavior, the only material changes are two Praneeth List of
+Tables leader-dot artifacts removed, including the reviewed false positive.
+
+Cross-rule diagnostics found that R054/P054 likely shares the same leader-dot
+segmentation issue for Praneeth, but R054 was not changed here. R040/P040 is
+only partially related and needs its own rule-specific analysis.
+
+Primary R053 records:
+
+- `docs/status/p053_r053_leader_dot_terminal_period_followup_20260918.md`
+- `tests/test_pdf_rules.py`
 
 ## Feedback-Cycle Rule State
 
@@ -149,12 +188,14 @@ rule registry entries.
 | Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5 |
 | Genuinely unresolved | R034, Latin Modern font-alias expansion |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
-| Not yet reviewed this cycle | R037 onward, except separately handled R055/R085 |
+| In current follow-up branch | R053 |
+| Not yet reviewed this cycle | R037 onward, except separately handled R053/R055/R085 |
 
 ## Next Work Sequence
 
-After review and merge of the R015 PR, proceed to the next
-Ester-adjudicated feedback rule as a separate task.
+After review and merge of the R053 PR, proceed to R054 if its false positive
+remains unresolved; otherwise use the R053 cross-rule diagnostics to determine
+the next Ester-adjudicated rule.
 
 ## Repository Hygiene Notes
 
