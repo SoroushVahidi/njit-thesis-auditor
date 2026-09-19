@@ -4,7 +4,7 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-18, on the R053 Ester leader-dot terminal-period
+_Last updated: 2026-09-18, on the R054 Ester leader-dot terminal-period
 follow-up branch._
 
 ## Main and R036 Branch
@@ -141,11 +141,10 @@ Primary R015 records:
 - `tests/test_p015_esther_r015_batch_2026_08.py`
 - `tests/test_p015_r015_ester_run_in_heading_20260831.py`
 
-## R053 Current Follow-Up State
+## R053 Current State
 
 R053/P053 covers List of Tables entries that should not end with a terminal
-period. The current follow-up branch is
-`fix/r053-leader-dot-terminal-period-followup-20260918`; it is not merged.
+period. The R053 follow-up is merged on current main by PR #541.
 
 Ester's latest R053 adjudication says the Praneeth physical-page-14 /
 printed-page-xi List of Tables finding is a false positive. The apparent
@@ -166,13 +165,51 @@ Philip 0, Praneeth 0, Sebastian 0, Patrick 0; total 1. Relative to the
 pre-follow-up behavior, the only material changes are two Praneeth List of
 Tables leader-dot artifacts removed, including the reviewed false positive.
 
-Cross-rule diagnostics found that R054/P054 likely shares the same leader-dot
-segmentation issue for Praneeth, but R054 was not changed here. R040/P040 is
-only partially related and needs its own rule-specific analysis.
+Post-merge validation passed: `ruff check .` clean, `mypy src` clean,
+`python -m pytest` with 3545 passed, 5 skipped, and 3 warnings, targeted R053
+with 19 passed and 770 deselected, P040/P053/P054 slice with 44 passed and 745
+deselected, and the seven-document R053 corpus audit.
 
 Primary R053 records:
 
 - `docs/status/p053_r053_leader_dot_terminal_period_followup_20260918.md`
+- `tests/test_pdf_rules.py`
+
+## R054 Current Follow-Up State
+
+R054/P054 covers Table of Contents entries that should not end with a terminal
+period. The current follow-up branch is
+`fix/r054-leader-dot-terminal-period-followup-20260918`; it is not merged.
+
+Ester's latest R054 adjudication says the Praneeth physical-page-11 /
+printed-page-viii Table of Contents finding is a false positive. The apparent
+terminal periods are leader dots between the TOC title and the page number,
+not punctuation belonging to the semantic title.
+
+The selected policy remains local to P054:
+
+- keep the existing page-number, legacy ASCII leader, and hyphen/underscore
+  leader stripping behavior;
+- additionally strip trailing visual dot leaders made from ASCII periods,
+  Unicode ellipses, or middle-dot characters;
+- repeat stripping when PDF extraction leaves multiple trailing leader
+  fragments on the same entry;
+- preserve an isolated title-ending period before separated Unicode leaders,
+  so genuine semantic terminal periods still report;
+- avoid student-, page-, title-, or dissertation-specific exceptions.
+
+Current seven-dissertation R054 branch audit: Youra 1, Anthony 0, Muyeed 1,
+Philip 2, Praneeth 0, Sebastian 0, Patrick 0; total 4. Relative to the
+pre-follow-up behavior, the only material changes are six Praneeth Table of
+Contents leader-dot artifacts removed, including the reviewed false positive.
+
+R053 regression remains unchanged: Youra 0, Anthony 0, Muyeed 1, Philip 0,
+Praneeth 0, Sebastian 0, Patrick 0; total 1. R040/P040 output did not change
+and remains a separate pending follow-up.
+
+Primary R054 records:
+
+- `docs/status/p054_r054_leader_dot_terminal_period_followup_20260918.md`
 - `tests/test_pdf_rules.py`
 
 ## Feedback-Cycle Rule State
@@ -183,19 +220,18 @@ rule registry entries.
 
 | State | Rules |
 |---|---|
-| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R055 |
+| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R053, R055 |
 | Closed, engineering-confirmed genuine violation | R085 |
 | Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5 |
 | Genuinely unresolved | R034, Latin Modern font-alias expansion |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
-| In current follow-up branch | R053 |
-| Not yet reviewed this cycle | R037 onward, except separately handled R053/R055/R085 |
+| In current follow-up branch | R054 |
+| Not yet reviewed this cycle | R037 onward, except separately handled R053/R054/R055/R085 |
 
 ## Next Work Sequence
 
-After review and merge of the R053 PR, proceed to R054 if its false positive
-remains unresolved; otherwise use the R053 cross-rule diagnostics to determine
-the next Ester-adjudicated rule.
+After review and merge of the R054 PR, begin the separate Ester-adjudicated
+R040 follow-up.
 
 ## Repository Hygiene Notes
 

@@ -30,7 +30,41 @@ from njit_auditor.rules.pdf_toc_alignment import (
 MIN_ENTRY_TEXT_LEN = 10
 
 _LEADER_STRIP_RE = re.compile(r"\s*(?:(?:\.\s*){2,}|[-–—_]{2,})$")
+_DOT_LEADER_CHARS = ".…·"
+_SEPARATED_DOT_LEADER_RE = re.compile(r"\s+[.…·][.…·\s]*$")
+_ATTACHED_DOT_LEADER_RE = re.compile(r"[.…·]+$")
 _TERMINAL_PERIOD_RE = re.compile(r"\.\s*$")
+
+
+def _dot_leader_weight(text: str) -> int:
+    """Return visible dot weight for a candidate dot-leader fragment."""
+
+    return sum(3 if char == "…" else 1 for char in text if char in _DOT_LEADER_CHARS)
+
+
+def _strip_trailing_leaders(text: str) -> str:
+    """Strip visual leaders while preserving isolated title punctuation."""
+
+    stripped = text.rstrip()
+    while True:
+        legacy_stripped = _LEADER_STRIP_RE.sub("", stripped).strip()
+        if legacy_stripped != stripped:
+            stripped = legacy_stripped
+            continue
+
+        separated = _SEPARATED_DOT_LEADER_RE.search(stripped)
+        if separated is not None and _dot_leader_weight(separated.group()) >= 2:
+            stripped = stripped[: separated.start()].rstrip()
+            continue
+
+        attached = _ATTACHED_DOT_LEADER_RE.search(stripped)
+        if attached is not None and _dot_leader_weight(attached.group()) >= 2:
+            stripped = stripped[: attached.start()].rstrip()
+            continue
+
+        break
+
+    return stripped.strip()
 
 
 def _extract_toc_entry_text(entry: TocEntryLine) -> str | None:
@@ -41,7 +75,7 @@ def _extract_toc_entry_text(entry: TocEntryLine) -> str | None:
         if stripped.endswith(entry.page_number_token):
             stripped = stripped[: -len(entry.page_number_token)].rstrip()
         text = stripped
-    text = _LEADER_STRIP_RE.sub("", text).strip()
+    text = _strip_trailing_leaders(text)
     return text if len(text) >= MIN_ENTRY_TEXT_LEN else None
 
 
