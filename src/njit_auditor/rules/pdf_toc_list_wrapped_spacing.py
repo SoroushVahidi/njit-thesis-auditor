@@ -176,10 +176,10 @@ def _looks_like_new_entry_start_given_previous(
     because ``_line_has_page_number``'s short-roman-numeral branch has no
     dot-leader requirement of its own and readily false-triggers on an
     ordinary trailing word that happens to be spelled entirely with roman
-    numeral letters -- confirmed on the real Praneeth PDF, where a List of
-    Figures caption line ending "...the LC and Glycated LC" (a
-    biochemistry abbreviation, not a page number) was misread as ending in
-    the roman numeral "LC" (=150) and wrongly split the caption's own
+    numeral letters -- confirmed on the real corpus, where a List of
+    Figures caption line ending in an all-roman-letter abbreviation (not a
+    page number) was misread as ending in the roman numeral "LC" (=150)
+    and wrongly split the caption's own
     wrapped continuation into a bogus second entry. The plain "..."
     substring test *previous* uses below for *cleaned* is looser still (it
     also matches ordinary prose containing an ellipsis or a run of

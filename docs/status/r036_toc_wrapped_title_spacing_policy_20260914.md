@@ -121,10 +121,10 @@ fixed, all three in `NEW_ENTRY_START_RE` /
 `_looks_like_new_entry_start_given_previous`
 (`pdf_toc_list_wrapped_spacing.py`):
 
-1. **Bare-numbered top-level headings** ("3 ULTRAFAST MICRODROPLET
-   DIGESTION OF PROTEINS FOLLOWING" / "CHROMATOGRAPHIC SEPARATION...",
-   Praneeth page 12; a numbered all-caps heading with a dropped space with the space
-   after the period dropped by extraction, Sebastian page 9) were not
+1. **Bare-numbered top-level headings** (a numbered all-caps heading split
+   across two extracted physical lines, Praneeth page 12; and a numbered
+   all-caps heading with the space after the period dropped by extraction,
+   Sebastian page 9) were not
    recognized as starting a new entry because they have neither a decimal
    sub-number nor the word "CHAPTER"/"APPENDIX", and their own first
    physical line has no dot leaders yet. `NEW_ENTRY_START_RE` gained a
@@ -164,7 +164,7 @@ throughout the corpus. The narrower, rigorously-confirmed version was
 substituted and re-validated (see below); it also had to be tightened once
 more after a second real false trigger was found (`_line_has_page_number`'s
 short-roman-numeral branch, with no dot-leader requirement of its own,
-misread the trailing abbreviation "...Glycated LC" as ending in the roman
+misread a trailing all-roman-letter abbreviation as ending in the roman
 numeral "LC" = 150 and wrongly split a Praneeth List of Figures caption —
 fixed by additionally requiring a real dot-leader run on *previous*, not
 `_line_has_page_number` alone).

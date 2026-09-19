@@ -15,8 +15,8 @@ _Last updated: 2026-09-19, during the R036 final integration-readiness pass on
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
-| R036 implementation/privacy-audited HEAD | `b277f34fe8ec7e01a32c83a1a23af82d5f7f8556`; superseded only by final documentation reconciliation |
-| R036 relation to `origin/main` after final documentation reconciliation | 8 commits ahead, 0 behind |
+| R036 implementation/privacy-audited HEAD | `b277f34fe8ec7e01a32c83a1a23af82d5f7f8556`; superseded only by final documentation/privacy reconciliation |
+| R036 relation to `origin/main` after final documentation/privacy reconciliation | 9 commits ahead, 0 behind |
 | Deployment | Not updated by this pass |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3544 passed**, 3 warnings |
