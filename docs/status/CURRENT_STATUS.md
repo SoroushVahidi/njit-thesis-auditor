@@ -304,6 +304,27 @@ Primary R048 record:
 - `docs/status/p048_r048_ester_right_column_alignment_followup_20260919.md`
 - `tests/test_pdf_rules.py`
 
+## R078 Current Follow-Up State
+
+R078/P078 covers Q005 first-person pronoun detection in the Abstract body only.
+The documented set is standalone capital `I` plus `me`, `my`, `mine`, `we`,
+`us`, `our`, and `ours`; references, chapters, headings, and other sections are
+outside scope.
+
+Ester adjudicated the Muyeed lowercase `i` in `i.e.` case as a false positive
+and the Praneeth `we` case as a true positive. The detector now treats only
+capital standalone `I` as the singular form while preserving the documented
+case-insensitive plural/possessive forms. Shared text tokenization is unchanged.
+
+Current seven-dissertation R078 audit: Youra 0, Anthony 0, Muyeed 0, Philip 0,
+Praneeth 1, Sebastian 0, Patrick 0; total 1, down from 2. The reviewed Muyeed
+false positive is removed and the reviewed Praneeth true positive remains.
+
+Primary R078 record:
+
+- `docs/status/p078_r078_ester_first_person_language_followup_20260919.md`
+- `tests/test_p078_pdf_abstract_keywords.py`
+
 `LEADER_PLACEMENT_RULE_GAP` remains separate and unimplemented.
 
 Primary R046 records:
