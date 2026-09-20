@@ -11,6 +11,9 @@ figure descriptions, table captions, or any private content. Complements P018
 
 from __future__ import annotations
 
+import re
+from statistics import median
+
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages, extract_toc_entry_lines
@@ -18,6 +21,15 @@ from njit_auditor.toc_list_student_preview import sanitize_toc_list_entry_previe
 
 MIN_ENTRIES = 3
 X0_RANGE_THRESHOLD_PT = 6.0
+
+_LABELLED_ENTRY_NUMBER_RE = re.compile(
+    r"^(?:Table|Figure)\s+(?:[A-Z]\.?\d+(?:\.\d+)*|\d+(?:\.\d+)*)\.?\s+",
+    re.IGNORECASE,
+)
+_UNLABELLED_ENTRY_NUMBER_RE = re.compile(
+    r"^(?:[A-Z]\.?\d+(?:\.\d+)+|\d+(?:\.\d+)+)\.?\s+(?P<title_start>\S)",
+    re.IGNORECASE,
+)
 
 _SECTION_LABELS = {
     "list_of_tables": "List of Tables",
@@ -31,6 +43,18 @@ _SOURCE_Q_RULE = {
     "list_of_tables": "Q068",
     "list_of_figures": "Q078",
 }
+
+
+def _entry_number_left_x(entry_text: str, indent_x: float) -> float | None:
+    """Return the entry-number column x0, or None for continuation/title fragments."""
+
+    stripped = entry_text.lstrip()
+    if _LABELLED_ENTRY_NUMBER_RE.match(stripped):
+        return indent_x
+    unlabelled = _UNLABELLED_ENTRY_NUMBER_RE.match(stripped)
+    if unlabelled is not None and not unlabelled.group("title_start")[0].islower():
+        return indent_x
+    return None
 
 
 def check_pdf_lot_lof_entry_number_alignment(
@@ -58,12 +82,15 @@ def check_pdf_lot_lof_entry_number_alignment(
             complete = entries
 
         for per_page_index, entry in enumerate(complete):
+            entry_number_x = _entry_number_left_x(entry.cleaned_text, entry.indent_x)
+            if entry_number_x is None:
+                continue
             preview = sanitize_toc_list_entry_preview(entry.cleaned_text)
             entries_by_section[section].append(
                 (
                     context.page.page_number,
                     per_page_index,
-                    entry.indent_x,
+                    entry_number_x,
                     entry.line.bbox,
                     preview,
                 )
@@ -82,8 +109,10 @@ def check_pdf_lot_lof_entry_number_alignment(
         x0_min = min(x0s)
         x0_max = max(x0s)
         x0_range = x0_max - x0_min
+        expected_x0 = median(x0s)
+        worst_delta = max(abs(x0 - expected_x0) for x0 in x0s)
 
-        if x0_range <= X0_RANGE_THRESHOLD_PT:
+        if worst_delta <= X0_RANGE_THRESHOLD_PT:
             continue
 
         page_num = first_page_by_section.get(section, 0)
@@ -92,7 +121,7 @@ def check_pdf_lot_lof_entry_number_alignment(
         affected = [
             (page_number, per_page_index, x0, bbox, preview)
             for page_number, per_page_index, x0, bbox, preview in located_entries
-            if abs(x0 - x0_min) > X0_RANGE_THRESHOLD_PT
+            if abs(x0 - expected_x0) > X0_RANGE_THRESHOLD_PT
         ]
         details = {
             "page_number": str(page_num),
@@ -100,7 +129,7 @@ def check_pdf_lot_lof_entry_number_alignment(
             "section_type": section,
             "entry_count": str(len(x0s)),
             "observed_x0_range_points": f"{x0_range:.1f}",
-            "expected_x0": f"{x0_min:.1f}",
+            "expected_x0": f"{expected_x0:.1f}",
             "observed_x0_max": f"{x0_max:.1f}",
             "allowed_x0_range_points": f"{X0_RANGE_THRESHOLD_PT:.1f}",
             "triage_tier": "low",

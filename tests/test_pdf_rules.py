@@ -13775,6 +13775,101 @@ def test_p046_q078_source_q_rule_id(tmp_path: Path) -> None:
     assert all(f.details.get("source_q_rule_id") == "Q078" for f in q078)
 
 
+def test_p046_wrapped_continuation_fragment_not_left_column_entry(tmp_path: Path) -> None:
+    """A hanging continuation with leaders/page number is not an entry-number row."""
+    pdf_path = tmp_path / "p046_wrapped_fragment.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure")
+    page.insert_text((500, 115), "Page")
+    page.insert_text((108, 140), "1.1 Synthetic Figure Title ................................ 12")
+    page.insert_text((149, 162), "continuation phrase with leaders ......................... 12")
+    page.insert_text((108, 190), "1.2 Synthetic Figure Title ................................ 13")
+    page.insert_text((108, 220), "1.3 Synthetic Figure Title ................................ 14")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P046" for f in check_pdf_lot_lof_entry_number_alignment(model))
+
+
+def test_p046_varying_label_widths_still_align_by_entry_start(tmp_path: Path) -> None:
+    """Figure 9/10/100 labels at one x0 are a valid left-column regime."""
+    pdf_path = tmp_path / "p046_label_widths.pdf"
+    entries = [
+        ("Figure 9 Synthetic entry title ................................ 12", 108.0),
+        ("Figure 10 Synthetic entry title ............................... 13", 108.0),
+        ("Figure 100 Synthetic entry title .............................. 14", 108.0),
+    ]
+    _make_lot_lof_pdf(pdf_path, "LIST OF FIGURES", entries, left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P046" for f in check_pdf_lot_lof_entry_number_alignment(model))
+
+
+def test_p046_fragmented_row_reconstructs_entry_start_column(tmp_path: Path) -> None:
+    """Same-baseline number/title/page fragments use the numeric entry start x0."""
+    pdf_path = tmp_path / "p046_fragmented.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Table")
+    page.insert_text((500, 115), "Page")
+    page.insert_text((108, 140), "2.1")
+    page.insert_text((137, 140), "Synthetic Table Title")
+    page.insert_text((500, 140), "12")
+    page.insert_text((108, 170), "2.2 Synthetic Table Title")
+    page.insert_text((500, 170), "13")
+    page.insert_text((108, 200), "2.3 Synthetic Table Title")
+    page.insert_text((500, 200), "14")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P046" for f in check_pdf_lot_lof_entry_number_alignment(model))
+
+
+def test_p046_small_benign_x_variation_no_findings(tmp_path: Path) -> None:
+    """Minor extraction jitter below the tolerance does not report R046."""
+    pdf_path = tmp_path / "p046_benign_variation.pdf"
+    entries = [
+        ("Table 1 Synthetic entry title ................................ 12", 108.0),
+        ("Table 2 Synthetic entry title ................................ 13", 111.0),
+        ("Table 3 Synthetic entry title ................................ 14", 113.5),
+    ]
+    _make_lot_lof_pdf(pdf_path, "LIST OF TABLES", entries)
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P046" for f in check_pdf_lot_lof_entry_number_alignment(model))
+
+
+def test_p046_unlabelled_lowercase_numeric_fragment_ignored(tmp_path: Path) -> None:
+    """A dotted number inside a lowercase continuation phrase is not an entry start."""
+    pdf_path = tmp_path / "p046_lowercase_numeric_fragment.pdf"
+    entries = [
+        ("2.1 Synthetic Figure Title ................................... 12", 108.0),
+        ("2.5 using synthetic continuation wording ..................... 13", 149.0),
+        ("2.2 Synthetic Figure Title ................................... 14", 108.0),
+        ("2.3 Synthetic Figure Title ................................... 15", 108.0),
+    ]
+    _make_lot_lof_pdf(pdf_path, "LIST OF FIGURES", entries, left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P046" for f in check_pdf_lot_lof_entry_number_alignment(model))
+
+
+def test_p046_unlabelled_strong_misalignment_remains_detectable(tmp_path: Path) -> None:
+    """A real dotted entry-number start far from its peers still reports."""
+    pdf_path = tmp_path / "p046_unlabelled_strong_misalignment.pdf"
+    entries = [
+        ("2.1 Synthetic Figure Title ................................... 12", 108.0),
+        ("2.2 Synthetic Figure Title ................................... 13", 130.0),
+        ("2.3 Synthetic Figure Title ................................... 14", 108.0),
+    ]
+    _make_lot_lof_pdf(pdf_path, "LIST OF FIGURES", entries, left_header="Figure")
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lot_lof_entry_number_alignment(model) if f.rule_id == "P046"]
+    assert any(
+        f.details.get("issue_type") == "lof_entry_number_column_misaligned" for f in findings
+    )
+
+
 # P048 tests
 
 
