@@ -325,6 +325,29 @@ Primary R078 record:
 - `docs/status/p078_r078_ester_first_person_language_followup_20260919.md`
 - `tests/test_p078_pdf_abstract_keywords.py`
 
+## R066 Current Follow-Up State
+
+R066/P066 covers Q025 degree ordering in the Biographical Sketch education
+section. Ester confirmed Anthony's finding as a false positive: the degree
+entries are already reverse chronological. The pre-fix detector mixed a
+pre-education birth year and publication years into the degree-year stream.
+
+The detector now requires an explicit education subsection, recognizes compact
+PDF section labels and both publication-heading word orders, compares one
+year-only token per short entry line, and conservatively skips ranges,
+fragmented dates, same-year ties, and ambiguous sections. No shared tokenizer
+or Biographical Sketch parser changed. No Ester-confirmed R066 true positive is
+available.
+
+Seven-document R066 audit: Youra 0, Anthony 0, Muyeed 0, Philip 0, Praneeth 0,
+Sebastian 0, Patrick 0; total 0, down from 5. All removals are explained by
+non-education or publication-year contamination.
+
+Primary R066 record:
+
+- `docs/status/r066_ester_degree_order_followup_20260920.md`
+- `tests/test_p066_biosketch_degree_ordering.py`
+
 `LEADER_PLACEMENT_RULE_GAP` remains separate and unimplemented.
 
 Primary R046 records:

@@ -1141,18 +1141,18 @@
         "Q025"
       ],
       "topic": "Biographical Sketch degree ordering check",
-      "ester_decision_exists": "ANALOGOUS",
-      "decision": "ANALOGOUS GUIDANCE ONLY",
-      "evidence_source": "data/specs/ester_q_matrix.json; catalog Q mapping",
-      "confidence_in_interpretation": "Medium",
-      "current_detector_aligned": "No clear conflict found",
-      "action": "Preserve current behavior; no policy expansion.",
+      "ester_decision_exists": "YES",
+      "decision": "EXPLICIT - FALSE POSITIVE",
+      "evidence_source": "live Ester feedback workbook/PDF; docs/status/r066_ester_degree_order_followup_20260920.md",
+      "confidence_in_interpretation": "High",
+      "current_detector_aligned": "YES after explicit education-section scoping; Anthony FP removed",
+      "action": "Exclude pre-education dates and publication years from Q025 degree ordering; preserve synthetic genuine disorder detection. No Ester-confirmed R066 true positive available.",
       "implementation_module": "njit_auditor.rules.pdf_biosketch_degree_ordering",
       "issue_types": [
         "biosketch_degree_order_suspicious"
       ],
-      "feedback_question": "",
-      "feedback_remediation": ""
+      "feedback_question": "Anthony's degree entries are already in reverse chronological order.",
+      "feedback_remediation": "Do not report the reviewed Anthony case; restrict comparison to degree candidates in the explicit education subsection."
     },
     {
       "public_rule": "R067",
