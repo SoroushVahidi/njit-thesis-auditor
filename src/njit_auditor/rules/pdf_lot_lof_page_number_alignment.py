@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
@@ -14,6 +15,11 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 MIN_ENTRIES = 3
 RIGHT_EDGE_TOLERANCE_PT = 10.0
+
+_VALID_ROMAN_PAGE_NUMBER_RE = re.compile(
+    r"^M{0,3}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})$",
+    re.IGNORECASE,
+)
 
 _SECTION_LABELS = {
     "list_of_tables": "List of Tables",
@@ -32,7 +38,16 @@ _SOURCE_Q_RULE = {
 def _complete_entries(entries: list[TocEntryLine]) -> list[TocEntryLine]:
     """Return entries with confident trailing page-number geometry."""
 
-    return [entry for entry in entries if entry.page_number_right_x is not None]
+    return [
+        entry
+        for entry in entries
+        if entry.page_number_right_x is not None
+        and (
+            entry.page_number_token is None
+            or entry.page_number_token.isdigit()
+            or _VALID_ROMAN_PAGE_NUMBER_RE.fullmatch(entry.page_number_token)
+        )
+    ]
 
 
 def check_pdf_lot_lof_page_number_alignment(

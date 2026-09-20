@@ -13958,6 +13958,66 @@ def test_p048_lof_aligned_page_numbers_no_findings(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P048" for f in findings)
 
 
+def test_p048_right_aligned_varying_width_page_numbers_no_findings(tmp_path: Path) -> None:
+    """Different-width Arabic page numbers sharing x1 are one right column."""
+    pdf_path = tmp_path / "p048_varying_width_right_aligned.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure")
+    page.insert_text((500, 115), "Page")
+    right_edge = 540.0
+    for idx, number in enumerate((9, 10, 100)):
+        y = 140 + idx * 24
+        page.insert_text((108, y), f"Figure {idx + 1} Synthetic entry placeholder.")
+        width = fitz.get_text_length(str(number), fontname="helv", fontsize=12)
+        page.insert_text((right_edge - width, y), str(number), fontname="helv", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P048" for f in check_pdf_lot_lof_page_number_alignment(model))
+
+
+def test_p048_right_aligned_roman_page_numbers_no_findings(tmp_path: Path) -> None:
+    """Valid Roman page numbers with varying widths share the same x1."""
+    pdf_path = tmp_path / "p048_roman_right_aligned.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF TABLES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Table")
+    page.insert_text((500, 115), "Page")
+    right_edge = 540.0
+    for idx, number in enumerate(("ix", "xii", "xiv")):
+        y = 140 + idx * 24
+        page.insert_text((108, y), f"Table {idx + 1} Synthetic entry placeholder.")
+        width = fitz.get_text_length(number, fontname="helv", fontsize=12)
+        page.insert_text((right_edge - width, y), number, fontname="helv", fontsize=12)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P048" for f in check_pdf_lot_lof_page_number_alignment(model))
+
+
+def test_p048_invalid_roman_title_fragment_not_page_number(tmp_path: Path) -> None:
+    """An invalid Roman-looking title fragment must not create a complete row."""
+    pdf_path = tmp_path / "p048_invalid_roman_fragment.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure")
+    page.insert_text((500, 115), "Page")
+    page.insert_text((108, 140), "Figure 1 Synthetic entry placeholder")
+    page.insert_text((500, 140), "12")
+    page.insert_text((108, 164), "Figure 2 Synthetic entry placeholder")
+    page.insert_text((500, 164), "13")
+    page.insert_text((108, 188), "Figure 3 wrapped title ending with invalid LC")
+    page.insert_text((134, 202), "continuation phrase ending LC")
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P048" for f in check_pdf_lot_lof_page_number_alignment(model))
+
+
 def test_p048_lof_misaligned_page_number_warns(tmp_path: Path) -> None:
     """LoF page-number right-edge outlier → lof_page_number_column_misaligned."""
     pdf_path = tmp_path / "p048_lof_bad.pdf"
