@@ -606,12 +606,13 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
         "rule_definition": (
             "Locates the Abstract page and extracts its body text. Matches "
             "words like \"paper\"/\"papers\"/\"article\"/\"articles\" and "
-            "first-person pronouns like \"I\"/\"me\"/\"my\"/\"mine\"/\"we\"/"
-            "\"us\"/\"our\"/\"ours\" against the body text. Emits one "
-            "warning per unique matched word (deduplicated, "
-            "case-insensitive). Does not scan headings, Table of Contents, "
-            "body chapters, references, or acknowledgements. If no "
-            "Abstract page is found, returns no findings."
+            "first-person pronouns like capital standalone \"I\" plus "
+            "\"me\"/\"my\"/\"mine\"/\"we\"/\"us\"/\"our\"/\"ours\" against "
+            "the body text. Emits one warning per unique matched word "
+            "(deduplicated, with only non-I pronouns matched "
+            "case-insensitively). Does not scan headings, Table of Contents, "
+            "body chapters, references, or acknowledgements. If no Abstract "
+            "page is found, returns no findings."
         ),
         "remediation": (
             "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" "

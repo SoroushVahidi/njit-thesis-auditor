@@ -1643,10 +1643,10 @@
   {
     "id": "P078",
     "title": "PDF Abstract Forbidden-Term and Pronoun Check",
-    "description": "PDF-side detection rule that checks the Abstract page body text for Q004 forbidden terms (paper, papers, article, articles) and Q005 first-person pronouns (i, me, my, mine, we, us, our, ours). Scoped to the single Abstract page via existing _page_has_abstract_heading and _extract_abstract_body_text helpers. Emits at most one finding per unique token. Privacy-safe: findings include only the matched token, not surrounding abstract text.",
+    "description": "PDF-side detection rule that checks the Abstract page body text for Q004 forbidden terms (paper, papers, article, articles) and Q005 first-person pronouns (capital standalone I, me, my, mine, we, us, our, ours). Scoped to the single Abstract page via existing _page_has_abstract_heading and _extract_abstract_body_text helpers. Emits at most one finding per unique token. Privacy-safe: findings include only the matched token, not surrounding abstract text.",
     "section": "Abstract",
     "question": "Is the Abstract text free of the words \"paper\" or \"article\" and free of first-person pronouns?",
-    "rule_definition": "Locate the Abstract page using _page_has_abstract_heading(). Extract body text using _extract_abstract_body_text(). Match \\b(paper|papers|article|articles)\\b (Q004) and \\b(i|me|my|mine|we|us|our|ours)\\b (Q005) against the body text. Emit one WARNING finding per unique matched token (deduplicated, lowercased). Do not scan headings, TOC, body chapters, references, or acknowledgements. If no Abstract page is found, return no findings.",
+    "rule_definition": "Locate the Abstract page using _page_has_abstract_heading(). Extract body text using _extract_abstract_body_text(). Match \\b(paper|papers|article|articles)\\b (Q004), a case-sensitive standalone capital I, and \\b(me|my|mine|we|us|our|ours)\\b case-insensitively (Q005) against the body text. Emit one WARNING finding per unique matched token (deduplicated, lowercased). Do not scan headings, TOC, body chapters, references, or acknowledgements. If no Abstract page is found, return no findings.",
     "severity": "warning",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
@@ -1666,7 +1666,7 @@
     ],
     "remediation": "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" \"work,\" or \"research.\" Rewrite sentences to remove first-person pronouns such as \"I,\" \"me,\" \"my,\" \"we,\" or \"our.\"",
     "source_file": "project_added",
-    "notes": "PDF companion to TeX Q004/Q005 abstract checks in latex_abstract.py. Scoped to Abstract page body text only; does not scan the full document. Privacy-safe token-only findings: message and details include only the matched token. Deduplication ensures at most one finding per unique token per document. Confidence: medium. Triage tier: check."
+    "notes": "PDF companion to TeX Q004/Q005 abstract checks in latex_abstract.py. Scoped to Abstract page body text only; does not scan the full document. Ester clarified that only capital standalone I counts as singular first-person language, so lowercase i and i.e. are not P078 findings. Privacy-safe token-only findings: message and details include only the matched token. Deduplication ensures at most one finding per unique token per document. Confidence: medium. Triage tier: check."
   },
   {
     "id": "P079",

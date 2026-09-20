@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import fitz
+import pytest
 
 from njit_auditor.audit_runner import collect_pdf_layout_findings
 from njit_auditor.pdf_layout import load_pdf_layout
@@ -87,6 +88,16 @@ def test_p078_first_person_pronoun_we(tmp_path: Path) -> None:
     _make_abstract_pdf(tmp_path / "pronoun_we.pdf", "We present a framework for analysis.")
     model = load_pdf_layout(str(tmp_path / "pronoun_we.pdf"))
     assert "we" in _pronouns(check_pdf_abstract_keywords(model))
+
+
+@pytest.mark.parametrize("pronoun", ["me", "my", "mine", "we", "us", "our", "ours"])
+def test_p078_documented_non_i_pronouns(tmp_path: Path, pronoun: str) -> None:
+    _make_abstract_pdf(
+        tmp_path / f"pronoun_{pronoun}.pdf",
+        f"This abstract includes {pronoun} as a documented first-person form.",
+    )
+    model = load_pdf_layout(str(tmp_path / f"pronoun_{pronoun}.pdf"))
+    assert pronoun in _pronouns(check_pdf_abstract_keywords(model))
 
 
 def test_p078_lowercase_ie_abbreviation_not_first_person(tmp_path: Path) -> None:
