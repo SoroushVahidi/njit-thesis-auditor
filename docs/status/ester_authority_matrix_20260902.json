@@ -1405,19 +1405,19 @@
         "Q005"
       ],
       "topic": "PDF Abstract Forbidden-Term and Pronoun Check",
-      "ester_decision_exists": "ANALOGOUS",
-      "decision": "ANALOGOUS GUIDANCE ONLY",
-      "evidence_source": "data/specs/ester_q_matrix.json; catalog Q mapping",
-      "confidence_in_interpretation": "Medium",
-      "current_detector_aligned": "No clear conflict found",
-      "action": "Preserve current behavior; no policy expansion.",
+      "ester_decision_exists": "YES",
+      "decision": "EXPLICIT - FALSE POSITIVE; EXPLICIT - TRUE POSITIVE",
+      "evidence_source": "live Ester feedback workbook; docs/status/p078_r078_ester_first_person_language_followup_20260919.md",
+      "confidence_in_interpretation": "High",
+      "current_detector_aligned": "YES after case-sensitive standalone-I handling; Muyeed FP removed and Praneeth TP preserved",
+      "action": "Reject lowercase i and i.e. as first-person singular language; preserve genuine we and documented first-person pronouns in Abstract scope.",
       "implementation_module": "njit_auditor.rules.pdf_abstract",
       "issue_types": [
         "abstract_pdf_forbidden_term",
         "abstract_pdf_first_person_pronoun"
       ],
-      "feedback_question": "",
-      "feedback_remediation": ""
+      "feedback_question": "Muyeed lowercase i in i.e. is a false positive; Praneeth we is a true positive.",
+      "feedback_remediation": "Only capital standalone I counts as singular first-person language; genuine first-person plural language remains reportable."
     },
     {
       "public_rule": "R079",

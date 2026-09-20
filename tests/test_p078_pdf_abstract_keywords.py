@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import fitz
+import pytest
 
 from njit_auditor.audit_runner import collect_pdf_layout_findings
 from njit_auditor.pdf_layout import load_pdf_layout
@@ -87,6 +88,49 @@ def test_p078_first_person_pronoun_we(tmp_path: Path) -> None:
     _make_abstract_pdf(tmp_path / "pronoun_we.pdf", "We present a framework for analysis.")
     model = load_pdf_layout(str(tmp_path / "pronoun_we.pdf"))
     assert "we" in _pronouns(check_pdf_abstract_keywords(model))
+
+
+@pytest.mark.parametrize("pronoun", ["me", "my", "mine", "we", "us", "our", "ours"])
+def test_p078_documented_non_i_pronouns(tmp_path: Path, pronoun: str) -> None:
+    _make_abstract_pdf(
+        tmp_path / f"pronoun_{pronoun}.pdf",
+        f"This abstract includes {pronoun} as a documented first-person form.",
+    )
+    model = load_pdf_layout(str(tmp_path / f"pronoun_{pronoun}.pdf"))
+    assert pronoun in _pronouns(check_pdf_abstract_keywords(model))
+
+
+def test_p078_lowercase_ie_abbreviation_not_first_person(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "ie.pdf", "This result is useful, i.e. broadly applicable.")
+    model = load_pdf_layout(str(tmp_path / "ie.pdf"))
+    assert "i" not in _pronouns(check_pdf_abstract_keywords(model))
+
+
+def test_p078_standalone_lowercase_i_not_first_person(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "lower_i.pdf", "The notation i is defined for this study.")
+    model = load_pdf_layout(str(tmp_path / "lower_i.pdf"))
+    assert "i" not in _pronouns(check_pdf_abstract_keywords(model))
+
+
+def test_p078_capital_i_punctuation_is_first_person(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "capital_i_punctuation.pdf", "(I), however, report a result.")
+    model = load_pdf_layout(str(tmp_path / "capital_i_punctuation.pdf"))
+    assert "i" in _pronouns(check_pdf_abstract_keywords(model))
+
+
+def test_p078_abbreviation_does_not_suppress_nearby_pronoun(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "ie_and_we.pdf", "We report this result, i.e. the main finding.")
+    model = load_pdf_layout(str(tmp_path / "ie_and_we.pdf"))
+    pronouns = _pronouns(check_pdf_abstract_keywords(model))
+    assert "i" not in pronouns
+    assert "we" in pronouns
+
+
+def test_p078_case_distinguishes_i_from_I(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "case_distinction.pdf", "The symbol i differs from (I).")
+    model = load_pdf_layout(str(tmp_path / "case_distinction.pdf"))
+    pronouns = _pronouns(check_pdf_abstract_keywords(model))
+    assert pronouns == ["i"]
 
 
 def test_p078_pronoun_word_boundary_guard(tmp_path: Path) -> None:

@@ -101,7 +101,10 @@ def _extract_abstract_body_text(page: PdfPage) -> str:
 
 # Mirrors FORBIDDEN_WORD_RE and FIRST_PERSON_RE from latex_abstract.py (Q004/Q005 TeX checks).
 _PDF_FORBIDDEN_WORD_RE = re.compile(r"\b(paper|papers|article|articles)\b", re.IGNORECASE)
-_PDF_FIRST_PERSON_RE = re.compile(r"\b(i|me|my|mine|we|us|our|ours)\b", re.IGNORECASE)
+_PDF_FIRST_PERSON_I_RE = re.compile(r"(?<![A-Za-z'’])I(?![A-Za-z'’])")
+_PDF_FIRST_PERSON_OTHER_RE = re.compile(
+    r"\b(me|my|mine|we|us|our|ours)\b", re.IGNORECASE
+)
 
 
 def check_pdf_abstract_keywords(pdf_document: PdfDocument) -> list[AuditFinding]:
@@ -147,9 +150,13 @@ def check_pdf_abstract_keywords(pdf_document: PdfDocument) -> list[AuditFinding]
             )
         )
 
-    for pronoun in sorted(
-        {m.group(1).lower() for m in _PDF_FIRST_PERSON_RE.finditer(body_text)}
-    ):
+    first_person_pronouns = {
+        m.group(0).lower() for m in _PDF_FIRST_PERSON_I_RE.finditer(body_text)
+    }
+    first_person_pronouns.update(
+        m.group(1).lower() for m in _PDF_FIRST_PERSON_OTHER_RE.finditer(body_text)
+    )
+    for pronoun in sorted(first_person_pronouns):
         findings.append(
             AuditFinding(
                 rule_id="P078",
