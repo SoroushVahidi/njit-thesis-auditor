@@ -4,14 +4,14 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-18, on the R054 Ester leader-dot terminal-period
+_Last updated: 2026-09-19, on the R040 Ester LoF terminal-punctuation
 follow-up branch._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `9884627a8f567d75de99163f6eb7646de9428561` |
+| Current `origin/main` SHA | `26e38e60f12b67e3c1f0fbc9d4a1aea01b9e5dec` |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -175,11 +175,10 @@ Primary R053 records:
 - `docs/status/p053_r053_leader_dot_terminal_period_followup_20260918.md`
 - `tests/test_pdf_rules.py`
 
-## R054 Current Follow-Up State
+## R054 Current State
 
 R054/P054 covers Table of Contents entries that should not end with a terminal
-period. The current follow-up branch is
-`fix/r054-leader-dot-terminal-period-followup-20260918`; it is not merged.
+period. The R054 follow-up is merged on current main by PR #542.
 
 Ester's latest R054 adjudication says the Praneeth physical-page-11 /
 printed-page-viii Table of Contents finding is a false positive. The apparent
@@ -205,11 +204,51 @@ Contents leader-dot artifacts removed, including the reviewed false positive.
 
 R053 regression remains unchanged: Youra 0, Anthony 0, Muyeed 1, Philip 0,
 Praneeth 0, Sebastian 0, Patrick 0; total 1. R040/P040 output did not change
-and remains a separate pending follow-up.
+on the R054 branch and is handled by the separate R040 follow-up below.
 
 Primary R054 records:
 
 - `docs/status/p054_r054_leader_dot_terminal_period_followup_20260918.md`
+- `tests/test_pdf_rules.py`
+
+## R040 Current Follow-Up State
+
+R040/P040 covers List of Figures entries that should end with terminal
+punctuation. The current follow-up branch is
+`fix/r040-ester-lof-terminal-punctuation-followup-20260919`; it is not merged.
+
+Ester's latest R040 adjudication says the Anthony and Praneeth reviewed List of
+Figures findings are false positives. Sebastian's reviewed case is a real
+formatting issue, but Ester's explanation is leader placement: the leader dots
+should start right after the last letter of the title. R040 remains a
+punctuation rule, not a leader-placement rule.
+
+The selected policy remains local to P040:
+
+- reconstruct the semantic LoF description after page-number removal;
+- strip trailing visual leaders made from ASCII periods, Unicode ellipses, or
+  middle-dot characters;
+- preserve terminal punctuation before or at the start of a visual leader run,
+  so leader-placement defects are not mislabeled as missing punctuation;
+- keep genuine missing-punctuation cases reportable;
+- avoid student-, page-, title-, or dissertation-specific exceptions.
+
+Current seven-dissertation R040 branch audit: Youra 3, Anthony 0, Muyeed 5,
+Philip 3, Praneeth 7, Sebastian 0, Patrick 25; total 43. Relative to the
+pre-follow-up behavior, the total changes from 179 to 43. The reviewed Anthony
+false positive is removed, the reviewed Praneeth false positive is removed, and
+Sebastian no longer receives a wrong R040 punctuation explanation.
+
+No current rule owns LoF/LoT leader dots beginning immediately after the
+semantic title. The R040 follow-up records this as **LEADER_PLACEMENT_RULE_GAP**
+without implementing a new unrelated rule.
+
+R053 regression remains unchanged at total 1. R054 regression remains
+unchanged at total 4.
+
+Primary R040 records:
+
+- `docs/status/p040_r040_ester_lof_terminal_punctuation_followup_20260919.md`
 - `tests/test_pdf_rules.py`
 
 ## Feedback-Cycle Rule State
