@@ -23,12 +23,49 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 MIN_ENTRY_TEXT_LEN = 10
 
-_LEADER_STRIP_RE = re.compile(r"\s*(?:\.\s*){2,}$")
+_DOT_LEADER_CHARS = ".…·"
 _LOF_PREFIX_RE = re.compile(
     r"^(?:fig(?:ure)?\.?)\s+[0-9]+(?:[.\-][0-9]+)?\s*[.):]?\s*",
     re.IGNORECASE,
 )
 _TERMINAL_PUNCT_RE = re.compile(r"[.?!]\s*$")
+
+
+def _dot_leader_weight(text: str) -> int:
+    """Return visible dot weight for a candidate dot-leader fragment."""
+
+    return sum(3 if char == "…" else 1 for char in text if char in _DOT_LEADER_CHARS)
+
+
+def _strip_trailing_lof_dot_leaders(text: str) -> str:
+    """Strip visual LoF dot leaders while preserving terminal punctuation.
+
+    R040 is the List of Figures counterpart to P053/P054, but its semantics
+    are reversed: a terminal dot immediately before a visual leader run is the
+    required punctuation, not a violation. PDF extraction often attaches that
+    dot to Unicode/ASCII leader fragments, so this helper removes the leader
+    suffix while preserving one leading period from the suffix when the
+    remaining suffix is still visibly a leader run.
+    """
+
+    stripped = text.rstrip()
+    suffix_start = len(stripped)
+    while suffix_start > 0 and stripped[suffix_start - 1] in _DOT_LEADER_CHARS + " ":
+        suffix_start -= 1
+
+    suffix = stripped[suffix_start:]
+    if _dot_leader_weight(suffix) < 2:
+        return stripped.strip()
+
+    prefix = stripped[:suffix_start].rstrip()
+    if _TERMINAL_PUNCT_RE.search(prefix):
+        return prefix
+
+    leader = suffix.lstrip()
+    if leader.startswith(".") and _dot_leader_weight(leader[1:]) >= 2:
+        return f"{prefix}.".strip()
+
+    return prefix.strip()
 
 
 def _extract_description(entry: TocEntryLine) -> str | None:
@@ -39,7 +76,7 @@ def _extract_description(entry: TocEntryLine) -> str | None:
         if stripped.endswith(entry.page_number_token):
             stripped = stripped[: -len(entry.page_number_token)].rstrip()
         text = stripped
-    text = _LEADER_STRIP_RE.sub("", text).strip()
+    text = _strip_trailing_lof_dot_leaders(text)
     match = _LOF_PREFIX_RE.match(text)
     if match:
         text = text[match.end() :].strip()

@@ -69,7 +69,10 @@ from njit_auditor.rules.pdf_indentation import (
     _same_run_style,
     check_pdf_indentation,
 )
-from njit_auditor.rules.pdf_lof_terminal_punctuation import check_pdf_lof_terminal_punctuation
+from njit_auditor.rules.pdf_lof_terminal_punctuation import (
+    _extract_description,
+    check_pdf_lof_terminal_punctuation,
+)
 from njit_auditor.rules.pdf_lot_lof_column_header_style_alignment import (
     check_pdf_lot_lof_column_header_style_alignment,
     check_pdf_lot_lof_left_column_header_bold,
@@ -112,7 +115,7 @@ from njit_auditor.rules.pdf_title_consistency import (
     _extract_below_heading_candidate,
     check_pdf_title_consistency,
 )
-from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+from njit_auditor.rules.pdf_toc_alignment import TocEntryLine, check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_appendix_format import check_pdf_toc_appendix_format
 from njit_auditor.rules.pdf_toc_continued_headings import (
     _continued_heading_status,
@@ -11823,6 +11826,112 @@ def test_p040_cli_includes_rule(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert any(item.get("rule_id") == "P040" for item in payload.get("findings", []))
+
+
+def test_p040_wrapped_entry_period_before_ascii_leaders_no_finding(tmp_path: Path) -> None:
+    """Wrapped LoF titles use the reconstructed semantic title, not only the final row."""
+    pdf_path = tmp_path / "p040_wrapped_ascii_leaders.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. A wrapped synthetic figure description", None),
+        ("continues to a final semantic period. ........................", "7"),
+        ("Figure 2. Another Entry With Correct Punctuation.", "10"),
+        ("Figure 3. Third Entry With Correct Punctuation.", "12"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_period_attached_to_unicode_leaders_no_finding(tmp_path: Path) -> None:
+    """A terminal period attached to Unicode leaders is still terminal punctuation."""
+    pdf_path = tmp_path / "p040_attached_unicode_leaders.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. Synthetic Figure Description With Period.……………………", "7"),
+        ("Figure 2. Another Figure Description With Period.…………………", "10"),
+        ("Figure 3. Third Figure Description With Period.…………………", "12"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_leader_gap_is_not_reported_as_punctuation(tmp_path: Path) -> None:
+    """A visible gap before dot leaders is a leader-placement concern, not R040."""
+    pdf_path = tmp_path / "p040_leader_gap.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. Synthetic Figure Description .……………………", "7"),
+        ("Figure 2. Another Figure Description With Period.…………………", "10"),
+        ("Figure 3. Third Figure Description With Period.…………………", "12"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert not findings
+
+
+def test_p040_unicode_leader_without_terminal_punctuation_warns(tmp_path: Path) -> None:
+    """Unicode leaders alone do not satisfy R040 when no terminal dot is visible."""
+    pdf_path = tmp_path / "p040_unicode_leader_missing_punct.pdf"
+    _make_lof_terminal_punct_pdf(pdf_path, [
+        ("Figure 1. Synthetic Figure Description Without Punctuation…………………", "7"),
+        ("Figure 2. Another Figure Description With Period.…………………", "10"),
+        ("Figure 3. Third Figure Description With Period.…………………", "12"),
+    ])
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_lof_terminal_punctuation(model) if f.rule_id == "P040"]
+    assert len(findings) == 1
+    assert findings[0].details.get("page_entry_index") == "0"
+
+
+def test_p040_detached_punctuation_span_stays_with_title() -> None:
+    """A terminal period extracted as its own span remains part of the title."""
+    title = PdfTextSpan(
+        text="Figure 1. Synthetic Detached Punctuation Title",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=72.0, y0=140.0, x1=310.0, y1=152.0),
+    )
+    punctuation = PdfTextSpan(
+        text=".",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=311.0, y0=140.0, x1=314.0, y1=152.0),
+    )
+    leader = PdfTextSpan(
+        text="…………….",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=315.0, y0=140.0, x1=430.0, y1=152.0),
+    )
+    page_number = PdfTextSpan(
+        text="7",
+        font="Times-Roman",
+        size=12.0,
+        bold=False,
+        italic=False,
+        bbox=BBox(x0=500.0, y0=140.0, x1=506.0, y1=152.0),
+    )
+    line = PdfTextLine(
+        text="Figure 1. Synthetic Detached Punctuation Title.……………. 7",
+        spans=[title, punctuation, leader, page_number],
+        bbox=BBox(x0=72.0, y0=140.0, x1=506.0, y1=152.0),
+    )
+    entry = TocEntryLine(
+        line=line,
+        cleaned_text=line.text,
+        page_number_token="7",
+        page_number_right_x=506.0,
+        indent_x=72.0,
+        has_leader_dots=True,
+    )
+    description = _extract_description(entry)
+    assert description is not None
+    assert description.endswith(".")
 
 
 # ---------------------------------------------------------------------------
