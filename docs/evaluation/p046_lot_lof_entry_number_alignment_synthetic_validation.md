@@ -59,11 +59,26 @@ P046 does not alter the canonical 1,446 baseline.
 
 | Limitation | Detail |
 |-----------|--------|
-| Uses all entry x0 values | Includes continuation lines of wrapped entries which may have the same or different x0; conservative threshold reduces FP risk |
+| Entry-role filtering | Measures rows that begin with recognizable labeled or dotted entry-number tokens; continuation/title fragments are excluded |
 | Section-level finding | Emits one finding per section (LoT or LoF), not per individual misaligned entry |
 | Gate: MIN_ENTRIES = 3 | Skips sections with fewer than 3 extracted entries |
 | Compressed/flattened PDFs | If text layer not extractable, entries may not be detected; gate skips silently |
 | Complements P018 | P018 checks page-number right-column alignment; P046 adds left-column (entry number) alignment |
+
+---
+
+## 2026-09-19 Ester Follow-Up Addendum
+
+R046/P046 remains scoped to LoT/LoF entry-number left-column alignment. The
+follow-up for Ester-reviewed Anthony and Praneeth false positives makes the
+detector entry-role-aware: title continuation fragments with leaders/page
+numbers are not measured as table/figure-number rows.
+
+Additional synthetic regressions cover wrapped continuation fragments, varying
+label widths, same-baseline row fragmentation, benign x jitter, lowercase
+numeric continuation fragments, and preservation of strong unlabeled
+misalignment detection. See
+`docs/status/p046_r046_ester_left_column_alignment_followup_20260919.md`.
 
 ---
 

@@ -31,6 +31,33 @@ five evaluation PDFs to be directly accessible. At the time of implementation:
 
 ---
 
+## 2026-09-19 Seven-Dissertation R046 Follow-Up Audit
+
+Private-corpus audit for the Ester R046 follow-up, excluding Elbert:
+
+| Dissertation | Before | After | Change |
+|---|---:|---:|---:|
+| Youra | 1 | 0 | -1 |
+| Anthony | 0 | 0 | 0 |
+| Muyeed | 2 | 0 | -2 |
+| Philip | 1 | 0 | -1 |
+| Praneeth | 1 | 0 | -1 |
+| Sebastian | 0 | 0 | 0 |
+| Patrick | 1 | 0 | -1 |
+| **Total** | **6** | **0** | **-6** |
+
+All removed findings are structurally explained by title continuation fragments
+being measured as entry-number left-column rows. The Anthony reviewed R046 false
+positive is already absent at the branch's starting main SHA; the Praneeth
+reviewed R046 false positive is removed by the entry-role-aware fix. No
+Ester-confirmed R046 true positive is available, so synthetic strong
+misalignment fixtures preserve genuine detection.
+
+The R048 right-column/page-number detector is not changed in this follow-up and
+requires its own separate Ester-adjudicated task.
+
+---
+
 ## Canonical aggregate baseline (unchanged)
 
 | Field | Value |

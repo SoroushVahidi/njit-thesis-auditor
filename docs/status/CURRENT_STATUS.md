@@ -251,6 +251,45 @@ Primary R040 records:
 - `docs/status/p040_r040_ester_lof_terminal_punctuation_followup_20260919.md`
 - `tests/test_pdf_rules.py`
 
+## R046 Current Follow-Up State
+
+R046/P046 covers List of Tables and List of Figures entry-number left-column
+alignment. It checks whether the table/figure entry numbers align vertically in
+one left column; it does not govern title text, hanging continuation indentation,
+or right-column page-number alignment.
+
+Ester's latest R046 adjudication says the reviewed Anthony and Praneeth cases
+are false positives. No Ester-confirmed R046 true positive is available.
+
+The selected policy remains local to P046:
+
+- measure only rows that begin with a recognizable labeled or dotted
+  table/figure entry-number token;
+- exclude title continuation fragments, including fragments that carry leaders
+  and page numbers;
+- compare measured entry-number x positions against the median entry-number
+  column using the existing 6 pt tolerance;
+- keep synthetic strong left-column misalignment reportable;
+- avoid student-, page-, title-, or dissertation-specific exceptions.
+
+Current seven-dissertation R046 branch audit: Youra 0, Anthony 0, Muyeed 0,
+Philip 0, Praneeth 0, Sebastian 0, Patrick 0; total 0. Relative to branch-start
+behavior, the total changes from 6 to 0. All six removals are explained by
+hanging-continuation/title fragments that were previously measured as
+entry-number rows.
+
+R048/P048 shares the list parser but is a separate right-column page-number
+alignment rule. It is diagnostic-only in this follow-up and still requires a
+separate R048 task.
+
+`LEADER_PLACEMENT_RULE_GAP` remains separate and unimplemented.
+
+Primary R046 records:
+
+- `docs/status/p046_r046_ester_left_column_alignment_followup_20260919.md`
+- `docs/evaluation/p046_current_dataset_evaluation.md`
+- `tests/test_pdf_rules.py`
+
 ## Feedback-Cycle Rule State
 
 Use human-facing `Rxxx` identifiers in reviewer/project-progress prose. Use
