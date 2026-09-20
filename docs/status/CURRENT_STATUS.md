@@ -278,9 +278,31 @@ behavior, the total changes from 6 to 0. All six removals are explained by
 hanging-continuation/title fragments that were previously measured as
 entry-number rows.
 
-R048/P048 shares the list parser but is a separate right-column page-number
-alignment rule. It is diagnostic-only in this follow-up and still requires a
-separate R048 task.
+## R048 Current Follow-Up State
+
+R048/P048 covers Q069/Q079: List of Tables and List of Figures page-number
+alignment in the visual right column. The rule compares page-number token right
+edges and retains the existing 10 pt tolerance.
+
+Ester's reviewed Praneeth R048 case is a false positive because the page
+numbers are consistently aligned. No Ester-confirmed R048 true positive is
+available.
+
+The root cause was P048 accepting the shared parser's page-number signal for
+invalid Roman-looking title fragments such as `LC`. Canonical Roman numeral
+validation is now applied locally when P048 selects complete entries, so those
+fragments do not become P048 page-number entries. The shared parser, right-edge
+anchor, and tolerance were not changed.
+
+Current seven-dissertation R048 audit: Youra 1, Anthony 0, Muyeed 2, Philip 1,
+Praneeth 0, Sebastian 0, Patrick 1; total 5, down from 6. Only the reviewed
+Praneeth false positive changed. R046 remains total 0; R040 remains 43, R053
+remains 1, and R054 remains 4.
+
+Primary R048 record:
+
+- `docs/status/p048_r048_ester_right_column_alignment_followup_20260919.md`
+- `tests/test_pdf_rules.py`
 
 `LEADER_PLACEMENT_RULE_GAP` remains separate and unimplemented.
 

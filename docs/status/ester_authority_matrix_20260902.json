@@ -804,18 +804,24 @@
     {
       "public_rule": "R048",
       "internal_rule": "P048",
-      "q_source": [],
+      "q_source": [
+        "Q069",
+        "Q079"
+      ],
       "topic": "Are all page numbers in the List of Tables and List of Figures aligned vertically in one right column?",
-      "ester_decision_exists": "NO",
-      "decision": "NO ESTER DECISION FOUND",
-      "evidence_source": "Repository search completed; no rule-specific judgment found",
-      "confidence_in_interpretation": "None",
-      "current_detector_aligned": "Not established",
-      "action": "No action; surface only if a concrete ambiguity matters.",
+      "ester_decision_exists": "YES",
+      "decision": "EXPLICIT - FALSE POSITIVE",
+      "evidence_source": "live Ester feedback workbook; docs/status/p048_r048_ester_right_column_alignment_followup_20260919.md",
+      "confidence_in_interpretation": "High",
+      "current_detector_aligned": "YES after P048-local canonical Roman-token validation; no Ester-confirmed true positive available",
+      "action": "Suppress the reviewed Praneeth false positive by rejecting invalid Roman-looking title fragments as P048 page-number tokens; preserve right-edge detection, the existing 10 pt tolerance, and shared-parser behavior.",
       "implementation_module": "njit_auditor.rules.pdf_lot_lof_page_number_alignment",
-      "issue_types": [],
-      "feedback_question": "",
-      "feedback_remediation": ""
+      "issue_types": [
+        "lot_page_number_column_misaligned",
+        "lof_page_number_column_misaligned"
+      ],
+      "feedback_question": "Praneeth R048 reviewed finding: the page numbers are consistently aligned in the right column.",
+      "feedback_remediation": "Keep all List of Tables and List of Figures page numbers aligned to one visual right edge."
     },
     {
       "public_rule": "R049",
