@@ -21,7 +21,7 @@ stale (pre-PR #546) as of the prior 2026-09-19 update._
 | Deployment | Not updated by this pass |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
-| Rule inventory | P001–P085 implemented; no remaining non-inventory project task IDs; next new internal rule ID is P086 |
+| Rule inventory | P001–P086 implemented (P086/R086 registered in `data/processed/rules/project_added_rules.json` and `evaluation_data_manifest.json`, PR #551 detector); no remaining non-inventory project task IDs; next new internal rule ID is P087 |
 
 ## Current Evaluation Corpus
 

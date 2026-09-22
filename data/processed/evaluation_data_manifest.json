@@ -3,22 +3,22 @@
   "generated_for_commit": "722dac0",
   "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
   "canonical_aggregate_findings": 1543,
-  "project_added_rule_inventory_count": 85,
-  "project_added_rule_inventory_range": "P001-P085",
+  "project_added_rule_inventory_count": 86,
+  "project_added_rule_inventory_range": "P001-P086",
   "non_inventory_project_task_ids": [],
   "non_inventory_project_task_notes": {},
-  "next_project_added_rule_id": "P086",
+  "next_project_added_rule_id": "P087",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P085",
+    "p_rules_implemented": "P001-P086",
     "pytest_count_used_for_status_snapshot": 3192,
     "main_commit_used_for_status_snapshot": "336b28c",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
-    "project_added_rule_inventory_count": 85,
-    "project_added_rule_inventory_range": "P001-P085",
+    "project_added_rule_inventory_count": 86,
+    "project_added_rule_inventory_range": "P001-P086",
     "non_inventory_project_task_ids": [],
     "non_inventory_project_task_notes": {},
-    "next_project_added_rule_id": "P086",
+    "next_project_added_rule_id": "P087",
     "p075_status_note": "P075 implemented as TOC leader-style consistency for Q052: full project-added inventory detector in njit_auditor.rules.pdf_toc_leader_consistency with issue types toc_mixed_leader_styles and toc_missing_leader_style. P075 is no longer a non-inventory project task.",
     "p076_status_note": "P076 fully implemented and merged (PR #278, 2026-06-09) as a reporting-only P036 triage rollup: grouped_summary.p036_toc_list_spacing_triage plus a Markdown 'P036 TOC/List Spacing Triage' section in src/njit_auditor/report_outputs.py. It adds no standalone issue types, does not change P036 detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p076_current_dataset_note": "P036 triage rollup: 55 findings on Yin H 4th compressed only (0 on four other files). Triage: toc_inter_entry_spacing_too_tight 42, lof 9, lot 4; section_type: table_of_contents 42, list_of_figures 9, list_of_tables 4; spacing_gap_bucket: slightly_tight 48, very_tight 7; triage_tier: high 55; affected_pages_compact 11-14, 17; gap_ratio min 0.06, max 0.85. Five-PDF evaluation completed 2026-06-09 (commit 722dac0). See docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md",
@@ -85,7 +85,8 @@
     "p082_current_dataset_note": "Default-mode five-PDF audit: 0 P082 findings and canonical aggregate remains 1,543 unchanged. P082 emits findings only when explicitly enabled.",
     "p083_status_note": "P083 implemented (2026-06-10) as a pure evaluation_task: EF-comment coverage taxonomy and in-scope gap register. Classifies 52 EF reviewer comments (extracted from 2 DOCX dissertation drafts via P080) against SIM/SIP/SMI/SBL/SEM/PRF/AMB taxonomy. Output: data/processed/ef_comment_coverage.json (52 rows; 3 SIM, 34 SIP, 10 SMI, 3 SBL, 2 SEM; covered_or_partial_rate 0.74). No source code changes, no detector changes, canonical five-PDF aggregate remains 1,543. 3 new schema tests in tests/test_p083_coverage_schema.py.",
     "p084_status_note": "P084 implemented as Biographical Sketch birth-information detection for Q023: full project-added inventory detector in njit_auditor.rules.pdf_biosketch_birth_information with issue type biosketch_birth_information_present.",
-    "p085_status_note": "P085 implemented as an atomic PDF body-structure check derived from Ester's confirmed Patrick judgment: the first body page must begin with literal CHAPTER 1; later CHAPTER 1 headings do not satisfy the check."
+    "p085_status_note": "P085 implemented as an atomic PDF body-structure check derived from Ester's confirmed Patrick judgment: the first body page must begin with literal CHAPTER 1; later CHAPTER 1 headings do not satisfy the check.",
+    "p086_status_note": "P086 implemented (PR #551, 2026-09-22) as a conservative structural detector for a bold run-in phrase that reads like a section heading but carries no section number, reusing P015's run-in-heading detection and P027's qualifying-heading filter. Ester confirmed only the Youra physical-page-101 case (R015 follow-up, 2026-08-31); other seven-document-corpus findings are unreviewed candidates, not adjudicated violations. Not a blanket ban on all bold text."
   },
   "privacy_policy": {
     "contains_real_student_data": true,
@@ -194,10 +195,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 85,
-        "rule_id_range": "P001-P085",
+        "rule_count": 86,
+        "rule_id_range": "P001-P086",
         "tracked_status": "tracked",
-        "description": "Project-added rule inventory with 85 implemented entries spanning P001-P085; there are no remaining non-inventory project task IDs."
+        "description": "Project-added rule inventory with 86 implemented entries spanning P001-P086; there are no remaining non-inventory project task IDs."
       }
     ],
     "ef_commented_dissertations": [
@@ -416,7 +417,7 @@
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
   },
-  "p_rules_implemented": "P001-P085",
+  "p_rules_implemented": "P001-P086",
   "pytest_count_used_for_status_snapshot": 3192,
   "main_commit_used_for_status_snapshot": "336b28c"
 }
