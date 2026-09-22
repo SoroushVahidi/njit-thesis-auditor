@@ -4,15 +4,15 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-21, on the R066 Ester degree-order follow-up/repair
-branch. The `origin/main` SHA below was corrected on 2026-09-21 — it was
-stale (pre-PR #546) as of the prior 2026-09-19 update._
+_Last updated: 2026-09-22, after PR #552 merged. All rule work through
+R086/P086 is merged to `main`; none remains on an unmerged follow-up
+branch._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `fce5868e07f731a55da12ca15b3ce869eda8890b` (merged through PR #546) |
+| Current `origin/main` SHA | `762d5c98a40ff903c601d00153ff34f08a0fd891` (merged through PR #552) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -21,7 +21,7 @@ stale (pre-PR #546) as of the prior 2026-09-19 update._
 | Deployment | Not updated by this pass |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
-| Rule inventory | P001–P086 implemented (P086/R086 registered in `data/processed/rules/project_added_rules.json` and `evaluation_data_manifest.json`, PR #551 detector); no remaining non-inventory project task IDs; next new internal rule ID is P087 |
+| Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
 
 ## Current Evaluation Corpus
 
@@ -215,8 +215,9 @@ Primary R054 records:
 ## R040 Current Follow-Up State
 
 R040/P040 covers List of Figures entries that should end with terminal
-punctuation. The current follow-up branch is
-`fix/r040-ester-lof-terminal-punctuation-followup-20260919`; it is not merged.
+punctuation. The follow-up branch
+`fix/r040-ester-lof-terminal-punctuation-followup-20260919` is merged to
+`main` (PR #543).
 
 Ester's latest R040 adjudication says the Anthony and Praneeth reviewed List of
 Figures findings are false positives. Sebastian's reviewed case is a real
@@ -257,7 +258,8 @@ Primary R040 records:
 R046/P046 covers List of Tables and List of Figures entry-number left-column
 alignment. It checks whether the table/figure entry numbers align vertically in
 one left column; it does not govern title text, hanging continuation indentation,
-or right-column page-number alignment.
+or right-column page-number alignment. The follow-up is merged on current main
+by PR #544.
 
 Ester's latest R046 adjudication says the reviewed Anthony and Praneeth cases
 are false positives. No Ester-confirmed R046 true positive is available.
@@ -283,7 +285,8 @@ entry-number rows.
 
 R048/P048 covers Q069/Q079: List of Tables and List of Figures page-number
 alignment in the visual right column. The rule compares page-number token right
-edges and retains the existing 10 pt tolerance.
+edges and retains the existing 10 pt tolerance. The follow-up is merged on
+current main by PR #545.
 
 Ester's reviewed Praneeth R048 case is a false positive because the page
 numbers are consistently aligned. No Ester-confirmed R048 true positive is
@@ -310,7 +313,7 @@ Primary R048 record:
 R078/P078 covers Q005 first-person pronoun detection in the Abstract body only.
 The documented set is standalone capital `I` plus `me`, `my`, `mine`, `we`,
 `us`, `our`, and `ours`; references, chapters, headings, and other sections are
-outside scope.
+outside scope. The follow-up is merged on current main by PR #546.
 
 Ester adjudicated the Muyeed lowercase `i` in `i.e.` case as a false positive
 and the Praneeth `we` case as a true positive. The detector now treats only
@@ -332,6 +335,8 @@ R066/P066 covers Q025 degree ordering in the Biographical Sketch education
 section. Ester confirmed Anthony's finding as a false positive: the degree
 entries are already reverse chronological. The pre-fix detector mixed a
 pre-education birth year and publication years into the degree-year stream.
+The follow-up (plus its 2026-09-21 boundary repair) is merged on current main
+by PR #547.
 
 The detector now requires an explicit education subsection, recognizes a
 publication/presentation boundary in singular, plural, qualified/prefixed
@@ -364,8 +369,9 @@ Primary R066 record:
 ## R068 Current Follow-Up State
 
 R068/P068 covers a structural extension beyond Q013 (Approval Page committee
-role labels and signature/date blocks); Q015–Q020 remain manual-only. Ester
-confirmed the Anthony, Praneeth, and Sebastian `approval_page_
+role labels and signature/date blocks); Q015–Q020 remain manual-only. The
+follow-up is merged on current main by PR #548. Ester confirmed the Anthony,
+Praneeth, and Sebastian `approval_page_
 signature_blocks_sparse` findings as false positives: committee-block layout
 depends on committee size and how many lines each entry occupies, not a
 fixed indicator-count ratio. Structural inspection confirmed the underlying
@@ -400,6 +406,58 @@ Primary R046 records:
 - `docs/evaluation/p046_current_dataset_evaluation.md`
 - `tests/test_pdf_rules.py`
 
+## R021 Current State
+
+R021/P021 covers the abstract word-count limit for the detected degree
+type. Ester's live NJIT Thesis Auditor Formatting Rules sheet explicitly
+states MS thesis abstracts must be 200 words or fewer and PhD dissertation
+abstracts must be 400 words or fewer. The detector previously used stale
+`MS_WORD_LIMIT=150`/`PHD_WORD_LIMIT=350` constants — a real constants
+conflict against her own already-stated policy, not an open question, so
+no new Ester input was needed to fix it.
+
+`PHD_WORD_LIMIT`/`MS_WORD_LIMIT` in `latex_abstract.py` (shared by both the
+LaTeX-source and PDF paths) are now 400/200, and every dependent piece of
+student-facing wording plus the live `ester_warning_wording_map.json`
+remediation text were updated to match. Degree-type inference and
+unknown-degree fallback behavior are unchanged. Zero live findings on the
+current seven-document corpus before or after this change.
+
+Primary R021 record: PR #550 (`fix/p021-ester-abstract-word-limits-20260922`).
+
+## R086 Current State
+
+R086/P086 (new rule) covers a bold run-in phrase that reads as a de facto
+section heading but carries no section number.
+
+- **Policy authority:** during the R015 follow-up review, Ester separately
+  observed this on Youra's document (physical page 101) and stated bold
+  should be reserved for numbered heading levels 1-4. No existing rule
+  owned this — P020/P026/P027 were already audited and ruled out.
+- **Implementation:** a mandatory design gate
+  (`docs/status/p086_unnumbered_bold_heading_design_20260922.md`) was run
+  before any implementation and passed on a narrow, structural reading
+  only: the detector fires only on a bold lead sharing a physical row with
+  regular-styled continuation text (reusing R015's own already-validated
+  run-in-heading detection), passing P027's own qualifying-heading-text
+  filter, with no section number and no recognized heading name. It does
+  **not** treat "bold reserved for headings" as a blanket rule against all
+  other bold text — captions, table/figure column headers, bullets, inline
+  emphasis, and short labels are all structurally excluded. Merged by
+  PR #551 (`fix/unnumbered-bold-heading-ester-followup-20260922`).
+- **Formal inventory registration:** merged by PR #552
+  (`fix/p086-register-rule-inventory-20260922`), which added P086 to
+  `project_added_rules.json` and `evaluation_data_manifest.json`. This is
+  engineering bookkeeping only — it adds no new reviewer authority beyond
+  what Ester already confirmed above.
+- **Reviewer confirmation:** seven-document corpus audit found 9 live
+  findings (Youra physical pages 89, 91, 94, 101, 105; Muyeed physical
+  pages 69, 79, 117, 188). Only Youra physical page 101 is the actual
+  Ester-adjudicated case. Page 105 is a strong structural sibling (same
+  phrase template, different scenario number) but was never itself
+  reviewed. The remaining 7 are **unreviewed candidates**, not
+  reviewer-confirmed violations.
+
 ## Feedback-Cycle Rule State
 
 Use human-facing `Rxxx` identifiers in reviewer/project-progress prose. Use
@@ -408,18 +466,23 @@ rule registry entries.
 
 | State | Rules |
 |---|---|
-| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R053, R055 |
-| Closed, engineering-confirmed genuine violation | R085 |
-| Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5 |
-| Genuinely unresolved | R034, Latin Modern font-alias expansion |
+| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R040, R046, R048, R053, R054, R055, R066, R068, R078 |
+| Closed, engineering-confirmed genuine violation | R085, R086 (Youra physical page 101 case; other corpus findings unreviewed) |
+| Closed, engineering fix to match already-explicit Ester policy | R021 (MS/PhD word limits corrected to 200/400 per her sheet; not a new Ester decision) |
+| Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5; R026 Latin Modern authorization only; LEADER_PLACEMENT_RULE_GAP scope/tolerance (see `docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`) |
+| Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
-| In current follow-up branch | R054 |
-| Not yet reviewed this cycle | R037 onward, except separately handled R053/R054/R055/R085 |
+| Not yet reviewed this cycle | R037 onward, except separately handled R021/R040/R046/R048/R053/R054/R055/R066/R068/R078/R085/R086 |
 
 ## Next Work Sequence
 
-After review and merge of the R054 PR, begin the separate Ester-adjudicated
-R040 follow-up.
+All rule work through R086/P086 is merged and formally catalogued. Per the
+pre-Ester-email backlog audit
+(`docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`),
+exactly three items genuinely need an Ester decision — R018, R026 Latin
+Modern, and leader-placement scope/tolerance — plus R034, which needs no
+action. Next step: send that three-question minimal set to Ester before
+starting any further rule work.
 
 ## Repository Hygiene Notes
 
