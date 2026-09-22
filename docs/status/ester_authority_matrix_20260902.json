@@ -353,12 +353,12 @@
       "internal_rule": "P021",
       "q_source": [],
       "topic": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
-      "ester_decision_exists": "NO",
-      "decision": "NO ESTER DECISION FOUND",
-      "evidence_source": "Repository search completed; no rule-specific judgment found",
-      "confidence_in_interpretation": "None",
-      "current_detector_aligned": "Not established",
-      "action": "No action; surface only if a concrete ambiguity matters.",
+      "ester_decision_exists": "YES",
+      "decision": "EXPLICIT - RULE INTERPRETATION",
+      "evidence_source": "live Ester feedback sheet; docs/status/ester_policy_review_p021_p026.md; PR #550",
+      "confidence_in_interpretation": "High",
+      "current_detector_aligned": "YES after 2026-09-22 constants correction (PR #550)",
+      "action": "Ester's sheet explicitly states MS abstracts <=200 words, PhD abstracts <=400 words; detector previously used stale 150/350 constants, corrected to match exactly; no new Ester decision needed.",
       "implementation_module": "njit_auditor.rules.latex_abstract",
       "issue_types": [],
       "feedback_question": "",
@@ -1539,6 +1539,24 @@
       ],
       "feedback_question": "The first body page should begin with literal CHAPTER 1; Patrick's INTRODUCTION in that position is an error.",
       "feedback_remediation": "Add the literal CHAPTER 1 heading at the beginning of the first body chapter."
+    },
+    {
+      "public_rule": "R086",
+      "internal_rule": "P086",
+      "q_source": [],
+      "topic": "Unnumbered Bold Heading-Shaped Phrase (new rule)",
+      "ester_decision_exists": "YES",
+      "decision": "EXPLICIT - REQUIRED FINDING (Youra physical page 101 only)",
+      "evidence_source": "live Ester feedback workbook (R015 follow-up); docs/status/p086_unnumbered_bold_heading_design_20260922.md; PR #551",
+      "confidence_in_interpretation": "High for the Youra page-101 case; other corpus findings unreviewed",
+      "current_detector_aligned": "Yes after P086 implementation",
+      "action": "Ester confirmed the Youra physical-page-101 bold run-in phrase without a section number as not allowed and said bold is reserved for numbered heading levels 1-4; implemented as a narrow, structural detector (reuses R015's run-in-heading detection and P027's qualifying-heading filter) after a design gate found this achievable without inventing broader policy. Only the Youra page-101 finding is reviewer-confirmed; the other 8 corpus findings are unreviewed candidates, not adjudicated verdicts. Does not authorize treating all non-numbered bold text as prohibited.",
+      "implementation_module": "njit_auditor.rules.pdf_unnumbered_bold_heading",
+      "issue_types": [
+        "bold_heading_without_section_number"
+      ],
+      "feedback_question": "",
+      "feedback_remediation": ""
     }
   ]
 }

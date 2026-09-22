@@ -9,6 +9,14 @@
 **Baseline:** `main` @ `681ed0440c985cf9a0418e93581228552e2d4558` (merged
 through PR #548 / R068).
 
+> **2026-09-22 refresh:** two of this audit's own `GENUINELY_REQUIRES_ESTER`
+> items — P021 and `UNNUMBERED_BOLD_HEADING_GAP` — were resolved through
+> engineering (not further Ester input) later the same day and merged as
+> PR #550 and PR #551 respectively. Current `main` is now
+> `b0bfd0ca7c6c3233d26858f520156ff714e07ba7`. Both sections below are
+> updated in place to reflect this; nothing else in this document changed.
+> The final minimal Ester question set is now three items, not five.
+
 ## R018 — sections 1.3.3/1.3.4/1.3.5 open alignment question
 
 **Already investigated in depth** by
@@ -104,40 +112,45 @@ P034/P051/P052 finding.
 **Classification: GENUINELY_REQUIRES_ESTER** (policy authorization of an
 already-implemented, currently low-risk permissive default).
 
-**Minimal question:** "Our tool currently treats Latin Modern (Overleaf's
-LaTeX default) as equivalent to Computer Modern, plus a few visually
-near-identical serif fonts, beyond the three families your sheet names
-(Times New Roman, Arial, Computer Modern). Is that OK to keep, or should we
-tighten to exactly your three names?"
+**Minimal question (narrowed to Latin Modern only — do not bundle in the
+other near-equivalent serif aliases; a broader authorization was never
+asked for and isn't needed to resolve the one live gap):** "Our tool
+currently treats Latin Modern (Overleaf's own default replacement for
+Computer Modern) as equivalent to your named Computer Modern Typeface
+family. Is that correct, or should Latin Modern not count as part of that
+family?"
 
-### Additional item found in the same investigation: P021 abstract word limits
+### Additional item found in the same investigation: P021 abstract word limits — RESOLVED 2026-09-22, no longer requires Ester
 
 Not one of the five originally-named candidates, but surfaced directly while
 reading the same policy-review doc (which bundles P021 and P026 together as
 the two rules "intentionally deferred" from wording-only work because both
 are constants/policy conflicts, not wording issues):
 
-- `src/njit_auditor/rules/latex_abstract.py`: `PHD_WORD_LIMIT = 350`,
-  `MS_WORD_LIMIT = 150` — **still unchanged** as of this audit.
-- Ester's sheet (per `docs/status/ester_feedback_source_of_truth.md`): PhD
-  ≤400 words, MS ≤200 words.
-- This is a real, live constants conflict, not wording: the tool currently
-  tells students to shorten their abstract to a *stricter* limit than
-  Ester's actual stated policy, which is a concrete potential-harm risk
-  (over-trimming a compliant abstract), not just a permissiveness question
-  like R026.
-- A full draft question already exists, unsent, in
-  `docs/status/ester_policy_review_p021_p026.md` ("Proposed message to
-  Ester" section).
+- `src/njit_auditor/rules/latex_abstract.py` previously had `PHD_WORD_LIMIT
+  = 350`, `MS_WORD_LIMIT = 150` — a real, live constants conflict, not a
+  wording issue: the tool told students to shorten their abstract to a
+  *stricter* limit than Ester's actual stated policy, a concrete
+  potential-harm risk (over-trimming an already-compliant abstract).
+- Ester's sheet already explicitly states the correct limits: **PhD ≤400
+  words, MS ≤200 words** — this was existing, sufficient authority; no new
+  Ester input was needed to fix it.
+- **Fixed by PR #550** (`fix/p021-ester-abstract-word-limits-20260922`,
+  merged 2026-09-22): `PHD_WORD_LIMIT`/`MS_WORD_LIMIT` updated to 400/200,
+  every dependent piece of student-facing wording and the live
+  `ester_warning_wording_map.json` remediation text updated to match.
+  Degree-type inference and unknown-degree fallback behavior unchanged —
+  only the two numeric constants and text that echoed them. Zero live
+  corpus impact before or after (no current document triggers P021); this
+  corrects the constants for any future document that does.
 
-**Classification: GENUINELY_REQUIRES_ESTER** (constants conflict; degree-type
-inference is also heuristic, per the same doc, so the exact applicability
-scope should be confirmed too).
-
-**Minimal question:** "Our tool currently flags PhD abstracts over 350 words
-and MS abstracts over 150 words. Your sheet says PhD ≤400 and MS ≤200. Can
-you confirm 400/200 are correct, and whether they apply to every NJIT
-program or vary by department?"
+**Classification: RESOLVED_THROUGH_ENGINEERING** (was
+`GENUINELY_REQUIRES_ESTER`; existing authority — Ester's own sheet — was
+always sufficient, so this was actually `TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY`
+once looked at directly, not a genuine open question). **Removed from the
+Ester question set, the `GENUINELY_REQUIRES_ESTER` bucket, and the
+engineering-before-email backlog** — there is no remaining backlog item for
+P021.
 
 ## LEADER_PLACEMENT_RULE_GAP
 
@@ -161,37 +174,63 @@ gap between the title and the leader dots. Is that itself a violation we
 should flag? If so: List of Figures only, or also List of Tables/Table of
 Contents? And how should a wrapped (multi-line) title be handled?"
 
-## UNNUMBERED_BOLD_HEADING_GAP
+## UNNUMBERED_BOLD_HEADING_GAP — RESOLVED 2026-09-22, no longer requires Ester
 
 Already recorded by
 `docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md`
-("Separate Bold-Heading Observation"). Re-verified rule-ownership audit: P020
+("Separate Bold-Heading Observation"). Rule-ownership audit: P020
 (title-case style of *recognized* headings) does not report unnumbered bold
 run-in phrases; P027 (numbered-heading level/style) cannot own an unnumbered
 phrase by definition; P026 (font family/size) has no concept of "bold
-reserved for headings." No existing rule owns this.
+reserved for headings." No existing rule owned this.
 
 Ester's stated policy ("bold should be reserved for numbered titles/
-headings") is a clear rule in principle, but the scope is not precise
-enough to implement safely: does "reserved exclusively"
-mean flagging *every* other bold span in the document (which would very
-likely produce large numbers of false positives on legitimate bold use —
-table headers, defined-term emphasis, "Note:"-style labels, captions), or
-only a bold, standalone, heading-shaped phrase (short line, no numbered
-prefix, followed by body text) — the shape of the one known example from the
-R015 review? Implementing the broad reading now would require inventing that
-scope distinction without reviewer confirmation.
+headings") is a clear rule in principle, but a *broad* reading — flagging
+every bold span in the document (table headers, defined-term emphasis,
+"Note:"-style labels, captions) — would have required inventing a scope
+distinction without reviewer confirmation. Rather than ask, or guess the
+broad reading, a mandatory design gate was run first (full write-up:
+`docs/status/p086_unnumbered_bold_heading_design_20260922.md`) and passed
+on the *narrow*, structurally-supported reading only.
 
-**Classification: GENUINELY_REQUIRES_ESTER** (scope confirmation needed
-before a new rule can be safely implemented; the underlying exclusion
-patterns for captions/bullets/table content already exist elsewhere in the
-codebase and could be reused once scope is confirmed).
+**Fixed/implemented by PR #551** (`fix/unnumbered-bold-heading-ester-followup-20260922`,
+merged 2026-09-22) as new internal rule **P086**, displayed to
+students/reviewers as **R086**. The detector is deliberately conservative
+and structural, not a blanket "flag all bold text" rule:
 
-**Minimal question:** "You mentioned bold should be reserved for numbered
-heading levels 1-4. Should we flag every other bold phrase in the document
-(table headers, emphasis, labels), or only a phrase that looks like a
-heading — a short standalone bold line with no body continuation — but has
-no section number?"
+- Fires only on the exact shape Ester's own known example has: a bold
+  run-in heading lead sharing a physical row with regular-styled
+  continuation text (reusing R015's own already-validated
+  `_is_run_in_heading_lead` detection), passing the same
+  "looks like a real heading title, not noise" filter P027 already uses,
+  with no section number and no recognized heading name.
+- Structurally excludes numbered headings, named/front-matter/TOC/List/
+  references headings, bullets, figure/table captions, inline emphasis,
+  and short call-out labels — verified by 12 dedicated synthetic tests,
+  including three PDF text-extraction-artifact shapes found and fixed
+  during the seven-document corpus audit (a numbered heading's number
+  glued to its title or a bullet marker with no whitespace, and a heading
+  number extracted as a separate same-row fragment).
+- Does **not** claim that all bold text outside numbered headings is
+  prohibited — only this one narrow structural shape.
+
+**Reviewer-confirmed vs. unreviewed, precisely:** of the 9 live findings on
+the current seven-document corpus (Youra: physical pages 89, 91, 94, 101,
+105; Muyeed: physical pages 69, 79, 117, 188), **exactly one** — Youra
+physical page 101 — is the actual Ester-adjudicated case. Youra physical
+page 105 is a strong structural sibling (identical phrase template, only
+the scenario number differs) but was never itself shown to Ester. The
+remaining 7 are new, structurally consistent, unreviewed candidates for
+ordinary human/reviewer follow-up — none of the 9 beyond page 101 is
+claimed as reviewer-confirmed.
+
+**Classification: RESOLVED_THROUGH_ENGINEERING** (was
+`GENUINELY_REQUIRES_ESTER`; the design gate found a general, structurally
+narrow detector was achievable without inventing new policy, so this was
+`TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY` once a conservative
+enough reading was identified). **Removed from the Ester question set, the
+`GENUINELY_REQUIRES_ESTER` bucket, and the engineering-before-email
+backlog** — there is no remaining backlog item for the bold-heading gap.
 
 ## Additional search for other current unresolved items (Phase 8)
 
@@ -214,7 +253,9 @@ current `main`:
   the general R055 rule. Fixed in this pass (see Canonical Status Cleanup
   below) — this was stale documentation, not a live gap.
 - No other genuinely current unresolved reviewer-driven item was found
-  beyond the five investigated above plus P021.
+  beyond the five investigated above plus P021 (P021 and
+  UNNUMBERED_BOLD_HEADING_GAP were both subsequently resolved through
+  engineering on 2026-09-22 — see their sections above).
 
 ## Decision matrix
 
@@ -222,28 +263,37 @@ current `main`:
 |---|---|---|---|---|---|
 | R018 (1.3.3/1.3.4/1.3.5) | No geometric defect found under any current check | No | No | **Yes** | Ask minimal question above |
 | R034 | Zero live findings on corpus; conservative, tested implementation | N/A (nothing to decide) | No | No | None — already resolved |
-| R026 (Latin Modern) | Already implemented, permissive, zero live corpus impact | No (policy, not technical) | No | **Yes** | Ask minimal question above |
-| P021 (abstract word limits) | Live constants conflict (150/350 vs. 200/400) | No | No (once confirmed, a 2-constant change) | **Yes** | Ask minimal question above |
+| R026 (Latin Modern) | Already implemented, permissive, zero live corpus impact | No (policy, not technical) | No | **Yes** | Ask minimal question above (Latin Modern only) |
+| P021 (abstract word limits) | **Resolved** — PR #550 merged 2026-09-22 | Yes (Ester's sheet always had 400/200) | Done | **No** | None — implemented, no longer in the email |
 | LEADER_PLACEMENT_RULE_GAP | No rule owns it; one example only | No | Only after scope confirmed | **Yes** | Ask minimal question above |
-| UNNUMBERED_BOLD_HEADING_GAP | No rule owns it; one example only | No | Only after scope confirmed | **Yes** | Ask minimal question above |
+| UNNUMBERED_BOLD_HEADING_GAP | **Resolved** — PR #551 merged 2026-09-22 as R086 | Yes (design gate found a narrow, supported reading) | Done | **No** | None — implemented, no longer in the email |
 | R035, R036, R055 (Phase 8 sweep) | No live case; R055 was a stale-doc false alarm (now fixed) | N/A | No | No | None for now |
 
 ## Engineering before email
 
-**Nothing.** No item is TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY. R034
-needs no action. Every other item genuinely needs an Ester decision before
-any further code change, per this project's standing policy against
-inventing thresholds/scope from a single example.
+**Nothing remains.** P021 and UNNUMBERED_BOLD_HEADING_GAP were both
+`TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY` once looked at directly
+(Ester's sheet already stated the P021 limits explicitly; the bold-heading
+design gate found a narrow, non-policy-inventing detector was achievable)
+and are now implemented and merged (PR #550, PR #551). R034 needs no
+action. Every remaining item (R018, R026 Latin Modern, leader placement)
+genuinely needs an Ester decision before any further code change, per this
+project's standing policy against inventing thresholds/scope from a single
+example.
 
 ## Questions for Ester (minimal final set)
 
 1. **R018** — 1.3.3/1.3.4/1.3.5 TOC alignment (see wording above).
-2. **R026** — Latin Modern/serif-alias authorization (see wording above).
-3. **P021** — abstract word-limit constants (see wording above).
-4. **LEADER_PLACEMENT_RULE_GAP** — Sebastian's List of Figures leader-gap
-   scope (see wording above).
-5. **UNNUMBERED_BOLD_HEADING_GAP** — bold-reservation scope (see wording
-   above).
+2. **R026** — Latin Modern authorization only, not the other near-equivalent
+   serif aliases (see wording above).
+3. **LEADER_PLACEMENT_RULE_GAP** — Sebastian's List of Figures leader-gap
+   scope, tolerance, and wrapped-title handling (see wording above). Do
+   not re-ask whether Sebastian's case is a real error — Ester already
+   confirmed that; only the scope/tolerance questions remain open.
+
+P021 and UNNUMBERED_BOLD_HEADING_GAP are intentionally **not** included —
+both were resolved through engineering (PR #550, PR #551) and require no
+further Ester input.
 
 No email was drafted or sent in this pass — audit-only, per task scope.
 
@@ -267,6 +317,15 @@ No email was drafted or sent in this pass — audit-only, per task scope.
 No historical/dated document was rewritten; only the two canonical
 current-only status documents were corrected, and only for facts
 contradicted by verified current repository/GitHub state.
+
+**2026-09-22 refresh (this pass):** rebased this branch onto current
+`origin/main` (`b0bfd0ca7c6c3233d26858f520156ff714e07ba7`, through PR #551);
+updated `CURRENT_STATUS.md`'s `origin/main` SHA, rule inventory (P086
+implemented, next unused internal ID is P087), and unresolved-backlog
+summary; updated `ester_authority_matrix_20260902.md`/`.json` to add an
+R086 row and correct the R021 row to record Ester's explicit 200/400
+policy and its PR #550 implementation. R055's prior correction from the
+original pass is preserved unchanged.
 
 ## Safety
 
