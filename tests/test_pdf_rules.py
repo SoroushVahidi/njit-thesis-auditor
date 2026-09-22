@@ -3911,14 +3911,14 @@ def test_pdf_abstract_under_phd_limit_no_p021(tmp_path: Path) -> None:
 
 def test_pdf_abstract_over_phd_limit_warns_p021(tmp_path: Path) -> None:
     pdf_path = tmp_path / "abstract_over.pdf"
-    # Write 360 words of body text after ABSTRACT heading
+    # Write 410 words of body text after ABSTRACT heading
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
-    # Insert lines of ~10 words each to total >350
+    # Insert lines of ~10 words each to total >400
     y = 130
     words_written = 0
-    while words_written < 360 and y < 750:
+    while words_written < 410 and y < 750:
         line = " ".join(f"word{words_written + i}" for i in range(10))
         page.insert_text((108, y), line, fontsize=12)
         y += 14
@@ -3929,7 +3929,7 @@ def test_pdf_abstract_over_phd_limit_warns_p021(tmp_path: Path) -> None:
     findings = check_pdf_abstract_word_count(model)
     warning = next((f for f in findings if f.rule_id == "P021"), None)
     assert warning is not None
-    assert int(warning.details["word_count"]) > 350
+    assert int(warning.details["word_count"]) > 400
 
 
 def test_pdf_no_abstract_heading_no_p021(tmp_path: Path) -> None:
@@ -3947,7 +3947,7 @@ def test_pdf_abstract_word_count_detail_fields(tmp_path: Path) -> None:
     page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
     y = 130
     words_written = 0
-    while words_written < 360 and y < 750:
+    while words_written < 410 and y < 750:
         line = " ".join(f"word{words_written + i}" for i in range(10))
         page.insert_text((108, y), line, fontsize=12)
         y += 14
@@ -3970,7 +3970,7 @@ def test_pdf_cli_command_runs_with_p021(tmp_path: Path) -> None:
     page.insert_text((250, 90), "ABSTRACT", fontsize=16, fontname="Times-Bold")
     y = 130
     words_written = 0
-    while words_written < 360 and y < 750:
+    while words_written < 410 and y < 750:
         line = " ".join(f"word{words_written + i}" for i in range(10))
         page.insert_text((108, y), line, fontsize=12)
         y += 14

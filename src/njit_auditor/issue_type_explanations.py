@@ -383,8 +383,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ),
     ("P021", "abstract_word_count_exceeded"): (
         "The abstract appears to exceed the allowed word count for the detected "
-        "degree type. PhD abstracts must be 350 words or fewer; MS/Master abstracts "
-        "must be 150 words or fewer. Shorten the abstract before submission."
+        "degree type. PhD abstracts must be 400 words or fewer; MS/Master abstracts "
+        "must be 200 words or fewer. Shorten the abstract before submission."
     ),
     ("P022", "visible_page_number_on_no_number_page"): (
         "A front-matter page that should not display a page number was found with "
@@ -873,8 +873,8 @@ _ISSUE_TYPE_EXPLANATIONS: dict[str, str] = {
     ),
     "abstract_word_count_exceeded": (
         "The abstract appears to exceed the allowed word count. "
-        "PhD abstracts must be 350 words or fewer; MS/Master abstracts "
-        "must be 150 words or fewer."
+        "PhD abstracts must be 400 words or fewer; MS/Master abstracts "
+        "must be 200 words or fewer."
     ),
 }
 

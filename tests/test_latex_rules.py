@@ -204,7 +204,7 @@ def _make_words(n: int) -> str:
 
 
 def test_phd_abstract_under_limit_no_p021(tmp_path: Path) -> None:
-    abstract_body = _make_words(300)  # 300 < 350
+    abstract_body = _make_words(300)  # 300 < 400
     project = _load_single(
         tmp_path,
         f"dissertation doctoral\\n\\\\begin{{abstract}}{abstract_body}\\\\end{{abstract}}",
@@ -217,8 +217,18 @@ def test_phd_abstract_under_limit_no_p021(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P021" for f in findings)
 
 
+def test_phd_abstract_at_exact_limit_no_p021(tmp_path: Path) -> None:
+    abstract_body = _make_words(400)  # 400 == 400, within limit
+    project = _load_single(
+        tmp_path,
+        "dissertation\n" + f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",
+    )
+    findings = run_latex_abstract_word_count_check(project)
+    assert not any(f.rule_id == "P021" for f in findings)
+
+
 def test_phd_abstract_over_limit_warns_p021(tmp_path: Path) -> None:
-    abstract_body = _make_words(360)  # 360 > 350
+    abstract_body = _make_words(401)  # 401 > 400
     project = _load_single(
         tmp_path,
         "dissertation\n" + f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",
@@ -226,12 +236,23 @@ def test_phd_abstract_over_limit_warns_p021(tmp_path: Path) -> None:
     findings = run_latex_abstract_word_count_check(project)
     warning = next(f for f in findings if f.rule_id == "P021")
     assert warning.severity.value == "WARNING"
-    assert int(warning.details["word_count"]) > 350
+    assert int(warning.details["word_count"]) > 400
     assert warning.details["inferred_degree_type"] == "phd"
+    assert warning.details["limit"] == "400"
 
 
 def test_ms_abstract_under_limit_no_p021(tmp_path: Path) -> None:
-    abstract_body = _make_words(120)  # 120 < 150
+    abstract_body = _make_words(120)  # 120 < 200
+    project = _load_single(
+        tmp_path,
+        "thesis master\n" + f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",
+    )
+    findings = run_latex_abstract_word_count_check(project)
+    assert not any(f.rule_id == "P021" for f in findings)
+
+
+def test_ms_abstract_at_exact_limit_no_p021(tmp_path: Path) -> None:
+    abstract_body = _make_words(200)  # 200 == 200, within limit
     project = _load_single(
         tmp_path,
         "thesis master\n" + f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",
@@ -241,16 +262,16 @@ def test_ms_abstract_under_limit_no_p021(tmp_path: Path) -> None:
 
 
 def test_ms_abstract_over_limit_warns_p021(tmp_path: Path) -> None:
-    abstract_body = _make_words(160)  # 160 > 150
+    abstract_body = _make_words(201)  # 201 > 200
     project = _load_single(
         tmp_path,
         "thesis master\n" + f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",
     )
     findings = run_latex_abstract_word_count_check(project)
     warning = next(f for f in findings if f.rule_id == "P021")
-    assert int(warning.details["word_count"]) > 150
+    assert int(warning.details["word_count"]) > 200
     assert warning.details["inferred_degree_type"] == "ms"
-    assert warning.details["limit"] == "150"
+    assert warning.details["limit"] == "200"
 
 
 def test_latex_macros_do_not_badly_inflate_count(tmp_path: Path) -> None:
@@ -265,7 +286,7 @@ def test_latex_macros_do_not_badly_inflate_count(tmp_path: Path) -> None:
 
 
 def test_unknown_degree_type_over_both_limits_warns_p021(tmp_path: Path) -> None:
-    abstract_body = _make_words(400)  # > 350 = over both limits
+    abstract_body = _make_words(401)  # > 400 = over both limits
     project = _load_single(
         tmp_path,
         f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",
@@ -276,7 +297,7 @@ def test_unknown_degree_type_over_both_limits_warns_p021(tmp_path: Path) -> None
 
 
 def test_unknown_degree_type_between_limits_warns_low_confidence(tmp_path: Path) -> None:
-    abstract_body = _make_words(200)  # > 150 but < 350
+    abstract_body = _make_words(300)  # > 200 but < 400
     project = _load_single(
         tmp_path,
         f"\\begin{{abstract}}{abstract_body}\\end{{abstract}}",

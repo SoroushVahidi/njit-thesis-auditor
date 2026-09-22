@@ -257,7 +257,7 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P021": {
         "rule_definition": (
-            "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 "
+            "PhD abstract maximum: 400 words. MS/Master abstract maximum: 200 "
             "words. Degree type is inferred from the document text. Word count "
             "uses conservative tokenization (letter-containing tokens only)."
         ),
