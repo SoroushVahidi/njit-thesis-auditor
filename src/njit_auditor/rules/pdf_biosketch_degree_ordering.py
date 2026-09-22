@@ -39,10 +39,17 @@ from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_heading_pa
 _HEADING_LABEL = "BIOGRAPHICAL SKETCH"
 _YEAR_RE = re.compile(r"\b(19[6-9]\d|20[0-2]\d)\b")
 _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
-_PUBLICATION_ZONE_RE = re.compile(
-    r"\b(PUBLICATIONS?|PRESENTATIONS?|PUBLICATIONS?\s+AND\s+PRESENTATIONS?)\b",
-    re.IGNORECASE,
+_EDUCATION_SECTION_LABELS = frozenset(
+    {"EDUCATION", "GRADUATEEDUCATION", "UNDERGRADUATEANDGRADUATEEDUCATION"}
 )
+# Matches the boundary word in any spacing/heading form: singular or plural
+# ("Publication"/"Publications"/"Presentation"/"Presentations"), qualified or
+# prefixed headings ("Selected Publications"), and compact PDF-extracted
+# labels where whitespace between words is dropped entirely
+# ("PublicationsAndPresentations", "PresentationsAndPublications"). Matched
+# against the compact (letters-only, uppercased) form of a line, so ordinary
+# spacing differences never matter.
+_PUBLICATION_LABEL_RE = re.compile(r"PUBLICATIONS?|PRESENTATIONS?")
 
 _MAX_DEGREE_LINE_CHARS = 120
 _MIN_ALPHA_CHARS = 3
@@ -69,8 +76,29 @@ def _find_publications_boundary_y(
             lines_below.append((line.bbox.y0, line.text.strip()))
     lines_below.sort(key=lambda t: t[0])
     for y0, text in lines_below:
-        if _PUBLICATION_ZONE_RE.search(text):
+        if _PUBLICATION_LABEL_RE.search(_compact_section_label(text)):
             return y0
+    return None
+
+
+def _compact_section_label(text: str) -> str:
+    """Normalize section labels, including PDF text with spaces dropped."""
+    return re.sub(r"[^A-Z]", "", text.upper())
+
+
+def _find_education_boundary_y(page: PdfPage, heading_y: float) -> float | None:
+    """Return the bottom of the education-section heading, if detectable."""
+    lines_below = [
+        line
+        for block in page.text_blocks
+        for line in block.lines
+        if line.bbox.y0 > heading_y + 2
+    ]
+    lines_below.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
+    for line in lines_below:
+        text = " ".join(line.text.strip().split())
+        if _compact_section_label(text) in _EDUCATION_SECTION_LABELS:
+            return line.bbox.y1
     return None
 
 
@@ -116,13 +144,17 @@ def check_pdf_biosketch_degree_ordering(
     if not page.text_blocks:
         return []
 
+    education_boundary_y = _find_education_boundary_y(page, heading_y)
+    if education_boundary_y is None:
+        return []
+
     pub_boundary_y = _find_publications_boundary_y(page, heading_y)
 
     # Collect education-zone candidate lines: below heading, above publications boundary.
     candidates: list[PdfTextLine] = []
     for block in page.text_blocks:
         for line in block.lines:
-            if line.bbox.y0 <= heading_y + 2:
+            if line.bbox.y0 <= education_boundary_y + 2:
                 continue
             if pub_boundary_y is not None and line.bbox.y0 >= pub_boundary_y:
                 continue

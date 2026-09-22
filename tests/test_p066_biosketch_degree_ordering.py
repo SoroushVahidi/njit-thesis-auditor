@@ -62,6 +62,7 @@ def _make_biosketch_page(
     if double_heading:
         page.insert_text((_CENTER_X - 60, 130.0), "BIOGRAPHICAL SKETCH", fontsize=14)
 
+    page.insert_text((_MARGIN_L, 170.0), "Undergraduate and Graduate Education:", fontsize=12)
     y = 200.0
     if degree_lines:
         for label, year in degree_lines:
@@ -119,7 +120,9 @@ def _make_line(text: str, y0: float) -> PdfTextLine:
     )
 
 
-def _make_biosketch_doc_from_lines(lines: list[PdfTextLine]) -> PdfDocument:
+def _make_biosketch_doc_from_lines(
+    lines: list[PdfTextLine], pre_education_lines: list[PdfTextLine] | None = None
+) -> PdfDocument:
     """Build a PdfDocument directly with a BIOGRAPHICAL SKETCH heading and given lines."""
     heading_text = "BIOGRAPHICAL SKETCH"
     heading_span = PdfTextSpan(
@@ -138,6 +141,31 @@ def _make_biosketch_doc_from_lines(lines: list[PdfTextLine]) -> PdfDocument:
         bbox=BBox(x0=200.0, y0=84.0, x1=400.0, y1=100.0),
         text=heading_text,
     )
+    education_heading_span = PdfTextSpan(
+        text="Undergraduate and Graduate Education:",
+        bbox=BBox(x0=108.0, y0=150.0, x1=400.0, y1=166.0),
+        font="Helvetica",
+        italic=False,
+    )
+    education_heading = PdfTextLine(
+        spans=[education_heading_span],
+        bbox=education_heading_span.bbox,
+        text=education_heading_span.text,
+    )
+    content_blocks: list[PdfTextBlock] = []
+    if pre_education_lines:
+        content_blocks.append(
+            PdfTextBlock(
+                lines=pre_education_lines,
+                bbox=BBox(
+                    x0=min(ln.bbox.x0 for ln in pre_education_lines),
+                    y0=min(ln.bbox.y0 for ln in pre_education_lines),
+                    x1=max(ln.bbox.x1 for ln in pre_education_lines),
+                    y1=max(ln.bbox.y1 for ln in pre_education_lines),
+                ),
+                text=" ".join(ln.text for ln in pre_education_lines),
+            )
+        )
     if lines:
         content_block = PdfTextBlock(
             lines=lines,
@@ -149,9 +177,12 @@ def _make_biosketch_doc_from_lines(lines: list[PdfTextLine]) -> PdfDocument:
             ),
             text=" ".join(ln.text for ln in lines),
         )
-        blocks = [heading_block, content_block]
-    else:
-        blocks = [heading_block]
+        content_blocks.append(content_block)
+    blocks = [heading_block, PdfTextBlock(
+        lines=[education_heading],
+        bbox=education_heading.bbox,
+        text=education_heading.text,
+    ), *content_blocks]
     page = PdfPage(
         page_number=1,
         width=_PAGE_W,
@@ -398,3 +429,157 @@ def test_finding_rule_id_is_p066(tmp_path: Path) -> None:
     findings = check_pdf_biosketch_degree_ordering(pdf_doc)
     for f in findings:
         assert f.rule_id == "P066"
+
+
+def test_non_education_date_before_section_is_ignored() -> None:
+    pre_education = [_make_line("Date of Birth, 1993", 120.0)]
+    lines = [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2026", 200.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2019", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2013", 244.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines, pre_education)
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_reverse_order_with_date_range_is_conservative() -> None:
+    lines = [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2020-2024", 200.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016-2018", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2012", 244.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_month_year_uses_documented_year_precision() -> None:
+    lines = [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, May 2024", 200.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, January 2020", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 244.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_expected_degree_is_ranked_by_its_single_year() -> None:
+    lines = [
+        _make_line(f"Expected {_PLACEHOLDER_DEGREE}, 2027", 200.0),
+        _make_line(f"Current {_PLACEHOLDER_DEGREE}, 2023", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2018", 244.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_fragmented_date_line_causes_abstention() -> None:
+    lines = [
+        _make_line(_PLACEHOLDER_DEGREE, 200.0),
+        _make_line("2024", 216.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2019", 244.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 266.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_same_year_entries_are_not_ordered() -> None:
+    lines = [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, June 2020", 200.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, January 2020", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 244.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+# ---------------------------------------------------------------------------
+# Publication/Presentation boundary recognition matrix
+#
+# Each test places 3 correctly-descending education years above a boundary
+# line, then 3 ascending years below it. If the boundary line is NOT
+# recognized, the two groups are treated as one candidate stream and the
+# ascending years below the boundary produce a spurious inversion finding.
+# Asserting `== []` therefore proves both that the heading is recognized as
+# a boundary AND that the years after it are excluded from degree
+# candidates. No real dissertation text, degree names, or institution names
+# are used — all lines are synthetic placeholders.
+# ---------------------------------------------------------------------------
+
+
+def _boundary_probe_lines(boundary_text: str) -> list[PdfTextLine]:
+    return [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2023", 200.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2019", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2015", 244.0),
+        _make_line(boundary_text, 270.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2010", 292.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 314.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2021", 336.0),
+    ]
+
+
+def test_boundary_plural_publications_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Publications"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_singular_publication_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Publication"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_plural_presentations_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Presentations"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_singular_presentation_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Presentation"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_qualified_selected_publications_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(
+        _boundary_probe_lines("Selected Publications")
+    )
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_compact_publications_and_presentations_excludes_years() -> None:
+    """Compact PDF-extracted label with no inter-word spaces."""
+    pdf_doc = _make_biosketch_doc_from_lines(
+        _boundary_probe_lines("PUBLICATIONSANDPRESENTATIONS")
+    )
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_compact_reversed_presentations_and_publications_excludes_years() -> None:
+    """Reversed combined compact label, also supported by the boundary set."""
+    pdf_doc = _make_biosketch_doc_from_lines(
+        _boundary_probe_lines("PRESENTATIONSANDPUBLICATIONS")
+    )
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_control_missing_heading_still_detects_contamination() -> None:
+    """Sanity control: with no boundary line at all, the same six years must
+
+    still trip a genuine finding. This proves the probe lines above are only
+    passing because the boundary is recognized, not because the detector has
+    become blind to disorder.
+    """
+    lines = [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2023", 200.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2019", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2015", 244.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2010", 266.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 288.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2021", 310.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    findings = check_pdf_biosketch_degree_ordering(pdf_doc)
+    assert any(
+        f.details.get("issue_type") == "biosketch_degree_order_suspicious"
+        for f in findings
+    )
