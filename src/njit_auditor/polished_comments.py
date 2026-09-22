@@ -381,6 +381,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "CHAPTER 1 heading. Add the literal CHAPTER 1 heading at the beginning "
         "of the first body chapter."
     ),
+    ("P086", "bold_heading_without_section_number"): (
+        "Problem: A bold phrase on page {page} reads like a section heading "
+        "but has no section number in front of it. Either add the section "
+        "number or remove the bold styling from this phrase."
+    ),
     ("P001", "risky_command"): (
         "Risky formatting command '\\{command}' at {location}. "
         "Manual overrides can break NJIT layout requirements."
