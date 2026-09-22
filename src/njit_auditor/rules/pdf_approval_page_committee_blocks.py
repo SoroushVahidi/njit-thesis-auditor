@@ -9,6 +9,11 @@ Partial heuristic PDF coverage for the Approval Page structural extension of Q01
 committee role labels and signature/date blocks should be present on a detected
 APPROVAL PAGE. Q015–Q020 remain manual-only and are not checked.
 
+`approval_page_signature_blocks_sparse` reporting is retired (2026-09-21); see
+`_SIGNATURE_BLOCKS_SPARSE_REPORTING_ENABLED` below and
+`docs/status/r068_ester_approval_committee_spacing_followup_20260921.md`.
+`approval_page_advisor_role_label_missing` is unaffected and remains active.
+
 Does not read or quote committee-member names, honorifics, affiliations,
 signature images, or approval-page prose. Findings contain counts and booleans only.
 """
@@ -33,6 +38,30 @@ _MIN_BODY_LINES = 4
 _MIN_ROLE_LABELS = 2
 _MIN_LINE_CHARS = 3
 _ROLE_PREFIX_CHARS = 60
+
+# Whether `approval_page_signature_blocks_sparse` is emitted as a student-facing
+# finding.
+#
+# RETIRED AS A REPORTING RULE (2026-09-21). Ester Flaim confirmed the Anthony,
+# Praneeth, and Sebastian R068 "sparse" findings as false positives and
+# explained that Approval Page committee-block layout legitimately varies with
+# committee size and how many lines each entry occupies -- there is no fixed
+# universal spacing/indicator-count requirement (no Q013/Q015-Q020 source text
+# specifies one either). The underlying signal is also not template-reliable:
+# on all three false-positive documents, the detector correctly found role
+# labels (5, 5, and 6 respectively) but zero text-extractable date/signature/
+# blank-line indicators at all -- evidence that real approval-page signature
+# lines and date/signature labels are frequently not recognizable as isolated
+# text in this way (drawn/graphical lines, missing colons, or merged into
+# other lines), not that the entries are actually missing their blocks. A
+# fixed indicator-count-to-role-label-count ratio cannot reliably separate
+# "sparse" from "normal" across templates. The counting logic below is
+# retained for compatibility/documentation and potential future re-validation;
+# it no longer controls whether a finding is emitted. Do not reintroduce this
+# as a decisive reporting signal without new rule authority or reviewer
+# confirmation of a real R068 "sparse" true positive. See
+# docs/status/r068_ester_approval_committee_spacing_followup_20260921.md.
+_SIGNATURE_BLOCKS_SPARSE_REPORTING_ENABLED = False
 
 _ADVISOR_ROLE_PHRASES: tuple[str, ...] = (
     "dissertation advisor",
@@ -307,7 +336,10 @@ def check_pdf_approval_page_committee_blocks(pdf_document: PdfDocument) -> list[
             )
         )
 
-    if signature_date_indicator_count < required_indicators:
+    if (
+        _SIGNATURE_BLOCKS_SPARSE_REPORTING_ENABLED
+        and signature_date_indicator_count < required_indicators
+    ):
         findings.append(
             _make_finding(
                 page_number=page_number,

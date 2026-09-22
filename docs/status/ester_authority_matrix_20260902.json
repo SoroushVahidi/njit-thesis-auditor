@@ -1182,18 +1182,18 @@
       ],
       "topic": "Approval Page committee block structural check",
       "ester_decision_exists": "YES",
-      "decision": "EXPLICIT - RULE INTERPRETATION",
-      "evidence_source": "data/specs/ester_p_rule_feedback.json",
+      "decision": "EXPLICIT - FALSE POSITIVE",
+      "evidence_source": "docs/evaluation/ester_feedback/R068_Ester_Auditor_Feedback.xlsx; docs/status/r068_ester_approval_committee_spacing_followup_20260921.md",
       "confidence_in_interpretation": "High",
-      "current_detector_aligned": "YES for behavior; presentation/split requests tracked where applicable",
-      "action": "Preserve Ester wording/scope; no detector change unless separate technical evidence exists.",
+      "current_detector_aligned": "YES after retiring approval_page_signature_blocks_sparse reporting; Anthony/Praneeth/Sebastian FPs removed",
+      "action": "Do not report approval_page_signature_blocks_sparse (retired, gated off); preserve approval_page_advisor_role_label_missing unchanged. No Ester-confirmed R068 true positive available.",
       "implementation_module": "njit_auditor.rules.pdf_approval_page_committee_blocks",
       "issue_types": [
         "approval_page_advisor_role_label_missing",
         "approval_page_signature_blocks_sparse"
       ],
-      "feedback_question": "",
-      "feedback_remediation": "rank order\\"
+      "feedback_question": "Committee-block spacing depends on committee size and how many lines each entry occupies; there is no fixed universal spacing requirement.",
+      "feedback_remediation": "Do not report the reviewed Anthony/Praneeth/Sebastian sparse findings; retire the fixed indicator-count-ratio heuristic rather than retuning it."
     },
     {
       "public_rule": "R069",

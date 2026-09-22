@@ -109,7 +109,16 @@ def test_missing_advisor_role_label_emits_finding() -> None:
     assert findings[0].rule_id == "P068"
 
 
-def test_sparse_signature_blocks_emits_finding() -> None:
+def test_sparse_signature_blocks_no_longer_reported() -> None:
+    """`approval_page_signature_blocks_sparse` reporting is retired (2026-09-21).
+
+    Ester Flaim confirmed this exact shape of finding (role labels present,
+    advisor present, no text-extractable date/signature indicators) as a
+    false positive on three real dissertations, and explained that Approval
+    Page committee-block layout legitimately varies with committee size and
+    per-entry line count -- there is no fixed indicator-count requirement.
+    See docs/status/r068_ester_approval_committee_spacing_followup_20260921.md.
+    """
     lines = [
         "Dissertation Advisor",
         f"{_PLACEHOLDER_ADVISOR}",
@@ -123,7 +132,8 @@ def test_sparse_signature_blocks_emits_finding() -> None:
     doc = _make_approval_doc(body_lines=lines)
     pdf_doc = _save_and_load(doc)
     findings = check_pdf_approval_page_committee_blocks(pdf_doc)
-    assert "approval_page_signature_blocks_sparse" in _issue_types(findings)
+    assert "approval_page_signature_blocks_sparse" not in _issue_types(findings)
+    assert findings == []
 
 
 def test_below_gates_no_findings() -> None:
@@ -311,3 +321,143 @@ def test_manual_only_semantics_not_emitted() -> None:
         }
         assert "honorific" not in finding.message.lower()
         assert "rank" not in finding.message.lower()
+
+
+# ---------------------------------------------------------------------------
+# Retired `approval_page_signature_blocks_sparse` regression coverage
+# (2026-09-21). See docs/status/r068_ester_approval_committee_spacing_followup_20260921.md.
+#
+# Layout legitimately varies with committee size and per-entry line count, and
+# real approval pages routinely have zero text-extractable date/signature
+# indicators even when the committee blocks are entirely valid (signature
+# lines are frequently drawn graphics rather than text, or use label forms
+# this detector's phrase/regex matching cannot recognize). None of the cases
+# below should ever produce `approval_page_signature_blocks_sparse`.
+# ---------------------------------------------------------------------------
+
+
+def test_small_committee_no_indicators_no_finding() -> None:
+    """Small committee (advisor + one member), zero text indicators."""
+    lines = [
+        "Dissertation Advisor",
+        f"{_PLACEHOLDER_ADVISOR}",
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    assert check_pdf_approval_page_committee_blocks(pdf_doc) == []
+
+
+def test_large_committee_no_indicators_no_finding() -> None:
+    """Larger committee (advisor + five members), zero text indicators."""
+    lines = ["Dissertation Advisor", f"{_PLACEHOLDER_ADVISOR}"]
+    for i in range(5):
+        lines += ["Committee Member", f"Placeholder Member {i} Synthetic"]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    assert check_pdf_approval_page_committee_blocks(pdf_doc) == []
+
+
+def test_one_line_combined_role_and_name_entries_no_finding() -> None:
+    """Each entry combines role label and name/affiliation onto one long line,
+
+    with no separate signature/date lines at all -- a real observed template
+    pattern, not a defect.
+    """
+    lines = [
+        "Dissertation Advisor, Placeholder Advisor Synthetic, Department of Synthetic Studies",
+        "Committee Member, Placeholder Member One Synthetic, Department of Synthetic Studies",
+        "Committee Member, Placeholder Member Two Synthetic, Department of Synthetic Studies",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    assert check_pdf_approval_page_committee_blocks(pdf_doc) == []
+
+
+def test_multiline_wrapped_entries_no_finding() -> None:
+    """Each committee entry wraps its affiliation across two continuation
+
+    lines instead of one, and has no signature/date indicator lines.
+    """
+    lines = [
+        "Dissertation Advisor",
+        f"{_PLACEHOLDER_ADVISOR}",
+        "Department of Synthetic Studies",
+        "Synthetic Institute Placeholder",
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+        "Department of Synthetic Studies",
+        "Synthetic Institute Placeholder",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    assert check_pdf_approval_page_committee_blocks(pdf_doc) == []
+
+
+def test_unequal_indicator_distribution_no_finding() -> None:
+    """Some entries carry a signature/date line, others carry none -- a
+
+    legitimate mix caused by differing per-entry line counts, not a defect.
+    """
+    lines = [
+        "Dissertation Advisor",
+        f"{_PLACEHOLDER_ADVISOR}",
+        "Signature: ____________________",
+        "Date: ____________________",
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+        "Committee Member",
+        "Placeholder Member Two Synthetic",
+        "Committee Member",
+        "Placeholder Member Three Synthetic",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    findings = check_pdf_approval_page_committee_blocks(pdf_doc)
+    assert "approval_page_signature_blocks_sparse" not in _issue_types(findings)
+
+
+def test_ambiguous_partial_indicators_does_not_report_sparse() -> None:
+    """A borderline mix of indicator and non-indicator lines across a large
+
+    committee must never resolve to a sparse finding -- there is no valid
+    threshold to abstain-versus-report against.
+    """
+    lines = [
+        "Dissertation Advisor",
+        f"{_PLACEHOLDER_ADVISOR}",
+        "Signature: ____________________",
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+        "Committee Member",
+        "Placeholder Member Two Synthetic",
+        "Date: ____________________",
+        "Committee Member",
+        "Placeholder Member Three Synthetic",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    findings = check_pdf_approval_page_committee_blocks(pdf_doc)
+    assert "approval_page_signature_blocks_sparse" not in _issue_types(findings)
+
+
+def test_advisor_missing_still_reported_when_genuinely_absent() -> None:
+    """Retiring the sparse check must not affect the still-active,
+
+    unrelated advisor-role-label check.
+    """
+    lines = [
+        "Committee Member",
+        f"{_PLACEHOLDER_MEMBER}",
+        "Signature: ____________________",
+        "Date: ____________________",
+        "Committee Member",
+        "Placeholder Member Two Synthetic",
+        "Signature: ____________________",
+        "Date: ____________________",
+    ]
+    doc = _make_approval_doc(body_lines=lines)
+    pdf_doc = _save_and_load(doc)
+    findings = check_pdf_approval_page_committee_blocks(pdf_doc)
+    assert _issue_types(findings) == {"approval_page_advisor_role_label_missing"}
