@@ -361,6 +361,37 @@ Primary R066 record:
 - `docs/status/r066_ester_degree_order_followup_20260920.md`
 - `tests/test_p066_biosketch_degree_ordering.py`
 
+## R068 Current Follow-Up State
+
+R068/P068 covers a structural extension beyond Q013 (Approval Page committee
+role labels and signature/date blocks); Q015–Q020 remain manual-only. Ester
+confirmed the Anthony, Praneeth, and Sebastian `approval_page_
+signature_blocks_sparse` findings as false positives: committee-block layout
+depends on committee size and how many lines each entry occupies, not a
+fixed indicator-count ratio. Structural inspection confirmed the underlying
+signal is unreliable across templates — all three false positives had
+correctly-detected role labels and advisor labels but zero text-extractable
+date/signature/blank indicator lines, consistent with signature lines being
+rendered as non-text graphics or differently-worded labels in those
+templates, not missing blocks.
+
+`approval_page_signature_blocks_sparse` reporting is retired (gated off via
+`_SIGNATURE_BLOCKS_SPARSE_REPORTING_ENABLED = False`), following the same
+pattern used for R036's retired fixed-1.6 threshold. The counting logic is
+retained for compatibility/future re-validation but no longer controls
+whether a finding is emitted. `approval_page_advisor_role_label_missing` is
+unaffected and remains active — it never fired on the seven-document corpus
+and has no adverse reviewer evidence.
+
+Seven-document R068 audit: Youra 0, Anthony 0, Muyeed 0, Philip 0, Praneeth 0,
+Sebastian 0, Patrick 0; total 0, down from 3. No Ester-confirmed R068 true
+positive is available.
+
+Primary R068 record:
+
+- `docs/status/r068_ester_approval_committee_spacing_followup_20260921.md`
+- `tests/test_p068_approval_page_committee_blocks.py`
+
 `LEADER_PLACEMENT_RULE_GAP` remains separate and unimplemented.
 
 Primary R046 records:

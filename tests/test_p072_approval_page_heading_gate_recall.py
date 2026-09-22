@@ -124,7 +124,12 @@ def test_structural_fallback_complete_page_no_findings() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_structural_fallback_sparse_indicators_emits_finding() -> None:
+def test_structural_fallback_sparse_indicators_not_reported() -> None:
+    """`approval_page_signature_blocks_sparse` reporting is retired (2026-09-21)
+
+    on the structural-fallback path too; see
+    docs/status/r068_ester_approval_committee_spacing_followup_20260921.md.
+    """
     lines = [
         "Dissertation Advisor",
         _PLACEHOLDER_ADVISOR,
@@ -137,7 +142,7 @@ def test_structural_fallback_sparse_indicators_emits_finding() -> None:
     ]
     pdf_doc = _make_doc_without_heading(lines)
     findings = check_pdf_approval_page_committee_blocks(pdf_doc)
-    assert "approval_page_signature_blocks_sparse" in _issue_types(findings)
+    assert "approval_page_signature_blocks_sparse" not in _issue_types(findings)
     assert all(f.rule_id == "P068" for f in findings)
 
 
