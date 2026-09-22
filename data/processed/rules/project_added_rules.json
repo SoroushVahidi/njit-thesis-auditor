@@ -1850,7 +1850,7 @@
     "description": "Flags a bold run-in phrase that reads like a section heading but carries no section number.",
     "section": "PDF body structure",
     "question": "Does a bold run-in phrase read like a section heading without an accompanying section number?",
-    "rule_definition": "Conservative structural detector only: fires on a bold heading-shaped run-in lead sharing a physical row with regular-styled continuation text (the same shape P015's run-in-heading detection already identifies), that also passes P027's own qualifying-heading-text filter, carries no section number, and is not a recognized/named heading. Structural exclusions (captions, table/figure column headers, bullets, inline emphasis, short labels, named/TOC/List headings) are inherited from the shared paragraph-grouping and numbered-heading checks it reuses. Not a blanket rule against all bold text.",
+    "rule_definition": "Conservative structural detector only: fires on a bold heading-shaped run-in lead sharing a physical row with regular-styled continuation text (the same shape the paragraph-indentation run-in-heading-lead detection already identifies), that also passes the numbered-heading-level rule's own qualifying-heading-text filter, carries no section number, and is not a recognized/named heading. Structural exclusions (captions, table/figure column headers, bullets, inline emphasis, short labels, named/TOC/List headings) are inherited from the shared paragraph-grouping and numbered-heading checks it reuses. Not a blanket rule against all bold text.",
     "severity": "warning",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
