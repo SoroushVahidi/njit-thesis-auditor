@@ -23,8 +23,8 @@ _MS_RE = re.compile(
     r"\b(master\w*|m\.?s\.?|m\.?eng\.?|thesis)\b", re.IGNORECASE
 )
 
-PHD_WORD_LIMIT = 350
-MS_WORD_LIMIT = 150
+PHD_WORD_LIMIT = 400
+MS_WORD_LIMIT = 200
 
 
 def count_abstract_words(plain_text: str) -> int:
@@ -142,8 +142,8 @@ def _approx_line_number(raw_text: str, token: str) -> int:
 def run_latex_abstract_word_count_check(project: LoadedTexProject) -> list[AuditFinding]:
     """Check abstract word count against NJIT PhD/MS limits (P021).
 
-    PhD limit: 350 words. MS limit: 150 words.
-    Degree type is inferred from source text; defaults to 350 when unknown.
+    PhD limit: 400 words. MS limit: 200 words.
+    Degree type is inferred from source text; defaults to 400 when unknown.
     Word count is conservative: only tokens containing at least one letter.
     """
     abstract_sources = _iter_abstract_sources(project)

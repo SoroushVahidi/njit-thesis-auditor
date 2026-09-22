@@ -56,11 +56,11 @@
     "P021": {
       "status": "approved",
       "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
-      "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
+      "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤400 words. MS: ≤200 words.",
       "apply_question_to_issue_types": ["abstract_word_count_exceeded"],
       "source_column_question": "C",
       "source_column_remediation": "E",
-      "source_note": "project_added_rules.json catalog; detector limits unchanged."
+      "source_note": "project_added_rules.json catalog; detector limits updated 2026-09-22 to match Ester's sheet (PhD 400 / MS 200), see docs/status/ester_policy_review_p021_p026.md."
     },
     "P026": {
       "status": "approved",

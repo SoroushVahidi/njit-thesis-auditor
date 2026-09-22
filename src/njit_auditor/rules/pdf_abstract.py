@@ -6,7 +6,7 @@ body text from that page, and checks the word count against NJIT limits.
 Limitations:
 - Abstract text spanning multiple pages is undercounted (only first page checked).
 - Degree type (PhD/MS) cannot be reliably inferred from the PDF text layer alone;
-  a conservative threshold of 350 words (PhD limit) is used.
+  a conservative threshold of 400 words (PhD limit) is used.
 - Word counting uses whitespace splitting and is heuristic.
 """
 
@@ -183,7 +183,7 @@ def check_pdf_abstract_word_count(pdf_document: PdfDocument) -> list[AuditFindin
     """Emit a conservative P021 warning if the abstract text on the Abstract page
     appears to exceed word-count limits.
 
-    Uses a 350-word threshold (PhD limit) by default; only downgrades to MS (150)
+    Uses a 400-word threshold (PhD limit) by default; only downgrades to MS (200)
     when the PDF text layer clearly indicates an MS-level degree.
     Does not emit a warning when count is within the inferred limit.
     """

@@ -820,7 +820,7 @@ _RULE_FALLBACKS: dict[str, str] = {
     "P021": (
         "The abstract appears to exceed the allowed word count for the detected "
         "degree type. "
-        "NJIT limits: PhD abstracts to 350 words, MS abstracts to 150 words. "
+        "NJIT limits: PhD abstracts to 400 words, MS abstracts to 200 words. "
         "Review the abstract text and shorten it before submission."
     ),
     "P022": (
