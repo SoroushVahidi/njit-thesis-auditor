@@ -3,6 +3,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from njit_auditor.report_outputs import public_display_rule_id
 from njit_auditor.rule_loader import load_rule_file
 
 
@@ -71,7 +72,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 85
+    assert len(project_rules) == 86
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -467,10 +468,22 @@ def test_project_added_rules_implemented() -> None:
     assert by_id["P084"]["rule_type"] == "detection"
     assert by_id["P084"]["source_q_rule_ids"] == ["Q023"]
     assert by_id["P084"]["issue_types"] == ["biosketch_birth_information_present"]
+    assert "P086" in by_id
+    assert by_id["P086"]["implementation_status"] == "implemented"
+    assert by_id["P086"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P086"]["implementation_module"]
+        == "njit_auditor.rules.pdf_unnumbered_bold_heading"
+    )
+    assert by_id["P086"]["rule_type"] == "detection"
+    assert by_id["P086"]["source_q_rule_ids"] == []
+    assert by_id["P086"]["issue_types"] == ["bold_heading_without_section_number"]
+    assert public_display_rule_id("P086") == "R086"
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules
     )
+    assert len({item["id"] for item in project_rules}) == len(project_rules)
 
 
 def test_project_added_rules_sequential_no_gaps() -> None:
