@@ -4,15 +4,17 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-21, on the R066 Ester degree-order follow-up/repair
-branch. The `origin/main` SHA below was corrected on 2026-09-21 — it was
-stale (pre-PR #546) as of the prior 2026-09-19 update._
+_Last updated: 2026-09-22, after PR #548 (R068) merged and the pre-Ester-email
+unresolved-backlog audit. The `origin/main` SHA below was stale (pre-PR
+#547/#548) as of the prior 2026-09-21 update — R040, R046, R048, R053, R054,
+R066, R078, and R068 are now ALL merged to `main`; none remain on unmerged
+follow-up branches._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `fce5868e07f731a55da12ca15b3ce869eda8890b` (merged through PR #546) |
+| Current `origin/main` SHA | `681ed0440c985cf9a0418e93581228552e2d4558` (merged through PR #548) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -215,8 +217,9 @@ Primary R054 records:
 ## R040 Current Follow-Up State
 
 R040/P040 covers List of Figures entries that should end with terminal
-punctuation. The current follow-up branch is
-`fix/r040-ester-lof-terminal-punctuation-followup-20260919`; it is not merged.
+punctuation. The follow-up branch
+`fix/r040-ester-lof-terminal-punctuation-followup-20260919` is merged to
+`main` (PR #543).
 
 Ester's latest R040 adjudication says the Anthony and Praneeth reviewed List of
 Figures findings are false positives. Sebastian's reviewed case is a real
@@ -257,7 +260,8 @@ Primary R040 records:
 R046/P046 covers List of Tables and List of Figures entry-number left-column
 alignment. It checks whether the table/figure entry numbers align vertically in
 one left column; it does not govern title text, hanging continuation indentation,
-or right-column page-number alignment.
+or right-column page-number alignment. The follow-up is merged on current main
+by PR #544.
 
 Ester's latest R046 adjudication says the reviewed Anthony and Praneeth cases
 are false positives. No Ester-confirmed R046 true positive is available.
@@ -283,7 +287,8 @@ entry-number rows.
 
 R048/P048 covers Q069/Q079: List of Tables and List of Figures page-number
 alignment in the visual right column. The rule compares page-number token right
-edges and retains the existing 10 pt tolerance.
+edges and retains the existing 10 pt tolerance. The follow-up is merged on
+current main by PR #545.
 
 Ester's reviewed Praneeth R048 case is a false positive because the page
 numbers are consistently aligned. No Ester-confirmed R048 true positive is
@@ -310,7 +315,7 @@ Primary R048 record:
 R078/P078 covers Q005 first-person pronoun detection in the Abstract body only.
 The documented set is standalone capital `I` plus `me`, `my`, `mine`, `we`,
 `us`, `our`, and `ours`; references, chapters, headings, and other sections are
-outside scope.
+outside scope. The follow-up is merged on current main by PR #546.
 
 Ester adjudicated the Muyeed lowercase `i` in `i.e.` case as a false positive
 and the Praneeth `we` case as a true positive. The detector now treats only
@@ -332,6 +337,8 @@ R066/P066 covers Q025 degree ordering in the Biographical Sketch education
 section. Ester confirmed Anthony's finding as a false positive: the degree
 entries are already reverse chronological. The pre-fix detector mixed a
 pre-education birth year and publication years into the degree-year stream.
+The follow-up (plus its 2026-09-21 boundary repair) is merged on current main
+by PR #547.
 
 The detector now requires an explicit education subsection, recognizes a
 publication/presentation boundary in singular, plural, qualified/prefixed
@@ -364,8 +371,9 @@ Primary R066 record:
 ## R068 Current Follow-Up State
 
 R068/P068 covers a structural extension beyond Q013 (Approval Page committee
-role labels and signature/date blocks); Q015–Q020 remain manual-only. Ester
-confirmed the Anthony, Praneeth, and Sebastian `approval_page_
+role labels and signature/date blocks); Q015–Q020 remain manual-only. The
+follow-up is merged on current main by PR #548. Ester confirmed the Anthony,
+Praneeth, and Sebastian `approval_page_
 signature_blocks_sparse` findings as false positives: committee-block layout
 depends on committee size and how many lines each entry occupies, not a
 fixed indicator-count ratio. Structural inspection confirmed the underlying
@@ -408,18 +416,21 @@ rule registry entries.
 
 | State | Rules |
 |---|---|
-| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R053, R055 |
+| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R040, R046, R048, R053, R054, R055, R066, R068, R078 |
 | Closed, engineering-confirmed genuine violation | R085 |
-| Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5 |
-| Genuinely unresolved | R034, Latin Modern font-alias expansion |
+| Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5; R026 Latin Modern/alias-family authorization; P021 abstract word-limit discrepancy (150/350 in tool vs. 200/400 on Ester's sheet); LEADER_PLACEMENT_RULE_GAP; UNNUMBERED_BOLD_HEADING_GAP (see `docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`) |
+| Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
-| In current follow-up branch | R054 |
-| Not yet reviewed this cycle | R037 onward, except separately handled R053/R054/R055/R085 |
+| Not yet reviewed this cycle | R037 onward, except separately handled R040/R046/R048/R053/R054/R055/R066/R068/R078/R085 |
 
 ## Next Work Sequence
 
-After review and merge of the R054 PR, begin the separate Ester-adjudicated
-R040 follow-up.
+All of R040/R046/R048/R053/R054/R066/R068/R078 are merged. The
+2026-09-22 pre-Ester-email backlog audit
+(`docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`) found no
+remaining technically-resolvable item — every open item genuinely needs an
+Ester decision, or (R034) needs no action at all. Next step: send the minimal
+question set in that audit to Ester before starting any further rule work.
 
 ## Repository Hygiene Notes
 
