@@ -6,16 +6,25 @@
 > threshold, or rule-ID change; no email sent; no feedback workbook edit; no
 > deploy.
 
-**Baseline:** `main` @ `681ed0440c985cf9a0418e93581228552e2d4558` (merged
-through PR #548 / R068).
+**Baseline:** original audit run against `main` @
+`681ed0440c985cf9a0418e93581228552e2d4558` (merged through PR #548 / R068).
+Current `main` is `762d5c98a40ff903c601d00153ff34f08a0fd891` (merged
+through PR #552).
 
-> **2026-09-22 refresh:** two of this audit's own `GENUINELY_REQUIRES_ESTER`
-> items — P021 and `UNNUMBERED_BOLD_HEADING_GAP` — were resolved through
-> engineering (not further Ester input) later the same day and merged as
-> PR #550 and PR #551 respectively. Current `main` is now
-> `b0bfd0ca7c6c3233d26858f520156ff714e07ba7`. Both sections below are
-> updated in place to reflect this; nothing else in this document changed.
-> The final minimal Ester question set is now three items, not five.
+> **Current state (2026-09-22, refreshed after PR #552):** the original
+> audit identified five apparent `GENUINELY_REQUIRES_ESTER` items. Closer
+> engineering review resolved two of them without any further Ester input:
+> P021's stale 150/350-word constants actually contradicted policy Ester
+> had already stated explicitly (200/400) — fixed by PR #550 — and
+> `UNNUMBERED_BOLD_HEADING_GAP` turned out to be implementable as a narrow,
+> non-policy-inventing detector — implemented as R086/P086 by PR #551, then
+> formally registered in the project-added rule catalog and evaluation
+> manifest by PR #552 (pure engineering bookkeeping; adds no new reviewer
+> authority). The P021 and `UNNUMBERED_BOLD_HEADING_GAP` sections below are
+> updated in place to reflect this; nothing else in this document
+> changed. **The final minimal Ester question set is now three items, not
+> five: R018, R026 (Latin Modern only), and leader-placement
+> scope/tolerance.**
 
 ## R018 — sections 1.3.3/1.3.4/1.3.5 open alignment question
 
@@ -144,13 +153,12 @@ are constants/policy conflicts, not wording issues):
   corpus impact before or after (no current document triggers P021); this
   corrects the constants for any future document that does.
 
-**Classification: RESOLVED_THROUGH_ENGINEERING** (was
+**Classification: RESOLVED_BY_EXISTING_AUTHORITY_AND_ENGINEERING** (was
 `GENUINELY_REQUIRES_ESTER`; existing authority — Ester's own sheet — was
-always sufficient, so this was actually `TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY`
-once looked at directly, not a genuine open question). **Removed from the
-Ester question set, the `GENUINELY_REQUIRES_ESTER` bucket, and the
-engineering-before-email backlog** — there is no remaining backlog item for
-P021.
+always sufficient, so this was not a genuine open question once looked at
+directly, only a constants bug to fix). **Removed from the Ester question
+set, the `GENUINELY_REQUIRES_ESTER` bucket, and the engineering-before-email
+backlog** — there is no remaining backlog item for P021.
 
 ## LEADER_PLACEMENT_RULE_GAP
 
@@ -195,8 +203,12 @@ on the *narrow*, structurally-supported reading only.
 
 **Fixed/implemented by PR #551** (`fix/unnumbered-bold-heading-ester-followup-20260922`,
 merged 2026-09-22) as new internal rule **P086**, displayed to
-students/reviewers as **R086**. The detector is deliberately conservative
-and structural, not a blanket "flag all bold text" rule:
+students/reviewers as **R086**, then **formally registered** in
+`project_added_rules.json` and `evaluation_data_manifest.json` by PR #552
+(`fix/p086-register-rule-inventory-20260922`, merged 2026-09-22) — pure
+engineering bookkeeping that adds no new reviewer authority beyond what
+Ester already confirmed. The detector is deliberately conservative and
+structural, not a blanket "flag all bold text" rule:
 
 - Fires only on the exact shape Ester's own known example has: a bold
   run-in heading lead sharing a physical row with regular-styled
@@ -224,11 +236,11 @@ remaining 7 are new, structurally consistent, unreviewed candidates for
 ordinary human/reviewer follow-up — none of the 9 beyond page 101 is
 claimed as reviewer-confirmed.
 
-**Classification: RESOLVED_THROUGH_ENGINEERING** (was
+**Classification: RESOLVED_BY_EXISTING_AUTHORITY_AND_ENGINEERING** (was
 `GENUINELY_REQUIRES_ESTER`; the design gate found a general, structurally
 narrow detector was achievable without inventing new policy, so this was
-`TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY` once a conservative
-enough reading was identified). **Removed from the Ester question set, the
+not a genuine open question once a conservative enough reading was
+identified). **Removed from the Ester question set, the
 `GENUINELY_REQUIRES_ESTER` bucket, and the engineering-before-email
 backlog** — there is no remaining backlog item for the bold-heading gap.
 
@@ -266,20 +278,20 @@ current `main`:
 | R026 (Latin Modern) | Already implemented, permissive, zero live corpus impact | No (policy, not technical) | No | **Yes** | Ask minimal question above (Latin Modern only) |
 | P021 (abstract word limits) | **Resolved** — PR #550 merged 2026-09-22 | Yes (Ester's sheet always had 400/200) | Done | **No** | None — implemented, no longer in the email |
 | LEADER_PLACEMENT_RULE_GAP | No rule owns it; one example only | No | Only after scope confirmed | **Yes** | Ask minimal question above |
-| UNNUMBERED_BOLD_HEADING_GAP | **Resolved** — PR #551 merged 2026-09-22 as R086 | Yes (design gate found a narrow, supported reading) | Done | **No** | None — implemented, no longer in the email |
+| UNNUMBERED_BOLD_HEADING_GAP | **Resolved** — PR #551 merged 2026-09-22 as R086; formal inventory registration completed by PR #552 merged 2026-09-22 | Yes (design gate found a narrow, supported reading) | Done | **No** | None — implemented and catalogued, no longer in the email |
 | R035, R036, R055 (Phase 8 sweep) | No live case; R055 was a stale-doc false alarm (now fixed) | N/A | No | No | None for now |
 
 ## Engineering before email
 
 **Nothing remains.** P021 and UNNUMBERED_BOLD_HEADING_GAP were both
-`TECHNICALLY_RESOLVABLE_WITH_EXISTING_AUTHORITY` once looked at directly
+`RESOLVED_BY_EXISTING_AUTHORITY_AND_ENGINEERING` once looked at directly
 (Ester's sheet already stated the P021 limits explicitly; the bold-heading
 design gate found a narrow, non-policy-inventing detector was achievable)
-and are now implemented and merged (PR #550, PR #551). R034 needs no
-action. Every remaining item (R018, R026 Latin Modern, leader placement)
-genuinely needs an Ester decision before any further code change, per this
-project's standing policy against inventing thresholds/scope from a single
-example.
+and are now implemented and merged (PR #550, PR #551; PR #552 additionally
+completed R086's formal inventory registration). R034 needs no action.
+Every remaining item (R018, R026 Latin Modern, leader placement) genuinely
+needs an Ester decision before any further code change, per this project's
+standing policy against inventing thresholds/scope from a single example.
 
 ## Questions for Ester (minimal final set)
 
@@ -292,8 +304,8 @@ example.
    confirmed that; only the scope/tolerance questions remain open.
 
 P021 and UNNUMBERED_BOLD_HEADING_GAP are intentionally **not** included —
-both were resolved through engineering (PR #550, PR #551) and require no
-further Ester input.
+both were resolved through existing authority and engineering (PR #550;
+PR #551 + PR #552) and require no further Ester input.
 
 No email was drafted or sent in this pass — audit-only, per task scope.
 
@@ -318,14 +330,18 @@ No historical/dated document was rewritten; only the two canonical
 current-only status documents were corrected, and only for facts
 contradicted by verified current repository/GitHub state.
 
-**2026-09-22 refresh (this pass):** rebased this branch onto current
-`origin/main` (`b0bfd0ca7c6c3233d26858f520156ff714e07ba7`, through PR #551);
-updated `CURRENT_STATUS.md`'s `origin/main` SHA, rule inventory (P086
-implemented, next unused internal ID is P087), and unresolved-backlog
-summary; updated `ester_authority_matrix_20260902.md`/`.json` to add an
-R086 row and correct the R021 row to record Ester's explicit 200/400
-policy and its PR #550 implementation. R055's prior correction from the
-original pass is preserved unchanged.
+**Later 2026-09-22 refreshes:** rebased this branch onto current `main`
+twice more as P021 and the bold-heading gap were resolved and merged.
+First, after PR #550/#551: added the R021 and R086 sections above, added
+an R086 row to `ester_authority_matrix_20260902.md`/`.json`, and corrected
+the R021 row to record Ester's explicit 200/400 policy. Second, after
+PR #552: updated `CURRENT_STATUS.md`'s rule-inventory line and R086 section
+to reflect P086's formal catalog/manifest registration (rule inventory now
+`P001-P086`; next unused internal ID `P087`, no longer provisional) — an
+engineering-bookkeeping fact that does not change R086's underlying
+authority scope (still only the Youra physical-page-101 finding is
+Ester-confirmed). R055's original-pass correction is preserved unchanged
+throughout.
 
 ## Safety
 

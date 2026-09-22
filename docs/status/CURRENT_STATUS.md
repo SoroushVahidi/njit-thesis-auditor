@@ -4,17 +4,15 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-22, after PR #551 (R086) merged. The `origin/main`
-SHA below was stale (pre-PR #550/#551) as of the same-day pre-Ester-email
-audit update — R040, R046, R048, R053, R054, R066, R078, R068, R021's word-
-limit correction, and R086 are now ALL merged to `main`; none remain on
-unmerged follow-up branches._
+_Last updated: 2026-09-22, after PR #552 merged. All rule work through
+R086/P086 is merged to `main`; none remains on an unmerged follow-up
+branch._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `b0bfd0ca7c6c3233d26858f520156ff714e07ba7` (merged through PR #551) |
+| Current `origin/main` SHA | `762d5c98a40ff903c601d00153ff34f08a0fd891` (merged through PR #552) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -23,7 +21,7 @@ unmerged follow-up branches._
 | Deployment | Not updated by this pass |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
-| Rule inventory | P001–P086 formally catalogued (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; P086/R086's detector was implemented and merged by PR #551, and formally registered in the catalog and evaluation manifest by PR #552 — the completeness gap flagged in the original pass of this audit is now closed; next unused internal rule ID is P087 (no longer provisional; verified free: no existing source file or reference) |
+| Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
 
 ## Current Evaluation Corpus
 
@@ -430,30 +428,35 @@ Primary R021 record: PR #550 (`fix/p021-ester-abstract-word-limits-20260922`).
 ## R086 Current State
 
 R086/P086 (new rule) covers a bold run-in phrase that reads as a de facto
-section heading but carries no section number. During the R015 follow-up
-review, Ester separately observed this on Youra's document (physical page
-101) and stated bold should be reserved for numbered heading levels 1-4.
-No existing rule owned this — P020/P026/P027 were already audited and
-ruled out.
+section heading but carries no section number.
 
-A mandatory design gate (`docs/status/p086_unnumbered_bold_heading_design_20260922.md`)
-was run before any implementation and passed on a narrow, structural
-reading only: the detector fires only on a bold lead sharing a physical
-row with regular-styled continuation text (reusing R015's own
-already-validated run-in-heading detection), passing P027's own
-qualifying-heading-text filter, with no section number and no recognized
-heading name. It does not treat "bold reserved for headings" as a blanket
-rule against all other bold text — captions, table/figure column headers,
-bullets, inline emphasis, and short labels are all structurally excluded.
-
-Seven-document corpus audit: 9 live findings (Youra physical pages 89, 91,
-94, 101, 105; Muyeed physical pages 69, 79, 117, 188). Of these, only
-Youra physical page 101 is the actual Ester-adjudicated case; page 105 is
-a strong structural sibling (same phrase template, different scenario
-number) but was never itself reviewed; the remaining 7 are new, unreviewed
-candidates, not claimed as reviewer-confirmed.
-
-Primary R086 record: PR #551 (`fix/unnumbered-bold-heading-ester-followup-20260922`).
+- **Policy authority:** during the R015 follow-up review, Ester separately
+  observed this on Youra's document (physical page 101) and stated bold
+  should be reserved for numbered heading levels 1-4. No existing rule
+  owned this — P020/P026/P027 were already audited and ruled out.
+- **Implementation:** a mandatory design gate
+  (`docs/status/p086_unnumbered_bold_heading_design_20260922.md`) was run
+  before any implementation and passed on a narrow, structural reading
+  only: the detector fires only on a bold lead sharing a physical row with
+  regular-styled continuation text (reusing R015's own already-validated
+  run-in-heading detection), passing P027's own qualifying-heading-text
+  filter, with no section number and no recognized heading name. It does
+  **not** treat "bold reserved for headings" as a blanket rule against all
+  other bold text — captions, table/figure column headers, bullets, inline
+  emphasis, and short labels are all structurally excluded. Merged by
+  PR #551 (`fix/unnumbered-bold-heading-ester-followup-20260922`).
+- **Formal inventory registration:** merged by PR #552
+  (`fix/p086-register-rule-inventory-20260922`), which added P086 to
+  `project_added_rules.json` and `evaluation_data_manifest.json`. This is
+  engineering bookkeeping only — it adds no new reviewer authority beyond
+  what Ester already confirmed above.
+- **Reviewer confirmation:** seven-document corpus audit found 9 live
+  findings (Youra physical pages 89, 91, 94, 101, 105; Muyeed physical
+  pages 69, 79, 117, 188). Only Youra physical page 101 is the actual
+  Ester-adjudicated case. Page 105 is a strong structural sibling (same
+  phrase template, different scenario number) but was never itself
+  reviewed. The remaining 7 are **unreviewed candidates**, not
+  reviewer-confirmed violations.
 
 ## Feedback-Cycle Rule State
 
@@ -473,11 +476,10 @@ rule registry entries.
 
 ## Next Work Sequence
 
-All of R021/R040/R046/R048/R053/R054/R066/R068/R078/R086 are merged. The
-2026-09-22 pre-Ester-email backlog audit
-(`docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`,
-refreshed same day after PR #550/#551 merged) found exactly three
-remaining items that genuinely need an Ester decision — R018, R026 Latin
+All rule work through R086/P086 is merged and formally catalogued. Per the
+pre-Ester-email backlog audit
+(`docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`),
+exactly three items genuinely need an Ester decision — R018, R026 Latin
 Modern, and leader-placement scope/tolerance — plus R034, which needs no
 action. Next step: send that three-question minimal set to Ester before
 starting any further rule work.

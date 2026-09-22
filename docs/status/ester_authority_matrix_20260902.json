@@ -1547,10 +1547,10 @@
       "topic": "Unnumbered Bold Heading-Shaped Phrase (new rule)",
       "ester_decision_exists": "YES",
       "decision": "EXPLICIT - REQUIRED FINDING (Youra physical page 101 only)",
-      "evidence_source": "live Ester feedback workbook (R015 follow-up); docs/status/p086_unnumbered_bold_heading_design_20260922.md; PR #551",
+      "evidence_source": "live Ester feedback workbook (R015 follow-up); docs/status/p086_unnumbered_bold_heading_design_20260922.md; PR #551; PR #552 (formal inventory registration, engineering only)",
       "confidence_in_interpretation": "High for the Youra page-101 case; other corpus findings unreviewed",
-      "current_detector_aligned": "Yes after P086 implementation",
-      "action": "Ester confirmed the Youra physical-page-101 bold run-in phrase without a section number as not allowed and said bold is reserved for numbered heading levels 1-4; implemented as a narrow, structural detector (reuses R015's run-in-heading detection and P027's qualifying-heading filter) after a design gate found this achievable without inventing broader policy. Only the Youra page-101 finding is reviewer-confirmed; the other 8 corpus findings are unreviewed candidates, not adjudicated verdicts. Does not authorize treating all non-numbered bold text as prohibited.",
+      "current_detector_aligned": "Yes after P086 implementation (PR #551) and formal inventory registration (PR #552)",
+      "action": "Ester confirmed the Youra physical-page-101 bold run-in phrase without a section number as not allowed and said bold is reserved for numbered heading levels 1-4; implemented as a narrow, structural detector (reuses R015's run-in-heading detection and P027's qualifying-heading filter) after a design gate found this achievable without inventing broader policy. Formally registered in the project-added rule catalog/manifest by PR #552 -- engineering bookkeeping only, adds no new reviewer authority. Only the Youra page-101 finding is reviewer-confirmed; the other 8 corpus findings are unreviewed candidates, not adjudicated verdicts. Does not authorize treating all non-numbered bold text as prohibited.",
       "implementation_module": "njit_auditor.rules.pdf_unnumbered_bold_heading",
       "issue_types": [
         "bold_heading_without_section_number"
