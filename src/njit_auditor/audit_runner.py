@@ -145,6 +145,7 @@ from njit_auditor.rules.pdf_toc_page_number_ordering import (
     check_pdf_toc_page_number_ordering,
 )
 from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
+from njit_auditor.rules.pdf_unnumbered_bold_heading import check_pdf_unnumbered_bold_heading
 from njit_auditor.upload_handling import (
     DEFAULT_MAX_UPLOAD_BYTES,
     MainTexDetectionError,
@@ -285,6 +286,7 @@ def collect_pdf_layout_findings(
     findings.extend(check_pdf_figure_table_layout(content_doc))
     findings.extend(check_pdf_heading_level_styles(content_doc))
     findings.extend(check_pdf_first_chapter_heading(content_doc))
+    findings.extend(check_pdf_unnumbered_bold_heading(content_doc))
     findings.extend(check_pdf_toc_alignment(content_doc))
     findings.extend(check_pdf_toc_leader_consistency(content_doc))
     findings.extend(check_pdf_toc_list_formatting(content_doc))

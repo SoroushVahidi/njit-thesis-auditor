@@ -555,6 +555,12 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "CHAPTER 1 heading. Add the literal CHAPTER 1 heading at the beginning "
         "of the first body chapter."
     ),
+    ("P086", "bold_heading_without_section_number"): (
+        "This means a bold phrase reads like a section heading but has no "
+        "section number in front of it. Bold styling is reserved for "
+        "numbered heading levels 1-4; either add the section number or "
+        "remove the bold styling from this phrase."
+    ),
     ("P075", "toc_mixed_leader_styles"): (
         "The Table of Contents uses different leader styles, such as dots and "
         "hyphens, to connect entries to page numbers. Use one consistent "
