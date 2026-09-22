@@ -491,3 +491,95 @@ def test_same_year_entries_are_not_ordered() -> None:
     ]
     pdf_doc = _make_biosketch_doc_from_lines(lines)
     assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+# ---------------------------------------------------------------------------
+# Publication/Presentation boundary recognition matrix
+#
+# Each test places 3 correctly-descending education years above a boundary
+# line, then 3 ascending years below it. If the boundary line is NOT
+# recognized, the two groups are treated as one candidate stream and the
+# ascending years below the boundary produce a spurious inversion finding.
+# Asserting `== []` therefore proves both that the heading is recognized as
+# a boundary AND that the years after it are excluded from degree
+# candidates. No real dissertation text, degree names, or institution names
+# are used — all lines are synthetic placeholders.
+# ---------------------------------------------------------------------------
+
+
+def _boundary_probe_lines(boundary_text: str) -> list[PdfTextLine]:
+    return [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2023", 200.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2019", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2015", 244.0),
+        _make_line(boundary_text, 270.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2010", 292.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 314.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2021", 336.0),
+    ]
+
+
+def test_boundary_plural_publications_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Publications"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_singular_publication_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Publication"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_plural_presentations_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Presentations"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_singular_presentation_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(_boundary_probe_lines("Presentation"))
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_qualified_selected_publications_excludes_years() -> None:
+    pdf_doc = _make_biosketch_doc_from_lines(
+        _boundary_probe_lines("Selected Publications")
+    )
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_compact_publications_and_presentations_excludes_years() -> None:
+    """Compact PDF-extracted label with no inter-word spaces."""
+    pdf_doc = _make_biosketch_doc_from_lines(
+        _boundary_probe_lines("PUBLICATIONSANDPRESENTATIONS")
+    )
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_compact_reversed_presentations_and_publications_excludes_years() -> None:
+    """Reversed combined compact label, also supported by the boundary set."""
+    pdf_doc = _make_biosketch_doc_from_lines(
+        _boundary_probe_lines("PRESENTATIONSANDPUBLICATIONS")
+    )
+    assert check_pdf_biosketch_degree_ordering(pdf_doc) == []
+
+
+def test_boundary_control_missing_heading_still_detects_contamination() -> None:
+    """Sanity control: with no boundary line at all, the same six years must
+
+    still trip a genuine finding. This proves the probe lines above are only
+    passing because the boundary is recognized, not because the detector has
+    become blind to disorder.
+    """
+    lines = [
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2023", 200.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2019", 222.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2015", 244.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2010", 266.0),
+        _make_line(f"{_PLACEHOLDER_DEGREE}, 2016", 288.0),
+        _make_line(f"{_PLACEHOLDER_INST}, 2021", 310.0),
+    ]
+    pdf_doc = _make_biosketch_doc_from_lines(lines)
+    findings = check_pdf_biosketch_degree_ordering(pdf_doc)
+    assert any(
+        f.details.get("issue_type") == "biosketch_degree_order_suspicious"
+        for f in findings
+    )

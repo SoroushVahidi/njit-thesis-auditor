@@ -42,14 +42,14 @@ _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNO
 _EDUCATION_SECTION_LABELS = frozenset(
     {"EDUCATION", "GRADUATEEDUCATION", "UNDERGRADUATEANDGRADUATEEDUCATION"}
 )
-_PUBLICATION_SECTION_LABELS = frozenset(
-    {
-        "PUBLICATIONS",
-        "PRESENTATIONS",
-        "PUBLICATIONSANDPRESENTATIONS",
-        "PRESENTATIONSANDPUBLICATIONS",
-    }
-)
+# Matches the boundary word in any spacing/heading form: singular or plural
+# ("Publication"/"Publications"/"Presentation"/"Presentations"), qualified or
+# prefixed headings ("Selected Publications"), and compact PDF-extracted
+# labels where whitespace between words is dropped entirely
+# ("PublicationsAndPresentations", "PresentationsAndPublications"). Matched
+# against the compact (letters-only, uppercased) form of a line, so ordinary
+# spacing differences never matter.
+_PUBLICATION_LABEL_RE = re.compile(r"PUBLICATIONS?|PRESENTATIONS?")
 
 _MAX_DEGREE_LINE_CHARS = 120
 _MIN_ALPHA_CHARS = 3
@@ -76,7 +76,7 @@ def _find_publications_boundary_y(
             lines_below.append((line.bbox.y0, line.text.strip()))
     lines_below.sort(key=lambda t: t[0])
     for y0, text in lines_below:
-        if _compact_section_label(text) in _PUBLICATION_SECTION_LABELS:
+        if _PUBLICATION_LABEL_RE.search(_compact_section_label(text)):
             return y0
     return None
 

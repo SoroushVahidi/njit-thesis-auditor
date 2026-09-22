@@ -4,14 +4,15 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-19, on the R040 Ester LoF terminal-punctuation
-follow-up branch._
+_Last updated: 2026-09-21, on the R066 Ester degree-order follow-up/repair
+branch. The `origin/main` SHA below was corrected on 2026-09-21 — it was
+stale (pre-PR #546) as of the prior 2026-09-19 update._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `26e38e60f12b67e3c1f0fbc9d4a1aea01b9e5dec` |
+| Current `origin/main` SHA | `fce5868e07f731a55da12ca15b3ce869eda8890b` (merged through PR #546) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -332,16 +333,28 @@ section. Ester confirmed Anthony's finding as a false positive: the degree
 entries are already reverse chronological. The pre-fix detector mixed a
 pre-education birth year and publication years into the degree-year stream.
 
-The detector now requires an explicit education subsection, recognizes compact
-PDF section labels and both publication-heading word orders, compares one
-year-only token per short entry line, and conservatively skips ranges,
-fragmented dates, same-year ties, and ambiguous sections. No shared tokenizer
-or Biographical Sketch parser changed. No Ester-confirmed R066 true positive is
-available.
+The detector now requires an explicit education subsection, recognizes a
+publication/presentation boundary in singular, plural, qualified/prefixed
+(e.g. "Selected Publications"), compact PDF-extracted, and reversed-compact
+heading forms, compares one year-only token per short entry line, and
+conservatively skips ranges, fragmented dates, same-year ties, and ambiguous
+sections. No shared tokenizer or Biographical Sketch parser changed. No
+Ester-confirmed R066 true positive is available.
+
+A 2026-09-21 repair (PR #547) fixed a Codex-reviewed regression: an earlier
+version of this fix matched the publication/presentation boundary only
+against an exact four-label set, which lost recall for singular and
+qualified heading forms recognized before that change. The boundary check
+now uses a general substring match instead, restoring that recall while
+keeping compact/reversed-compact support. All five previously-removed
+real-corpus findings (Youra, Anthony, Muyeed, Philip, Patrick) were
+individually re-audited under the repaired detector and confirmed as
+non-violations; see the full per-case table in the primary R066 record below.
 
 Seven-document R066 audit: Youra 0, Anthony 0, Muyeed 0, Philip 0, Praneeth 0,
 Sebastian 0, Patrick 0; total 0, down from 5. All removals are explained by
-non-education or publication-year contamination.
+non-education or publication-year contamination. The 2026-09-21 boundary
+repair does not change any of these seven counts.
 
 Primary R066 record:
 
