@@ -213,7 +213,7 @@ Contents? And how should a wrapped (multi-line) title be handled?"
 the Table of Contents, List of Tables, and List of Figures; for a wrapped
 title the leader dots begin after the final line; one space is allowed
 between the title end and the first dot. Implemented under P018
-(`title_to_leader_gap_too_wide`, `leader_dots_before_final_title_line`) on
+(`title_to_leader_gap_too_wide`, `leader_dots_before_final_title_line`),
 merged to `main` via PR #553 (`72c8e1f`).
 No new rule ID.
 
