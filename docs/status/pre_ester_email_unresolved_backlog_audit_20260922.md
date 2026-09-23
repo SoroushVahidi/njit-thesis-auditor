@@ -80,8 +80,8 @@ page-number column. It never compared a continuation line to the title
 text. Re-measured with glyph geometry, the
 1.3.3/1.3.4/1.3.5 continuations start left of their own section number,
 ~48 pt left of the title text. Implemented as P018
-`wrapped_title_continuation_misaligned` on branch
-`fix/ester-final-three-clarifications-20260923` (pending PR merge).
+`wrapped_title_continuation_misaligned`, merged to `main` via PR #553
+(`72c8e1f`).
 
 ## R034 — Copyright Page metadata/layout (top-margin header, year/author match)
 
@@ -214,7 +214,7 @@ the Table of Contents, List of Tables, and List of Figures; for a wrapped
 title the leader dots begin after the final line; one space is allowed
 between the title end and the first dot. Implemented under P018
 (`title_to_leader_gap_too_wide`, `leader_dots_before_final_title_line`) on
-branch `fix/ester-final-three-clarifications-20260923` (pending PR merge).
+merged to `main` via PR #553 (`72c8e1f`).
 No new rule ID.
 
 ## UNNUMBERED_BOLD_HEADING_GAP — RESOLVED 2026-09-22, no longer requires Ester
@@ -308,11 +308,11 @@ current `main`:
 
 | Item | Current state | Existing authority sufficient? | Engineering work needed? | Ester needed? | Recommended next action |
 |---|---|---|---|---|---|
-| R018 (1.3.3/1.3.4/1.3.5) | **Answered 2026-09-23**; continuation-to-title-text check implemented on branch | Yes (Ester's answer) | Done on branch, pending PR merge | No | Merge review of the PR |
+| R018 (1.3.3/1.3.4/1.3.5) | **Answered 2026-09-23**; continuation-to-title-text check merged (PR #553) | Yes (Ester's answer) | Done (PR #553) | No | None |
 | R034 | Zero live findings on corpus; conservative, tested implementation | N/A (nothing to decide) | No | No | None — already resolved |
 | R026 (Latin Modern) | **Answered 2026-09-23 (YES)**; already implemented | Yes (Ester's answer) | No (regression test only) | No | None |
 | P021 (abstract word limits) | **Resolved** — PR #550 merged 2026-09-22 | Yes (Ester's sheet always had 400/200) | Done | **No** | None — implemented, no longer in the email |
-| LEADER_PLACEMENT_RULE_GAP | **Answered 2026-09-23**; implemented under P018 on branch | Yes (Ester's answer) | Done on branch, pending PR merge | No | Merge review of the PR |
+| LEADER_PLACEMENT_RULE_GAP | **Answered 2026-09-23**; implemented under P018, merged (PR #553) | Yes (Ester's answer) | Done (PR #553) | No | None |
 | UNNUMBERED_BOLD_HEADING_GAP | **Resolved** — PR #551 merged 2026-09-22 as R086; formal inventory registration completed by PR #552 merged 2026-09-22 | Yes (design gate found a narrow, supported reading) | Done | **No** | None — implemented and catalogued, no longer in the email |
 | R035, R036, R055 (Phase 8 sweep) | No live case; R055 was a stale-doc false alarm (now fixed) | N/A | No | No | None for now |
 
