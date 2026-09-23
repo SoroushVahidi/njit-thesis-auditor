@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-_P018_PUBLIC_CARDS = tuple(f"P018{letter}" for letter in "ABCDEFGHIJKLMNOPQ")
+_P018_PUBLIC_CARDS = tuple(f"P018{letter}" for letter in "ABCDEFGHIJKLMNOPQRS")
 
 _P018_SUPERSEDED_CARDS = (
     "P024A",
@@ -87,6 +87,15 @@ _P018_ESTER_QUESTIONS: dict[str, str] = {
     ),
     "P018Q": (
         "Are all List of Figures page numbers aligned vertically in one right column?"
+    ),
+    "P018R": (
+        "When a Table of Contents title runs for more than one line, does the "
+        "second line align with the text of the first line, not the number?"
+    ),
+    "P018S": (
+        "In the Table of Contents, List of Tables, and List of Figures, do leader "
+        "dots begin right after the title (after its final line), with at most "
+        "one space?"
     ),
 }
 
@@ -173,6 +182,9 @@ def test_p018_split_cards_have_single_remediation(
         ("P036", "lof_inter_entry_spacing_too_tight", {}, "Q077", "P018O"),
         ("P046", "lof_entry_number_column_misaligned", {}, "Q078", "P018P"),
         ("P048", "lof_page_number_column_misaligned", {}, "Q079", "P018Q"),
+        ("P018", "wrapped_title_continuation_misaligned", {}, "", "P018R"),
+        ("P018", "title_to_leader_gap_too_wide", {"page_type": "list_of_figures"}, "", "P018S"),
+        ("P018", "leader_dots_before_final_title_line", {}, "", "P018S"),
     ],
 )
 def test_backend_findings_map_to_p018_split_cards(
@@ -282,3 +294,68 @@ def test_rules_page_renders_p018_split_cards_not_broad_p018(
     assert 'data-rule-id="P018Q"' in body
     assert 'data-rule-id="P018"' not in body
     assert "likely alignment inconsistencies" not in body.lower()
+
+
+_ESTER_20260923_ISSUE_TYPES = (
+    ("wrapped_title_continuation_misaligned", "P018R"),
+    ("title_to_leader_gap_too_wide", "P018S"),
+    ("leader_dots_before_final_title_line", "P018S"),
+)
+
+
+@pytest.mark.parametrize(("issue_type", "card_id"), _ESTER_20260923_ISSUE_TYPES)
+def test_ester_20260923_findings_link_to_public_cards_without_internal_ids(
+    client: tuple[TestClient, object], issue_type: str, card_id: str
+) -> None:
+    import re
+
+    from njit_auditor.polished_comments import build_polished_comment
+    from njit_auditor.toc_list_student_preview import (
+        p018_short_likely_problem,
+        p018_short_suggested_fix,
+    )
+
+    c, wa = client
+    assert wa._public_rule_reference_id("P018", issue_type=issue_type) == card_id
+    assert wa.public_display_rule_id(card_id) == "R" + card_id[1:]
+    catalog = {rule["id"]: rule for rule in wa._build_rule_catalog()["student_rules"]}
+    card = catalog[card_id]
+    texts = [
+        card["title"],
+        card["how_to_correct"],
+        build_polished_comment(rule_id="P018", issue_type=issue_type, page=9, details={}),
+        p018_short_likely_problem(issue_type),
+        p018_short_suggested_fix(issue_type),
+    ]
+    for text in texts:
+        assert text.strip()
+        assert not re.search(r"\b[PQ]\d{3}", text), text
+        assert "This automated check found a possible" not in text
+    assert f'data-rule-id="{card_id}"' in c.get("/rules").text
+
+
+def test_catalog_p018_card_range_matches_implemented_cards(
+    client: tuple[TestClient, object],
+) -> None:
+    """The P018 catalog entry names its public card range; keep it in sync with
+    the implemented specs so the range cannot silently drift again."""
+    import json
+    import re
+
+    _, wa = client
+    card_ids = [spec["id"] for spec in wa._P018_PUBLIC_CARD_SPECS]
+    assert card_ids == list(_P018_PUBLIC_CARDS)
+    last = card_ids[-1]
+    catalog = json.loads(
+        (_REPO_ROOT / "data/processed/rules/project_added_rules.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    rules = catalog if isinstance(catalog, list) else catalog["rules"]
+    p018 = next(rule for rule in rules if rule["id"] == "P018")
+    for field in ("rule_definition", "remediation", "notes"):
+        ranges = re.findall(r"P018A[–-]P018([A-Z])", p018[field])
+        assert ranges, field
+        assert all(f"P018{letter}" == last for letter in ranges), (field, ranges)
+    rule_ids = sorted(rule["id"] for rule in rules if re.fullmatch(r"P\d{3}", rule["id"]))
+    assert rule_ids[-1] == "P086"

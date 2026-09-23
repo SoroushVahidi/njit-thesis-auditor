@@ -4,15 +4,19 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-22, after PR #552 merged. All rule work through
-R086/P086 is merged to `main`; none remains on an unmerged follow-up
-branch._
+_Last updated: 2026-09-23. All rule work through R086/P086 is merged to
+`main`. Ester has now answered the final three open reviewer questions
+(R018, R026 Latin Modern, leader placement). R026 needed no code change; the
+R018 and leader-placement implementation is complete on branch
+`fix/ester-final-three-clarifications-20260923`, pending PR merge (not yet on
+`main`, not deployed) — see
+`docs/status/ester_final_three_clarifications_20260923.md`._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `762d5c98a40ff903c601d00153ff34f08a0fd891` (merged through PR #552) |
+| Current `origin/main` SHA | `6196f7ed81ef0061aceafd86b80f0bd6462aa4f2` (merged through PR #549, after PR #552) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
@@ -241,9 +245,11 @@ pre-follow-up behavior, the total changes from 179 to 43. The reviewed Anthony
 false positive is removed, the reviewed Praneeth false positive is removed, and
 Sebastian no longer receives a wrong R040 punctuation explanation.
 
-No current rule owns LoF/LoT leader dots beginning immediately after the
-semantic title. The R040 follow-up records this as **LEADER_PLACEMENT_RULE_GAP**
-without implementing a new unrelated rule.
+R040 still does not own leader placement. The former
+**LEADER_PLACEMENT_RULE_GAP** is now reviewer-resolved (Ester, 2026-09-23:
+TOC + List of Tables + List of Figures; leaders after the final title line;
+one space allowed) and implemented under P018 on the pending-merge branch — see "Ester Final
+Three Clarifications" below.
 
 R053 regression remains unchanged at total 1. R054 regression remains
 unchanged at total 4.
@@ -398,7 +404,8 @@ Primary R068 record:
 - `docs/status/r068_ester_approval_committee_spacing_followup_20260921.md`
 - `tests/test_p068_approval_page_committee_blocks.py`
 
-`LEADER_PLACEMENT_RULE_GAP` remains separate and unimplemented.
+Leader placement is handled separately under P018 (see "Ester Final Three
+Clarifications" below), not by R046.
 
 Primary R046 records:
 
@@ -466,23 +473,52 @@ rule registry entries.
 
 | State | Rules |
 |---|---|
-| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026 except Latin Modern alias, R033, R035, R036, R040, R046, R048, R053, R054, R055, R066, R068, R078 |
+| Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026, R033, R035, R036, R040, R046, R048, R053, R054, R055, R066, R068, R078 |
 | Closed, engineering-confirmed genuine violation | R085, R086 (Youra physical page 101 case; other corpus findings unreviewed) |
 | Closed, engineering fix to match already-explicit Ester policy | R021 (MS/PhD word limits corrected to 200/400 per her sheet; not a new Ester decision) |
-| Open policy question | R018 alignment note for sections 1.3.3/1.3.4/1.3.5; R026 Latin Modern authorization only; LEADER_PLACEMENT_RULE_GAP scope/tolerance (see `docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`) |
+| Reviewer policy resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`) | R018 wrapped-title alignment (implementation complete on branch, pending PR merge); R026 Latin Modern (`ENGINEERING_IMPLEMENTATION_COMPLETE` — already live, no detector change); leader placement for TOC/LoT/LoF (implementation local, not yet `ENGINEERING_IMPLEMENTATION_COMPLETE`) |
+| Open policy question | None |
 | Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward, except separately handled R021/R040/R046/R048/R053/R054/R055/R066/R068/R078/R085/R086 |
 
+## Ester Final Three Clarifications
+
+Ester answered all three questions from the pre-email backlog audit on
+2026-09-23; none remains an open reviewer question.
+
+- **R018:** a wrapped TOC title's second line aligns with the first line's
+  title text, not the section number (her examples: Praneeth 1.3.3, 1.3.4,
+  1.3.5). New P018 issue type `wrapped_title_continuation_misaligned`, TOC
+  only, checked symmetrically (NJIT's model TOC hangs wrapped lines exactly
+  under the title text). Detects the reviewer-identified entries (Praneeth
+  physical page 11); other Praneeth entries of the same shape are unreviewed
+  candidates, and three LaTeX-built TOCs (Philip, Muyeed, Youra) show a
+  borderline, unreviewed one-em hanging indent past the title text.
+  Public card R018R.
+- **R026:** Latin Modern is explicitly accepted as part of the Computer
+  Modern allowance. Already the detector's behavior; regression test added.
+- **Leader placement:** applies to TOC, List of Tables, and List of Figures;
+  leaders begin after the final line of a wrapped title; one space is
+  allowed. New P018 issue types `title_to_leader_gap_too_wide` and
+  `leader_dots_before_final_title_line` (public card R018S). The one-space
+  allowance adds a grid-phase term only on pages whose leaders are measured
+  to be grid-aligned. Sebastian's confirmed List of Figures case is detected;
+  Sebastian's List of Tables page is an unreviewed structural sibling.
+
+Engineering status: R026 `ENGINEERING_IMPLEMENTATION_COMPLETE` (already on
+`main` before this work); R018 and leader placement implementation complete
+on branch `fix/ester-final-three-clarifications-20260923`, pending PR merge
+(not yet on `main`, not deployed). Primary record:
+`docs/status/ester_final_three_clarifications_20260923.md`.
+
 ## Next Work Sequence
 
-All rule work through R086/P086 is merged and formally catalogued. Per the
-pre-Ester-email backlog audit
-(`docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md`),
-exactly three items genuinely need an Ester decision — R018, R026 Latin
-Modern, and leader-placement scope/tolerance — plus R034, which needs no
-action. Next step: send that three-question minimal set to Ester before
-starting any further rule work.
+All rule work through R086/P086 is merged and formally catalogued. The
+three reviewer questions from
+`docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md` are
+answered. Next step: merge review of the PR for branch
+`fix/ester-final-three-clarifications-20260923`.
 
 ## Repository Hygiene Notes
 

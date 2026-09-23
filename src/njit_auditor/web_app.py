@@ -661,7 +661,7 @@ def _classify_rule(rule: dict[str, Any]) -> str:
 
 _HIDDEN_PUBLIC_RULE_IDS = frozenset({"P015", "P018", "P026", "P039"})
 
-# Parent rules whose TOC/LoT/LoF student-facing coverage is delegated to P018A–P018Q.
+# Parent rules whose TOC/LoT/LoF student-facing coverage is delegated to P018A–P018S.
 _P018_DELEGATED_PARENT_RULE_IDS = frozenset(
     {"P018", "P024", "P032", "P036", "P039", "P042", "P046", "P048"}
 )
@@ -879,6 +879,40 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
             "Align all List of Figures page numbers into one vertical right column."
         ),
     },
+    # Ester's 2026-09-23 clarifications (no Q-sheet row; the reviewer answered
+    # these directly). Worded from her own statements.
+    {
+        "id": "P018R",
+        "parent_rule_id": "P018",
+        "source_q_rule_ids": (),
+        "issue_types": ("wrapped_title_continuation_misaligned",),
+        "title": (
+            "When a Table of Contents title runs for more than one line, does the "
+            "second line align with the text of the first line, not the number?"
+        ),
+        "how_to_correct": (
+            "Start each wrapped line of a Table of Contents title directly under the "
+            "first word of the title text."
+        ),
+    },
+    {
+        "id": "P018S",
+        "parent_rule_id": "P018",
+        "source_q_rule_ids": (),
+        "issue_types": (
+            "title_to_leader_gap_too_wide",
+            "leader_dots_before_final_title_line",
+        ),
+        "title": (
+            "In the Table of Contents, List of Tables, and List of Figures, do leader "
+            "dots begin right after the title (after its final line), with at most "
+            "one space?"
+        ),
+        "how_to_correct": (
+            "Start the leader dots right after the last letter of the title, on the "
+            "title's final line, leaving no more than one space."
+        ),
+    },
 )
 
 _P024_REMAINING_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
@@ -960,6 +994,9 @@ _P018_ENTRY_KIND_TO_CARD = {
 _P018_BACKEND_ISSUE_MAP: dict[tuple[str, str], str] = {
     ("P018", "inconsistent_leader_dots"): "P018D",
     ("P018", "inconsistent_hierarchy_indent"): "P018H",
+    ("P018", "wrapped_title_continuation_misaligned"): "P018R",
+    ("P018", "title_to_leader_gap_too_wide"): "P018S",
+    ("P018", "leader_dots_before_final_title_line"): "P018S",
     ("P039", "toc_l2_not_indented_relative_to_l1"): "P018H",
     ("P039", "toc_l3_not_indented_relative_to_l2"): "P018H",
     ("P036", "toc_inter_entry_spacing_too_tight"): "P018I",
@@ -994,7 +1031,7 @@ def _resolve_p018_public_card(
     source_q_rule_id: str = "",
     details: Mapping[str, Any] | None = None,
 ) -> str:
-    """Map backend TOC/List findings to canonical P018A–P018Q public cards."""
+    """Map backend TOC/List findings to canonical P018A–P018S public cards."""
     clean_rule_id = str(rule_id).strip()
     clean_issue_type = str(issue_type).strip()
     clean_q_rule = str(source_q_rule_id).strip()

@@ -2471,6 +2471,22 @@ _P018_ENTRY_TEMPLATES: dict[str, str] = {
         "indentation so chapter, section, and subsection entries visually reflect "
         "their level."
     ),
+    "wrapped_title_continuation_misaligned": (
+        "Likely problem: On page {page}{count_clause}, a wrapped Table of Contents "
+        "title continues on a line that does not start under the first line's "
+        "title text. Align the second line with the text of the first line, not "
+        "the section number."
+    ),
+    "title_to_leader_gap_too_wide": (
+        "Likely problem: On page {page}{count_clause}, leader dots start after a "
+        "visible gap instead of right after the entry title. Start the leader dots "
+        "right after the last letter of the title, with at most one space."
+    ),
+    "leader_dots_before_final_title_line": (
+        "Likely problem: On page {page}{count_clause}, a wrapped entry has leader "
+        "dots on an earlier line of its title. Place the leader dots after the "
+        "final line of the title."
+    ),
 }
 
 
@@ -2503,6 +2519,19 @@ _P018_SUGGESTED_FIXES: dict[str, str] = {
     "inconsistent_hierarchy_indent": (
         "Align the affected entry's left indent with other entries at the same "
         "hierarchy level on this list page."
+    ),
+    "wrapped_title_continuation_misaligned": (
+        "Start the second line of the wrapped title directly under the first word "
+        "of the title, not under the section number and not indented past the "
+        "title text."
+    ),
+    "title_to_leader_gap_too_wide": (
+        "Start the leader dots right after the last letter of the title, leaving no "
+        "more than one space."
+    ),
+    "leader_dots_before_final_title_line": (
+        "Place the leader dots after the final line of the title, not on an earlier "
+        "line."
     ),
 }
 

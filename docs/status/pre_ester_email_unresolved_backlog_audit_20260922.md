@@ -26,6 +26,16 @@ through PR #552).
 > five: R018, R026 (Latin Modern only), and leader-placement
 > scope/tolerance.**
 
+> **Current state (2026-09-23): all three remaining questions are
+> ANSWERED.** Ester answered R018 (wrapped-title continuation aligns with
+> the first line's title text, not the number), R026 (Latin Modern: YES),
+> and leader placement (TOC + List of Tables + List of Figures; leaders
+> after the final title line; one space allowed). Each section below keeps
+> its original 2026-09-22 analysis for provenance, followed by a
+> "Resolved 2026-09-23" note. Engineering response:
+> `docs/status/ester_final_three_clarifications_20260923.md`. No
+> `GENUINELY_REQUIRES_ESTER` item remains.
+
 ## R018 — sections 1.3.3/1.3.4/1.3.5 open alignment question
 
 **Already investigated in depth** by
@@ -61,6 +71,17 @@ fixing a leader-dot text-extraction bug, we now measure their indentation,
 leader-dot presence, and page-number-column alignment as all consistent with
 their peers. Can you confirm there's nothing further to flag there, or tell
 us more specifically what looked misaligned?"
+
+**Resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`).** Ester: when a title
+runs longer than one line, the second line aligns with the text of the
+first line, not the number. The 2026-09-07 "no defect" measurement was
+comparing the wrong things: entry indent, leader presence, and
+page-number column. It never compared a continuation line to the title
+text. Re-measured with glyph geometry, the
+1.3.3/1.3.4/1.3.5 continuations start left of their own section number,
+~48 pt left of the title text. Implemented as P018
+`wrapped_title_continuation_misaligned` on branch
+`fix/ester-final-three-clarifications-20260923` (pending PR merge).
 
 ## R034 — Copyright Page metadata/layout (top-margin header, year/author match)
 
@@ -129,6 +150,12 @@ Computer Modern) as equivalent to your named Computer Modern Typeface
 family. Is that correct, or should Latin Modern not count as part of that
 family?"
 
+**Resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`,
+`ENGINEERING_IMPLEMENTATION_COMPLETE`).** Ester answered YES. The detector
+already accepted Latin Modern, so no behavior change; a regression test
+pins the embedded-name variants. The other near-equivalent serif aliases
+were not part of the question and keep their prior provenance.
+
 ### Additional item found in the same investigation: P021 abstract word limits — RESOLVED 2026-09-22, no longer requires Ester
 
 Not one of the five originally-named candidates, but surfaced directly while
@@ -181,6 +208,14 @@ policy: prefer asking over inventing a threshold/scope from one example).
 gap between the title and the leader dots. Is that itself a violation we
 should flag? If so: List of Figures only, or also List of Tables/Table of
 Contents? And how should a wrapped (multi-line) title be handled?"
+
+**Resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`).** Ester: applies to
+the Table of Contents, List of Tables, and List of Figures; for a wrapped
+title the leader dots begin after the final line; one space is allowed
+between the title end and the first dot. Implemented under P018
+(`title_to_leader_gap_too_wide`, `leader_dots_before_final_title_line`) on
+branch `fix/ester-final-three-clarifications-20260923` (pending PR merge).
+No new rule ID.
 
 ## UNNUMBERED_BOLD_HEADING_GAP — RESOLVED 2026-09-22, no longer requires Ester
 
@@ -273,11 +308,11 @@ current `main`:
 
 | Item | Current state | Existing authority sufficient? | Engineering work needed? | Ester needed? | Recommended next action |
 |---|---|---|---|---|---|
-| R018 (1.3.3/1.3.4/1.3.5) | No geometric defect found under any current check | No | No | **Yes** | Ask minimal question above |
+| R018 (1.3.3/1.3.4/1.3.5) | **Answered 2026-09-23**; continuation-to-title-text check implemented on branch | Yes (Ester's answer) | Done on branch, pending PR merge | No | Merge review of the PR |
 | R034 | Zero live findings on corpus; conservative, tested implementation | N/A (nothing to decide) | No | No | None — already resolved |
-| R026 (Latin Modern) | Already implemented, permissive, zero live corpus impact | No (policy, not technical) | No | **Yes** | Ask minimal question above (Latin Modern only) |
+| R026 (Latin Modern) | **Answered 2026-09-23 (YES)**; already implemented | Yes (Ester's answer) | No (regression test only) | No | None |
 | P021 (abstract word limits) | **Resolved** — PR #550 merged 2026-09-22 | Yes (Ester's sheet always had 400/200) | Done | **No** | None — implemented, no longer in the email |
-| LEADER_PLACEMENT_RULE_GAP | No rule owns it; one example only | No | Only after scope confirmed | **Yes** | Ask minimal question above |
+| LEADER_PLACEMENT_RULE_GAP | **Answered 2026-09-23**; implemented under P018 on branch | Yes (Ester's answer) | Done on branch, pending PR merge | No | Merge review of the PR |
 | UNNUMBERED_BOLD_HEADING_GAP | **Resolved** — PR #551 merged 2026-09-22 as R086; formal inventory registration completed by PR #552 merged 2026-09-22 | Yes (design gate found a narrow, supported reading) | Done | **No** | None — implemented and catalogued, no longer in the email |
 | R035, R036, R055 (Phase 8 sweep) | No live case; R055 was a stale-doc false alarm (now fixed) | N/A | No | No | None for now |
 
@@ -293,7 +328,13 @@ Every remaining item (R018, R026 Latin Modern, leader placement) genuinely
 needs an Ester decision before any further code change, per this project's
 standing policy against inventing thresholds/scope from a single example.
 
-## Questions for Ester (minimal final set)
+_2026-09-23 update: Ester has since answered all three (see the banner at
+the top); no item remains blocked on a reviewer decision._
+
+## Questions for Ester (minimal final set) — all answered 2026-09-23
+
+_Historical: this was the question set as of 2026-09-22. All three have
+since been answered (see the banner at the top of this document)._
 
 1. **R018** — 1.3.3/1.3.4/1.3.5 TOC alignment (see wording above).
 2. **R026** — Latin Modern authorization only, not the other near-equivalent

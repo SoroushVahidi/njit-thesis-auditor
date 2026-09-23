@@ -309,8 +309,8 @@
     "id": "P018",
     "section": "PDF TOC and list alignment",
     "question": "Do Table of Contents, List of Tables, and List of Figures entries follow the required formatting, alignment, and heading requirements?",
-    "rule_definition": "Internal umbrella for TOC/LoT/LoF alignment heuristics. Student-facing coverage is split into atomic public cards P018A–P018Q on /rules. Backend detectors remain on P018 (leaders, page-number column), P024 (TOC capitalization), P032 (wrapped TOC spacing), P036 (inter-entry spacing), P039 (hierarchy indent), P042 (appendix naming), P046 (entry-number column), and P048 (page-number column). Each leader-dot finding carries source_q_rule_id=Q052.",
-    "remediation": "See atomic public cards P018A–P018Q for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). Leaders: P018D (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079).",
+    "rule_definition": "Internal umbrella for TOC/LoT/LoF alignment heuristics. Student-facing coverage is split into atomic public cards P018A–P018S on /rules. Backend detectors remain on P018 (leaders, page-number column), P024 (TOC capitalization), P032 (wrapped TOC spacing), P036 (inter-entry spacing), P039 (hierarchy indent), P042 (appendix naming), P046 (entry-number column), and P048 (page-number column). Each leader-style consistency finding carries source_q_rule_id=Q052.",
+    "remediation": "See atomic public cards P018A–P018S for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). Leaders: P018D (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079). Wrapped TOC title alignment: P018R and TOC/LoT/LoF leader placement: P018S (Ester 2026-09-23 clarifications; no Q row).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Internal umbrella rule; public /rules cards P018A-P018Q cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. Backend detectors unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
+    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. Backend detectors unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
   },
   {
     "id": "P019",

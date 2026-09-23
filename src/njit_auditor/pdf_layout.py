@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import fitz
 
 from njit_auditor.pdf_models import (
@@ -21,6 +23,16 @@ LANDSCAPE_ASPECT_THRESHOLD = 1.02
 _MIN_SPAN_SPACE_GAP_PT = 1.0
 _MIN_GRAPHIC_WIDTH_PT = 12.0
 _MIN_GRAPHIC_HEIGHT_PT = 12.0
+# A visible dot-leader run: four or more periods (optionally single-spaced,
+# as LaTeX dotfill leaders extract), a Unicode ellipsis, or a run of middle
+# dots. Pages containing one get per-character x-extents recorded on their
+# spans (``PdfTextSpan.char_x_bounds``) so TOC/List rules can measure where a
+# title ends and where its leader begins inside a single extracted span.
+_LEADER_RUN_RE = re.compile(r"(?:\.\s?){4,}|\u2026|\u00b7(?:\s?\u00b7){2,}")
+_LEADER_ONLY_SPAN_RE = re.compile(r"^[.\u2026\u00b7]+$")
+# LaTeX dotfill leaders extract as one span per dot; a line carrying at least
+# this many dot-only spans is treated as a leader-bearing line.
+_MIN_DOT_ONLY_SPANS_FOR_LEADER = 4
 
 
 def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
@@ -105,6 +117,42 @@ def join_content_span_texts(spans: list[PdfTextSpan]) -> str:
 _join_content_span_texts = join_content_span_texts
 
 
+def _page_has_leader_run(page_dict: dict) -> bool:
+    for block in page_dict.get("blocks", []):
+        for line in block.get("lines", []) or []:
+            dot_only_spans = 0
+            for span in line.get("spans", []) or []:
+                text = str(span.get("text", ""))
+                if _LEADER_RUN_RE.search(text):
+                    return True
+                if _LEADER_ONLY_SPAN_RE.match(text.strip()):
+                    dot_only_spans += 1
+                    if dot_only_spans >= _MIN_DOT_ONLY_SPANS_FOR_LEADER:
+                        return True
+    return False
+
+
+def _char_x_bounds_by_span(
+    page: fitz.Page,
+) -> dict[tuple[int, int, int], tuple[str, list[tuple[float, float]]]]:
+    """Map (block, line, span) indices to that span's per-character x-extents.
+
+    ``rawdict`` is the same extraction as ``dict`` with character detail kept,
+    so indices line up; callers still verify the joined characters equal the
+    ``dict`` span text before trusting a mapping.
+    """
+    raw = page.get_text("rawdict")
+    out: dict[tuple[int, int, int], tuple[str, list[tuple[float, float]]]] = {}
+    for bi, block in enumerate(raw.get("blocks", [])):
+        for li, line in enumerate(block.get("lines", []) or []):
+            for si, span in enumerate(line.get("spans", []) or []):
+                chars = span.get("chars") or []
+                text = "".join(str(ch.get("c", "")) for ch in chars)
+                bounds = [(float(ch["bbox"][0]), float(ch["bbox"][2])) for ch in chars]
+                out[(bi, li, si)] = (text, bounds)
+    return out
+
+
 def load_pdf_layout(pdf_path: str) -> PdfDocument:
     """Load a layout-aware PDF model for downstream auditing."""
 
@@ -156,7 +204,10 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         )
                     )
 
-            for block in page_dict.get("blocks", []):
+            glyph_map = (
+                _char_x_bounds_by_span(page) if _page_has_leader_run(page_dict) else {}
+            )
+            for block_index, block in enumerate(page_dict.get("blocks", [])):
                 if block.get("type") != 0:
                     continue
                 if "bbox" not in block:
@@ -164,15 +215,23 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
 
                 block_lines: list[PdfTextLine] = []
                 block_text_chunks: list[str] = []
-                for line in block.get("lines", []):
+                for line_index, line in enumerate(block.get("lines", [])):
                     if "bbox" not in line:
                         continue
                     spans: list[PdfTextSpan] = []
                     span_text_chunks: list[str] = []
-                    for span in line.get("spans", []):
+                    for span_index, span in enumerate(line.get("spans", [])):
                         text = str(span.get("text", ""))
                         if not text.strip():
                             continue
+                        glyphs = glyph_map.get((block_index, line_index, span_index))
+                        char_x_bounds = (
+                            glyphs[1]
+                            if glyphs is not None
+                            and glyphs[0] == text
+                            and len(glyphs[1]) == len(text)
+                            else None
+                        )
                         font_name = span.get("font")
                         bold, italic = _style_flags_from_font_name(
                             str(font_name) if font_name else None
@@ -189,6 +248,7 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                             size=float(span["size"]) if span.get("size") is not None else None,
                             bold=bold,
                             italic=italic,
+                            char_x_bounds=char_x_bounds,
                         )
                         spans.append(span_model)
                         span_text_chunks.append(text)
