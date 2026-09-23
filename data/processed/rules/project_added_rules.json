@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. Backend detectors unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
+    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. P018 now also detects Ester-confirmed wrapped-title alignment and leader-placement conditions through P018R-P018S; delegated backend ownership for the existing TOC/LoT/LoF checks remains unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
   },
   {
     "id": "P019",
