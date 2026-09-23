@@ -6,23 +6,22 @@
 
 _Last updated: 2026-09-23. All rule work through R086/P086 is merged to
 `main`. Ester has now answered the final three open reviewer questions
-(R018, R026 Latin Modern, leader placement). R026 needed no code change; the
-R018 and leader-placement implementation is complete on branch
-`fix/ester-final-three-clarifications-20260923`, pending PR merge (not yet on
-`main`, not deployed) — see
+(R018, R026 Latin Modern, leader placement). Their implementation was merged
+to `main` via PR #553 (squash commit `72c8e1f`); R026 needed no detector
+change. Repository merge does not imply production deployment — see
 `docs/status/ester_final_three_clarifications_20260923.md`._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `6196f7ed81ef0061aceafd86b80f0bd6462aa4f2` (merged through PR #549, after PR #552) |
+| Current `origin/main` SHA | `72c8e1f82316fd25979eac88d5bc25d1652c0441` (merged through PR #553) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
 | R036 implementation/privacy-audited HEAD | `b277f34fe8ec7e01a32c83a1a23af82d5f7f8556`; superseded only by final documentation/privacy reconciliation |
 | R036 relation to `origin/main` after final documentation/privacy reconciliation | Merged |
-| Deployment | Not updated by this pass |
+| Deployment | Not updated: PR #553 (`web_app.py` public cards R018R/R018S included) is merged to `main`, but no live service restart/deployment has been performed |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
 | Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
@@ -248,7 +247,7 @@ Sebastian no longer receives a wrong R040 punctuation explanation.
 R040 still does not own leader placement. The former
 **LEADER_PLACEMENT_RULE_GAP** is now reviewer-resolved (Ester, 2026-09-23:
 TOC + List of Tables + List of Figures; leaders after the final title line;
-one space allowed) and implemented under P018 on the pending-merge branch — see "Ester Final
+one space allowed) and implemented under P018, merged via PR #553 — see "Ester Final
 Three Clarifications" below.
 
 R053 regression remains unchanged at total 1. R054 regression remains
@@ -476,7 +475,7 @@ rule registry entries.
 | Closed or conservative after Ester-adjudicated false-positive review | R011, R015, R016, R017, R018, R019/R028, R020, R023, R024, R026, R033, R035, R036, R040, R046, R048, R053, R054, R055, R066, R068, R078 |
 | Closed, engineering-confirmed genuine violation | R085, R086 (Youra physical page 101 case; other corpus findings unreviewed) |
 | Closed, engineering fix to match already-explicit Ester policy | R021 (MS/PhD word limits corrected to 200/400 per her sheet; not a new Ester decision) |
-| Reviewer policy resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`) | R018 wrapped-title alignment (implementation complete on branch, pending PR merge); R026 Latin Modern (`ENGINEERING_IMPLEMENTATION_COMPLETE` — already live, no detector change); leader placement for TOC/LoT/LoF (implementation local, not yet `ENGINEERING_IMPLEMENTATION_COMPLETE`) |
+| Reviewer policy resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`) | R018 wrapped-title alignment (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553); R026 Latin Modern (`ENGINEERING_IMPLEMENTATION_COMPLETE` — detector already accepted it before #553, which added explicit regression coverage); leader placement for TOC/LoT/LoF (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553) |
 | Open policy question | None |
 | Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
@@ -506,10 +505,12 @@ Ester answered all three questions from the pre-email backlog audit on
   to be grid-aligned. Sebastian's confirmed List of Figures case is detected;
   Sebastian's List of Tables page is an unreviewed structural sibling.
 
-Engineering status: R026 `ENGINEERING_IMPLEMENTATION_COMPLETE` (already on
-`main` before this work); R018 and leader placement implementation complete
-on branch `fix/ester-final-three-clarifications-20260923`, pending PR merge
-(not yet on `main`, not deployed). Primary record:
+Engineering status: all three `ENGINEERING_IMPLEMENTATION_COMPLETE` on `main`.
+R018 and leader placement were merged via PR #553 (squash commit `72c8e1f`,
+from CI-tested head `a2e843c` with an identical tree); public cards R018R and
+R018S are live in `main`. R026 was already accepted by the detector before
+#553, which pinned the policy with regression tests. Not deployed. Primary
+record:
 `docs/status/ester_final_three_clarifications_20260923.md`.
 
 ## Next Work Sequence
@@ -517,8 +518,9 @@ on branch `fix/ester-final-three-clarifications-20260923`, pending PR merge
 All rule work through R086/P086 is merged and formally catalogued. The
 three reviewer questions from
 `docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md` are
-answered. Next step: merge review of the PR for branch
-`fix/ester-final-three-clarifications-20260923`.
+answered and implemented (PR #553). No rule work is pending from them. The
+separate legacy Times-clone font-alias authority question (R026, zero corpus
+impact) remains an optional future policy task.
 
 ## Repository Hygiene Notes
 

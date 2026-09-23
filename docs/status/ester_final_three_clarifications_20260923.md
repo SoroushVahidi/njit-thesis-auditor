@@ -2,10 +2,11 @@
 
 > **Scope:** records Ester Flaim's answers to the final three open reviewer
 > questions from `pre_ester_email_unresolved_backlog_audit_20260922.md`, and
-> the engineering response. The implementation is on branch
-> `fix/ester-final-three-clarifications-20260923`, submitted as a PR and
-> **pending merge**: not yet on `main`, not deployed. No e-mail was sent and
-> the reviewer workbook was not edited.
+> the engineering response. The implementation was developed and validated on
+> branch `fix/ester-final-three-clarifications-20260923` and **merged to `main`
+> via PR #553** (squash commit `72c8e1f`; CI-tested source head `a2e843c`,
+> whose tree is identical to the merged tree). Not deployed. No e-mail was
+> sent and the reviewer workbook was not edited.
 
 **Baseline:** `origin/main` @ `6196f7ed81ef0061aceafd86b80f0bd6462aa4f2`
 (merged through PR #549). Branch/worktree:
@@ -15,17 +16,18 @@
 
 | Item | Reviewer policy | Engineering implementation |
 |---|---|---|
-| R018 wrapped-title alignment | `REVIEWER_POLICY_RESOLVED` | Implementation complete on branch; `ENGINEERING_IMPLEMENTATION_COMPLETE` on `main` only once the PR merges |
-| R026 Latin Modern | `REVIEWER_POLICY_RESOLVED` | `ENGINEERING_IMPLEMENTATION_COMPLETE` (behavior already live since `85c5da3`; regression test added on this branch, no detector change) |
-| Leader placement (TOC/LoT/LoF) | `REVIEWER_POLICY_RESOLVED` | Implementation complete on branch; `ENGINEERING_IMPLEMENTATION_COMPLETE` on `main` only once the PR merges |
+| R018 wrapped-title alignment | `REVIEWER_POLICY_RESOLVED` | `ENGINEERING_IMPLEMENTATION_COMPLETE` (merged via PR #553, `72c8e1f`) |
+| R026 Latin Modern | `REVIEWER_POLICY_RESOLVED` | `ENGINEERING_IMPLEMENTATION_COMPLETE` (behavior already live since `85c5da3`; explicit regression coverage added by PR #553, no detector change) |
+| Leader placement (TOC/LoT/LoF) | `REVIEWER_POLICY_RESOLVED` | `ENGINEERING_IMPLEMENTATION_COMPLETE` (merged via PR #553, `72c8e1f`) |
 
 None of the three is an open reviewer question any longer.
 
-**Branch validation (pre-merge; not a `main` snapshot).** Against base
-`origin/main` `6196f7e`: `ruff check .` clean, `mypy src` clean,
-`python -m pytest` **3680 passed**, 5 skipped, 3 warnings; seven-document
-corpus audit as below. The evaluation manifest's status snapshot remains a
-`main`-only record and is intentionally not advanced by this branch.
+**Pre-merge branch validation (historical).** Against base `origin/main`
+`6196f7e`: `ruff check .` clean, `mypy src` clean, `python -m pytest`
+**3680 passed**, 5 skipped, 3 warnings; seven-document corpus audit as below.
+GitHub CI (Python 3.10/3.11/3.12) passed on the final head `a2e843c`, which
+was squash-merged unchanged as `72c8e1f`. The evaluation manifest's status
+snapshot is a separate, older `main` record and was not advanced.
 
 ## Reviewer answers (ground truth)
 
