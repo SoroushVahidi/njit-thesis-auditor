@@ -612,6 +612,20 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Entry indentation on this list page does not match the expected "
         "hierarchy level. Adjust indentation so entries visually reflect their level."
     ),
+    ("P018", "wrapped_title_continuation_misaligned"): (
+        "A Table of Contents title on this page wraps onto a second line that does "
+        "not start under the first line's title text. Align the second line with "
+        "the text of the first line, not the section number."
+    ),
+    ("P018", "title_to_leader_gap_too_wide"): (
+        "Leader dots in a list entry on this page start after a visible gap "
+        "instead of right after the title. Start the leader dots right after the "
+        "last letter of the title, with at most one space."
+    ),
+    ("P018", "leader_dots_before_final_title_line"): (
+        "A wrapped list entry on this page has leader dots on an earlier line of "
+        "its title. Place the leader dots after the final line of the title."
+    ),
     # --- P024 TOC/LoT/LoF capitalization ---
     ("P024", "toc_level_capitalization"): (
         "A Table of Contents entry on this page may not follow NJIT capitalization "
@@ -1333,6 +1347,26 @@ _P036_SECTION_LABELS: dict[str, str] = {
 }
 
 
+_P018_EXPECTED_BY_ISSUE_TYPE: dict[str, str] = {
+    "wrapped_title_continuation_misaligned": (
+        "when a title runs longer than one line, the second line aligns with the "
+        "text of the first line, not the section number. What to check or fix: "
+        "move the wrapped line so it starts directly under the first word of the "
+        "title, neither left of it nor indented past it."
+    ),
+    "title_to_leader_gap_too_wide": (
+        "leader dots begin right after the last letter of the title, with at most "
+        "one space before the first dot. What to check or fix: remove the extra "
+        "space between the title and its leader dots."
+    ),
+    "leader_dots_before_final_title_line": (
+        "for a title that runs longer than one line, the leader dots start after "
+        "the final line of the title. What to check or fix: move the leader dots "
+        "to the final line of the title."
+    ),
+}
+
+
 def _p018_alignment_explanation(
     issue_type: str, details: dict[str, str], *, page: int | None
 ) -> str:
@@ -1352,12 +1386,15 @@ def _p018_alignment_explanation(
     if delta:
         extras.append(f"worst offset about {delta}pt")
     metrics = f" ({'; '.join(extras)})" if extras else ""
+    expected = _P018_EXPECTED_BY_ISSUE_TYPE.get(
+        issue_type,
+        "list entries should keep consistent page numbers, leader dots, and "
+        "hierarchy indentation. What to check or fix: open the flagged list page "
+        "and compare the affected entry with nearby entries at the same level.",
+    )
     return (
         f"Observed: A {section_label} alignment issue on {page_phrase}{metrics}."
-        f"{entry_clause} Expected: list entries should keep consistent page numbers, "
-        "leader dots, and hierarchy indentation. What to check or fix: open the "
-        "flagged list page and compare the affected entry with nearby entries at "
-        "the same level."
+        f"{entry_clause} Expected: {expected}"
     )
 
     try:
@@ -1901,6 +1938,9 @@ def _build_explanation_text(
         "missing_page_number",
         "inconsistent_leader_dots",
         "inconsistent_hierarchy_indent",
+        "wrapped_title_continuation_misaligned",
+        "title_to_leader_gap_too_wide",
+        "leader_dots_before_final_title_line",
     }:
         return _p018_alignment_explanation(effective_issue_type, details, page=page)
     if rule_id == "P014":

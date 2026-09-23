@@ -470,6 +470,24 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "expected hierarchy level for this TOC or list page. Adjust indentation "
         "so chapter, section, and subsection entries visually reflect their level."
     ),
+    ("P018", "wrapped_title_continuation_misaligned"): (
+        "Likely problem: A Table of Contents title on page {page} runs onto a "
+        "second line that does not start under the first line's title text. "
+        "When a title runs longer than one line, align the second line exactly "
+        "with the text of the first line, not with the section number."
+    ),
+    ("P018", "title_to_leader_gap_too_wide"): (
+        "Likely problem: On page {page}, the leader dots in a Table of Contents, "
+        "List of Tables, or List of Figures entry start after a visible gap "
+        "instead of right after the title. Start the leader dots right after "
+        "the last letter of the title, with at most one space before the first dot."
+    ),
+    ("P018", "leader_dots_before_final_title_line"): (
+        "Likely problem: On page {page}, a wrapped Table of Contents, List of "
+        "Tables, or List of Figures entry has leader dots on an earlier line of "
+        "its title. For a title that runs longer than one line, place the "
+        "leader dots after the final line of the title."
+    ),
     # --- P021 abstract word count ---
     ("P021", "abstract_word_count_exceeded"): (
         "Problem: The abstract appears to contain {word_count} words, which "
@@ -803,6 +821,19 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P018", "inconsistent_hierarchy_indent"): (
         "Align this entry's left indent with the other TOC entries at the "
         "same level."
+    ),
+    ("P018", "wrapped_title_continuation_misaligned"): (
+        "Start the second line of this wrapped title directly under the first "
+        "word of the title, not under the section number and not indented past "
+        "the title text."
+    ),
+    ("P018", "title_to_leader_gap_too_wide"): (
+        "Start the leader dots right after the last letter of the title, "
+        "leaving no more than one space."
+    ),
+    ("P018", "leader_dots_before_final_title_line"): (
+        "Place the leader dots after the final line of the title, not on an "
+        "earlier line."
     ),
     ("P021", "abstract_word_count_exceeded"): "",
     ("P017", "unexpected_terminal_period"): "",

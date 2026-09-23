@@ -172,6 +172,18 @@ _P018_SHORT_LIKELY: dict[str, str] = {
         "Likely problem: This entry is indented differently from other entries at "
         "the same hierarchy level."
     ),
+    "wrapped_title_continuation_misaligned": (
+        "Likely problem: The second line of this wrapped title does not start "
+        "under the first line's title text."
+    ),
+    "title_to_leader_gap_too_wide": (
+        "Likely problem: The leader dots for this entry start after a visible gap "
+        "instead of right after the title."
+    ),
+    "leader_dots_before_final_title_line": (
+        "Likely problem: The leader dots for this wrapped entry appear on an "
+        "earlier line instead of after the final line of the title."
+    ),
 }
 
 _P018_SHORT_FIX: dict[str, str] = {
@@ -186,6 +198,17 @@ _P018_SHORT_FIX: dict[str, str] = {
     ),
     "inconsistent_hierarchy_indent": (
         "Align this entry's left indent with the other TOC entries at the same level."
+    ),
+    "wrapped_title_continuation_misaligned": (
+        "Start the second line directly under the first word of the title text, "
+        "not under the section number and not indented past it."
+    ),
+    "title_to_leader_gap_too_wide": (
+        "Start the leader dots right after the last letter of the title, leaving no "
+        "more than one space."
+    ),
+    "leader_dots_before_final_title_line": (
+        "Place the leader dots after the final line of the title."
     ),
 }
 

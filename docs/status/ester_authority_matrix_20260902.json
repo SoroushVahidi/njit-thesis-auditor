@@ -303,11 +303,11 @@
       "q_source": [],
       "topic": "Do Table of Contents, List of Tables, and List of Figures entries follow the required formatting, alignment, and heading requirements?",
       "ester_decision_exists": "YES",
-      "decision": "EXPLICIT - FALSE POSITIVE; EXPLICIT - REQUIRED FINDING",
-      "evidence_source": "live Ester feedback workbook; Ester Gmail",
+      "decision": "EXPLICIT - FALSE POSITIVE; EXPLICIT - REQUIRED FINDING; EXPLICIT - RULE INTERPRETATION (2026-09-23)",
+      "evidence_source": "live Ester feedback workbook; Ester Gmail; Ester 2026-09-23 answer",
       "confidence_in_interpretation": "MEDIUM",
-      "current_detector_aligned": "Partially case-specific; current live behavior requires Ester review for remaining findings.",
-      "action": "Suppress the selected Anthony and Praneeth false positives; verify and retain the actual 1.3.3/1.3.4/1.3.5 misalignment behavior.",
+      "current_detector_aligned": "REVIEWER_POLICY_RESOLVED; engineering complete on branch fix/ester-final-three-clarifications-20260923, pending PR merge.",
+      "action": "Anthony and Praneeth reviewed false positives stay suppressed. Ester 2026-09-23: a wrapped TOC title's second line aligns with the first line's title text, not the section number (examples: Praneeth 1.3.3/1.3.4/1.3.5). New P018 wrapped_title_continuation_misaligned (symmetric alignment check; public card R018R) detects them; see docs/status/ester_final_three_clarifications_20260923.md.",
       "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
       "issue_types": [],
       "feedback_question": "This must be broken down in two groups of questions: \nTOC \n1a. In the TOC, are all level-1 chapter titles displayed in all caps? \n1b. In the TOC, are all level-2 section titles (X.x) displayed in title case? \n1c. In the TOC, are all level-3 section titles (X.xx) displayed in sentence case? \n1d. Is each entry connected to a page number by a consistent leader style?\n1e. Is every wrapped level-1 TOC entry single-spaced internally?\n1f. Is every wrapped level-2 TOC entry single-spaced internally?\n1g. Is every wrapped level-3 TOC entry single-spaced internally?\n1h. Are level-2 and level-3 entries indented to show hierarchy?\n1i. Is there visible double spacing between consecutive section-title entries?\n1l .If only one appendix is listed, does it begin with “APPENDIX” plus title? \n1m. If multiple appendices are listed, are they identified by letters?\n\nLIST OF TABLES \n2a. Is there visible double spacing between consecutive table entries?\n2b. Are all table numbers aligned vertically in one left column?\n2c. Are all table page numbers aligned vertically in one right column?\n\nLIST OF FIGURES \n3a. Is there visible double spacing between consecutive figure entries?\n3b. Are all figure numbers aligned vertically in one left column?\n3c. Are all figure page numbers aligned vertically in one right column?",
@@ -435,11 +435,11 @@
       "q_source": [],
       "topic": "Does the body text use Times New Roman 12pt (or an accepted equivalent)?",
       "ester_decision_exists": "YES",
-      "decision": "EXPLICIT - REQUIRED EXCEPTION; EXPLICIT - FALSE POSITIVE",
-      "evidence_source": "live Ester feedback workbook; Ester Gmail",
+      "decision": "EXPLICIT - REQUIRED EXCEPTION; EXPLICIT - FALSE POSITIVE; EXPLICIT - RULE INTERPRETATION (2026-09-23)",
+      "evidence_source": "live Ester feedback workbook; Ester Gmail; Ester 2026-09-23 answer",
       "confidence_in_interpretation": "MEDIUM",
-      "current_detector_aligned": "Yes after table-region exclusion fix.",
-      "action": "Treat 10pt source-note/table-region material below figure/table descriptions as outside body-font measurement; retain Word/LaTeX family policy. Latin Modern alias expansion remains unresolved.",
+      "current_detector_aligned": "Yes after table-region exclusion fix; REVIEWER_POLICY_RESOLVED and ENGINEERING_IMPLEMENTATION_COMPLETE for Latin Modern.",
+      "action": "Treat 10pt source-note/table-region material below figure/table descriptions as outside body-font measurement; retain Word/LaTeX family policy. Ester 2026-09-23: Latin Modern is part of the accepted Computer Modern allowance (already the detector's behavior; regression test added).",
       "implementation_module": "njit_auditor.rules.pdf_font_compliance",
       "issue_types": [],
       "feedback_question": "",
@@ -451,10 +451,11 @@
           "Arial"
         ],
         "overleaf_latex": [
-          "Computer Modern typeface family"
+          "Computer Modern typeface family",
+          "Latin Modern (Ester 2026-09-23: explicitly accepted as part of the Computer Modern allowance)"
         ],
         "unresolved_aliases": [
-          "Latin Modern and other aliases unless separately supported"
+          "Other near-equivalent serif aliases the detector accepts (Nimbus Roman, TeX Gyre Termes, Liberation Serif, FreeSerif, STIX) were not part of Ester's 2026-09-23 Latin Modern answer; no explicit reviewer authorization recorded (zero current corpus impact)"
         ]
       }
     },
@@ -680,7 +681,7 @@
       "evidence_source": "live Ester feedback workbook; docs/status/p040_r040_ester_lof_terminal_punctuation_followup_20260919.md",
       "confidence_in_interpretation": "High",
       "current_detector_aligned": "YES after semantic LoF reconstruction and leader-dot-run stripping",
-      "action": "Anthony and Praneeth reviewed findings are false positives (removed). Sebastian's reviewed case is a real formatting issue, but Ester's explanation is leader placement (leader dots should start right after the last letter of the title), not missing punctuation -- R040 remains a punctuation-only rule and no longer mislabels Sebastian's case. No current rule owns leader placement; recorded separately as LEADER_PLACEMENT_RULE_GAP.",
+      "action": "Anthony and Praneeth reviewed findings are false positives (removed). Sebastian's reviewed case is a real formatting issue, but Ester's explanation is leader placement (leader dots should start right after the last letter of the title), not missing punctuation -- R040 remains a punctuation-only rule and no longer mislabels Sebastian's case. Leader placement is now reviewer-resolved (Ester 2026-09-23: TOC + LoT + LoF; leaders after the final title line; one space allowed) and implemented under P018 (public card R018S; pending PR merge), not R040; see docs/status/ester_final_three_clarifications_20260923.md.",
       "implementation_module": "njit_auditor.rules.pdf_lof_terminal_punctuation",
       "issue_types": [],
       "feedback_question": "",

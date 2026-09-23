@@ -20,6 +20,14 @@ from njit_auditor.pdf_models import (
     format_bbox_detail,
 )
 from njit_auditor.rules.pdf_headings import normalize_heading_text
+from njit_auditor.toc_entry_geometry import (
+    LeaderGap,
+    measure_title_leader_gap,
+    row_font_size,
+    row_glyphs,
+    title_text_start_x,
+    visible_start_x,
+)
 from njit_auditor.toc_list_student_preview import (
     is_toc_export_metadata_line,
     is_toc_structural_column_label,
@@ -69,6 +77,46 @@ INDENT_CLUSTER_TOLERANCE_PT = 12.0
 MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON = 3
 HIERARCHY_INDENT_TOLERANCE_PT = 10.0
 HIERARCHY_INDENT_MEDIUM_CONFIDENCE_PT = 18.0
+# Ester (2026-09-23, R018): when a TOC title runs longer than one line, the
+# continuation line aligns with the first line's title text, not with the
+# section number. Alignment is checked symmetrically: NJIT's own model TOC
+# (data/raw/guidelines/Front Matter Pages Lorem Ipsum.pdf) hangs wrapped
+# lines exactly under the title text (0.0 pt) at every level, so a line
+# indented past the title text is equally misaligned. Rightward deviations
+# are only asserted from exact glyph geometry.
+#
+# The existing TOC x-tolerances (10-12 pt) cluster indent levels across
+# entries and are too coarse here: a single-digit label plus its space is only
+# ~0.75 em (~9 pt at 12 pt). Observed alignment noise on correctly aligned
+# corpus entries is <= 0.1 pt, so a quarter-em band (3 pt at 12 pt, never
+# under 2 pt) absorbs extraction jitter while staying well below the
+# >= 0.75 em shift that a number-column alignment necessarily produces.
+WRAPPED_CONTINUATION_ALIGN_TOLERANCE_EM = 0.25
+WRAPPED_CONTINUATION_MIN_TOLERANCE_PT = 2.0
+WRAPPED_CONTINUATION_MAX_ROWS = 3
+_WRAPPED_CONTINUATION_STOP_RE = re.compile(
+    r"^(?:chapter|appendix|references|bibliography|vita|glossary|index)\b",
+    re.IGNORECASE,
+)
+# Ester (2026-09-23, leader placement; TOC, List of Tables, List of Figures):
+# leader dots begin right after the title's final line, with at most one
+# normal space between the last title character and the first dot.
+#
+# The gap is measured from the last title glyph's right edge to the first
+# leader glyph's left edge. Allowance = one measured space + the dot's in-cell
+# padding ((pitch - dot advance) / 2; a spaced leader cell centers its dot) +
+# a 0.1 em extraction-jitter band (the fraction ``pdf_layout`` uses as its
+# word-space gap floor). When a page's leaders are *grid-aligned* -- every
+# first dot sits on one common x-grid (LaTeX dotfill, Word dot-leader tabs;
+# measured spread <= 0.4 pt on such corpus pages) -- the typesetter, not the
+# author, pushes the first dot up to one pitch past the title end, so one
+# pitch of grid phase is added. Typed leaders (spread >= 1.9 pt on the corpus
+# and NJIT's model pages) get no phase allowance, so two typed spaces fail.
+# Pages with too few leader rows to tell keep the grid allowance (the
+# conservative choice).
+LEADER_GAP_JITTER_EM = 0.10
+LEADER_GRID_MIN_ROWS = 3
+LEADER_GRID_MAX_SPREAD_PT = 1.0
 
 
 class TocEntryLine:
@@ -603,8 +651,13 @@ def _drop_merge_orphans(entries: list[TocEntryLine]) -> list[TocEntryLine]:
     return retained
 
 
-def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
-    """Extract likely entry lines below TOC/List heading on a page."""
+def collect_toc_visual_rows(context: TocPageContext) -> list[PdfTextLine]:
+    """Return the page's entry-region lines assembled into visual rows.
+
+    Rows are ordered top to bottom; same-baseline column fragments (section
+    number, title, leader, page number) are merged left to right with their
+    spans (and any per-character geometry) preserved.
+    """
 
     page_width = context.page.width or 612.0
     max_entry_left = page_width * TOC_ENTRY_MAX_LEFT_FRACTION
@@ -628,7 +681,15 @@ def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
     ordered_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
     # Rebuild visual TOC rows from same-baseline column fragments before
     # classifying entries / pairing page numbers.
-    ordered_lines = _assemble_same_baseline_toc_rows(ordered_lines)
+    return _assemble_same_baseline_toc_rows(ordered_lines)
+
+
+def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
+    """Extract likely entry lines below TOC/List heading on a page."""
+
+    page_width = context.page.width or 612.0
+    max_entry_left = page_width * TOC_ENTRY_MAX_LEFT_FRACTION
+    ordered_lines = collect_toc_visual_rows(context)
 
     entries: list[TocEntryLine] = []
     auxiliary_lines: list[PdfTextLine] = []
@@ -824,163 +885,490 @@ def _select_worst_leader_dots_entry(
     return max(missing_dots_entries, key=sort_key)
 
 
+def _row_text(row: PdfTextLine) -> str:
+    return _clean_text(_line_text_for_toc(row))
+
+
+def _row_completes_entry(row: PdfTextLine, text: str) -> bool:
+    return _has_leader_dot_pattern(text) or _extract_page_number_token(row, text)[0] is not None
+
+
+def _is_non_entry_row(text: str) -> bool:
+    return (
+        not text
+        or _is_list_heading_line(text)
+        or is_toc_structural_column_label(text)
+        or is_toc_export_metadata_line(text)
+    )
+
+
+def _union_bbox(first: BBox, second: BBox) -> BBox:
+    return BBox(
+        x0=min(first.x0, second.x0),
+        y0=min(first.y0, second.y0),
+        x1=max(first.x1, second.x1),
+        y1=max(first.y1, second.y1),
+    )
+
+
+def _wrapped_title_continuations(
+    rows: list[PdfTextLine], index: int
+) -> list[PdfTextLine]:
+    """Continuation rows of the numbered entry starting at ``rows[index]``.
+
+    Returns an empty list unless the entry demonstrably ends (leader, page
+    number, or a detached page-number row) within a few single-spaced rows.
+    """
+
+    continuations: list[PdfTextLine] = []
+    previous = rows[index]
+    for follower in rows[index + 1 :]:
+        text = _row_text(follower)
+        if follower.bbox.y0 - previous.bbox.y0 > WRAPPED_ENTRY_Y_GAP_PT:
+            return []
+        if NUMERIC_ONLY_RE.match(text):
+            # A detached page number closes the entry; with no continuation yet
+            # it belongs to the first row, which was therefore not wrapped.
+            return continuations
+        if (
+            _is_non_entry_row(text)
+            or _has_prefix_entry_shape(text)
+            or _WRAPPED_CONTINUATION_STOP_RE.match(text)
+        ):
+            return []
+        continuations.append(follower)
+        if _row_completes_entry(follower, text):
+            return continuations
+        if len(continuations) >= WRAPPED_CONTINUATION_MAX_ROWS:
+            return []
+        previous = follower
+    return []
+
+
+class _WrappedMisalignment:
+    """One wrapped continuation line that does not start under the title text."""
+
+    def __init__(
+        self,
+        first_row: PdfTextLine,
+        continuation: PdfTextLine,
+        number_x: float,
+        title_x: float,
+        continuation_x: float,
+        tolerance: float,
+        exact: bool,
+    ) -> None:
+        self.first_row = first_row
+        self.continuation = continuation
+        self.number_x = number_x
+        self.title_x = title_x
+        self.continuation_x = continuation_x
+        self.tolerance = tolerance
+        self.exact = exact
+
+    @property
+    def signed_delta(self) -> float:
+        """``continuation_x - title_x``: negative = left of the title text."""
+        return self.continuation_x - self.title_x
+
+    @property
+    def alignment(self) -> str:
+        if self.signed_delta > 0:
+            return "right_of_title_text"
+        if abs(self.continuation_x - self.number_x) <= self.tolerance:
+            return "section_number"
+        if self.continuation_x < self.number_x:
+            return "left_of_section_number"
+        return "between_section_number_and_title"
+
+
+def _add_wrapped_title_alignment_finding(
+    context: TocPageContext,
+    rows: list[PdfTextLine],
+    page_issue_findings: dict[str, AuditFinding],
+) -> None:
+    """R018: wrapped numbered TOC titles must hang exactly under the title text.
+
+    The check is symmetric: a continuation starting left of the title text
+    (under the section number, Ester's example) or indented past it both fail
+    to "align with the text of the first line". Rightward deviations are only
+    reported from exact glyph geometry, because the fallback title-start
+    estimate is a lower bound and cannot prove a continuation sits too far
+    right.
+    """
+
+    violations: list[_WrappedMisalignment] = []
+    for index, row in enumerate(rows):
+        text = _row_text(row)
+        match = SECTION_NUMBER_PREFIX_RE.match(text)
+        if match is None or _row_completes_entry(row, text):
+            continue
+        label_len = len("".join(match.group(0).split()))
+        number_x = visible_start_x(row)
+        title_x, exact = title_text_start_x(row, label_len)
+        if number_x is None or title_x is None or title_x <= number_x:
+            continue
+        size = row_font_size(row_glyphs(row))
+        tolerance = max(
+            WRAPPED_CONTINUATION_MIN_TOLERANCE_PT,
+            WRAPPED_CONTINUATION_ALIGN_TOLERANCE_EM * size,
+        )
+        for continuation in _wrapped_title_continuations(rows, index):
+            continuation_x = visible_start_x(continuation)
+            if continuation_x is None:
+                continue
+            delta = continuation_x - title_x
+            if delta < -tolerance or (exact and delta > tolerance):
+                violations.append(
+                    _WrappedMisalignment(
+                        row, continuation, number_x, title_x, continuation_x, tolerance, exact
+                    )
+                )
+    if not violations:
+        return
+    worst = max(violations, key=lambda item: abs(item.signed_delta))
+    preview_entry = _make_entry_from_line(worst.first_row, _row_text(worst.first_row))
+    details = _details_with_affected_entry_preview(
+        {
+            "page_number": str(context.page.page_number),
+            "page_type": context.page_type,
+            "issue_type": "wrapped_title_continuation_misaligned",
+            "affected_entry_count": str(len({id(item.first_row) for item in violations})),
+            "worst_delta_pt": f"{abs(worst.signed_delta):.1f}",
+            "signed_delta_pt": f"{worst.signed_delta:.1f}",
+            "title_text_start_x": f"{worst.title_x:.1f}",
+            "continuation_start_x": f"{worst.continuation_x:.1f}",
+            "continuation_alignment": worst.alignment,
+            "measurement": "glyph" if worst.exact else "estimated_lower_bound",
+            "confidence": "medium" if worst.exact else "low",
+        },
+        preview_entry,
+    )
+    details["bbox"] = format_bbox_detail(
+        _union_bbox(worst.first_row.bbox, worst.continuation.bbox)
+    )
+    page_issue_findings["wrapped_title_continuation_misaligned"] = AuditFinding(
+        rule_id="P018",
+        severity=Severity.WARNING,
+        page=context.page.page_number,
+        message=(
+            "A wrapped Table of Contents title continues on a line that does not "
+            "start directly under the first line's title text."
+        ),
+        details=details,
+    )
+
+
+def _page_leader_layout(gaps: list[LeaderGap]) -> str:
+    """Return ``grid``, ``typed``, or ``undetermined`` for a page's leaders.
+
+    Grid-aligned leaders put every row's first dot on one common x-grid, so
+    the first-dot positions agree modulo the leader pitch.
+    """
+
+    if len(gaps) < LEADER_GRID_MIN_ROWS:
+        return "undetermined"
+    pitch = median(gap.leader_pitch_pt for gap in gaps)
+    if pitch <= 0:
+        return "undetermined"
+    residues = sorted(gap.leader_start_x % pitch for gap in gaps)
+    wrap_gaps = [b - a for a, b in zip(residues, residues[1:])]
+    wrap_gaps.append(residues[0] + pitch - residues[-1])
+    spread = pitch - max(wrap_gaps)
+    return "grid" if spread <= LEADER_GRID_MAX_SPREAD_PT else "typed"
+
+
+def _allowed_title_leader_gap_pt(gap: LeaderGap, layout: str = "undetermined") -> float:
+    in_cell_padding = max(0.0, gap.leader_pitch_pt - gap.dot_advance_pt) / 2.0
+    grid_phase = 0.0 if layout == "typed" else gap.leader_pitch_pt
+    return (
+        gap.space_width_pt
+        + grid_phase
+        + in_cell_padding
+        + LEADER_GAP_JITTER_EM * gap.font_size_pt
+    )
+
+
+def _next_title_row_carries_page_number(rows: list[PdfTextLine], index: int) -> PdfTextLine | None:
+    """Return the following wrapped title row if it, not ``rows[index]``, ends the entry."""
+
+    previous = rows[index]
+    for follower in rows[index + 1 :]:
+        text = _row_text(follower)
+        if follower.bbox.y0 - previous.bbox.y0 > WRAPPED_ENTRY_Y_GAP_PT:
+            return None
+        if NUMERIC_ONLY_RE.match(text):
+            return None
+        if (
+            _is_non_entry_row(text)
+            or _has_prefix_entry_shape(text)
+            or _WRAPPED_CONTINUATION_STOP_RE.match(text)
+            or sum(1 for ch in text if ch.isalpha()) < 3
+        ):
+            return None
+        if _extract_page_number_token(follower, text)[0] is None:
+            return None
+        return follower
+    return None
+
+
+def _add_leader_placement_findings(
+    context: TocPageContext,
+    rows: list[PdfTextLine],
+    page_issue_findings: dict[str, AuditFinding],
+) -> None:
+    """Leader dots must start right after the title's final line (TOC/LoT/LoF)."""
+
+    measured: list[tuple[PdfTextLine, LeaderGap]] = []
+    early_leaders: list[tuple[PdfTextLine, PdfTextLine]] = []
+    for index, row in enumerate(rows):
+        if _is_non_entry_row(_row_text(row)):
+            continue
+        gap = measure_title_leader_gap(row)
+        if gap is None:
+            continue
+        if not gap.has_page_number:
+            final_row = _next_title_row_carries_page_number(rows, index)
+            if final_row is not None:
+                early_leaders.append((row, final_row))
+                continue
+        measured.append((row, gap))
+
+    layout = _page_leader_layout([gap for _, gap in measured])
+    gap_violations: list[tuple[PdfTextLine, LeaderGap, float]] = []
+    for row, gap in measured:
+        allowed = _allowed_title_leader_gap_pt(gap, layout)
+        if gap.gap_pt > allowed:
+            gap_violations.append((row, gap, allowed))
+
+    if gap_violations:
+        row, gap, allowed = max(gap_violations, key=lambda item: item[1].gap_pt - item[2])
+        details = _details_with_affected_entry_preview(
+            {
+                "page_number": str(context.page.page_number),
+                "page_type": context.page_type,
+                "issue_type": "title_to_leader_gap_too_wide",
+                "affected_entry_count": str(len(gap_violations)),
+                "worst_delta_pt": f"{gap.gap_pt:.1f}",
+                "observed_gap_pt": f"{gap.gap_pt:.1f}",
+                "allowed_gap_pt": f"{allowed:.1f}",
+                "space_width_pt": f"{gap.space_width_pt:.1f}",
+                "observed_gap_spaces": f"{gap.gap_pt / gap.space_width_pt:.1f}"
+                if gap.space_width_pt > 0
+                else "",
+                "leader_layout": layout,
+                "confidence": "medium",
+            },
+            _make_entry_from_line(row, _row_text(row)),
+        )
+        page_issue_findings["title_to_leader_gap_too_wide"] = AuditFinding(
+            rule_id="P018",
+            severity=Severity.WARNING,
+            page=context.page.page_number,
+            message=(
+                "Leader dots do not start right after the end of the entry title."
+            ),
+            details=details,
+        )
+
+    if early_leaders:
+        row, final_row = early_leaders[0]
+        details = _details_with_affected_entry_preview(
+            {
+                "page_number": str(context.page.page_number),
+                "page_type": context.page_type,
+                "issue_type": "leader_dots_before_final_title_line",
+                "affected_entry_count": str(len(early_leaders)),
+                "confidence": "low",
+            },
+            _make_entry_from_line(row, _row_text(row)),
+        )
+        details["bbox"] = format_bbox_detail(_union_bbox(row.bbox, final_row.bbox))
+        page_issue_findings["leader_dots_before_final_title_line"] = AuditFinding(
+            rule_id="P018",
+            severity=Severity.WARNING,
+            page=context.page.page_number,
+            message=(
+                "Leader dots appear on an earlier line of a wrapped entry title "
+                "instead of after its final line."
+            ),
+            details=details,
+        )
+
+
+def _add_entry_consistency_findings(
+    context: TocPageContext,
+    entries: list[TocEntryLine],
+    page_issue_findings: dict[str, AuditFinding],
+) -> None:
+    """Peer-relative checks: page-number column, presence, leader dots, indent."""
+
+    entry_positions: dict[TocEntryLine, int] = {
+        entry: idx for idx, entry in enumerate(entries)
+    }
+
+    entries_with_page_num = [
+        entry
+        for entry in entries
+        if entry.page_number_right_x is not None
+        # Column-alignment compares dedicated right-column number spans.
+        # Trailing digits embedded in a long title span are still valid page
+        # numbers for presence checks, but their span x1 is not the column.
+        and _right_column_page_number_span(entry.line) is not None
+    ]
+    entries_missing_page_num = [
+        entry
+        for entry in entries
+        if entry.page_number_right_x is None
+        and not is_toc_structural_column_label(entry.cleaned_text)
+        # Wrap continuations (no section/Figure/Table prefix) are not
+        # independent entries; do not treat them as "missing page number".
+        and (
+            _has_prefix_entry_shape(entry.cleaned_text) or entry.has_leader_dots
+        )
+    ]
+
+    if len(entries_with_page_num) >= 3:
+        right_edges = [
+            entry.page_number_right_x
+            for entry in entries_with_page_num
+            if entry.page_number_right_x is not None
+        ]
+        if len(right_edges) < 3:
+            return
+        median_right_edge = median(right_edges)
+        deltas = [abs(edge - median_right_edge) for edge in right_edges]
+        misaligned_count = sum(1 for delta in deltas if delta > RIGHT_EDGE_TOLERANCE_PT)
+        if misaligned_count > 0:
+            worst_entry = entries_with_page_num[deltas.index(max(deltas))]
+            page_issue_findings["misaligned_page_number_column"] = AuditFinding(
+                rule_id="P018",
+                severity=Severity.WARNING,
+                page=context.page.page_number,
+                message=(
+                    "TOC/List page-number column appears misaligned across multiple entries."
+                ),
+                details=_details_with_affected_entry_preview(
+                    {
+                        "page_number": str(context.page.page_number),
+                        "page_type": context.page_type,
+                        "issue_type": "misaligned_page_number_column",
+                        "affected_entry_count": str(misaligned_count),
+                        "worst_entry_index": str(entry_positions[worst_entry]),
+                        "worst_delta_pt": f"{max(deltas):.1f}",
+                        "confidence": "high",
+                    },
+                    worst_entry,
+                ),
+            )
+
+    if entries_missing_page_num:
+        worst_entry = entries_missing_page_num[0]
+        page_issue_findings["missing_page_number"] = AuditFinding(
+            rule_id="P018",
+            severity=Severity.WARNING,
+            page=context.page.page_number,
+            message="TOC/List contains likely entries with missing page numbers.",
+            details=_details_with_affected_entry_preview(
+                {
+                    "page_number": str(context.page.page_number),
+                    "page_type": context.page_type,
+                    "issue_type": "missing_page_number",
+                    "affected_entry_count": str(len(entries_missing_page_num)),
+                    "worst_entry_index": str(entry_positions[worst_entry]),
+                    "confidence": "medium",
+                },
+                worst_entry,
+            ),
+        )
+
+    dotted_count = sum(1 for entry in entries if entry.has_leader_dots)
+    dot_majority = dotted_count >= max(3, int(len(entries) * 0.6))
+    if dot_majority and len(entries) >= MIN_ENTRIES_FOR_DOT_STYLE:
+        missing_dots_entries = [
+            entry
+            for entry in entries
+            if entry.page_number_right_x is not None and not entry.has_leader_dots
+        ]
+        if missing_dots_entries:
+            worst_entry = _select_worst_leader_dots_entry(
+                entries, missing_dots_entries, entry_positions
+            )
+            page_issue_findings["inconsistent_leader_dots"] = AuditFinding(
+                rule_id="P018",
+                severity=Severity.WARNING,
+                page=context.page.page_number,
+                message="TOC/List entries show inconsistent visible leader-dot usage.",
+                details=_details_with_affected_entry_preview(
+                    {
+                        "page_number": str(context.page.page_number),
+                        "page_type": context.page_type,
+                        "issue_type": "inconsistent_leader_dots",
+                        "affected_entry_count": str(len(missing_dots_entries)),
+                        "worst_entry_index": str(entry_positions[worst_entry]),
+                        "confidence": "medium",
+                        "source_q_rule_id": "Q052",
+                    },
+                    worst_entry,
+                ),
+            )
+
+    entries_with_indent = [
+        entry for entry in entries if entry.page_number_right_x is not None
+    ]
+    indent_outlier_pairs = _find_hierarchy_indent_outliers(entries_with_indent)
+    if indent_outlier_pairs:
+        worst_entry, worst_delta = max(indent_outlier_pairs, key=lambda pair: pair[1])
+        confidence = (
+            "medium" if worst_delta >= HIERARCHY_INDENT_MEDIUM_CONFIDENCE_PT else "low"
+        )
+        page_issue_findings["inconsistent_hierarchy_indent"] = AuditFinding(
+            rule_id="P018",
+            severity=Severity.WARNING,
+            page=context.page.page_number,
+            message=(
+                "This TOC entry's left indent does not match other entries at the "
+                "same hierarchy level."
+            ),
+            details=_details_with_affected_entry_preview(
+                {
+                    "page_number": str(context.page.page_number),
+                    "page_type": context.page_type,
+                    "issue_type": "inconsistent_hierarchy_indent",
+                    "affected_entry_count": str(len(indent_outlier_pairs)),
+                    "worst_entry_index": str(entry_positions[worst_entry]),
+                    "worst_delta_pt": f"{worst_delta:.1f}",
+                    "confidence": confidence,
+                },
+                worst_entry,
+            ),
+        )
+
+
 def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P018 warnings for strong likely TOC/List alignment issues."""
 
     findings: list[AuditFinding] = []
 
     for context in detect_toc_like_pages(pdf_document):
-        entries = extract_toc_entry_lines(context)
-        if len(entries) < 3:
-            continue
-
         page_issue_findings: dict[str, AuditFinding] = {}
-        entry_positions: dict[TocEntryLine, int] = {
-            entry: idx for idx, entry in enumerate(entries)
-        }
+        rows = collect_toc_visual_rows(context)
+        _add_leader_placement_findings(context, rows, page_issue_findings)
+        if context.page_type == "table_of_contents":
+            _add_wrapped_title_alignment_finding(context, rows, page_issue_findings)
 
-        entries_with_page_num = [
-            entry
-            for entry in entries
-            if entry.page_number_right_x is not None
-            # Column-alignment compares dedicated right-column number spans.
-            # Trailing digits embedded in a long title span are still valid page
-            # numbers for presence checks, but their span x1 is not the column.
-            and _right_column_page_number_span(entry.line) is not None
-        ]
-        entries_missing_page_num = [
-            entry
-            for entry in entries
-            if entry.page_number_right_x is None
-            and not is_toc_structural_column_label(entry.cleaned_text)
-            # Wrap continuations (no section/Figure/Table prefix) are not
-            # independent entries; do not treat them as "missing page number".
-            and (
-                _has_prefix_entry_shape(entry.cleaned_text) or entry.has_leader_dots
-            )
-        ]
-
-        if len(entries_with_page_num) >= 3:
-            right_edges = [
-                entry.page_number_right_x
-                for entry in entries_with_page_num
-                if entry.page_number_right_x is not None
-            ]
-            if len(right_edges) < 3:
-                continue
-            median_right_edge = median(right_edges)
-            deltas = [abs(edge - median_right_edge) for edge in right_edges]
-            misaligned_count = sum(1 for delta in deltas if delta > RIGHT_EDGE_TOLERANCE_PT)
-            if misaligned_count > 0:
-                worst_entry = entries_with_page_num[deltas.index(max(deltas))]
-                page_issue_findings["misaligned_page_number_column"] = AuditFinding(
-                    rule_id="P018",
-                    severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message=(
-                        "TOC/List page-number column appears misaligned across multiple entries."
-                    ),
-                    details=_details_with_affected_entry_preview(
-                        {
-                            "page_number": str(context.page.page_number),
-                            "page_type": context.page_type,
-                            "issue_type": "misaligned_page_number_column",
-                            "affected_entry_count": str(misaligned_count),
-                            "worst_entry_index": str(entry_positions[worst_entry]),
-                            "worst_delta_pt": f"{max(deltas):.1f}",
-                            "confidence": "high",
-                        },
-                        worst_entry,
-                    ),
-                )
-
-        if entries_missing_page_num:
-            worst_entry = entries_missing_page_num[0]
-            page_issue_findings["missing_page_number"] = AuditFinding(
-                rule_id="P018",
-                severity=Severity.WARNING,
-                page=context.page.page_number,
-                message="TOC/List contains likely entries with missing page numbers.",
-                details=_details_with_affected_entry_preview(
-                    {
-                        "page_number": str(context.page.page_number),
-                        "page_type": context.page_type,
-                        "issue_type": "missing_page_number",
-                        "affected_entry_count": str(len(entries_missing_page_num)),
-                        "worst_entry_index": str(entry_positions[worst_entry]),
-                        "confidence": "medium",
-                    },
-                    worst_entry,
-                ),
-            )
-
-        dotted_count = sum(1 for entry in entries if entry.has_leader_dots)
-        dot_majority = dotted_count >= max(3, int(len(entries) * 0.6))
-        if dot_majority and len(entries) >= MIN_ENTRIES_FOR_DOT_STYLE:
-            missing_dots_entries = [
-                entry
-                for entry in entries
-                if entry.page_number_right_x is not None and not entry.has_leader_dots
-            ]
-            if missing_dots_entries:
-                worst_entry = _select_worst_leader_dots_entry(
-                    entries, missing_dots_entries, entry_positions
-                )
-                page_issue_findings["inconsistent_leader_dots"] = AuditFinding(
-                    rule_id="P018",
-                    severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message="TOC/List entries show inconsistent visible leader-dot usage.",
-                    details=_details_with_affected_entry_preview(
-                        {
-                            "page_number": str(context.page.page_number),
-                            "page_type": context.page_type,
-                            "issue_type": "inconsistent_leader_dots",
-                            "affected_entry_count": str(len(missing_dots_entries)),
-                            "worst_entry_index": str(entry_positions[worst_entry]),
-                            "confidence": "medium",
-                            "source_q_rule_id": "Q052",
-                        },
-                        worst_entry,
-                    ),
-                )
-
-        entries_with_indent = [
-            entry for entry in entries if entry.page_number_right_x is not None
-        ]
-        indent_outlier_pairs = _find_hierarchy_indent_outliers(entries_with_indent)
-        if indent_outlier_pairs:
-            worst_entry, worst_delta = max(indent_outlier_pairs, key=lambda pair: pair[1])
-            confidence = (
-                "medium" if worst_delta >= HIERARCHY_INDENT_MEDIUM_CONFIDENCE_PT else "low"
-            )
-            page_issue_findings["inconsistent_hierarchy_indent"] = AuditFinding(
-                rule_id="P018",
-                severity=Severity.WARNING,
-                page=context.page.page_number,
-                message=(
-                    "This TOC entry's left indent does not match other entries at the "
-                    "same hierarchy level."
-                ),
-                details=_details_with_affected_entry_preview(
-                    {
-                        "page_number": str(context.page.page_number),
-                        "page_type": context.page_type,
-                        "issue_type": "inconsistent_hierarchy_indent",
-                        "affected_entry_count": str(len(indent_outlier_pairs)),
-                        "worst_entry_index": str(entry_positions[worst_entry]),
-                        "worst_delta_pt": f"{worst_delta:.1f}",
-                        "confidence": confidence,
-                    },
-                    worst_entry,
-                ),
-            )
+        entries = extract_toc_entry_lines(context)
+        if len(entries) >= 3:
+            _add_entry_consistency_findings(context, entries, page_issue_findings)
 
         for issue_type in (
             "misaligned_page_number_column",
             "missing_page_number",
             "inconsistent_leader_dots",
             "inconsistent_hierarchy_indent",
+            "wrapped_title_continuation_misaligned",
+            "title_to_leader_gap_too_wide",
+            "leader_dots_before_final_title_line",
         ):
             finding = page_issue_findings.get(issue_type)
             if finding is not None:
