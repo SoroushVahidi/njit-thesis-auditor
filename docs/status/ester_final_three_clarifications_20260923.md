@@ -5,8 +5,11 @@
 > the engineering response. The implementation was developed and validated on
 > branch `fix/ester-final-three-clarifications-20260923` and **merged to `main`
 > via PR #553** (squash commit `72c8e1f`; CI-tested source head `a2e843c`,
-> whose tree is identical to the merged tree). Not deployed. No e-mail was
-> sent and the reviewer workbook was not edited.
+> whose tree is identical to the merged tree). At the time of the
+> implementation/merge record, deployment had not yet been performed;
+> production deployment was subsequently completed on 2026-09-23 (19:29:49
+> EDT) at commit `153e819`, and R018R and R018S were verified live. No e-mail
+> was sent and the reviewer workbook was not edited.
 
 **Baseline:** `origin/main` @ `6196f7ed81ef0061aceafd86b80f0bd6462aa4f2`
 (merged through PR #549). Branch/worktree:

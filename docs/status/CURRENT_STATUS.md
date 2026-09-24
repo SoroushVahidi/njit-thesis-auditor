@@ -8,20 +8,25 @@ _Last updated: 2026-09-23. All rule work through R086/P086 is merged to
 `main`. Ester has now answered the final three open reviewer questions
 (R018, R026 Latin Modern, leader placement). Their implementation was merged
 to `main` via PR #553 (squash commit `72c8e1f`); R026 needed no detector
-change. Repository merge does not imply production deployment — see
+change. Production was deployed on 2026-09-23 at commit `153e819` (PR #554
+merge) and verified live, including public cards R018R/R018S. Repository
+merge does not imply production deployment — later `main` commits are not
+live until separately deployed and verified. See
 `docs/status/ester_final_three_clarifications_20260923.md`._
 
 ## Main and R036 Branch
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | `72c8e1f82316fd25979eac88d5bc25d1652c0441` (merged through PR #553) |
+| Current `origin/main` SHA | Not recorded here (it moves with every merge); obtain it from Git: `git rev-parse origin/main` |
+| Latest status-recorded implementation merge | PR #553, squash commit `72c8e1f82316fd25979eac88d5bc25d1652c0441` |
+| Production-verified deployment commit | `153e8196bcda681c1ddec21b2d50038d19ea6407` (PR #554 merge; post-merge CI run `35933276755` passed on Python 3.10/3.11/3.12) |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
 | R036 implementation/privacy-audited HEAD | `b277f34fe8ec7e01a32c83a1a23af82d5f7f8556`; superseded only by final documentation/privacy reconciliation |
 | R036 relation to `origin/main` after final documentation/privacy reconciliation | Merged |
-| Deployment | Not updated: PR #553 (`web_app.py` public cards R018R/R018S included) is merged to `main`, but no live service restart/deployment has been performed |
+| Deployment | Deployed 2026-09-23 19:29:49 EDT: live worktree `njit-thesis-auditor-clean-worktrees/live-current-main` detached and clean at `153e819`; `thesis-auditor-web.service` restarted successfully and healthy; `/version` on localhost and LAN (`128.235.41.222:8000`) reports `153e8196bcda681c1ddec21b2d50038d19ea6407`; `/`, `/healthz`, `/help`, `/rules` return 200; public cards R018R/R018S verified live; no tracebacks, import errors, bind failures, or restart loops in the service log. Any `main` commit after `153e819` is not live until separately deployed and verified |
 | Manifest status snapshot | `336b28c`; **3192 passed** |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
 | Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
@@ -509,8 +514,9 @@ Engineering status: all three `ENGINEERING_IMPLEMENTATION_COMPLETE` on `main`.
 R018 and leader placement were merged via PR #553 (squash commit `72c8e1f`,
 from CI-tested head `a2e843c` with an identical tree); public cards R018R and
 R018S are live in `main`. R026 was already accepted by the detector before
-#553, which pinned the policy with regression tests. Not deployed. Primary
-record:
+#553, which pinned the policy with regression tests. Deployed to production
+on 2026-09-23 at commit `153e819`; R018R and R018S verified live (see the
+Deployment row above). Primary record:
 `docs/status/ester_final_three_clarifications_20260923.md`.
 
 ## Next Work Sequence
