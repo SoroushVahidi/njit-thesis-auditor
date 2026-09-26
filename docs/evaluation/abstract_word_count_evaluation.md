@@ -8,8 +8,8 @@
 ## Rule Source
 
 Per NJIT formatting guidelines:
-- PhD dissertation abstract: **maximum 350 words**
-- Master's/MS abstract: **maximum 150 words**
+- PhD dissertation abstract: **maximum 400 words**
+- Master's/MS abstract: **maximum 200 words**
 
 ## Implementation Scope
 
@@ -27,7 +27,7 @@ P021 is implemented in two modes:
   - PhD signals: "dissertation", "doctoral", "Ph.D", "Doctor"
   - MS signals: "thesis", "master", "M.S.", "M.Eng"
   - "dissertation" takes precedence over "thesis" (NJIT PhD-specific term)
-  - Unknown: warns if count > 150 (low confidence) or > 350 (high confidence)
+  - Unknown: warns if count > 400 using the conservative PhD limit
 - Integrated into `njit-audit tex` command.
 
 ### PDF Mode (`check_pdf_abstract_word_count`)
@@ -38,7 +38,7 @@ P021 is implemented in two modes:
 - Word count uses the same conservative tokenizer.
 - Degree type inferred from early PDF pages (first 5 pages):
   - Same signals as LaTeX mode.
-  - Defaults to PhD limit (350) when type is unknown.
+  - Defaults to PhD limit (400) when type is unknown.
 - Only checks the first abstract page — multi-page abstracts are undercounted.
 - Integrated into `njit-audit pdf` command.
 
@@ -59,8 +59,8 @@ P021 is implemented in two modes:
    words at hyphenation points; the count is approximate.
 
 5. **Unknown degree → conservative default:** When degree type cannot be
-   inferred, the check uses the PhD limit (350) to avoid penalizing PhD students.
-   MS students with 151–350-word abstracts in unknown-type PDFs would not be
+   inferred, the check uses the PhD limit (400) to avoid penalizing PhD students.
+   MS students with 201–400-word abstracts in unknown-type PDFs would not be
    flagged at high confidence.
 
 ## Synthetic Test Summary
@@ -69,13 +69,13 @@ LaTeX-side tests (in `tests/test_latex_rules.py`):
 
 | Test | Result |
 |------|--------|
-| PhD abstract ≤350 words | No P021 |
-| PhD abstract >350 words | P021 WARNING, degree=phd, limit=350 |
-| MS abstract ≤150 words | No P021 |
-| MS abstract >150 words | P021 WARNING, degree=ms, limit=150 |
+| PhD abstract ≤400 words | No P021 |
+| PhD abstract >400 words | P021 WARNING, degree=phd, limit=400 |
+| MS abstract ≤200 words | No P021 |
+| MS abstract >200 words | P021 WARNING, degree=ms, limit=200 |
 | LaTeX macros/citations: short abstract | No P021 (macros stripped) |
-| Unknown degree, count >350 | P021 WARNING, degree=unknown, high confidence |
-| Unknown degree, 151–350 words | P021 WARNING, degree=unknown, confidence=low |
+| Unknown degree, count >400 | P021 WARNING, degree=unknown |
+| Unknown degree, 201–400 words | No P021 under conservative unknown-degree default |
 | No abstract block | No P021 (empty → skip) |
 | Malformed LaTeX abstract | No crash |
 
@@ -87,8 +87,8 @@ PDF-side tests (in `tests/test_pdf_rules.py`):
 
 | Test | Result |
 |------|--------|
-| PDF abstract ≤350 words | No P021 |
-| PDF abstract >350 words (dense lines) | P021 WARNING |
+| PDF abstract ≤400 words | No P021 |
+| PDF abstract >400 words (dense lines) | P021 WARNING |
 | No ABSTRACT heading present | No P021 |
 | P021 finding contains expected detail fields | ✓ |
 | CLI `pdf` command produces P021 output | ✓ |
@@ -101,8 +101,8 @@ No body text is included.
 |--------|------|:----------:|-------|
 | `examples/latex/good_minimal_thesis` | LaTeX | 0 | Inferred PhD, short abstract, within limit |
 | `examples/latex/njit_style_synthetic_thesis` | LaTeX | 0 | Inferred MS, short synthetic abstract, within limit |
-| `Yin_Haotian_Second_R_with_EF_Feedback.pdf` | PDF | 0 | Abstract within PhD limit (350) |
-| `250218 Cibaku Elson First Review.pdf` | PDF | 0 | Abstract within PhD limit (350) |
+| `Yin_Haotian_Second_R_with_EF_Feedback.pdf` | PDF | 0 | Abstract within PhD limit (400) |
+| `250218 Cibaku Elson First Review.pdf` | PDF | 0 | Abstract within PhD limit (400) |
 
 All evaluated files produce 0 P021 findings, which is expected — real dissertations
 that have already passed at least a first review should have word-count-compliant
@@ -111,7 +111,7 @@ abstracts. P021 is most useful as a pre-submission check on draft submissions.
 ## Coverage Update
 
 This rule closes the gap identified in `docs/status/rule_coverage_audit.md`
-as "Abstract word-count limits: PhD ≤350, MS ≤150".
+as "Abstract word-count limits: PhD ≤400, MS ≤200".
 
 The Q-rule inventory (Q001–Q079) does not include a dedicated word-count rule;
 P021 is a project-added rule that directly reflects the guideline requirements.

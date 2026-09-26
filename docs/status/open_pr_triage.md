@@ -729,7 +729,7 @@ and merged in any order, though **#434 first** is lowest-risk since it touches n
 
 | Item | Why it's a policy question, not a PR |
 |---|---|
-| P021 abstract word-count limits | Ester sheet (200/400) conflicts with current detector constants (150/350) — needs a human/Ester decision, recorded in `ester_policy_review_p021_p026.md`, before any PR is opened |
+| P021 abstract word-count limits | Resolved: current detector constants and student-facing wording use MS ≤200 / PhD ≤400 |
 | P026 accepted font families | Detector accepts more families (Latin Modern, serif aliases) than Ester's literal 3-name list — same policy-review doc, same "confirm before changing" status |
 
 ## Older open PRs — unchanged, still paused

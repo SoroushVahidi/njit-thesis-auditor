@@ -14,7 +14,7 @@ Implemented capabilities:
 - recursive `\input{}` and `\include{}` loading
 - abstract forbidden-term detection (with `pylatexenc`-based LaTeX-to-text cleanup)
 - abstract first-person pronoun detection (with `pylatexenc`-based LaTeX-to-text cleanup)
-- abstract word-count validation with degree-type inference (PhD ≤350, MS ≤150)
+- abstract word-count validation with degree-type inference (PhD ≤400, MS ≤200)
 - graduation month heuristic checks
 - required TeX structure presence checks
 - risky formatting command checks

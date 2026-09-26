@@ -3,6 +3,8 @@
 > **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
 > Open-PR tables and UI-behavior notes below reflect a 2026-07-03 audit baseline. For the
 > current state, see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+> Its P021 150/350-limit discussion is superseded; current P021 policy is MS ≤200
+> words and PhD ≤400 words.
 
 > **Purpose:** Documentation-only audit of how the current auditor (both
 > student-facing wording and actual detector/display behavior) compares

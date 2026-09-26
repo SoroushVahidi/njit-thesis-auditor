@@ -11,6 +11,8 @@
 >
 > **Historical note:** This document predates the final #9 cleanup snapshot (2026-07-05).
 > For the current state, see [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+> Its P021 150/350 policy-conflict notes are superseded; current P021 policy is
+> MS ≤200 words and PhD ≤400 words.
 
 **Inspection basis (read-only):**
 

@@ -30,6 +30,7 @@ from njit_auditor.rules.pdf_captions import (
     _P017_Q_RULE_MAP,
     check_pdf_captions,
 )
+from njit_auditor.rules.pdf_lot_terminal_period import check_pdf_lot_terminal_period
 from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
@@ -287,20 +288,13 @@ def test_p024_lot_title_case_carries_q065() -> None:
         )
 
 
-def test_p024_lot_terminal_period_carries_q065() -> None:
-    """P024 unexpected_terminal_punctuation (LoT) must carry source_q_rule_id=Q065."""
+def test_p053_lot_terminal_period_carries_q065() -> None:
+    """P053 LoT terminal-period findings must carry source_q_rule_id=Q065."""
     doc = _doc(_make_lot_page_with_title_case_issue())
-    findings = check_pdf_toc_list_formatting(doc)
-    # Also check the terminal period variant
-    lot_terminal = [
-        f for f in findings
-        if f.rule_id == "P024"
-        and f.details.get("issue_type") == "unexpected_terminal_punctuation"
-        and f.details.get("page_type") == "list_of_tables"
-    ]
+    lot_terminal = [f for f in check_pdf_lot_terminal_period(doc) if f.rule_id == "P053"]
     for f in lot_terminal:
         assert f.details.get("source_q_rule_id") == "Q065", (
-            f"P024 LoT unexpected_terminal_punctuation must have source_q_rule_id=Q065; "
+            f"P053 lot_entry_has_terminal_period must have source_q_rule_id=Q065; "
             f"got {f.details.get('source_q_rule_id')!r}"
         )
 

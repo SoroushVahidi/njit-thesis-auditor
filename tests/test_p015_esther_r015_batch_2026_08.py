@@ -261,17 +261,27 @@ def test_unexpected_indent_on_continuation_line_still_flagged_without_remnant() 
     """A genuinely mis-indented continuation line (no row-split involved at
     all) must still be flagged -- the fix targets the extraction artifact,
     not continuation-line detection generally."""
+    opening_para = [
+        _line(
+            "Prior sentence establishing a displayed equation context here.",
+            x0=144.0,
+            y0=40.0,
+            y1=52.0,
+        ),
+        _line(_CONT, x0=108.0, y0=54.0, y1=66.0),
+        _line(_CONT, x0=108.0, y0=68.0, y1=80.0),
+    ]
     para = [
         _line(
             "where q denotes the closest point on the surface in this test.",
             x0=144.0,
-            y0=80.0,
-            y1=92.0,
+            y0=130.0,
+            y1=142.0,
         ),
-        _line(_CONT, x0=108.0, y0=94.0, y1=106.0),
-        _line(_CONT, x0=108.0, y0=108.0, y1=120.0),
+        _line(_CONT, x0=108.0, y0=144.0, y1=156.0),
+        _line(_CONT, x0=108.0, y0=158.0, y1=170.0),
     ]
-    doc = _doc(_page(34, _block(*para)))
+    doc = _doc(_page(34, _block(*opening_para), _block(*para)))
     findings = [
         f
         for f in check_pdf_indentation(doc)

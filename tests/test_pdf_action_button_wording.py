@@ -205,7 +205,7 @@ def _explanation_only_finding() -> AuditFinding:
         severity=Severity.WARNING,
         page=None,
         message="Abstract word count exceeded.",
-        details={"word_count": "420", "limit": "350"},
+        details={"word_count": "420", "limit": "400"},
     )
 
 

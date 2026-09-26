@@ -667,6 +667,7 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
             if (
                 idx not in heading_exempt
                 and idx not in split_heading_exempt
+                and idx >= 1
                 and _paragraph_starts_like_continuation(paragraph)
                 and not _paragraph_starts_like_bracketed_marker(paragraph)
                 and not _paragraph_is_algorithm_or_code_like(paragraph)

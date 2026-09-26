@@ -345,7 +345,7 @@
     "id": "P020",
     "section": "PDF title and heading capitalization",
     "question": "Do title-like PDF lines follow NJIT title-case capitalization heuristics?",
-    "rule_definition": "Heuristically detect obvious title-case violations in title-like PDF text regions. Per NJIT guidelines, Level 2 headings (X.x) and table titles use Title Case: each word capitalized except short articles, prepositions, and conjunctions. Checked for bold heading-like lines and table caption title bodies. Not applied to body paragraphs, figure captions (sentence case), Level 3+ headings (sentence case), references pages, or all-caps front-matter labels.",
+    "rule_definition": "Heuristically detect obvious title-case violations in title-like PDF text regions. Per NJIT guidelines, Level 2 headings (X.x) use Title Case: each word capitalized except short articles, prepositions, and conjunctions. Checked for bold heading-like lines. Table-title formatting is owned by the dedicated caption and list-formatting checks. Not applied to body paragraphs, figure captions (sentence case), table captions, Level 3+ headings (sentence case), references pages, or all-caps front-matter labels.",
     "remediation": "Review flagged title-like lines for NJIT title case: capitalize the first word and all major words, and all words after subtitle separators. Articles (a, an, the), conjunctions (and, but, or, for, nor, as, yet, so), and prepositions (including longer ones such as with, from, into, between, through, without) may remain lowercase in the middle. Always check the heading in your original source document (Word or Overleaf) rather than relying solely on the PDF text extraction.",
     "severity": "warning",
     "source_file": "project_added",
@@ -357,14 +357,14 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_title_capitalization",
     "priority": "medium",
-    "notes": "Conservative heuristic; applies only to bold headings and table titles. Preserves all-caps acronyms (PDF, AI, NJIT). Skips hyphenated words and math tokens. Sources: data/raw/guidelines/Titles Examples Level 1 to 5.docx; data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx."
+    "notes": "Conservative heuristic; applies only to bold headings. Table-title formatting is owned by the dedicated caption and list-formatting checks. Preserves all-caps acronyms (PDF, AI, NJIT). Skips hyphenated words and math tokens. Sources: data/raw/guidelines/Titles Examples Level 1 to 5.docx; data/raw/guidelines/Thesis and Dissertation Formatting Guidelines (WIP).docx."
   },
   {
     "id": "P021",
     "section": "Abstract word count",
     "question": "Does the abstract exceed the NJIT word-count limit for the detected degree type?",
-    "rule_definition": "PhD abstract maximum: 350 words. MS/Master abstract maximum: 150 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
-    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤350 words. MS: ≤150 words.",
+    "rule_definition": "PhD abstract maximum: 400 words. MS/Master abstract maximum: 200 words. Degree type is inferred from source text (LaTeX) or PDF text layer. Word count uses conservative tokenization (letter-containing tokens only). Implemented for both LaTeX source and compiled PDF.",
+    "remediation": "Shorten the abstract to within the applicable limit. PhD: ≤400 words. MS: ≤200 words.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",

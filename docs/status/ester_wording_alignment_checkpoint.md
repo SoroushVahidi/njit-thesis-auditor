@@ -12,6 +12,8 @@
 > [ester_next_wording_slice_plan.md](ester_next_wording_slice_plan.md)
 
 This is a documentation-only checkpoint. It does not change source behavior.
+Its P021 150/350 policy-conflict notes are historical and superseded; current
+P021 policy is MS ≤200 words and PhD ≤400 words.
 
 ---
 

@@ -90,7 +90,7 @@ The finding details include `word_count`, `limit`, and `inferred_degree_type` bu
 substitutes the actual observed count and limit values.
 
 Example explanation:
-> The abstract appears to contain 420 words. For the detected degree type (PhD), the allowed maximum is 350 words. This is 70 words over the limit. Note: if the abstract spans multiple pages, the word count shown may be an undercount. Review the abstract text and shorten it before submission.
+> The abstract appears to contain 450 words. For the detected degree type (PhD), the allowed maximum is 400 words. This is 50 words over the limit. Note: if the abstract spans multiple pages, the word count shown may be an undercount. Review the abstract text and shorten it before submission.
 
 **P012 (annotations):**
 Already stores `rect` in details; parsed as a drawable bbox by `_parse_bbox_from_details`.

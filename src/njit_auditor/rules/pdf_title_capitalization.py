@@ -1,7 +1,7 @@
 """Heuristic title-case capitalization checks for PDF title-like and heading-like text.
 
 Scope: title-like lines only — Level 2 headings (bold, title case expected per NJIT
-guidelines), table title lines, and List of Tables entries.
+guidelines) and List of Tables entries.
 Not applied to body paragraphs, Level 3+ sentence-case headings, figure captions,
 references pages, or all-caps front-matter labels.
 
@@ -9,7 +9,7 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines; Titles Examples Leve
   - Level 1 (chapter): ALL CAPS bold centered — already checked by P014.
   - Level 2 (X.x): Title Case bold — checked by P020.
   - Level 3–5: Sentence case — NOT checked by P020 (sentence case is expected).
-  - Table titles: Title Case — checked by P020.
+  - Table titles: Title Case — checked by P017/P024.
   - Figure descriptions: Sentence case — NOT checked by P020.
 """
 
@@ -349,6 +349,15 @@ def _is_statistical_notation_word(text: str, word: str, start: int, end: int) ->
     )
 
 
+_HYPHEN_CHARS = "-‐‑‒–—"
+
+
+def _has_recent_hyphen_before(text: str, start: int) -> bool:
+    """True when only extraction whitespace separates this word from a hyphen."""
+    prefix = text[:start].rstrip()
+    return bool(prefix) and prefix[-1] in _HYPHEN_CHARS
+
+
 def check_apa_title_case_phrase(
     text: str, *, skip_hyphenated_fragments: bool = False
 ) -> list[dict[str, str]]:
@@ -382,7 +391,7 @@ def check_apa_title_case_phrase(
         # scientific name) may be omitted by the word tokenizer, leaving only
         # the suffix as an apparent standalone English word. This opt-in is
         # used by P024's List of Tables path; P020 keeps its existing behavior.
-        if skip_hyphenated_fragments and start > 0 and text[start - 1] in "-‐‑‒–—":
+        if skip_hyphenated_fragments and _has_recent_hyphen_before(text, start):
             continue
 
         # Skip letter fragments glued to digits (10k / 5k / 1k).
@@ -597,7 +606,6 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
     Detect title-like lines for NJIT title-case checking.
 
     Includes:
-    - Table caption/title bodies (Level 2 title case expected per NJIT guidelines).
     - List of Tables entries (title case expected).
     - Bold heading-like lines that are not all-caps front-matter labels,
       not page numbers, and not on references or TOC pages.
@@ -615,29 +623,14 @@ def detect_pdf_title_like_lines(pdf_document: PdfDocument) -> list[TitleLikeLine
     working_doc = without_wrapper_pages(pdf_document, wrapper_pages)
     results: list[TitleLikeLine] = []
 
-    # 1. Table caption/title bodies only (figure captions use sentence case — skip).
     table_caption_bboxes_by_page: dict[int, list[BBox]] = {}
     for caption in detect_caption_lines(working_doc):
-        if caption.context in {"references", "toc"}:
-            continue
-        # NJIT: table titles are title case; figure descriptions are sentence case.
-        if caption.caption_type != "table":
-            continue
-        if caption.bbox is not None:
+        if caption.caption_type == "table" and caption.bbox is not None:
             table_caption_bboxes_by_page.setdefault(caption.page_number, []).append(caption.bbox)
-        results.append(
-            TitleLikeLine(
-                page_number=caption.page_number,
-                check_text=caption.caption_body,
-                line_preview=caption.raw_text[:MAX_PREVIEW_LEN],
-                source="caption",
-                bbox=caption.bbox,
-            )
-        )
 
     body_size = _estimate_document_body_size(working_doc)
 
-    # 2. Bold heading-like lines (Level 2 and similar title-case headings).
+    # Bold heading-like lines (Level 2 and similar title-case headings).
     for page in working_doc.pages:
         page_ctx = _page_context_type(page)
         if page_ctx in {"references", "toc"}:
@@ -787,7 +780,7 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
     One finding per title-like line with at least one clear violation.
     Reports the first (most significant) issue per line to avoid flooding.
 
-    Based on NJIT guidelines: Level 2 headings and table titles use Title Case
+    Based on NJIT guidelines: Level 2 headings use Title Case
     (each word capitalized except short articles, conjunctions, and prepositions).
     """
     findings: list[AuditFinding] = []

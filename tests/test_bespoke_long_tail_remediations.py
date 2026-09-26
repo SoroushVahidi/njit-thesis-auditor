@@ -113,7 +113,7 @@ def test_upgraded_issue_type_avoids_generic_polished_comment(
 ) -> None:
     details: dict[str, str] = {"caption_type": "table"}
     if issue_type == "abstract_word_count_exceeded":
-        details = {"word_count": "400", "limit": "350", "inferred_degree_type": "phd"}
+        details = {"word_count": "420", "limit": "400", "inferred_degree_type": "phd"}
     comment = build_polished_comment(
         rule_id=rule_id,
         issue_type=issue_type,

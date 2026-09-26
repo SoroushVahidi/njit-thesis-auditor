@@ -122,8 +122,8 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 | P017 | Captions | Caption/title punctuation and case signals |
 | P018 | TOC/List | TOC/list entry alignment (leaders, page-number column, hierarchy) |
 | P019 | Page numbers | Page-number sequence/style consistency |
-| P020 | Capitalization | Title-case check for Level 2 headings and table titles |
-| P021 | Abstract | Abstract word count (PhD ≤350, MS ≤150) |
+| P020 | Capitalization | Title-case check for Level 2 headings |
+| P021 | Abstract | Abstract word count (PhD ≤400, MS ≤200) |
 | P022 | Page numbers | No visible page number on Abstract/Title/Approval/Copyright pages |
 | P023 | Spacing | Body text double-spacing (line spacing ≥ 1.55× font size) |
 | P024 | TOC/List | TOC/LoT/LoF entry capitalization and terminal punctuation |

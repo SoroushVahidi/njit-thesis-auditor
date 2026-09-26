@@ -57,6 +57,12 @@ _SKIP_WORD_RE = re.compile(r"[0-9Α-ω+*/=<>^\\{}[\]()°]")
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
 
+_SCIENTIFIC_SEQUENCE_RE = re.compile(r"\b[A-Z]{4,}\b")
+_GLUED_SCIENTIFIC_TOKEN_RE = re.compile(r"\b[a-z]{2,}[A-Z][A-Za-z]*")
+_SCIENCE_NOMENCLATURE_RE = re.compile(
+    r"(?:\b(?:peptide|protein|cytochrome|bradykinin|casein)\b|β|m/z)",
+    re.IGNORECASE,
+)
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -79,6 +85,23 @@ def _strip_list_prefix(text: str) -> str:
     """Strip 'Table N.' or 'Figure N.' prefix from LoT/LoF entry text."""
     match = _LIST_PREFIX_RE.match(text)
     return text[match.end() :].strip() if match else text
+
+
+def _lot_title_case_is_unreliable(entry_text: str) -> bool:
+    """True for LoT entries dominated by scientific nomenclature/extraction tokens.
+
+    Protein/peptide sequences, m/z notation, Greek prefixes, and glued PDF text
+    (forGATLFK/fromCytochrome) make ordinary title-case word heuristics unsafe.
+    Require at least two independent signals so an ordinary title containing one
+    scientific word still remains eligible for P024.
+    """
+    signal_count = 0
+    if _SCIENTIFIC_SEQUENCE_RE.search(entry_text):
+        signal_count += 1
+    if _GLUED_SCIENTIFIC_TOKEN_RE.search(entry_text):
+        signal_count += 1
+    signal_count += min(2, len(_SCIENCE_NOMENCLATURE_RE.findall(entry_text)))
+    return signal_count >= 2
 
 
 def _build_indent_clusters(entries: list[TocEntryLine]) -> list[float]:
@@ -270,9 +293,11 @@ def _check_lot_page(
             continue
         if len(tokenize_title_words(entry_text)) < MIN_ENTRY_WORDS:
             continue
-        issues = check_apa_title_case_phrase(
-            entry_text, skip_hyphenated_fragments=True
-        )
+        issues = []
+        if not _lot_title_case_is_unreliable(entry_text):
+            issues = check_apa_title_case_phrase(
+                entry_text, skip_hyphenated_fragments=True
+            )
         if issues:
             first = issues[0]
             findings.append(
@@ -294,26 +319,6 @@ def _check_lot_page(
                         "bbox": format_bbox_detail(entry.line.bbox),
                         "expected_or_reason": first["reason"],
                         "confidence": first["confidence"],
-                        "source_q_rule_id": "Q065",
-                    },
-                )
-            )
-        if _TERMINAL_PERIOD_RE.search(entry_text):
-            findings.append(
-                AuditFinding(
-                    rule_id="P024",
-                    severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message="List of Tables entry appears to end with an unexpected period.",
-                    details={
-                        "page_number": str(context.page.page_number),
-                        "page_type": "list_of_tables",
-                        "issue_type": "unexpected_terminal_punctuation",
-                        "entry_index": str(entry_index),
-                        "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
-                        "bbox": format_bbox_detail(entry.line.bbox),
-                        "expected_or_reason": "Table titles in LoT should not end with a period",
-                        "confidence": "high",
                         "source_q_rule_id": "Q065",
                     },
                 )
