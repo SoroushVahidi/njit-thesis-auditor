@@ -444,9 +444,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "capitalization against NJIT caption-style guidance for this float type."
     ),
     ("P017", "possible_title_case_issue"): (
-        "Likely problem: A {caption_type} caption on page {page} appears to "
-        "violate title-case expectations. Capitalize the first word, last word, "
-        "and major words of four or more letters."
+        "Likely problem: A table title on page {page} appears to violate "
+        "NJIT title-case expectations. Capitalize the first word and major "
+        "words; leave prepositions, conjunctions, and articles lowercase "
+        "where appropriate, and do not end table titles with a period."
     ),
     # --- P018 TOC/LoT/LoF alignment ---
     ("P018", "misaligned_page_number_column"): (
@@ -839,7 +840,11 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P017", "unexpected_terminal_period"): "",
     ("P017", "missing_terminal_punctuation"): "",
     ("P017", "possible_sentence_case_issue"): "",
-    ("P017", "possible_title_case_issue"): "",
+    ("P017", "possible_title_case_issue"): (
+        "Edit the table title to title case: capitalize the first word and "
+        "major words; leave articles, prepositions, and conjunctions lowercase "
+        "where appropriate. Do not end the table title with a period."
+    ),
     ("P024", "toc_level_capitalization"): "",
     ("P024", "list_of_tables_title_case"): "",
     ("P024", "list_of_figures_sentence_case"): (

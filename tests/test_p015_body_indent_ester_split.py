@@ -202,27 +202,47 @@ def test_p015_flags_unexpected_indent_on_equation_continuation_line() -> None:
     defect distinct from both P015A (opening indent) and P015B (missing
     later indent).
     """
-    para = [
+    opening_para = [
         _line(
-            "where q denotes the closest point on the surface in this test.",
+            "Prior sentence establishing a displayed equation context here.",
             x0=144.0,
             y0=80.0,
             y1=92.0,
         ),
         _line(
-            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            "Continuation synthetic paragraph line text for indentation checks.",
             x0=108.0,
             y0=94.0,
             y1=106.0,
         ),
         _line(
-            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            "Continuation synthetic paragraph line text for indentation checks.",
             x0=108.0,
             y0=108.0,
             y1=120.0,
         ),
     ]
-    doc = _doc(_page(20, _block(*para)))
+    para = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=170.0,
+            y1=182.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=184.0,
+            y1=196.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=198.0,
+            y1=210.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*opening_para), _block(*para)))
     findings = [
         f
         for f in check_pdf_indentation(doc)
@@ -352,6 +372,40 @@ def test_p015_does_not_flag_mixed_case_led_new_paragraph_as_continuation(
     """
     para = [
         _line(opening_phrase, x0=144.0, y0=80.0, y1=92.0),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=94.0,
+            y1=106.0,
+        ),
+        _line(
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    doc = _doc(_page(20, _block(*para)))
+    findings = [
+        f
+        for f in check_pdf_indentation(doc)
+        if f.rule_id == "P015"
+        and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+    ]
+    assert not findings
+
+
+def test_p015_does_not_flag_page_opening_paragraph_as_continuation() -> None:
+    """A page-opening indented paragraph that happens to start with a lowercase
+    connector word is a new paragraph, not a same-page continuation line.
+    """
+    para = [
+        _line(
+            "where the reconstructed field remains valid for this test case.",
+            x0=144.0,
+            y0=80.0,
+            y1=92.0,
+        ),
         _line(
             "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do.",
             x0=108.0,

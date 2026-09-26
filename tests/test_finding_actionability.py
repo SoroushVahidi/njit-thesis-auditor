@@ -415,8 +415,8 @@ def test_document_level_findingview() -> None:
 
 def test_abstract_length_explanation_detailed() -> None:
     details = {
-        "word_count": "420",
-        "limit": "350",
+        "word_count": "450",
+        "limit": "400",
         "inferred_degree_type": "phd",
         "confidence": "medium",
     }
@@ -426,16 +426,16 @@ def test_abstract_length_explanation_detailed() -> None:
         details=details,
         page=3,
     )
-    assert "420" in explanation
-    assert "350" in explanation
-    assert "70" in explanation  # over_by = 420 - 350
+    assert "450" in explanation
+    assert "400" in explanation
+    assert "50" in explanation  # over_by = 450 - 400
     assert "PhD" in explanation
 
 
 def test_abstract_length_explanation_ms() -> None:
     details = {
-        "word_count": "180",
-        "limit": "150",
+        "word_count": "230",
+        "limit": "200",
         "inferred_degree_type": "ms",
         "confidence": "medium",
     }
@@ -445,8 +445,8 @@ def test_abstract_length_explanation_ms() -> None:
         details=details,
         page=3,
     )
-    assert "180" in explanation
-    assert "150" in explanation
+    assert "230" in explanation
+    assert "200" in explanation
     assert "30" in explanation  # over_by
     assert "MS" in explanation
 
@@ -463,8 +463,8 @@ def test_abstract_findingview_has_explanation() -> None:
             page=5,
             message="Abstract too long.",
             details={
-                "word_count": "400",
-                "limit": "350",
+                "word_count": "450",
+                "limit": "400",
                 "inferred_degree_type": "phd",
                 "confidence": "medium",
                 "caveat": "single-page only",
@@ -474,8 +474,8 @@ def test_abstract_findingview_has_explanation() -> None:
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = view.findings[0]
+    assert "450" in fv.detailed_explanation
     assert "400" in fv.detailed_explanation
-    assert "350" in fv.detailed_explanation
     assert "50" in fv.detailed_explanation  # over_by
     assert "PhD" in fv.detailed_explanation
     # No bbox available: original-page action only, never a fake highlight.
@@ -491,7 +491,7 @@ def test_abstract_no_fake_highlight(app: tuple[TestClient, Any]) -> None:
             severity=Severity.WARNING,
             page=3,
             message="Abstract too long.",
-            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+            details={"word_count": "450", "limit": "400", "inferred_degree_type": "phd"},
         )
     ]
     job_id = _inject_job(wa, findings)
@@ -511,7 +511,7 @@ def test_abstract_word_count_title_and_comment_are_specific_without_issue_type_k
             severity=Severity.WARNING,
             page=3,
             message="Abstract too long.",
-            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+            details={"word_count": "450", "limit": "400", "inferred_degree_type": "phd"},
         )
     ]
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
@@ -522,8 +522,8 @@ def test_abstract_word_count_title_and_comment_are_specific_without_issue_type_k
     )
     assert fv.polished_comment != "" and "This check (" not in fv.polished_comment
     assert "found a possible" not in fv.polished_comment
+    assert "450" in fv.polished_comment
     assert "400" in fv.polished_comment
-    assert "350" in fv.polished_comment
 
 
 def test_abstract_word_count_card_does_not_show_generic_review_title(
@@ -536,7 +536,7 @@ def test_abstract_word_count_card_does_not_show_generic_review_title(
             severity=Severity.WARNING,
             page=3,
             message="Abstract too long.",
-            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+            details={"word_count": "450", "limit": "400", "inferred_degree_type": "phd"},
         )
     ]
     job_id = _inject_job(wa, findings)
@@ -980,7 +980,7 @@ def test_rule_page_explanation_present(app: tuple[TestClient, Any]) -> None:
             severity=Severity.WARNING,
             page=5,
             message="Abstract too long.",
-            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+            details={"word_count": "450", "limit": "400", "inferred_degree_type": "phd"},
         )
     ]
     job_id = _inject_job(wa, findings)
@@ -1023,7 +1023,7 @@ def _build_parity_job(wa: Any) -> str:
             severity=Severity.WARNING,
             page=4,
             message="Abstract too long.",
-            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+            details={"word_count": "450", "limit": "400", "inferred_degree_type": "phd"},
         ),
     ]
     import json
@@ -1196,7 +1196,7 @@ def test_no_500_pdf_route_crawl(app: tuple[TestClient, Any]) -> None:
             severity=Severity.WARNING,
             page=4,
             message="Abstract too long.",
-            details={"word_count": "400", "limit": "350", "inferred_degree_type": "phd"},
+            details={"word_count": "450", "limit": "400", "inferred_degree_type": "phd"},
         ),
     ]
     job_id = _inject_job(wa, findings)

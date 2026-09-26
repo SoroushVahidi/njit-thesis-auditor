@@ -1,5 +1,10 @@
 # P021 and P026 Policy Review
 
+> **Superseded for P021:** The P021 abstract-limit question recorded here is
+> historical. Current policy is MS thesis abstract ≤200 words and PhD
+> dissertation abstract ≤400 words, and the live detector/catalog use those
+> limits. P026 notes in this document remain historical policy-review context.
+
 > **Purpose:** Record the exact policy questions that need Ester/human
 > confirmation before P021 (abstract word count) or P026 (body font
 > compliance) can be changed. This document is **documentation-only** — it

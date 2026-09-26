@@ -3201,26 +3201,25 @@ def test_p020_table_title_lowercase_with_not_flagged(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P020" for f in findings)
 
 
-def test_p020_genuine_table_caption_still_checked(tmp_path: Path) -> None:
-    """Real table captions remain in scope; true major-word errors still warn."""
-    pdf_path = tmp_path / "p020_table_major.pdf"
+def test_p017_genuine_table_caption_still_checked(tmp_path: Path) -> None:
+    """Real table captions remain in P017 scope; title-case errors still warn."""
+    pdf_path = tmp_path / "p017_table_major.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "Table 3.1 Quantitative results on Sparse Point Clouds",
+        "Table 3.1 Quantitative results on sparse point clouds and model inputs",
         fontsize=12,
         fontname="Times-Roman",
     )
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_title_capitalization(model)
-    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    findings = check_pdf_captions(model)
+    warning = next((f for f in findings if f.rule_id == "P017"), None)
     assert warning is not None
-    assert warning.details.get("source") == "caption"
-    assert warning.details.get("flagged_word") == "results"
-    assert warning.details.get("expected_or_reason") == "major_word_requires_capital"
+    assert warning.details.get("caption_type") == "table"
+    assert warning.details.get("issue_type") == "possible_title_case_issue"
 
 
 def test_p020_prose_table_reference_not_treated_as_caption(tmp_path: Path) -> None:
@@ -3481,24 +3480,24 @@ def test_p020_glued_in_power_systems_flags_visible_word(tmp_path: Path) -> None:
     assert "in power systems" in preview
 
 
-def test_p020_table_title_comparison_lowercase_still_warns(tmp_path: Path) -> None:
+def test_p017_table_title_comparison_lowercase_still_warns(tmp_path: Path) -> None:
     """Control: genuine table-title capitalization issues remain detectable."""
-    pdf_path = tmp_path / "p020_table_comparison.pdf"
+    pdf_path = tmp_path / "p017_table_comparison.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text(
         (108, 140),
-        "Table 4.2 Quantitative comparison on Spot, Bunny, and Duck",
+        "Table 4.2 Quantitative comparison for sparse point cloud model inputs",
         fontsize=12,
         fontname="Times-Roman",
     )
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
-    warning = next((f for f in check_pdf_title_capitalization(model) if f.rule_id == "P020"), None)
+    warning = next((f for f in check_pdf_captions(model) if f.rule_id == "P017"), None)
     assert warning is not None
-    assert warning.details.get("flagged_word") == "comparison"
-    assert warning.details.get("source") == "caption"
+    assert warning.details.get("caption_type") == "table"
+    assert warning.details.get("issue_type") == "possible_title_case_issue"
 
 
 def test_p020_prose_table_ref_with_determiner_clause_excluded(tmp_path: Path) -> None:
@@ -3621,23 +3620,23 @@ def test_p020_references_page_bold_line_ignored(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P020" for f in findings)
 
 
-def test_p020_table_title_lowercase_major_word_warns(tmp_path: Path) -> None:
-    pdf_path = tmp_path / "p020_table_bad.pdf"
+def test_p017_table_title_lowercase_major_word_warns(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p017_table_bad.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
-    # Table title uses title case per NJIT guidelines; "results" should be capitalized
     page.insert_text(
         (108, 140),
-        "Table 3.2 AI applications in Education",
+        "Table 3.2 AI applications for sparse point cloud education models",
         fontsize=12,
     )
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_title_capitalization(model)
-    warning = next((f for f in findings if f.rule_id == "P020"), None)
+    findings = check_pdf_captions(model)
+    warning = next((f for f in findings if f.rule_id == "P017"), None)
     assert warning is not None
-    assert warning.details.get("source") == "caption"
+    assert warning.details.get("caption_type") == "table"
+    assert warning.details.get("issue_type") == "possible_title_case_issue"
 
 
 def test_p020_table_title_with_sample_size_notation_not_flagged(tmp_path: Path) -> None:
@@ -4682,6 +4681,26 @@ def test_p024_lot_lowercase_major_word_warns(tmp_path: Path) -> None:
     )
 
 
+def test_p024_lot_single_scientific_word_still_checks_title_case(tmp_path: Path) -> None:
+    """A single scientific word is not enough to suppress a real LoT title-case issue."""
+    pdf_path = tmp_path / "lot_single_science_word_bad.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 peptide analysis for Experimental Samples ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_tables_title_case"
+        for f in findings
+    )
+
+
 def test_p024_lot_continued_heading_detected(tmp_path: Path) -> None:
     """LoT '(CONTINUED)' heading variant should still run list-format checks."""
     pdf_path = tmp_path / "lot_continued_bad.pdf"
@@ -4702,8 +4721,8 @@ def test_p024_lot_continued_heading_detected(tmp_path: Path) -> None:
     )
 
 
-def test_p024_lot_unexpected_terminal_period_warns(tmp_path: Path) -> None:
-    """LoT entry ending with a period must produce an unexpected_terminal_punctuation warning."""
+def test_p024_lot_terminal_period_owned_by_p053(tmp_path: Path) -> None:
+    """P024 must not duplicate LoT terminal-period findings owned by P053."""
     pdf_path = tmp_path / "lot_period.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -4717,13 +4736,16 @@ def test_p024_lot_unexpected_terminal_period_warns(tmp_path: Path) -> None:
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_toc_list_formatting(model)
-    assert any(
-        f.rule_id == "P024"
-        and f.details.get("issue_type") == "unexpected_terminal_punctuation"
-        and f.details.get("page_type") == "list_of_tables"
-        for f in findings
+    p024_findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "unexpected_terminal_punctuation"
+        for f in p024_findings
     )
+    p053_findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
+    assert len(p053_findings) == 3
+    assert {f.details.get("issue_type") for f in p053_findings} == {
+        "lot_entry_has_terminal_period"
+    }
 
 
 def test_p024_lof_sentence_case_correct_no_warning(tmp_path: Path) -> None:
@@ -4881,6 +4903,31 @@ def test_p024_lot_non_latin_hyphenated_term_is_not_split_for_title_case(
         "LIST OF TABLES",
         [
             ("Table 1 Measurement of β-casein concentration across samples ....", 108),
+            ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
+            ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024"
+        and f.details.get("issue_type") == "list_of_tables_title_case"
+        and "casein" in f.message
+        for f in findings
+    )
+
+
+def test_p024_lot_extraction_space_after_hyphen_not_split_for_title_case(
+    tmp_path: Path,
+) -> None:
+    """PDF extraction may insert whitespace after a hyphen; the suffix is still
+    a hyphenated fragment, not an independent lowercase major word."""
+    pdf_path = tmp_path / "lot_hyphen_space_fragment.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF TABLES",
+        [
+            ("Table 1 Measurement of beta- casein Concentration Across Samples ....", 108),
             ("Table 2 Summary of Regression Coefficients for Main Model ....", 108),
             ("Table 3 Comparison of Algorithm Performance Metrics ....", 108),
         ],
@@ -5057,10 +5104,12 @@ def test_p024_entry_index_present_for_lof_and_terminal_punctuation(tmp_path: Pat
     doc.save(lot_path)
     doc.close()
     model = load_pdf_layout(str(lot_path))
-    findings = check_pdf_toc_list_formatting(model)
-    period_findings = [
-        f for f in findings if f.details.get("issue_type") == "unexpected_terminal_punctuation"
-    ]
+    p024_findings = check_pdf_toc_list_formatting(model)
+    assert not any(
+        f.rule_id == "P024" and f.details.get("issue_type") == "unexpected_terminal_punctuation"
+        for f in p024_findings
+    )
+    period_findings = [f for f in check_pdf_lot_terminal_period(model) if f.rule_id == "P053"]
     assert len(period_findings) == 2
     entry_indexes = {f.details.get("entry_index") for f in period_findings}
     assert entry_indexes == {"0", "1"}

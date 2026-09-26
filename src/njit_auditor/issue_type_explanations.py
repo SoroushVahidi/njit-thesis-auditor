@@ -601,8 +601,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "be expected. Review caption capitalization against NJIT guidance."
     ),
     ("P017", "possible_title_case_issue"): (
-        "This means a caption may violate title-case expectations. Capitalize "
-        "the first word, last word, and major words of four or more letters."
+        "This means a table title may violate NJIT title-case expectations. "
+        "Capitalize the first word and major words; leave prepositions, conjunctions, "
+        "and articles lowercase where appropriate, and do not end table titles "
+        "with a period."
     ),
     ("P018", "misaligned_page_number_column"): (
         "This means a TOC or list entry page-number column does not align with "

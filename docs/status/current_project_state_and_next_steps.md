@@ -277,7 +277,7 @@ Wording-only alignment with existing Ester source materials and implemented dete
 |---|---|
 | P011 pt-level strictness, inch vs context remediation, image geometry | Presentation/threshold judgment |
 | P013/P019 candidate hiding and noise policy | Student-facing policy |
-| P021/P026 limits and font permissiveness | Documented policy conflict |
+| P026 font permissiveness | Documented policy conflict; P021 abstract limits are resolved at MS ≤200 / PhD ≤400 |
 | P014/P018/P019/P020 umbrella splits | Larger presentation work |
 | P035, P068 honorifics, references citation-style | Scope/semantic judgment |
 
@@ -300,7 +300,7 @@ Wording-only alignment with existing Ester source materials and implemented dete
 
 - **New doc:** [ester_source_consistency_audit_current.md](ester_source_consistency_audit_current.md) — rule-by-rule matrix vs Ester YES/NO matrix, Formatting Rules transcription, and EF comment examples.
 - **Scope:** criteria, language, strictness, evidence/highlights, UI/report flow; special focus on P011 post–PR #467.
-- **Top gaps:** P021/P026 policy conflicts; P013/P019 page-numbering noise; broad umbrella cards (P014/P018/P019/P020); P011 point-level strictness vs visual review; missing `formatting_rules.xlsx` mirror for automated audit script.
+- **Top gaps:** P026 policy conflict; P013/P019 page-numbering noise; broad umbrella cards (P014/P018/P019/P020); P011 point-level strictness vs visual review; missing `formatting_rules.xlsx` mirror for automated audit script. P021 abstract limits are resolved at MS ≤200 / PhD ≤400.
 - **Action:** audit-only — no detector, threshold, UI, or deployment changes.
 
 ---
@@ -1439,7 +1439,7 @@ including superseded "not run" states from before later gap-fill evaluations.
 | `latex_linters.py` | P009–P010 | chktex and lacheck integration (graceful skip if not installed) |
 | `latex_abstract.py` | Q004–Q005 | Abstract forbidden words ("paper"/"article") and first-person pronouns |
 | `latex_metadata.py` | Q006 | Graduation month validation (Aug/Dec/May) |
-| `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤350, MS ≤150) |
+| `abstract.py` | P021 (TeX) | Abstract word count (PhD ≤400, MS ≤200) |
 
 ### PDF Layout Audit (P011–P067)
 

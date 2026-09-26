@@ -1,5 +1,9 @@
 # Ester Source-of-Truth Consistency Audit (Current)
 
+> **Historical note:** This audit was current on 2026-07-05. Its P021
+> 150/350-limit discussion is superseded; current P021 policy is MS ≤200 words
+> and PhD ≤400 words.
+
 > **Purpose:** Rule-by-rule comparison of the **current** auditor (post–PR #467, `main` @
 > `668aa1b`) against Ester Flaim's shared files, transcribed specs, and extracted comment
 > examples — **before** any further detector, threshold, or UI changes.

@@ -373,30 +373,44 @@ def test_effective_row_start_x_ignores_bare_section_number_as_run_in_lead() -> N
 def test_unexpected_indent_on_continuation_line_still_flagged_with_unrelated_run_in_heading() -> (
     None
 ):
+    opening_para = [
+        _line(
+            "Prior sentence establishing a displayed equation context here.",
+            x0=144.0,
+            y0=40.0,
+            y1=52.0,
+        ),
+        _line(_CONT, x0=108.0, y0=54.0, y1=66.0),
+        _line(_CONT, x0=108.0, y0=68.0, y1=80.0),
+    ]
     continuation_para = [
         _line(
             "where q denotes the closest point on the surface in this test.",
             x0=144.0,
-            y0=80.0,
-            y1=92.0,
+            y0=130.0,
+            y1=142.0,
         ),
-        _line(_CONT, x0=108.0, y0=94.0, y1=106.0),
-        _line(_CONT, x0=108.0, y0=108.0, y1=120.0),
+        _line(_CONT, x0=108.0, y0=144.0, y1=156.0),
+        _line(_CONT, x0=108.0, y0=158.0, y1=170.0),
     ]
     heading_line = _bold_line(
-        "Synthetic run-in heading phrase", x0=108.0, x1=280.0, y0=150.0, y1=162.0
+        "Synthetic run-in heading phrase", x0=108.0, x1=280.0, y0=220.0, y1=232.0
     )
     body_lead_line = _regular_line(
         "Body prose begins on the same row as the heading here",
         x0=292.0,
         x1=540.0,
-        y0=150.0,
-        y1=162.0,
+        y0=220.0,
+        y1=232.0,
     )
-    run_in_para_rest = [_line(_CONT, x0=108.0, y0=y, y1=y + 12) for y in (174.0, 188.0)]
+    run_in_para_rest = [_line(_CONT, x0=108.0, y0=y, y1=y + 12) for y in (244.0, 258.0)]
 
     doc = _doc(
-        _page(45, _block(*continuation_para, heading_line, body_lead_line, *run_in_para_rest))
+        _page(
+            45,
+            _block(*opening_para),
+            _block(*continuation_para, heading_line, body_lead_line, *run_in_para_rest),
+        )
     )
     findings = [
         f

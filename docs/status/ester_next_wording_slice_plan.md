@@ -120,7 +120,7 @@ Classification key:
 
 | Rule | Classification | Rationale |
 |---|---|---|
-| **P021** | needs-policy-review | Abstract word-count limits conflict with Ester sheet (150/350 vs 200/400). **Do not touch.** |
+| **P021** | resolved | Abstract word-count limits now follow Ester policy (MS ≤200 / PhD ≤400). |
 | **P026** | needs-policy-review | Accepted font families / job fallback drift. **Do not touch.** |
 | **P014, P015, P017, P018, P019, P020, P025** | do-not-touch-now | Broad presentation-split rules — not wording-only. |
 | **P084, TOC-leader WIP** | do-not-touch-now | Local WIP; out of scope. |

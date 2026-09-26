@@ -180,7 +180,7 @@ def test_no_highlight_guidance_still_claims_no_location_when_none_is_known() -> 
         rule_id="P021",
         severity=Severity.WARNING,
         message="Abstract word count exceeded.",
-        details={"word_count": "420", "limit": "350"},
+        details={"word_count": "420", "limit": "400"},
     )
     view = build_report_view(audit_findings_to_json_dict([finding], {"audit_type": "pdf"}))
     assert view.findings[0].location_label == ""
@@ -242,22 +242,7 @@ def test_ester_sample_b_p015_mid_paragraph_false_positives_resolved() -> None:
 
 
 def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
-    """P015's page-23 same-baseline-fragment false positive stays fixed.
-
-    Page 23's original false positive had a layout-extraction root cause:
-    text extraction split one visual line into two same-baseline fragments,
-    which fooled paragraph grouping into treating the next real line as a new
-    (unindented) paragraph, reported as ``missing_later_indent``. See
-    ``_merge_same_row_fragments`` in src/njit_auditor/rules/pdf_indentation.py
-    and docs/status/ester_sample_b_p015_page23.md. That specific defect must
-    not reappear.
-
-    A separate, genuine ``unexpected_indent_on_continuation_line`` finding on
-    the page (an indented "where ..." clause continuing the sentence before a
-    displayed equation, matching Ester's own "delete indent" annotation there)
-    is expected and is not the same defect -- see
-    docs/status/sample_b_annotation_ground_truth_forensics_20260710.md.
-    """
+    """P015 emits no Sample B page-23 finding after Ester's reviewed FP."""
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
         return
@@ -268,8 +253,7 @@ def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
         f.issue_type for f in view.findings if f.rule_id == "P015" and f.page == 23
     }
 
-    assert "missing_later_indent" not in page_23_issue_types
-    assert page_23_issue_types == {"unexpected_indent_on_continuation_line"}
+    assert page_23_issue_types == set()
     # Page 34 is a separate, unconfirmed residual finding untouched by this fix.
     p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
     assert 34 in p015_pages
@@ -357,14 +341,7 @@ def test_ester_sample_b_p020_page71_third_level_heading_not_flagged() -> None:
 
 
 def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() -> None:
-    """P020's Sample B page 80 finding uses table-title-specific remediation.
-
-    Root cause: the short card-level wording (title_case_student_preview.py)
-    hardcoded "In this heading" regardless of the finding's `source`, so a
-    table-title finding was described using heading wording. Table titles and
-    headings follow different NJIT formatting rules and must never share
-    wording. See docs/status/ester_sample_b_p020_specific_remediation.md.
-    """
+    """Sample B page 80 is a P017 table-title issue, not generic P020."""
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
         return
@@ -373,17 +350,21 @@ def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() 
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
 
     p020_page80 = [f for f in view.findings if f.rule_id == "P020" and f.page == 80]
-    assert len(p020_page80) == 1
-    finding = p020_page80[0]
+    assert p020_page80 == []
 
+    p017_page80 = [f for f in view.findings if f.rule_id == "P017" and f.page == 80]
+    assert len(p017_page80) == 1
+    finding = p017_page80[0]
+
+    assert finding.issue_type == "possible_title_case_issue"
     assert "table title" in finding.polished_comment
     assert "heading" not in finding.polished_comment.lower()
     assert "figure" not in finding.polished_comment.lower()
 
     assert "table title" in finding.detailed_explanation
     assert "figure" not in finding.detailed_explanation.lower()
-    assert "must not end with a period" in finding.detailed_explanation
     assert "prepositions, conjunctions, and articles" in finding.detailed_explanation
+    assert "period" in finding.detailed_explanation.lower()
 
 
 def test_ester_sample_b_p019_page57_58_embedded_reprint_not_flagged() -> None:

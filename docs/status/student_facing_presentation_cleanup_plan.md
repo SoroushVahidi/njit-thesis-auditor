@@ -216,8 +216,8 @@ implementation.
   "appears to" / "detected" / "may need" for heuristic findings, per the
   checkpoint doc's safety rules.
 - If a newer sheet update **conflicts** with current detector behavior
-  (the way P021's 350/150 word limits and P026's accepted-font list already
-  conflict with Ester's sheet, per
+  (P021's limits are now resolved at MS ≤200 / PhD ≤400; P026's accepted-font list
+  remains an example of a policy conflict per
   [ester_policy_review_p021_p026.md](ester_policy_review_p021_p026.md)),
   document the conflict as policy/review work in a dedicated doc — do not
   silently change detector behavior or wording to match a newer sheet

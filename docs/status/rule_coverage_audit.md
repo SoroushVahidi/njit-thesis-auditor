@@ -196,8 +196,8 @@ Status key:
 | P017 | PDF layout | Caption/title punctuation and case signals | ✅ | Guidelines: figure captions need punctuation; table titles no period | Low-confidence case hints only; intentionally conservative |
 | P018 | PDF layout | TOC/list entry alignment (leader dots, page-number column, indentation) | ✅ | Guidelines: leaders, aligned columns, indented hierarchy | Activates on named TOC/list pages only |
 | P019 | PDF layout | Page-number sequence/style consistency | ✅ | Guidelines: sequential Arabic then Roman, consistent position | Candidate-based; does not enforce full NJIT policy |
-| P020 | PDF layout | Title-case capitalization for Level 2 headings and table titles | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Bold metadata may be absent; misses Level 2 in non-bold PDFs |
-| P021 | TeX+PDF | Abstract word count (PhD ≤350, MS ≤150) | ✅ | Formatting Guidelines | Single-page extraction only; PDF mode uses conservative PhD threshold |
+| P020 | PDF layout | Title-case capitalization for Level 2 headings | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Bold metadata may be absent; misses Level 2 in non-bold PDFs. Table-title formatting is owned by P017/P024/P053. |
+| P021 | TeX+PDF | Abstract word count (PhD ≤400, MS ≤200) | ✅ | Formatting Guidelines | Single-page extraction only; PDF mode uses conservative PhD threshold |
 | P022 | PDF layout | No visible page number on no-number front-matter pages (Abstract, Title, Approval, Copyright) | ✅ | Formatting Guidelines; Front Matter Pages Lorem Ipsum.pdf | Heuristic; title page = page 1 assumption; year suppression on title page; copyright detection requires text-layer signal; EF eval: 0 findings on all 4 EF PDFs |
 | P023 | PDF layout | Body-text double-spacing (line spacing ≥ 1.55× font size) | ✅ | Formatting Guidelines; Self-Assessment Sheet | Conservative: requires ≥8 suspicious gaps, ≥60% fraction, median < 1.55×; EF eval: 0 findings on clean Yin 4th review |
 | P024 | PDF layout | TOC/LoT/LoF entry capitalization and terminal punctuation | ✅ | `Titles Examples Level 1–5.docx`; Formatting Guidelines | Conservative; requires ≥3 entries on page; only classifiable TOC levels; EF eval: 12 findings on Yin 4th review (3 other files have no detectable TOC pages) |
@@ -232,7 +232,7 @@ evaluation dataset. They are automatable with moderate effort.
 
 | Priority | Rule Area | Guideline Source | Implementation Approach | Estimated Complexity |
 |----------|-----------|-----------------|------------------------|----------------------|
-| ✅ DONE | Abstract word-count (PhD ≤350, MS ≤150) | Formatting Guidelines | P021 implemented — LaTeX + PDF modes | See `docs/evaluation/abstract_word_count_evaluation.md` |
+| ✅ DONE | Abstract word-count (PhD ≤400, MS ≤200) | Formatting Guidelines | P021 implemented — LaTeX + PDF modes | See `docs/evaluation/abstract_word_count_evaluation.md` |
 | 🔴 HIGH | P020 font-size fallback for heading detection | Titles Examples | Add font-size ≥ body heuristic when bold metadata absent | Medium — requires font-size distribution analysis |
 | 🔴 HIGH | Acknowledgements paragraph order and key words | Self-Assessment Sheet | Keyword/pattern matching per paragraph | Medium — fragile on varied writing |
 | ✅ DONE | Body text double-spacing (line height ≥ ~2× font size) | Formatting Guidelines | P023 implemented — conservative median+fraction threshold; 0 findings on clean Yin 4th review | See `docs/evaluation/phase2_p023_body_double_spacing_evaluation.md` |
