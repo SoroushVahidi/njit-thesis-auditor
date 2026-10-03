@@ -4,30 +4,28 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-_Last updated: 2026-09-23. All rule work through R086/P086 is merged to
-`main`. Ester has now answered the final three open reviewer questions
-(R018, R026 Latin Modern, leader placement). Their implementation was merged
-to `main` via PR #553 (squash commit `72c8e1f`); R026 needed no detector
-change. Production was deployed on 2026-09-23 at commit `153e819` (PR #554
-merge) and verified live, including public cards R018R/R018S. Repository
-merge does not imply production deployment — later `main` commits are not
-live until separately deployed and verified. See
-`docs/status/ester_final_three_clarifications_20260923.md`._
+_Last updated: 2026-10-03. Historical Ester reconciliation is complete and
+merged to `main` via PR #558 at `1002a99a493363f4b164bea77f964d3156dc9f74`.
+Running production still reports `38415c3ed76ee28eb1c46c2cd83a6ed439242db7`
+from `/version`; deployment of the PR #558 changes is pending. The live-service
+worktree is at the merged main commit on disk, but the service has not been
+redeployed. Earlier rule decisions and deployment history remain below._
 
-## Main and R036 Branch
+## Repository and Production Snapshot
 
 | Field | Value |
 |---|---|
-| Current `origin/main` SHA | Not recorded here (it moves with every merge); obtain it from Git: `git rev-parse origin/main` |
-| Latest status-recorded implementation merge | PR #553, squash commit `72c8e1f82316fd25979eac88d5bc25d1652c0441` |
-| Production-verified deployment commit | `153e8196bcda681c1ddec21b2d50038d19ea6407` (PR #554 merge; post-merge CI run `35933276755` passed on Python 3.10/3.11/3.12) |
+| `main` and `origin/main` at this status snapshot | `1002a99a493363f4b164bea77f964d3156dc9f74` (PR #558, merged by squash) |
+| Latest status-recorded implementation merge | PR #558, squash commit `1002a99a493363f4b164bea77f964d3156dc9f74` |
+| Running production `/version` | `38415c3ed76ee28eb1c46c2cd83a6ed439242db7` |
+| Live-service worktree on disk | `1002a99a493363f4b164bea77f964d3156dc9f74`; service not restarted for PR #558 |
 | R036 production branch | `fix/r036-production-page-relative-suppression-20260916` (merged by PR #538) |
 | R036 audited base | `e5105018960aa9b478ad87e1c51e70d749dcaa16` |
 | R036 pre-documentation-sync HEAD | `14a0d68daa446c4bd23147c9560c9213d52ef050` |
 | R036 implementation/privacy-audited HEAD | `b277f34fe8ec7e01a32c83a1a23af82d5f7f8556`; superseded only by final documentation/privacy reconciliation |
 | R036 relation to `origin/main` after final documentation/privacy reconciliation | Merged |
-| Deployment | Deployed 2026-09-23 19:29:49 EDT: live worktree `njit-thesis-auditor-clean-worktrees/live-current-main` detached and clean at `153e819`; `thesis-auditor-web.service` restarted successfully and healthy; `/version` on localhost and LAN (`128.235.41.222:8000`) reports `153e8196bcda681c1ddec21b2d50038d19ea6407`; `/`, `/healthz`, `/help`, `/rules` return 200; public cards R018R/R018S verified live; no tracebacks, import errors, bind failures, or restart loops in the service log. Any `main` commit after `153e819` is not live until separately deployed and verified |
-| Manifest status snapshot | `336b28c`; **3192 passed** |
+| Deployment | Pending for PR #558; repository and running service are at different commits. No production deployment was performed as part of PR #558 or this status update |
+| Manifest status snapshot | `1002a99`; **3708 passed**, 0 failed (pre-merge full pytest result) |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
 | Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
 
@@ -37,6 +35,37 @@ The current human-validation corpus is seven private dissertation PDFs: Youra,
 Anthony, Muyeed, Philip, Praneeth, Sebastian, and Patrick. Elbert is excluded.
 These files remain local under `data/evaluation/private/`, ignored by Git, and
 must not be quoted, uploaded, or committed.
+
+This seven-document corpus is separate from the 19-document historical Ester
+reconciliation corpus summarized below; the latter did not replace it.
+
+## Historical Ester Reconciliation (PR #558)
+
+PR #558 merged the completed historical reconciliation into `main`. All **195**
+selected cases were classified using aggregate, privacy-safe categories:
+
+| Class | Meaning | Cases |
+|---|---|---:|
+| A | Genuinely new review needed | 91 |
+| B | Previously answered exact | 7 |
+| C | Previously answered same failure mode | 7 |
+| D | Known false-positive regression | 53 |
+| E | Known true pattern | 33 |
+| F | Ambiguous relationship | 4 |
+| **Total** | | **195** |
+
+The final reviewer package has **83 active Ester review requests**, **68**
+“No new review needed” rows, and **457** “No current finding” rows. Its evidence
+set contains **21 PDFs** and **83 evidence pages**. The package and private case
+materials remain local and are not part of this status update.
+
+Before merge, candidate validation passed **13 reconciliation tests**, **352**
+other Ester regression tests, and **278** targeted PDF-rule tests; Ruff and
+Mypy passed. The full pytest run reported **3708 passed, 0 failed**.
+
+For the tested TOC-wide missing-leader consistency case, **R075** owns the
+genuine finding. **R018** retains its distinct alignment, continuation, and
+leader-placement responsibilities. The tested case is not reported twice.
 
 ## R036 Current State
 
@@ -526,7 +555,9 @@ three reviewer questions from
 `docs/status/pre_ester_email_unresolved_backlog_audit_20260922.md` are
 answered and implemented (PR #553). No rule work is pending from them. The
 separate legacy Times-clone font-alias authority question (R026, zero corpus
-impact) remains an optional future policy task.
+impact) remains an optional future policy task. Historical reconciliation is
+complete (PR #558); the 83 active requests in its final reviewer package await
+review. Production deployment of the merged changes remains pending.
 
 ## Repository Hygiene Notes
 
