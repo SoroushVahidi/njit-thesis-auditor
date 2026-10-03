@@ -23,6 +23,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     TocPageContext,
     detect_toc_like_pages,
     extract_toc_entry_lines,
+    is_isolated_terminal_grid_leader_dot,
 )
 
 MIN_ENTRY_TEXT_LEN = 10
@@ -98,6 +99,8 @@ def _check_lot_terminal_period_page(
         if entry_text is None:
             continue
         if not _TERMINAL_PERIOD_RE.search(entry_text):
+            continue
+        if is_isolated_terminal_grid_leader_dot(entry, entries):
             continue
         details = {
             "issue_type": "lot_entry_has_terminal_period",

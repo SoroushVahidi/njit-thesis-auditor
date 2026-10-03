@@ -1034,6 +1034,43 @@ def test_p015_first_paragraph_after_split_numbered_heading_not_flagged(tmp_path:
     assert not findings
 
 
+def test_p015_first_paragraph_after_period_ended_level4_heading_not_flagged(
+    tmp_path: Path,
+) -> None:
+    """A required Level-4 heading period must not hide the heading boundary."""
+    pdf_path = tmp_path / "indent_after_level4_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    page.insert_text((108, 300), "3.3.9.1  Datasets.", fontsize=12)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=340)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not any(f.details.get("issue_type") == "missing_later_indent" for f in findings)
+
+
+def test_p015_first_paragraph_after_split_period_ended_heading_not_flagged(
+    tmp_path: Path,
+) -> None:
+    """The real Yin H page 70 splits the Level-5 number and period-ended title."""
+    pdf_path = tmp_path / "indent_after_split_level5_heading.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=140)
+    _draw_paragraph(page, first_x=190, rest_x=108, y=210)
+    page.insert_text((108, 300), "3.3.9.1.1", fontsize=12)
+    page.insert_text((164, 300), "Datasets.", fontsize=12)
+    _draw_paragraph(page, first_x=108, rest_x=108, y=340)
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = [f for f in check_pdf_indentation(model) if f.rule_id == "P015"]
+    assert not any(f.details.get("issue_type") == "missing_later_indent" for f in findings)
+
+
 def test_p015_same_baseline_split_line_not_treated_as_new_paragraph(tmp_path: Path) -> None:
     """Regression for Sample B page 23: extraction split one line into two same-y runs.
 
@@ -1933,12 +1970,12 @@ def test_inconsistent_leader_dots_warns_p018(tmp_path: Path) -> None:
     pdf_path = tmp_path / "toc_inconsistent_dots.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
-    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
-    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
-    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
-    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 500)
-    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion", 500)
-    _draw_toc_entry(page, 220, 108, "Chapter 5 Conclusion ....", 500)
+    page.insert_text((220, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Figure 1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "Figure 2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "Figure 3 Results ....", 500)
+    _draw_toc_entry(page, 200, 108, "Figure 4 Discussion", 500)
+    _draw_toc_entry(page, 220, 108, "Figure 5 Conclusion ....", 500)
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
@@ -1954,14 +1991,14 @@ def _leader_dots_isolation_pdf(pdf_path: Path) -> None:
     of the page's dominant dotted pattern than either of the adjacent pair."""
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
-    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
-    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)  # 0: dots
-    _draw_toc_entry(page, 160, 108, "Chapter 2 Background ....", 500)  # 1: dots
-    _draw_toc_entry(page, 180, 108, "Chapter 3 Related Work", 500)  # 2: no dots (paired)
-    _draw_toc_entry(page, 200, 108, "Chapter 4 Methods", 500)  # 3: no dots (paired)
-    _draw_toc_entry(page, 220, 108, "Chapter 5 Results ....", 500)  # 4: dots
-    _draw_toc_entry(page, 240, 108, "Chapter 6 Discussion", 500)  # 5: no dots (isolated)
-    _draw_toc_entry(page, 260, 108, "Chapter 7 Conclusion ....", 500)  # 6: dots
+    page.insert_text((220, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Figure 1 Introduction ....", 500)  # 0: dots
+    _draw_toc_entry(page, 160, 108, "Figure 2 Background ....", 500)  # 1: dots
+    _draw_toc_entry(page, 180, 108, "Figure 3 Related Work", 500)  # 2: no dots (paired)
+    _draw_toc_entry(page, 200, 108, "Figure 4 Methods", 500)  # 3: no dots (paired)
+    _draw_toc_entry(page, 220, 108, "Figure 5 Results ....", 500)  # 4: dots
+    _draw_toc_entry(page, 240, 108, "Figure 6 Discussion", 500)  # 5: no dots (isolated)
+    _draw_toc_entry(page, 260, 108, "Figure 7 Conclusion ....", 500)  # 6: dots
     doc.save(pdf_path)
     doc.close()
 
@@ -2031,12 +2068,12 @@ def test_p018_leader_dots_tied_isolation_is_deterministic(tmp_path: Path) -> Non
     pdf_path = tmp_path / "toc_leader_dots_tied.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
-    page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
-    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)  # 0: dots
-    _draw_toc_entry(page, 160, 108, "Chapter 2 Background", 500)  # 1: no dots, isolated
-    _draw_toc_entry(page, 180, 108, "Chapter 3 Related Work ....", 500)  # 2: dots
-    _draw_toc_entry(page, 200, 108, "Chapter 4 Methods", 500)  # 3: no dots, isolated
-    _draw_toc_entry(page, 220, 108, "Chapter 5 Results ....", 500)  # 4: dots
+    page.insert_text((220, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    _draw_toc_entry(page, 140, 108, "Figure 1 Introduction ....", 500)  # 0: dots
+    _draw_toc_entry(page, 160, 108, "Figure 2 Background", 500)  # 1: no dots, isolated
+    _draw_toc_entry(page, 180, 108, "Figure 3 Related Work ....", 500)  # 2: dots
+    _draw_toc_entry(page, 200, 108, "Figure 4 Methods", 500)  # 3: no dots, isolated
+    _draw_toc_entry(page, 220, 108, "Figure 5 Results ....", 500)  # 4: dots
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))

@@ -112,6 +112,11 @@ def _has_same_row_bare_number_to_left(
     return False
 
 
+def _starts_with_bold_text(line: PdfTextLine) -> bool:
+    """Require a bold lead, not regular prose ending in a bold math symbol."""
+    return next((span.bold for span in line.spans if span.text.strip()), False)
+
+
 def check_pdf_unnumbered_bold_heading(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P086 warnings for a bold run-in heading-shaped phrase with no
     section number and no recognized heading name.
@@ -146,6 +151,8 @@ def check_pdf_unnumbered_bold_heading(pdf_document: PdfDocument) -> list[AuditFi
                 continue
 
             candidate_line = paragraph[0]
+            if not _starts_with_bold_text(candidate_line):
+                continue
             candidate_text = " ".join(candidate_line.text.strip().split())
             if not _is_qualified_heading(candidate_text):
                 continue

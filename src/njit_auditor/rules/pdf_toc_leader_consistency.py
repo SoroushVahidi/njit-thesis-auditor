@@ -20,11 +20,13 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, PdfPage
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     detect_toc_like_pages,
+    entry_has_visible_dot_leader,
     extract_toc_entry_lines,
+    has_trailing_page_number_token,
 )
 
 MIN_ENTRIES_FOR_LEADER_CHECK = 3
@@ -47,7 +49,9 @@ def _count_phrase(label: str, count: int) -> str:
     return f"{label}: {count} {noun}"
 
 
-def _classify_entry(entry: TocEntryLine) -> str | None:
+def _classify_entry(
+    entry: TocEntryLine, page: PdfPage, peers: list[TocEntryLine] | None = None
+) -> str | None:
     """Return leader style or None when no page number is detectable.
 
     'dot'    — entry uses dot leaders (... patterns)
@@ -56,14 +60,16 @@ def _classify_entry(entry: TocEntryLine) -> str | None:
     None     — no page number detected; skip this entry
     """
     # Dot leaders are set by the shared extractor.
-    if entry.has_leader_dots and entry.page_number_token is not None:
+    if entry.page_number_token is not None and entry_has_visible_dot_leader(
+        entry, page, peers or []
+    ):
         return "dot"
     # Fallback: use the raw (uncollapsed) line text for hyphen and space detection.
     raw = entry.line.text
     if _HYPHEN_PAGED_RE.search(raw):
         return "hyphen"
     # Shared extractor found a page number (via dots or double-spaces in raw text).
-    if entry.page_number_token is not None:
+    if entry.page_number_token is not None and has_trailing_page_number_token(entry):
         return "none"
     if _SPACE_PAGED_RE.search(raw):
         return "none"
@@ -77,8 +83,9 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
     for context in detect_toc_like_pages(pdf_document):
         if context.page_type != "table_of_contents":
             continue
-        for entry in extract_toc_entry_lines(context):
-            style = _classify_entry(entry)
+        entries = extract_toc_entry_lines(context)
+        for entry in entries:
+            style = _classify_entry(entry, context.page, entries)
             if style is not None:
                 paged.append((style, context.page.page_number))
 
@@ -129,6 +136,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
     if (dot_count > 0 or hyphen_count > 0) and none_count > 0:
         dominant = "dot" if dot_count >= hyphen_count else "hyphen"
         dominant_count = dot_count if dominant == "dot" else hyphen_count
+        first_missing_page = next(page for style, page in paged if style == "none")
         style_summary = "; ".join(
             [
                 _count_phrase(f"{dominant} leaders", dominant_count),
@@ -139,7 +147,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
             AuditFinding(
                 rule_id="P075",
                 severity=Severity.WARNING,
-                page=first_page,
+                page=first_missing_page,
                 message=(
                     f"Table of Contents entries are not all connected to page numbers by a "
                     f"consistent leader style: {style_summary} "
@@ -148,7 +156,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                     "number with a consistent leader style."
                 ),
                 details={
-                    "page_number": str(first_page),
+                    "page_number": str(first_missing_page),
                     "issue_type": "toc_missing_leader_style",
                     "dominant_style": dominant,
                     "entries_with_leader": str(dominant_count),

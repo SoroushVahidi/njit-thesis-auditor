@@ -30,6 +30,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     _has_prefix_entry_shape,
     check_pdf_toc_alignment,
 )
+from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
 
 
 def test_leader_dot_pattern_recognizes_literal_ascii_run() -> None:
@@ -139,12 +140,14 @@ def test_ellipsis_wrapped_entry_does_not_false_positive_missing_dots() -> None:
     )
     warnings = [f for f in check_pdf_toc_alignment(doc) if f.rule_id == "P018"]
     assert not any(w.details.get("issue_type") == "inconsistent_leader_dots" for w in warnings)
+    assert check_pdf_toc_leader_consistency(doc) == []
 
 
 def test_ellipsis_toc_still_flags_a_genuinely_missing_dots_entry() -> None:
     """The ellipsis fix must not blind the check to a real violation: one
     entry with no leader at all, among otherwise consistently ellipsis-
-    dotted peers, must still be flagged."""
+    dotted peers, must still be flagged by P075 (Q052). P018 retains its
+    alignment and placement checks without duplicating TOC leader style."""
     doc = _toc_doc(
         "TABLE OF CONTENTS",
         [
@@ -157,10 +160,16 @@ def test_ellipsis_toc_still_flags_a_genuinely_missing_dots_entry() -> None:
         ],
     )
     warnings = [f for f in check_pdf_toc_alignment(doc) if f.rule_id == "P018"]
-    finding = next(
-        w for w in warnings if w.details.get("issue_type") == "inconsistent_leader_dots"
-    )
-    assert finding.details.get("affected_entry_count") == "1"
+    assert not any(w.details.get("issue_type") == "inconsistent_leader_dots" for w in warnings)
+    leader_findings = check_pdf_toc_leader_consistency(doc)
+    assert len(leader_findings) == 1
+    finding = leader_findings[0]
+    assert finding.rule_id == "P075"
+    assert finding.details["issue_type"] == "toc_missing_leader_style"
+    assert finding.details["entries_without_leader"] == "1"
+    assert finding.details["dominant_style"] == "dot"
+    assert finding.details["source_q_rule_id"] == "Q052"
+    assert finding.page == 1
 
 
 def test_trailing_period_figure_number_wrap_merges_and_does_not_misalign(

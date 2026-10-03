@@ -230,6 +230,28 @@ def test_some_missing_leaders_warns() -> None:
     assert p075[0].details.get("entries_without_leader") == "1"
 
 
+def test_missing_leader_warning_anchors_page_with_actual_missing_entry() -> None:
+    first_page = _page(
+        _block(_toc_heading()),
+        *[_block(_entry_dot(f"CHAPTER {i} SYNTHETIC TITLE", 80.0 + i * 20)) for i in range(3)],
+        page_number=3,
+    )
+    continued_heading = _line(
+        "TABLE OF CONTENTS (Continued)", x0=170, x1=442, y0=50, y1=62, bold=True
+    )
+    second_page = _page(
+        _block(continued_heading),
+        _block(_entry_dot("CHAPTER 4 SYNTHETIC TITLE", 80.0)),
+        _block(_entry_none("CHAPTER 5 SYNTHETIC TITLE", 100.0)),
+        page_number=4,
+    )
+    findings = check_pdf_toc_leader_consistency(_doc(first_page, second_page))
+    p075 = [finding for finding in findings if finding.rule_id == "P075"]
+    assert len(p075) == 1
+    assert p075[0].page == 4
+    assert p075[0].details["page_number"] == "4"
+
+
 def test_missing_leaders_with_hyphen_dominant() -> None:
     """Missing-leader detection works when the dominant style is hyphen."""
     heading = _toc_heading()
