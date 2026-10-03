@@ -38,6 +38,28 @@ EXPECTED_CONTINUED_HEADINGS = {
     "list_of_figures": "LIST OF FIGURES (Continued)",
 }
 
+_COLLAPSED_HEADINGS = {
+    "TABLEOFCONTENTS": "table_of_contents",
+    "LISTOFTABLES": "list_of_tables",
+    "LISTOFFIGURES": "list_of_figures",
+}
+
+
+def _classify_heading(line_text: str) -> tuple[str, bool] | None:
+    classified = classify_toc_heading_line(normalize_heading_text(line_text))
+    if classified is not None:
+        return classified
+    # Some PDF producers omit every inter-word space in the heading text layer,
+    # even though the rendered heading is plainly spaced. Match only an entire
+    # known heading so body text cannot become a continuation heading.
+    compact = re.sub(r"\s+", "", line_text).upper()
+    for heading, page_type in _COLLAPSED_HEADINGS.items():
+        if compact == heading:
+            return page_type, False
+        if compact in (f"{heading}(CONTINUED)", f"{heading}CONTINUED"):
+            return page_type, True
+    return None
+
 
 def _group_consecutive_pages(contexts: list[TocPageContext]) -> list[list[TocPageContext]]:
     if not contexts:
@@ -87,8 +109,7 @@ def _continued_heading_status(page: PdfPage, page_type: str) -> tuple[bool, str]
     lines = _flatten_lines(page)
     fallback_preview = ""
     for index, line in enumerate(lines):
-        normalized = normalize_heading_text(line.text)
-        classified = classify_toc_heading_line(normalized)
+        classified = _classify_heading(line.text)
         if classified is None:
             continue
         found_type, is_continued = classified

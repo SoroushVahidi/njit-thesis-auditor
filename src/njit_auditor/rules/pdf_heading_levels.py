@@ -320,6 +320,19 @@ def _check_line(page: PdfPage, block_lines: list[PdfTextLine], index: int) -> li
         # _gather_wrapped_heading's docstring. finding_bbox spans the full
         # heading when it wrapped, or is just the single line otherwise.
         heading_text, last_line = _gather_wrapped_heading(block_lines, index, heading_text)
+        if level in (4, 5) and line.spans:
+            # Run-in level-4/5 headings can share one physical line with the
+            # following ordinary body sentence. Check the bold heading run,
+            # not the body text that follows its terminal period.
+            bold_prefix = ""
+            for span in line.spans:
+                if not span.bold:
+                    break
+                bold_prefix += span.text
+            bold_match = pattern.match(" ".join(bold_prefix.split()))
+            if bold_match and len(bold_prefix) < len(line.text):
+                heading_text = bold_match.group(2).strip()
+                last_line = line
         finding_bbox = (
             line.bbox if last_line is line else _union_bbox(line.bbox, last_line.bbox)
         )

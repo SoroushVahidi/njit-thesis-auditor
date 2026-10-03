@@ -11,14 +11,17 @@ P032 (wrap spacing), P036 (inter-entry spacing), or P039 (TOC indentation hierar
 from __future__ import annotations
 
 import re
+from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
+from njit_auditor.rules.pdf_lot_lof_page_number_alignment import RIGHT_EDGE_TOLERANCE_PT
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
     detect_toc_like_pages,
     extract_toc_entry_lines,
+    has_trailing_page_number_token,
 )
 
 MIN_ENTRY_TEXT_LEN = 10
@@ -89,9 +92,30 @@ def _check_lof_terminal_punctuation_page(
     page_entry_offset: int,
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
+    page_edges = [
+        entry.page_number_right_x
+        for entry in entries
+        if entry.page_number_token is not None and entry.page_number_right_x is not None
+    ]
+    # A wrapped title can have a real page number in the right column even
+    # when the row reconstructor omits it from cleaned_text. The page-wide
+    # median remains a useful column anchor in that case; an embedded number
+    # inside a description is an outlier and cannot establish the anchor.
+    expected_page_edge = median(page_edges) if len(page_edges) >= 3 else None
     for idx, entry in enumerate(entries):
         if entry.page_number_token is None:
             continue
+        if not has_trailing_page_number_token(entry):
+            # PDF row reconstruction can omit a real, visually aligned page
+            # number from cleaned_text. Keep that case, but reject a digit
+            # mistaken for a page number inside a wrapped description.
+            if (
+                expected_page_edge is None
+                or entry.page_number_right_x is None
+                or abs(entry.page_number_right_x - expected_page_edge)
+                > RIGHT_EDGE_TOLERANCE_PT
+            ):
+                continue
         description = _extract_description(entry)
         if description is None:
             continue

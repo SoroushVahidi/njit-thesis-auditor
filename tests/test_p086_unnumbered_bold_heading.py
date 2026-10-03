@@ -128,6 +128,25 @@ def test_unnumbered_bold_run_in_heading_reports_finding() -> None:
     assert findings[0].details["bbox"] == "108.0,220.0,280.0,232.0"
 
 
+def test_regular_sentence_with_bold_math_symbol_is_not_run_in_heading() -> None:
+    lead = _line(
+        "Given a synthetic direction vector v",
+        x0=108.0, x1=280.0, y0=220.0, y1=232.0,
+        spans=[
+            _span("Given a synthetic direction vector ", x0=108.0, x1=270.0,
+                  y0=220.0, y1=232.0),
+            _span("v", bold=True, font="CMBX12", x0=270.0, x1=280.0,
+                  y0=220.0, y1=232.0),
+        ],
+    )
+    tail = _regular_line(
+        "the ordinary sentence continues here", x0=292.0, x1=540.0,
+        y0=220.0, y1=232.0,
+    )
+    doc = _doc(_page(12, _block(lead, tail, *_following_body(244.0))))
+    assert _issue_types(check_pdf_unnumbered_bold_heading(doc)) == []
+
+
 # 3. Known legitimate front-matter bold heading (e.g. ABSTRACT) -- no finding:
 #    the whole page is skipped, same as P027's own named-heading page gate.
 def test_frontmatter_named_heading_page_no_finding() -> None:

@@ -251,7 +251,12 @@ def _is_section_heading_line(line: PdfTextLine) -> bool:
     clean = " ".join(line.text.strip().split())
     if not clean or len(clean) > 100:
         return False
-    if clean.endswith((".", ",", ";")):
+    if clean.endswith((",", ";")):
+        return False
+    # Level-4 numbered headings are required to end with a period.  A
+    # standalone heading such as "3.3.9.1 Datasets." still resets the
+    # opening-paragraph indent expectation.
+    if clean.endswith(".") and not _BODY_SECTION_HEADING_RE.match(clean):
         return False
     return bool(_BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean))
 
@@ -323,7 +328,9 @@ def _find_split_heading_following_paragraph_indices(
         if (
             next_clean
             and len(next_clean) <= 100
-            and not next_clean.endswith((".", ",", ";"))
+            # Numbered Level-4/5 headings end in a required period, including
+            # when the PDF splits their number and title into separate runs.
+            and not next_clean.endswith((",", ";"))
             and sum(ch.isalpha() for ch in next_clean) >= 4
         ):
             gap = next_line.bbox.y0 - line.bbox.y1
@@ -529,10 +536,18 @@ _FIRST_WORD_RE = re.compile(r"[A-Za-z][A-Za-z']*")
 
 def _paragraph_starts_like_continuation(paragraph: list[PdfTextLine]) -> bool:
     first_line = " ".join(paragraph[0].text.strip().split())
-    match = _FIRST_WORD_RE.search(first_line)
+    # Searching anywhere in the line turns a formula-led body line such as
+    # "{x_k} is ..." into a lowercase-led continuation merely because the
+    # first ordinary word after the formula is lowercase. Ester rejected that
+    # failure mode. A continuation cue must lead the line itself.
+    match = re.match(r"^\s*[,;:]?\s*([A-Za-z][A-Za-z']*)", first_line)
     if not match:
         return False
-    word = match.group(0)
+    word = match.group(1)
+    if len(word) == 1 and first_line[match.end() :].lstrip().startswith(("=", "_", "^")):
+        # A split mathematical index (for example "k=0...") is not a
+        # lowercase prose connector, even when PDF extraction lost spaces.
+        return False
     if not word[0].islower():
         return False
     # A lowercase-led word with an internal uppercase letter (e.g. "pH",
@@ -722,6 +737,23 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                 if len(paragraph) < MIN_LINES_FOR_MISSING_LATER_INDENT:
                     continue
                 if NEGATIVE_INDENT_IGNORE_PT <= indent_pt < STRONG_INDENT_THRESHOLD_PT:
+                    # A line following an unfinished sentence is its
+                    # continuation, even when PDF text grouping split it into
+                    # another paragraph. This covers bold run-in leads whose
+                    # following regular text wraps to the next physical line.
+                    previous_text = (
+                        paragraphs[idx - 1][-1].text.rstrip() if paragraphs[idx - 1] else ""
+                    )
+                    previous_lead = paragraphs[idx - 1][0] if paragraphs[idx - 1] else None
+                    previous_starts_bold = bool(
+                        previous_lead and previous_lead.spans and previous_lead.spans[0].bold
+                    )
+                    if (
+                        previous_starts_bold
+                        and previous_text
+                        and not re.search(r"[.!?][\s\"')\]]*$", previous_text)
+                    ):
+                        continue
                     existing = page_issue_findings.get("missing_later_indent")
                     current = AuditFinding(
                         rule_id="P015",

@@ -142,6 +142,81 @@ class TocEntryLine:
         self.is_wrapped = is_wrapped
 
 
+def has_trailing_page_number_token(entry: TocEntryLine) -> bool:
+    """Require a detected page number to occur at the end of its list row.
+
+    The shared parser can find a digit or Roman-looking letter inside a
+    mathematical symbol in a wrapped title. That token is not the page-number
+    column when title text follows it on the same reconstructed row.
+    """
+    token = entry.page_number_token
+    return bool(
+        token
+        and re.search(rf"(?:^|\s){re.escape(token)}\s*$", entry.cleaned_text, re.IGNORECASE)
+    )
+
+
+def is_isolated_terminal_grid_leader_dot(
+    entry: TocEntryLine, peers: list[TocEntryLine]
+) -> bool:
+    """Identify a lone final leader dot on a page-wide dot-leader grid.
+
+    On some LaTeX pages, a long title leaves room for only the last cell of
+    the leader grid. The extracted row then ends ``title . page``. Its dot is
+    visual leader formatting, not title punctuation. Require the dot to be a
+    separate span at the same rightmost grid position as several multi-dot
+    peers; ordinary punctuation attached to a title does not meet this test.
+    """
+    spans = entry.line.spans
+    if (
+        len(spans) < 2
+        or entry.page_number_token is None
+        or spans[-1].text.strip() != entry.page_number_token
+        or spans[-2].text.strip() != "."
+    ):
+        return False
+    dot_x = spans[-2].bbox.x0
+    matching_grid_rows = 0
+    for peer in peers:
+        if peer is entry:
+            continue
+        dots = [span for span in peer.line.spans if span.text.strip() == "."]
+        if len(dots) < 2:
+            continue
+        if abs(dots[-1].bbox.x0 - dot_x) <= LEADER_GRID_MAX_SPREAD_PT:
+            matching_grid_rows += 1
+    return matching_grid_rows >= LEADER_GRID_MIN_ROWS
+
+
+def entry_has_visible_dot_leader(
+    entry: TocEntryLine, page: PdfPage, peers: list[TocEntryLine]
+) -> bool:
+    """Recognize leaders even when PDF extraction splits their dots off-row."""
+    if entry.has_leader_dots or is_isolated_terminal_grid_leader_dot(entry, peers):
+        return True
+    if re.search(r"(?:\s[.·…]){2,}\s+\S+\s*$", entry.cleaned_text):
+        return True
+    if entry.page_number_right_x is None:
+        return False
+    for block in page.text_blocks:
+        for line in block.lines:
+            compact = re.sub(r"\s+", "", line.text)
+            # A long title can leave room for only two leader dots before
+            # the fixed page-number column (Pennock's chapter-6 TOC row).
+            if not re.fullmatch(r"[.·…]{2,}", compact):
+                continue
+            if (
+                # A wrapped entry's merged bbox spans both title rows;
+                # detached dots align with its final row, not bbox center.
+                line.bbox.y0 >= entry.line.bbox.y0 - 2
+                and line.bbox.y1 <= entry.line.bbox.y1 + 2
+                and line.bbox.x0 > entry.indent_x + 10
+                and line.bbox.x1 < entry.page_number_right_x - 2
+            ):
+                return True
+    return False
+
+
 def _details_with_affected_entry_preview(
     details: dict[str, str],
     entry: TocEntryLine,
@@ -1284,11 +1359,26 @@ def _add_entry_consistency_findings(
 
     dotted_count = sum(1 for entry in entries if entry.has_leader_dots)
     dot_majority = dotted_count >= max(3, int(len(entries) * 0.6))
-    if dot_majority and len(entries) >= MIN_ENTRIES_FOR_DOT_STYLE:
+    if (
+        context.page_type != "table_of_contents"
+        and dot_majority
+        and len(entries) >= MIN_ENTRIES_FOR_DOT_STYLE
+    ):
+        # TOC-wide leader-style consistency belongs to the focused P075/Q052
+        # rule. Keep P018's list-page coverage without asking twice for TOC.
+        leader_page_edges = [
+            entry.page_number_right_x for entry in entries
+            if entry.has_leader_dots and entry.page_number_right_x is not None
+        ]
+        expected_page_edge = median(leader_page_edges) if len(leader_page_edges) >= 3 else None
         missing_dots_entries = [
             entry
             for entry in entries
-            if entry.page_number_right_x is not None and not entry.has_leader_dots
+            if expected_page_edge is not None
+            and entry.page_number_right_x is not None
+            and abs(entry.page_number_right_x - expected_page_edge) <= RIGHT_EDGE_TOLERANCE_PT
+            and has_trailing_page_number_token(entry)
+            and not entry_has_visible_dot_leader(entry, context.page, entries)
         ]
         if missing_dots_entries:
             worst_entry = _select_worst_leader_dots_entry(

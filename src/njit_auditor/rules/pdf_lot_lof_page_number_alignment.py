@@ -11,6 +11,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     detect_toc_like_pages,
     extract_toc_entry_lines,
+    has_trailing_page_number_token,
 )
 
 MIN_ENTRIES = 3
@@ -38,13 +39,22 @@ _SOURCE_Q_RULE = {
 def _complete_entries(entries: list[TocEntryLine]) -> list[TocEntryLine]:
     """Return entries with confident trailing page-number geometry."""
 
+    leader_dominant = sum(entry.has_leader_dots for entry in entries) >= 3
     return [
         entry
         for entry in entries
         if entry.page_number_right_x is not None
+        # On a leader-dominant page, a row without leaders is commonly a
+        # wrapped title fragment. A number at its end can be part of the
+        # title ("IMP 8", "through 5", or "contains 100"). Abstain on
+        # that row; genuine complete entries still supply the column anchor.
+        and (entry.has_leader_dots or not leader_dominant)
+        # A Roman-looking letter inside a wrapped title (for example the
+        # subscript in a mathematical symbol) is not a trailing page number.
+        and entry.page_number_token is not None
+        and has_trailing_page_number_token(entry)
         and (
-            entry.page_number_token is None
-            or entry.page_number_token.isdigit()
+            entry.page_number_token.isdigit()
             or _VALID_ROMAN_PAGE_NUMBER_RE.fullmatch(entry.page_number_token)
         )
     ]

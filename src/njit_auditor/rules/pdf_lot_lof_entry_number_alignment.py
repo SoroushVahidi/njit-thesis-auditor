@@ -16,7 +16,11 @@ from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
-from njit_auditor.rules.pdf_toc_alignment import detect_toc_like_pages, extract_toc_entry_lines
+from njit_auditor.rules.pdf_toc_alignment import (
+    TocEntryLine,
+    detect_toc_like_pages,
+    extract_toc_entry_lines,
+)
 from njit_auditor.toc_list_student_preview import sanitize_toc_list_entry_preview
 
 MIN_ENTRIES = 3
@@ -57,6 +61,18 @@ def _entry_number_left_x(entry_text: str, indent_x: float) -> float | None:
     return None
 
 
+def _is_numbered_title_continuation(
+    entry: TocEntryLine, previous: TocEntryLine | None
+) -> bool:
+    """Exclude a title continuation whose prose begins with an X.x number."""
+    if previous is None or previous.page_number_token is not None:
+        return False
+    return (
+        entry.indent_x > previous.indent_x + 10
+        and 0 <= entry.line.bbox.y0 - previous.line.bbox.y1 <= 5
+    )
+
+
 def check_pdf_lot_lof_entry_number_alignment(
     pdf_document: PdfDocument,
 ) -> list[AuditFinding]:
@@ -76,12 +92,18 @@ def check_pdf_lot_lof_entry_number_alignment(
             continue
 
         entries = extract_toc_entry_lines(context)
+        previous_by_id = {
+            id(entry): entries[index - 1] if index else None
+            for index, entry in enumerate(entries)
+        }
         # Prefer entries with a detected page number (complete entries, not label/header lines).
         complete = [e for e in entries if e.page_number_right_x is not None]
         if not complete:
             complete = entries
 
         for per_page_index, entry in enumerate(complete):
+            if _is_numbered_title_continuation(entry, previous_by_id[id(entry)]):
+                continue
             entry_number_x = _entry_number_left_x(entry.cleaned_text, entry.indent_x)
             if entry_number_x is None:
                 continue
