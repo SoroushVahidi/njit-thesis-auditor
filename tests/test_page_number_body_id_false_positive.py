@@ -40,14 +40,76 @@ from pathlib import Path
 import fitz
 
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    PdfTextSpan,
+)
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
 from njit_auditor.rules.pdf_page_numbers import (
     PageNumberCandidate,
     check_pdf_page_number_sequence,
+    detect_page_number_candidates,
     is_plausible_page_number_candidate,
     run_pdf_page_number_candidates_rule,
 )
+
+
+def _number_line(text: str, font: str, bbox: tuple[float, float, float, float]) -> PdfTextBlock:
+    box = BBox(x0=bbox[0], y0=bbox[1], x1=bbox[2], y1=bbox[3])
+    span = PdfTextSpan(text=text, bbox=box, font=font)
+    return PdfTextBlock(lines=[PdfTextLine(spans=[span], bbox=box, text=text)], bbox=box, text=text)
+
+
+def test_math_font_glyph_does_not_compete_with_real_footer() -> None:
+    page = PdfPage(
+        page_number=1,
+        width=612,
+        height=792,
+        text_blocks=[
+            _number_line("X", "ABCDEF+CMEX10", (293, 692, 311, 704)),
+            _number_line("26", "CMBX12", (317, 747, 331, 759)),
+        ],
+    )
+    doc = PdfDocument(path="synthetic.pdf", pages=[page])
+
+    assert [c.text for c in detect_page_number_candidates(doc)] == ["26"]
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 1)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "1"
+    assert finding.details["candidate_sample"] == "26"
+    assert not any(
+        f.details.get("issue_type") == "multiple_page_numbers"
+        for f in check_pdf_page_number_sequence(doc)
+    )
+
+
+def test_genuine_extra_number_and_text_font_roman_remain_candidates() -> None:
+    page = PdfPage(
+        page_number=1,
+        width=612,
+        height=792,
+        text_blocks=[
+            _number_line("26", "CMBX12", (317, 747, 331, 759)),
+            _number_line("27", "Times-Roman", (526, 747, 540, 759)),
+            _number_line("X", "CMR12", (315, 692, 327, 704)),
+        ],
+    )
+    doc = PdfDocument(path="synthetic.pdf", pages=[page])
+
+    assert {c.text for c in detect_page_number_candidates(doc)} == {"26", "27", "X"}
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 1)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "3"
+    assert set(finding.details["candidate_sample"].split(", ")) == {"26", "27", "X"}
+    assert any(
+        f.details.get("issue_type") == "multiple_page_numbers"
+        for f in check_pdf_page_number_sequence(doc)
+    )
 
 
 def _page_finding(findings: list, page: int) -> object | None:
