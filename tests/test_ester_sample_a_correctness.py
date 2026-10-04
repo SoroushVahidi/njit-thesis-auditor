@@ -97,8 +97,9 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     bottom-margin findings at exactly that ~9.2pt (9.17pt raw) geometry, the
     same recurring pattern as the Muyeed physical-page-36 "clustering
     algorithm." finding Esther labeled a false positive. Pages 82 (9.8pt)
-    and 83 (11.0pt) sit past the natural gap above that cluster and remain
-    flagged. See
+    and 83 (11.0pt) were beyond that first cluster, but their final-line
+    boxes also fit the later bounded R011 line-box pattern. They are now
+    suppressed by the focused R011 Ester-regression reconciliation. See
     docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md.
 
     P015 is 1 under the 2026-09 R015 paragraph-boundary follow-up: a later
@@ -123,7 +124,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     # false-positive regressions instead of freezing a stale aggregate count.
     assert len(problem) >= 14
     assert by_rule["P038"] == 0
-    assert by_rule["P011"] == 11
+    assert by_rule["P011"] == 9
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0

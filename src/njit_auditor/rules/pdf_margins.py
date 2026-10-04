@@ -53,14 +53,24 @@ OVERFLOW_TOLERANCE_EPSILON_PT = 0.01
 # prose, equations, table-of-contents dot-leaders, and reference URLs alike
 # -- a content-independent geometric constant, not a real placement issue --
 # and the population immediately above it (raw 9.05-9.29pt) is followed by a
-# clean, empty gap (no findings from 9.30-9.43pt raw) before the next,
-# unconfirmed cluster begins (~9.5pt+). The tolerance is raised only enough
-# to clear that confirmed cluster and its immediate neighbors up to the
-# natural gap, not the next cluster: it remains a narrow, evidence-anchored
-# band, not a blanket bottom-margin relaxation. Bottom-margin overflow at or
-# beyond ~9.5pt (e.g. Sample A pages 82-83, 9.8-11.0pt) is unaffected and
-# still reported.
+# clean, empty gap (no findings from 9.30-9.43pt raw). This remains the base
+# tolerance; separate structural checks below handle later adjudicated
+# line-box cases without raising this threshold for all bottom content.
 BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT = 9.3
+
+# A line whose top is still inside the required margin can have a taller PDF
+# line box than its visible glyphs. Ester rejected this ordinary final-line
+# pattern in both LaTeX and Word documents. Keep the exception within one
+# font em (and at most 12pt): text placed below the margin, or a deeper bleed,
+# still warns.
+BOTTOM_LINE_BOX_MAX_OVERFLOW_PT = 12.0
+BOTTOM_LINE_BOX_MAX_TOP_OFFSET_PT = 0.5
+
+# A LaTeX contents continuation can start at the lower end of Ester's stated
+# 0.9-1.0 inch template range. Only a dot-leader row on an identified contents
+# page gets the extra allowance; ordinary prose and reference entries do not.
+CONTENTS_ROW_MAX_TOP_OFFSET_PT = 7.5
+CONTENTS_ROW_MAX_OVERFLOW_PT = 20.0
 
 # Extra right/left-margin overflow tolerance for reference-list entries only
 # (added on top of OVERFLOW_TOLERANCE_PT). Bibliography/reference entries
@@ -73,6 +83,10 @@ BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT = 9.3
 # test_numbered_reference_left_margin_overflow_stays_high_confidence_with_correct_wording --
 # still gets flagged.
 REFERENCES_MARGIN_EXTRA_TOLERANCE_PT = 6.0
+# Patrick's same-shape right-margin reference entry reaches 10.2pt, while
+# Ester explicitly confirmed a separate 18.0pt entry is a real violation.
+# Leave the left-margin hanging-indent allowance unchanged.
+REFERENCES_RIGHT_MARGIN_EXTRA_TOLERANCE_PT = 7.25
 
 # Standard space-glyph advance width as a fraction of font size (~0.25em is a
 # near-universal convention across text fonts), used only to correct a
@@ -159,6 +173,59 @@ def _content_right_edge(line: PdfTextLine) -> float:
     return line.bbox.x1
 
 
+def _is_contents_page(page: PdfPage) -> bool:
+    return any(
+        "TABLEOFCONTENTS" in "".join(char for char in line.text.upper() if char.isalpha())
+        for block in page.text_blocks
+        for line in block.lines
+        if line.bbox.y0 < 150.0
+    )
+
+
+def _is_bottom_math_fragment(
+    line: PdfTextLine, page_lines: list[PdfTextLine], allowed_y1: float
+) -> bool:
+    """Recognize a small subscript split off an otherwise in-bounds equation."""
+    if line.bbox.height > 8.0 or not line.spans:
+        return False
+    if any(not span.size or span.size > 8.0 for span in line.spans):
+        return False
+    for other in page_lines:
+        if other is line or other.bbox.y0 > allowed_y1 + BOTTOM_LINE_BOX_MAX_TOP_OFFSET_PT:
+            continue
+        if (
+            min(line.bbox.x1, other.bbox.x1) - max(line.bbox.x0, other.bbox.x0) >= 1.0
+            and min(line.bbox.y1, other.bbox.y1) - max(line.bbox.y0, other.bbox.y0) >= 1.0
+        ):
+            return True
+    return False
+
+
+def _is_ester_rejected_bottom_line_box(
+    line: PdfTextLine,
+    page_lines: list[PdfTextLine],
+    allowed_y1: float,
+    overflow: float,
+    *,
+    contents_page: bool,
+) -> bool:
+    largest_font = max((span.size or 0.0 for span in line.spans), default=0.0)
+    line_box_limit = min(BOTTOM_LINE_BOX_MAX_OVERFLOW_PT, largest_font + 0.25)
+    if (
+        line.bbox.y0 <= allowed_y1 + BOTTOM_LINE_BOX_MAX_TOP_OFFSET_PT
+        and overflow <= line_box_limit + OVERFLOW_TOLERANCE_EPSILON_PT
+    ):
+        return True
+    if overflow <= BOTTOM_LINE_BOX_MAX_OVERFLOW_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+        return _is_bottom_math_fragment(line, page_lines, allowed_y1)
+    return (
+        contents_page
+        and line.text.count(".") >= 4
+        and line.bbox.y0 <= allowed_y1 + CONTENTS_ROW_MAX_TOP_OFFSET_PT
+        and overflow <= CONTENTS_ROW_MAX_OVERFLOW_PT + OVERFLOW_TOLERANCE_EPSILON_PT
+    )
+
+
 def _line_violation(
     line: PdfTextLine,
     page_height: float,
@@ -167,6 +234,9 @@ def _line_violation(
     allowed_x1: float,
     allowed_y1: float,
     line_index: int,
+    *,
+    page_lines: list[PdfTextLine] | None = None,
+    contents_page: bool = False,
 ) -> LineViolation | None:
     text = line.text.strip()
     if not text:
@@ -194,7 +264,12 @@ def _line_violation(
             overflow_by_side[MarginSide.TOP] = raw
     if bbox.y1 > allowed_y1:
         raw = bbox.y1 - allowed_y1
-        if raw > BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+        if (
+            raw > BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT
+            and not _is_ester_rejected_bottom_line_box(
+                line, page_lines or [], allowed_y1, raw, contents_page=contents_page
+            )
+        ):
             overflow_by_side[MarginSide.BOTTOM] = raw
 
     if not overflow_by_side:
@@ -358,18 +433,27 @@ def run_pdf_margin_rule(
         allowed_y0 = TOP_MARGIN_PT
         allowed_x1 = page.width - RIGHT_MARGIN_PT
         allowed_y1 = page.height - BOTTOM_MARGIN_PT
+        page_lines = [line for block in page.text_blocks for line in block.lines]
+        contents_page = _is_contents_page(page)
 
         grouped: dict[MarginSide, list[LineViolation]] = {}
         line_index = 0
-        for block in page.text_blocks:
-            for line in block.lines:
-                violation = _line_violation(
-                    line, page.height, allowed_x0, allowed_y0, allowed_x1, allowed_y1, line_index
-                )
-                line_index += 1
-                if not violation:
-                    continue
-                grouped.setdefault(violation.side, []).append(violation)
+        for line in page_lines:
+            violation = _line_violation(
+                line,
+                page.height,
+                allowed_x0,
+                allowed_y0,
+                allowed_x1,
+                allowed_y1,
+                line_index,
+                page_lines=page_lines,
+                contents_page=contents_page,
+            )
+            line_index += 1
+            if not violation:
+                continue
+            grouped.setdefault(violation.side, []).append(violation)
 
         for side, violations in grouped.items():
             worst_violation = max(violations, key=lambda v: v.overflow_pt)
@@ -408,7 +492,11 @@ def run_pdf_margin_rule(
                 and content_kind == "references_hanging_indent"
                 and worst
                 <= OVERFLOW_TOLERANCE_PT
-                + REFERENCES_MARGIN_EXTRA_TOLERANCE_PT
+                + (
+                    REFERENCES_RIGHT_MARGIN_EXTRA_TOLERANCE_PT
+                    if side is MarginSide.RIGHT
+                    else REFERENCES_MARGIN_EXTRA_TOLERANCE_PT
+                )
                 + OVERFLOW_TOLERANCE_EPSILON_PT
             ):
                 continue
