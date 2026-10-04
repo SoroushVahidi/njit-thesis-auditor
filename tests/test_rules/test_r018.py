@@ -23,9 +23,17 @@ from pathlib import Path
 import fitz
 
 from njit_auditor.pdf_layout import load_pdf_layout
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextLine
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    PdfTextSpan,
+)
 from njit_auditor.rules.pdf_toc_alignment import (
     NUMERIC_PREFIX_RE,
+    _extract_page_number_token,
     _has_leader_dot_pattern,
     _has_prefix_entry_shape,
     check_pdf_toc_alignment,
@@ -79,6 +87,29 @@ def test_numeric_prefix_accepts_trailing_period_before_space() -> None:
 
 def test_has_prefix_entry_shape_accepts_trailing_period_section_number() -> None:
     assert _has_prefix_entry_shape("2.1. Representative snake species")
+
+
+def test_roman_letter_inside_title_is_not_a_page_number_span() -> None:
+    """A one-letter variable in a title can match the Roman numeral grammar."""
+    prefix = PdfTextSpan(text="Figure 8.7 Features (", bbox=BBox(x0=108, y0=100, x1=445, y1=112))
+    variable = PdfTextSpan(text="d", bbox=BBox(x0=445, y0=100, x1=451, y1=112))
+    suffix = PdfTextSpan(text="); horizontal axis", bbox=BBox(x0=451, y0=100, x1=511, y1=112))
+    line = PdfTextLine(
+        spans=[prefix, variable, suffix],
+        bbox=BBox(x0=108, y0=100, x1=511, y1=112),
+        text="Figure 8.7 Features (d); horizontal axis",
+    )
+    assert _extract_page_number_token(line, line.text) == (None, None)
+
+    page_number = PdfTextSpan(text="157", bbox=BBox(x0=523, y0=100, x1=540, y1=112))
+    numbered = line.model_copy(
+        update={
+            "spans": [prefix, variable, suffix, page_number],
+            "bbox": BBox(x0=108, y0=100, x1=540, y1=112),
+            "text": line.text + " 157",
+        }
+    )
+    assert _extract_page_number_token(numbered, numbered.text) == ("157", 540)
 
 
 def _draw_line(page: fitz.Page, x: float, y: float, text: str) -> None:

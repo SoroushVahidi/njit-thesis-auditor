@@ -328,17 +328,21 @@ def _right_column_page_number_span(
     *,
     min_x_offset: float = 100.0,
 ) -> PdfTextSpan | None:
-    """Return the rightmost numeric-only span that looks like a page-number column."""
+    """Return a trailing numeric-only span in the page-number column."""
 
     if not line.spans:
         return None
     indent_x = line.bbox.x0
     for span in reversed(line.spans):
         span_text = _clean_text(span.text)
+        if not span_text:
+            continue
         if not NUMERIC_ONLY_RE.match(span_text):
-            continue
+            # A Roman-numeral letter inside a title (for example a variable
+            # followed by more prose) is not a page number.
+            return None
         if span.bbox.x0 <= indent_x + min_x_offset:
-            continue
+            return None
         return span
     return None
 
