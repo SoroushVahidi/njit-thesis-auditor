@@ -328,23 +328,31 @@ def _right_column_page_number_span(
     *,
     min_x_offset: float = 100.0,
 ) -> PdfTextSpan | None:
-    """Return a trailing numeric-only span in the page-number column."""
+    """Return the rightmost numeric-only span that looks like a page-number column."""
 
     if not line.spans:
         return None
     indent_x = line.bbox.x0
     for span in reversed(line.spans):
         span_text = _clean_text(span.text)
-        if not span_text:
-            continue
         if not NUMERIC_ONLY_RE.match(span_text):
-            # A Roman-numeral letter inside a title (for example a variable
-            # followed by more prose) is not a page number.
-            return None
+            continue
         if span.bbox.x0 <= indent_x + min_x_offset:
-            return None
+            continue
         return span
     return None
+
+
+def _right_edge_page_number_span(line: PdfTextLine) -> PdfTextSpan | None:
+    """Return a column number only when it ends at the row's right edge.
+
+    An interior Roman-numeral letter can look numeric to the shared parser,
+    but cannot establish a page-number column outlier for R018.
+    """
+    span = _right_column_page_number_span(line)
+    if span is None or span.bbox.x1 < line.bbox.x1 - 1.0:
+        return None
+    return span
 
 
 def _extract_page_number_from_spans(line: PdfTextLine) -> tuple[str | None, float | None]:
@@ -1446,7 +1454,7 @@ def _add_entry_consistency_findings(
         # Column-alignment compares dedicated right-column number spans.
         # Trailing digits embedded in a long title span are still valid page
         # numbers for presence checks, but their span x1 is not the column.
-        and _right_column_page_number_span(entry.line) is not None
+        and _right_edge_page_number_span(entry.line) is not None
     ]
     entries_missing_page_num = [
         entry
