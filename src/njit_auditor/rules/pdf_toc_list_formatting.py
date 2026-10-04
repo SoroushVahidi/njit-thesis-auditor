@@ -29,7 +29,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
     detect_toc_like_pages,
-    extract_toc_entry_lines,
+    extract_toc_logical_entry_lines,
 )
 
 LINE_PREVIEW_MAX = 80
@@ -63,6 +63,10 @@ _SCIENCE_NOMENCLATURE_RE = re.compile(
     r"(?:\b(?:peptide|protein|cytochrome|bradykinin|casein)\b|β|m/z)",
     re.IGNORECASE,
 )
+# Public software/product names are proper nouns in a sentence-case figure
+# title. Keep this vocabulary limited to the two products in Ester's reviewed
+# pattern; ordinary capitalized words still count toward a violation.
+_SOFTWARE_PROPER_NAMES = frozenset({"sklearn", "matlab"})
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -185,6 +189,7 @@ def _sentence_case_violation_words(text: str) -> list[str]:
         if len(w) > 3
         and not looks_like_acronym(w)
         and not _SKIP_WORD_RE.search(w)
+        and w.casefold() not in _SOFTWARE_PROPER_NAMES
     ]
     if len(later) < 3:
         return []
@@ -250,7 +255,10 @@ def _check_toc_page(
                     )
                 )
         elif level == 2:
-            issues = check_apa_title_case_phrase(entry_text)
+            # The shared title tokenizer accepts straight apostrophes. PDF
+            # text often uses a curly possessive apostrophe; normalize it
+            # here so the trailing "s" is not treated as a separate word.
+            issues = check_apa_title_case_phrase(entry_text.replace("\u2019", "'"))
             if issues:
                 first = issues[0]
                 findings.append(
@@ -378,7 +386,7 @@ def check_pdf_toc_list_formatting(pdf_document: PdfDocument) -> list[AuditFindin
     """Emit P024 warnings for TOC/LoT/LoF entry capitalization and punctuation issues."""
     findings: list[AuditFinding] = []
     for context in detect_toc_like_pages(pdf_document):
-        entries = extract_toc_entry_lines(context)
+        entries = extract_toc_logical_entry_lines(context)
         if context.page_type == "table_of_contents":
             findings.extend(_check_toc_page(context, entries))
         elif context.page_type == "list_of_tables":

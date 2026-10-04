@@ -807,6 +807,159 @@ def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
     return entries
 
 
+_GLUED_FINAL_PAGE_NUMBER_RE = re.compile(r"(?<![0-9])\.(?P<num>[0-9]{1,4})$")
+LOGICAL_WRAP_Y_GAP_PT = 21.0
+LOGICAL_WRAP_MIN_INDENT_PT = 8.0
+LOGICAL_WRAP_MAX_ROWS = 8
+
+
+def _logical_page_column_edge(entries: list[TocEntryLine]) -> float | None:
+    """Use the page's own numbered entries to locate its page-number column."""
+    edges = [
+        entry.page_number_right_x
+        for entry in entries
+        if entry.page_number_right_x is not None
+    ]
+    return median(edges) if len(edges) >= 3 else None
+
+
+def _append_logical_row(entry: TocEntryLine, row: PdfTextLine, text: str) -> None:
+    entry.cleaned_text = f"{entry.cleaned_text} {text}".strip()
+    entry.line = PdfTextLine(
+        spans=list(entry.line.spans) + list(row.spans),
+        bbox=_union_bbox(entry.line.bbox, row.bbox),
+        text=entry.cleaned_text,
+    )
+    entry.has_leader_dots |= _has_leader_dot_pattern(text)
+    entry.is_wrapped = True
+
+
+def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
+    """Repair demonstrable wrapped entries for R018/R024/R040.
+
+    The ordinary extractor deliberately filters rows that do not resemble a
+    standalone entry. A wrapped title can contain exactly such a row, or a
+    numeral inside its first row can be mistaken for the page number. Rejoin
+    only hanging rows that lead to a page number in the page's established
+    right column. R075 and other rules keep the ordinary extractor.
+    """
+    entries = extract_toc_entry_lines(context)
+    rows = collect_toc_visual_rows(context)
+    column_edge = _logical_page_column_edge(entries)
+    if not entries or not rows:
+        return entries
+
+    repaired: list[TocEntryLine] = []
+    absorbed_y: set[float] = set()
+    for original in entries:
+        first_y = original.line.bbox.y0
+        if first_y in absorbed_y:
+            continue
+        first_index = next(
+            (index for index, row in enumerate(rows) if abs(row.bbox.y0 - first_y) < 0.5),
+            None,
+        )
+        if first_index is None:
+            repaired.append(original)
+            continue
+        first = rows[first_index]
+        first_text = _row_text(first)
+        if not _has_prefix_entry_shape(first_text):
+            repaired.append(original)
+            continue
+
+        # A page number glued to the final title span ("title.124") is
+        # accepted only at the page's established number-column edge.
+        if original.page_number_token is None and column_edge is not None:
+            glued = _GLUED_FINAL_PAGE_NUMBER_RE.search(first_text)
+            if glued and abs(first.bbox.x1 - column_edge) <= RIGHT_EDGE_TOLERANCE_PT:
+                original.page_number_token = glued.group("num")
+                original.page_number_right_x = first.bbox.x1
+                repaired.append(original)
+                continue
+
+        # A numeral inside a title can look like a trailing page token. It
+        # is only reconsidered when its edge disagrees with the page column
+        # and a following indented row supplies the actual page number.
+        weak_first_number = (
+            original.page_number_token is not None
+            and column_edge is not None
+            and original.page_number_right_x is not None
+            and abs(original.page_number_right_x - column_edge) > RIGHT_EDGE_TOLERANCE_PT
+        )
+        if original.page_number_token is not None and not weak_first_number:
+            repaired.append(original)
+            continue
+
+        continuation_rows: list[PdfTextLine] = []
+        final_number: str | None = None
+        final_edge: float | None = None
+        previous = first
+        for follower in rows[first_index + 1 :]:
+            gap = follower.bbox.y0 - previous.bbox.y0
+            if gap < 0 or gap > LOGICAL_WRAP_Y_GAP_PT:
+                break
+            text = _row_text(follower)
+            if NUMERIC_ONLY_RE.fullmatch(text):
+                if (
+                    continuation_rows
+                    and gap <= PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT
+                    and follower.bbox.x0 >= first.bbox.x0 + RIGHT_COLUMN_MIN_X_OFFSET_PT
+                    and (
+                        (
+                            column_edge is None
+                            and follower.bbox.x1 >= context.page.width - 100.0
+                        )
+                        or (
+                            column_edge is not None
+                            and abs(follower.bbox.x1 - column_edge) <= RIGHT_EDGE_TOLERANCE_PT
+                        )
+                    )
+                ):
+                    final_number, final_edge = text, follower.bbox.x1
+                    continuation_rows.append(follower)
+                break
+            if (
+                _is_non_entry_row(text)
+                or follower.bbox.x0 < first.bbox.x0 + LOGICAL_WRAP_MIN_INDENT_PT
+                or (
+                    context.page_type == "table_of_contents"
+                    and _has_prefix_entry_shape(text)
+                )
+                or len(continuation_rows) >= LOGICAL_WRAP_MAX_ROWS
+            ):
+                break
+            continuation_rows.append(follower)
+            token, edge = _extract_page_number_token(follower, text)
+            if token is not None and (
+                (
+                    column_edge is None
+                    and edge is not None
+                    and edge >= context.page.width - 100.0
+                )
+                or (
+                    edge is not None
+                    and column_edge is not None
+                    and abs(edge - column_edge) <= RIGHT_EDGE_TOLERANCE_PT
+                )
+            ):
+                final_number, final_edge = token, edge
+                break
+            previous = follower
+
+        if final_number is None or final_edge is None:
+            repaired.append(original)
+            continue
+        logical = _make_entry_from_line(first, first_text)
+        for follower in continuation_rows:
+            _append_logical_row(logical, follower, _row_text(follower))
+            absorbed_y.add(follower.bbox.y0)
+        logical.page_number_token = final_number
+        logical.page_number_right_x = final_edge
+        repaired.append(logical)
+    return repaired
+
+
 def group_toc_page_runs(contexts: list[TocPageContext]) -> list[TocPageRun]:
     """Group consecutive pages of the same TOC/List type into runs."""
 
@@ -1447,7 +1600,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
         if context.page_type == "table_of_contents":
             _add_wrapped_title_alignment_finding(context, rows, page_issue_findings)
 
-        entries = extract_toc_entry_lines(context)
+        entries = extract_toc_logical_entry_lines(context)
         if len(entries) >= 3:
             _add_entry_consistency_findings(context, entries, page_issue_findings)
 
