@@ -33,9 +33,9 @@
   positives. Both are now confirmed absent from current output — see
   `r018_r024_ester_sheet_authority_20260907.md`, which supersedes
   `r018_finding_level_review_20260907.md`'s conclusion (not its method).
-  One open item remains: Ester's note that sections 1.3.3/1.3.4/1.3.5
-  "do not align" is a question, not a confirmed second verdict, and no
-  current geometric check has a basis to flag them — see that document.
+  At that time, Ester's note that sections 1.3.3/1.3.4/1.3.5 "do not align"
+  was a question, not a confirmed second verdict; she resolved the alignment
+  question on 2026-09-23. See `ester_final_three_clarifications_20260923.md`.
 - **R024**: previously "NO ESTER DECISION FOUND". The live Ester feedback
   sheet was checked directly on 2026-09-07 and does carry explicit
   verdicts: Anthony's and Praneeth's reviewed R024 findings are both false
@@ -45,3 +45,8 @@
   authority was known) matches both rationales and is confirmed against
   the fresh seven-document audit — see
   `r018_r024_ester_sheet_authority_20260907.md`.
+- **R018/R075 engineering ownership (PR #558):** the tested genuine TOC-wide
+  missing-leader consistency case belongs to R075. R018 keeps alignment,
+  continuation, and leader-placement checks; the tested case has no duplicate
+  report. This updates the current implementation pointer, not the dated
+  matrix's historical Ester judgments; see [`CURRENT_STATUS.md`](CURRENT_STATUS.md#historical-ester-reconciliation-pr-558).

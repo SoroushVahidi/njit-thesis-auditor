@@ -10,8 +10,8 @@
   "next_project_added_rule_id": "P087",
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P086",
-    "pytest_count_used_for_status_snapshot": 3192,
-    "main_commit_used_for_status_snapshot": "336b28c",
+    "pytest_count_used_for_status_snapshot": 3708,
+    "main_commit_used_for_status_snapshot": "1002a99",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
     "project_added_rule_inventory_count": 86,
@@ -418,6 +418,40 @@
     "generated_and_private_gitignored_paths": 2
   },
   "p_rules_implemented": "P001-P086",
-  "pytest_count_used_for_status_snapshot": 3192,
-  "main_commit_used_for_status_snapshot": "336b28c"
+  "pytest_count_used_for_status_snapshot": 3708,
+  "main_commit_used_for_status_snapshot": "1002a99",
+  "post_pr_558_reconciliation": {
+    "main_sha": "1002a99a493363f4b164bea77f964d3156dc9f74",
+    "pr_558_status": "merged_by_squash",
+    "status": "completed",
+    "selected_cases_classified": 195,
+    "class_counts": {
+      "A_genuinely_new_review_needed": 91,
+      "B_previously_answered_exact": 7,
+      "C_previously_answered_same_failure_mode": 7,
+      "D_known_false_positive_regression": 53,
+      "E_known_true_pattern": 33,
+      "F_ambiguous_relationship": 4
+    },
+    "final_reviewer_package": {
+      "active_ester_review_requests": 83,
+      "no_new_review_needed_rows": 68,
+      "no_current_finding_rows": 457,
+      "evidence_pdfs": 21,
+      "evidence_pages": 83
+    },
+    "pre_merge_validation": {
+      "reconciliation_tests_passed": 13,
+      "other_ester_regression_tests_passed": 352,
+      "targeted_pdf_rule_tests_passed": 278,
+      "ruff": "PASS",
+      "mypy": "PASS",
+      "full_pytest_passed": 3708,
+      "full_pytest_failed": 0
+    },
+    "r018_r075_ownership": "R075 owns genuine TOC-wide missing-leader consistency; R018 retains distinct alignment, continuation, and leader-placement responsibilities; no duplicate reporting for the tested case.",
+    "running_production_version_sha": "38415c3ed76ee28eb1c46c2cd83a6ed439242db7",
+    "live_service_worktree_sha": "1002a99a493363f4b164bea77f964d3156dc9f74",
+    "production_deployment_pending": true
+  }
 }
