@@ -30,8 +30,16 @@ from pathlib import Path
 import fitz
 
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextBlock,
+    PdfTextLine,
+    PdfTextSpan,
+)
 from njit_auditor.rules.pdf_margins import (
-    BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT,
+    BOTTOM_LINE_BOX_MAX_OVERFLOW_PT,
     BOTTOM_MARGIN_PT,
     OVERFLOW_TOLERANCE_PT,
     REFERENCES_MARGIN_EXTRA_TOLERANCE_PT,
@@ -72,21 +80,77 @@ def test_bottom_margin_overflow_just_under_tolerance_suppressed(tmp_path: Path) 
     assert _warnings(pdf_path, "bottom_margin") == []
 
 
-def test_bottom_margin_overflow_just_over_tolerance_still_flagged(tmp_path: Path) -> None:
-    """~9.7pt single-line bottom overflow (just above the 9.3pt tolerance,
-    past the natural gap following the newly resolved ~9.2pt cluster) must
-    still warn -- the tolerance has a ceiling, it is not a blanket exemption."""
+def test_bottom_margin_overflow_beyond_line_box_allowance_still_flagged(tmp_path: Path) -> None:
+    """A line extending beyond the bounded line-box allowance still warns."""
     doc = fitz.open()
     page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
-    page.insert_text((150, 726.411), "Footer line crossing bottom margin boundary", fontsize=11)
+    page.insert_text((150, 729.0), "Footer line crossing bottom margin boundary", fontsize=11)
     pdf_path = tmp_path / "bottom_just_over.pdf"
     doc.save(pdf_path)
     doc.close()
 
     warnings = _warnings(pdf_path, "bottom_margin")
     assert len(warnings) == 1
-    assert float(warnings[0].details["worst_overflow_pt"]) > BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT
-    assert warnings[0].details["confidence"] == "medium"
+    assert float(warnings[0].details["worst_overflow_pt"]) > BOTTOM_LINE_BOX_MAX_OVERFLOW_PT
+    assert warnings[0].details["confidence"] == "high"
+
+
+def test_later_word_style_final_line_box_suppressed(tmp_path: Path) -> None:
+    """An ordinary final line at ~11.8pt remains the rejected line-box shape."""
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
+    page.insert_text((108, 728.4), "Ordinary body paragraph final line", fontsize=12)
+    pdf_path = tmp_path / "word_style_final_line.pdf"
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    line = model.pages[0].text_blocks[0].lines[0]
+    assert 9.3 < line.bbox.y1 - ALLOWED_Y1 <= BOTTOM_LINE_BOX_MAX_OVERFLOW_PT
+    assert _warnings(pdf_path, "bottom_margin") == []
+
+
+def _line(text: str, box: tuple[float, float, float, float], size: float) -> PdfTextLine:
+    bbox = BBox(x0=box[0], y0=box[1], x1=box[2], y1=box[3])
+    return PdfTextLine(text=text, bbox=bbox, spans=[PdfTextSpan(text=text, bbox=bbox, size=size)])
+
+
+def _model(*lines: PdfTextLine) -> PdfDocument:
+    block = PdfTextBlock(
+        lines=list(lines),
+        bbox=BBox(x0=100, y0=70, x1=550, y1=745),
+        text=" ".join(line.text for line in lines),
+    )
+    page = PdfPage(page_number=1, width=PAGE_WIDTH, height=PAGE_HEIGHT, text_blocks=[block])
+    return PdfDocument(path="synthetic.pdf", pages=[page])
+
+
+def test_split_math_subscript_near_bottom_is_not_a_separate_violation() -> None:
+    """A small extracted subscript overlaps its in-bounds equation parent."""
+    parent = _line("k <= T", (219.6, 718.1, 236.3, 727.6), 8.0)
+    subscript = _line("η", (232.6, 724.5, 236.4, 730.4), 6.0)
+    findings = run_pdf_margin_rule(_model(parent, subscript))
+    assert all(f.severity.value != "WARNING" for f in findings)
+    findings_without_parent = run_pdf_margin_rule(_model(subscript))
+    assert any(f.severity.value == "WARNING" for f in findings_without_parent)
+
+
+def test_small_font_with_deeper_bottom_bleed_still_warns() -> None:
+    line = _line("Small text outside the margin", (108, 715, 350, 731), 8.0)
+    assert any(f.severity.value == "WARNING" for f in run_pdf_margin_rule(_model(line)))
+
+
+def test_line_starting_below_bottom_margin_still_warns() -> None:
+    line = _line("Actual content below the margin", (108, 722, 350, 730.5), 12.0)
+    assert any(f.severity.value == "WARNING" for f in run_pdf_margin_rule(_model(line)))
+
+
+def test_contents_last_row_at_template_boundary_suppressed() -> None:
+    header = _line("TABLE OF CONTENTS (Continued)", (108, 82, 340, 107), 12)
+    row = _line("REFERENCES........................", (108.4, 727.3, 511, 739.6), 12)
+    assert all(f.severity.value != "WARNING" for f in run_pdf_margin_rule(_model(header, row)))
+    assert any(f.severity.value == "WARNING" for f in run_pdf_margin_rule(_model(row)))
+    deeper = _line("REFERENCES........................", (108.4, 731, 511, 743.3), 12)
+    assert any(f.severity.value == "WARNING" for f in run_pdf_margin_rule(_model(header, deeper)))
 
 
 def test_bottom_margin_overflow_at_esther_confirmed_9_2pt_cluster_suppressed(
@@ -229,6 +293,32 @@ def test_references_entry_bounded_right_overflow_suppressed(tmp_path: Path) -> N
     doc.close()
 
     assert _warnings(pdf_path, "right_margin") == []
+
+
+def test_same_shape_references_entry_at_10_2pt_suppressed(tmp_path: Path) -> None:
+    """The smaller Patrick reference pattern extends just beyond the old 9pt bound."""
+    text = "Author, A. An Unbreakable Long Citation Title That Cannot Wrap."
+    width = fitz.get_text_length(text, fontsize=12)
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_WIDTH, height=PAGE_HEIGHT)
+    page.insert_text((108, 100), "References", fontsize=14)
+    page.insert_text((ALLOWED_X1 + 10.2 - width, 300), text, fontsize=12)
+    pdf_path = tmp_path / "references_10_2pt.pdf"
+    doc.save(pdf_path)
+    doc.close()
+    assert _warnings(pdf_path, "right_margin") == []
+
+
+def test_reference_left_hanging_indent_does_not_get_right_side_allowance() -> None:
+    header = _line("References", (108, 100, 220, 115), 12)
+    entry = _line("Author, A. Reference entry", (97.8, 300, 480, 312), 12)
+    findings = run_pdf_margin_rule(_model(header, entry))
+    assert any(
+        f.severity.value == "WARNING"
+        and f.details.get("side") == "left_margin"
+        and f.details.get("margin_content_kind") == "references_hanging_indent"
+        for f in findings
+    )
 
 
 def test_references_entry_beyond_bound_still_flagged(tmp_path: Path) -> None:
