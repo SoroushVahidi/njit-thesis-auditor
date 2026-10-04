@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
+from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
 
 PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
 ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
+MATH_SYMBOL_FONT_PREFIXES = ("cmmi", "cmsy", "cmex", "msam", "msbm", "wasy")
 DECIMAL_SECTION_NUMBER_RE = re.compile(r"\d+\.\d+")
 LONG_NUMERIC_ID_RE = re.compile(r"^\d{5,}$")
 TOP_BOTTOM_ZONE_RATIO = 0.15
@@ -169,6 +170,20 @@ def _classify_style_and_value(text: str) -> tuple[str, int | None]:
     return "other", None
 
 
+def _is_math_symbol_line(line: PdfTextLine) -> bool:
+    """Exclude a glyph extracted as a Roman letter from a math-only font line.
+
+    Math extension/symbol fonts can map a summation glyph to ``X`` in PDF text.
+    A line with any ordinary text span remains eligible as a page number.
+    """
+    spans = [span for span in line.spans if span.text.strip()]
+    return bool(spans) and all(
+        span.font is not None
+        and span.font.lower().split("+")[-1].startswith(MATH_SYMBOL_FONT_PREFIXES)
+        for span in spans
+    )
+
+
 def _classify_position_type(
     x0: float, x1: float, y1: float, page_width: float, page_height: float
 ) -> str:
@@ -203,7 +218,7 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
                 continue
             for line in block.lines:
                 clean = " ".join(line.text.strip().split())
-                if not clean or not PAGE_NUM_RE.match(clean):
+                if not clean or not PAGE_NUM_RE.match(clean) or _is_math_symbol_line(line):
                     continue
                 if not in_top_bottom:
                     # Landscape edge zone only: a rotated folio number is the
