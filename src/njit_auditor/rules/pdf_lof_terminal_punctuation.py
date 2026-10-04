@@ -20,7 +20,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
     detect_toc_like_pages,
-    extract_toc_entry_lines,
+    extract_toc_logical_entry_lines,
     has_trailing_page_number_token,
 )
 
@@ -65,7 +65,13 @@ def _strip_trailing_lof_dot_leaders(text: str) -> str:
         return prefix
 
     leader = suffix.lstrip()
-    if leader.startswith(".") and _dot_leader_weight(leader[1:]) >= 2:
+    # A short extracted ". ." suffix can be a title's attached terminal
+    # period followed by one detached leader dot. Require the first dot to
+    # touch the title in that two-dot case; "title . ." is leader-only.
+    attached_terminal_dot = suffix.startswith(".") and _dot_leader_weight(leader[1:]) >= 1
+    if leader.startswith(".") and (
+        _dot_leader_weight(leader[1:]) >= 2 or attached_terminal_dot
+    ):
         return f"{prefix}.".strip()
 
     return prefix.strip()
@@ -164,7 +170,7 @@ def check_pdf_lof_terminal_punctuation(pdf_document: PdfDocument) -> list[AuditF
     for context in detect_toc_like_pages(pdf_document):
         if context.page_type != "list_of_figures":
             continue
-        entries = extract_toc_entry_lines(context)
+        entries = extract_toc_logical_entry_lines(context)
         if not entries:
             continue
         page_findings = _check_lof_terminal_punctuation_page(context, entries, entry_offset)
