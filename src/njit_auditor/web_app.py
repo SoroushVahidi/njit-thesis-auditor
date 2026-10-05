@@ -930,11 +930,11 @@ _P024_REMAINING_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "id": "P024E",
         "parent_rule_id": "P024",
         "source_q_rule_ids": ("Q074",),
-        "issue_types": ("list_of_figures_sentence_case",),
-        "title": "In the List of Figures, are figure descriptions displayed in sentence case?",
+        "issue_types": ("list_of_figures_title_case",),
+        "title": "In the List of Figures, are figure titles displayed in title case?",
         "how_to_correct": (
-            "Change the List of Figures entry to sentence case. Capitalize only "
-            "the first word, proper nouns, and acronyms."
+            "Change List of Figures entry titles to title case. Capitalize each "
+            "word except articles, prepositions, and conjunctions."
         ),
     },
 )
@@ -1020,7 +1020,7 @@ _PUBLIC_RULE_ISSUE_REFERENCE: dict[tuple[str, str], str] = {
     # P024 is a hidden internal parent; its List of Tables and List of
     # Figures capitalization findings belong to the visible atomic cards.
     ("P024", "list_of_tables_title_case"): "P024D",
-    ("P024", "list_of_figures_sentence_case"): "P024E",
+    ("P024", "list_of_figures_title_case"): "P024E",
 }
 
 

@@ -1286,33 +1286,47 @@ def test_p024_same_page_findings_distinguishable_via_entry_index() -> None:
     }
 
 
-def test_p024_lof_sentence_case_display_comment_names_flagged_words() -> None:
-    """The displayed comment for a List of Figures sentence-case finding must
-    name the specific flagged word(s), not a generic 'multiple later words'
-    message — and grouping is unaffected because the override happens after
-    grouping (the underlying card-level comment stays generic)."""
+def test_p024_lof_title_case_display_comment_names_list_and_rule() -> None:
+    """A List of Figures title-case finding says List of Figures and Title Case,
+    and stays distinct from the List of Tables comment (R024D vs R024E)."""
     findings = [
         AuditFinding(
             rule_id="P024",
             severity=Severity.WARNING,
             page=15,
-            message="List of Figures entry may not follow sentence-case style.",
+            message="List of Figures entry may have title-case issue.",
             details={
                 "page_type": "list_of_figures",
-                "issue_type": "list_of_figures_sentence_case",
+                "issue_type": "list_of_figures_title_case",
                 "entry_index": "0",
-                "flagged_words": "Schematic, Diagram",
+                "expected_or_reason": "major_word_requires_capital",
                 "confidence": "medium",
             },
-        )
+        ),
+        AuditFinding(
+            rule_id="P024",
+            severity=Severity.WARNING,
+            page=14,
+            message="List of Tables entry may have title-case issue.",
+            details={
+                "page_type": "list_of_tables",
+                "issue_type": "list_of_tables_title_case",
+                "entry_index": "0",
+                "expected_or_reason": "major_word_requires_capital",
+                "confidence": "medium",
+            },
+        ),
     ]
     report = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(report)
 
-    finding = next(f for f in view.findings if f.rule_id == "P024")
-    assert "'Schematic'" in finding.polished_comment
-    assert "'Diagram'" in finding.polished_comment
-    assert "multiple later words" not in finding.polished_comment
+    lof = next(f for f in view.findings if f.issue_type == "list_of_figures_title_case")
+    lot = next(f for f in view.findings if f.issue_type == "list_of_tables_title_case")
+    assert "List of Figures" in lof.polished_comment
+    assert "Title Case" in lof.polished_comment
+    assert "sentence case" not in lof.polished_comment.lower()
+    assert "List of Tables" in lot.polished_comment
+    assert lof.polished_comment != lot.polished_comment
 
 
 def test_p040_entry_clause_uses_page_relative_index_not_document_global() -> None:
@@ -1362,7 +1376,7 @@ def test_p024_line_preview_never_rendered_in_comment_or_explanation() -> None:
         ),
         _p024_finding(
             page=9,
-            issue_type="list_of_figures_sentence_case",
+            issue_type="list_of_figures_title_case",
             entry_index="0",
         ),
         _p024_finding(
@@ -1431,7 +1445,7 @@ def test_polished_comments_are_privacy_safe(
             {"entry_level": "2", "expected_or_reason": "major_word_requires_capital"},
         ),
         ("list_of_tables_title_case", {"expected_or_reason": "first_word_requires_capital"}),
-        ("list_of_figures_sentence_case", {}),
+        ("list_of_figures_title_case", {"expected_or_reason": "major_word_requires_capital"}),
         ("unexpected_terminal_punctuation", {}),
     ],
 )

@@ -8,7 +8,11 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines;
   - TOC Level 1 chapter/front-matter entries: ALL CAPS (Q049)
   - TOC Level 2 entries: Title Case (Q050)
   - List of Tables titles: Title Case (Q065; public card R024D)
-  - List of Figures descriptions: Sentence case (Q074; public card R024E)
+  - List of Figures titles: Title Case (Q074 slot; public card R024E)
+
+Ester's 2026-10-05 feedback set both lists to title case and asked for
+separate codes. That supersedes the earlier List of Figures sentence-case
+reading of Q074. R024D and R024E stay distinct through their issue types.
 
 Terminal punctuation is owned elsewhere: P053 (List of Tables), P054
 (Table of Contents), and P040 (List of Figures).
@@ -37,7 +41,6 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 LINE_PREVIEW_MAX = 80
 MIN_ENTRY_WORDS = 3
-_MAX_FLAGGED_WORDS = 3
 
 # TOC level-classification patterns.
 _CHAPTER_RE = re.compile(r"^(?:chapter|appendix)\b", re.IGNORECASE)
@@ -55,9 +58,6 @@ _LEADER_STRIP_RE = re.compile(r"\s*(?:\.\s*){2,}$")
 
 _TERMINAL_PERIOD_RE = re.compile(r"\.\s*$")
 
-# Words containing digits or special math notation: skip in case checks.
-_SKIP_WORD_RE = re.compile(r"[0-9Α-ω+*/=<>^\\{}[\]()°]")
-
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
 
 _SCIENTIFIC_SEQUENCE_RE = re.compile(r"\b[A-Z]{4,}\b")
@@ -66,11 +66,6 @@ _SCIENCE_NOMENCLATURE_RE = re.compile(
     r"(?:\b(?:peptide|protein|cytochrome|bradykinin|casein)\b|β|m/z)",
     re.IGNORECASE,
 )
-# Public software/product names are proper nouns in a sentence-case figure
-# title. Keep this vocabulary limited to the two products in Ester's reviewed
-# pattern; ordinary capitalized words still count toward a violation.
-_SOFTWARE_PROPER_NAMES = frozenset({"sklearn", "matlab"})
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -159,57 +154,6 @@ def _obvious_not_all_caps(text: str) -> bool:
     return len(lowercase_major) >= 2
 
 
-def _sentence_case_violation_words(text: str) -> list[str]:
-    """Return the specific later words that are unexpectedly capitalized.
-
-    Conservative: flags only when >=60% of eligible later words are
-    capitalized (title-case-like). Used for List of Figures entries, which
-    NJIT expects in sentence case.
-
-    Lowercase NJIT minor words (including longer prepositions such as
-    ``with``) stay in the denominator so they dilute the title-case ratio.
-    Short minors are already dropped by the ``len(w) > 3`` gate; excluding
-    long minors here would falsely tip borderline sentence-case figure
-    titles that contain a few proper nouns (e.g. ``… with Marching Cubes``).
-    """
-    words: list[str] = []
-    depth = 0
-    last_end = 0
-    for match in _WORD_RE.finditer(text):
-        between = text[last_end : match.start()]
-        for char in between:
-            if char == "(":
-                depth += 1
-            elif char == ")":
-                depth = max(0, depth - 1)
-        if depth == 0:
-            words.append(match.group())
-        last_end = match.end()
-    if len(words) < 4:
-        return []
-    later = [
-        w for w in words[1:]
-        if len(w) > 3
-        and not looks_like_acronym(w)
-        and not _SKIP_WORD_RE.search(w)
-        and w.casefold() not in _SOFTWARE_PROPER_NAMES
-    ]
-    if len(later) < 3:
-        return []
-    capitalized = [w for w in later if w[0].isupper()]
-    if (len(capitalized) / len(later)) >= 0.6:
-        return capitalized
-    return []
-
-
-def _sentence_case_violation(text: str) -> bool:
-    """Conservative: True if later content words are >60% capitalized (title-case-like).
-
-    Used for List of Figures entries where sentence case is expected.
-    """
-    return bool(_sentence_case_violation_words(text))
-
-
 # ---------------------------------------------------------------------------
 # Page-level checks
 # ---------------------------------------------------------------------------
@@ -292,10 +236,23 @@ def _check_toc_page(
     return findings
 
 
-def _check_lot_page(
+_LIST_TITLE_CASE_SPECS: dict[str, tuple[str, str, str]] = {
+    # page_type: (issue_type, list label, source Q-rule slot)
+    "list_of_tables": ("list_of_tables_title_case", "List of Tables", "Q065"),
+    "list_of_figures": ("list_of_figures_title_case", "List of Figures", "Q074"),
+}
+
+
+def _check_list_title_case_page(
     context: TocPageContext,
     entries: list[TocEntryLine],
 ) -> list[AuditFinding]:
+    """Flag List of Tables / List of Figures entries that are not in title case.
+
+    Both lists use the same title-case check; the issue type keeps them
+    distinct (R024D for tables, R024E for figures).
+    """
+    issue_type, list_label, q_rule_id = _LIST_TITLE_CASE_SPECS[context.page_type]
     findings: list[AuditFinding] = []
     for entry_index, entry in enumerate(entries):
         raw = _clean_entry_text(entry)
@@ -317,63 +274,20 @@ def _check_lot_page(
                     severity=Severity.WARNING,
                     page=context.page.page_number,
                     message=(
-                        f"List of Tables entry may have title-case issue: "
+                        f"{list_label} entry may have title-case issue: "
                         f"'{first['word']}' may need to be capitalized "
                         f"({first['reason']})."
                     ),
                     details={
                         "page_number": str(context.page.page_number),
-                        "page_type": "list_of_tables",
-                        "issue_type": "list_of_tables_title_case",
+                        "page_type": context.page_type,
+                        "issue_type": issue_type,
                         "entry_index": str(entry_index),
                         "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
                         "bbox": format_bbox_detail(entry.line.bbox),
                         "expected_or_reason": first["reason"],
                         "confidence": first["confidence"],
-                        "source_q_rule_id": "Q065",
-                    },
-                )
-            )
-    return findings
-
-
-def _check_lof_page(
-    context: TocPageContext,
-    entries: list[TocEntryLine],
-) -> list[AuditFinding]:
-    findings: list[AuditFinding] = []
-    for entry_index, entry in enumerate(entries):
-        raw = _clean_entry_text(entry)
-        entry_text = _strip_list_prefix(raw)
-        if not entry_text or len(entry_text) < 10:
-            continue
-        if len(tokenize_title_words(entry_text)) < 4:
-            continue
-        flagged_words = _sentence_case_violation_words(entry_text)
-        if flagged_words:
-            words_clause = ", ".join(f"'{w}'" for w in flagged_words[:_MAX_FLAGGED_WORDS])
-            findings.append(
-                AuditFinding(
-                    rule_id="P024",
-                    severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message=(
-                        "List of Figures entry may not follow sentence-case style: "
-                        f"{words_clause} appear capitalized where sentence case is expected."
-                    ),
-                    details={
-                        "page_number": str(context.page.page_number),
-                        "page_type": "list_of_figures",
-                        "issue_type": "list_of_figures_sentence_case",
-                        "entry_index": str(entry_index),
-                        "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
-                        "bbox": format_bbox_detail(entry.line.bbox),
-                        "expected_or_reason": (
-                            "Figure descriptions in LoF expected in sentence case"
-                        ),
-                        "flagged_words": ", ".join(flagged_words[:_MAX_FLAGGED_WORDS]),
-                        "confidence": "medium",
-                        "source_q_rule_id": "Q074",
+                        "source_q_rule_id": q_rule_id,
                     },
                 )
             )
@@ -392,8 +306,6 @@ def check_pdf_toc_list_formatting(pdf_document: PdfDocument) -> list[AuditFindin
         entries = extract_toc_logical_entry_lines(context)
         if context.page_type == "table_of_contents":
             findings.extend(_check_toc_page(context, entries))
-        elif context.page_type == "list_of_tables":
-            findings.extend(_check_lot_page(context, entries))
-        elif context.page_type == "list_of_figures":
-            findings.extend(_check_lof_page(context, entries))
+        elif context.page_type in _LIST_TITLE_CASE_SPECS:
+            findings.extend(_check_list_title_case_page(context, entries))
     return findings

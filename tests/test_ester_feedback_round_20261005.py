@@ -139,13 +139,13 @@ def test_r024_lot_and_lof_findings_map_to_distinct_visible_cards() -> None:
         "P024", issue_type="list_of_tables_title_case", source_q_rule_id="Q065"
     )
     lof = wa._public_rule_reference_id(
-        "P024", issue_type="list_of_figures_sentence_case", source_q_rule_id="Q074"
+        "P024", issue_type="list_of_figures_title_case", source_q_rule_id="Q074"
     )
     assert (lot, lof) == ("P024D", "P024E")
     # Without the Q-rule detail (older stored reports) the mapping still holds.
     assert wa._public_rule_reference_id("P024", issue_type="list_of_tables_title_case") == "P024D"
     assert (
-        wa._public_rule_reference_id("P024", issue_type="list_of_figures_sentence_case")
+        wa._public_rule_reference_id("P024", issue_type="list_of_figures_title_case")
         == "P024E"
     )
     assert public_display_rule_id(lot) == "R024D"
@@ -156,12 +156,14 @@ def test_r024_lot_and_lof_findings_map_to_distinct_visible_cards() -> None:
     assert "List of Tables" in cards["P024D"]["title"]
     assert "title case" in cards["P024D"]["title"]
     assert "List of Figures" in cards["P024E"]["title"]
-    assert "sentence case" in cards["P024E"]["title"]
+    assert "title case" in cards["P024E"]["title"]
+    assert "sentence case" not in cards["P024E"]["title"]
+    assert cards["P024D"]["title"] != cards["P024E"]["title"]
     assert wa._public_rule_reference_href(
         "P024", issue_type="list_of_tables_title_case"
     ).endswith("#P024D")
     assert wa._public_rule_reference_href(
-        "P024", issue_type="list_of_figures_sentence_case"
+        "P024", issue_type="list_of_figures_title_case"
     ).endswith("#P024E")
 
 

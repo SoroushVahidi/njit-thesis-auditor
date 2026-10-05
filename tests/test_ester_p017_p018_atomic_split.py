@@ -2,7 +2,7 @@
 
 Covers:
 1. P017 — LoT/LoF context findings carry source_q_rule_id (Q065, Q074, Q075)
-2. P017 — new LoF sentence-case check (Q074) added in this PR
+2. P017 — LoF sentence-case check (Q074) removed 2026-10-05; P024/R024E owns LoF title case
 3. P018 — inconsistent_leader_dots finding carries source_q_rule_id=Q052
 4. P024 — LoT findings carry source_q_rule_id=Q065
 5. P024 — LoF findings carry source_q_rule_id=Q074
@@ -128,8 +128,9 @@ def test_p017_q_rule_map_contains_q075_for_lof_missing_terminal() -> None:
     assert _P017_Q_RULE_MAP.get(("list_of_figures", "missing_terminal_punctuation")) == "Q075"
 
 
-def test_p017_q_rule_map_contains_q074_for_lof_sentence_case() -> None:
-    assert _P017_Q_RULE_MAP.get(("list_of_figures", "possible_sentence_case_issue")) == "Q074"
+def test_p017_q_rule_map_has_no_lof_sentence_case_entry() -> None:
+    # Ester 2026-10-05: List of Figures titles use title case, owned by R024E.
+    assert ("list_of_figures", "possible_sentence_case_issue") not in _P017_Q_RULE_MAP
 
 
 def test_p017_q_rule_map_body_context_has_no_q_rule() -> None:
@@ -300,32 +301,33 @@ def test_p053_lot_terminal_period_carries_q065() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. P024 — LoF sentence-case finding carries source_q_rule_id=Q074
+# 7. P024 — LoF title-case finding carries source_q_rule_id=Q074
 # ---------------------------------------------------------------------------
 
-def _make_lof_page_with_sentence_case_issue() -> PdfPage:
-    """LoF page with a figure description in title case instead of sentence case."""
+def _make_lof_page_with_title_case_issue() -> PdfPage:
+    """LoF page with a figure title in sentence case instead of title case."""
     heading = _line("LIST OF FIGURES", x0=222.0, x1=390.0, y0=50.0, y1=62.0, bold=True)
-    # Entry in title case — violates sentence case (Q074)
+    # Entry in sentence case — violates title case (Ester 2026-10-05)
     entry = _line(
-        "Figure 3.1 Relationship Between Temperature, Pressure, And Volume ... 23",
+        "Figure 3.1 Relationship between temperature, pressure, and volume ... 23",
         x0=108.0, x1=504.0, y0=80.0, y1=92.0,
     )
     return _page(5, _block(heading), _block(entry))
 
 
-def test_p024_lof_sentence_case_carries_q074() -> None:
-    """P024 list_of_figures_sentence_case finding must carry source_q_rule_id=Q074."""
-    doc = _doc(_make_lof_page_with_sentence_case_issue())
+def test_p024_lof_title_case_carries_q074() -> None:
+    """P024 list_of_figures_title_case finding must carry source_q_rule_id=Q074."""
+    doc = _doc(_make_lof_page_with_title_case_issue())
     findings = check_pdf_toc_list_formatting(doc)
     lof_findings = [
         f for f in findings
         if f.rule_id == "P024"
-        and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        and f.details.get("issue_type") == "list_of_figures_title_case"
     ]
+    assert lof_findings
     for f in lof_findings:
         assert f.details.get("source_q_rule_id") == "Q074", (
-            f"P024 list_of_figures_sentence_case must have source_q_rule_id=Q074; "
+            f"P024 list_of_figures_title_case must have source_q_rule_id=Q074; "
             f"got {f.details.get('source_q_rule_id')!r}"
         )
 

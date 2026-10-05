@@ -2393,31 +2393,6 @@ def _apply_digital_commons_wrapper_presentation(
     )
 
 
-def _apply_lof_sentence_case_presentation(
-    finding: FindingView,
-    details: Mapping[str, str],
-) -> FindingView:
-    """Name the specific capitalized word(s) in a List of Figures sentence-case finding.
-
-    Overrides only the display comment after grouping has already been
-    computed upstream (on the word-independent comment) — see
-    _apply_spacing_presentation for the same pattern and rationale.
-    """
-    if finding.rule_id != "P024" or finding.issue_type != "list_of_figures_sentence_case":
-        return finding
-    flagged_words = details.get("flagged_words", "").strip()
-    if not flagged_words:
-        return finding
-    words_clause = ", ".join(f"'{w.strip()}'" for w in flagged_words.split(",") if w.strip())
-    page_label = str(finding.page) if finding.page is not None else "this page"
-    comment = (
-        f"Likely problem: A List of Figures entry on page {page_label} may not use "
-        f"sentence case: {words_clause} appear capitalized where only the first word "
-        "and proper nouns should be. Change these words to lowercase."
-    )
-    return replace(finding, polished_comment=comment)
-
-
 def _apply_lof_punctuation_presentation(
     finding: FindingView,
     details: Mapping[str, str],
@@ -2912,11 +2887,6 @@ def build_report_view(
             visible_view, is_problem = _apply_float_layout_presentation(visible_view, details)
         elif visible_view.rule_id == "P040":
             visible_view, is_problem = _apply_lof_punctuation_presentation(visible_view, details)
-        elif (
-            visible_view.rule_id == "P024"
-            and visible_view.issue_type == "list_of_figures_sentence_case"
-        ):
-            visible_view = _apply_lof_sentence_case_presentation(visible_view, details)
         elif visible_view.rule_id == "P018":
             visible_view, is_problem = _apply_toc_alignment_presentation(visible_view, details)
         elif visible_view.rule_id == "P046":

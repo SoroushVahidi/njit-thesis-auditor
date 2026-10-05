@@ -14,9 +14,9 @@ Reviewer-facing identifiers are `Rxxx`; implementation identifiers are
 |---|---|---|---|
 | R011 | Sebastian, physical p28 / printed 13, final reference/DOI line, bottom margin | Not a violation | Narrow references-page final-line allowance in `pdf_margins.py` |
 | R018 | Patrick, physical p11 / printed x, full-width List of Figures entry with no leader dots | True violation | Behavior unchanged; authority regression; R018D card wording now names List of Tables/List of Figures (P075 owns TOC leader style) |
-| R024 | Muyeed, physical p16 / printed xiv, List of Tables title with a lowercase field-convention word | True violation (student may ignore) | Behavior unchanged; P024 findings now map to public cards R024D (List of Tables title case, Q065) and R024E (List of Figures sentence case, Q074) instead of the hidden parent R024 |
+| R024 | Muyeed, physical p16 / printed xiv, List of Tables title with a lowercase field-convention word | True violation (student may ignore); List of Tables and List of Figures both title case, with different codes | P024 findings map to public cards R024D (List of Tables title case, Q065) and R024E (List of Figures title case, Q074 slot) instead of the hidden parent R024. See "Follow-up reconciliation" below |
 | R040 | Philip, physical p15 / printed xiii, wrapped List of Figures title ending without punctuation before gap-separated leaders | True violation | The first dot of a gap-separated ASCII leader run no longer counts as terminal punctuation |
-| R045 | Patrick, physical p5 / printed iv, numbered publication entries, no hanging indent, double-spaced | Hanging indent not mandatory; single spacing mandatory | Missing hanging indent is no longer reported; Q028 spacing checks are scoped to the Publications/Presentations section and no longer depend on a hanging indent |
+| R045 | Patrick, physical p5 / printed iv, publication entries labeled [1], [2], no hanging indent, double-spaced | Not satisfied: "not numbered" (meaning open), single spacing mandatory, hanging indent optional | Missing hanging indent is no longer reported; Q028 spacing checks are scoped to the Publications/Presentations section and no longer depend on a hanging indent |
 
 Ester also noted that R024 should not use one code for both lists. Both
 atomic cards already existed (`web_app.py`), but findings never resolved to
@@ -74,18 +74,44 @@ R018S). The first dot of a uniform ASCII leader run after a gap
 R018 and R024 finding sets are unchanged (Patrick p11 and Muyeed p16 still
 flagged). No other rule changed.
 
+## Follow-up reconciliation (branch `fix/ester-20261005-r024-r045-reconciliation`)
+
+**R024 (authority 2026-10-05).** Ester: "List of Figures have title case and
+list of Tables have title case. These rules should be labeled with different
+codes." Applied as:
+
+- List of Tables titles: title case, public code R024D (`list_of_tables_title_case`).
+- List of Figures titles: title case, public code R024E (`list_of_figures_title_case`).
+  Both use the same title-case check (`check_apa_title_case_phrase`).
+- The earlier List of Figures sentence-case reading of Q074 is superseded.
+  The P024 sentence-case heuristic and P017's List of Figures sentence-case
+  branch are removed. P017 still checks body figure captions for sentence
+  case: that is a body-caption rule Ester's answer did not address.
+- No public renumbering: R024D/R024E already existed as atomic cards.
+
+Corpus effect: about 229 new R024E warnings across all seven documents
+(nearly every List of Figures entry, because the corpus uses sentence case).
+Sources that still say sentence case for figure descriptions: the NJIT
+formatting guideline, the Self-Assessment Sheet, Q074's text, Ester's own
+P017 sheet edit, and her 2026-09-07 Anthony p14 ruling. Confirm before
+merging.
+
+**R045 (authority 2026-10-05).** Ester listed three issues: "not numbered",
+not single-spaced, no hanging indent; the hanging indent is not mandatory
+and the others are. Applied: single spacing mandatory (unchanged from this
+round), hanging indent optional (unchanged). Numbering is **not**
+implemented: the reviewed entries are visibly labeled [1], [2], the other
+six corpus documents and the NJIT Front Matter template use unnumbered
+entries, and Ester's rules are usually stated declaratively, so the note may
+mean entries must not be numbered.
+
 ## Pending Ester clarification (not implemented)
 
-1. **R045 numbering:** whether publication/presentation entries must be
-   numbered or must not be numbered. Her note reads "are not numbered" for
-   entries that are visibly numbered; the Self-Assessment Sheet asks for the
-   Reference-section style.
+1. **R045 numbering:** "Should publication and presentation entries be
+   numbered, or unnumbered?" (Patrick p5 entries are labeled [1], [2].)
 2. **R011 beyond references pages:** whether the final-line allowance should
    extend to prose, abstract, or contents pages with the same geometry
    (e.g. Sebastian p1/p3/p9, Praneeth p82).
-3. **List of Figures capitalization:** confirm sentence case (Q074). Her
-   note says "List of Figures have title case", most likely a typo; R024E
-   keeps sentence case until she confirms.
 
 ## Pre-existing replay discrepancy (not changed here)
 

@@ -277,7 +277,7 @@ def test_candidates_are_never_labeled_confirmed_or_duplicate_alone() -> None:
 
 
 def test_legitimately_distinct_same_object_findings_stay_candidates_only() -> None:
-    """P024 (sentence case) and P040 (terminal punctuation) can both fire on
+    """P024 (title case) and P040 (terminal punctuation) can both fire on
     the same List of Figures entry -- different edits are required for
     each, so this tool must surface them as a *candidate* (for a human to
     judge), never as anything auto-suppressed or merged. This module has no
@@ -286,7 +286,7 @@ def test_legitimately_distinct_same_object_findings_stay_candidates_only() -> No
     findings = [
         {
             "rule_id": "P024",
-            "issue_type": "list_of_figures_sentence_case",
+            "issue_type": "list_of_figures_title_case",
             "page": 8,
             "bbox": [50, 400, 300, 415],
         },

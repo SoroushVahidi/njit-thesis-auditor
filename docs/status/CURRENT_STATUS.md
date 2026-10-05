@@ -510,7 +510,7 @@ rule registry entries.
 | Closed, engineering-confirmed genuine violation | R085, R086 (Youra physical page 101 case; other corpus findings unreviewed) |
 | Closed, engineering fix to match already-explicit Ester policy | R021 (MS/PhD word limits corrected to 200/400 per her sheet; not a new Ester decision) |
 | Reviewer policy resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`) | R018 wrapped-title alignment (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553); R026 Latin Modern (`ENGINEERING_IMPLEMENTATION_COMPLETE` — detector already accepted it before #553, which added explicit regression coverage); leader placement for TOC/LoT/LoF (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553) |
-| Open policy question | R045 numbering, R011 final-line allowance beyond references pages, List of Figures sentence-case confirmation (see "Ester Feedback Round 2026-10-05") |
+| Open policy question | R045 numbering (must entries be numbered or unnumbered?), R011 final-line allowance beyond references pages (see "Ester Feedback Round 2026-10-05") |
 | Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward, except separately handled R021/R040/R046/R048/R053/R054/R055/R066/R068/R078/R085/R086 |
@@ -557,8 +557,18 @@ spacing mandatory. Branch `fix/ester-feedback-round-20261005` (PR pending
 review, not merged or deployed) adds a narrow R011 references-page
 final-line allowance, maps P024 findings to R024D/R024E, fixes the R040
 gap-separated leader case, and reworks R045 to enforce Q028 spacing without
-requiring a hanging indent. Three clarifications are pending: R045
+requiring a hanging indent. Three clarifications were pending: R045
 numbering, R011 beyond references pages, and List of Figures sentence case.
+
+Follow-up branch `fix/ester-20261005-r024-r045-reconciliation` (not merged
+or deployed) applies Ester's R024 answer: List of Tables (R024D) and List of
+Figures (R024E) titles both use title case, with distinct codes. The List of
+Figures sentence-case reading is superseded. On the seven-document corpus
+this adds about 229 R024E warnings (nearly every List of Figures entry,
+since the corpus uses sentence case), so confirm with Ester before merging.
+R045 stays as implemented (single spacing mandatory, hanging indent
+optional); numbering remains open. Pending clarifications: R045 numbering
+and R011 beyond references pages.
 Review workbooks follow the format in
 `docs/evaluation/ESTER_REVIEW_DATA_MODEL.md` ("Reviewer workbook format").
 Primary record: `docs/status/ester_feedback_round_20261005.md`.

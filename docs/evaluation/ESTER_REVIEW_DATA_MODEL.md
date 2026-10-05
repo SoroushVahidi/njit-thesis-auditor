@@ -253,9 +253,10 @@ her:
 - When a rule has split public codes, use the specific code (R024D, R024E,
   R018D, ...), never the ambiguous parent (R024).
 - Columns: `DOCUMENT`, the possible-violation description, then
-  `Question 1` (not "Ester Question 1"), then `Comment`. The question
-  column comes before the comment column.
-- Wrap text in every cell, top-aligned, with readable column widths.
+  `Question 1`, then `Comment` immediately after the question. Never label
+  a column "Ester's questions" or "Ester Question 1".
+- Wrap text in every cell, top-aligned, with readable column widths, so
+  each entry reads as a block.
 - Keep the layout tidy and identical from round to round so it can be
   reused.
 - The evidence PDF stays directly linked from the rule's tab.

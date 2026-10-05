@@ -4785,29 +4785,9 @@ def test_p024_lot_terminal_period_owned_by_p053(tmp_path: Path) -> None:
     }
 
 
-def test_p024_lof_sentence_case_correct_no_warning(tmp_path: Path) -> None:
-    """LoF entry in correct sentence case must not warn."""
+def test_p024_lof_title_case_correct_no_warning(tmp_path: Path) -> None:
+    """LoF entries in title case must not warn (Ester 2026-10-05: LoF = title case)."""
     pdf_path = tmp_path / "lof_ok.pdf"
-    _make_toc_pdf(
-        pdf_path,
-        "LIST OF FIGURES",
-        [
-            ("Figure 1 Schematic diagram of the proposed system architecture ....", 108),
-            ("Figure 2 Overview of data collection pipeline for experiments ....", 108),
-            ("Figure 3 Comparison of training accuracy across baseline models ....", 108),
-        ],
-    )
-    model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_toc_list_formatting(model)
-    assert not any(
-        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
-        for f in findings
-    )
-
-
-def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
-    """LoF entry with title-case-like capitalization warns for sentence-case violation."""
-    pdf_path = tmp_path / "lof_bad.pdf"
     _make_toc_pdf(
         pdf_path,
         "LIST OF FIGURES",
@@ -4819,43 +4799,17 @@ def test_p024_lof_title_case_like_warns(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_toc_list_formatting(model)
-    assert any(
-        f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
-        for f in findings
-    )
+    assert not any(f.rule_id == "P024" for f in findings)
 
 
-def test_p024_lof_sentence_case_keeps_long_minor_words_in_ratio(tmp_path: Path) -> None:
-    """Lowercase long prepositions must dilute LoF sentence-case ratio (not tip FPs)."""
-    pdf_path = tmp_path / "lof_with_marching.pdf"
+def test_p024_lof_sentence_case_entry_warns_title_case(tmp_path: Path) -> None:
+    """A sentence-case LoF entry now violates the title-case requirement."""
+    pdf_path = tmp_path / "lof_bad.pdf"
     _make_toc_pdf(
         pdf_path,
         "LIST OF FIGURES",
         [
-            ("Figure 1 Overview of the experimental setup for this study ....", 108),
-            ("Figure 2 Schematic of the measurement configuration used here ....", 108),
-            ("Figure 3 Qualitative comparison with Marching Cubes ....", 108),
-        ],
-    )
-    model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_toc_list_formatting(model)
-    assert not any(
-        f.rule_id == "P024"
-        and f.details.get("issue_type") == "list_of_figures_sentence_case"
-        and "Marching" in (f.details.get("line_preview") or "")
-        for f in findings
-    )
-
-
-def test_p024_lof_sentence_case_identifies_exact_flagged_words(tmp_path: Path) -> None:
-    """The finding must name the specific words causing the sentence-case
-    violation, not just a generic 'multiple later words' message."""
-    pdf_path = tmp_path / "lof_flagged_words.pdf"
-    _make_toc_pdf(
-        pdf_path,
-        "LIST OF FIGURES",
-        [
-            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
+            ("Figure 1 Schematic diagram of the proposed system architecture ....", 108),
             ("Figure 2 Overview of Data Collection Pipeline for Experiments ....", 108),
             ("Figure 3 Comparison of Training Accuracy Across Baseline Models ....", 108),
         ],
@@ -4864,29 +4818,39 @@ def test_p024_lof_sentence_case_identifies_exact_flagged_words(tmp_path: Path) -
     findings = [
         f
         for f in check_pdf_toc_list_formatting(model)
-        if f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        if f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_title_case"
     ]
-    assert findings
-    for f in findings:
-        flagged_words = f.details.get("flagged_words", "")
-        assert flagged_words
-        first_word = flagged_words.split(",")[0].strip()
-        assert first_word in f.message
+    assert [f.details.get("entry_index") for f in findings] == ["0"]
+    assert "'diagram'" in findings[0].message
+    assert findings[0].message.startswith("List of Figures entry")
 
 
-def test_p024_lof_common_nouns_in_title_case_warn(tmp_path: Path) -> None:
-    """A LoF entry with obvious title-cased common nouns must trigger the warning."""
+def test_p024_lof_lowercase_long_preposition_is_title_case(tmp_path: Path) -> None:
+    """NJIT title case leaves prepositions such as 'with' lowercase."""
+    pdf_path = tmp_path / "lof_with_marching.pdf"
+    _make_toc_pdf(
+        pdf_path,
+        "LIST OF FIGURES",
+        [
+            ("Figure 1 Overview of the Experimental Setup for This Study ....", 108),
+            ("Figure 2 Schematic of the Measurement Configuration Used Here ....", 108),
+            ("Figure 3 Qualitative Comparison with Marching Cubes ....", 108),
+        ],
+    )
+    model = load_pdf_layout(str(pdf_path))
+    assert not any(f.rule_id == "P024" for f in check_pdf_toc_list_formatting(model))
+
+
+def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
+    """A LoF entry with lowercase major words triggers the title-case warning."""
     pdf_path = tmp_path / "lof_common_nouns_bad.pdf"
     _make_toc_pdf(
         pdf_path,
         "LIST OF FIGURES",
         [
-            # Use several capitalized major nouns (not prepositions) so the
-            # sentence-case heuristic still has enough eligible later words after
-            # NJIT minor-word filtering (articles/prepositions/conjunctions).
-            ("Figure 4.1 Relationship Benefits Readiness Outcomes Across Cohorts ....", 108),
-            ("Figure 4.2 Overview of results for baseline comparison ....", 108),
-            ("Figure 4.3 Summary of findings from pilot testing ....", 108),
+            ("Figure 4.1 Relationship between benefits and readiness outcomes ....", 108),
+            ("Figure 4.2 Overview of Results for Baseline Comparison ....", 108),
+            ("Figure 4.3 Summary of Findings from Pilot Testing ....", 108),
         ],
     )
     model = load_pdf_layout(str(pdf_path))
@@ -4895,39 +4859,33 @@ def test_p024_lof_common_nouns_in_title_case_warn(tmp_path: Path) -> None:
         f
         for f in findings
         if f.rule_id == "P024"
-        and f.details.get("issue_type") == "list_of_figures_sentence_case"
+        and f.details.get("issue_type") == "list_of_figures_title_case"
     ]
     assert lof_findings
     assert lof_findings[0].details.get("source_q_rule_id") == "Q074"
     assert lof_findings[0].details.get("entry_index") == "0"
 
 
-def test_p024_lof_parenthetical_proper_names_do_not_tip_sentence_case_ratio(
+def test_p024_lof_parenthetical_proper_names_in_title_case_do_not_warn(
     tmp_path: Path,
 ) -> None:
-    """Parenthetical taxonomic/proper-name lists are not title-case evidence."""
+    """Capitalized taxonomic names (Anthony p14, Ester 2026-09-07) stay clean."""
     pdf_path = tmp_path / "lof_parenthetical_names.pdf"
     _make_toc_pdf(
         pdf_path,
         "LIST OF FIGURES",
         [
             (
-                "Figure 1 Representative Neotropical snake species "
+                "Figure 1 Representative Neotropical Snake Species "
                 "(Families: Elapidae, Aniliidae, and Boidae) ....",
                 108,
             ),
-            ("Figure 2 Overview of the experimental setup for this study ....", 108),
-            ("Figure 3 Summary of findings from pilot testing ....", 108),
+            ("Figure 2 Overview of the Experimental Setup for This Study ....", 108),
+            ("Figure 3 Summary of Findings from Pilot Testing ....", 108),
         ],
     )
     model = load_pdf_layout(str(pdf_path))
-    findings = check_pdf_toc_list_formatting(model)
-    assert not any(
-        f.rule_id == "P024"
-        and f.details.get("issue_type") == "list_of_figures_sentence_case"
-        and f.details.get("entry_index") == "0"
-        for f in findings
-    )
+    assert not any(f.rule_id == "P024" for f in check_pdf_toc_list_formatting(model))
 
 
 def test_p024_lot_non_latin_hyphenated_term_is_not_split_for_title_case(
@@ -5114,19 +5072,19 @@ def test_p024_entry_index_distinguishes_same_page_lot_violations(tmp_path: Path)
 
 
 def test_p024_entry_index_present_for_lof_and_terminal_punctuation(tmp_path: Path) -> None:
-    """LoF sentence-case and LoT terminal-punctuation findings must also carry entry_index."""
+    """LoF title-case and LoT terminal-punctuation findings must also carry entry_index."""
     lof_path = tmp_path / "lof_bad.pdf"
     _make_toc_pdf(
         lof_path,
         "LIST OF FIGURES",
         [
-            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
+            ("Figure 1 Schematic diagram of the proposed system architecture ....", 108),
         ],
     )
     model = load_pdf_layout(str(lof_path))
     findings = check_pdf_toc_list_formatting(model)
     lof_finding = next(
-        f for f in findings if f.details.get("issue_type") == "list_of_figures_sentence_case"
+        f for f in findings if f.details.get("issue_type") == "list_of_figures_title_case"
     )
     assert lof_finding.details.get("entry_index") == "0"
 

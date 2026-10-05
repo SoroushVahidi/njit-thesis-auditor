@@ -40,7 +40,8 @@ second migration pass:
   page. A reviewed P011 right-margin false positive and an unrelated,
   unreviewed bottom-margin finding shared a page and would otherwise have
   matched as "the same case". Discriminated by the ``side`` details field.
-- P024: "list_of_tables_title_case"/"list_of_figures_sentence_case" can
+- P024: "list_of_tables_title_case"/"list_of_figures_title_case" (formerly
+  "list_of_figures_sentence_case", before 2026-10-05) can
   fire once per flagged word on the same List of Tables/Figures page --
   the specific word is not a structured details field, only embedded in
   the message (e.g. "'casein' may need to be capitalized"). Discriminated

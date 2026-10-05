@@ -121,7 +121,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
     "toc_level_capitalization": "TOC entry capitalization issue",
     "list_of_tables_title_case": "List of Tables title case issue",
-    "list_of_figures_sentence_case": "List of Figures sentence case issue",
+    "list_of_figures_title_case": "List of Figures title case issue",
     "misaligned_page_number_column": "Misaligned page-number column",
     "inconsistent_leader_dots": "Inconsistent leader dots",
     "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
@@ -650,8 +650,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means a List of Tables entry may not use Title Case or may include "
         "terminal punctuation."
     ),
-    ("P024", "list_of_figures_sentence_case"): (
-        "This means a List of Figures entry may not use sentence case."
+    ("P024", "list_of_figures_title_case"): (
+        "This means a List of Figures entry may not use Title Case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "This means a TOC or list entry ends with terminal punctuation where "

@@ -506,10 +506,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Title Case or may include terminal punctuation. Table titles in the "
         "List of Tables should use Title Case with no ending period."
     ),
-    ("P024", "list_of_figures_sentence_case"): (
+    ("P024", "list_of_figures_title_case"): (
         "Likely problem: A List of Figures entry on page {page} may not use "
-        "sentence case. Figure descriptions in the List of Figures should "
-        "begin with a capital letter and use sentence case."
+        "Title Case. Figure titles in the List of Figures should use Title Case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "Likely problem: A TOC or list entry on page {page} ends with terminal "
@@ -847,9 +846,10 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ),
     ("P024", "toc_level_capitalization"): "",
     ("P024", "list_of_tables_title_case"): "",
-    ("P024", "list_of_figures_sentence_case"): (
-        "Change the List of Figures entry to sentence case. Capitalize only "
-        "the first word, proper nouns, and acronyms."
+    ("P024", "list_of_figures_title_case"): (
+        "Edit the figure title to title case: capitalize the first word and "
+        "major words; leave articles, prepositions, and conjunctions lowercase "
+        "where appropriate."
     ),
     ("P024", "unexpected_terminal_punctuation"): "",
     ("P035", "table_caption_not_above_body"): "",
@@ -1205,6 +1205,22 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
         f"Likely problem: A List of Tables entry on page {page_label} may not use "
         f"Title Case: {reason_text}. Table titles in the List of Tables should use "
         "Title Case with no ending period."
+    )
+
+
+def _p024_lof_title_case_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P024 list_of_figures_title_case comment body.
+
+    Same Title Case vocabulary as the List of Tables comment; the flagged
+    word itself is never quoted here.
+    """
+    page_label = _safe_page_label(page)
+    reason = details.get("expected_or_reason", "") or ""
+    reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
+    return (
+        f"Likely problem: A List of Figures entry on page {page_label} may not use "
+        f"Title Case: {reason_text}. Figure titles in the List of Figures should use "
+        "Title Case."
     )
 
 
@@ -1962,6 +1978,10 @@ def build_polished_comment(
 
     if rule_id == "P024" and issue == "list_of_tables_title_case":
         body = _p024_lot_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P024" and issue == "list_of_figures_title_case":
+        body = _p024_lof_title_case_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P036" and issue in _P036_SPACING_ISSUE_TYPES:

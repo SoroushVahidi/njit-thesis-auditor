@@ -30,7 +30,6 @@ _TOKEN_HIGHLIGHT_RULES: frozenset[tuple[str, str]] = frozenset(
     {
         ("P020", "possible_title_capitalization_issue"),
         ("P017", "possible_sentence_case_issue"),
-        ("P024", "list_of_figures_sentence_case"),
         ("P027", "level3_sentence_case_issue"),
         ("P027", "level4_sentence_case_issue"),
         ("P027", "level5_sentence_case_issue"),

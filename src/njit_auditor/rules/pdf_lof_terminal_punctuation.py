@@ -4,7 +4,7 @@ Partial heuristic PDF coverage for Q075:
   - Q075: Does every figure description end with a terminal punctuation mark?
 
 List of Figures pages only. TOC and LoT are excluded.
-Does not duplicate P024 (LoF sentence case, LoT capitalization), P018 (alignment),
+Does not duplicate P024 (LoT and LoF title case), P018 (alignment),
 P032 (wrap spacing), P036 (inter-entry spacing), or P039 (TOC indentation hierarchy).
 """
 
