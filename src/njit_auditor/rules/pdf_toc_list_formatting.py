@@ -33,6 +33,8 @@ from njit_auditor.rules.pdf_title_capitalization import (
 )
 from njit_auditor.rules.pdf_toc_alignment import (
     INDENT_CLUSTER_TOLERANCE_PT,
+    LOGICAL_WRAP_MIN_INDENT_PT,
+    LOGICAL_WRAP_Y_GAP_PT,
     TocEntryLine,
     TocPageContext,
     detect_toc_like_pages,
@@ -242,6 +244,66 @@ _LIST_TITLE_CASE_SPECS: dict[str, tuple[str, str, str]] = {
     "list_of_figures": ("list_of_figures_title_case", "List of Figures", "Q074"),
 }
 
+# A list entry begins with its number ("3.2", "3.2Title" when the extractor
+# glues the spans) or a "Table"/"Figure" label.
+_LIST_ENTRY_NUMBER_RE = re.compile(
+    r"^\s*(?:(?:table|fig(?:ure)?\.?)\s*)?\d+(?:[.\-]\d+)*", re.IGNORECASE
+)
+
+
+def _group_wrapped_list_entries(
+    entries: list[TocEntryLine],
+) -> list[tuple[int, TocEntryLine, list[TocEntryLine]]]:
+    """Group list rows into semantic entries: (head index, head, continuations).
+
+    A row is a wrapped line of the entry above it when it has no entry
+    number, is indented past the page's entry-start column, sits directly
+    below the previous row, and that previous row has not already closed its
+    entry with a numeric page number. The shared logical-entry repair only
+    rejoins wraps that end on a recognizable page number, so long
+    multi-panel captions and captions whose first row picked up a bogus page
+    token arrive here as separate rows. Grouping them stops one title from
+    being checked, and reported, once per physical line.
+    """
+    numbered_x = [e.indent_x for e in entries if _LIST_ENTRY_NUMBER_RE.match(e.cleaned_text)]
+    if not numbered_x:
+        return [(index, entry, []) for index, entry in enumerate(entries)]
+    entry_start_x = min(numbered_x)
+
+    groups: list[tuple[int, TocEntryLine, list[TocEntryLine]]] = []
+    previous: TocEntryLine | None = None
+    for index, entry in enumerate(entries):
+        # Logical entries carry the union bbox of their rows, so compare
+        # bottoms: for one-row entries this is the usual top-to-top step.
+        is_continuation = (
+            previous is not None
+            and bool(groups)
+            and not (previous.page_number_token or "").isdigit()
+            and not _LIST_ENTRY_NUMBER_RE.match(entry.cleaned_text)
+            and entry.indent_x >= entry_start_x + LOGICAL_WRAP_MIN_INDENT_PT
+            and 0 < entry.line.bbox.y1 - previous.line.bbox.y1 <= LOGICAL_WRAP_Y_GAP_PT
+        )
+        if is_continuation:
+            groups[-1][2].append(entry)
+        else:
+            groups.append((index, entry, []))
+        previous = entry
+    return groups
+
+
+def _explanatory_issue(issues: list[dict[str, str]]) -> dict[str, str]:
+    """Pick the issue whose word best explains the finding to a student.
+
+    Prefer an ordinary lowercase word over a panel label ("a)"), a formula
+    fragment, or a mixed-case unit ("pH"). Only the quoted word changes;
+    the finding itself is decided by whether any issue exists.
+    """
+    for issue in issues:
+        word = issue["word"]
+        if len(word) >= 3 and word.isalpha() and word.islower():
+            return issue
+    return issues[0]
+
 
 def _check_list_title_case_page(
     context: TocPageContext,
@@ -250,24 +312,42 @@ def _check_list_title_case_page(
     """Flag List of Tables / List of Figures entries that are not in title case.
 
     Both lists use the same title-case check; the issue type keeps them
-    distinct (R024D for tables, R024E for figures).
+    distinct (R024D for tables, R024E for figures). Wrapped rows are joined
+    to their entry first, so each entry is checked and reported once.
     """
     issue_type, list_label, q_rule_id = _LIST_TITLE_CASE_SPECS[context.page_type]
     findings: list[AuditFinding] = []
-    for entry_index, entry in enumerate(entries):
-        raw = _clean_entry_text(entry)
-        entry_text = _strip_list_prefix(raw)
+    for entry_index, entry, continuations in _group_wrapped_list_entries(entries):
+        head_text = _strip_list_prefix(_clean_entry_text(entry))
+        raw = " ".join(_clean_entry_text(row) for row in (entry, *continuations))
+        entry_text = _strip_list_prefix(normalize_title_text(raw))
         if not entry_text or len(entry_text) < 10:
             continue
         if len(tokenize_title_words(entry_text)) < MIN_ENTRY_WORDS:
             continue
         issues = []
-        if not _lot_title_case_is_unreliable(entry_text):
+        # Judge scientific-nomenclature reliability on the entry's first
+        # row, as before grouping: long wrapped panel descriptions add enough
+        # nomenclature signals to hide a title that is plainly not title case.
+        if not _lot_title_case_is_unreliable(head_text):
             issues = check_apa_title_case_phrase(
                 entry_text, skip_hyphenated_fragments=True
             )
         if issues:
-            first = issues[0]
+            first = _explanatory_issue(issues)
+            details = {
+                "page_number": str(context.page.page_number),
+                "page_type": context.page_type,
+                "issue_type": issue_type,
+                "entry_index": str(entry_index),
+                "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
+                "bbox": format_bbox_detail(entry.line.bbox),
+                "expected_or_reason": first["reason"],
+                "confidence": first["confidence"],
+                "source_q_rule_id": q_rule_id,
+            }
+            if continuations:
+                details["wrapped_line_count"] = str(1 + len(continuations))
             findings.append(
                 AuditFinding(
                     rule_id="P024",
@@ -278,17 +358,7 @@ def _check_list_title_case_page(
                         f"'{first['word']}' may need to be capitalized "
                         f"({first['reason']})."
                     ),
-                    details={
-                        "page_number": str(context.page.page_number),
-                        "page_type": context.page_type,
-                        "issue_type": issue_type,
-                        "entry_index": str(entry_index),
-                        "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
-                        "bbox": format_bbox_detail(entry.line.bbox),
-                        "expected_or_reason": first["reason"],
-                        "confidence": first["confidence"],
-                        "source_q_rule_id": q_rule_id,
-                    },
+                    details=details,
                 )
             )
     return findings

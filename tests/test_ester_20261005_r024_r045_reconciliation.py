@@ -275,3 +275,171 @@ def test_r045_numbering_is_not_enforced_while_pending_clarification(
         path, numbered=numbered, hanging=not numbered, line_step=14.0, entry_step=28.0
     )
     assert not any("number" in d["issue_type"] for d in _p045(path))
+
+
+# ---------------------------------------------------------------------------
+# R024E calibration: one finding per wrapped List of Figures entry.
+# ---------------------------------------------------------------------------
+
+_TITLE_X0 = 108.0
+_WRAP_X0 = 135.0
+_ROW_STEP = 14.0
+
+
+def _lof_rows_doc(
+    rows: list[tuple[str, float, float]], heading: str = "LIST OF FIGURES"
+) -> PdfDocument:
+    """Rows are (text, x0, y). Every row ends near the page-number column."""
+    lines = [PdfTextLine(text=heading, bbox=BBox(x0=220, y0=80, x1=390, y1=94))]
+    lines.extend(
+        PdfTextLine(text=text, bbox=BBox(x0=x0, y0=y, x1=540, y1=y + 11))
+        for text, x0, y in rows
+    )
+    block = PdfTextBlock(
+        lines=lines,
+        bbox=BBox(x0=100, y0=80, x1=560, y1=max(line.bbox.y1 for line in lines)),
+        text="\n".join(line.text for line in lines),
+    )
+    page = PdfPage(page_number=17, width=612, height=792, text_blocks=[block])
+    return PdfDocument(path="synthetic.pdf", pages=[page])
+
+
+def _wrapped_entry(
+    number: str, head: str, continuations: list[str], page: str, y: float
+) -> tuple[list[tuple[str, float, float]], float]:
+    """A wrapped entry whose first row ends on a non-page token (as the
+    corpus multi-panel captions do), so the shared repair leaves the
+    continuation rows as separate rows."""
+    rows = [(f"{number} {head} LC", _TITLE_X0, y)]
+    for index, text in enumerate(continuations):
+        y += _ROW_STEP
+        suffix = f" . . . . . {page}" if index == len(continuations) - 1 else ""
+        rows.append((f"{text}{suffix}", _WRAP_X0, y))
+    return rows, y + 2 * _ROW_STEP
+
+
+_CLOSING_ENTRY = ("9.9 Summary of Results Across All Settings . . . 99", _TITLE_X0)
+
+
+def _lof_findings(rows: list[tuple[str, float, float]]) -> list:
+    return [
+        f
+        for f in check_pdf_toc_list_formatting(_lof_rows_doc(rows))
+        if f.details["issue_type"] == "list_of_figures_title_case"
+    ]
+
+
+def _with_closing(rows: list[tuple[str, float, float]], y: float) -> list:
+    return [*rows, (_CLOSING_ENTRY[0], _CLOSING_ENTRY[1], y)]
+
+
+def test_r024e_single_line_title_case_entry_is_clean() -> None:
+    rows = [("1.1 Overview of the Proposed Signal Pipeline . . . . 3", _TITLE_X0, 140.0)]
+    assert _lof_findings(_with_closing(rows, 168.0)) == []
+
+
+def test_r024e_single_line_sentence_case_entry_flags_once() -> None:
+    rows = [("1.1 Overview of the proposed signal pipeline . . . . 3", _TITLE_X0, 140.0)]
+    findings = _lof_findings(_with_closing(rows, 168.0))
+    assert [f.details["entry_index"] for f in findings] == ["0"]
+
+
+def test_r024e_two_line_wrapped_entry_flags_once() -> None:
+    rows, y = _wrapped_entry(
+        "3.1", "Overview of the proposed method for signal", ["processing in noisy channels"],
+        "12", 140.0,
+    )
+    findings = _lof_findings(_with_closing(rows, y))
+    assert len(findings) == 1
+    assert findings[0].details["entry_index"] == "0"
+    assert findings[0].details["wrapped_line_count"] == "2"
+
+
+def test_r024e_long_wrapped_entry_flags_once_and_continuations_are_silent() -> None:
+    continuations = [f"continuation panel line {i} showing the region" for i in range(10)]
+    continuations.append("the final panel region")
+    rows, y = _wrapped_entry(
+        "3.3", "Scheme showing the sample fraction", continuations, "75", 140.0
+    )
+    findings = _lof_findings(_with_closing(rows, y))
+    assert [f.details["entry_index"] for f in findings] == ["0"]
+    assert findings[0].details["wrapped_line_count"] == "12"
+    assert "first_word_requires_capital" not in {f.details["expected_or_reason"] for f in findings}
+
+
+def test_r024e_wrapped_entry_with_math_has_no_fragment_finding() -> None:
+    rows, y = _wrapped_entry(
+        "4.1",
+        "Numerical validation that the shape derivative captures the",
+        [
+            "O(|e|) behavior when k1 = 1, k2 = 2 and the perturbation",
+            "of the disk with w = 5 - 10i",
+        ],
+        "48",
+        140.0,
+    )
+    findings = _lof_findings(_with_closing(rows, y))
+    assert [f.details["entry_index"] for f in findings] == ["0"]
+
+
+def test_r024e_wrapped_panel_label_entry_is_one_entry_and_quotes_a_real_word() -> None:
+    rows, y = _wrapped_entry(
+        "3.2",
+        "a) Mass spectrum of the control sample; b) Mass",
+        ["spectrum of the treated sample"],
+        "70",
+        140.0,
+    )
+    findings = _lof_findings(_with_closing(rows, y))
+    assert len(findings) == 1
+    assert "'a'" not in findings[0].message
+    assert "'spectrum'" in findings[0].message
+
+
+def test_r024e_consecutive_wrapped_entries_stay_distinct() -> None:
+    first, y = _wrapped_entry(
+        "2.1", "Overview of the proposed method for signal", ["processing in noisy channels"],
+        "20", 140.0,
+    )
+    second, y = _wrapped_entry(
+        "2.2", "Comparison of the baseline and proposed", ["filters on benchmark data"], "21", y
+    )
+    findings = _lof_findings(_with_closing([*first, *second], y))
+    assert [f.details["entry_index"] for f in findings] == ["0", "2"]
+    assert all(f.details["wrapped_line_count"] == "2" for f in findings)
+
+
+def test_r024e_unnumbered_row_after_a_closed_entry_is_not_absorbed() -> None:
+    """A row below an entry that already ended on its page number starts a
+    new entry, even if extraction dropped its figure number."""
+    rows = [
+        ("3.14 Visualization of Two Sub-Cases for the Proof . . . 62", _TITLE_X0, 140.0),
+        ("Plot illustrating the effect of the added term", 137.0, 154.0),
+    ]
+    findings = _lof_findings(_with_closing(rows, 182.0))
+    assert [f.details["entry_index"] for f in findings] == ["1"]
+    assert "wrapped_line_count" not in findings[0].details
+
+
+def test_r024e_wrapped_title_case_entry_is_clean() -> None:
+    rows, y = _wrapped_entry(
+        "3.1", "Overview of the Proposed Method for Signal", ["Processing in Noisy Channels"],
+        "12", 140.0,
+    )
+    assert _lof_findings(_with_closing(rows, y)) == []
+
+
+def test_r024d_wrapped_table_entry_also_reports_once_with_distinct_code() -> None:
+    rows, y = _wrapped_entry(
+        "3.1", "Overview of the proposed method for signal", ["processing in noisy channels"],
+        "12", 140.0,
+    )
+    rows = [(text.replace("3.1 ", "Table 3.1 "), x0, ry) for text, x0, ry in rows]
+    findings = [
+        f
+        for f in check_pdf_toc_list_formatting(
+            _lof_rows_doc(_with_closing(rows, y), heading="LIST OF TABLES")
+        )
+        if f.rule_id == "P024"
+    ]
+    assert [f.details["issue_type"] for f in findings] == ["list_of_tables_title_case"]

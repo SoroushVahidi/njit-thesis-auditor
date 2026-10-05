@@ -564,8 +564,11 @@ Follow-up branch `fix/ester-20261005-r024-r045-reconciliation` (not merged
 or deployed) applies Ester's R024 answer: List of Tables (R024D) and List of
 Figures (R024E) titles both use title case, with distinct codes. The List of
 Figures sentence-case reading is superseded. On the seven-document corpus
-this adds about 229 R024E warnings (nearly every List of Figures entry,
-since the corpus uses sentence case), so confirm with Ester before merging.
+this produced 198 R024E findings (an earlier "about 229" was a counting
+error); a read-only audit found no entry-level false positives, because the
+corpus uses sentence case. Wrapped List of Figures rows are now grouped
+into one entry, which removes 17 duplicate continuation findings: 181
+R024E findings remain, one per violating entry.
 R045 stays as implemented (single spacing mandatory, hanging indent
 optional); numbering remains open. Pending clarifications: R045 numbering
 and R011 beyond references pages.

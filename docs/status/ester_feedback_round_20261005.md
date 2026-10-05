@@ -89,12 +89,21 @@ codes." Applied as:
   case: that is a body-caption rule Ester's answer did not address.
 - No public renumbering: R024D/R024E already existed as atomic cards.
 
-Corpus effect: about 229 new R024E warnings across all seven documents
-(nearly every List of Figures entry, because the corpus uses sentence case).
-Sources that still say sentence case for figure descriptions: the NJIT
-formatting guideline, the Self-Assessment Sheet, Q074's text, Ester's own
-P017 sheet edit, and her 2026-09-07 Anthony p14 ruling. Confirm before
-merging.
+Corpus effect: 198 new R024E findings across all seven documents (an
+earlier "about 229" was a counting error); the underlying entries all fail
+title case, because the corpus uses sentence case. Sources that still say
+sentence case for figure descriptions: the NJIT formatting guideline, the
+Self-Assessment Sheet, Q074's text, Ester's own P017 sheet edit, and her
+2026-09-07 Anthony p14 ruling.
+
+R024E calibration: 17 of the 198 were duplicate findings on continuation
+rows of wrapped entries (long multi-panel captions whose first row picked up
+a non-page token, so the shared logical-entry repair left the rows apart).
+P024 now groups an unnumbered, indented row directly below an open entry
+into that entry, and reports the entry once. The finding quotes an ordinary
+lowercase word rather than a panel label or notation token when one exists.
+Result: 181 R024E findings, one per violating entry (Muyeed 46, Philip 17,
+Praneeth 17; other documents unchanged); no other rule's findings changed.
 
 **R045 (authority 2026-10-05).** Ester listed three issues: "not numbered",
 not single-spaced, no hanging indent; the hanging indent is not mandatory
