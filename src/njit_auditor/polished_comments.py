@@ -1570,18 +1570,30 @@ def _p067_publication_order_comment(*, page: int | None, details: dict[str, str]
 
 
 def _p045_hanging_indent_comment(*, page: int | None, details: dict[str, str]) -> str:
+    # The auditor no longer emits this issue type; kept so reports stored
+    # before Ester's 2026-10-05 ruling still render accurately.
     page_label = _safe_page_label(page)
-    block_count = details.get("multi_line_block_count", "").strip()
-    threshold = details.get("hanging_indent_threshold_points", "").strip()
-    count_clause = f" ({block_count} multi-line entries checked)" if block_count else ""
-    threshold_clause = f" by at least {threshold}pt" if threshold else ""
     return (
-        "Problem: Publication/presentation entries on the Biographical Sketch "
-        f"page (page {page_label}) do not appear to use hanging indentation"
-        f"{count_clause}: no continuation line is indented{threshold_clause} "
-        "relative to its entry's first line. Format each publication or "
-        "presentation entry with a hanging indent (first line flush left, "
-        "continuation lines indented)."
+        "Note: Publication/presentation entries on the Biographical Sketch "
+        f"page (page {page_label}) do not appear to use a hanging indent. A "
+        "hanging indent is optional, so no change is required for this."
+    )
+
+
+def _p045_line_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    pitch = details.get("observed_line_pitch_points", "").strip()
+    font_size = details.get("font_size_points", "").strip()
+    gap_clause = (
+        f" — wrapped lines about {pitch}pt apart for {font_size}pt text"
+        if pitch and font_size
+        else ""
+    )
+    return (
+        "Problem: Wrapped lines within a publication/presentation entry on the "
+        f"Biographical Sketch page (page {page_label}) do not appear to be "
+        f"single-spaced{gap_clause}. Single-space the lines within each entry "
+        "and keep a blank line between separate entries."
     )
 
 
@@ -2012,6 +2024,10 @@ def build_polished_comment(
 
     if rule_id == "P045" and issue == "biosketch_publication_missing_hanging_indent":
         body = _p045_hanging_indent_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P045" and issue == "biosketch_publication_wrapped_line_spacing_not_single":
+        body = _p045_line_spacing_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P045" and issue == "biosketch_publication_entry_spacing_not_double":

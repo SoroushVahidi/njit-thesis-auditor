@@ -105,7 +105,7 @@ def _reference_line_ratio(previews: Sequence[str]) -> float:
     return hits / len(nonempty)
 
 
-def _page_has_numbered_reference_entries(page_text: str) -> bool:
+def page_has_numbered_reference_entries(page_text: str) -> bool:
     # Two or more bracket-numbered entries on a page is specific to a numbered
     # reference list; a single inline body citation like "[12] Recent work..."
     # can coincidentally match the same shape once, but not repeatedly.
@@ -126,7 +126,7 @@ def infer_page_margin_context(
     # such as "...proceedings.neurips.cc/.../hash/...-Abstract.html" contain
     # the standalone word "Abstract", which would otherwise misclassify a
     # references page as the Abstract section.
-    if _page_has_numbered_reference_entries(page_text) or _reference_line_ratio(
+    if page_has_numbered_reference_entries(page_text) or _reference_line_ratio(
         line_previews
     ) >= 0.5:
         return "references"

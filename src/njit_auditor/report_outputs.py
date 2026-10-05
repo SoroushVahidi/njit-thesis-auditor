@@ -623,28 +623,23 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P045": {
         "question": (
-            "Do publication and presentation entries in the Biographical Sketch "
-            "use the required layout: hanging indent, internal single spacing, "
-            "and a blank line between entries?"
+            "Are publication and presentation entries in the Biographical Sketch "
+            "single-spaced within each entry, with a blank line between entries?"
         ),
         "rule_definition": (
-            "Detects the Biographical Sketch page and groups its text lines "
-            "below the heading into entry blocks. For multi-line entries "
-            "with a hanging-indent pattern, checks: if no entries have a "
-            "hanging indent despite two or more multi-line entries, flags "
-            "a missing hanging indent; if consecutive hanging-indent "
-            "entries have less than 20pt of space between them, flags "
-            "incorrect entry spacing; if a hanging-indent entry's wrapped "
-            "lines have more than 16pt of space between them, flags "
-            "incorrect line spacing within an entry. Skips pages where the "
-            "Biographical Sketch heading is absent or fewer than 2 "
-            "multi-line entries are found. Findings are geometry-only -- "
-            "no publication text, citation content, or names."
+            "Finds the Publications and Presentations section of the Biographical "
+            "Sketch page and separates its entries using entry labels such as [1] "
+            "or, when there are none, the entries' indentation. Flags an entry "
+            "whose wrapped lines are spaced more widely than single spacing, and "
+            "consecutive entries with no blank line between them. A hanging indent "
+            "is optional and is not required. Skips the section when its entries "
+            "cannot be told apart. Findings are geometry-only -- no publication "
+            "text, citation content, or names."
         ),
         "remediation": (
-            "Format each publication or presentation entry with a hanging indent. "
-            "Keep wrapped lines within each entry single-spaced, and add a blank "
-            "line between separate entries."
+            "Single-space the wrapped lines within each publication or presentation "
+            "entry, and add a blank line between separate entries. A hanging indent "
+            "is optional."
         ),
     },
     "P047": {

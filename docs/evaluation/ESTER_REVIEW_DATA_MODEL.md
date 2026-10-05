@@ -242,6 +242,28 @@ needed for this phase since that path is already covered; no such
 directory was created either, since there is no real data yet to put in
 it.
 
+## Reviewer workbook format
+
+Ester's stated preference (2026-10-05) for every review workbook sent to
+her:
+
+- The spreadsheet filename starts with the date (for example
+  `2026-10-05 Ester Auditor Feedback`).
+- One tab per rule.
+- When a rule has split public codes, use the specific code (R024D, R024E,
+  R018D, ...), never the ambiguous parent (R024).
+- Columns: `DOCUMENT`, the possible-violation description, then
+  `Question 1` (not "Ester Question 1"), then `Comment`. The question
+  column comes before the comment column.
+- Wrap text in every cell, top-aligned, with readable column widths.
+- Keep the layout tidy and identical from round to round so it can be
+  reused.
+- The evidence PDF stays directly linked from the rule's tab.
+
+`scripts/ester_batch/build_rule_package.py` still writes the older
+`Correct? (Y/N)` / `Notes` layout and has no per-row question text to fill
+`Question 1`; update it when the next round is generated from it.
+
 ## What this enables next (not built in this phase)
 
 Explicitly out of scope here, listed so it's clear what "foundation"

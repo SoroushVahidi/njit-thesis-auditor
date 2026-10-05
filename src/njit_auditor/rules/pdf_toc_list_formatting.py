@@ -1,4 +1,4 @@
-"""Heuristic TOC/List entry capitalization and punctuation checks (P024).
+"""Heuristic TOC/List entry capitalization checks (P024).
 
 Scope: TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES pages only.
 Not applied to body pages, references pages, or other front-matter pages.
@@ -7,8 +7,11 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines;
         Titles Examples Level 1-5.docx; Self-Self Assessment Sheet.pdf
   - TOC Level 1 chapter/front-matter entries: ALL CAPS (Q049)
   - TOC Level 2 entries: Title Case (Q050)
-  - List of Tables titles: Title Case, no terminal period (Q065 area)
-  - List of Figures descriptions: Sentence case (conservative)
+  - List of Tables titles: Title Case (Q065; public card R024D)
+  - List of Figures descriptions: Sentence case (Q074; public card R024E)
+
+Terminal punctuation is owned elsewhere: P053 (List of Tables), P054
+(Table of Contents), and P040 (List of Figures).
 """
 
 from __future__ import annotations
@@ -383,7 +386,7 @@ def _check_lof_page(
 
 
 def check_pdf_toc_list_formatting(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P024 warnings for TOC/LoT/LoF entry capitalization and punctuation issues."""
+    """Emit P024 warnings for TOC/LoT/LoF entry capitalization issues."""
     findings: list[AuditFinding] = []
     for context in detect_toc_like_pages(pdf_document):
         entries = extract_toc_logical_entry_lines(context)

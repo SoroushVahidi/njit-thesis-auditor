@@ -709,9 +709,11 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "parent_rule_id": "P018",
         "source_q_rule_ids": ("Q052",),
         "issue_types": ("inconsistent_leader_dots",),
+        # P075 owns Table of Contents leader style; this P018 check now runs
+        # only on List of Tables and List of Figures pages.
         "title": (
-            "Is each Table of Contents entry connected to its page number by a "
-            "consistent leader style?"
+            "Is each List of Tables and List of Figures entry connected to its page "
+            "number by a consistent leader style?"
         ),
         "how_to_correct": "Right-align page numbers and use one consistent leader style.",
     },
@@ -1015,6 +1017,10 @@ _PUBLIC_RULE_ISSUE_REFERENCE: dict[tuple[str, str], str] = {
     ("P015", "missing_later_indent"): "P015B",
     ("P026", "possible_body_font_family_issue"): "P026A",
     ("P026", "possible_body_font_size_issue"): "P026B",
+    # P024 is a hidden internal parent; its List of Tables and List of
+    # Figures capitalization findings belong to the visible atomic cards.
+    ("P024", "list_of_tables_title_case"): "P024D",
+    ("P024", "list_of_figures_sentence_case"): "P024E",
 }
 
 

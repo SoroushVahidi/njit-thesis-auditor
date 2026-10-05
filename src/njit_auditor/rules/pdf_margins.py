@@ -10,6 +10,7 @@ from njit_auditor.p011_margin_presentation import (
     infer_margin_content_kind,
     infer_page_margin_context,
     margin_suggested_fix,
+    page_has_numbered_reference_entries,
 )
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, _is_top_or_bottom_zone
@@ -71,6 +72,20 @@ BOTTOM_LINE_BOX_MAX_TOP_OFFSET_PT = 0.5
 # page gets the extra allowance; ordinary prose and reference entries do not.
 CONTENTS_ROW_MAX_TOP_OFFSET_PT = 7.5
 CONTENTS_ROW_MAX_OVERFLOW_PT = 20.0
+
+# Ester rejected a final reference/DOI line on an identified references page
+# whose top sits about 7pt below the margin and whose box ends about 23pt
+# below it, still above the page number (2026-10-05). The allowance covers
+# only that shape: the last text line of a single-spaced reference block on a
+# confidently identified references page, with the page number below it.
+# Prose, abstract, and contents pages get no such allowance.
+REFERENCES_FINAL_LINE_MAX_TOP_OFFSET_PT = 7.5
+REFERENCES_FINAL_LINE_MAX_OVERFLOW_PT = 24.0
+# The final line must continue the block at single spacing: its step from the
+# line above stays within this range of multiples of the font size.
+REFERENCES_FINAL_LINE_MIN_STEP_EM = 0.8
+REFERENCES_FINAL_LINE_MAX_STEP_EM = 1.6
+_REFERENCES_HEADING_KEYS = frozenset({"REFERENCES", "BIBLIOGRAPHY"})
 
 # Extra right/left-margin overflow tolerance for reference-list entries only
 # (added on top of OVERFLOW_TOLERANCE_PT). Bibliography/reference entries
@@ -179,6 +194,67 @@ def _is_contents_page(page: PdfPage) -> bool:
         for block in page.text_blocks
         for line in block.lines
         if line.bbox.y0 < 150.0
+    )
+
+
+def _is_confident_references_page(page: PdfPage) -> bool:
+    """A REFERENCES/BIBLIOGRAPHY heading or a numbered reference list.
+
+    Stricter than the wording-level page context, which accepts the word
+    "references" anywhere in the page text.
+    """
+    for block in page.text_blocks:
+        for line in block.lines:
+            text = line.text.strip()
+            if any(char.isdigit() for char in text):
+                continue
+            letters = "".join(char for char in text.upper() if char.isalpha())
+            if letters.removesuffix("CONTINUED") in _REFERENCES_HEADING_KEYS:
+                return True
+    return page_has_numbered_reference_entries(_page_text(page))
+
+
+def _is_references_final_line_allowance(
+    page: PdfPage,
+    page_lines: list[PdfTextLine],
+    line: PdfTextLine,
+    allowed_y1: float,
+    overflow: float,
+    *,
+    contents_page: bool,
+) -> bool:
+    """Ester's 2026-10-05 references-page final-line false positive shape."""
+    if contents_page or not _is_confident_references_page(page):
+        return False
+    if line.bbox.y0 - allowed_y1 > REFERENCES_FINAL_LINE_MAX_TOP_OFFSET_PT:
+        return False
+    if overflow > REFERENCES_FINAL_LINE_MAX_OVERFLOW_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+        return False
+
+    page_numbers = [
+        other
+        for other in page_lines
+        if _likely_page_number_text(other.text, other.bbox.y0, other.bbox.y1, page.height)
+    ]
+    text_lines = [other for other in page_lines if other.text.strip() and other not in page_numbers]
+    # The line is the last text on the page ...
+    if any(other.bbox.y0 > line.bbox.y0 + 1.0 for other in text_lines):
+        return False
+    # ... and sits above the page number rather than running into the footer.
+    line_middle = (line.bbox.y0 + line.bbox.y1) / 2.0
+    if not any(
+        number.bbox.y0 > line.bbox.y0 and line_middle < number.bbox.y0 for number in page_numbers
+    ):
+        return False
+
+    font_size = max((span.size or 0.0 for span in line.spans), default=0.0) or line.bbox.height
+    min_step = REFERENCES_FINAL_LINE_MIN_STEP_EM * font_size
+    max_step = REFERENCES_FINAL_LINE_MAX_STEP_EM * font_size
+    return any(
+        min_step <= line.bbox.y0 - other.bbox.y0 <= max_step
+        and min(line.bbox.x1, other.bbox.x1) > max(line.bbox.x0, other.bbox.x0)
+        for other in text_lines
+        if other is not line
     )
 
 
@@ -487,6 +563,20 @@ def run_pdf_margin_rule(
             # Bounded (not unlimited) so a genuinely oversized reference-block
             # margin problem -- e.g. the much larger hanging-indent left-margin
             # violations -- still gets flagged.
+            if (
+                side is MarginSide.BOTTOM
+                and count == 1
+                and _is_references_final_line_allowance(
+                    page,
+                    page_lines,
+                    worst_violation.line,
+                    allowed_y1,
+                    worst,
+                    contents_page=contents_page,
+                )
+            ):
+                continue
+
             if (
                 side in (MarginSide.LEFT, MarginSide.RIGHT)
                 and content_kind == "references_hanging_indent"
