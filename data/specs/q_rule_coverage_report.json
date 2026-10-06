@@ -2,9 +2,9 @@
   "generated": "2026-10-06",
   "summary": {
     "total": 79,
-    "implemented": 64,
+    "implemented": 63,
     "manual_review_only": 12,
-    "unimplemented": 3
+    "unimplemented": 4
   },
   "q_rules": [
     {
@@ -295,10 +295,8 @@
       "q_id": "Q030",
       "section": "Biographical Sketch",
       "question": "Do all entries in \u201cPublications and Presentations\u201d follow one consistent citation pattern?",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P071"
-      ],
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
@@ -485,6 +483,7 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
+        "P024",
         "P054",
         "P070"
       ],
@@ -497,6 +496,7 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
+        "P024",
         "P054",
         "P070"
       ],
@@ -683,6 +683,7 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P017",
+        "P024",
         "P053",
         "P070"
       ],
@@ -793,6 +794,7 @@
       "question": "Are all figure descriptions written in sentence case?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
+        "P024",
         "P070"
       ],
       "manual_review_reason": ""

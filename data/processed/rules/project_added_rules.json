@@ -430,7 +430,13 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
     "priority": "high",
-    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053."
+    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
+    "source_q_rule_ids": [
+      "Q049",
+      "Q050",
+      "Q065",
+      "Q074"
+    ]
   },
   {
     "id": "P025",
@@ -1464,8 +1470,7 @@
     "rule_type": "infrastructure_refinement",
     "source_q_rule_ids": [
       "Q028",
-      "Q029",
-      "Q030"
+      "Q029"
     ],
     "source_files": [
       "data/raw/guidelines/Self-Self Assessment Sheet.pdf",
