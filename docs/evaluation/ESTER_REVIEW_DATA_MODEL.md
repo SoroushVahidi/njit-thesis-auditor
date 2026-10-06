@@ -248,7 +248,7 @@ Ester's stated preference (2026-10-05) for every review workbook sent to
 her:
 
 - The spreadsheet filename starts with the date (for example
-  `2026-10-05 Ester Auditor Feedback`).
+  `2026-10-05_R024E_NJIT_Thesis_Auditor_Review.xlsx`).
 - One tab per rule.
 - When a rule has split public codes, use the specific code (R024D, R024E,
   R018D, ...), never the ambiguous parent (R024).
@@ -261,9 +261,11 @@ her:
   reused.
 - The evidence PDF stays directly linked from the rule's tab.
 
-`scripts/ester_batch/build_rule_package.py` still writes the older
-`Correct? (Y/N)` / `Notes` layout and has no per-row question text to fill
-`Question 1`; update it when the next round is generated from it.
+`scripts/ester_batch/build_rule_package.py` writes this layout for future
+packages. A current-case row has a question and a blank `Comment` cell;
+`No new review needed.` rows leave both cells blank. The rule tab links to
+its highlighted evidence PDF. Batch manifests record the workbook schema and
+review date; archived workbooks retain their original filenames and headers.
 
 ## What this enables next (not built in this phase)
 
