@@ -18,46 +18,21 @@ from njit_auditor.review_ledger import cli, provenance
 from njit_auditor.review_ledger.identifiers import make_thesis_id, make_thesis_version_id
 from njit_auditor.review_ledger.importers.thesis_registry import RegisteredDocument
 from njit_auditor.review_ledger.models import Thesis, ThesisVersion
+from njit_auditor.review_ledger.paths import LedgerPathError
 from njit_auditor.review_ledger.provenance import (
     UNKNOWN_CODE_SHA,
     resolve_code_sha,
     source_tree_code_sha,
 )
+from njit_auditor.review_ledger.store import EsterReviewLedger
+
+from .git_fixtures import PKG_INIT as _PKG_INIT
+from .git_fixtures import commit_all as _commit_all
+from .git_fixtures import git as _git
+from .git_fixtures import import_package_from as _import_package_from
+from .git_fixtures import make_repo as _make_repo
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")
-
-_PKG_INIT = "src/njit_auditor/__init__.py"
-
-
-def _git(cwd: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-
-
-def _commit_all(repo: Path, message: str) -> str:
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-q", "-m", message)
-    return _git(repo, "rev-parse", "HEAD")
-
-
-def _make_repo(root: Path) -> tuple[Path, str]:
-    root.mkdir(parents=True)
-    _git(root, "init", "-q")
-    (root / "src/njit_auditor").mkdir(parents=True)
-    # Unique content per repo, so identical commits never collide across repos.
-    (root / _PKG_INIT).write_text(f"# synthetic {root}\n", encoding="utf-8")
-    return root, _commit_all(root, "initial")
-
-
-def _import_package_from(monkeypatch, package_init: Path) -> None:
-    """Make the resolver see ``njit_auditor`` as imported from ``package_init``."""
-    monkeypatch.setattr(provenance, "njit_auditor", SimpleNamespace(__file__=str(package_init)))
-
 
 def test_normal_checkout_returns_its_head(tmp_path: Path) -> None:
     repo, head = _make_repo(tmp_path / "repo")
@@ -154,12 +129,15 @@ def test_git_unavailable_returns_unknown(tmp_path: Path, monkeypatch) -> None:
     assert source_tree_code_sha(repo / _PKG_INIT) == UNKNOWN_CODE_SHA
 
 
-def test_cli_code_sha_flag_is_passed_through(monkeypatch) -> None:
+def test_cli_code_sha_flag_is_passed_through(tmp_path: Path, monkeypatch) -> None:
     seen: dict[str, object] = {}
-    monkeypatch.setattr(cli, "migrate", lambda **kw: seen.update(kw))
-    monkeypatch.setattr("sys.argv", ["cli", "migrate", "--code-sha", "c" * 40])
+    monkeypatch.setattr(cli, "migrate", lambda root, **kw: seen.update(root=root, **kw))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["cli", "migrate", "--ledger-root", str(tmp_path / "l"), "--code-sha", "c" * 40],
+    )
     cli.main()
-    assert seen == {"code_sha": "c" * 40}
+    assert seen == {"root": tmp_path / "l", "code_sha": "c" * 40}
 
 
 def _stub_migrate_dependencies(monkeypatch) -> None:
@@ -213,8 +191,8 @@ def _stamped_shas(ledger_root: Path) -> set[object]:
 
 
 def test_migrate_stamps_rows_with_executing_source_sha(tmp_path: Path, monkeypatch) -> None:
-    repo, head = _make_repo(tmp_path / "pkg_repo")
-    _other, other_head = _make_repo(tmp_path / "main")  # the decoy "main" checkout
+    repo, head = _make_repo(tmp_path / "pkg_repo", authority_marker="pkg")
+    _other, other_head = _make_repo(tmp_path / "main", authority_marker="decoy")
     monkeypatch.chdir(_other)
     _import_package_from(monkeypatch, repo / _PKG_INIT)
     _stub_migrate_dependencies(monkeypatch)
@@ -225,7 +203,7 @@ def test_migrate_stamps_rows_with_executing_source_sha(tmp_path: Path, monkeypat
 
 
 def test_migrate_explicit_sha_overrides_derived(tmp_path: Path, monkeypatch) -> None:
-    repo, _head = _make_repo(tmp_path / "pkg_repo")
+    repo, _head = _make_repo(tmp_path / "pkg_repo", authority_marker="pkg")
     _import_package_from(monkeypatch, repo / _PKG_INIT)
     _stub_migrate_dependencies(monkeypatch)
 
@@ -233,7 +211,25 @@ def test_migrate_explicit_sha_overrides_derived(tmp_path: Path, monkeypatch) -> 
     assert _stamped_shas(tmp_path / "ledger") == {"e" * 40}
 
 
-def test_migrate_without_git_records_unknown_not_another_repo(
+def test_migrate_without_git_fails_before_writing_not_another_repo(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # No source tree -> tracked authority is unresolvable; migrate must fail
+    # loudly before touching the ledger rather than borrow the decoy's data/SHA.
+    pkg = tmp_path / "exported/src/njit_auditor"
+    pkg.mkdir(parents=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    _decoy, _decoy_head = _make_repo(tmp_path / "main", authority_marker="decoy")
+    monkeypatch.chdir(_decoy)
+    _import_package_from(monkeypatch, pkg / "__init__.py")
+    _stub_migrate_dependencies(monkeypatch)
+
+    with pytest.raises(LedgerPathError, match="could not be resolved"):
+        cli.migrate(ledger_root=tmp_path / "ledger")
+    assert not (tmp_path / "ledger").exists()
+
+
+def test_replay_without_git_records_unknown_not_another_repo(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     pkg = tmp_path / "exported/src/njit_auditor"
@@ -243,8 +239,11 @@ def test_migrate_without_git_records_unknown_not_another_repo(
     monkeypatch.chdir(_decoy)
     _import_package_from(monkeypatch, pkg / "__init__.py")
     _stub_migrate_dependencies(monkeypatch)
+    EsterReviewLedger(tmp_path / "ledger")  # an existing (empty) scratch ledger
+    monkeypatch.setattr("sys.argv", ["cli", "replay", "--ledger-root", str(tmp_path / "ledger")])
 
-    cli.migrate(ledger_root=tmp_path / "ledger")
-    assert _stamped_shas(tmp_path / "ledger") == {UNKNOWN_CODE_SHA}
-    assert decoy_head not in _stamped_shas(tmp_path / "ledger")
+    cli.main()
+    runs = (tmp_path / "ledger/auditor_runs.jsonl").read_text().splitlines()
+    assert {json.loads(line)["code_sha"] for line in runs} == {UNKNOWN_CODE_SHA}
+    assert decoy_head not in (tmp_path / "ledger/auditor_runs.jsonl").read_text()
     assert "could not derive" in capsys.readouterr().err

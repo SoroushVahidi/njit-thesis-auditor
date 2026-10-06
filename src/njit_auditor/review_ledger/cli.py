@@ -1,14 +1,17 @@
 """CLI entry point for the Ester review ledger's migration and replay steps.
 
-    python -m njit_auditor.review_ledger.cli migrate
-    python -m njit_auditor.review_ledger.cli replay
+    python -m njit_auditor.review_ledger.cli migrate --ledger-root PATH
+    python -m njit_auditor.review_ledger.cli replay --ledger-root PATH
+    python -m njit_auditor.review_ledger.cli replay --shared-ledger
 
-Both subcommands operate on the real, private ledger at
-``data/evaluation/private/ester_review_ledger/`` (gitignored -- see
-``.gitignore``'s existing ``data/evaluation/private/`` entry) and the real
-private corpus at ``data/evaluation/private/``. Neither subcommand ever
-prints dissertation body text; findings are summarized structurally
-(rule, issue type, page).
+Both subcommands write to a ledger, so the ledger is never implicit: select
+it with ``--ledger-root PATH`` (scratch/private), the
+``NJIT_AUDITOR_LEDGER_ROOT`` environment variable, or ``--shared-ledger``
+for the canonical shared Ester ledger (see ``review_ledger.paths``). Both
+read the real private corpus at its canonical read-only location, and the
+tracked authority inputs from the same source tree as the executing code.
+Neither subcommand ever prints dissertation body text; findings are
+summarized structurally (rule, issue type, page).
 
 ``migrate`` populates the ledger from every source in
 ``njit_auditor.review_ledger.importers`` and prints the reconciliation
@@ -22,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
 import sys
 from pathlib import Path
 
@@ -56,18 +60,16 @@ from njit_auditor.review_ledger.models import (
     ReviewRound,
 )
 from njit_auditor.review_ledger.new_review_gate import check_new_review_gate
+from njit_auditor.review_ledger.paths import (
+    LEDGER_ROOT_ENV,
+    LedgerPathError,
+    LedgerSelection,
+    authority_matrix_path,
+    ester_feedback_packages_dir,
+    select_ledger_root,
+)
 from njit_auditor.review_ledger.provenance import UNKNOWN_CODE_SHA, resolve_code_sha
 from njit_auditor.review_ledger.store import EsterReviewLedger
-
-PRIVATE_LEDGER_ROOT = Path(
-    "/home/soroush/njit-thesis-auditor/main/data/evaluation/private/ester_review_ledger"
-)
-AUTHORITY_MATRIX_PATH = Path(
-    "/home/soroush/njit-thesis-auditor/main/docs/status/ester_authority_matrix_20260902.json"
-)
-ESTER_FEEDBACK_PACKAGES_DIR = Path(
-    "/home/soroush/njit-thesis-auditor/main/docs/evaluation/ester_feedback"
-)
 
 
 def _current_code_sha(explicit: str | None = None) -> str:
@@ -142,9 +144,14 @@ def run_current_auditor_and_record(
     return run_id_by_short_name, all_findings
 
 
-def migrate(
-    ledger_root: Path = PRIVATE_LEDGER_ROOT, *, code_sha: str | None = None
-) -> GroundTruthReport:
+def migrate(ledger_root: Path, *, code_sha: str | None = None) -> GroundTruthReport:
+    # Resolve tracked authority inputs from the executing source tree before
+    # anything is written, so an unresolvable tree fails with no ledger side effects.
+    matrix_path = authority_matrix_path()
+    packages_dir = ester_feedback_packages_dir()
+    print(f"Authority matrix: {matrix_path}")
+    print(f"Ester feedback packages: {packages_dir}")
+
     ledger_root.mkdir(parents=True, exist_ok=True)
     ledger = EsterReviewLedger(ledger_root)
     imported_at = _now_iso()
@@ -176,7 +183,7 @@ def migrate(
     )
 
     matrix_summary = import_authority_matrix(
-        ledger, AUTHORITY_MATRIX_PATH, imported_at=imported_at
+        ledger, matrix_path, imported_at=imported_at
     )
     case_summary = migrate_known_cases(
         ledger,
@@ -188,7 +195,7 @@ def migrate(
     supersession_summary = migrate_known_supersessions(
         ledger, registered_by_short_name=registered, imported_at=imported_at
     )
-    xlsx_summary = scan_xlsx_packages(ESTER_FEEDBACK_PACKAGES_DIR)
+    xlsx_summary = scan_xlsx_packages(packages_dir)
     policy_summary = migrate_known_policies(ledger, imported_at=imported_at)
 
     print("=== Authority matrix import ===")
@@ -333,6 +340,21 @@ def _print_replay_report(report: GroundTruthReport, ledger: EsterReviewLedger) -
     print(f"=== New-review gate === allowed={gate.allowed} reason={gate.reason}")
 
 
+def _select_ledger(args: argparse.Namespace, *, must_exist: bool) -> LedgerSelection:
+    selection = select_ledger_root(ledger_root=args.ledger_root, shared_ledger=args.shared_ledger)
+    env_value = os.environ.get(LEDGER_ROOT_ENV, "").strip()
+    if selection.source == "--ledger-root" and env_value and Path(env_value) != selection.root:
+        print(f"NOTE: --ledger-root overrides {LEDGER_ROOT_ENV}={env_value}", file=sys.stderr)
+    if must_exist and not (selection.root / "_ledger_meta.json").is_file():
+        raise LedgerPathError(
+            f"Ledger root {selection.root} (from {selection.source}) is not an existing "
+            "ledger; replay never creates one -- run migrate first or fix the path"
+        )
+    label = " [CANONICAL SHARED LEDGER]" if selection.is_canonical_shared else ""
+    print(f"Ledger root: {selection.root} (from {selection.source}){label}", file=sys.stderr)
+    return selection
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ester review ledger CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -351,12 +373,32 @@ def main() -> None:
                 "the source tree njit_auditor was imported from)"
             ),
         )
+        target = sub.add_mutually_exclusive_group()
+        target.add_argument(
+            "--ledger-root",
+            type=Path,
+            default=None,
+            help=f"Ledger directory to write (overrides {LEDGER_ROOT_ENV})",
+        )
+        target.add_argument(
+            "--shared-ledger",
+            action="store_true",
+            help="Explicitly write to the canonical shared Ester ledger",
+        )
     args = parser.parse_args()
 
+    try:
+        selection = _select_ledger(args, must_exist=args.command == "replay")
+    except LedgerPathError as exc:
+        parser.exit(2, f"error: {exc}\n")
+
     if args.command == "migrate":
-        migrate(code_sha=args.code_sha)
+        try:
+            migrate(selection.root, code_sha=args.code_sha)
+        except LedgerPathError as exc:
+            parser.exit(2, f"error: {exc}\n")
     elif args.command == "replay":
-        ledger = EsterReviewLedger(PRIVATE_LEDGER_ROOT)
+        ledger = EsterReviewLedger(selection.root)
         code_sha = _current_code_sha(args.code_sha)
         imported_at = _now_iso()
         _run_id_by_short_name, current_findings = run_current_auditor_and_record(
@@ -364,7 +406,6 @@ def main() -> None:
         )
         report = run_replay(ledger, current_findings, code_sha=code_sha, checked_at=imported_at)
         _print_replay_report(report, ledger)
-
 
 if __name__ == "__main__":
     main()
