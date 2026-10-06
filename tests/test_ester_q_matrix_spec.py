@@ -153,14 +153,15 @@ class TestQRuleCoverage:
         assert len(coverage_report) == 79
 
     def test_only_known_automatable_q_rules_are_unimplemented(self, coverage_report):
-        # Q015/Q020 (approval-page honorifics, external affiliations) and Q024
-        # (no work experience) are marked automatable in the Q-matrix, but no
-        # detector checks them: the P068/P072/P066 notes and detector
-        # docstrings say so explicitly. Any other gap is a regression.
+        # Q015/Q020 (approval-page honorifics, external affiliations), Q024
+        # (no work experience) and Q030 (one consistent citation style) are
+        # marked automatable in the Q-matrix, but no detector checks them: the
+        # P068/P072/P066/P071 notes, detector docstrings and P071's design doc
+        # say so explicitly. Any other gap is a regression.
         unimplemented = {
             r.q_id for r in coverage_report if r.implementation_status == "unimplemented"
         }
-        assert unimplemented == {"Q015", "Q020", "Q024"}, (
+        assert unimplemented == {"Q015", "Q020", "Q024", "Q030"}, (
             "Unimplemented automatable Q-rules: " + ", ".join(sorted(unimplemented))
         )
 
