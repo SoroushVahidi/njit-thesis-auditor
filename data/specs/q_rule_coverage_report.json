@@ -2,9 +2,9 @@
   "generated": "2026-10-06",
   "summary": {
     "total": 79,
-    "implemented": 63,
+    "implemented": 62,
     "manual_review_only": 12,
-    "unimplemented": 4
+    "unimplemented": 5
   },
   "q_rules": [
     {
@@ -276,8 +276,7 @@
       "question": "Is each entry in \u201cPublications and Presentations\u201d single-spaced with a blank line between entries?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P045",
-        "P071"
+        "P045"
       ],
       "manual_review_reason": ""
     },
@@ -285,10 +284,8 @@
       "q_id": "Q029",
       "section": "Biographical Sketch",
       "question": "Do all entries in \u201cPublications and Presentations\u201d use a hanging indent?",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P071"
-      ],
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
