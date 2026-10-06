@@ -1,7 +1,7 @@
 """Phase 5+6 structural QA: every generated xlsx/pdf, all 60 applicable rules.
 
 Checks things automatable without a human eyeball: correct sheet name,
-exactly 7 rows, correct document names in order, blank reviewer columns,
+exactly 7 rows, correct document names in order, reviewer column contract,
 no formula/error cells, no stray R011-specific or margin-specific wording
 leaking into unrelated rules, no stale tie-break language, PDF opens with a
 sensible page count, no blank pages, TOC entries agree with row count.
@@ -16,6 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from build_rule_package import (  # noqa: E402
+    REVIEW_WORKBOOK_SCHEMA,
+    review_workbook_path_for_manifest,
+)
 from lib import DOCS, OUTPUT_DIR  # noqa: E402
 
 MANIFEST_PATH = OUTPUT_DIR / "all_rules_batch_manifest.json"
@@ -38,7 +42,9 @@ _MARGIN_SPECIFIC_PHRASES = [
 ]
 
 
-def audit_xlsx(ester_id: str, path: Path) -> tuple[list[str], list[str]]:
+def audit_xlsx(
+    ester_id: str, path: Path, *, current_schema: bool = False
+) -> tuple[list[str], list[str]]:
     import openpyxl
 
     problems: list[str] = []
@@ -60,10 +66,19 @@ def audit_xlsx(ester_id: str, path: Path) -> tuple[list[str], list[str]]:
         problems.append(f"A1 header wrong: {header[0]!r}")
     if not header[1] or ester_id not in str(header[1]):
         problems.append(f"B1 header missing rule id: {header[1]!r}")
-    if header[2] != "Correct? (Y/N)":
+    if header[2] != ("Question 1" if current_schema else "Correct? (Y/N)"):
         problems.append(f"C1 header wrong: {header[2]!r}")
-    if header[3] != "Notes":
+    if header[3] != ("Comment" if current_schema else "Notes"):
         problems.append(f"D1 header wrong: {header[3]!r}")
+    if current_schema:
+        if ws.freeze_panes != "A2":
+            problems.append("header row not frozen")
+        if ws.cell(row=1, column=2).hyperlink is None:
+            problems.append("highlighted evidence PDF link missing")
+        for row in ws:
+            for cell in row[:4]:
+                if cell.alignment.wrap_text is not True or cell.alignment.vertical != "top":
+                    problems.append(f"{cell.coordinate}: text not wrapped and top-aligned")
 
     if ws.max_row != len(DOC_NAMES) + 1:
         problems.append(f"expected {len(DOC_NAMES) + 1} rows, sheet has {ws.max_row}")
@@ -97,7 +112,13 @@ def audit_xlsx(ester_id: str, path: Path) -> tuple[list[str], list[str]]:
 
         c_val = ws.cell(row=i, column=3).value
         d_val = ws.cell(row=i, column=4).value
-        if c_val not in (None, ""):
+        no_finding = bool(re.match(r"^No current auditor", cell_b.strip()))
+        if current_schema:
+            if no_finding and c_val not in (None, ""):
+                problems.append(f"row {i}: no-action question not blank: {c_val!r}")
+            if not no_finding and not c_val:
+                problems.append(f"row {i}: current-case question blank")
+        elif c_val not in (None, ""):
             problems.append(f"row {i}: reviewer column C not blank: {c_val!r}")
         if d_val not in (None, ""):
             problems.append(f"row {i}: reviewer column D not blank: {d_val!r}")
@@ -160,11 +181,15 @@ def main() -> None:
     pdf_failures = 0
     for entry in applicable:
         ester_id = entry["ester_id"]
-        xlsx_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.xlsx"
+        xlsx_path = review_workbook_path_for_manifest(ester_id, manifest)
         pdf_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.pdf"
 
         if xlsx_path.exists():
-            xlsx_problems, finding_docs = audit_xlsx(ester_id, xlsx_path)
+            xlsx_problems, finding_docs = audit_xlsx(
+                ester_id,
+                xlsx_path,
+                current_schema=manifest.get("review_workbook_schema") == REVIEW_WORKBOOK_SCHEMA,
+            )
         else:
             xlsx_problems, finding_docs = ["file missing"], []
 

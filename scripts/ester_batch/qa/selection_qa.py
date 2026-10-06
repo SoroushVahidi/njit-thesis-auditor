@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from build_rule_package import review_workbook_path_for_manifest  # noqa: E402
 from lib import CACHE_DIR, DOCS, OUTPUT_DIR  # noqa: E402
 
 MANIFEST_PATH = OUTPUT_DIR / "all_rules_batch_manifest.json"
@@ -108,7 +109,7 @@ def main() -> None:
     for entry in applicable:
         internal_id = entry["internal_id"]
         ester_id = entry["ester_id"]
-        xlsx_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.xlsx"
+        xlsx_path = review_workbook_path_for_manifest(ester_id, manifest)
         if not xlsx_path.exists():
             rows.append(
                 {

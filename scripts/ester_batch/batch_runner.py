@@ -1,5 +1,5 @@
-"""Unattended, resumable batch runner: generate one Ester evaluation package
-(Rxxx_Ester_Auditor_Feedback.{xlsx,pdf}) per currently-implemented, PDF-applicable
+"""Unattended, resumable batch runner: generate one reviewer package
+per currently-implemented, PDF-applicable
 rule, across the same seven dissertations, skipping the already-complete R011.
 
 Designed to run for a long time inside tmux, updating a durable status file
@@ -18,7 +18,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from build_rule_package import build_rule  # noqa: E402
+from build_rule_package import (  # noqa: E402
+    REVIEW_WORKBOOK_SCHEMA,
+    build_rule,
+    review_workbook_filename,
+)
 from discover_rules import discover  # noqa: E402
 from lib import OUTPUT_DIR, REPO_ROOT  # noqa: E402
 
@@ -46,8 +50,8 @@ def atomic_write_json(path: Path, payload: dict) -> None:
     tmp.replace(path)
 
 
-def package_looks_valid(ester_id: str) -> bool:
-    xlsx_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.xlsx"
+def package_looks_valid(ester_id: str, review_date: datetime.date) -> bool:
+    xlsx_path = OUTPUT_DIR / review_workbook_filename(ester_id, review_date)
     pdf_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.pdf"
     if not xlsx_path.exists() or not pdf_path.exists():
         return False
@@ -68,12 +72,15 @@ def package_looks_valid(ester_id: str) -> bool:
 
 def main() -> None:
     started_at = now_iso()
+    review_date = datetime.date.fromisoformat(started_at[:10])
     commit = base_commit()
 
     print(f"[{now_iso()}] Starting all-rules Ester batch. base_commit={commit}", flush=True)
 
     manifest = discover()
     manifest["generated_at"] = now_iso()
+    manifest["review_date"] = review_date.isoformat()
+    manifest["review_workbook_schema"] = REVIEW_WORKBOOK_SCHEMA
     atomic_write_json(MANIFEST_PATH, manifest)
 
     applicable = [
@@ -91,6 +98,7 @@ def main() -> None:
 
     status = {
         "started_at": started_at,
+        "review_date": review_date.isoformat(),
         "base_commit": commit,
         "rules_discovered": [r["ester_id"] for r in manifest["rules"]],
         "total_to_process": len(applicable),
@@ -110,7 +118,7 @@ def main() -> None:
         status["last_update"] = now_iso()
         atomic_write_json(STATUS_PATH, status)
 
-        if package_looks_valid(ester_id):
+        if package_looks_valid(ester_id, review_date):
             print(
                 f"[{now_iso()}] {ester_id}: existing package looks valid, skipping rebuild.",
                 flush=True,
@@ -122,7 +130,7 @@ def main() -> None:
 
         print(f"[{now_iso()}] {ester_id} ({internal_id}): building package...", flush=True)
         try:
-            result = build_rule(internal_id, ester_id)
+            result = build_rule(internal_id, ester_id, review_date=review_date)
             if result["validation_problems"]:
                 raise RuntimeError(
                     f"validation failed: {result['validation_problems']}"
@@ -159,7 +167,12 @@ def main() -> None:
     atomic_write_json(STATUS_PATH, status)
 
     generated_artifacts = sorted(
-        str(p.relative_to(REPO_ROOT)) for p in OUTPUT_DIR.glob("R*_Ester_Auditor_Feedback.*")
+        str(p.relative_to(REPO_ROOT))
+        for pattern in (
+            f"{review_date:%Y-%m-%d}_R*_NJIT_Thesis_Auditor_Review.xlsx",
+            "R*_Ester_Auditor_Feedback.pdf",
+        )
+        for p in OUTPUT_DIR.glob(pattern)
     )
     completion = {
         "finished_at": now_iso(),

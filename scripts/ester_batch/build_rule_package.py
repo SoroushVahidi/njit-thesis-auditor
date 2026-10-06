@@ -1,4 +1,4 @@
-"""Build one rule's Ester evaluation package: Rxxx_Ester_Auditor_Feedback.{xlsx,pdf}.
+"""Build one rule's reviewer workbook and highlighted evidence PDF.
 
 Mirrors the R011 reference structure documented in
 docs/evaluation/ester_feedback/README.md, but is fully generic: no
@@ -8,6 +8,8 @@ all come from the current auditor's own output for that finding.
 
 from __future__ import annotations
 
+import datetime as dt
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -39,10 +41,32 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+REVIEW_WORKBOOK_SCHEMA = "2026-10-05"
+
+
+def review_workbook_filename(ester_id: str, review_date: dt.date) -> str:
+    """Use a date-first, filesystem-safe name for each rule's review sheet."""
+    if not re.fullmatch(r"R\d{3}[A-Z]*", ester_id):
+        raise ValueError(f"invalid public rule ID for workbook filename: {ester_id!r}")
+    return f"{review_date:%Y-%m-%d}_{ester_id}_NJIT_Thesis_Auditor_Review.xlsx"
+
+
+def review_workbook_path_for_manifest(
+    ester_id: str, manifest: dict[str, Any], output_dir: Path = OUTPUT_DIR
+) -> Path:
+    """Resolve both the current workbook name and archived batch names."""
+    schema = manifest.get("review_workbook_schema")
+    if schema is None:
+        return output_dir / f"{ester_id}_Ester_Auditor_Feedback.xlsx"
+    if schema != REVIEW_WORKBOOK_SCHEMA:
+        raise ValueError(f"unsupported review workbook schema: {schema!r}")
+    review_date = dt.date.fromisoformat(str(manifest["review_date"]))
+    return output_dir / review_workbook_filename(ester_id, review_date)
+
 
 def _structured_block(ester_id: str, row: dict[str, Any]) -> str:
     if row["no_finding"]:
-        return f"No current auditor {ester_id} finding."
+        return f"No current auditor {ester_id} finding. No new review needed."
     if row["physical_page"] is not None:
         physical_page_text = str(row["physical_page"])
     elif row.get("physical_page_display"):
@@ -173,28 +197,43 @@ def _write_xlsx(ester_id: str, rows: list[dict[str, Any]], xlsx_path: Path) -> N
     header_font = Font(name="Calibri", size=11, bold=True)
     regular_font = Font(name="Calibri", size=11, bold=False)
 
-    ws.cell(row=1, column=1, value="DOCUMENT").font = header_font
-    ws.cell(
+    pdf_name = f"{ester_id}_Ester_Auditor_Feedback.pdf"
+    ws.cell(row=1, column=1, value="DOCUMENT")
+    evidence_header = ws.cell(
         row=1,
         column=2,
-        value=f"Possible {ester_id} violation — page, location, reason, confidence "
-        f"(see {ester_id}_Ester_Auditor_Feedback.pdf for highlighted evidence)",
-    ).font = header_font
-    ws.cell(row=1, column=3, value="Correct? (Y/N)").font = header_font
-    ws.cell(row=1, column=4, value="Notes").font = header_font
+        value=f"Possible {ester_id} violation — page, location, reason, confidence\n"
+        "Open highlighted evidence PDF",
+    )
+    evidence_header.hyperlink = pdf_name
+    evidence_header.hyperlink.tooltip = "Open the highlighted evidence PDF"
+    ws.cell(row=1, column=3, value="Question 1")
+    ws.cell(row=1, column=4, value="Comment")
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+    evidence_header.font = Font(
+        name="Calibri", size=11, bold=True, color="0563C1", underline="single"
+    )
 
-    ws.column_dimensions["A"].width = 15
-    ws.column_dimensions["B"].width = 110
-    ws.column_dimensions["C"].width = 16
-    ws.column_dimensions["D"].width = 30
+    ws.column_dimensions["A"].width = 18
+    ws.column_dimensions["B"].width = 76
+    ws.column_dimensions["C"].width = 48
+    ws.column_dimensions["D"].width = 44
+    ws.freeze_panes = "A2"
 
     for r, row in enumerate(rows, start=2):
-        ws.cell(row=r, column=1, value=row["document"]).font = regular_font
-        cell = ws.cell(row=r, column=2, value=_structured_block(ester_id, row))
-        cell.font = regular_font
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.cell(row=r, column=3, value=None)
-        ws.cell(row=r, column=4, value=None)
+        question = None
+        if not row["no_finding"]:
+            question = str(row.get("question") or "").strip() or (
+                f"Should the auditor report this as an {ester_id} violation?"
+            )
+        for column, value in enumerate(
+            (row["document"], _structured_block(ester_id, row), question, None), start=1
+        ):
+            cell = ws.cell(row=r, column=column, value=value)
+            cell.font = regular_font
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
 
     xlsx_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(xlsx_path)
@@ -375,11 +414,23 @@ def validate_package(
         ws = wb[ester_id]
         if ws.cell(row=1, column=1).value != "DOCUMENT":
             problems.append("xlsx header A1 wrong")
+        if ws.cell(row=1, column=3).value != "Question 1":
+            problems.append("xlsx header C1 wrong")
+        if ws.cell(row=1, column=4).value != "Comment":
+            problems.append("xlsx header D1 wrong")
+        if ws.freeze_panes != "A2":
+            problems.append("xlsx header row is not frozen")
+        if ws.cell(row=1, column=2).hyperlink is None:
+            problems.append("xlsx evidence PDF link missing")
         for r in range(2, 2 + len(DOCS)):
-            if ws.cell(row=r, column=3).value not in (None, ""):
-                problems.append(f"xlsx row {r} column C (reviewer field) not blank")
+            no_finding = rows[r - 2]["no_finding"]
+            question = ws.cell(row=r, column=3).value
+            if no_finding and question not in (None, ""):
+                problems.append(f"xlsx row {r} no-action question is not blank")
+            if not no_finding and not question:
+                problems.append(f"xlsx row {r} current-case question is blank")
             if ws.cell(row=r, column=4).value not in (None, ""):
-                problems.append(f"xlsx row {r} column D (reviewer field) not blank")
+                problems.append(f"xlsx row {r} column D (comment field) not blank")
 
     with fitz.open(str(pdf_path)) as doc:
         if doc.page_count < 1:
@@ -401,15 +452,19 @@ def validate_package(
     return problems
 
 
-def build_rule(internal_id: str, ester_id: str | None = None) -> dict[str, Any]:
+def build_rule(
+    internal_id: str, ester_id: str | None = None, *, review_date: dt.date | None = None
+) -> dict[str, Any]:
     if ester_id is None:
         ester_id = f"R{internal_id[1:]}"
+    if review_date is None:
+        review_date = dt.date.today()
     rows = build_rule_rows(internal_id)
     with tempfile.TemporaryDirectory(prefix=f"{ester_id.lower()}_evidence_") as tmpdir:
         evidence_dir = Path(tmpdir)
         _fill_evidence(internal_id, rows, evidence_dir)
 
-        xlsx_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.xlsx"
+        xlsx_path = OUTPUT_DIR / review_workbook_filename(ester_id, review_date)
         pdf_path = OUTPUT_DIR / f"{ester_id}_Ester_Auditor_Feedback.pdf"
         overview_pdf = evidence_dir / "overview.pdf"
 
