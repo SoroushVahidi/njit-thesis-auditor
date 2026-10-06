@@ -1045,23 +1045,6 @@ def _resolve_p018_public_card(
     entry_kind = _detail_str(details, "entry_kind")
     section_type = _detail_str(details, "section_type")
 
-    if clean_q_rule in _P018_Q_RULE_TO_CARD:
-        return _P018_Q_RULE_TO_CARD[clean_q_rule]
-
-    if clean_issue_type == "toc_level_capitalization":
-        if entry_level in _P018_ENTRY_LEVEL_TO_CARD:
-            return _P018_ENTRY_LEVEL_TO_CARD[entry_level]
-
-    if clean_issue_type == "wrapped_entry_internal_spacing":
-        if entry_kind in _P018_ENTRY_KIND_TO_CARD:
-            return _P018_ENTRY_KIND_TO_CARD[entry_kind]
-        if section_type == "list_of_tables":
-            return "P032B"
-        if section_type == "list_of_figures":
-            return "P032C"
-        if section_type == "table_of_contents" or clean_rule_id == "P032":
-            return "P018E"
-
     # P018 records the page kind as ``page_type``; ``section_type`` is the
     # key other TOC/List detectors use.
     page_kind = section_type or _detail_str(details, "page_type")
@@ -1081,6 +1064,37 @@ def _resolve_p018_public_card(
         and clean_issue_type in {"misaligned_page_number_column", "missing_page_number"}
     ):
         return "P075"
+    if (
+        clean_rule_id == "P018"
+        and page_kind in {"list_of_tables", "list_of_figures"}
+        and clean_issue_type == "missing_page_number"
+    ):
+        return ""
+
+    # Precedence: the context-specific page-number routing above, then the
+    # source-Q table, then the issue-type table below, then the rule's own
+    # public card (in _public_rule_reference_id). The source-Q table only
+    # speaks for the P018 family, whose public coverage is delegated to the
+    # P018 cards. A rule with its own public card keeps it even when its
+    # findings cite a Q row shared with a P018 card: P075 (TOC leader style,
+    # Q052 -- P018D covers lists only), P054 (TOC terminal period, Q050) and
+    # P063 (body appendix headings, Q058/Q059).
+    if clean_rule_id in _P018_DELEGATED_PARENT_RULE_IDS and clean_q_rule in _P018_Q_RULE_TO_CARD:
+        return _P018_Q_RULE_TO_CARD[clean_q_rule]
+
+    if clean_issue_type == "toc_level_capitalization":
+        if entry_level in _P018_ENTRY_LEVEL_TO_CARD:
+            return _P018_ENTRY_LEVEL_TO_CARD[entry_level]
+
+    if clean_issue_type == "wrapped_entry_internal_spacing":
+        if entry_kind in _P018_ENTRY_KIND_TO_CARD:
+            return _P018_ENTRY_KIND_TO_CARD[entry_kind]
+        if section_type == "list_of_tables":
+            return "P032B"
+        if section_type == "list_of_figures":
+            return "P032C"
+        if section_type == "table_of_contents" or clean_rule_id == "P032":
+            return "P018E"
 
     mapped = _P018_BACKEND_ISSUE_MAP.get((clean_rule_id, clean_issue_type))
     if mapped:

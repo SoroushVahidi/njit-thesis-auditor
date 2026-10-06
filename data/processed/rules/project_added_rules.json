@@ -310,7 +310,7 @@
     "section": "PDF TOC and list alignment",
     "question": "Do Table of Contents, List of Tables, and List of Figures entries follow the required formatting, alignment, and heading requirements?",
     "rule_definition": "Internal umbrella for TOC/LoT/LoF alignment heuristics. Student-facing coverage is split into atomic public cards P018A–P018S on /rules. Backend detectors remain on P018 (leader style/placement, page-number column, wrapped-title alignment), P024 (TOC capitalization), P032 (wrapped TOC spacing), P036 (inter-entry spacing), P039 (hierarchy indent), P042 (appendix naming), P046 (entry-number column), and P048 (page-number column). Each leader-style consistency finding carries source_q_rule_id=Q052.",
-    "remediation": "See atomic public cards P018A–P018S for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). Leaders: P018D (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079). Wrapped TOC title alignment: P018R and TOC/LoT/LoF leader placement: P018S (Ester 2026-09-23 clarifications; no Q row).",
+    "remediation": "See atomic public cards P018A–P018S for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). List of Tables/List of Figures leaders: P018D (Q052). Table of Contents leader style, page-number column and missing page numbers: P075 (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079). A List of Tables/List of Figures page-number column finding (misaligned_page_number_column) maps to P018N/P018Q; a List of Tables/List of Figures missing_page_number has no public card because no NJIT or Ester rule covers page-number presence on list pages. Wrapped TOC title alignment: P018R and TOC/LoT/LoF leader placement: P018S (Ester 2026-09-23 clarifications; no Q row).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. P018 now also detects Ester-confirmed wrapped-title alignment and leader-placement conditions through P018R-P018S; delegated backend ownership for the existing TOC/LoT/LoF checks remains unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
+    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. P018 now also detects Ester-confirmed wrapped-title alignment and leader-placement conditions through P018R-P018S; delegated backend ownership for the existing TOC/LoT/LoF checks remains unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector. Public ownership of page-number findings (2026-10-06, docs/status/p018_p075_canonical_sync_20261006.md): on Table of Contents pages misaligned_page_number_column and missing_page_number link to P075, the Table of Contents card for Q052; on List of Tables/List of Figures pages misaligned_page_number_column links to P018N/P018Q (Q069/Q079) and missing_page_number is intentionally unmapped pending authority."
   },
   {
     "id": "P019",
@@ -1569,7 +1569,7 @@
     "description": "Every Table of Contents entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens) throughout the TOC. Complements the broader P018 diagnostic.",
     "section": "Document Structure",
     "question": "Is each Table of Contents entry connected to its page number by one consistent leader style (dots or hyphens) throughout the TOC?",
-    "rule_definition": "Every TOC entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens). Flags mixed dot+hyphen leaders and entries missing a leader while others have one.",
+    "rule_definition": "Every TOC entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens). Flags mixed dot+hyphen leaders, entries missing a leader while others have one, entries missing their page number, and page numbers that do not line up in the right-aligned column.",
     "severity": "info",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
@@ -1587,7 +1587,7 @@
     ],
     "remediation": "Right-align page numbers and use one consistent leader style (dots or hyphens) throughout the entire Table of Contents.",
     "source_file": "project_added",
-    "notes": "Complements P018 diagnostic. Silent when all entries use the same leader style or fewer than 3 paged entries exist."
+    "notes": "Complements P018 diagnostic. Silent when all entries use the same leader style or fewer than 3 paged entries exist. Public Table of Contents card for Q052: P018 misaligned_page_number_column and missing_page_number findings on Table of Contents pages link here (detected by P018, so issue_types lists only this detector's own issue types). List of Tables/List of Figures leader style is P018D; their page-number columns are P018N/P018Q."
   },
   {
     "id": "P076",
