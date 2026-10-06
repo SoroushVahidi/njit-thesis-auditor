@@ -28,6 +28,8 @@ from njit_auditor.audit_runner import run_audit_for_uploaded_file
 from njit_auditor.review_ledger.ground_truth import (
     CurrentFinding,
     GroundTruthReport,
+    MatchStatus,
+    anchor_from_details,
     qualify_issue_type,
     replay_ledger,
 )
@@ -42,6 +44,7 @@ from njit_auditor.review_ledger.importers.case_migration import migrate_known_ca
 from njit_auditor.review_ledger.importers.known_policies import migrate_known_policies
 from njit_auditor.review_ledger.importers.thesis_registry import register_corpus
 from njit_auditor.review_ledger.importers.xlsx_packages import scan_xlsx_packages
+from njit_auditor.review_ledger.locators import locators_for_review_cases
 from njit_auditor.review_ledger.models import (
     AuditorRun,
     HistoryEvent,
@@ -105,12 +108,17 @@ def run_current_auditor_and_record(
                 finding.details,
                 finding.message,
             )
+            anchor_x, anchor_y = anchor_from_details(finding.details)
+            role = finding.details.get("structural_role")
             all_findings.append(
                 CurrentFinding(
                     thesis_version_id=doc.thesis_version_id,
                     internal_rule_id=finding.rule_id,
                     issue_type=issue_type,
                     physical_page=finding.page,
+                    anchor_x=anchor_x,
+                    anchor_y=anchor_y,
+                    structural_role=str(role) if role else None,
                 )
             )
         run = AuditorRun(
@@ -221,10 +229,22 @@ def run_replay(
         current = ledger.current_adjudication_for_case(case_id)
         if current is not None:
             current_adjudication_by_case_id[case_id] = current
-    report = replay_ledger(all_cases, current_adjudication_by_case_id, current_findings)
+    report = replay_ledger(
+        all_cases,
+        current_adjudication_by_case_id,
+        current_findings,
+        case_locators=locators_for_review_cases(
+            all_cases,
+            {str(version["thesis_version_id"]): str(version["thesis_id"])
+             for version in ledger.thesis_versions.all()},
+        ),
+    )
 
     for result in report.results:
-        if result.excluded_reason is not None:
+        if (
+            result.excluded_reason is not None
+            and result.match_status != MatchStatus.IDENTITY_AMBIGUOUS
+        ):
             continue
         regression = RegressionResult(
             regression_result_id=make_regression_result_id(),
@@ -234,7 +254,7 @@ def run_replay(
             expected_verdict=result.expected_verdict,
             actual_present=result.equivalent_current_finding_present,
             outcome=result.outcome,
-            notes=None,
+            notes=result.excluded_reason,
         )
         ledger.add_regression_result(regression)
         ledger.record_history_event(
@@ -248,7 +268,10 @@ def run_replay(
                 new_state=result.outcome.value,
                 source_reference=None,
                 code_sha=code_sha,
-                notes=f"case={result.case_id} rule={result.internal_rule_id}",
+                notes=(
+                    f"case={result.case_id} rule={result.internal_rule_id}"
+                    f" reason={result.excluded_reason or 'none'}"
+                ),
             )
         )
 
@@ -275,13 +298,17 @@ def _print_replay_report(report: GroundTruthReport, ledger: EsterReviewLedger) -
     print(f"  ESTER_REVIEWED_TP_TOTAL = {report.ester_reviewed_tp_total}")
     print(f"  ESTER_TP_MISSING = {report.ester_tp_missing}")
     print(f"  UNRESOLVED_POLICY_CASES = {report.unresolved_policy_cases}")
+    print(f"  IDENTITY_AMBIGUOUS_CASES = {report.identity_ambiguous_cases}")
     print(f"  POLICY_GUIDANCE_TOTAL = {policy_guidance_total(ledger)}")
     print()
-    print("  RULE | FP_TOTAL | FP_REGRESSIONS | TP_TOTAL | TP_REGRESSIONS | UNRESOLVED | STATUS")
+    print(
+        "  RULE | FP_TOTAL | FP_REGRESSIONS | TP_TOTAL | TP_REGRESSIONS | "
+        "UNRESOLVED | IDENTITY_AMBIGUOUS | STATUS"
+    )
     for rule_id, s in sorted(report.per_rule.items()):
         print(
             f"  {rule_id} | {s.fp_total} | {s.fp_regressions} | {s.tp_total} | "
-            f"{s.tp_regressions} | {s.unresolved} | {s.status}"
+            f"{s.tp_regressions} | {s.unresolved} | {s.identity_ambiguous} | {s.status}"
         )
     print()
     gate = check_new_review_gate(report)

@@ -25,6 +25,7 @@ class NewReviewGateResult:
     fp_remaining: int
     tp_missing: int
     overridden: bool
+    identity_ambiguous: int = 0
 
 
 def check_new_review_gate(
@@ -35,15 +36,17 @@ def check_new_review_gate(
 ) -> NewReviewGateResult:
     fp_remaining = report.ester_fp_remaining
     tp_missing = report.ester_tp_missing
-    blocking = fp_remaining > 0 or tp_missing > 0
+    identity_ambiguous = report.identity_ambiguous_cases
+    blocking = fp_remaining > 0 or tp_missing > 0 or identity_ambiguous > 0
 
     if not blocking:
         return NewReviewGateResult(
             allowed=True,
-            reason="ESTER_FP_REMAINING == 0 and ESTER_TP_MISSING == 0",
+            reason="ESTER_FP_REMAINING == 0, ESTER_TP_MISSING == 0, IDENTITY_AMBIGUOUS == 0",
             fp_remaining=fp_remaining,
             tp_missing=tp_missing,
             overridden=False,
+            identity_ambiguous=identity_ambiguous,
         )
 
     if override and override_reason.strip():
@@ -53,15 +56,18 @@ def check_new_review_gate(
             fp_remaining=fp_remaining,
             tp_missing=tp_missing,
             overridden=True,
+            identity_ambiguous=identity_ambiguous,
         )
 
     return NewReviewGateResult(
         allowed=False,
         reason=(
-            f"blocked: ESTER_FP_REMAINING={fp_remaining}, ESTER_TP_MISSING={tp_missing} "
+            f"blocked: ESTER_FP_REMAINING={fp_remaining}, ESTER_TP_MISSING={tp_missing}, "
+            f"IDENTITY_AMBIGUOUS={identity_ambiguous} "
             "(pass override=True and a non-empty override_reason to bypass explicitly)"
         ),
         fp_remaining=fp_remaining,
         tp_missing=tp_missing,
         overridden=False,
+        identity_ambiguous=identity_ambiguous,
     )
