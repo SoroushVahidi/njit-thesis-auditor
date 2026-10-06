@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import sys
 from pathlib import Path
 
 from njit_auditor.audit_runner import run_audit_for_uploaded_file
@@ -55,6 +56,7 @@ from njit_auditor.review_ledger.models import (
     ReviewRound,
 )
 from njit_auditor.review_ledger.new_review_gate import check_new_review_gate
+from njit_auditor.review_ledger.provenance import UNKNOWN_CODE_SHA, resolve_code_sha
 from njit_auditor.review_ledger.store import EsterReviewLedger
 
 PRIVATE_LEDGER_ROOT = Path(
@@ -68,17 +70,19 @@ ESTER_FEEDBACK_PACKAGES_DIR = Path(
 )
 
 
-def _current_code_sha() -> str:
-    import subprocess
-
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd="/home/soroush/njit-thesis-auditor/main",
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return result.stdout.strip()
+def _current_code_sha(explicit: str | None = None) -> str:
+    """SHA of the source tree this ``njit_auditor`` was imported from (or the
+    validated ``explicit`` override); ``"unknown"`` if it cannot be derived.
+    See ``njit_auditor.review_ledger.provenance``."""
+    code_sha = resolve_code_sha(explicit)
+    if code_sha == UNKNOWN_CODE_SHA:
+        print(
+            "WARNING: could not derive the executing source tree's Git commit; "
+            f"ledger rows will record code_sha={UNKNOWN_CODE_SHA!r} "
+            "(pass --code-sha to set it explicitly)",
+            file=sys.stderr,
+        )
+    return code_sha
 
 
 def _now_iso() -> str:
@@ -138,11 +142,13 @@ def run_current_auditor_and_record(
     return run_id_by_short_name, all_findings
 
 
-def migrate(ledger_root: Path = PRIVATE_LEDGER_ROOT) -> GroundTruthReport:
+def migrate(
+    ledger_root: Path = PRIVATE_LEDGER_ROOT, *, code_sha: str | None = None
+) -> GroundTruthReport:
     ledger_root.mkdir(parents=True, exist_ok=True)
     ledger = EsterReviewLedger(ledger_root)
     imported_at = _now_iso()
-    code_sha = _current_code_sha()
+    code_sha = _current_code_sha(code_sha)
 
     run_id_by_short_name, current_findings = run_current_auditor_and_record(
         ledger, code_sha, imported_at
@@ -330,15 +336,28 @@ def _print_replay_report(report: GroundTruthReport, ledger: EsterReviewLedger) -
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ester review ledger CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("migrate", help="Import historical feedback and run ground-truth replay")
-    subparsers.add_parser("replay", help="Run ground-truth replay against the existing ledger")
+    migrate_parser = subparsers.add_parser(
+        "migrate", help="Import historical feedback and run ground-truth replay"
+    )
+    replay_parser = subparsers.add_parser(
+        "replay", help="Run ground-truth replay against the existing ledger"
+    )
+    for sub in (migrate_parser, replay_parser):
+        sub.add_argument(
+            "--code-sha",
+            default=None,
+            help=(
+                "Full 40-hex commit to record as code_sha (default: derived from "
+                "the source tree njit_auditor was imported from)"
+            ),
+        )
     args = parser.parse_args()
 
     if args.command == "migrate":
-        migrate()
+        migrate(code_sha=args.code_sha)
     elif args.command == "replay":
         ledger = EsterReviewLedger(PRIVATE_LEDGER_ROOT)
-        code_sha = _current_code_sha()
+        code_sha = _current_code_sha(args.code_sha)
         imported_at = _now_iso()
         _run_id_by_short_name, current_findings = run_current_auditor_and_record(
             ledger, code_sha, imported_at
