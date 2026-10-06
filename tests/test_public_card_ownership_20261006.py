@@ -122,7 +122,7 @@ def test_rules_catalog_exposes_page_number_ownership(client: tuple[TestClient, A
     assert "right-aligned page number" in what
     assert "missing their page number" in what
     assert "right-aligned column" in what
-    assert "right-align page numbers" in p075["how_to_correct"].lower()
+    assert "right-align" in p075["how_to_correct"].lower()
     # Hidden parents stay hidden.
     assert "P018" not in catalog
     assert "P015" not in catalog
@@ -201,3 +201,115 @@ def test_job_page_links_toc_page_number_finding_to_r075(
     assert 'href="/rules#P075"' in html
     assert 'aria-label="R075: see rule reference">R075</a>' in html
     assert ">P075<" not in html
+
+
+# --- 2026-10-06 canonical P018/P075 sync -------------------------------------
+
+_RULES_JSON = Path(__file__).resolve().parents[1] / "data/processed/rules/project_added_rules.json"
+
+
+def _canonical(rule_id: str) -> dict[str, Any]:
+    import json
+
+    rules = json.loads(_RULES_JSON.read_text(encoding="utf-8"))
+    return next(rule for rule in rules if isinstance(rule, dict) and rule.get("id") == rule_id)
+
+
+@pytest.mark.parametrize(
+    ("rule_id", "issue_type", "source_q", "details", "expected"),
+    [
+        # A rule with its own public card keeps it even when it cites a Q row
+        # shared with a P018 card.
+        ("P075", "toc_mixed_leader_styles", "Q052", {}, "P075"),
+        ("P075", "toc_missing_leader_style", "Q052", {}, "P075"),
+        ("P054", "toc_entry_has_terminal_period", "Q050", {}, "P054"),
+        ("P063", "body_appendix_heading_label", "Q058", {}, "P063"),
+        ("P063", "body_appendix_heading_label", "Q059", {}, "P063"),
+        # Context-specific page-number routing outranks a Q hint.
+        ("P018", "missing_page_number", "Q052", {"page_type": "table_of_contents"}, "P075"),
+        (
+            "P018",
+            "misaligned_page_number_column",
+            "Q052",
+            {"page_type": "table_of_contents"},
+            "P075",
+        ),
+        ("P018", "missing_page_number", "Q052", {"page_type": "list_of_figures"}, ""),
+        # The P018 family keeps its Q routing.
+        ("P018", "inconsistent_leader_dots", "Q052", {"page_type": "list_of_tables"}, "P018D"),
+        ("P024", "toc_level_capitalization", "Q049", {"entry_level": "1"}, "P018A"),
+        ("P039", "toc_l2_not_indented_relative_to_l1", "Q056", {}, "P018H"),
+        ("P042", "single_appendix_missing_title", "Q058", {}, "P018J"),
+        ("P042", "multiple_appendix_missing_letter", "Q059", {}, "P018K"),
+        ("P046", "lot_entry_number_column_misaligned", "Q068", {}, "P018M"),
+        ("P048", "lot_page_number_column_misaligned", "Q069", {}, "P018N"),
+        ("P048", "lof_page_number_column_misaligned", "Q079", {}, "P018Q"),
+        ("P036", "toc_inter_entry_spacing_too_tight", "Q057", {}, "P018I"),
+    ],
+)
+def test_source_q_hint_never_overrides_specific_owner(
+    client: tuple[TestClient, Any],
+    rule_id: str,
+    issue_type: str,
+    source_q: str,
+    details: dict[str, str],
+    expected: str,
+) -> None:
+    _, wa = client
+    assert (
+        wa._public_rule_reference_id(
+            rule_id, issue_type=issue_type, source_q_rule_id=source_q, details=details
+        )
+        == expected
+    )
+
+
+def test_p075_canonical_text_matches_q052_toc_scope() -> None:
+    p075 = _canonical("P075")
+    definition = p075["rule_definition"].lower()
+    assert "every toc entry must connect to a right-aligned page number" in definition
+    assert "one consistent leader style" in definition
+    assert "missing their page number" in definition
+    assert "right-aligned column" in definition
+    # Remediation stays Ester's Q052 wording ("1d" in her P018 feedback).
+    remediation = p075["remediation"].lower()
+    assert remediation.startswith(
+        "right-align page numbers and use one consistent leader style (dots or hyphens)"
+    )
+    assert "leader style" in remediation
+    assert "table of contents" in remediation
+    for text in (definition, remediation):
+        assert "list of tables" not in text and "list of figures" not in text
+    # issue_types lists only the issue types P075's own detector emits.
+    assert p075["issue_types"] == ["toc_mixed_leader_styles", "toc_missing_leader_style"]
+    assert p075["source_q_rule_ids"] == ["Q052"]
+
+
+def test_p018_canonical_metadata_documents_page_number_ownership() -> None:
+    p018 = _canonical("P018")
+    remediation = p018["remediation"]
+    assert (
+        "Table of Contents leader style, page-number column and missing page numbers: "
+        "P075 (Q052)" in remediation
+    )
+    assert "List of Tables/List of Figures leaders: P018D (Q052)" in remediation
+    assert "maps to P018N/P018Q" in remediation
+    assert "missing_page_number has no public card" in remediation
+    assert "no NJIT or Ester rule covers page-number presence on list pages" in remediation
+    notes = p018["notes"]
+    assert "intentionally unmapped pending authority" in notes
+    assert "link to P075" in notes
+
+
+def test_p075_public_card_comes_from_canonical_json_without_override(
+    client: tuple[TestClient, Any],
+) -> None:
+    from njit_auditor.report_outputs import _RULE_TEXT_OVERRIDES
+
+    _, wa = client
+    assert "P075" not in _RULE_TEXT_OVERRIDES
+    card = {rule["id"]: rule for rule in wa._build_rule_catalog()["student_rules"]}["P075"]
+    p075 = _canonical("P075")
+    assert card["what_it_checks"] == p075["rule_definition"]
+    assert card["how_to_correct"] == p075["remediation"]
+    assert card["title"] == p075["question"]
