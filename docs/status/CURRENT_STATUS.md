@@ -576,6 +576,44 @@ Review workbooks follow the format in
 `docs/evaluation/ESTER_REVIEW_DATA_MODEL.md` ("Reviewer workbook format").
 Primary record: `docs/status/ester_feedback_round_20261005.md`.
 
+## Closed-Rule Integrity Audit (2026-10-06)
+
+Branch `audit/closed-rule-integrity-overnight-20261005`, based on the
+reconciliation branch head `6b70aae`, replayed every replayable stored Ester
+adjudication with structural identity (rule, issue type, side, page, and
+entry/line geometry; page-only matches were not accepted). Results: review
+ledger 51 cases (46 false positives still absent, 4 true violations still
+reported, 1 needs-clarification case not replayable); historical
+reconciliation classes B-F 104 cases (59 false positives absent, 41 true
+patterns reported, 4 class-F relationships still ambiguous); 45 further
+direct cases recorded only in status documents (38 absent, 7 reported).
+No regression was found.
+
+The per-rule seven-document counts in the sections above are snapshots taken
+when each follow-up merged. Later merges changed several of them on purpose
+(PR #558 historical reconciliation, PR #560 R011, PR #561-#563 R018/R024/R040,
+and the 2026-10-05 Ester round). Current student-visible counts on the audit
+base (Youra, Anthony, Muyeed, Philip, Praneeth, Sebastian, Patrick):
+
+| Rule | Counts | Total |
+|---|---|---:|
+| R011 | 0, 38, 15, 17, 58, 3, 2 | 133 |
+| R015 | 1, 0, 0, 6, 0, 0, 0 | 7 |
+| R040 | 0, 0, 1, 1, 7, 0, 0 | 9 |
+| R036, R046, R048, R053, R054, R066, R068 | all zero | 0 |
+| R078 | Praneeth 1 | 1 |
+| R085 | Patrick 1 | 1 |
+| R086 | Youra 5, Muyeed 4 | 9 |
+| R024D / R024E | Muyeed 9 / 43, 10, 46, 17, 17, 1, 47 | 9 / 181 |
+| R055 | 46, 13, 97, 15, 29, 0, 57 | 257 |
+
+Student-facing wording fixes from this audit: the R055 card and suggested fix
+now describe the literal "Table"/"Figure" prefix requirement (Ester,
+2026-09-04) that the detector already enforces; the R017 card no longer
+claims List of Figures sentence-case checking (superseded by R024E title
+case, 2026-10-05); the R068 card no longer describes the retired
+signature-block check. Detector behavior and finding counts are unchanged.
+
 ## Next Work Sequence
 
 All rule work through R086/P086 is merged and formally catalogued. The
