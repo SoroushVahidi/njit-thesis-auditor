@@ -1,10 +1,14 @@
-"""Plain-text student audit report: page-grouped, privacy-safe, consolidated.
+"""Standalone plain-text audit report: page-grouped, privacy-safe, consolidated.
 
 Unlike the Markdown export (one "### Problem N" section per raw occurrence),
 this report is organized the way a student actually reads a PDF: by page,
 with repeated same-page/same-issue occurrences (e.g. two dozen Table of
 Contents spacing warnings) collapsed into one record that lists every
 affected location instead of repeating a near-identical paragraph.
+
+The web text download uses the web report's visible, numbered FindingView
+records through ``student_pdf_report.render_student_report_text`` so it shares
+problem numbers with the combined PDF and web cards.
 """
 
 from __future__ import annotations

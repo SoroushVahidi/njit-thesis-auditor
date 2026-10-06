@@ -105,6 +105,8 @@ and Jinja registrations are created at import time.
 | `GET` | `/audits/{job_id}/status` | JSON polling endpoint |
 | `GET` | `/audits/{job_id}/download/json` | JSON report download |
 | `GET` | `/audits/{job_id}/download/markdown` | Markdown report download |
+| `GET` | `/audits/{job_id}/download/text` | Page-ordered student text download |
+| `GET` | `/audits/{job_id}/download/student-report.pdf` | Complete thesis and appended student PDF report download |
 | `GET` | `/audits/{job_id}/problems/category/{category}` | Category problem page |
 | `GET` | `/audits/{job_id}/problems/rule/{rule_id}` | Rule problem page |
 | `GET` | `/audits/{job_id}/pdf` | Original PDF route |

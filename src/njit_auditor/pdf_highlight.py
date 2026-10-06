@@ -324,7 +324,11 @@ def _draw_boxes_for_page(
 
 
 def build_highlighted_pdf(
-    source_pdf: Path, output_pdf: Path, boxes_by_page: BoxesByPage
+    source_pdf: Path,
+    output_pdf: Path,
+    boxes_by_page: BoxesByPage,
+    *,
+    max_boxes_per_page: int | None = MAX_HIGHLIGHT_BOXES_PER_PAGE,
 ) -> HighlightDrawResult:
     """Write a copy of *source_pdf* to *output_pdf* with highlight rectangles added.
 
@@ -350,7 +354,7 @@ def build_highlighted_pdf(
                 skipped += len(boxes)
                 continue
             page = doc[page_index]
-            capped_boxes = boxes[:MAX_HIGHLIGHT_BOXES_PER_PAGE]
+            capped_boxes = boxes[:max_boxes_per_page] if max_boxes_per_page is not None else boxes
             skipped += len(boxes) - len(capped_boxes)
             page_drawn, page_skipped = _draw_boxes_for_page(page, capped_boxes)
             drawn += page_drawn
