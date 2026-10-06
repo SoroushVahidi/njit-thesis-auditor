@@ -614,6 +614,35 @@ claims List of Figures sentence-case checking (superseded by R024E title
 case, 2026-10-05); the R068 card no longer describes the retired
 signature-block check. Detector behavior and finding counts are unchanged.
 
+## Pre-R045 Safe Stack (2026-10-06)
+
+Branch `integration/pre-r045-safe-stack-20261006` (not merged or deployed)
+stacks the policy-independent work on top of the reconciliation head
+`6b70aae`: location-aware review-ledger matching, the reviewer workbook
+format, fresh-clone consistency-audit fallbacks, the closed-rule audit
+wording fixes above, and the public-card/canonical/Q-coverage chain.
+
+- Table of Contents page-number column and missing-page-number findings link
+  to R075 (Q052); List of Tables/List of Figures page-number columns link to
+  R018N/R018Q. A list-page missing page number and the R015
+  continuation-line indent stay without a card pending authority.
+- R028 Patrick p13 is resolved by Ester's own comment (the defect is the
+  missing CHAPTER 1 heading, R085); no question is needed.
+- `data/specs/q_rule_coverage_report.json` is regenerated with
+  `python -m njit_auditor.specs.q_rule_coverage --generated YYYY-MM-DD` and a
+  freshness test guards it. Structured `source_q_rule_ids` are authoritative;
+  notes count only as a fallback and never when they negate coverage.
+  Coverage: 62 implemented, 12 manual-only, 5 automatable but unimplemented
+  (Q015, Q020, Q024, Q029, Q030).
+- Detector output is unchanged: seven-document raw findings are identical to
+  the reconciliation head. R045 numbering and R011 beyond references pages
+  stay frozen pending Ester.
+
+Records: `docs/status/public_card_ownership_and_r028_authority_20261006.md`,
+`p018_p075_canonical_sync_20261006.md`,
+`p071_p024_q_metadata_reconciliation_20261006.md`,
+`p071_q028_q029_metadata_cleanup_20261006.md`.
+
 ## Next Work Sequence
 
 All rule work through R086/P086 is merged and formally catalogued. The
