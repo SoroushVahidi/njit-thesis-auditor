@@ -854,22 +854,10 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         source_reference="docs/status/r035_praneeth_text_fallback_fix_20260907.md",
         decided_at="2026-09-07",
     ),
-    KnownHistoricalCase(
-        document_short_name="Praneeth",
-        internal_rule_id="P035",
-        issue_type="figure_body_not_centered",
-        physical_page=72,
-        structural_location="figure:text_fallback_body_proxy",
-        volatile_detail="center_delta_pt=114.3",
-        summary=(
-            "Figure-centering measured against a text-fragment fallback body, not "
-            "the actual image."
-        ),
-        verdict=AdjudicationVerdict.FALSE_POSITIVE,
-        reviewer_comment="Ester: the figure is centered.",
-        source_reference="docs/status/r035_praneeth_text_fallback_fix_20260907.md",
-        decided_at="2026-09-07",
-    ),
+    # Praneeth p72 is intentionally absent: it was an engineering-found
+    # text-fallback geometry bug (fixed in 6facf49), never sent to Ester, and
+    # has no reviewer verdict in the live R035 sheet -- see
+    # docs/status/r035_praneeth_text_fallback_fix_20260907.md.
     # -- R036/P036 -----------------------------------------------------------------
     KnownHistoricalCase(
         document_short_name="Anthony",

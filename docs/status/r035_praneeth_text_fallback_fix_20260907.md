@@ -78,3 +78,31 @@ tests in the same file.
 
 Anthony: closed, clean. Praneeth: the one confirmed regression/bug is fixed;
 the 3 remaining findings are unreviewed, not adjudicated, and left as-is.
+
+## Provenance addendum (2026-10-06)
+
+The live R035 sheet (read-only check 2026-10-06) has exactly two Ester
+adjudications:
+
+| Document | Physical page | Issue | Verdict | Ester's comment |
+|---|---|---|---|---|
+| Anthony | 60 | table_body_not_centered | FALSE POSITIVE | landscape page-number explanation |
+| Praneeth | 29 (Figure 1.2) | figure_body_not_centered | FALSE POSITIVE | "This figure is centered." |
+
+**Page 72 is not a reviewer case.** It was the engineering-found
+text-fallback bug described above. It was never sent to Ester and has no
+sheet row. `known_cases.py` had imported it as an Ester FALSE_POSITIVE,
+reusing page 29's comment; that entry has been removed. The bug history
+stays here.
+
+**Page 29 calibration fact:** a real raster figure, about 18.0 pt right of
+the text-area center. Ester saw it under the original 15 pt tolerance;
+1a90501 later set the portrait tolerance to 18 pt.
+
+**Page 67 (Figure 2.3, about 22.25 pt):** excluded from the 2026-10 review
+round as materially equivalent to page 29. That is an authority-reuse
+decision, not an Ester adjudication, so it is not recorded in
+`known_cases.py`.
+
+Page 69 was later removed by the ruled-table geometry fix (#568). Page 100
+remains unreviewed.
