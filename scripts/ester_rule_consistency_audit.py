@@ -142,20 +142,31 @@ def parse_formatting_json(path: Path) -> list[dict[str, str]]:
     return records
 
 
-def load_formatting_p_rules() -> list[dict[str, str]]:
-    if _FORMATTING_XLSX.exists():
-        return parse_formatting_xlsx(_FORMATTING_XLSX)
-    return parse_formatting_json(_P_FEEDBACK_JSON)
+def _first_available_source(label: str, *paths: Path) -> Path:
+    for path in paths:
+        if path.is_file():
+            return path
+    raise FileNotFoundError(f"No {label} source found; tried: {', '.join(map(str, paths))}")
 
 
-def load_matrix_q_rules() -> list[dict[str, str]]:
-    if _MATRIX_XLSX.exists():
-        return parse_matrix_xlsx(_MATRIX_XLSX)
-    if _MATRIX_XLSX_LEGACY.exists():
-        return parse_matrix_xlsx(_MATRIX_XLSX_LEGACY)
-    raise FileNotFoundError(
-        f"Missing YES/NO matrix xlsx: tried {_MATRIX_XLSX} and {_MATRIX_XLSX_LEGACY}"
+def formatting_p_source() -> Path:
+    return _first_available_source("P-rule feedback", _FORMATTING_XLSX, _P_FEEDBACK_JSON)
+
+
+def matrix_q_source() -> Path:
+    return _first_available_source(
+        "YES/NO Q-matrix", _MATRIX_XLSX, _MATRIX_XLSX_LEGACY, _Q_MATRIX_JSON
     )
+
+
+def load_formatting_p_rules(source: Path | None = None) -> list[dict[str, str]]:
+    source = source or formatting_p_source()
+    return parse_formatting_xlsx(source) if source.suffix == ".xlsx" else parse_formatting_json(source)
+
+
+def load_matrix_q_rules(source: Path | None = None) -> list[dict[str, str]]:
+    source = source or matrix_q_source()
+    return parse_matrix_xlsx(source) if source.suffix == ".xlsx" else parse_matrix_json(source)
 
 
 def parse_matrix_xlsx(path: Path) -> list[dict[str, str]]:
@@ -179,9 +190,65 @@ def parse_matrix_xlsx(path: Path) -> list[dict[str, str]]:
                     "remediation": cols[3],
                 }
             )
+        elif cols[0] and not any(cols[1:]):
+            # The tracked matrix places section headings in column A.
+            section = cols[0]
         elif cols[1] and not cols[0]:
             section = cols[1]
     return records
+
+
+def parse_matrix_json(path: Path) -> list[dict[str, str]]:
+    """Load the checked-in Q-matrix mirror with the same fields as the XLSX."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError(f"Invalid Q-matrix JSON in {path}: {exc}") from exc
+    if not isinstance(data, dict) or not isinstance(data.get("rules"), list):
+        raise ValueError(f"Invalid Q-matrix JSON in {path}: expected a rules list")
+    metadata = data.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise ValueError(f"Invalid Q-matrix JSON in {path}: metadata is not an object")
+    records: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(data["rules"], start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"Invalid Q-matrix JSON in {path}: rule {index} is not an object")
+        qid = item.get("id")
+        if not isinstance(qid, str) or not re.fullmatch(r"Q\d{3}", qid) or qid in seen:
+            raise ValueError(f"Invalid Q-matrix JSON in {path}: invalid or duplicate rule ID {qid!r}")
+        record = {"id": qid}
+        for field_name in ("section", "question", "rule_definition", "remediation"):
+            value = item.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"Invalid Q-matrix JSON in {path}: {qid} has no {field_name}"
+                )
+            record[field_name] = value.strip()
+        records.append(record)
+        seen.add(qid)
+    expected = metadata.get("total_rules")
+    if not records or (expected is not None and expected != len(records)):
+        raise ValueError(f"Invalid Q-matrix JSON in {path}: rule count does not match metadata")
+    return records
+
+
+def _source_label(path: Path) -> str:
+    """Keep selected-source provenance repo-relative in generated reports."""
+    try:
+        return str(path.relative_to(_REPO_ROOT))
+    except ValueError:
+        return path.name
+
+
+def _source_note(path: Path) -> str:
+    if path.suffix != ".xlsx":
+        return "Checked-in JSON mirror"
+    workbook = openpyxl.load_workbook(path, read_only=True)
+    try:
+        return f"Sheet: `{workbook.sheetnames[0].strip()}`"
+    finally:
+        workbook.close()
 
 
 def _infer_section_from_question(question: str, fallback: str = "") -> str:
@@ -839,8 +906,10 @@ def _recent_fix_checks(impl_rules: dict[str, ImplementationRule], public: dict[s
 
 
 def generate_report(output_dir: Path) -> dict[str, Any]:
-    ester_p = load_formatting_p_rules()
-    ester_q = load_matrix_q_rules()
+    p_source = formatting_p_source()
+    q_source = matrix_q_source()
+    ester_p = load_formatting_p_rules(p_source)
+    ester_q = load_matrix_q_rules(q_source)
     enrich_q_sections(ester_q)
 
     p_feedback = json.loads(_P_FEEDBACK_JSON.read_text(encoding="utf-8"))
@@ -1025,12 +1094,16 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
 
     meta = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "selected_authority_sources": {
+            "p_rules": _source_label(p_source),
+            "q_matrix": _source_label(q_source),
+        },
         "source_files": {
-            "formatting_rules_xlsx": str(_FORMATTING_XLSX),
-            "yesno_matrix_xlsx": str(_MATRIX_XLSX),
-            "ester_p_rule_feedback_json": str(_P_FEEDBACK_JSON),
-            "ester_q_matrix_json": str(_Q_MATRIX_JSON),
-            "project_added_rules_json": str(_CATALOG_PATH),
+            "formatting_rules_xlsx": _source_label(_FORMATTING_XLSX),
+            "yesno_matrix_xlsx": _source_label(_MATRIX_XLSX),
+            "ester_p_rule_feedback_json": _source_label(_P_FEEDBACK_JSON),
+            "ester_q_matrix_json": _source_label(_Q_MATRIX_JSON),
+            "project_added_rules_json": _source_label(_CATALOG_PATH),
         },
         "counts": {
             "p_rules_audited": len(ester_p),
@@ -1090,17 +1163,17 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
         lines.append(f"- **{k}:** {v}")
     lines.append("")
 
-    lines.append("## Section 1 — Source files found")
+    lines.append("## Section 1 — Authority sources used")
     lines.append("")
     lines.append("| File | Path | Rows | Notes |")
     lines.append("|------|------|------|-------|")
     lines.append(
-        f"| NJIT Thesis Auditor Formatting Rules | `{_FORMATTING_XLSX}` | {len(ester_p)} P-rules | "
-        f"Sheet: `{openpyxl.load_workbook(_FORMATTING_XLSX, read_only=True).sheetnames[0].strip()}` |"
+        f"| NJIT Thesis Auditor Formatting Rules | `{_source_label(p_source)}` | "
+        f"{len(ester_p)} P-rules | {_source_note(p_source)} |"
     )
     lines.append(
-        f"| 260330 YESNO audit logic matrix | `{_MATRIX_XLSX}` | {len(ester_q)} Q-rules | "
-        f"Sheet: `{openpyxl.load_workbook(_MATRIX_XLSX, read_only=True).sheetnames[0].strip()}` |"
+        f"| YES/NO audit logic matrix | `{_source_label(q_source)}` | "
+        f"{len(ester_q)} Q-rules | {_source_note(q_source)} |"
     )
     lines.append(f"| Parsed P-feedback JSON | `{_P_FEEDBACK_JSON}` | {p_feedback['metadata']['rules_with_feedback']} with edits | Subset of spreadsheet |")
     lines.append(f"| Parsed Q-matrix JSON | `{_Q_MATRIX_JSON}` | {len(q_json['rules'])} | Used by q_rule_coverage.py |")
@@ -1265,7 +1338,7 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
         rid = first.get("P-rule") or first.get("Q-rule")
         lines.append(
             f"> Fix {rid} ({first.get('Status')}): align public rule-reference wording/remediation and detector mapping "
-            f"with Ester's source row in `formatting_rules.xlsx` / `yesno_audit_matrix.xlsx`, "
+            "with the selected Ester P/Q authority rows, "
             f"preserving one-issue-at-a-time atomic cards."
         )
     lines.append("")

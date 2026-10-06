@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
 import sys
 from pathlib import Path
 
+import openpyxl
 import pytest
 
 from njit_auditor.specs.q_rule_coverage import QRuleCoverage
@@ -68,15 +71,136 @@ def test_ester_priority_review_font_section_derives_from_mismatch_check(audit_mo
     assert "contradiction" not in font_section["status"]
 
 
-def test_load_matrix_q_rules_uses_tracked_repo_xlsx(audit_module):
-    rules = audit_module.load_matrix_q_rules()
-    assert any(rule["id"] == "Q060" for rule in rules)
+def test_matrix_json_matches_tracked_xlsx_including_sections(audit_module):
+    xlsx = audit_module.parse_matrix_xlsx(audit_module._MATRIX_XLSX)
+    mirror = audit_module.parse_matrix_json(audit_module._Q_MATRIX_JSON)
+    assert [item["id"] for item in mirror] == [f"Q{n:03d}" for n in range(1, 80)]
+    assert xlsx == mirror
+    assert all(item["section"] for item in mirror)
+
+
+def test_load_matrix_q_rules_prefers_tracked_xlsx(audit_module):
+    assert audit_module.matrix_q_source() == audit_module._MATRIX_XLSX
+    assert audit_module.load_matrix_q_rules() == audit_module.parse_matrix_xlsx(
+        audit_module._MATRIX_XLSX
+    )
+
+
+def test_load_matrix_q_rules_uses_legacy_xlsx_before_json(audit_module, monkeypatch, tmp_path):
+    original = audit_module._MATRIX_XLSX
+    monkeypatch.setattr(audit_module, "_MATRIX_XLSX", tmp_path / "missing-canonical.xlsx")
+    monkeypatch.setattr(audit_module, "_MATRIX_XLSX_LEGACY", original)
+    assert audit_module.matrix_q_source() == original
+    assert audit_module.load_matrix_q_rules() == audit_module.parse_matrix_xlsx(original)
+
+
+def test_both_authorities_fall_back_to_json_without_xlsx(audit_module, monkeypatch, tmp_path):
+    monkeypatch.setattr(audit_module, "_FORMATTING_XLSX", tmp_path / "formatting.xlsx")
+    monkeypatch.setattr(audit_module, "_MATRIX_XLSX", tmp_path / "canonical.xlsx")
+    monkeypatch.setattr(audit_module, "_MATRIX_XLSX_LEGACY", tmp_path / "legacy.xlsx")
+    assert audit_module.formatting_p_source() == audit_module._P_FEEDBACK_JSON
+    assert audit_module.matrix_q_source() == audit_module._Q_MATRIX_JSON
+    assert len(audit_module.load_formatting_p_rules()) == 19
+    assert len(audit_module.load_matrix_q_rules()) == 79
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        "{bad json",
+        '{"rules": {}}',
+        '{"rules": [{"id": "Q001"}]}',
+        '{"metadata": [], "rules": []}',
+    ],
+)
+def test_parse_matrix_json_rejects_malformed_source(audit_module, tmp_path, contents):
+    path = tmp_path / "bad-matrix.json"
+    path.write_text(contents, encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid Q-matrix JSON"):
+        audit_module.parse_matrix_json(path)
+
+
+def test_missing_all_authority_representations_fails_clearly(audit_module, monkeypatch, tmp_path):
+    for name in (
+        "_FORMATTING_XLSX",
+        "_P_FEEDBACK_JSON",
+        "_MATRIX_XLSX",
+        "_MATRIX_XLSX_LEGACY",
+        "_Q_MATRIX_JSON",
+    ):
+        monkeypatch.setattr(audit_module, name, tmp_path / name)
+    with pytest.raises(FileNotFoundError, match="No P-rule feedback source found"):
+        audit_module.load_formatting_p_rules()
+    with pytest.raises(FileNotFoundError, match="No YES/NO Q-matrix source found"):
+        audit_module.load_matrix_q_rules()
+
+
+def test_end_to_end_audit_runs_without_local_xlsx_in_separate_process(tmp_path):
+    """No private results/ spreadsheet is present or created by the audit."""
+    program = """
+import importlib.util
+import json
+import sys
+from pathlib import Path
+script = Path(sys.argv[1])
+scratch = Path(sys.argv[2])
+spec = importlib.util.spec_from_file_location('ester_rule_consistency_audit', script)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+module._FORMATTING_XLSX = scratch / 'results/ester_feedback_raw/formatting_rules.xlsx'
+module._MATRIX_XLSX = scratch / 'data/raw/ester/missing-matrix.xlsx'
+module._MATRIX_XLSX_LEGACY = scratch / 'results/ester_feedback_raw/yesno_audit_matrix.xlsx'
+result = module.generate_report(scratch / 'report')
+print(json.dumps({'counts': result['counts'], 'sources': result['selected_authority_sources']}))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", program, str(_SCRIPT_PATH), str(tmp_path)],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    summary = json.loads(result.stdout.strip().splitlines()[-1])
+    assert summary["counts"]["p_rules_audited"] == 19
+    assert summary["counts"]["q_rules_audited"] == 79
+    assert summary["counts"]["catalog_p_rules"] > 0
+    assert summary["counts"]["public_rule_cards"] > 0
+    assert summary["sources"] == {
+        "p_rules": "data/specs/ester_p_rule_feedback.json",
+        "q_matrix": "data/specs/ester_q_matrix.json",
+    }
+    report = tmp_path / "report"
+    assert (report / "ester_rule_consistency_audit.md").exists()
+    assert (report / "p_rule_consistency.csv").exists()
+    assert (report / "q_rule_consistency.csv").exists()
+    assert (report / "mismatch_inventory.json").exists()
+    metadata = json.loads((report / "audit_metadata.json").read_text(encoding="utf-8"))
+    assert metadata["selected_authority_sources"] == summary["sources"]
+    assert "Checked-in JSON mirror" in (report / "ester_rule_consistency_audit.md").read_text(
+        encoding="utf-8"
+    )
+    assert not (tmp_path / "results/ester_feedback_raw").exists()
 
 
 def test_parse_formatting_json_includes_p011(audit_module):
     records = audit_module.parse_formatting_json(audit_module._P_FEEDBACK_JSON)
     p011 = next(item for item in records if item["id"] == "P011")
     assert "entirely within the required page margins" in p011["proposed_question"]
+
+
+def test_load_formatting_p_rules_prefers_present_xlsx(audit_module, monkeypatch, tmp_path):
+    path = tmp_path / "formatting_rules.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(["Rule", "Question", "Proposed question", "Remediation", "Proposed remediation"])
+    sheet.append(["P999", "Existing?", "Revised?", "Existing fix.", "Revised fix."])
+    workbook.save(path)
+    workbook.close()
+    monkeypatch.setattr(audit_module, "_FORMATTING_XLSX", path)
+    assert audit_module.formatting_p_source() == path
+    assert audit_module.load_formatting_p_rules() == audit_module.parse_formatting_xlsx(path)
+    assert audit_module.load_formatting_p_rules()[0]["id"] == "P999"
 
 
 def test_load_formatting_p_rules_falls_back_to_json_without_xlsx(

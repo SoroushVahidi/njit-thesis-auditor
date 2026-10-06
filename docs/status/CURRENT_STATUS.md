@@ -595,6 +595,10 @@ review. Production deployment of the merged changes remains pending.
 - Private evaluation dissertations stay local and ignored. Do not commit
   reviewer packages or dissertation content unless a task explicitly requires a
   redacted/synthetic artifact.
-- `scripts/ester_rule_consistency_audit.py` still requires local, untracked
-  `results/ester_feedback_raw/*.xlsx` input and is not fresh-clone/CI runnable
-  without a redacted or synthetic stand-in.
+- `scripts/ester_rule_consistency_audit.py` uses the tracked YES/NO matrix
+  XLSX when available and falls back to checked-in
+  `data/specs/ester_q_matrix.json`; P-rule feedback falls back to
+  `data/specs/ester_p_rule_feedback.json`. Local original XLSX files remain
+  usable for forensic checks, but no private workbook is needed in a clean
+  clone. Run `python scripts/ester_rule_consistency_audit.py` to generate an
+  ignored local report under `results/`.
