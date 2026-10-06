@@ -142,6 +142,18 @@ def test_no_list_of_figures_sentence_case_expectation_remains() -> None:
     assert "sentence case" not in comment.lower()
 
 
+def test_r017_public_card_does_not_promise_lof_sentence_case() -> None:
+    """The R017 card must not say List of Figures entries are checked for
+    sentence case: Ester (2026-10-05) set them to title case under R024E."""
+    import njit_auditor.web_app as wa
+
+    cards = {r["id"]: r for r in wa._build_rule_catalog()["student_rules"]}
+    what = cards["P017"]["what_it_checks"]
+    assert "List of Figures entries: check terminal punctuation only" in what
+    assert "R024E" in what
+    assert "and List of Figures entries: check terminal punctuation and sentence" not in what
+
+
 def test_p017_no_longer_checks_lof_capitalization() -> None:
     """A title-case List of Figures entry would have tripped P017's old
     sentence-case check; LoF capitalization now belongs to R024E only."""
