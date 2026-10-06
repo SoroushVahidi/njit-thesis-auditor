@@ -155,3 +155,44 @@ def test_r055_numeric_only_lof_entry():
         "lof_entry_missing_figure_prefix" in f.details.get("issue_type", "")
         for f in findings
     )
+
+
+def test_r055_missing_prefix_suggested_fix_names_the_prefix():
+    """Ester (2026-09-04): entries need the literal Table/Figure prefix.
+
+    A numeric-only entry is not a misplaced entry, so its suggested fix must
+    ask for the prefix rather than reuse the cross-type "move" remediation.
+    """
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
+    for section, issue_type, word in (
+        ("list_of_tables", "lot_entry_missing_table_prefix", "Table"),
+        ("list_of_figures", "lof_entry_missing_figure_prefix", "Figure"),
+    ):
+        doc = make_mock_list_doc(
+            [("1.1 System Architecture", 12), ("1.2 Experimental Setup", 15)],
+            section,
+        )
+        finding = next(
+            f
+            for f in check_pdf_lot_lof_entry_type(doc)
+            if f.details.get("issue_type") == issue_type
+        )
+        fix = resolve_suggested_fix_for_display(
+            "P055", issue_type, existing=finding.details.get("suggested_fix", "")
+        )
+        assert f"with the word '{word}' before its number" in fix
+        assert "misplaced" not in fix.lower()
+
+    cross_type_fix = resolve_suggested_fix_for_display("P055", "lot_entry_is_figure")
+    assert "misplaced entry" in cross_type_fix
+
+
+def test_r055_public_card_describes_prefix_requirement():
+    from njit_auditor.web_app import _build_rule_catalog
+
+    card = next(r for r in _build_rule_catalog()["student_rules"] if r["id"] == "P055")
+    for text in (card["title"], card["how_to_correct"]):
+        assert "'Table'" in text and "'Figure'" in text
+    assert "only a number" in card["what_it_checks"]
+    assert "misplaced entry" in card["what_it_checks"]

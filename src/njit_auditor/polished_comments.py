@@ -865,8 +865,16 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "",
     ("P055", "lof_entry_is_table"): "",
-    ("P055", "lot_entry_missing_table_prefix"): "",
-    ("P055", "lof_entry_missing_figure_prefix"): "",
+    # The P055 catalog remediation describes misplaced entries; a numeric-only
+    # entry needs the literal prefix instead (Ester, 2026-09-04).
+    ("P055", "lot_entry_missing_table_prefix"): (
+        "Begin this List of Tables entry with the word 'Table' before its "
+        "number (for example, Table 1.1)."
+    ),
+    ("P055", "lof_entry_missing_figure_prefix"): (
+        "Begin this List of Figures entry with the word 'Figure' before its "
+        "number (for example, Figure 1.1)."
+    ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
 }

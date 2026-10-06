@@ -567,25 +567,29 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Remove the final period from each Table of Contents entry."
         ),
     },
+    # Ester (2026-09-04): List of Tables / List of Figures entries should
+    # always show the word "Table" or "Figure" before the X.x number. The
+    # detector enforces that prefix as well as the original cross-type check.
     "P055": {
         "question": (
-            "Are table entries listed only in the List of Tables and figure "
-            "entries listed only in the List of Figures?"
+            "Does each List of Tables entry begin with the word 'Table', and "
+            "each List of Figures entry with the word 'Figure', before its "
+            "number?"
         ),
         "rule_definition": (
-            "Conservative automated check. NJIT guidelines define the "
-            "List of Tables as containing only table entries and the List "
-            "of Figures as containing only figure entries. This rule "
-            "emits an advisory when a complete List of Tables entry starts "
-            "with 'Figure', or a complete List of Figures entry starts "
-            "with 'Table'. This catches misplaced entries that indicate a "
-            "copy-paste error or misconfigured template. Findings contain "
-            "only structural metadata -- no title text."
+            "Conservative automated check. Each complete List of Tables "
+            "entry should begin with 'Table' and each complete List of "
+            "Figures entry with 'Figure', followed by its number. This rule "
+            "emits an advisory when an entry starts with only a number, or "
+            "when a List of Tables entry starts with 'Figure' or a List of "
+            "Figures entry starts with 'Table' (a misplaced entry). "
+            "Findings contain only structural metadata -- no title text."
         ),
         "remediation": (
-            "Move each misplaced entry to the correct section: table entries "
-            "belong in the List of Tables, and figure entries belong in the "
-            "List of Figures."
+            "Begin each List of Tables entry with the word 'Table' and each "
+            "List of Figures entry with the word 'Figure' before its number "
+            "(for example, Table 1.1 or Figure 1.1). Move any misplaced entry "
+            "to the correct list."
         ),
     },
     "P074": {
