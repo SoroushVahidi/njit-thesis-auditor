@@ -121,7 +121,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
     "toc_level_capitalization": "TOC entry capitalization issue",
     "list_of_tables_title_case": "List of Tables title case issue",
-    "list_of_figures_sentence_case": "List of Figures sentence case issue",
+    "list_of_figures_title_case": "List of Figures title case issue",
     "misaligned_page_number_column": "Misaligned page-number column",
     "inconsistent_leader_dots": "Inconsistent leader dots",
     "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
@@ -135,8 +135,12 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "digital_commons_wrapper_pages_detected": "Digital Commons wrapper pages detected",
     "abstract_first_paragraph_indented": "Abstract first paragraph indented",
     "abstract_subsequent_paragraph_not_indented": "Abstract paragraph after the first not indented",
+    "biosketch_publication_entry_numbered": "Numbered Biographical Sketch publication entry",
     "biosketch_publication_missing_hanging_indent": (
-        "Biographical Sketch publication missing hanging indent"
+        "Biographical Sketch publication without hanging indent (optional)"
+    ),
+    "biosketch_publication_wrapped_line_spacing_not_single": (
+        "Biographical Sketch publication lines not single-spaced"
     ),
     "biosketch_publication_entry_spacing_not_double": (
         "Biographical Sketch publication entry spacing not double"
@@ -647,8 +651,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means a List of Tables entry may not use Title Case or may include "
         "terminal punctuation."
     ),
-    ("P024", "list_of_figures_sentence_case"): (
-        "This means a List of Figures entry may not use sentence case."
+    ("P024", "list_of_figures_title_case"): (
+        "This means a List of Figures entry may not use Title Case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "This means a TOC or list entry ends with terminal punctuation where "
@@ -1101,16 +1105,35 @@ def _p067_issue_type_explanation(details: Mapping[str, str]) -> str:
 
 
 def _p045_hanging_indent_issue_type_explanation(details: Mapping[str, str]) -> str:
-    block_count = details.get("multi_line_block_count", "").strip()
-    threshold = details.get("hanging_indent_threshold_points", "").strip()
-    count_clause = f" out of {block_count} multi-line entries checked" if block_count else ""
-    threshold_clause = f" by at least {threshold}pt" if threshold else ""
+    # Legacy issue type (no longer emitted); see polished_comments.
     return (
         "This means publication/presentation entries on the Biographical Sketch page "
-        f"do not appear to use hanging indentation{count_clause}: no continuation line "
-        f"is indented{threshold_clause} relative to its entry's first line. Format "
-        "each publication or presentation entry with a hanging indent (first line flush "
-        "left, continuation lines indented)."
+        "do not appear to use a hanging indent. A hanging indent is optional, so no "
+        "change is required for this."
+    )
+
+
+def _p045_line_spacing_issue_type_explanation(details: Mapping[str, str]) -> str:
+    pitch = details.get("observed_line_pitch_points", "").strip()
+    font_size = details.get("font_size_points", "").strip()
+    gap_clause = (
+        f" (wrapped lines about {pitch}pt apart for {font_size}pt text)"
+        if pitch and font_size
+        else ""
+    )
+    return (
+        "This means wrapped lines within a publication/presentation entry on the "
+        f"Biographical Sketch page do not appear to be single-spaced{gap_clause}. "
+        "Single-space the lines within each entry."
+    )
+
+
+def _p045_numbered_entry_issue_type_explanation(details: Mapping[str, str]) -> str:
+    return (
+        "This means publication/presentation entries on the Biographical Sketch "
+        "page start with a number or label such as [1] or 1. They are not "
+        "references and must not be numbered; keep the References citation "
+        "format without the number in front."
     )
 
 
@@ -1375,8 +1398,12 @@ def explain_issue_type(
         return _p066_issue_type_explanation(safe_details)
     if rule_id == "P067" and issue_type == "biosketch_publication_order_suspicious":
         return _p067_issue_type_explanation(safe_details)
+    if rule_id == "P045" and issue_type == "biosketch_publication_entry_numbered":
+        return _p045_numbered_entry_issue_type_explanation(safe_details)
     if rule_id == "P045" and issue_type == "biosketch_publication_missing_hanging_indent":
         return _p045_hanging_indent_issue_type_explanation(safe_details)
+    if rule_id == "P045" and issue_type == "biosketch_publication_wrapped_line_spacing_not_single":
+        return _p045_line_spacing_issue_type_explanation(safe_details)
     if rule_id == "P045" and issue_type == "biosketch_publication_entry_spacing_not_double":
         return _p045_entry_spacing_issue_type_explanation(safe_details)
     if rule_id == "P047" and issue_type == "biosketch_bullet_section_not_single_spaced":

@@ -59,7 +59,6 @@ CAPTION_NOTE_START_RE = re.compile(
 _P017_Q_RULE_MAP: dict[tuple[str, str], str] = {
     ("list_of_tables", "unexpected_terminal_period"): "Q065",
     ("list_of_figures", "missing_terminal_punctuation"): "Q075",
-    ("list_of_figures", "possible_sentence_case_issue"): "Q074",
 }
 
 
@@ -410,12 +409,9 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "Figure entry in List of Figures appears to be missing terminal "
                     "punctuation."
                 )
-            elif _likely_sentence_case_issue(caption.caption_body):
-                issue_type = "possible_sentence_case_issue"
-                confidence = "low"
-                message = (
-                    "Figure entry in List of Figures may not follow sentence-case style."
-                )
+            # List of Figures capitalization is owned by P024 (R024E). Ester's
+            # 2026-10-05 feedback set it to title case, so P017 no longer
+            # applies a sentence-case check to List of Figures entries.
         elif caption.context == "body":
             if caption.caption_type == "figure":
                 if not _terminal_punctuation(caption.caption_body):

@@ -1314,7 +1314,7 @@
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoF description sentence-case check (pdf_toc_list_formatting.py)"
+    "notes": "Primarily visual/layout formatting check on compiled output. Partially covered: LoF title-case check (pdf_toc_list_formatting.py, R024E). Ester's 2026-10-05 feedback set List of Figures titles to title case, superseding this question's sentence-case wording"
   },
   {
     "id": "Q075",

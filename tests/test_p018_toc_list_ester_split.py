@@ -41,8 +41,8 @@ _P018_ESTER_QUESTIONS: dict[str, str] = {
         "sentence case?"
     ),
     "P018D": (
-        "Is each Table of Contents entry connected to its page number by a "
-        "consistent leader style?"
+        "Is each List of Tables and List of Figures entry connected to its page "
+        "number by a consistent leader style?"
     ),
     "P018E": (
         "Is every wrapped level-1 Table of Contents entry single-spaced internally?"

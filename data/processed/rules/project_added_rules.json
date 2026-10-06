@@ -291,8 +291,8 @@
     "id": "P017",
     "section": "PDF caption and title formatting",
     "question": "Are figure descriptions in sentence case and ending with terminal punctuation, and are table titles in title case without a final period?",
-    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body) and LoF entries: check terminal punctuation (Q075) and sentence case (Q074). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
-    "remediation": "For figure captions and LoF entries: use sentence case (only first word and proper nouns capitalized) and end with a period. For table titles and LoT entries: use title case and do not end with a period. Ester: figure descriptions → sentence case + terminal period; table titles → title case + no period.",
+    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body): check terminal punctuation and sentence case. LoF entries: check terminal punctuation (Q075) only; LoF capitalization is owned by P024 (R024E, title case per Ester 2026-10-05). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
+    "remediation": "For figure captions: use sentence case (only first word and proper nouns capitalized) and end with a period. List of Figures entries end with a period; their capitalization is checked under R024E. For table titles and LoT entries: use title case and do not end with a period. Ester: figure descriptions → sentence case + terminal period; table titles → title case + no period.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -303,14 +303,14 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_captions",
     "priority": "medium",
-    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period, no final period on table titles), Q074 (LoF sentence case — new in PR 3), Q075 (LoF terminal punctuation). Ester feedback: split into (1a) figure sentence case (Q074), (1b) figure terminal punctuation (Q075), (1c) figure single-spaced/justified (Q076, via P032), (1d) figure label bold (partial via P050/P055/P056), (2a) table title case (Q065, via P053), (2b) table no period (Q065, P053), (2c) table title single-spaced (Q066, P032). Full split is implemented via P032/P040/P050/P053/P055/P056."
+    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period, no final period on table titles), Q075 (LoF terminal punctuation). The LoF sentence-case check (Q074) was removed 2026-10-05: Ester set List of Figures titles to title case, owned by P024/R024E. Ester feedback: split into (1a) figure sentence case (Q074), (1b) figure terminal punctuation (Q075), (1c) figure single-spaced/justified (Q076, via P032), (1d) figure label bold (partial via P050/P055/P056), (2a) table title case (Q065, via P053), (2b) table no period (Q065, P053), (2c) table title single-spaced (Q066, P032). Full split is implemented via P032/P040/P050/P053/P055/P056."
   },
   {
     "id": "P018",
     "section": "PDF TOC and list alignment",
     "question": "Do Table of Contents, List of Tables, and List of Figures entries follow the required formatting, alignment, and heading requirements?",
     "rule_definition": "Internal umbrella for TOC/LoT/LoF alignment heuristics. Student-facing coverage is split into atomic public cards P018A–P018S on /rules. Backend detectors remain on P018 (leader style/placement, page-number column, wrapped-title alignment), P024 (TOC capitalization), P032 (wrapped TOC spacing), P036 (inter-entry spacing), P039 (hierarchy indent), P042 (appendix naming), P046 (entry-number column), and P048 (page-number column). Each leader-style consistency finding carries source_q_rule_id=Q052.",
-    "remediation": "See atomic public cards P018A–P018S for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). Leaders: P018D (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079). Wrapped TOC title alignment: P018R and TOC/LoT/LoF leader placement: P018S (Ester 2026-09-23 clarifications; no Q row).",
+    "remediation": "See atomic public cards P018A–P018S for issue-specific remediation. TOC capitalization: P018A–C (Q049–Q051). List of Tables/List of Figures leaders: P018D (Q052). Table of Contents leader style, page-number column and missing page numbers: P075 (Q052). Wrapped TOC spacing: P018E–G (Q053–Q055). Hierarchy indent: P018H (Q056). TOC entry spacing: P018I (Q057). Appendix naming: P018J–K (Q058–Q059). LoT spacing/alignment: P018L–N (Q067–Q069). LoF spacing/alignment: P018O–Q (Q077–Q079). A List of Tables/List of Figures page-number column finding (misaligned_page_number_column) maps to P018N/P018Q; a List of Tables/List of Figures missing_page_number has no public card because no NJIT or Ester rule covers page-number presence on list pages. Wrapped TOC title alignment: P018R and TOC/LoT/LoF leader placement: P018S (Ester 2026-09-23 clarifications; no Q row).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -321,7 +321,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_alignment",
     "priority": "high",
-    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. P018 now also detects Ester-confirmed wrapped-title alignment and leader-placement conditions through P018R-P018S; delegated backend ownership for the existing TOC/LoT/LoF checks remains unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector."
+    "notes": "Internal umbrella rule; public /rules cards P018A-P018S cover Ester's TOC/LoT/LoF atomic split (Q049-Q059, Q067-Q069, Q077-Q079; P018R-S from her 2026-09-23 clarifications). Superseded delegated cards P024A-C, P032A, P036A-C, P042A-B, P046A-B, P048A-B are hidden from /rules. P018 now also detects Ester-confirmed wrapped-title alignment and leader-placement conditions through P018R-P018S; delegated backend ownership for the existing TOC/LoT/LoF checks remains unchanged. Wrapped level-1/2/3 TOC spacing (P018E-G) uses entry_kind when available; unknown kinds map to P018E (partial). Q051 level-3 sentence case remains partial in detector. Public ownership of page-number findings (2026-10-06, docs/status/p018_p075_canonical_sync_20261006.md): on Table of Contents pages misaligned_page_number_column and missing_page_number link to P075, the Table of Contents card for Q052; on List of Tables/List of Figures pages misaligned_page_number_column links to P018N/P018Q (Q069/Q079) and missing_page_number is intentionally unmapped pending authority."
   },
   {
     "id": "P019",
@@ -418,8 +418,8 @@
     "id": "P024",
     "section": "PDF TOC and list entry formatting",
     "question": "Do TOC/LoT/LoF entries follow expected capitalization and punctuation style?",
-    "rule_definition": "Heuristically detect obvious capitalization and punctuation issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); List of Tables titles should use Title Case and not end with a period; List of Figures descriptions should use sentence case.",
-    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, List of Tables=Title Case (no terminal period), List of Figures=sentence case.",
+    "rule_definition": "Heuristically detect obvious capitalization issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); List of Tables titles should use Title Case (Q065, public card R024D); List of Figures titles should use Title Case (Q074 slot, public card R024E; Ester 2026-10-05 superseded the earlier sentence-case reading and asked for distinct LoT/LoF codes). Terminal punctuation is owned by P053 (List of Tables), P054 (Table of Contents), and P040 (List of Figures).",
+    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, List of Tables=Title Case (R024D), List of Figures=Title Case (R024E).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -430,7 +430,13 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
     "priority": "high",
-    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization, list_of_tables_title_case, list_of_figures_sentence_case, unexpected_terminal_punctuation."
+    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
+    "source_q_rule_ids": [
+      "Q049",
+      "Q050",
+      "Q065",
+      "Q074"
+    ]
   },
   {
     "id": "P025",
@@ -718,7 +724,7 @@
     "implementation_module": "njit_auditor.rules.pdf_lof_terminal_punctuation",
     "source_file": "project_added",
     "priority": "medium",
-    "notes": "Conservative v1 PDF heuristic for Q075. Checks only complete LoF entries (page_number_token present). Skips wrap-continuation lines and short entries. LoF-only: TOC and LoT pages excluded. Complements P024 LoF sentence-case check. issue_types: lof_entry_missing_terminal_punctuation."
+    "notes": "Conservative v1 PDF heuristic for Q075. Checks only complete LoF entries (page_number_token present). Skips wrap-continuation lines and short entries. LoF-only: TOC and LoT pages excluded. Complements P024 LoF title-case check (R024E). issue_types: lof_entry_missing_terminal_punctuation."
   },
   {
     "id": "P041",
@@ -795,9 +801,9 @@
   {
     "id": "P045",
     "section": "PDF Biographical Sketch publication paragraph layout",
-    "question": "Do publication and presentation entries in the Biographical Sketch use the required layout: hanging indent, internal single spacing, and a blank line between entries?",
-    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings. Groups text lines below the heading into paragraph blocks. For multi-line blocks with hanging-indent pattern (continuation lines x0 > first line x0 by HANGING_THRESHOLD_PT=12pt), checks: (Q029) if no blocks have hanging indent despite >=2 multi-line blocks, emits missing_hanging_indent; (Q028) if consecutive hanging-indent blocks have inter-block gap < ENTRY_GAP_THRESHOLD_PT=20pt, emits entry_spacing_not_double; (Q026) if a hanging-indent block has internal line gap > MAX_WITHIN_ENTRY_GAP_PT=16pt, emits wrapped_line_spacing_not_single. Gate: skip if BIOGRAPHICAL SKETCH heading absent or fewer than 2 multi-line blocks. Findings are geometry-only — no publication text, citation content, or names.",
-    "remediation": "Format each publication or presentation entry with a hanging indent. Keep wrapped lines within each entry single-spaced, and add a blank line between separate entries.",
+    "question": "Are publication and presentation entries in the Biographical Sketch unnumbered, single-spaced within each entry, and separated by a blank line?",
+    "rule_definition": "Conservative heuristic: detects the BIOGRAPHICAL SKETCH page via find_named_frontmatter_headings and the Publications/Presentations section label below it (spaced or concatenated extraction). Rows are clustered by baseline and split into entries by visible entry labels ([1], (1), 1.) or, without labels, by hanging-indent geometry (flush first lines, continuations indented by HANGING_THRESHOLD_PT=12pt); sections whose entries cannot be separated are skipped. Checks (Q028): wrapped lines within an entry are single-spaced (line pitch <= WITHIN_ENTRY_MAX_PITCH_RATIO=1.6 x font size), else emits wrapped_line_spacing_not_single; consecutive entries are separated by a blank line (step from one entry's last line to the next entry's first line >= BLANK_LINE_MIN_PITCH_RATIO=1.5 x the median within-entry pitch), else emits entry_spacing_not_double. A hanging indent (Q029) is optional per Ester (2026-10-05) and is never flagged. Numbering: a row at the section's left edge that starts with an entry label ([n] always; (n), n. or n) when it opens the section or at least two rows carry one) emits biosketch_publication_entry_numbered, independently of entry segmentation, because Ester (2026-10-06) ruled that Biographical Sketch publications must not be numbered. Findings are geometry-only — no publication text, citation content, or names.",
+    "remediation": "Remove the numbers or labels such as [1] or 1. in front of each Biographical Sketch publication or presentation entry; keep the same citation format as the References section, just without the number. Single-space the wrapped lines within each entry, and add a blank line between separate entries. A hanging indent is optional.",
     "severity": "warning",
     "phase": "pdf_layout",
     "checkability": "heuristic",
@@ -808,7 +814,7 @@
     "implementation_module": "njit_auditor.rules.pdf_biosketch_publication_layout",
     "source_file": "project_added",
     "priority": "medium",
-    "notes": "Conservative v1 PDF heuristic for Q026, Q028, and Q029. Page targeted: BIOGRAPHICAL SKETCH only. Gate: requires >=2 multi-line blocks. HANGING_THRESHOLD_PT=12.0, ENTRY_GAP_THRESHOLD_PT=20.0, MAX_WITHIN_ENTRY_GAP_PT=16.0. Does not read or quote publication text. issue_types: biosketch_publication_missing_hanging_indent (Q029), biosketch_publication_entry_spacing_not_double (Q028), biosketch_publication_wrapped_line_spacing_not_single (Q026)."
+    "notes": "Conservative PDF heuristic for Q028 (single spacing within entries, blank line between entries). Page targeted: BIOGRAPHICAL SKETCH, Publications/Presentations section only (education bullets are P047). Q029 hanging indent is not enforced: Ester confirmed on 2026-10-05 that it is not mandatory; the former biosketch_publication_missing_hanging_indent issue type is no longer emitted. Entries must not be numbered: Ester confirmed on 2026-10-06 that Biographical Sketch publications are not references, so they keep the References citation format without the number in front; a numbered entry emits biosketch_publication_entry_numbered. Does not read or quote publication text. issue_types: biosketch_publication_entry_numbered, biosketch_publication_wrapped_line_spacing_not_single (Q028), biosketch_publication_entry_spacing_not_double (Q028)."
   },
   {
     "id": "P046",
@@ -1462,11 +1468,7 @@
     "implementation_status": "implemented",
     "implementation_module": "njit_auditor.rules.pdf_references_citations_structural",
     "rule_type": "infrastructure_refinement",
-    "source_q_rule_ids": [
-      "Q028",
-      "Q029",
-      "Q030"
-    ],
+    "source_q_rule_ids": [],
     "source_files": [
       "data/raw/guidelines/Self-Self Assessment Sheet.pdf",
       "data/processed/rules/njit_rule_inventory.json",
@@ -1569,7 +1571,7 @@
     "description": "Every Table of Contents entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens) throughout the TOC. Complements the broader P018 diagnostic.",
     "section": "Document Structure",
     "question": "Is each Table of Contents entry connected to its page number by one consistent leader style (dots or hyphens) throughout the TOC?",
-    "rule_definition": "Every TOC entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens). Flags mixed dot+hyphen leaders and entries missing a leader while others have one.",
+    "rule_definition": "Every TOC entry must connect to a right-aligned page number using one consistent leader style (dots or hyphens). Flags mixed dot+hyphen leaders, entries missing a leader while others have one, entries missing their page number, and page numbers that do not line up in the right-aligned column.",
     "severity": "info",
     "phase": "pdf_layout",
     "implementation_status": "implemented",
@@ -1587,7 +1589,7 @@
     ],
     "remediation": "Right-align page numbers and use one consistent leader style (dots or hyphens) throughout the entire Table of Contents.",
     "source_file": "project_added",
-    "notes": "Complements P018 diagnostic. Silent when all entries use the same leader style or fewer than 3 paged entries exist."
+    "notes": "Complements P018 diagnostic. Silent when all entries use the same leader style or fewer than 3 paged entries exist. Public Table of Contents card for Q052: P018 misaligned_page_number_column and missing_page_number findings on Table of Contents pages link here (detected by P018, so issue_types lists only this detector's own issue types). List of Tables/List of Figures leader style is P018D; their page-number columns are P018N/P018Q."
   },
   {
     "id": "P076",

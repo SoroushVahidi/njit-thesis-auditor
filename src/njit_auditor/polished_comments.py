@@ -506,10 +506,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Title Case or may include terminal punctuation. Table titles in the "
         "List of Tables should use Title Case with no ending period."
     ),
-    ("P024", "list_of_figures_sentence_case"): (
+    ("P024", "list_of_figures_title_case"): (
         "Likely problem: A List of Figures entry on page {page} may not use "
-        "sentence case. Figure descriptions in the List of Figures should "
-        "begin with a capital letter and use sentence case."
+        "Title Case. Figure titles in the List of Figures should use Title Case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "Likely problem: A TOC or list entry on page {page} ends with terminal "
@@ -786,6 +785,20 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P025", "possible_frontmatter_order_issue"): (
         "Move the Abstract so it appears before the Table of Contents."
     ),
+    # P045's card remediation covers numbering and spacing together; each
+    # finding gets only the fix for its own problem.
+    ("P045", "biosketch_publication_entry_numbered"): (
+        "Remove the number or label (such as [1] or 1.) in front of each "
+        "publication or presentation entry. Keep the same citation format as the "
+        "References section, just without the number."
+    ),
+    ("P045", "biosketch_publication_wrapped_line_spacing_not_single"): (
+        "Single-space the wrapped lines within each publication or presentation "
+        "entry."
+    ),
+    ("P045", "biosketch_publication_entry_spacing_not_double"): (
+        "Add a blank line between separate publication or presentation entries."
+    ),
     ("P038", "required_heading_missing"): (
         "Add this required section heading to the front matter, worded "
         "exactly as NJIT specifies."
@@ -847,9 +860,10 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ),
     ("P024", "toc_level_capitalization"): "",
     ("P024", "list_of_tables_title_case"): "",
-    ("P024", "list_of_figures_sentence_case"): (
-        "Change the List of Figures entry to sentence case. Capitalize only "
-        "the first word, proper nouns, and acronyms."
+    ("P024", "list_of_figures_title_case"): (
+        "Edit the figure title to title case: capitalize the first word and "
+        "major words; leave articles, prepositions, and conjunctions lowercase "
+        "where appropriate."
     ),
     ("P024", "unexpected_terminal_punctuation"): "",
     ("P035", "table_caption_not_above_body"): "",
@@ -865,8 +879,16 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "",
     ("P055", "lof_entry_is_table"): "",
-    ("P055", "lot_entry_missing_table_prefix"): "",
-    ("P055", "lof_entry_missing_figure_prefix"): "",
+    # The P055 catalog remediation describes misplaced entries; a numeric-only
+    # entry needs the literal prefix instead (Ester, 2026-09-04).
+    ("P055", "lot_entry_missing_table_prefix"): (
+        "Begin this List of Tables entry with the word 'Table' before its "
+        "number (for example, Table 1.1)."
+    ),
+    ("P055", "lof_entry_missing_figure_prefix"): (
+        "Begin this List of Figures entry with the word 'Figure' before its "
+        "number (for example, Figure 1.1)."
+    ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
 }
@@ -1205,6 +1227,22 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
         f"Likely problem: A List of Tables entry on page {page_label} may not use "
         f"Title Case: {reason_text}. Table titles in the List of Tables should use "
         "Title Case with no ending period."
+    )
+
+
+def _p024_lof_title_case_comment(*, page: int | None, details: dict[str, str]) -> str:
+    """Build the P024 list_of_figures_title_case comment body.
+
+    Same Title Case vocabulary as the List of Tables comment; the flagged
+    word itself is never quoted here.
+    """
+    page_label = _safe_page_label(page)
+    reason = details.get("expected_or_reason", "") or ""
+    reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
+    return (
+        f"Likely problem: A List of Figures entry on page {page_label} may not use "
+        f"Title Case: {reason_text}. Figure titles in the List of Figures should use "
+        "Title Case."
     )
 
 
@@ -1570,18 +1608,41 @@ def _p067_publication_order_comment(*, page: int | None, details: dict[str, str]
 
 
 def _p045_hanging_indent_comment(*, page: int | None, details: dict[str, str]) -> str:
+    # The auditor no longer emits this issue type; kept so reports stored
+    # before Ester's 2026-10-05 ruling still render accurately.
     page_label = _safe_page_label(page)
-    block_count = details.get("multi_line_block_count", "").strip()
-    threshold = details.get("hanging_indent_threshold_points", "").strip()
-    count_clause = f" ({block_count} multi-line entries checked)" if block_count else ""
-    threshold_clause = f" by at least {threshold}pt" if threshold else ""
     return (
-        "Problem: Publication/presentation entries on the Biographical Sketch "
-        f"page (page {page_label}) do not appear to use hanging indentation"
-        f"{count_clause}: no continuation line is indented{threshold_clause} "
-        "relative to its entry's first line. Format each publication or "
-        "presentation entry with a hanging indent (first line flush left, "
-        "continuation lines indented)."
+        "Note: Publication/presentation entries on the Biographical Sketch "
+        f"page (page {page_label}) do not appear to use a hanging indent. A "
+        "hanging indent is optional, so no change is required for this."
+    )
+
+
+def _p045_line_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    pitch = details.get("observed_line_pitch_points", "").strip()
+    font_size = details.get("font_size_points", "").strip()
+    gap_clause = (
+        f" — wrapped lines about {pitch}pt apart for {font_size}pt text"
+        if pitch and font_size
+        else ""
+    )
+    return (
+        "Problem: Wrapped lines within a publication/presentation entry on the "
+        f"Biographical Sketch page (page {page_label}) do not appear to be "
+        f"single-spaced{gap_clause}. Single-space the lines within each entry "
+        "and keep a blank line between separate entries."
+    )
+
+
+def _p045_numbered_entry_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    return (
+        "Problem: Publication/presentation entries on the Biographical Sketch page "
+        f"(page {page_label}) start with a number or label such as [1] or 1. These "
+        "entries are not references and must not be numbered. Remove the number in "
+        "front of each entry and keep the same citation format as the References "
+        "section."
     )
 
 
@@ -1952,6 +2013,10 @@ def build_polished_comment(
         body = _p024_lot_title_case_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
+    if rule_id == "P024" and issue == "list_of_figures_title_case":
+        body = _p024_lof_title_case_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
     if rule_id == "P036" and issue in _P036_SPACING_ISSUE_TYPES:
         body = _p036_spacing_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
@@ -2010,8 +2075,16 @@ def build_polished_comment(
         body = _p067_publication_order_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
+    if rule_id == "P045" and issue == "biosketch_publication_entry_numbered":
+        body = _p045_numbered_entry_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
     if rule_id == "P045" and issue == "biosketch_publication_missing_hanging_indent":
         body = _p045_hanging_indent_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P045" and issue == "biosketch_publication_wrapped_line_spacing_not_single":
+        body = _p045_line_spacing_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P045" and issue == "biosketch_publication_entry_spacing_not_double":

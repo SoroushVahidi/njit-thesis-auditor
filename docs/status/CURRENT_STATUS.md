@@ -510,7 +510,7 @@ rule registry entries.
 | Closed, engineering-confirmed genuine violation | R085, R086 (Youra physical page 101 case; other corpus findings unreviewed) |
 | Closed, engineering fix to match already-explicit Ester policy | R021 (MS/PhD word limits corrected to 200/400 per her sheet; not a new Ester decision) |
 | Reviewer policy resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`) | R018 wrapped-title alignment (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553); R026 Latin Modern (`ENGINEERING_IMPLEMENTATION_COMPLETE` — detector already accepted it before #553, which added explicit regression coverage); leader placement for TOC/LoT/LoF (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553) |
-| Open policy question | None |
+| Open policy question | R011 final-line allowance beyond references pages (see "Ester Feedback Round 2026-10-05"). R045 numbering was resolved on 2026-10-06 (entries must not be numbered). |
 | Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward, except separately handled R021/R040/R046/R048/R053/R054/R055/R066/R068/R078/R085/R086 |
@@ -548,6 +548,116 @@ on 2026-09-23 at commit `153e819`; R018R and R018S verified live (see the
 Deployment row above). Primary record:
 `docs/status/ester_final_three_clarifications_20260923.md`.
 
+## Ester Feedback Round 2026-10-05
+
+Ester answered the five single-case questions from the 2026-10-04 round:
+R011 Sebastian p28 not a violation; R018 Patrick p11, R024 Muyeed p16, and
+R040 Philip p15 true violations; R045 hanging indent optional, single
+spacing mandatory. Branch `fix/ester-feedback-round-20261005` (PR pending
+review, not merged or deployed) adds a narrow R011 references-page
+final-line allowance, maps P024 findings to R024D/R024E, fixes the R040
+gap-separated leader case, and reworks R045 to enforce Q028 spacing without
+requiring a hanging indent. Three clarifications were pending: R045
+numbering, R011 beyond references pages, and List of Figures sentence case.
+
+Follow-up branch `fix/ester-20261005-r024-r045-reconciliation` (not merged
+or deployed) applies Ester's R024 answer: List of Tables (R024D) and List of
+Figures (R024E) titles both use title case, with distinct codes. The List of
+Figures sentence-case reading is superseded. On the seven-document corpus
+this produced 198 R024E findings (an earlier "about 229" was a counting
+error); a read-only audit found no entry-level false positives, because the
+corpus uses sentence case. Wrapped List of Figures rows are now grouped
+into one entry, which removes 17 duplicate continuation findings: 181
+R024E findings remain, one per violating entry.
+R045 stays as implemented (single spacing mandatory, hanging indent
+optional); numbering remains open. Pending clarifications: R045 numbering
+and R011 beyond references pages.
+Review workbooks follow the format in
+`docs/evaluation/ESTER_REVIEW_DATA_MODEL.md` ("Reviewer workbook format").
+Primary record: `docs/status/ester_feedback_round_20261005.md`.
+
+## Closed-Rule Integrity Audit (2026-10-06)
+
+Branch `audit/closed-rule-integrity-overnight-20261005`, based on the
+reconciliation branch head `6b70aae`, replayed every replayable stored Ester
+adjudication with structural identity (rule, issue type, side, page, and
+entry/line geometry; page-only matches were not accepted). Results: review
+ledger 51 cases (46 false positives still absent, 4 true violations still
+reported, 1 needs-clarification case not replayable); historical
+reconciliation classes B-F 104 cases (59 false positives absent, 41 true
+patterns reported, 4 class-F relationships still ambiguous); 45 further
+direct cases recorded only in status documents (38 absent, 7 reported).
+No regression was found.
+
+The per-rule seven-document counts in the sections above are snapshots taken
+when each follow-up merged. Later merges changed several of them on purpose
+(PR #558 historical reconciliation, PR #560 R011, PR #561-#563 R018/R024/R040,
+and the 2026-10-05 Ester round). Current student-visible counts on the audit
+base (Youra, Anthony, Muyeed, Philip, Praneeth, Sebastian, Patrick):
+
+| Rule | Counts | Total |
+|---|---|---:|
+| R011 | 0, 38, 15, 17, 58, 3, 2 | 133 |
+| R015 | 1, 0, 0, 6, 0, 0, 0 | 7 |
+| R040 | 0, 0, 1, 1, 7, 0, 0 | 9 |
+| R036, R046, R048, R053, R054, R066, R068 | all zero | 0 |
+| R078 | Praneeth 1 | 1 |
+| R085 | Patrick 1 | 1 |
+| R086 | Youra 5, Muyeed 4 | 9 |
+| R024D / R024E | Muyeed 9 / 43, 10, 46, 17, 17, 1, 47 | 9 / 181 |
+| R055 | 46, 13, 97, 15, 29, 0, 57 | 257 |
+
+Student-facing wording fixes from this audit: the R055 card and suggested fix
+now describe the literal "Table"/"Figure" prefix requirement (Ester,
+2026-09-04) that the detector already enforces; the R017 card no longer
+claims List of Figures sentence-case checking (superseded by R024E title
+case, 2026-10-05); the R068 card no longer describes the retired
+signature-block check. Detector behavior and finding counts are unchanged.
+
+## Pre-R045 Safe Stack (2026-10-06)
+
+Branch `integration/pre-r045-safe-stack-20261006` (not merged or deployed)
+stacks the policy-independent work on top of the reconciliation head
+`6b70aae`: location-aware review-ledger matching, the reviewer workbook
+format, fresh-clone consistency-audit fallbacks, the closed-rule audit
+wording fixes above, and the public-card/canonical/Q-coverage chain.
+
+- Table of Contents page-number column and missing-page-number findings link
+  to R075 (Q052); List of Tables/List of Figures page-number columns link to
+  R018N/R018Q. A list-page missing page number and the R015
+  continuation-line indent stay without a card pending authority.
+- R028 Patrick p13 is resolved by Ester's own comment (the defect is the
+  missing CHAPTER 1 heading, R085); no question is needed.
+- `data/specs/q_rule_coverage_report.json` is regenerated with
+  `python -m njit_auditor.specs.q_rule_coverage --generated YYYY-MM-DD` and a
+  freshness test guards it. Structured `source_q_rule_ids` are authoritative;
+  notes count only as a fallback and never when they negate coverage.
+  Coverage: 62 implemented, 12 manual-only, 5 automatable but unimplemented
+  (Q015, Q020, Q024, Q029, Q030).
+- Detector output is unchanged: seven-document raw findings are identical to
+  the reconciliation head. R045 numbering and R011 beyond references pages
+  stay frozen pending Ester.
+
+Records: `docs/status/public_card_ownership_and_r028_authority_20261006.md`,
+`p018_p075_canonical_sync_20261006.md`,
+`p071_p024_q_metadata_reconciliation_20261006.md`,
+`p071_q028_q029_metadata_cleanup_20261006.md`.
+
+## Ester Answer 2026-10-06 (R045 numbering resolved)
+
+Ester confirmed the R024D/R024E split and answered the R045 question:
+Biographical Sketch publications MUST NOT BE NUMBERED. They are listed in
+reverse chronological order and use the same citation format as the
+References section, without the number in front. Hanging indent stays
+optional and single spacing mandatory (2026-10-05).
+
+Branch `fix/r045-no-numbering-final-20261006` (not merged or deployed) adds
+the `biosketch_publication_entry_numbered` check to R045. On the
+seven-document corpus it adds one finding (Patrick physical page 5); nothing
+else changes. Reverse chronology was already checked by R067 (Q027); the
+citation-format match (Q030) remains unimplemented. Record:
+`docs/status/r045_no_numbering_ester_20261006.md`.
+
 ## Next Work Sequence
 
 All rule work through R086/P086 is merged and formally catalogued. The
@@ -567,6 +677,10 @@ review. Production deployment of the merged changes remains pending.
 - Private evaluation dissertations stay local and ignored. Do not commit
   reviewer packages or dissertation content unless a task explicitly requires a
   redacted/synthetic artifact.
-- `scripts/ester_rule_consistency_audit.py` still requires local, untracked
-  `results/ester_feedback_raw/*.xlsx` input and is not fresh-clone/CI runnable
-  without a redacted or synthetic stand-in.
+- `scripts/ester_rule_consistency_audit.py` uses the tracked YES/NO matrix
+  XLSX when available and falls back to checked-in
+  `data/specs/ester_q_matrix.json`; P-rule feedback falls back to
+  `data/specs/ester_p_rule_feedback.json`. Local original XLSX files remain
+  usable for forensic checks, but no private workbook is needed in a clean
+  clone. Run `python scripts/ester_rule_consistency_audit.py` to generate an
+  ignored local report under `results/`.

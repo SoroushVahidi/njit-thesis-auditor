@@ -8,6 +8,7 @@ from njit_auditor.review_ledger.fingerprint import (
     classify_against_known,
     compute_case_fingerprint,
 )
+from njit_auditor.review_ledger.identifiers import make_case_id
 
 
 def _fp(**overrides: object) -> object:
@@ -77,6 +78,21 @@ def test_different_structural_location_on_same_page_is_a_new_case() -> None:
     entry_one = _fp(structural_location="table_of_contents:entry_index=1")
     entry_two = _fp(structural_location="table_of_contents:entry_index=2")
     assert classify_against_known(entry_two, [entry_one]) == "NEW"
+
+
+def test_existing_youra_case_id_is_unchanged_by_secondary_locators() -> None:
+    fingerprint = compute_case_fingerprint(
+        thesis_version_id="TV-e2a71ddf74e2",
+        internal_rule_id="P015",
+        issue_type="missing_later_indent",
+        physical_page=101,
+        structural_location="body_paragraph:run_in_bold_phrase:follow_up",
+        volatile_detail="misread_paragraph_start=true",
+    )
+    assert fingerprint.equivalence_key == "f89787d49756afc38c171f9fef5c3f52"
+    assert make_case_id("TV-e2a71ddf74e2", "P015", fingerprint.equivalence_key) == (
+        "CASE-c9ef781649a8"
+    )
 
 
 def test_different_rule_is_a_new_case() -> None:

@@ -709,9 +709,11 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "parent_rule_id": "P018",
         "source_q_rule_ids": ("Q052",),
         "issue_types": ("inconsistent_leader_dots",),
+        # P075 owns Table of Contents leader style; this P018 check now runs
+        # only on List of Tables and List of Figures pages.
         "title": (
-            "Is each Table of Contents entry connected to its page number by a "
-            "consistent leader style?"
+            "Is each List of Tables and List of Figures entry connected to its page "
+            "number by a consistent leader style?"
         ),
         "how_to_correct": "Right-align page numbers and use one consistent leader style.",
     },
@@ -833,7 +835,7 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "id": "P018N",
         "parent_rule_id": "P018",
         "source_q_rule_ids": ("Q069",),
-        "issue_types": ("lot_page_number_column_misaligned",),
+        "issue_types": ("lot_page_number_column_misaligned", "misaligned_page_number_column"),
         "title": (
             "Are all List of Tables page numbers aligned vertically in one right column?"
         ),
@@ -871,7 +873,7 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "id": "P018Q",
         "parent_rule_id": "P018",
         "source_q_rule_ids": ("Q079",),
-        "issue_types": ("lof_page_number_column_misaligned",),
+        "issue_types": ("lof_page_number_column_misaligned", "misaligned_page_number_column"),
         "title": (
             "Are all List of Figures page numbers aligned vertically in one right column?"
         ),
@@ -928,11 +930,11 @@ _P024_REMAINING_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "id": "P024E",
         "parent_rule_id": "P024",
         "source_q_rule_ids": ("Q074",),
-        "issue_types": ("list_of_figures_sentence_case",),
-        "title": "In the List of Figures, are figure descriptions displayed in sentence case?",
+        "issue_types": ("list_of_figures_title_case",),
+        "title": "In the List of Figures, are figure titles displayed in title case?",
         "how_to_correct": (
-            "Change the List of Figures entry to sentence case. Capitalize only "
-            "the first word, proper nouns, and acronyms."
+            "Change List of Figures entry titles to title case. Capitalize each "
+            "word except articles, prepositions, and conjunctions."
         ),
     },
 )
@@ -1015,6 +1017,10 @@ _PUBLIC_RULE_ISSUE_REFERENCE: dict[tuple[str, str], str] = {
     ("P015", "missing_later_indent"): "P015B",
     ("P026", "possible_body_font_family_issue"): "P026A",
     ("P026", "possible_body_font_size_issue"): "P026B",
+    # P024 is a hidden internal parent; its List of Tables and List of
+    # Figures capitalization findings belong to the visible atomic cards.
+    ("P024", "list_of_tables_title_case"): "P024D",
+    ("P024", "list_of_figures_title_case"): "P024E",
 }
 
 
@@ -1031,7 +1037,7 @@ def _resolve_p018_public_card(
     source_q_rule_id: str = "",
     details: Mapping[str, Any] | None = None,
 ) -> str:
-    """Map backend TOC/List findings to canonical P018A–P018S public cards."""
+    """Map backend TOC/List findings to their public cards (P018A–P018S, or P075)."""
     clean_rule_id = str(rule_id).strip()
     clean_issue_type = str(issue_type).strip()
     clean_q_rule = str(source_q_rule_id).strip()
@@ -1039,7 +1045,41 @@ def _resolve_p018_public_card(
     entry_kind = _detail_str(details, "entry_kind")
     section_type = _detail_str(details, "section_type")
 
-    if clean_q_rule in _P018_Q_RULE_TO_CARD:
+    # P018 records the page kind as ``page_type``; ``section_type`` is the
+    # key other TOC/List detectors use.
+    page_kind = section_type or _detail_str(details, "page_type")
+    if clean_issue_type == "misaligned_page_number_column":
+        if page_kind == "list_of_tables":
+            return "P018N"
+        if page_kind == "list_of_figures":
+            return "P018Q"
+    # On the Table of Contents, page-number alignment and presence are part
+    # of Q052 ("Every TOC entry must connect to a right-aligned page
+    # number ..."), whose public TOC card is P075. Ester gave List of Tables
+    # and List of Figures alignment their own rows (Q069/Q079 above) but not
+    # page-number presence, so a list-page missing_page_number stays unmapped.
+    if (
+        clean_rule_id == "P018"
+        and page_kind == "table_of_contents"
+        and clean_issue_type in {"misaligned_page_number_column", "missing_page_number"}
+    ):
+        return "P075"
+    if (
+        clean_rule_id == "P018"
+        and page_kind in {"list_of_tables", "list_of_figures"}
+        and clean_issue_type == "missing_page_number"
+    ):
+        return ""
+
+    # Precedence: the context-specific page-number routing above, then the
+    # source-Q table, then the issue-type table below, then the rule's own
+    # public card (in _public_rule_reference_id). The source-Q table only
+    # speaks for the P018 family, whose public coverage is delegated to the
+    # P018 cards. A rule with its own public card keeps it even when its
+    # findings cite a Q row shared with a P018 card: P075 (TOC leader style,
+    # Q052 -- P018D covers lists only), P054 (TOC terminal period, Q050) and
+    # P063 (body appendix headings, Q058/Q059).
+    if clean_rule_id in _P018_DELEGATED_PARENT_RULE_IDS and clean_q_rule in _P018_Q_RULE_TO_CARD:
         return _P018_Q_RULE_TO_CARD[clean_q_rule]
 
     if clean_issue_type == "toc_level_capitalization":
@@ -1055,12 +1095,6 @@ def _resolve_p018_public_card(
             return "P032C"
         if section_type == "table_of_contents" or clean_rule_id == "P032":
             return "P018E"
-
-    if clean_issue_type == "misaligned_page_number_column":
-        if section_type == "list_of_tables":
-            return "P018N"
-        if section_type == "list_of_figures":
-            return "P018Q"
 
     mapped = _P018_BACKEND_ISSUE_MAP.get((clean_rule_id, clean_issue_type))
     if mapped:

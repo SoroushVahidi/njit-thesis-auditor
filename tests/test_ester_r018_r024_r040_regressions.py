@@ -13,10 +13,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     extract_toc_logical_entry_lines,
 )
 from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
-from njit_auditor.rules.pdf_toc_list_formatting import (
-    _sentence_case_violation_words,
-    check_pdf_toc_list_formatting,
-)
+from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 
 def _doc(heading: str, rows: list[tuple[str, float, float, float]]) -> PdfDocument:
@@ -162,36 +159,28 @@ def test_curly_possessive_is_one_title_word_but_lowercase_major_word_warns() -> 
     assert "toc_level_capitalization" in _issues(incorrect, "P024")
 
 
-def test_proper_software_names_do_not_hide_capitalized_common_words() -> None:
-    assert not _sentence_case_violation_words("Covariance algorithm in Sklearn and Matlab")
-    assert _sentence_case_violation_words(
-        "Covariance Analysis Methods Results in Sklearn and Matlab"
-    ) == ["Analysis", "Methods", "Results"]
+def test_lof_software_names_follow_title_case_not_sentence_case() -> None:
+    """Ester 2026-10-05: List of Figures titles use title case (R024E)."""
     peers = [
-        ("Figure 2 Basic reference chart. .... 2", 108, 540, 164),
-        ("Figure 3 Another reference chart. .... 3", 108, 540, 188),
+        ("Figure 2 Basic Reference Chart. .... 2", 108, 540, 164),
+        ("Figure 3 Another Reference Chart. .... 3", 108, 540, 188),
     ]
-    correct = _doc(
+    title_case = _doc(
         "LIST OF FIGURES",
         [
-            ("Figure 1 Covariance algorithm in Sklearn and Matlab. .... 1", 108, 540, 140),
+            ("Figure 1 Covariance Analysis Methods in Sklearn and Matlab. .... 1", 108, 540, 140),
             *peers,
         ],
     )
-    assert "list_of_figures_sentence_case" not in _issues(correct, "P024")
-    incorrect = _doc(
+    assert _issues(title_case, "P024") == []
+    sentence_case = _doc(
         "LIST OF FIGURES",
         [
-            (
-                "Figure 1 Covariance Analysis Methods Results in Sklearn and Matlab. .... 1",
-                108,
-                540,
-                140,
-            ),
+            ("Figure 1 Covariance analysis methods in Sklearn and Matlab. .... 1", 108, 540, 140),
             *peers,
         ],
     )
-    assert "list_of_figures_sentence_case" in _issues(incorrect, "P024")
+    assert "list_of_figures_title_case" in _issues(sentence_case, "P024")
 
 
 def test_short_leader_after_attached_period_is_terminal_punctuation() -> None:

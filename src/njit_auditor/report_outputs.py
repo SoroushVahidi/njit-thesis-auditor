@@ -567,25 +567,29 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Remove the final period from each Table of Contents entry."
         ),
     },
+    # Ester (2026-09-04): List of Tables / List of Figures entries should
+    # always show the word "Table" or "Figure" before the X.x number. The
+    # detector enforces that prefix as well as the original cross-type check.
     "P055": {
         "question": (
-            "Are table entries listed only in the List of Tables and figure "
-            "entries listed only in the List of Figures?"
+            "Does each List of Tables entry begin with the word 'Table', and "
+            "each List of Figures entry with the word 'Figure', before its "
+            "number?"
         ),
         "rule_definition": (
-            "Conservative automated check. NJIT guidelines define the "
-            "List of Tables as containing only table entries and the List "
-            "of Figures as containing only figure entries. This rule "
-            "emits an advisory when a complete List of Tables entry starts "
-            "with 'Figure', or a complete List of Figures entry starts "
-            "with 'Table'. This catches misplaced entries that indicate a "
-            "copy-paste error or misconfigured template. Findings contain "
-            "only structural metadata -- no title text."
+            "Conservative automated check. Each complete List of Tables "
+            "entry should begin with 'Table' and each complete List of "
+            "Figures entry with 'Figure', followed by its number. This rule "
+            "emits an advisory when an entry starts with only a number, or "
+            "when a List of Tables entry starts with 'Figure' or a List of "
+            "Figures entry starts with 'Table' (a misplaced entry). "
+            "Findings contain only structural metadata -- no title text."
         ),
         "remediation": (
-            "Move each misplaced entry to the correct section: table entries "
-            "belong in the List of Tables, and figure entries belong in the "
-            "List of Figures."
+            "Begin each List of Tables entry with the word 'Table' and each "
+            "List of Figures entry with the word 'Figure' before its number "
+            "(for example, Table 1.1 or Figure 1.1). Move any misplaced entry "
+            "to the correct list."
         ),
     },
     "P074": {
@@ -623,28 +627,27 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     },
     "P045": {
         "question": (
-            "Do publication and presentation entries in the Biographical Sketch "
-            "use the required layout: hanging indent, internal single spacing, "
-            "and a blank line between entries?"
+            "Are publication and presentation entries in the Biographical Sketch "
+            "unnumbered, single-spaced within each entry, and separated by a blank "
+            "line?"
         ),
         "rule_definition": (
-            "Detects the Biographical Sketch page and groups its text lines "
-            "below the heading into entry blocks. For multi-line entries "
-            "with a hanging-indent pattern, checks: if no entries have a "
-            "hanging indent despite two or more multi-line entries, flags "
-            "a missing hanging indent; if consecutive hanging-indent "
-            "entries have less than 20pt of space between them, flags "
-            "incorrect entry spacing; if a hanging-indent entry's wrapped "
-            "lines have more than 16pt of space between them, flags "
-            "incorrect line spacing within an entry. Skips pages where the "
-            "Biographical Sketch heading is absent or fewer than 2 "
-            "multi-line entries are found. Findings are geometry-only -- "
-            "no publication text, citation content, or names."
+            "Finds the Publications and Presentations section of the Biographical "
+            "Sketch page. Flags entries that start with a number or label such as "
+            "[1], (1), or 1. -- these entries are not references and must not be "
+            "numbered. Also flags an entry whose wrapped lines are spaced more "
+            "widely than single spacing, and consecutive entries with no blank line "
+            "between them. A hanging indent is optional and is not required. "
+            "Numbers inside a citation (years, volumes, pages) are not checked. "
+            "Findings are geometry-only -- no publication text, citation content, "
+            "or names."
         ),
         "remediation": (
-            "Format each publication or presentation entry with a hanging indent. "
-            "Keep wrapped lines within each entry single-spaced, and add a blank "
-            "line between separate entries."
+            "Remove the numbers or labels such as [1] or 1. in front of each "
+            "Biographical Sketch publication or presentation entry; keep the same "
+            "citation format as the References section, just without the number. "
+            "Single-space the wrapped lines within each entry, and add a blank line "
+            "between separate entries. A hanging indent is optional."
         ),
     },
     "P047": {
@@ -677,7 +680,19 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Sketch from most recent to oldest."
         ),
     },
+    # Signature/date block counting no longer reports (Ester, R068 follow-up
+    # 2026-09-21: committee-block layout depends on committee size); only the
+    # advisor-role label check emits findings.
     "P068": {
+        "rule_definition": (
+            "Conservative structural check: finds the Approval Page and the "
+            "committee role labels below its heading, and warns when at "
+            "least two committee role labels are found but none identifies "
+            "the advisor. Signature and date lines are not counted toward a "
+            "warning, because committee-block layout depends on committee "
+            "size and on how each template renders signature lines. Findings "
+            "contain counts and booleans only."
+        ),
         "question": (
             "Does the Approval Page include committee role labels and "
             "signature/date structural blocks for committee entries?"
@@ -701,10 +716,12 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     "P017": {
         "rule_definition": (
             "Automatically detect punctuation and case-style issues in "
-            "figure/table caption-like PDF lines. Figure captions (body) "
-            "and List of Figures entries: check terminal punctuation and "
-            "sentence case. Table titles (body) and List of Tables "
-            "entries: check title case and unexpected terminal period."
+            "figure/table caption-like PDF lines. Figure captions (body): "
+            "check terminal punctuation and sentence case. List of Figures "
+            "entries: check terminal punctuation only; their capitalization "
+            "(title case) is checked under R024E. Table titles (body) and "
+            "List of Tables entries: check title case and unexpected "
+            "terminal period."
         ),
     },
     "P022": {

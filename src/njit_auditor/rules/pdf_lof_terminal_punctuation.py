@@ -4,7 +4,7 @@ Partial heuristic PDF coverage for Q075:
   - Q075: Does every figure description end with a terminal punctuation mark?
 
 List of Figures pages only. TOC and LoT are excluded.
-Does not duplicate P024 (LoF sentence case, LoT capitalization), P018 (alignment),
+Does not duplicate P024 (LoT and LoF title case), P018 (alignment),
 P032 (wrap spacing), P036 (inter-entry spacing), or P039 (TOC indentation hierarchy).
 """
 
@@ -47,8 +47,10 @@ def _strip_trailing_lof_dot_leaders(text: str) -> str:
     are reversed: a terminal dot immediately before a visual leader run is the
     required punctuation, not a violation. PDF extraction often attaches that
     dot to Unicode/ASCII leader fragments, so this helper removes the leader
-    suffix while preserving one leading period from the suffix when the
-    remaining suffix is still visibly a leader run.
+    suffix while preserving one leading period from the suffix when that
+    period touches the title or is set apart from a different leader glyph.
+    The first dot of a gap-separated, uniform ASCII leader run is not
+    punctuation.
     """
 
     stripped = text.rstrip()
@@ -65,12 +67,20 @@ def _strip_trailing_lof_dot_leaders(text: str) -> str:
         return prefix
 
     leader = suffix.lstrip()
-    # A short extracted ". ." suffix can be a title's attached terminal
-    # period followed by one detached leader dot. Require the first dot to
-    # touch the title in that two-dot case; "title . ." is leader-only.
-    attached_terminal_dot = suffix.startswith(".") and _dot_leader_weight(leader[1:]) >= 1
-    if leader.startswith(".") and (
-        _dot_leader_weight(leader[1:]) >= 2 or attached_terminal_dot
+    # A period touching the title text is the title's terminal punctuation,
+    # whatever leader run follows it ("title. . . ." or "title.……").
+    if suffix.startswith(".") and _dot_leader_weight(leader[1:]) >= 1:
+        return f"{prefix}.".strip()
+    # After a gap, the first dot of a uniform ASCII leader run is only a
+    # leader ("title (2.6) . . . . 30"); Ester confirmed that pattern lacks
+    # terminal punctuation (2026-10-05). A lone ASCII period followed by a
+    # different leader glyph ("title .……") is still the title's own period,
+    # set off by a stray space; that gap is leader placement (P018S), not R040.
+    following = leader[1:].lstrip()
+    if (
+        leader.startswith(".")
+        and following[:1] in ("…", "·")
+        and _dot_leader_weight(following) >= 2
     ):
         return f"{prefix}.".strip()
 

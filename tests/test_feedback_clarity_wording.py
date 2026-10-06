@@ -623,7 +623,9 @@ def test_p067_uses_top_level_page_when_details_have_no_page_key() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_p045_hanging_indent_comment_includes_block_count_and_threshold() -> None:
+def test_p045_legacy_hanging_indent_comment_says_it_is_optional() -> None:
+    """Ester (2026-10-05): a hanging indent is not mandatory. The issue type is
+    no longer emitted; reports stored earlier must not call it a requirement."""
     comment = build_polished_comment(
         rule_id="P045",
         issue_type="biosketch_publication_missing_hanging_indent",
@@ -633,9 +635,22 @@ def test_p045_hanging_indent_comment_includes_block_count_and_threshold() -> Non
             "hanging_indent_threshold_points": "12.0",
         },
     )
-    assert "hanging indentation" in comment
-    assert "3 multi-line entries checked" in comment
-    assert "12.0pt" in comment
+    assert "hanging indent is optional" in comment
+    assert "no change is required" in comment
+    assert "Format each publication or presentation entry with a hanging indent" not in comment
+    assert "Biographical Sketch" in comment
+    assert "was flagged by an automated check" not in comment
+
+
+def test_p045_line_spacing_comment_includes_pitch_measurements() -> None:
+    comment = build_polished_comment(
+        rule_id="P045",
+        issue_type="biosketch_publication_wrapped_line_spacing_not_single",
+        page=44,
+        details={"observed_line_pitch_points": "23.9", "font_size_points": "12.0"},
+    )
+    assert "single-spaced" in comment
+    assert "23.9pt apart for 12.0pt text" in comment
     assert "Biographical Sketch" in comment
     assert "was flagged by an automated check" not in comment
 
@@ -688,7 +703,7 @@ def test_p047_bullet_spacing_comment_degrades_gracefully_without_block_index() -
     assert "was flagged by an automated check" not in comment
 
 
-def test_p045_hanging_indent_issue_type_explanation_and_detailed_explanation_match() -> None:
+def test_p045_legacy_hanging_indent_explanations_say_it_is_optional() -> None:
     findings = [
         AuditFinding(
             rule_id="P045",
@@ -705,9 +720,33 @@ def test_p045_hanging_indent_issue_type_explanation_and_detailed_explanation_mat
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P045")
-    assert "4 multi-line entries checked" in fv.issue_type_explanation
-    assert "12.0pt" in fv.issue_type_explanation
-    assert "hanging indentation" in fv.detailed_explanation
+    assert "hanging indent is optional" in fv.issue_type_explanation
+    assert "hanging indent is optional" in fv.detailed_explanation
+    assert "was flagged by an automated check" not in fv.issue_type_explanation
+    assert "automated formatting check" not in fv.detailed_explanation
+
+
+def test_p045_line_spacing_issue_type_explanation_and_detailed_explanation_match() -> None:
+    findings = [
+        AuditFinding(
+            rule_id="P045",
+            severity=Severity.WARNING,
+            page=44,
+            message="Wrapped lines within a publication entry are not single-spaced.",
+            details={
+                "issue_type": "biosketch_publication_wrapped_line_spacing_not_single",
+                "observed_line_pitch_points": "23.9",
+                "font_size_points": "12.0",
+            },
+        )
+    ]
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    fv = next(f for f in view.findings if f.rule_id == "P045")
+    for text in (fv.issue_type_explanation, fv.detailed_explanation):
+        assert "single-spaced" in text
+        assert "23.9pt apart for 12.0pt text" in text
+        assert "hanging" not in text.lower()
     assert "was flagged by an automated check" not in fv.issue_type_explanation
     assert "automated formatting check" not in fv.detailed_explanation
 

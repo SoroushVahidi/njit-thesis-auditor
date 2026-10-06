@@ -23,14 +23,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from njit_auditor.report_outputs import public_display_rule_id
-from njit_auditor.review_ledger.fingerprint import compute_case_fingerprint
+from njit_auditor.review_ledger.fingerprint import CaseFingerprint, compute_case_fingerprint
 from njit_auditor.review_ledger.identifiers import (
     make_adjudication_id,
     make_case_id,
     make_history_event_id,
 )
 from njit_auditor.review_ledger.importers.known_cases import (
+    KNOWN_ADJUDICATION_SUPERSESSIONS,
     KNOWN_HISTORICAL_CASES,
+    KnownAdjudicationSupersession,
     KnownHistoricalCase,
 )
 from njit_auditor.review_ledger.importers.thesis_registry import RegisteredDocument
@@ -101,6 +103,19 @@ def migrate_known_cases(
     return summary
 
 
+def _known_case_fingerprint(
+    known_case: KnownHistoricalCase, thesis_version_id: str
+) -> CaseFingerprint:
+    return compute_case_fingerprint(
+        thesis_version_id=thesis_version_id,
+        internal_rule_id=known_case.internal_rule_id,
+        issue_type=known_case.issue_type,
+        physical_page=known_case.physical_page,
+        structural_location=known_case.structural_location,
+        volatile_detail=known_case.volatile_detail,
+    )
+
+
 def _migrate_one_case(
     ledger: EsterReviewLedger,
     known_case: KnownHistoricalCase,
@@ -111,14 +126,7 @@ def _migrate_one_case(
     imported_at: str,
     summary: CaseMigrationSummary,
 ) -> str:
-    fingerprint = compute_case_fingerprint(
-        thesis_version_id=thesis_version_id,
-        internal_rule_id=known_case.internal_rule_id,
-        issue_type=known_case.issue_type,
-        physical_page=known_case.physical_page,
-        structural_location=known_case.structural_location,
-        volatile_detail=known_case.volatile_detail,
-    )
+    fingerprint = _known_case_fingerprint(known_case, thesis_version_id)
     case_id = make_case_id(
         thesis_version_id, known_case.internal_rule_id, fingerprint.equivalence_key
     )
@@ -202,3 +210,90 @@ def _migrate_adjudication(
             notes=f"migrated from {known_case.source_reference}, decided {known_case.decided_at}",
         )
     )
+
+
+@dataclass
+class SupersessionSummary:
+    total: int = 0
+    applied: int = 0
+    already_applied: int = 0
+    skipped: list[str] = field(default_factory=list)
+
+
+def migrate_known_supersessions(
+    ledger: EsterReviewLedger,
+    *,
+    registered_by_short_name: dict[str, RegisteredDocument],
+    imported_at: str,
+    supersessions: tuple[KnownAdjudicationSupersession, ...] = KNOWN_ADJUDICATION_SUPERSESSIONS,
+) -> SupersessionSummary:
+    """Append each superseding adjudication to the case's current one.
+
+    Runs after ``migrate_known_cases``. Idempotent: a case whose current
+    adjudication already carries the target verdict and source is left
+    alone. A case in any state other than the expected superseded verdict
+    is reported, never overwritten.
+    """
+    summary = SupersessionSummary(total=len(supersessions))
+    for item in supersessions:
+        known_case = item.case
+        label = (
+            f"{known_case.document_short_name}/{known_case.internal_rule_id}"
+            f"@page{known_case.physical_page}"
+        )
+        registered = registered_by_short_name.get(known_case.document_short_name)
+        if registered is None or not registered.available:
+            summary.skipped.append(f"{label}: PDF not available on disk")
+            continue
+        fingerprint = _known_case_fingerprint(known_case, registered.thesis_version_id)
+        case_id = make_case_id(
+            registered.thesis_version_id,
+            known_case.internal_rule_id,
+            fingerprint.equivalence_key,
+        )
+        if case_id not in ledger.review_cases:
+            summary.skipped.append(f"{label}: case not in ledger")
+            continue
+        current = ledger.current_adjudication_for_case(case_id)
+        if current is None:
+            summary.skipped.append(f"{label}: case has no adjudication")
+            continue
+        if (
+            current["verdict"] == item.verdict.value
+            and current["source_reference"] == item.source_reference
+        ):
+            summary.already_applied += 1
+            continue
+        if current["verdict"] != item.superseded_verdict.value:
+            summary.skipped.append(
+                f"{label}: current verdict {current['verdict']} is not "
+                f"{item.superseded_verdict.value}"
+            )
+            continue
+        adjudication = Adjudication(
+            adjudication_id=make_adjudication_id(),
+            case_id=case_id,
+            reviewer=REVIEWER_NAME,
+            verdict=item.verdict,
+            reviewer_comment=item.reviewer_comment,
+            source_reference=item.source_reference,
+            decided_at=item.decided_at,
+            supersedes_adjudication_id=str(current["adjudication_id"]),
+        )
+        ledger.add_adjudication(adjudication)
+        summary.applied += 1
+        ledger.record_history_event(
+            HistoryEvent(
+                event_id=make_history_event_id(),
+                occurred_at=imported_at,
+                entity_type="Adjudication",
+                entity_id=adjudication.adjudication_id,
+                event_type="adjudication_superseded_by_existing_authority",
+                previous_state=str(current["verdict"]),
+                new_state=item.verdict.value,
+                source_reference=item.source_reference,
+                code_sha=None,
+                notes=f"supersedes {current['adjudication_id']}",
+            )
+        )
+    return summary

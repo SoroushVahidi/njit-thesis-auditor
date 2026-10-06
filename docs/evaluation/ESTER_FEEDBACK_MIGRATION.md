@@ -225,19 +225,22 @@ today's corpus hasn't changed since the reviewed cases were written.
 
 ## Ground-truth replay: matching granularity
 
-`ground_truth.py` checks "is there a current finding equivalent to this
-adjudicated case" using **`(thesis_version_id, internal_rule_id,
-issue_type, physical_page)`**, not the ledger's full fingerprint
-(`structural_location`/`volatile_detail`). This is a deliberate, documented
-simplification: a live auditor run has no way to reconstruct the same
-hand-written `structural_location` string a migrated historical case
-used, so requiring an exact fingerprint match would report every
-migrated case as absent even when it's still there. The coarser
-granularity is verified accurate for every case in the current ledger (no
-two migrated cases share rule+issue_type+page on the same thesis
-version) — but a future rule whose migrated cases *do* collide on one
-page would need this tightened; watch for it rather than assuming it
-will never happen.
+`ground_truth.py` first groups by **`(thesis_version_id, internal_rule_id,
+issue_type, physical_page)`**. It then matches source-backed secondary
+locators by bounded PDF coordinates and structural role when available.
+These locators are keyed by existing case IDs and do not change the
+canonical fingerprint or rewrite ledger rows. An unlocated legacy case
+uses the old coarse match only for a unique one-case/one-finding group;
+otherwise replay reports `IDENTITY_AMBIGUOUS` and the new-review gate
+blocks. An anchored case cannot inherit a different same-page finding's
+verdict merely because rule and issue type agree.
+
+This corrects the Youra physical-page-101 R015 history: Ester rejected the
+old continuation-line anchor near y=376.1 and accepted the separate
+paragraph-start anchor near y=352.2. The existing false-positive case ID
+and adjudication remain intact; the accepted paragraph start is imported
+as a distinct, source-backed true-violation case. Match ambiguity is
+reported separately from unresolved policy and detector regression.
 
 **Two such collisions were found and fixed during this migration pass,**
 not hypothetically -- a first, crude verification script that checked

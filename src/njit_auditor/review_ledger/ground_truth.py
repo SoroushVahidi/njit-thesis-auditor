@@ -16,18 +16,10 @@ write-up):
   ``POLICY_GUIDANCE``-verdict ``Adjudication`` (if one is ever created) is
   excluded from case totals here rather than faked into a pass/fail.
 
-**Matching granularity**: "equivalent current finding" is checked by
-``(thesis_version_id, internal_rule_id, issue_type, physical_page)`` --
-not the full fingerprint's ``structural_location``/``volatile_detail``.
-A live auditor run does not reconstruct the same hand-written
-``structural_location`` string a migrated historical case used, so
-requiring an exact fingerprint match here would always report "absent"
-even when the finding is genuinely still there. This granularity is
-accurate for every case currently in the ledger (verified: no two
-migrated cases share the same rule/issue_type/page for one thesis
-version) but is a real, documented simplification a future phase should
-tighten only if it starts producing false matches (see
-``docs/evaluation/ESTER_FEEDBACK_MIGRATION.md``).
+Matching first groups by thesis version, rule, qualified issue type and page.
+Within a group, source-backed secondary locators distinguish individual
+anchors without changing historical case IDs. Unresolved identity is reported
+as ambiguity rather than scored as a detector regression or success.
 
 For a handful of rules, plain ``issue_type`` is not fine-grained enough on
 its own -- see ``qualify_issue_type()`` below, which both case migration
@@ -40,7 +32,8 @@ second migration pass:
   page. A reviewed P011 right-margin false positive and an unrelated,
   unreviewed bottom-margin finding shared a page and would otherwise have
   matched as "the same case". Discriminated by the ``side`` details field.
-- P024: "list_of_tables_title_case"/"list_of_figures_sentence_case" can
+- P024: "list_of_tables_title_case"/"list_of_figures_title_case" (formerly
+  "list_of_figures_sentence_case", before 2026-10-05) can
   fire once per flagged word on the same List of Tables/Figures page --
   the specific word is not a structured details field, only embedded in
   the message (e.g. "'casein' may need to be capitalized"). Discriminated
@@ -50,9 +43,13 @@ second migration pass:
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from enum import Enum
+from math import isfinite
 
+from njit_auditor.review_ledger.locators import CaseLocator
 from njit_auditor.review_ledger.models import AdjudicationVerdict, RegressionOutcome
 
 _QUOTED_WORD_RE = re.compile(r"'([^']+)'")
@@ -101,6 +98,38 @@ _SUPPRESSION_VERDICTS = frozenset(
     {AdjudicationVerdict.FALSE_POSITIVE, AdjudicationVerdict.ACCEPTABLE}
 )
 
+# On the fixed PDF version, a five-point drift is below half a typical body
+# line pitch. The known Youra anchors are 23.9 points apart. X is used only
+# when both sides provide it; 12 points allows small extraction differences
+# while still separating distinct columns or indentation positions.
+ANCHOR_Y_TOLERANCE_PT = 5.0
+ANCHOR_X_TOLERANCE_PT = 12.0
+
+
+class MatchStatus(str, Enum):
+    MATCHED = "MATCHED"
+    ABSENT = "ABSENT"
+    IDENTITY_AMBIGUOUS = "IDENTITY_AMBIGUOUS"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
+
+def anchor_from_details(details: Mapping[str, object]) -> tuple[float | None, float | None]:
+    """Read only the upper-left coordinates of a finding bbox, never text."""
+    bbox = details.get("bbox")
+    if isinstance(bbox, str):
+        parts = bbox.split(",")
+    elif isinstance(bbox, (list, tuple)):
+        parts = list(bbox)
+    else:
+        return None, None
+    if len(parts) != 4:
+        return None, None
+    try:
+        x, y = float(parts[0]), float(parts[1])
+    except (TypeError, ValueError):
+        return None, None
+    return (x, y) if isfinite(x) and isfinite(y) else (None, None)
+
 
 @dataclass(frozen=True)
 class CurrentFinding:
@@ -108,6 +137,9 @@ class CurrentFinding:
     internal_rule_id: str
     issue_type: str
     physical_page: int | None
+    anchor_x: float | None = None
+    anchor_y: float | None = None
+    structural_role: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +151,7 @@ class CaseReplayResult:
     equivalent_current_finding_present: bool
     outcome: RegressionOutcome
     excluded_reason: str | None
+    match_status: MatchStatus = MatchStatus.NOT_EVALUATED
 
 
 @dataclass
@@ -128,9 +161,14 @@ class RuleReplaySummary:
     tp_total: int = 0
     tp_regressions: int = 0
     unresolved: int = 0
+    identity_ambiguous: int = 0
 
     @property
     def status(self) -> str:
+        if self.identity_ambiguous and (self.fp_regressions or self.tp_regressions):
+            return "REGRESSION_AND_AMBIGUITY"
+        if self.identity_ambiguous:
+            return "IDENTITY_AMBIGUOUS"
         if self.fp_regressions or self.tp_regressions:
             return "REGRESSION"
         if self.unresolved:
@@ -177,30 +215,92 @@ class GroundTruthReport:
 
     @property
     def unresolved_policy_cases(self) -> int:
-        return sum(1 for r in self.results if r.excluded_reason is not None)
+        return sum(1 for r in self.results if r.expected_verdict not in _PASS_FAIL_VERDICTS)
+
+    @property
+    def identity_ambiguous_cases(self) -> int:
+        return sum(1 for r in self.results if r.match_status == MatchStatus.IDENTITY_AMBIGUOUS)
 
 
-def _find_equivalent_current_finding(
-    *,
-    thesis_version_id: str,
-    internal_rule_id: str,
-    issue_type: str,
-    physical_page: int | None,
-    current_findings: list[CurrentFinding],
-) -> bool:
-    return any(
-        f.thesis_version_id == thesis_version_id
-        and f.internal_rule_id == internal_rule_id
-        and f.issue_type == issue_type
-        and f.physical_page == physical_page
-        for f in current_findings
+def _coarse_key(item: dict | CurrentFinding) -> tuple[str, str, str, int | None]:
+    if isinstance(item, CurrentFinding):
+        return item.thesis_version_id, item.internal_rule_id, item.issue_type, item.physical_page
+    return (
+        str(item["thesis_version_id"]),
+        str(item["internal_rule_id"]),
+        str(item["issue_type"]),
+        item.get("physical_page"),
     )
+
+
+def _group_matches(
+    cases: list[dict],
+    findings: list[CurrentFinding],
+    locators: Mapping[str, CaseLocator],
+) -> dict[str, MatchStatus]:
+    """Resolve a coarse group without assigning one finding to two cases."""
+    candidates: dict[str, set[int] | None] = {}
+    for case in cases:
+        case_id = str(case["case_id"])
+        locator = locators.get(case_id)
+        if locator is None or locator.anchor_y is None:
+            # Legacy coarse matching is safe only for a unique case/finding
+            # pair. A missing current finding is unambiguously absent.
+            candidates[case_id] = (
+                set() if not findings else {0} if len(cases) == len(findings) == 1 else None
+            )
+            continue
+        plausible: set[int] = set()
+        unknown_location = False
+        for index, finding in enumerate(findings):
+            if finding.anchor_y is None:
+                unknown_location = True
+                continue
+            if (
+                locator.structural_role
+                and finding.structural_role
+                and locator.structural_role != finding.structural_role
+            ):
+                continue
+            if abs(locator.anchor_y - finding.anchor_y) > ANCHOR_Y_TOLERANCE_PT:
+                continue
+            if (
+                locator.anchor_x is not None
+                and finding.anchor_x is not None
+                and abs(locator.anchor_x - finding.anchor_x) > ANCHOR_X_TOLERANCE_PT
+            ):
+                continue
+            plausible.add(index)
+        candidates[case_id] = None if unknown_location else plausible
+
+    reverse: dict[int, set[str]] = defaultdict(set)
+    for case_id, possible in candidates.items():
+        if possible is not None:
+            for index in possible:
+                reverse[index].add(case_id)
+    uncertain_case_present = bool(findings) and any(
+        possible is None for possible in candidates.values()
+    )
+    result: dict[str, MatchStatus] = {}
+    for case_id, possible in candidates.items():
+        if possible is None or len(possible) > 1:
+            result[case_id] = MatchStatus.IDENTITY_AMBIGUOUS
+        elif not possible:
+            result[case_id] = MatchStatus.ABSENT
+        else:
+            result[case_id] = (
+                MatchStatus.MATCHED
+                if len(reverse[next(iter(possible))]) == 1 and not uncertain_case_present
+                else MatchStatus.IDENTITY_AMBIGUOUS
+            )
+    return result
 
 
 def replay_ledger(
     all_review_cases: list[dict],
     current_adjudication_by_case_id: dict[str, dict],
     current_findings: list[CurrentFinding],
+    case_locators: Mapping[str, CaseLocator] | None = None,
 ) -> GroundTruthReport:
     """Replay every case that has a current (non-superseded) adjudication.
 
@@ -211,6 +311,19 @@ def replay_ledger(
     ``EsterReviewLedger``.
     """
     report = GroundTruthReport()
+    locators = case_locators or {}
+    cases_by_key: dict[tuple[str, str, str, int | None], list[dict]] = defaultdict(list)
+    findings_by_key: dict[tuple[str, str, str, int | None], list[CurrentFinding]] = (
+        defaultdict(list)
+    )
+    for case in all_review_cases:
+        if case["case_id"] in current_adjudication_by_case_id:
+            cases_by_key[_coarse_key(case)].append(case)
+    for finding in current_findings:
+        findings_by_key[_coarse_key(finding)].append(finding)
+    matches: dict[str, MatchStatus] = {}
+    for key, cases in cases_by_key.items():
+        matches.update(_group_matches(cases, findings_by_key.get(key, []), locators))
 
     for case in all_review_cases:
         case_id = str(case["case_id"])
@@ -232,18 +345,29 @@ def replay_ledger(
                     equivalent_current_finding_present=False,
                     outcome=RegressionOutcome.NOT_APPLICABLE,
                     excluded_reason=f"verdict {verdict.value} is not scored pass/fail",
+                    match_status=MatchStatus.NOT_EVALUATED,
                 )
             )
             summary.unresolved += 1
             continue
 
-        present = _find_equivalent_current_finding(
-            thesis_version_id=str(case["thesis_version_id"]),
-            internal_rule_id=rule_id,
-            issue_type=str(case["issue_type"]),
-            physical_page=case.get("physical_page"),
-            current_findings=current_findings,
-        )
+        match_status = matches[case_id]
+        if match_status == MatchStatus.IDENTITY_AMBIGUOUS:
+            report.results.append(
+                CaseReplayResult(
+                    case_id=case_id,
+                    internal_rule_id=rule_id,
+                    thesis_version_id=str(case["thesis_version_id"]),
+                    expected_verdict=verdict,
+                    equivalent_current_finding_present=False,
+                    outcome=RegressionOutcome.NOT_APPLICABLE,
+                    excluded_reason="identity_ambiguous",
+                    match_status=match_status,
+                )
+            )
+            summary.identity_ambiguous += 1
+            continue
+        present = match_status == MatchStatus.MATCHED
 
         if verdict in _SUPPRESSION_VERDICTS:
             outcome = RegressionOutcome.FAIL if present else RegressionOutcome.PASS
@@ -265,6 +389,7 @@ def replay_ledger(
                 equivalent_current_finding_present=present,
                 outcome=outcome,
                 excluded_reason=None,
+                match_status=match_status,
             )
         )
 

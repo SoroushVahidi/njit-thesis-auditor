@@ -637,9 +637,9 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A List of Tables entry on this page may not use Title Case or may include "
         "terminal punctuation. Table titles should use Title Case with no ending period."
     ),
-    ("P024", "list_of_figures_sentence_case"): (
-        "A List of Figures entry on this page may not use sentence case. Figure "
-        "descriptions should begin with a capital letter and use sentence case."
+    ("P024", "list_of_figures_title_case"): (
+        "A List of Figures entry on this page may not use Title Case. Figure "
+        "titles in the List of Figures should use Title Case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "A TOC or list entry on this page ends with terminal punctuation where "
@@ -1613,16 +1613,35 @@ def _p067_publication_order_explanation(details: dict[str, str], *, page: int | 
 
 
 def _p045_hanging_indent_explanation(details: dict[str, str], *, page: int | None) -> str:
-    block_count = details.get("multi_line_block_count", "").strip()
-    threshold = details.get("hanging_indent_threshold_points", "").strip()
-    count_clause = f" out of {block_count} multi-line entries checked" if block_count else ""
-    threshold_clause = f" by at least {threshold}pt" if threshold else ""
+    # Legacy issue type (no longer emitted); see polished_comments.
     return (
         "Publication/presentation entries on the Biographical Sketch page do not "
-        f"appear to use hanging indentation{count_clause}: no continuation line is "
-        f"indented{threshold_clause} relative to its entry's first line. Format each "
-        "publication or presentation entry with a hanging indent (first line flush "
-        "left, continuation lines indented)."
+        "appear to use a hanging indent. A hanging indent is optional, so no change "
+        "is required for this."
+    )
+
+
+def _p045_line_spacing_explanation(details: dict[str, str], *, page: int | None) -> str:
+    pitch = details.get("observed_line_pitch_points", "").strip()
+    font_size = details.get("font_size_points", "").strip()
+    gap_clause = (
+        f" (wrapped lines about {pitch}pt apart for {font_size}pt text)"
+        if pitch and font_size
+        else ""
+    )
+    return (
+        "Wrapped lines within a publication/presentation entry on the Biographical "
+        f"Sketch page do not appear to be single-spaced{gap_clause}. Single-space the "
+        "lines within each entry."
+    )
+
+
+def _p045_numbered_entry_explanation(details: dict[str, str], *, page: int | None) -> str:
+    return (
+        "Publication/presentation entries on the Biographical Sketch page start "
+        "with a number or label such as [1] or 1. They are not references and "
+        "must not be numbered. Remove the number in front of each entry and keep "
+        "the same citation format as the References section."
     )
 
 
@@ -1969,11 +1988,18 @@ def _build_explanation_text(
         return _p066_degree_order_explanation(details, page=page)
     if rule_id == "P067" and effective_issue_type == "biosketch_publication_order_suspicious":
         return _p067_publication_order_explanation(details, page=page)
+    if rule_id == "P045" and effective_issue_type == "biosketch_publication_entry_numbered":
+        return _p045_numbered_entry_explanation(details, page=page)
     if (
         rule_id == "P045"
         and effective_issue_type == "biosketch_publication_missing_hanging_indent"
     ):
         return _p045_hanging_indent_explanation(details, page=page)
+    if (
+        rule_id == "P045"
+        and effective_issue_type == "biosketch_publication_wrapped_line_spacing_not_single"
+    ):
+        return _p045_line_spacing_explanation(details, page=page)
     if (
         rule_id == "P045"
         and effective_issue_type == "biosketch_publication_entry_spacing_not_double"

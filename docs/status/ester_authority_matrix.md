@@ -45,6 +45,21 @@
   authority was known) matches both rationales and is confirmed against
   the fresh seven-document audit — see
   `r018_r024_ester_sheet_authority_20260907.md`.
+- **R024 (2026-10-05, latest):** Ester answered that List of Tables titles
+  and List of Figures titles both use title case, and that the two checks
+  need different codes. List of Tables is R024D and List of Figures is
+  R024E; both enforce title case. This supersedes the earlier List of
+  Figures sentence-case reading of Q074 (and P017's List of Figures
+  sentence-case check, now removed). The Muyeed p16 lowercase List of
+  Tables word stays a true violation the student may ignore. See
+  `ester_feedback_round_20261005.md`.
+- **R045 (2026-10-05, latest):** single spacing within an entry is
+  mandatory; a hanging indent is optional and never reported. Numbering is
+  still open (see `ester_feedback_round_20261005.md`): Ester wrote
+  "publications and presentations are not numbered" about a page whose
+  entries are visibly labeled [1], [2], so it is unclear whether entries
+  must or must not be numbered. The dated 2026-09-02 matrix row describing
+  a required hanging indent is historical.
 - **R018/R075 engineering ownership (PR #558):** the tested genuine TOC-wide
   missing-leader consistency case belongs to R075. R018 keeps alignment,
   continuation, and leader-placement checks; the tested case has no duplicate

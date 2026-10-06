@@ -142,6 +142,16 @@ and full docstring; summary of the semantics:
   which is exactly what keeps two distinct violations on the same page
   from colliding into one case).
 
+Ground-truth replay also has an additive, versioned `CaseLocator` registry
+derived from curated historical-case records. It keys privacy-safe PDF
+coordinates, structural role, and provenance to an **existing** case ID.
+Live replay retains bbox origin coordinates; it compares locations with a
+bounded tolerance and requires a unique one-to-one match within the coarse
+thesis-version/rule/issue/page group. The locator is not part of either
+fingerprint and does not rewrite historical JSONL. When identity is
+ambiguous, replay records an explicit non-scored result and the new-review
+gate blocks; this is separate from policy clarification and rule regression.
+
 This is the mechanism that satisfies "a tiny bbox or wording change must
 not turn the same reviewed case into a new case" while still keeping
 "materially different violations on the same page" distinguishable: the
@@ -241,6 +251,31 @@ established location for anything derived from real dissertations, e.g.
 needed for this phase since that path is already covered; no such
 directory was created either, since there is no real data yet to put in
 it.
+
+## Reviewer workbook format
+
+Ester's stated preference (2026-10-05) for every review workbook sent to
+her:
+
+- The spreadsheet filename starts with the date (for example
+  `2026-10-05_R024E_NJIT_Thesis_Auditor_Review.xlsx`).
+- One tab per rule.
+- When a rule has split public codes, use the specific code (R024D, R024E,
+  R018D, ...), never the ambiguous parent (R024).
+- Columns: `DOCUMENT`, the possible-violation description, then
+  `Question 1`, then `Comment` immediately after the question. Never label
+  a column "Ester's questions" or "Ester Question 1".
+- Wrap text in every cell, top-aligned, with readable column widths, so
+  each entry reads as a block.
+- Keep the layout tidy and identical from round to round so it can be
+  reused.
+- The evidence PDF stays directly linked from the rule's tab.
+
+`scripts/ester_batch/build_rule_package.py` writes this layout for future
+packages. A current-case row has a question and a blank `Comment` cell;
+`No new review needed.` rows leave both cells blank. The rule tab links to
+its highlighted evidence PDF. Batch manifests record the workbook schema and
+review date; archived workbooks retain their original filenames and headers.
 
 ## What this enables next (not built in this phase)
 

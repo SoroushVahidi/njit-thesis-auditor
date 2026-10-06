@@ -1,10 +1,10 @@
 {
-  "generated": "2026-06-30",
+  "generated": "2026-10-06",
   "summary": {
     "total": 79,
-    "implemented": 67,
+    "implemented": 62,
     "manual_review_only": 12,
-    "unimplemented": 0
+    "unimplemented": 5
   },
   "q_rules": [
     {
@@ -13,7 +13,6 @@
       "question": "Is the Abstract page free of any visible page number?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P014",
         "P022"
       ],
       "manual_review_reason": ""
@@ -21,10 +20,9 @@
     {
       "q_id": "Q002",
       "section": "Abstract",
-      "question": "Look at the very first word of the first body paragraph. Is its starting position horizontally align",
+      "question": "Look at the very first word of the first body paragraph. Is its starting position horizontally aligned perfectly with the left edge of the text block, showing zero indentation?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P015",
         "P044"
       ],
       "manual_review_reason": ""
@@ -32,10 +30,9 @@
     {
       "q_id": "Q003",
       "section": "Abstract",
-      "question": "Look at the left side of Paragraph 2. Imagine the left edge of the main body text is a solid vertica",
+      "question": "Look at the left side of Paragraph 2. Imagine the left edge of the main body text is a solid vertical wall. Is the top line of the paragraph pushed inward to the right, creating a visible \"step\" or empty cutout at the top left corner? Repeat this check for any subsequent paragraphs.",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P015",
         "P044"
       ],
       "manual_review_reason": ""
@@ -43,7 +40,7 @@
     {
       "q_id": "Q004",
       "section": "Abstract",
-      "question": "Does the Abstract text contain any standalone form of the words \u201cpaper\u201d or \u201carticle,\u201d including plur",
+      "question": "Does the Abstract text contain any standalone form of the words \u201cpaper\u201d or \u201carticle,\u201d including plurals?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P078"
@@ -73,7 +70,7 @@
     {
       "q_id": "Q007",
       "section": "Title Page",
-      "question": "Does the institutional identity block on the Title Page exactly match the department/program-specifi",
+      "question": "Does the institutional identity block on the Title Page exactly match the department/program-specific template?",
       "implementation_status": "manual_review_only",
       "implementing_p_rules": [],
       "manual_review_reason": "Template-matching; requires department-specific institutional block text"
@@ -84,7 +81,6 @@
       "question": "Is the Title Page free of any visible page number?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P014",
         "P022"
       ],
       "manual_review_reason": ""
@@ -95,7 +91,6 @@
       "question": "Is there no header text in the top margin area of the Copyright page?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P014",
         "P034"
       ],
       "manual_review_reason": ""
@@ -114,7 +109,7 @@
     {
       "q_id": "Q011",
       "section": "Copyright Page",
-      "question": "Does the visible author name on the Copyright page exactly match the author\u2019s name on the Title Page",
+      "question": "Does the visible author name on the Copyright page exactly match the author\u2019s name on the Title Page?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P034",
@@ -128,20 +123,21 @@
       "question": "Is the Copyright page free of any visible page number?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P014",
-        "P022",
-        "P034"
+        "P022"
       ],
       "manual_review_reason": ""
     },
     {
       "q_id": "Q013",
       "section": "Approval Page",
-      "question": "Does the Approval Page display the exact phrase \u201cAPPROVAL PAGE\u201d in all caps, bold, centered, and at ",
+      "question": "Does the Approval Page display the exact phrase \u201cAPPROVAL PAGE\u201d in all caps, bold, centered, and at the top?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P014",
-        "P038"
+        "P038",
+        "P068",
+        "P069",
+        "P072"
       ],
       "manual_review_reason": ""
     },
@@ -151,7 +147,6 @@
       "question": "Is the Approval Page free of any visible page number?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P014",
         "P022"
       ],
       "manual_review_reason": ""
@@ -160,22 +155,16 @@
       "q_id": "Q015",
       "section": "Approval Page",
       "question": "Does every committee-member entry begin with an honorific such as Dr., Mr., or Ms.?",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P068",
-        "P072"
-      ],
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
       "q_id": "Q016",
       "section": "Approval Page",
-      "question": "Do all entries identified as Dissertation Advisor appear before any non-advisor committee-member ent",
+      "question": "Do all entries identified as Dissertation Advisor appear before any non-advisor committee-member entries?",
       "implementation_status": "manual_review_only",
-      "implementing_p_rules": [
-        "P068",
-        "P072"
-      ],
+      "implementing_p_rules": [],
       "manual_review_reason": "Committee ordering by advisor role; requires semantic NLP"
     },
     {
@@ -183,10 +172,7 @@
       "section": "Approval Page",
       "question": "Are committee members listed in descending rank order?",
       "implementation_status": "manual_review_only",
-      "implementing_p_rules": [
-        "P068",
-        "P072"
-      ],
+      "implementing_p_rules": [],
       "manual_review_reason": "Committee ordering by rank; requires semantic NLP"
     },
     {
@@ -194,32 +180,23 @@
       "section": "Approval Page",
       "question": "Among members with the same explicitly stated rank, are the surnames listed in alphabetical order?",
       "implementation_status": "manual_review_only",
-      "implementing_p_rules": [
-        "P068",
-        "P072"
-      ],
+      "implementing_p_rules": [],
       "manual_review_reason": "Same-rank alphabetical ordering; requires NLP"
     },
     {
       "q_id": "Q019",
       "section": "Approval Page",
-      "question": "Do all committee-member entries whose affiliation is not NJIT appear after all entries whose affilia",
+      "question": "Do all committee-member entries whose affiliation is not NJIT appear after all entries whose affiliation is NJIT?",
       "implementation_status": "manual_review_only",
-      "implementing_p_rules": [
-        "P068",
-        "P072"
-      ],
+      "implementing_p_rules": [],
       "manual_review_reason": "NJIT vs. external member ordering; requires institution detection"
     },
     {
       "q_id": "Q020",
       "section": "Approval Page",
-      "question": "Does every external or non-NJIT committee-member entry include institution/company name plus city an",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P068",
-        "P072"
-      ],
+      "question": "Does every external or non-NJIT committee-member entry include institution/company name plus city and state?",
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
@@ -229,14 +206,15 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P014",
-        "P038"
+        "P038",
+        "P069"
       ],
       "manual_review_reason": ""
     },
     {
       "q_id": "Q022",
       "section": "Biographical Sketch",
-      "question": "Is the visible page number on the first Biographical Sketch page exactly the lowercase Roman numeral",
+      "question": "Is the visible page number on the first Biographical Sketch page exactly the lowercase Roman numeral \u201civ\u201d?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P028",
@@ -250,7 +228,7 @@
       "question": "Does the Biographical Sketch text exclude both place of birth and date of birth?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P066"
+        "P084"
       ],
       "manual_review_reason": ""
     },
@@ -258,10 +236,8 @@
       "q_id": "Q024",
       "section": "Biographical Sketch",
       "question": "Does the Biographical Sketch exclude all work experience and professional positions?",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P066"
-      ],
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
@@ -280,9 +256,7 @@
       "question": "Are the bullet items in the education section single-spaced within each bullet?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P045",
-        "P047",
-        "P066"
+        "P047"
       ],
       "manual_review_reason": ""
     },
@@ -302,9 +276,7 @@
       "question": "Is each entry in \u201cPublications and Presentations\u201d single-spaced with a blank line between entries?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P045",
-        "P064",
-        "P066"
+        "P045"
       ],
       "manual_review_reason": ""
     },
@@ -312,22 +284,16 @@
       "q_id": "Q029",
       "section": "Biographical Sketch",
       "question": "Do all entries in \u201cPublications and Presentations\u201d use a hanging indent?",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P045",
-        "P064",
-        "P066"
-      ],
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
       "q_id": "Q030",
       "section": "Biographical Sketch",
       "question": "Do all entries in \u201cPublications and Presentations\u201d follow one consistent citation pattern?",
-      "implementation_status": "implemented",
-      "implementing_p_rules": [
-        "P071"
-      ],
+      "implementation_status": "unimplemented",
+      "implementing_p_rules": [],
       "manual_review_reason": ""
     },
     {
@@ -337,7 +303,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P028",
-        "P037"
+        "P037",
+        "P069"
       ],
       "manual_review_reason": ""
     },
@@ -348,7 +315,7 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P041",
-        "P065"
+        "P069"
       ],
       "manual_review_reason": ""
     },
@@ -358,7 +325,6 @@
       "question": "Is the full dedication text block visually centered on the page?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P041",
         "P065"
       ],
       "manual_review_reason": ""
@@ -369,7 +335,6 @@
       "question": "If the dedication text uses the Latin alphabet, is the entire text italicized?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P041",
         "P065"
       ],
       "manual_review_reason": ""
@@ -381,7 +346,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P028",
-        "P037"
+        "P037",
+        "P069"
       ],
       "manual_review_reason": ""
     },
@@ -392,7 +358,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P014",
-        "P038"
+        "P038",
+        "P069"
       ],
       "manual_review_reason": ""
     },
@@ -458,7 +425,6 @@
       "question": "Does the first Acknowledgements paragraph begin flush with the left margin?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P015",
         "P043"
       ],
       "manual_review_reason": ""
@@ -469,7 +435,6 @@
       "question": "Does every Acknowledgements paragraph after the first begin with a visible indent?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P015",
         "P043"
       ],
       "manual_review_reason": ""
@@ -492,8 +457,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P014",
-        "P018",
-        "P038"
+        "P038",
+        "P069"
       ],
       "manual_review_reason": ""
     },
@@ -503,8 +468,8 @@
       "question": "Do subsequent TOC pages display the correct \"(Continued)\" heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
-        "P030"
+        "P030",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -515,7 +480,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P054"
+        "P024",
+        "P054",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -526,7 +493,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P054"
+        "P024",
+        "P054",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -538,7 +507,8 @@
       "implementing_p_rules": [
         "P018",
         "P027",
-        "P054"
+        "P054",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -548,7 +518,9 @@
       "question": "Is each entry connected to a page number by a consistent leader style?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018"
+        "P018",
+        "P070",
+        "P075"
       ],
       "manual_review_reason": ""
     },
@@ -559,7 +531,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P032"
+        "P032",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -570,7 +543,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P032"
+        "P032",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -581,7 +555,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P032"
+        "P032",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -592,7 +567,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P039"
+        "P039",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -603,7 +579,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P036"
+        "P036",
+        "P058",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -615,7 +593,8 @@
       "implementing_p_rules": [
         "P018",
         "P042",
-        "P063"
+        "P063",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -627,7 +606,8 @@
       "implementing_p_rules": [
         "P018",
         "P042",
-        "P063"
+        "P063",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -637,9 +617,9 @@
       "question": "Does the List of Tables continue the Roman numeral sequence correctly?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
         "P028",
-        "P037"
+        "P037",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -650,8 +630,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P014",
-        "P018",
-        "P038"
+        "P038",
+        "P069",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -661,8 +642,8 @@
       "question": "Do subsequent List of Tables pages display the correct \"(Continued)\" heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
-        "P030"
+        "P030",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -672,11 +653,11 @@
       "question": "Does the label \u201cTable\u201d appear in bold and left-aligned under the heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
         "P031",
         "P050",
         "P055",
-        "P056"
+        "P056",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -686,9 +667,9 @@
       "question": "Does the label \u201cPage\u201d appear in bold and right-aligned under the heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
         "P031",
-        "P049"
+        "P049",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -699,8 +680,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P017",
-        "P018",
-        "P053"
+        "P024",
+        "P053",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -710,9 +692,8 @@
       "question": "Is every wrapped table title single-spaced internally?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P017",
-        "P018",
-        "P032"
+        "P032",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -724,7 +705,8 @@
       "implementing_p_rules": [
         "P018",
         "P032",
-        "P036"
+        "P036",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -735,7 +717,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P046"
+        "P046",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -746,7 +729,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P048"
+        "P048",
+        "P057",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -757,8 +742,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P014",
-        "P018",
-        "P038"
+        "P038",
+        "P069",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -768,8 +754,8 @@
       "question": "Do subsequent List of Figures pages display the correct \"(Continued)\" heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
-        "P030"
+        "P030",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -779,11 +765,11 @@
       "question": "Does the label \u201cFigure\u201d appear in bold and left-aligned under the heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
         "P031",
         "P050",
         "P055",
-        "P056"
+        "P056",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -793,9 +779,9 @@
       "question": "Does the label \u201cPage\u201d appear in bold and right-aligned under the heading?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P018",
         "P031",
-        "P049"
+        "P049",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -805,8 +791,8 @@
       "question": "Are all figure descriptions written in sentence case?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P017",
-        "P018"
+        "P024",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -817,8 +803,8 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P017",
-        "P018",
-        "P040"
+        "P040",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -828,9 +814,8 @@
       "question": "Is every wrapped figure description single-spaced internally?",
       "implementation_status": "implemented",
       "implementing_p_rules": [
-        "P017",
-        "P018",
-        "P032"
+        "P032",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -842,7 +827,8 @@
       "implementing_p_rules": [
         "P018",
         "P032",
-        "P036"
+        "P036",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -854,7 +840,8 @@
       "implementing_p_rules": [
         "P018",
         "P032",
-        "P046"
+        "P046",
+        "P070"
       ],
       "manual_review_reason": ""
     },
@@ -865,7 +852,9 @@
       "implementation_status": "implemented",
       "implementing_p_rules": [
         "P018",
-        "P048"
+        "P048",
+        "P057",
+        "P070"
       ],
       "manual_review_reason": ""
     }
