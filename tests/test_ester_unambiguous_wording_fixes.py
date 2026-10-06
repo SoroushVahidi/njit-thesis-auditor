@@ -16,14 +16,16 @@ def _rule(rule_id: str) -> dict[str, str]:
     return rules[rule_id]
 
 
-def test_p037_catalog_describes_list_of_tables_sequence_after_toc() -> None:
+def test_p037_catalog_describes_continuation_after_bio() -> None:
     rule = _rule("P037")
     blob = " ".join(
         rule.get(key, "") for key in ("question", "rule_definition", "remediation")
     ).lower()
-    assert "continuing the sequence" in blob or "continues" in blob
-    assert "after" in blob and "table of contents" in blob
-    assert "lot=viii" not in blob.replace(" ", "")
+    assert "biographical sketch" in blob and "iv" in blob
+    assert "preceding" in blob and "continuation pages" in blob
+    assert "fixed njit template slots" not in blob
+    assert "dedication (v" not in blob
+    assert "acknowledgements vi" not in blob
 
 
 def test_p019_catalog_avoids_internal_candidate_wording() -> None:
@@ -43,4 +45,4 @@ def test_p019_rule_fallback_uses_ester_section_language() -> None:
 
 def test_catalog_p037_question_matches_dynamic_lot_wording() -> None:
     rule = _rule("P037")
-    assert "continuing the sequence" in rule["question"].lower()
+    assert "continue the lowercase roman numeral sequence" in rule["question"].lower()

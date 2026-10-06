@@ -21,6 +21,7 @@ _RULES_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "proce
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _Q_MATRIX_PATH = _REPO_ROOT / "data" / "specs" / "ester_q_matrix.json"
 _CATALOG_PATH = _REPO_ROOT / "data" / "processed" / "rules" / "project_added_rules.json"
+_AUTHORITY_OVERLAY_PATH = _REPO_ROOT / "data" / "specs" / "ester_q_current_authority_overlay.json"
 
 
 @dataclass
@@ -33,6 +34,28 @@ class QRuleCoverage:
     coverage_confidence: str = ""
     manual_review_reason: str = ""
     implementing_p_rules: list[str] = field(default_factory=list)
+    authority_overlay: dict[str, str] | None = None
+
+
+def load_current_authority_overlay() -> dict[str, dict[str, str]]:
+    """Load later Ester decisions without changing the historical Q matrix."""
+    data = json.loads(_AUTHORITY_OVERLAY_PATH.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Current Q authority overlay must be an object")
+    required = {
+        "status", "effective_question", "effective_requirement",
+        "effective_implementation_status", "source",
+    }
+    for qid, overlay in data.items():
+        if not re.fullmatch(r"Q\d{3}", qid) or not isinstance(overlay, dict):
+            raise ValueError(f"Invalid current Q authority overlay row: {qid}")
+        if set(overlay) != required or any(
+            not isinstance(value, str) or not value.strip() for value in overlay.values()
+        ):
+            raise ValueError(f"Incomplete current Q authority overlay row: {qid}")
+        if overlay["status"] != "superseded_by_later_ester_authority":
+            raise ValueError(f"Unsupported current Q authority status: {qid}")
+    return data
 
 
 def _expand_q_range(text: str) -> set[str]:
@@ -139,6 +162,10 @@ def build_coverage_report() -> list[QRuleCoverage]:
     q_rules = _load_q_matrix()
     catalog = _load_catalog()
     q_to_p = _build_q_to_p_map(catalog)
+    authority_overlay = load_current_authority_overlay()
+    unknown = set(authority_overlay) - {rule["id"] for rule in q_rules}
+    if unknown:
+        raise ValueError(f"Current Q authority overlay has unknown IDs: {sorted(unknown)}")
 
     results: list[QRuleCoverage] = []
     for rule in q_rules:
@@ -170,6 +197,7 @@ def build_coverage_report() -> list[QRuleCoverage]:
             coverage_confidence=coverage,
             manual_review_reason=rule.get("manual_review_reason", ""),
             implementing_p_rules=implementing,
+            authority_overlay=authority_overlay.get(qid),
         ))
 
     return results
@@ -207,6 +235,11 @@ def coverage_report_payload(report: list[QRuleCoverage], generated: str) -> dict
                 "implementation_status": r.implementation_status,
                 "implementing_p_rules": list(r.implementing_p_rules),
                 "manual_review_reason": r.manual_review_reason,
+                **(
+                    {"current_authority_overlay": r.authority_overlay}
+                    if r.authority_overlay
+                    else {}
+                ),
             }
             for r in report
         ],

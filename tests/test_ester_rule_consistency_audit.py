@@ -104,6 +104,30 @@ def test_both_authorities_fall_back_to_json_without_xlsx(audit_module, monkeypat
     assert len(audit_module.load_matrix_q_rules()) == 79
 
 
+def test_q029_q074_audit_distinguishes_history_from_effective_authority(
+    audit_module, tmp_path,
+):
+    audit_module.generate_report(tmp_path)
+    import csv
+
+    with (tmp_path / "q_rule_consistency.csv").open(newline="", encoding="utf-8") as source:
+        rows = {row["Q-rule"]: row for row in csv.DictReader(source)}
+    assert rows["Q029"]["Status"] == "superseded by later Ester authority"
+    assert "hanging indent" in rows["Q029"]["Matrix question"]
+    assert "optional" in rows["Q029"]["Effective current authority"]
+    assert rows["Q029"]["Effective implementation status"] == "optional_not_enforced"
+    assert rows["Q074"]["Status"] == "superseded by later Ester authority"
+    assert "sentence case" in rows["Q074"]["Matrix question"]
+    assert "title case" in rows["Q074"]["Effective current authority"]
+    assert rows["Q074"]["Effective implementation status"] == "implemented"
+    assert rows["Q030"]["Status"] == "missing"
+    assert rows["Q030"]["Effective implementation status"] == "unimplemented"
+    mismatches = json.loads((tmp_path / "mismatch_inventory.json").read_text())
+    assert not {"Q029", "Q074"} & {
+        row.get("Q-rule") for row in mismatches if row["kind"] == "Q-rule"
+    }
+
+
 @pytest.mark.parametrize(
     "contents",
     [

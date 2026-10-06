@@ -48,8 +48,8 @@ _SOURCE_RULE_IDS = frozenset(
     {"P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009", "P010"}
 )
 
-# P037 checks front-matter section Roman numerals; List of Tables continues
-# after the TOC (Q060) while other sections use fixed template slots.
+# P037 anchors Biographical Sketch at iv; later front-matter pages continue
+# the Roman sequence, including List of Tables after the TOC (Q060).
 _P037_SECTION_KEY_LABELS: dict[str, str] = {
     "biographical_sketch": "Biographical Sketch",
     "dedication": "Dedication",
@@ -148,11 +148,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P037", "roman_section_wrong_value"): (
         "Problem: The {section_label} page is numbered '{observed_sequence}', but "
-        "NJIT's front-matter template assigns this section the fixed Roman "
-        "numeral '{expected_sequence}'. This is a fixed template position, not a "
-        "relative sequence count, so it does not shift even if earlier optional "
-        "sections are missing. Change this page's Roman numeral to "
-        "'{expected_sequence}'."
+        "the Roman sequence continuing from Biographical Sketch page iv calls "
+        "for '{expected_sequence}' after the preceding front-matter page. "
+        "Continuation pages count in this sequence. Change this page's Roman "
+        "numeral to '{expected_sequence}' or correct the preceding sequence."
     ),
     ("P026", "possible_body_font_family_issue"): (
         "Body text on page {page} may use a font family outside the accepted NJIT options."

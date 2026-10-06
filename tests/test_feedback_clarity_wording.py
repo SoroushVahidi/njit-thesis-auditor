@@ -1685,7 +1685,7 @@ _GENERIC_SEQUENCE_PHRASE = "does not appear to follow the expected numbering seq
                 "observed_sequence": "vi",
                 "expected_sequence": "v",
             },
-            ("Dedication", "fixed template position"),
+            ("Dedication", "preceding front-matter page"),
         ),
         (
             "P029",
@@ -1726,7 +1726,7 @@ def test_p029_p037_polished_comments_are_specific_not_generic_sequence(
             "P037",
             "roman_bio_sketch_not_iv",
             {"observed_sequence": "v", "expected_sequence": "iv"},
-            ("Biographical Sketch", "fixed template position"),
+            ("Biographical Sketch", "numbered front matter"),
         ),
     ],
 )

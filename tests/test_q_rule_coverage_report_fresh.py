@@ -59,3 +59,22 @@ def test_q052_coverage_reflects_toc_owner_p075() -> None:
     assert "P018" in q052["implementing_p_rules"]
     for q_id in ("Q069", "Q079"):
         assert {"P018", "P048"} <= set(rows[q_id]["implementing_p_rules"])
+
+
+def test_q029_q074_preserve_history_and_show_current_authority() -> None:
+    rows = {row["q_id"]: row for row in _checked_in()["q_rules"]}  # type: ignore[attr-defined]
+    q029 = rows["Q029"]
+    q074 = rows["Q074"]
+    assert "hanging indent" in q029["question"]
+    assert q029["implementation_status"] == "unimplemented"
+    assert q029["current_authority_overlay"]["effective_implementation_status"] == (
+        "optional_not_enforced"
+    )
+    assert "optional" in q029["current_authority_overlay"]["effective_requirement"]
+    assert "sentence case" in q074["question"]
+    assert q074["implementation_status"] == "implemented"
+    assert q074["current_authority_overlay"]["effective_implementation_status"] == (
+        "implemented"
+    )
+    assert "title case" in q074["current_authority_overlay"]["effective_requirement"]
+    assert "current_authority_overlay" not in rows["Q030"]

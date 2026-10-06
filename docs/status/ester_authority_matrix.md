@@ -53,13 +53,18 @@
   sentence-case check, now removed). The Muyeed p16 lowercase List of
   Tables word stays a true violation the student may ignore. See
   `ester_feedback_round_20261005.md`.
+- **R037 (2026-09 live workbook, later than the dated matrix):** the
+  Biographical Sketch page is iv. Every later numbered front-matter page
+  continues the Roman sequence, including continuation pages; section types
+  do not have fixed later numerals. The detector already followed this rule.
+  Its public card and finding prose were synchronized in
+  `r037_q029_q074_authority_consistency_20261006.md`. The dated matrix's
+  `NO ESTER DECISION FOUND` entry is retained as historical provenance.
 - **R045 (2026-10-05, latest):** single spacing within an entry is
-  mandatory; a hanging indent is optional and never reported. Numbering is
-  still open (see `ester_feedback_round_20261005.md`): Ester wrote
-  "publications and presentations are not numbered" about a page whose
-  entries are visibly labeled [1], [2], so it is unclear whether entries
-  must or must not be numbered. The dated 2026-09-02 matrix row describing
-  a required hanging indent is historical.
+  mandatory; a hanging indent is optional and never reported. Ester resolved
+  numbering on 2026-10-06: Biographical Sketch publications must not be
+  numbered. See `r045_no_numbering_ester_20261006.md`. The dated 2026-09-02
+  matrix row describing a required hanging indent is historical.
 - **R018/R075 engineering ownership (PR #558):** the tested genuine TOC-wide
   missing-leader consistency case belongs to R075. R018 keeps alignment,
   continuation, and leader-placement checks; the tested case has no duplicate

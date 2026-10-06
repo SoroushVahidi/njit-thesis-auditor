@@ -1559,26 +1559,24 @@ def _page_number_comment_and_fix(
                 "Correct this page's Roman numeral so it continues the front-matter sequence.",
             )
         if rule_id == "P037":
-            if details.get("section_key", "").strip() == "list_of_tables":
+            if details.get("issue_type", "").strip() == "roman_bio_sketch_not_iv":
                 return (
                     "Review needed: Problem: "
-                    f"The Roman numeral page number on page {page_label} does not continue "
-                    "the front-matter sequence after the Table of Contents "
-                    f"(observed: {observed}; expected: {expected}). This check uses the "
-                    "detected preceding TOC numeral instead of a fixed slot because the "
-                    "Table of Contents can span multiple pages.",
-                    "Set the List of Tables page number to the next Roman numeral after the "
-                    "Table of Contents, or correct the preceding front-matter sequence.",
+                    f"Biographical Sketch on page {page_label} is numbered "
+                    f"{observed}; expected: {expected}. Biographical Sketch anchors "
+                    "the numbered front matter at iv.",
+                    "Set the Biographical Sketch page number to iv and continue Roman "
+                    "numerals sequentially on later front-matter pages.",
                 )
             return (
                 "Review needed: Problem: "
-                f"The Roman numeral page number on page {page_label} does not match the "
-                "value required by the NJIT front-matter template for this section "
-                f"(observed: {observed}; expected: {expected}). This checks a specific "
-                "section against its fixed template position, which is different from the "
-                "general sequence check; if a broader sequence warning is also reported "
-                "above for this page, fix this template-position issue first.",
-                "Set this section's page number to the NJIT template's required Roman numeral.",
+                f"The Roman numeral page number on page {page_label} does not continue "
+                "the front-matter sequence from Biographical Sketch page iv "
+                f"(observed: {observed}; expected: {expected}). The expected numeral "
+                "follows the preceding numbered front-matter page, including any "
+                "continuation page.",
+                "Set this page to the next Roman numeral after the preceding "
+                "front-matter page, or correct the preceding sequence.",
             )
         if rule_id == "P019":
             previous_value = details.get("previous_sequence_value", "").strip()

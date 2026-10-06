@@ -4,6 +4,24 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
+## Current authority update — 2026-10-06
+
+Baseline `origin/main`, deployment checkout, and live `/version` were all
+`817f093bf199d10225ad6eee2317c0b0684dff67` before this branch. The
+R037 detector already continued Roman numerals from Biographical Sketch iv;
+its student-facing fixed-slot wording was stale and is corrected on
+`fix/r037-q029-q074-authority-consistency-20261006`. The branch is not
+deployed. Q029's historical mandatory hanging-indent text is superseded by
+Ester's optional rule; Q074's historical sentence-case text is superseded by
+the title-case R024E rule. Q030 citation-format consistency is established
+but remains unimplemented. See
+[`r037_q029_q074_authority_consistency_20261006.md`](r037_q029_q074_authority_consistency_20261006.md)
+for the current effective authority and historical trace limit.
+
+The entries below are retained as dated snapshots; their older SHA,
+deployment, and open-question statements do not describe the 2026-10-06
+baseline.
+
 _Last updated: 2026-10-03. Historical Ester reconciliation is complete and
 merged to `main` via PR #558 at `1002a99a493363f4b164bea77f964d3156dc9f74`.
 Running production still reports `38415c3ed76ee28eb1c46c2cd83a6ed439242db7`

@@ -449,10 +449,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "Change this page's Roman numeral to 'iv'."
     ),
     ("P037", "roman_section_wrong_value"): (
-        "A front-matter section is not numbered with its expected, fixed Roman "
-        "numeral. NJIT's front-matter template assigns specific sections a fixed "
-        "page number that does not shift even if earlier optional sections are "
-        "missing or reordered. Change this page's Roman numeral to the expected value."
+        "A front-matter section does not continue the Roman sequence from "
+        "Biographical Sketch page iv. Each numbered page, including a continuation "
+        "page, advances the sequence by one. Correct this page's Roman numeral "
+        "or the preceding front-matter sequence."
     ),
     ("P030", "missing_continued_heading"): (
         "A multi-page list (such as a List of Tables or List of Figures) may be "

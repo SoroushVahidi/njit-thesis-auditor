@@ -152,7 +152,7 @@ def test_p029_and_p037_on_same_page_remain_distinct_with_clear_locations() -> No
     cards = {f.rule_id: f for f in view.findings if f.rule_id in {"P029", "P037"}}
     assert set(cards) == {"P029", "P037"}
     assert "front-matter sequence" in cards["P029"].polished_comment
-    assert "NJIT front-matter template" in cards["P037"].polished_comment
+    assert "Biographical Sketch anchors" in cards["P037"].polished_comment
     assert "Biographical Sketch" in cards["P037"].location_label
     assert cards["P029"].location_label != cards["P037"].location_label
 
