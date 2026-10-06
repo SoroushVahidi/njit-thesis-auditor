@@ -131,3 +131,56 @@ def coverage_summary(report: list[QRuleCoverage]) -> dict[str, int]:
         "manual_review_only": manual,
         "unimplemented": unimplemented,
     }
+
+
+REPORT_PATH = _REPO_ROOT / "data" / "specs" / "q_rule_coverage_report.json"
+
+
+def coverage_report_payload(report: list[QRuleCoverage], generated: str) -> dict[str, object]:
+    """Return the checked-in ``q_rule_coverage_report.json`` structure.
+
+    Deterministic for a given catalog, Q-matrix and *generated* date: rows
+    follow Q-matrix order and implementing rules are sorted.
+    """
+    return {
+        "generated": generated,
+        "summary": coverage_summary(report),
+        "q_rules": [
+            {
+                "q_id": r.q_id,
+                "section": r.section,
+                "question": r.question,
+                "implementation_status": r.implementation_status,
+                "implementing_p_rules": list(r.implementing_p_rules),
+                "manual_review_reason": r.manual_review_reason,
+            }
+            for r in report
+        ],
+    }
+
+
+def render_coverage_report(generated: str) -> str:
+    """Serialize the current coverage report in the checked-in file's format."""
+    payload = coverage_report_payload(build_coverage_report(), generated)
+    return json.dumps(payload, indent=2)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Regenerate ``data/specs/q_rule_coverage_report.json``.
+
+    Usage: ``python -m njit_auditor.specs.q_rule_coverage [--generated YYYY-MM-DD]
+    [--output PATH]``. The date defaults to today.
+    """
+    import argparse
+    import datetime
+
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("--generated", default=datetime.date.today().isoformat())
+    parser.add_argument("--output", type=Path, default=REPORT_PATH)
+    args = parser.parse_args(argv)
+    args.output.write_text(render_coverage_report(args.generated), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
