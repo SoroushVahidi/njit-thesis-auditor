@@ -247,7 +247,8 @@ def test_r040_lone_period_before_unicode_leaders_still_counts() -> None:
 
 
 # ---------------------------------------------------------------------------
-# R045: hanging indent optional; single spacing within entries mandatory.
+# R045: hanging indent optional; single spacing within entries mandatory;
+# numbering prohibited (Ester 2026-10-06), so numbered shapes also report it.
 # ---------------------------------------------------------------------------
 
 
@@ -304,31 +305,34 @@ def _r045(path) -> list[dict[str, str]]:
 def test_r045_patrick_style_double_spaced_numbered_entries_warn_for_spacing(tmp_path) -> None:
     """Ester (2026-10-05): numbered entries with no hanging indent, double-spaced
     within each entry. Single spacing is mandatory (warn); the missing hanging
-    indent is acceptable (never warn). Labels extracted as separate lines."""
+    indent is acceptable (never warn). Labels extracted as separate lines.
+    Since 2026-10-06 the numbering itself is also reported."""
     path = tmp_path / "patrick_style.pdf"
     _biosketch_pdf(path, line_step=24.0, entry_step=29.0)
     findings = _r045(path)
     assert [d["issue_type"] for d in findings] == [
-        "biosketch_publication_wrapped_line_spacing_not_single"
+        "biosketch_publication_entry_numbered",
+        "biosketch_publication_wrapped_line_spacing_not_single",
     ]
-    assert findings[0]["entry_segmentation"] == "entry_labels"
-    assert findings[0]["source_q_rule_id"] == "Q028"
+    assert findings[1]["entry_segmentation"] == "entry_labels"
+    assert findings[1]["source_q_rule_id"] == "Q028"
 
 
 def test_r045_inline_labels_double_spaced_entries_warn_for_spacing(tmp_path) -> None:
     path = tmp_path / "inline_labels.pdf"
     _biosketch_pdf(path, line_step=24.0, entry_step=29.0, label_style="inline")
     assert [d["issue_type"] for d in _r045(path)] == [
-        "biosketch_publication_wrapped_line_spacing_not_single"
+        "biosketch_publication_entry_numbered",
+        "biosketch_publication_wrapped_line_spacing_not_single",
     ]
 
 
-def test_r045_single_spaced_numbered_entries_without_hanging_indent_are_clean(
+def test_r045_single_spaced_numbered_entries_without_hanging_indent_report_only_numbering(
     tmp_path,
 ) -> None:
     path = tmp_path / "single_spaced.pdf"
     _biosketch_pdf(path, line_step=14.0, entry_step=28.0)
-    assert _r045(path) == []
+    assert [d["issue_type"] for d in _r045(path)] == ["biosketch_publication_entry_numbered"]
 
 
 def test_r045_blank_line_check_runs_without_hanging_indent(tmp_path) -> None:
@@ -338,9 +342,10 @@ def test_r045_blank_line_check_runs_without_hanging_indent(tmp_path) -> None:
     _biosketch_pdf(path, entries=3, line_step=14.0, entry_step=14.0)
     findings = _r045(path)
     assert [d["issue_type"] for d in findings] == [
-        "biosketch_publication_entry_spacing_not_double"
+        "biosketch_publication_entry_numbered",
+        "biosketch_publication_entry_spacing_not_double",
     ]
-    assert findings[0]["entry_segmentation"] == "entry_labels"
+    assert findings[1]["entry_segmentation"] == "entry_labels"
 
 
 def test_r045_education_section_is_not_checked(tmp_path) -> None:

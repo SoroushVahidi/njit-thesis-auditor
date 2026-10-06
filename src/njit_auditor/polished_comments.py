@@ -785,6 +785,20 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P025", "possible_frontmatter_order_issue"): (
         "Move the Abstract so it appears before the Table of Contents."
     ),
+    # P045's card remediation covers numbering and spacing together; each
+    # finding gets only the fix for its own problem.
+    ("P045", "biosketch_publication_entry_numbered"): (
+        "Remove the number or label (such as [1] or 1.) in front of each "
+        "publication or presentation entry. Keep the same citation format as the "
+        "References section, just without the number."
+    ),
+    ("P045", "biosketch_publication_wrapped_line_spacing_not_single"): (
+        "Single-space the wrapped lines within each publication or presentation "
+        "entry."
+    ),
+    ("P045", "biosketch_publication_entry_spacing_not_double"): (
+        "Add a blank line between separate publication or presentation entries."
+    ),
     ("P038", "required_heading_missing"): (
         "Add this required section heading to the front matter, worded "
         "exactly as NJIT specifies."
@@ -1621,6 +1635,17 @@ def _p045_line_spacing_comment(*, page: int | None, details: dict[str, str]) -> 
     )
 
 
+def _p045_numbered_entry_comment(*, page: int | None, details: dict[str, str]) -> str:
+    page_label = _safe_page_label(page)
+    return (
+        "Problem: Publication/presentation entries on the Biographical Sketch page "
+        f"(page {page_label}) start with a number or label such as [1] or 1. These "
+        "entries are not references and must not be numbered. Remove the number in "
+        "front of each entry and keep the same citation format as the References "
+        "section."
+    )
+
+
 def _p045_entry_spacing_comment(*, page: int | None, details: dict[str, str]) -> str:
     page_label = _safe_page_label(page)
     observed = details.get("observed_gap_points", "").strip()
@@ -2048,6 +2073,10 @@ def build_polished_comment(
 
     if rule_id == "P067" and issue == "biosketch_publication_order_suspicious":
         body = _p067_publication_order_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P045" and issue == "biosketch_publication_entry_numbered":
+        body = _p045_numbered_entry_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P045" and issue == "biosketch_publication_missing_hanging_indent":

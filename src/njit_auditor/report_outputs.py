@@ -628,22 +628,26 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     "P045": {
         "question": (
             "Are publication and presentation entries in the Biographical Sketch "
-            "single-spaced within each entry, with a blank line between entries?"
+            "unnumbered, single-spaced within each entry, and separated by a blank "
+            "line?"
         ),
         "rule_definition": (
             "Finds the Publications and Presentations section of the Biographical "
-            "Sketch page and separates its entries using entry labels such as [1] "
-            "or, when there are none, the entries' indentation. Flags an entry "
-            "whose wrapped lines are spaced more widely than single spacing, and "
-            "consecutive entries with no blank line between them. A hanging indent "
-            "is optional and is not required. Skips the section when its entries "
-            "cannot be told apart. Findings are geometry-only -- no publication "
-            "text, citation content, or names."
+            "Sketch page. Flags entries that start with a number or label such as "
+            "[1], (1), or 1. -- these entries are not references and must not be "
+            "numbered. Also flags an entry whose wrapped lines are spaced more "
+            "widely than single spacing, and consecutive entries with no blank line "
+            "between them. A hanging indent is optional and is not required. "
+            "Numbers inside a citation (years, volumes, pages) are not checked. "
+            "Findings are geometry-only -- no publication text, citation content, "
+            "or names."
         ),
         "remediation": (
-            "Single-space the wrapped lines within each publication or presentation "
-            "entry, and add a blank line between separate entries. A hanging indent "
-            "is optional."
+            "Remove the numbers or labels such as [1] or 1. in front of each "
+            "Biographical Sketch publication or presentation entry; keep the same "
+            "citation format as the References section, just without the number. "
+            "Single-space the wrapped lines within each entry, and add a blank line "
+            "between separate entries. A hanging indent is optional."
         ),
     },
     "P047": {

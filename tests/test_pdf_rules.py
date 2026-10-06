@@ -13421,7 +13421,8 @@ def test_p045_correct_hanging_indent_no_findings(tmp_path: Path) -> None:
 
 def test_p045_missing_hanging_indent_alone_does_not_warn(tmp_path: Path) -> None:
     """Ester (2026-10-05): a hanging indent is not mandatory. Flush entries,
-    labeled or not, are never flagged for lacking one."""
+    labeled or not, are never flagged for lacking one. Labeled entries are
+    reported only for their numbering (Ester, 2026-10-06)."""
     flush = tmp_path / "p045_no_hang.pdf"
     _make_biosketch_pdf(flush, hanging_rest_x=108.0, inter_block_gap=30.0)
     assert _p045_issue_types(flush) == []
@@ -13431,7 +13432,7 @@ def test_p045_missing_hanging_indent_alone_does_not_warn(tmp_path: Path) -> None
         labeled, hanging_first_x=132.0, hanging_rest_x=132.0, inter_block_gap=30.0,
         entry_labels=True,
     )
-    assert _p045_issue_types(labeled) == []
+    assert _p045_issue_types(labeled) == ["biosketch_publication_entry_numbered"]
 
 
 def test_p045_entry_spacing_too_close_warns(tmp_path: Path) -> None:
@@ -13470,7 +13471,10 @@ def test_p045_finding_metadata_no_private_content(tmp_path: Path) -> None:
             assert "entry first line" not in str(value).lower()
         assert "issue_type" in f.details
         assert "page_number" in f.details
-        assert "source_q_rule_id" in f.details
+        # Spacing findings cite Q028; numbering has no Q-matrix row (Ester's
+        # 2026-10-06 email is its authority).
+        if f.details["issue_type"] != "biosketch_publication_entry_numbered":
+            assert f.details["source_q_rule_id"] == "Q028"
 
 
 def test_p045_never_emits_q029_hanging_indent(tmp_path: Path) -> None:

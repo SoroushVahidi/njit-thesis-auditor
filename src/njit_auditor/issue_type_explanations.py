@@ -135,6 +135,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "digital_commons_wrapper_pages_detected": "Digital Commons wrapper pages detected",
     "abstract_first_paragraph_indented": "Abstract first paragraph indented",
     "abstract_subsequent_paragraph_not_indented": "Abstract paragraph after the first not indented",
+    "biosketch_publication_entry_numbered": "Numbered Biographical Sketch publication entry",
     "biosketch_publication_missing_hanging_indent": (
         "Biographical Sketch publication without hanging indent (optional)"
     ),
@@ -1127,6 +1128,15 @@ def _p045_line_spacing_issue_type_explanation(details: Mapping[str, str]) -> str
     )
 
 
+def _p045_numbered_entry_issue_type_explanation(details: Mapping[str, str]) -> str:
+    return (
+        "This means publication/presentation entries on the Biographical Sketch "
+        "page start with a number or label such as [1] or 1. They are not "
+        "references and must not be numbered; keep the References citation "
+        "format without the number in front."
+    )
+
+
 def _p045_entry_spacing_issue_type_explanation(details: Mapping[str, str]) -> str:
     observed = details.get("observed_gap_points", "").strip()
     required = details.get("required_gap_points", "").strip()
@@ -1388,6 +1398,8 @@ def explain_issue_type(
         return _p066_issue_type_explanation(safe_details)
     if rule_id == "P067" and issue_type == "biosketch_publication_order_suspicious":
         return _p067_issue_type_explanation(safe_details)
+    if rule_id == "P045" and issue_type == "biosketch_publication_entry_numbered":
+        return _p045_numbered_entry_issue_type_explanation(safe_details)
     if rule_id == "P045" and issue_type == "biosketch_publication_missing_hanging_indent":
         return _p045_hanging_indent_issue_type_explanation(safe_details)
     if rule_id == "P045" and issue_type == "biosketch_publication_wrapped_line_spacing_not_single":

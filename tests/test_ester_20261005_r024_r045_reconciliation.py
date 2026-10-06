@@ -184,7 +184,8 @@ def test_p017_no_longer_checks_lof_capitalization() -> None:
 
 
 # ---------------------------------------------------------------------------
-# R045: single spacing mandatory, hanging indent optional, numbering deferred.
+# R045: single spacing mandatory, hanging indent optional, numbering prohibited
+# (Ester 2026-10-06: Biographical Sketch publications must not be numbered).
 # ---------------------------------------------------------------------------
 
 
@@ -247,18 +248,19 @@ def test_r045_unnumbered_hanging_entries_double_spaced_warn(tmp_path) -> None:
     assert findings[0]["entry_segmentation"] == "hanging_indent"
 
 
-def test_r045_numbered_entries_without_hanging_indent_are_clean(tmp_path) -> None:
-    """Missing hanging indent alone is never a violation."""
+def test_r045_numbered_single_spaced_flush_entries_report_only_numbering(tmp_path) -> None:
+    """Numbering is reported; the missing hanging indent alone is not."""
     path = tmp_path / "numbered_flush.pdf"
     _publications_pdf(path, numbered=True, hanging=False, line_step=14.0, entry_step=28.0)
-    assert _p045(path) == []
+    assert [d["issue_type"] for d in _p045(path)] == ["biosketch_publication_entry_numbered"]
 
 
-def test_r045_numbered_double_spaced_entries_warn_for_spacing_only(tmp_path) -> None:
+def test_r045_numbered_double_spaced_entries_report_numbering_and_spacing(tmp_path) -> None:
     path = tmp_path / "numbered_double.pdf"
     _publications_pdf(path, numbered=True, hanging=False, line_step=24.0, entry_step=40.0)
     assert [d["issue_type"] for d in _p045(path)] == [
-        "biosketch_publication_wrapped_line_spacing_not_single"
+        "biosketch_publication_entry_numbered",
+        "biosketch_publication_wrapped_line_spacing_not_single",
     ]
 
 
@@ -275,18 +277,23 @@ def test_r045_wrapped_continuation_lines_are_not_new_entries(tmp_path, numbered)
         entry_step=28.0,
         lines_per_entry=4,
     )
-    assert _p045(path) == []
+    spacing = [d for d in _p045(path) if d["issue_type"] != "biosketch_publication_entry_numbered"]
+    assert spacing == []
 
 
 @pytest.mark.parametrize("numbered", [True, False])
-def test_r045_numbering_is_not_enforced_while_pending_clarification(
-    tmp_path, numbered
-) -> None:
+def test_r045_numbering_is_reported_only_for_numbered_entries(tmp_path, numbered) -> None:
     path = tmp_path / f"numbering_{numbered}.pdf"
     _publications_pdf(
         path, numbered=numbered, hanging=not numbered, line_step=14.0, entry_step=28.0
     )
-    assert not any("number" in d["issue_type"] for d in _p045(path))
+    numbering = [
+        d for d in _p045(path) if d["issue_type"] == "biosketch_publication_entry_numbered"
+    ]
+    assert len(numbering) == (1 if numbered else 0)
+    if numbered:
+        assert numbering[0]["numbered_entry_count"] == "3"
+        assert numbering[0]["numbering_style"] == "bracketed_number"
 
 
 # ---------------------------------------------------------------------------

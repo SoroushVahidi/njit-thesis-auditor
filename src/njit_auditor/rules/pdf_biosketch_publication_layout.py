@@ -1,4 +1,10 @@
-"""Conservative Biographical Sketch publication entry spacing checks (P045).
+"""Conservative Biographical Sketch publication entry checks (P045).
+
+Entries must not be numbered. Ester, 2026-10-06: "The list of publications on
+this page MUST NOT BE NUMBERED" -- they are not references, so they keep the
+References citation format but drop the number in front. An entry that starts
+with a list label ("[1]", "(1)", "1.", "1)") is reported. This check needs no
+entry segmentation, so a single numbered entry is enough.
 
 Partial heuristic PDF coverage for Q028 ("Is each entry in Publications and
 Presentations single-spaced with a blank line between entries?"):
@@ -9,9 +15,6 @@ Q029 (hanging indent) is not enforced. Ester confirmed on 2026-10-05 that a
 hanging indent is not mandatory: entries without one are acceptable. Hanging
 geometry is still read, but only to tell where one entry ends and the next
 begins; its absence is never reported.
-
-Numbering of entries is not checked; whether numbering is required or
-prohibited is pending reviewer clarification.
 
 Only the Publications/Presentations section of the BIOGRAPHICAL SKETCH page is
 inspected (education bullets belong to P047). Entries are separated by visible
@@ -30,7 +33,7 @@ from dataclasses import dataclass
 from statistics import median as _median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_heading_page_and_y
 
 HANGING_THRESHOLD_PT = 12.0
@@ -64,6 +67,7 @@ _PUBLICATION_HEADING_KEYS = frozenset(
 _FOOTER_ZONE_PT = 72.0
 _MAX_SECTION_LABEL_WORDS = 6
 _ENTRY_LABEL_RE = re.compile(r"^\s*(?:\[\d{1,3}\]|\(\d{1,3}\)|\d{1,3}[.)])(?:\s|$)")
+_BRACKET_LABEL_RE = re.compile(r"^\s*\[\d{1,3}\](?:\s|$)")
 
 
 def _is_usable_line(line: PdfTextLine) -> bool:
@@ -128,6 +132,7 @@ class _Row:
     y1: float
     text: str
     font_size: float
+    x1: float = 0.0
 
     @property
     def height(self) -> float:
@@ -164,6 +169,7 @@ def _rows_for_page(page: PdfPage) -> list[_Row]:
         rows.append(
             _Row(
                 x0=ordered[0].bbox.x0,
+                x1=max(line.bbox.x1 for line in ordered),
                 y0=min(line.bbox.y0 for line in ordered),
                 y1=max(line.bbox.y1 for line in ordered),
                 text=" ".join(" ".join(line.text.split()) for line in ordered),
@@ -245,19 +251,78 @@ def _split_entries(rows: list[_Row]) -> tuple[list[list[_Row]], str]:
     return entries, method
 
 
+def _numbered_entry_rows(rows: list[_Row]) -> list[_Row]:
+    """Rows that open an entry with a list number.
+
+    Only rows at the section's left edge count, so citation-internal numbers
+    (years, volumes, pages, DOIs) never qualify: they are not at a row start,
+    and four-digit years do not match the label pattern. A bracketed "[n]"
+    label is unambiguous on its own; "(n)", "n." and "n)" count when they open
+    the section or when at least two rows carry such a label.
+    """
+    if not rows:
+        return []
+    left = min(row.x0 for row in rows)
+    labelled = [
+        row
+        for row in rows
+        if row.x0 <= left + _FLUSH_TOLERANCE_PT and _ENTRY_LABEL_RE.match(row.text)
+    ]
+    if len(labelled) >= 2:
+        return labelled
+    return [
+        row for row in labelled if _BRACKET_LABEL_RE.match(row.text) or row is rows[0]
+    ]
+
+
+def _numbering_style(row: _Row) -> str:
+    text = row.text.lstrip()
+    if text.startswith("["):
+        return "bracketed_number"
+    if text.startswith("("):
+        return "parenthesized_number"
+    return "number_with_period" if re.match(r"\d+\.", text) else "number_with_parenthesis"
+
+
 def check_pdf_biosketch_publication_layout(
     pdf_document: PdfDocument,
 ) -> list[AuditFinding]:
-    """Emit P045 warnings for Bio Sketch publication entry spacing violations."""
+    """Emit P045 warnings for numbered or mis-spaced Bio Sketch publication entries."""
     result = _find_biosketch_page_and_heading_y(pdf_document)
     if result is None:
         return []
 
     page, heading_bottom_y = result
     rows = _publication_section_rows(page, heading_bottom_y)
+
+    findings: list[AuditFinding] = []
+    numbered = _numbered_entry_rows(rows)
+    if numbered:
+        first = numbered[0]
+        findings.append(
+            AuditFinding(
+                rule_id="P045",
+                severity=Severity.WARNING,
+                page=page.page_number,
+                message=(
+                    "Publication/presentation entries on the Biographical Sketch page "
+                    "are numbered; they must not be numbered."
+                ),
+                details={
+                    "page_number": str(page.page_number),
+                    "issue_type": "biosketch_publication_entry_numbered",
+                    "numbered_entry_count": str(len(numbered)),
+                    "numbering_style": _numbering_style(first),
+                    "bbox": format_bbox_detail((first.x0, first.y0, first.x1, first.y1)),
+                    "confidence": "high",
+                    "triage_tier": "high",
+                },
+            )
+        )
+
     entries, method = _split_entries(rows)
     if len(entries) < 2 or not any(len(entry) >= 2 for entry in entries):
-        return []
+        return findings
 
     font_size = _median([row.font_size for row in rows])
     max_within_pitch = WITHIN_ENTRY_MAX_PITCH_RATIO * font_size
@@ -273,7 +338,7 @@ def check_pdf_biosketch_publication_layout(
     for entry_index, entry in enumerate(entries):
         pitches = [_line_step(earlier, later) for earlier, later in zip(entry, entry[1:])]
         if pitches and max(pitches) > max_within_pitch:
-            return [
+            return findings + [
                 AuditFinding(
                     rule_id="P045",
                     severity=Severity.WARNING,
@@ -305,7 +370,7 @@ def check_pdf_biosketch_publication_layout(
         last_row = earlier_entry[-1]
         pitch = _line_step(last_row, later_entry[0])
         if pitch < required_pitch:
-            return [
+            return findings + [
                 AuditFinding(
                     rule_id="P045",
                     severity=Severity.WARNING,
@@ -323,4 +388,4 @@ def check_pdf_biosketch_publication_layout(
                     },
                 )
             ]
-    return []
+    return findings

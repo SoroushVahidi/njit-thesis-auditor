@@ -1636,6 +1636,15 @@ def _p045_line_spacing_explanation(details: dict[str, str], *, page: int | None)
     )
 
 
+def _p045_numbered_entry_explanation(details: dict[str, str], *, page: int | None) -> str:
+    return (
+        "Publication/presentation entries on the Biographical Sketch page start "
+        "with a number or label such as [1] or 1. They are not references and "
+        "must not be numbered. Remove the number in front of each entry and keep "
+        "the same citation format as the References section."
+    )
+
+
 def _p045_entry_spacing_explanation(details: dict[str, str], *, page: int | None) -> str:
     observed = details.get("observed_gap_points", "").strip()
     required = details.get("required_gap_points", "").strip()
@@ -1979,6 +1988,8 @@ def _build_explanation_text(
         return _p066_degree_order_explanation(details, page=page)
     if rule_id == "P067" and effective_issue_type == "biosketch_publication_order_suspicious":
         return _p067_publication_order_explanation(details, page=page)
+    if rule_id == "P045" and effective_issue_type == "biosketch_publication_entry_numbered":
+        return _p045_numbered_entry_explanation(details, page=page)
     if (
         rule_id == "P045"
         and effective_issue_type == "biosketch_publication_missing_hanging_indent"
