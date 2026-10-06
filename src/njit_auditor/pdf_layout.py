@@ -23,6 +23,13 @@ LANDSCAPE_ASPECT_THRESHOLD = 1.02
 _MIN_SPAN_SPACE_GAP_PT = 1.0
 _MIN_GRAPHIC_WIDTH_PT = 12.0
 _MIN_GRAPHIC_HEIGHT_PT = 12.0
+_TABLE_CAPTION_HINT_RE = re.compile(r"(?im)^\s*Table\s+\d+(?:[.\-]\d+)*\b")
+_MAX_HORIZONTAL_RULE_HEIGHT_PT = 2.0
+_MIN_HORIZONTAL_SEGMENT_WIDTH_PT = 8.0
+_MIN_COMPLETE_RULE_WIDTH_PT = 72.0
+_RULE_ROW_Y_TOLERANCE_PT = 1.0
+_RULE_SEGMENT_GAP_PT = 2.0
+_WHITE_PAINT_MIN_COMPONENT = 0.95
 # A visible dot-leader run: four or more periods (optionally single-spaced,
 # as LaTeX dotfill leaders extract), a Unicode ellipsis, or a run of middle
 # dots. Pages containing one get per-character x-extents recorded on their
@@ -153,6 +160,77 @@ def _char_x_bounds_by_span(
     return out
 
 
+def _page_has_table_caption_hint(page_dict: dict) -> bool:
+    lines = (
+        "".join(str(span.get("text", "")) for span in line.get("spans", []) or [])
+        for block in page_dict.get("blocks", [])
+        if block.get("type") == 0
+        for line in block.get("lines", []) or []
+    )
+    return any(_TABLE_CAPTION_HINT_RE.match(line) for line in lines)
+
+
+def _drawing_is_visible(drawing: dict) -> bool:
+    """Return True when a drawing paints a non-white fill or stroke."""
+    for key, opacity_key in (("fill", "fill_opacity"), ("color", "stroke_opacity")):
+        paint = drawing.get(key)
+        opacity = drawing.get(opacity_key)
+        if not paint or (opacity is not None and opacity <= 0.0):
+            continue
+        if min(float(component) for component in paint) < _WHITE_PAINT_MIN_COMPONENT:
+            return True
+    return False
+
+
+def _horizontal_rule_bboxes(page: fitz.Page) -> list[BBox]:
+    """Join adjacent thin drawing segments into full visible horizontal rules.
+
+    PDF table borders are often emitted as several touching filled rectangles,
+    one per cell. The text layer does not include these visible outer bounds.
+    The R035 detector later requires at least two aligned rules around table
+    text before using them, so isolated underlines are inert.
+    """
+    segments: list[fitz.Rect] = []
+    for drawing in page.get_drawings():
+        rect = drawing["rect"]
+        if not _drawing_is_visible(drawing):
+            continue
+        if (
+            0 <= rect.height <= _MAX_HORIZONTAL_RULE_HEIGHT_PT
+            and rect.width >= _MIN_HORIZONTAL_SEGMENT_WIDTH_PT
+        ):
+            segments.append(rect)
+
+    segments.sort(key=lambda rect: (rect.y0, rect.x0))
+    rows: list[list[fitz.Rect]] = []
+    for rect in segments:
+        if rows and abs(rect.y0 - rows[-1][0].y0) <= _RULE_ROW_Y_TOLERANCE_PT:
+            rows[-1].append(rect)
+        else:
+            rows.append([rect])
+
+    rules: list[BBox] = []
+    for row in rows:
+        ordered = sorted(row, key=lambda rect: rect.x0)
+        runs: list[list[fitz.Rect]] = []
+        for rect in ordered:
+            if runs and rect.x0 <= max(item.x1 for item in runs[-1]) + _RULE_SEGMENT_GAP_PT:
+                runs[-1].append(rect)
+            else:
+                runs.append([rect])
+        for run in runs:
+            x0 = min(rect.x0 for rect in run)
+            x1 = max(rect.x1 for rect in run)
+            if x1 - x0 >= _MIN_COMPLETE_RULE_WIDTH_PT:
+                rules.append(
+                    BBox(
+                        x0=float(x0), y0=float(min(rect.y0 for rect in run)),
+                        x1=float(x1), y1=float(max(rect.y1 for rect in run)),
+                    )
+                )
+    return rules
+
+
 def load_pdf_layout(pdf_path: str) -> PdfDocument:
     """Load a layout-aware PDF model for downstream auditing."""
 
@@ -177,6 +255,8 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
             )
 
             page_dict = page.get_text("dict")
+            if _page_has_table_caption_hint(page_dict):
+                page_model.horizontal_rules = _horizontal_rule_bboxes(page)
             seen_graphics: set[tuple[int, int, int, int]] = set()
             for image in page.get_images(full=True):
                 xref = int(image[0])

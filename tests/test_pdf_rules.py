@@ -10399,6 +10399,56 @@ def _make_p035_body_page_pdf(
     doc.close()
 
 
+def test_p035_pdf_layout_joins_segmented_horizontal_table_rules(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "segmented_table_rules.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 80), "CHAPTER 1 INTRODUCTION", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 130), _P035_TABLE_CAPTION, fontsize=11)
+    for y in (145.0, 190.0, 270.0):
+        for x0, x1 in ((108.0, 216.0), (217.0, 306.0), (307.0, 383.0), (384.0, 507.0)):
+            page.draw_rect(fitz.Rect(x0, y, x1, y + 0.8), color=None, fill=(0, 0, 0))
+    for index, y in enumerate((165.0, 185.0, 215.0, 240.0, 260.0)):
+        page.insert_text((113.4, y), f"Table entry alpha {index}", fontsize=9)
+        page.insert_text((465.0, y), "0.1234", fontsize=9)
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    rules = model.pages[0].horizontal_rules
+    assert len(rules) == 3
+    assert all(abs(rule.x0 - 108.0) < 0.1 for rule in rules)
+    assert all(abs(rule.x1 - 507.0) < 0.1 for rule in rules)
+    body_blocks = [
+        block for block in model.pages[0].text_blocks
+        if block.bbox.y0 >= 145.0 and block.bbox.y1 <= 270.0
+    ]
+    text_center = (
+        min(block.bbox.x0 for block in body_blocks)
+        + max(block.bbox.x1 for block in body_blocks)
+    ) / 2
+    assert abs(text_center - 324.0) > 18.0
+    assert not any(
+        finding.details.get("issue_type") == "table_body_not_centered"
+        for finding in check_pdf_figure_table_layout(model)
+    )
+
+
+def test_p035_pdf_layout_ignores_invisible_white_table_rules(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "white_table_rules.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((108, 130), _P035_TABLE_CAPTION, fontsize=11)
+    for y in (145.0, 190.0, 270.0):
+        page.draw_rect(fitz.Rect(108.0, y, 507.0, y + 0.8), color=None, fill=(1, 1, 1))
+    page.draw_rect(fitz.Rect(108.0, 300.0, 507.0, 300.8), color=None, fill=(0, 0, 0))
+    doc.save(pdf_path)
+    doc.close()
+
+    rules = load_pdf_layout(str(pdf_path)).pages[0].horizontal_rules
+    assert [round(rule.y0, 1) for rule in rules] == [300.0]
+
+
 def test_p035_centered_table_with_caption_above_no_finding(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p035_table_ok.pdf"
     _make_p035_body_page_pdf(

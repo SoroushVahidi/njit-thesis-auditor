@@ -92,6 +92,9 @@ class PdfPage(BaseModel):
     is_visually_landscape: bool = False
     text_blocks: list[PdfTextBlock] = Field(default_factory=list)
     graphic_blocks: list[PdfGraphicBlock] = Field(default_factory=list)
+    # Thin PDF drawing paths grouped into visible horizontal rules. Used by
+    # R035 only when repeated, aligned rules bound a real table body.
+    horizontal_rules: list[BBox] = Field(default_factory=list)
 
 
 class PdfDocument(BaseModel):

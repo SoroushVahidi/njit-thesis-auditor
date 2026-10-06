@@ -53,6 +53,9 @@ FLOAT_NUMBER_RE = re.compile(
 
 CHAPTER_HEADING_RE = re.compile(r"^CHAPTER\s+", re.IGNORECASE)
 MAX_CLUSTER_LINE_GAP_PT = 24.0
+TABLE_RULE_EDGE_TOLERANCE_PT = 3.0
+TABLE_RULE_TOP_GAP_PT = 30.0
+TABLE_RULE_MIN_OVERLAP_FRACTION = 0.70
 
 
 def _collect_page_lines(page: PdfPage) -> list[PdfTextLine]:
@@ -274,6 +277,63 @@ def _centering_issue(page: PdfPage, body_bbox: BBox) -> tuple[bool, float, float
     return center_delta > tolerance, center_delta, tolerance
 
 
+def _complete_ruled_table_body_bbox(
+    page: PdfPage, text_bbox: BBox, caption_bbox: BBox, next_caption_y: float
+) -> BBox:
+    """Use a table's repeated outer rules when they bound its text body.
+
+    A text cluster can omit the final row or the table borders. At least two
+    matching, full-width horizontal rules must surround that cluster before
+    their geometry can replace the text-only proxy. Unruled or ambiguous
+    tables keep the existing text-bbox behavior.
+    """
+    candidates = []
+    for rule in page.horizontal_rules:
+        if not (caption_bbox.y1 + 1.0 <= rule.y0 < next_caption_y):
+            continue
+        overlap = min(rule.x1, text_bbox.x1) - max(rule.x0, text_bbox.x0)
+        if overlap < TABLE_RULE_MIN_OVERLAP_FRACTION * max(rule.width, text_bbox.width):
+            continue
+        candidates.append(rule)
+
+    groups: list[list[BBox]] = []
+    for rule in sorted(candidates, key=lambda item: (item.x0, item.x1, item.y0)):
+        matching = next(
+            (
+                group for group in groups
+                if abs(group[0].x0 - rule.x0) <= TABLE_RULE_EDGE_TOLERANCE_PT
+                and abs(group[0].x1 - rule.x1) <= TABLE_RULE_EDGE_TOLERANCE_PT
+            ),
+            None,
+        )
+        if matching is None:
+            groups.append([rule])
+        else:
+            matching.append(rule)
+
+    qualifying = []
+    for group in groups:
+        if len(group) < 2:
+            continue
+        first = min(group, key=lambda rule: rule.y0)
+        last = max(group, key=lambda rule: rule.y1)
+        if not (0 <= text_bbox.y0 - first.y1 <= TABLE_RULE_TOP_GAP_PT):
+            continue
+        if last.y1 < text_bbox.y1 - 8.0:
+            continue
+        qualifying.append((abs(text_bbox.y0 - first.y1), -len(group), group))
+
+    if not qualifying:
+        return text_bbox
+    _, _, chosen = min(qualifying, key=lambda item: (item[0], item[1]))
+    return BBox(
+        x0=min(text_bbox.x0, *(rule.x0 for rule in chosen)),
+        y0=min(text_bbox.y0, *(rule.y0 for rule in chosen)),
+        x1=max(text_bbox.x1, *(rule.x1 for rule in chosen)),
+        y1=max(text_bbox.y1, *(rule.y1 for rule in chosen)),
+    )
+
+
 def _cluster_looks_like_body_paragraph(
     cluster: list[PdfTextBlock],
 ) -> bool:
@@ -362,7 +422,8 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
     findings: list[AuditFinding] = []
     pages_by_number = {page.page_number: page for page in pdf_document.pages}
 
-    for caption in detect_caption_lines(pdf_document):
+    captions = detect_caption_lines(pdf_document)
+    for caption in captions:
         if caption.context != "body":
             continue
 
@@ -404,7 +465,18 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 continue
             if primary is None:
                 continue
-            body_bbox = _union_bbox(primary)
+            text_bbox = _union_bbox(primary)
+            later_captions = [
+                other_bbox.y0
+                for other in captions
+                if other is not caption and other.page_number == caption.page_number
+                if (other_bbox := _find_caption_line_bbox(page, other)) is not None
+                and other_bbox.y0 > caption_bbox.y1
+            ]
+            body_bbox = _complete_ruled_table_body_bbox(
+                page, text_bbox, caption_bbox,
+                min(later_captions, default=page.height),
+            )
             not_centered, center_delta, tolerance = _centering_issue(page, body_bbox)
             if not_centered:
                 _append_finding(
