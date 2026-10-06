@@ -40,7 +40,10 @@ from njit_auditor.review_ledger.identifiers import (
     make_run_id,
 )
 from njit_auditor.review_ledger.importers.authority_matrix import import_authority_matrix
-from njit_auditor.review_ledger.importers.case_migration import migrate_known_cases
+from njit_auditor.review_ledger.importers.case_migration import (
+    migrate_known_cases,
+    migrate_known_supersessions,
+)
 from njit_auditor.review_ledger.importers.known_policies import migrate_known_policies
 from njit_auditor.review_ledger.importers.thesis_registry import register_corpus
 from njit_auditor.review_ledger.importers.xlsx_packages import scan_xlsx_packages
@@ -176,6 +179,9 @@ def migrate(ledger_root: Path = PRIVATE_LEDGER_ROOT) -> GroundTruthReport:
         registered_by_short_name=registered,
         imported_at=imported_at,
     )
+    supersession_summary = migrate_known_supersessions(
+        ledger, registered_by_short_name=registered, imported_at=imported_at
+    )
     xlsx_summary = scan_xlsx_packages(ESTER_FEEDBACK_PACKAGES_DIR)
     policy_summary = migrate_known_policies(ledger, imported_at=imported_at)
 
@@ -192,6 +198,12 @@ def migrate(ledger_root: Path = PRIVATE_LEDGER_ROOT) -> GroundTruthReport:
     print(f"  adjudications_created={case_summary.adjudications_created}")
     print(f"  adjudications_already_present={case_summary.adjudications_already_present}")
     print(f"  version_unresolved={case_summary.version_unresolved}")
+    print()
+    print("=== Known adjudication supersessions ===")
+    print(f"  total={supersession_summary.total}")
+    print(f"  applied={supersession_summary.applied}")
+    print(f"  already_applied={supersession_summary.already_applied}")
+    print(f"  skipped={supersession_summary.skipped}")
     print()
     print("=== XLSX package scan (informational; no case rows migrated from these) ===")
     print(f"  packages_scanned={xlsx_summary.packages_scanned}")

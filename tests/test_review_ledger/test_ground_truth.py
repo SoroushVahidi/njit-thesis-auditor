@@ -194,7 +194,8 @@ def test_qualify_issue_type_falls_back_when_no_discriminator_available() -> None
 
 
 def test_nuanced_correct_but_root_cause_elsewhere_does_not_force_tp_requirement() -> None:
-    """Mirrors the real R028/Patrick case: Ester marked something 'CORRECT'
+    """Mirrors how the R028/Patrick case was first migrated (later
+    superseded by FALSE_POSITIVE): Ester marked something 'CORRECT'
     but explained the actual defect's responsibility sits with a different
     rule. Migrated as NEEDS_CLARIFICATION, this must be excluded from
     pass/fail scoring entirely -- never scored as a missing TRUE_VIOLATION

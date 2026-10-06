@@ -760,6 +760,9 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         # keep reporting this would be wrong now that responsibility for the
         # actual defect sits with P085 -- recorded as NEEDS_CLARIFICATION so
         # it is preserved and visible without being scored as a P028 case.
+        # Superseded by FALSE_POSITIVE in KNOWN_ADJUDICATION_SUPERSESSIONS
+        # below (2026-10-06), from Ester's own explanation; this first
+        # migrated verdict stays as history.
         verdict=AdjudicationVerdict.NEEDS_CLARIFICATION,
         reviewer_comment=(
             'Ester: "CORRECT: but we need to talk about this. the auditor has '
@@ -919,5 +922,65 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         ),
         source_reference="docs/status/patrick_chapter1_rule_gap_20260902.md",
         decided_at="2026-09-02",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class KnownAdjudicationSupersession:
+    """A later normalization of one ``KNOWN_HISTORICAL_CASES`` verdict.
+
+    The original adjudication stays in the ledger; migration appends a new
+    one that supersedes it (``Adjudication.supersedes_adjudication_id``).
+    Only for verdicts that existing, cited authority already settles -- not
+    for new reviewer input.
+    """
+
+    case: KnownHistoricalCase
+    superseded_verdict: AdjudicationVerdict
+    verdict: AdjudicationVerdict
+    reviewer_comment: str
+    source_reference: str
+    decided_at: str
+
+
+def _known_case(document: str, rule_id: str, issue_type: str, page: int) -> KnownHistoricalCase:
+    matches = [
+        c
+        for c in KNOWN_HISTORICAL_CASES
+        if (c.document_short_name, c.internal_rule_id, c.issue_type, c.physical_page)
+        == (document, rule_id, issue_type, page)
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected exactly one known case for {document}/{rule_id}/{issue_type}"
+            f"@page{page}, found {len(matches)}"
+        )
+    return matches[0]
+
+
+KNOWN_ADJUDICATION_SUPERSESSIONS: tuple[KnownAdjudicationSupersession, ...] = (
+    # R028 Patrick physical page 13 (printed 1): first migrated as
+    # NEEDS_CLARIFICATION because the sheet cell reads "CORRECT: but ...".
+    # Ester's own explanation settles it: the page number is not the error,
+    # the missing CHAPTER 1 heading is. Her R019 sheet entry for the same
+    # page-1 situation is an explicit "FALSE POSITIVE:" with the same
+    # explanation, and the 2026-09-02 status record treats it as resolved
+    # policy. The missing heading stays Patrick's separate P085
+    # TRUE_VIOLATION case.
+    KnownAdjudicationSupersession(
+        case=_known_case("Patrick", "P028", "arabic_number_on_frontmatter_page", 13),
+        superseded_verdict=AdjudicationVerdict.NEEDS_CLARIFICATION,
+        verdict=AdjudicationVerdict.FALSE_POSITIVE,
+        reviewer_comment=(
+            "Verdict normalized 2026-10-06 from Ester's existing comments; no new "
+            "reviewer input. R028 sheet: the real error is not the page number but "
+            "the absence of the CHAPTER 1 heading. R019 sheet (2026-09-08): the same "
+            "page-1 situation marked FALSE POSITIVE with the same explanation. The "
+            "page-number finding is not a violation; the missing CHAPTER 1 heading "
+            "is Patrick's separate P085 TRUE_VIOLATION case."
+        ),
+        source_reference="docs/status/r028_patrick_ledger_resolution_20261006.md",
+        decided_at="2026-09-08",
     ),
 )
