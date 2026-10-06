@@ -510,7 +510,7 @@ rule registry entries.
 | Closed, engineering-confirmed genuine violation | R085, R086 (Youra physical page 101 case; other corpus findings unreviewed) |
 | Closed, engineering fix to match already-explicit Ester policy | R021 (MS/PhD word limits corrected to 200/400 per her sheet; not a new Ester decision) |
 | Reviewer policy resolved 2026-09-23 (`REVIEWER_POLICY_RESOLVED`) | R018 wrapped-title alignment (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553); R026 Latin Modern (`ENGINEERING_IMPLEMENTATION_COMPLETE` — detector already accepted it before #553, which added explicit regression coverage); leader placement for TOC/LoT/LoF (`ENGINEERING_IMPLEMENTATION_COMPLETE`, merged via PR #553) |
-| Open policy question | R045 numbering (must entries be numbered or unnumbered?), R011 final-line allowance beyond references pages (see "Ester Feedback Round 2026-10-05") |
+| Open policy question | R011 final-line allowance beyond references pages (see "Ester Feedback Round 2026-10-05"). R045 numbering was resolved on 2026-10-06 (entries must not be numbered). |
 | Already resolved / no action needed | R034 (implementation is conservative and well-tested; currently zero live findings on the seven-document corpus, nothing to send Ester) |
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward, except separately handled R021/R040/R046/R048/R053/R054/R055/R066/R068/R078/R085/R086 |
@@ -642,6 +642,21 @@ Records: `docs/status/public_card_ownership_and_r028_authority_20261006.md`,
 `p018_p075_canonical_sync_20261006.md`,
 `p071_p024_q_metadata_reconciliation_20261006.md`,
 `p071_q028_q029_metadata_cleanup_20261006.md`.
+
+## Ester Answer 2026-10-06 (R045 numbering resolved)
+
+Ester confirmed the R024D/R024E split and answered the R045 question:
+Biographical Sketch publications MUST NOT BE NUMBERED. They are listed in
+reverse chronological order and use the same citation format as the
+References section, without the number in front. Hanging indent stays
+optional and single spacing mandatory (2026-10-05).
+
+Branch `fix/r045-no-numbering-final-20261006` (not merged or deployed) adds
+the `biosketch_publication_entry_numbered` check to R045. On the
+seven-document corpus it adds one finding (Patrick physical page 5); nothing
+else changes. Reverse chronology was already checked by R067 (Q027); the
+citation-format match (Q030) remains unimplemented. Record:
+`docs/status/r045_no_numbering_ester_20261006.md`.
 
 ## Next Work Sequence
 
