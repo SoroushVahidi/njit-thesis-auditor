@@ -60,22 +60,76 @@ def _load_catalog() -> list[dict]:
     return data
 
 
+_STRUCTURED_Q_FIELDS = ("source_q_rule_ids", "q_rule_ids")
+_Q_ID_RE = re.compile(r"Q\d{3}")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+# A notes sentence that says a Q-rule is NOT covered by this rule.
+_NEGATIVE_NOTE_RE = re.compile(
+    r"manual[- ]only|\bnot\b|n't\b|\bremoved\b|\bno longer\b|\bsuperseded\b"
+    r"|\bexcluded\b|\bout of scope\b|\bdeferred\b",
+    re.IGNORECASE,
+)
+_P_RULE_REF_RE = re.compile(r"\bP(\d{3})")
+
+
+def _structured_q_ids(rule: dict) -> set[str] | None:
+    """Return the rule's structured Q-IDs, or None when it declares none.
+
+    A present field is authoritative even when empty. Malformed values raise
+    ValueError naming the rule instead of silently skewing coverage.
+    """
+    present = [name for name in _STRUCTURED_Q_FIELDS if name in rule]
+    if not present:
+        return None
+    ids: set[str] = set()
+    for name in present:
+        value = rule[name]
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) and _Q_ID_RE.fullmatch(item) for item in value
+        ):
+            raise ValueError(
+                f"{rule.get('id', '?')}: {name} must be a list of Q-IDs like 'Q052', "
+                f"got {value!r}"
+            )
+        ids.update(value)
+    return ids
+
+
+def _note_q_ids(rule_id: str, notes: str) -> set[str]:
+    """Legacy fallback: Q-IDs a rule's notes positively claim for that rule.
+
+    Older catalog records state their Q basis only in prose ("heuristic for
+    Q056"). A sentence is ignored when it negates coverage ("Q015-Q020
+    remain manual-only", "not checked", "was removed") or credits another
+    P-rule ("P044 handles Q002/Q003", "via P032").
+    """
+    ids: set[str] = set()
+    for sentence in _SENTENCE_SPLIT_RE.split(notes):
+        if _NEGATIVE_NOTE_RE.search(sentence):
+            continue
+        if any(f"P{num}" != rule_id for num in _P_RULE_REF_RE.findall(sentence)):
+            continue
+        ids |= _expand_q_range(sentence)
+    return ids
+
+
 def _build_q_to_p_map(catalog: list[dict]) -> dict[str, list[str]]:
-    """Return {Q-ID: [P-rule-IDs]} from catalog notes/q_rule_ids/source_q_rule_ids fields."""
+    """Return {Q-ID: [P-rule-IDs]}.
+
+    Structured ``source_q_rule_ids``/``q_rule_ids`` are authoritative; notes
+    are consulted only for records that declare neither field.
+    """
     q_to_p: dict[str, list[str]] = {}
     for rule in catalog:
         pid = rule.get("id", "")
         if not pid.startswith("P"):
             continue
-        # Keep legacy note-based mappings while also honoring structured source_q_rule_ids.
-        source_q_ids = rule.get("source_q_rule_ids", [])
-        q_ids_field = rule.get("q_rule_ids", [])
-        q_ids_str = " ".join(q_ids_field) if isinstance(q_ids_field, list) else str(q_ids_field)
-        source_q_str = (
-            " ".join(source_q_ids) if isinstance(source_q_ids, list) else str(source_q_ids)
-        )
-        combined = " ".join([str(rule.get("notes", "")), q_ids_str, source_q_str])
-        for qid in _expand_q_range(combined):
+        structured = _structured_q_ids(rule)
+        if structured is not None:
+            q_ids = structured
+        else:
+            q_ids = _note_q_ids(pid, str(rule.get("notes", "")))
+        for qid in q_ids:
             q_to_p.setdefault(qid, []).append(pid)
     return q_to_p
 
