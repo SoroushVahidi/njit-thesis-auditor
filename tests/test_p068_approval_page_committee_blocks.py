@@ -136,6 +136,16 @@ def test_sparse_signature_blocks_no_longer_reported() -> None:
     assert findings == []
 
 
+def test_public_card_does_not_describe_retired_signature_block_check() -> None:
+    """The /rules card must not say R068 reports sparse signature blocks."""
+    from njit_auditor.web_app import _build_rule_catalog
+
+    card = next(r for r in _build_rule_catalog()["student_rules"] if r["id"] == "P068")
+    assert "signature_blocks_sparse" not in card["what_it_checks"]
+    assert "none identifies the advisor" in card["what_it_checks"]
+    assert "not counted toward a warning" in card["what_it_checks"]
+
+
 def test_below_gates_no_findings() -> None:
     lines = [
         "Committee Member",

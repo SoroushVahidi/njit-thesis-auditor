@@ -676,7 +676,19 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Sketch from most recent to oldest."
         ),
     },
+    # Signature/date block counting no longer reports (Ester, R068 follow-up
+    # 2026-09-21: committee-block layout depends on committee size); only the
+    # advisor-role label check emits findings.
     "P068": {
+        "rule_definition": (
+            "Conservative structural check: finds the Approval Page and the "
+            "committee role labels below its heading, and warns when at "
+            "least two committee role labels are found but none identifies "
+            "the advisor. Signature and date lines are not counted toward a "
+            "warning, because committee-block layout depends on committee "
+            "size and on how each template renders signature lines. Findings "
+            "contain counts and booleans only."
+        ),
         "question": (
             "Does the Approval Page include committee role labels and "
             "signature/date structural blocks for committee entries?"
