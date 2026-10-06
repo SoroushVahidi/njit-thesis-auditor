@@ -1,3 +1,4 @@
+from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -80,6 +81,115 @@ def test_r035_portrait_table_just_beyond_tolerance():
     doc = make_mock_doc(is_landscape=False, caption_type="table", body_x0=292.1, body_x1=392.1)
     findings = check_pdf_figure_table_layout(doc)
     assert any("table_body_not_centered" in f.details.get("issue_type", "") for f in findings)
+
+
+def test_r035_complete_ruled_table_suppresses_text_only_boundary_alarm():
+    doc = make_mock_doc(body_x0=113.4, body_x1=497.8)
+    assert any(
+        f.details.get("issue_type") == "table_body_not_centered"
+        for f in check_pdf_figure_table_layout(doc)
+    )
+    doc.pages[0].horizontal_rules = [
+        BBox(x0=108.02, y0=120.0, x1=507.1, y1=121.0),
+        BBox(x0=108.02, y0=185.0, x1=507.1, y1=186.0),
+        BBox(x0=108.02, y0=258.0, x1=507.1, y1=259.0),
+    ]
+    assert not any(
+        f.details.get("issue_type") == "table_body_not_centered"
+        for f in check_pdf_figure_table_layout(doc)
+    )
+
+
+def test_r035_off_center_ruled_table_uses_complete_body_for_decision_and_highlight():
+    doc = make_mock_doc(body_x0=120.3, body_x1=473.0)
+    doc.pages[0].horizontal_rules = [
+        BBox(x0=108.5, y0=120.0, x1=476.85, y1=121.0),
+        BBox(x0=108.5, y0=258.0, x1=476.85, y1=259.0),
+    ]
+    findings = [
+        f for f in check_pdf_figure_table_layout(doc)
+        if f.details.get("issue_type") == "table_body_not_centered"
+    ]
+    assert len(findings) == 1
+    assert findings[0].details["center_delta_points"] == "31.3"
+    assert findings[0].details["bbox"] == "108.5,120.0,476.9,259.0"
+    boxes = parse_highlight_bboxes_from_details(
+        findings[0].details, rule_id="P035", issue_type="table_body_not_centered"
+    )
+    assert len(boxes) == 1
+    assert boxes[0][:] == (108.5, 120.0, 476.9, 259.0)
+
+
+def test_r035_unruled_table_keeps_text_body_fallback():
+    doc = make_mock_doc(body_x0=113.4, body_x1=497.8)
+    findings = [
+        f for f in check_pdf_figure_table_layout(doc)
+        if f.details.get("issue_type") == "table_body_not_centered"
+    ]
+    assert len(findings) == 1
+    assert findings[0].details["center_delta_points"] == "18.4"
+    assert findings[0].details["bbox"] == "113.4,125.0,497.8,250.0"
+
+
+def test_r035_single_caption_rule_cannot_replace_table_body():
+    doc = make_mock_doc(body_x0=113.4, body_x1=497.8)
+    doc.pages[0].horizontal_rules = [
+        BBox(x0=108.0, y0=120.0, x1=507.0, y1=121.0),
+    ]
+    findings = check_pdf_figure_table_layout(doc)
+    assert any(f.details.get("center_delta_points") == "18.4" for f in findings)
+
+
+def test_r035_next_caption_keeps_table_rule_geometry_separate():
+    doc = make_mock_doc(body_x0=120.3, body_x1=473.0)
+    second_text = "Table 1.2 Another Experimental Results Table."
+    second_bbox = BBox(x0=108.0, y0=300.0, x1=540.0, y1=315.0)
+    second_span = PdfTextSpan(text=second_text, bbox=second_bbox)
+    second_line = PdfTextLine(spans=[second_span], bbox=second_bbox, text=second_text)
+    doc.pages[0].text_blocks.append(
+        PdfTextBlock(lines=[second_line], bbox=second_bbox, text=second_text)
+    )
+    doc.pages[0].horizontal_rules = [
+        BBox(x0=108.5, y0=120.0, x1=476.85, y1=121.0),
+        BBox(x0=108.5, y0=258.0, x1=476.85, y1=259.0),
+        BBox(x0=108.5, y0=330.0, x1=476.85, y1=331.0),
+        BBox(x0=108.5, y0=400.0, x1=476.85, y1=401.0),
+    ]
+    findings = [
+        f for f in check_pdf_figure_table_layout(doc)
+        if f.details.get("issue_type") == "table_body_not_centered"
+    ]
+    assert len(findings) == 1
+    assert findings[0].details["float_number"] == "1.1"
+    assert findings[0].details["bbox"] == "108.5,120.0,476.9,259.0"
+
+
+def test_r035_figure_decision_ignores_table_rules():
+    doc = make_mock_doc(caption_type="figure", body_x0=120.3, body_x1=473.0)
+    before = check_pdf_figure_table_layout(doc)
+    doc.pages[0].horizontal_rules = [
+        BBox(x0=108.0, y0=120.0, x1=507.0, y1=121.0),
+        BBox(x0=108.0, y0=258.0, x1=507.0, y1=259.0),
+    ]
+    assert check_pdf_figure_table_layout(doc) == before
+
+
+def test_r035_caption_bracketing_rules_never_replace_table_body():
+    # Rules that sit around the caption (not around the body text) must not
+    # be used: the decision stays on the text-body fallback, never caption.
+    doc = make_mock_doc(body_x0=113.4, body_x1=497.8)
+    doc.pages[0].horizontal_rules = [
+        BBox(x0=108.0, y0=97.0, x1=540.0, y1=98.0),
+        BBox(x0=108.0, y0=115.5, x1=540.0, y1=116.5),
+    ]
+    findings = [
+        f for f in check_pdf_figure_table_layout(doc)
+        if f.details.get("issue_type") == "table_body_not_centered"
+    ]
+    assert len(findings) == 1
+    assert findings[0].details["center_delta_points"] == "18.4"
+    assert findings[0].details["bbox"] == "113.4,125.0,497.8,250.0"
+
 
 def test_r035_landscape_table_just_within_tolerance():
     """Landscape table just within 50pt tolerance: delta = 49.9, should pass"""
