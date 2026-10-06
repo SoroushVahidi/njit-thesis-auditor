@@ -602,6 +602,18 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "or May."
         ),
     },
+    # Table of Contents page-number column and missing-page-number findings
+    # (Q052's "right-aligned page number") link to this card too; see
+    # web_app._resolve_p018_public_card.
+    "P075": {
+        "rule_definition": (
+            "Every TOC entry must connect to a right-aligned page number using "
+            "one consistent leader style (dots or hyphens). Flags mixed "
+            "dot+hyphen leaders, entries missing a leader while others have "
+            "one, entries missing their page number, and page numbers that do "
+            "not line up in the right-aligned column."
+        ),
+    },
     "P078": {
         "question": (
             "Is the Abstract text free of the words \"paper\" or \"article\" "

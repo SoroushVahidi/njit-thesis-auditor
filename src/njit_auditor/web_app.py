@@ -835,7 +835,7 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "id": "P018N",
         "parent_rule_id": "P018",
         "source_q_rule_ids": ("Q069",),
-        "issue_types": ("lot_page_number_column_misaligned",),
+        "issue_types": ("lot_page_number_column_misaligned", "misaligned_page_number_column"),
         "title": (
             "Are all List of Tables page numbers aligned vertically in one right column?"
         ),
@@ -873,7 +873,7 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "id": "P018Q",
         "parent_rule_id": "P018",
         "source_q_rule_ids": ("Q079",),
-        "issue_types": ("lof_page_number_column_misaligned",),
+        "issue_types": ("lof_page_number_column_misaligned", "misaligned_page_number_column"),
         "title": (
             "Are all List of Figures page numbers aligned vertically in one right column?"
         ),
@@ -1037,7 +1037,7 @@ def _resolve_p018_public_card(
     source_q_rule_id: str = "",
     details: Mapping[str, Any] | None = None,
 ) -> str:
-    """Map backend TOC/List findings to canonical P018A–P018S public cards."""
+    """Map backend TOC/List findings to their public cards (P018A–P018S, or P075)."""
     clean_rule_id = str(rule_id).strip()
     clean_issue_type = str(issue_type).strip()
     clean_q_rule = str(source_q_rule_id).strip()
@@ -1062,11 +1062,25 @@ def _resolve_p018_public_card(
         if section_type == "table_of_contents" or clean_rule_id == "P032":
             return "P018E"
 
+    # P018 records the page kind as ``page_type``; ``section_type`` is the
+    # key other TOC/List detectors use.
+    page_kind = section_type or _detail_str(details, "page_type")
     if clean_issue_type == "misaligned_page_number_column":
-        if section_type == "list_of_tables":
+        if page_kind == "list_of_tables":
             return "P018N"
-        if section_type == "list_of_figures":
+        if page_kind == "list_of_figures":
             return "P018Q"
+    # On the Table of Contents, page-number alignment and presence are part
+    # of Q052 ("Every TOC entry must connect to a right-aligned page
+    # number ..."), whose public TOC card is P075. Ester gave List of Tables
+    # and List of Figures alignment their own rows (Q069/Q079 above) but not
+    # page-number presence, so a list-page missing_page_number stays unmapped.
+    if (
+        clean_rule_id == "P018"
+        and page_kind == "table_of_contents"
+        and clean_issue_type in {"misaligned_page_number_column", "missing_page_number"}
+    ):
+        return "P075"
 
     mapped = _P018_BACKEND_ISSUE_MAP.get((clean_rule_id, clean_issue_type))
     if mapped:
