@@ -44,12 +44,28 @@ git status --short          # must be empty
 git checkout main
 git pull --ff-only origin main
 git rev-parse HEAD          # this is the SHA that must show up in /version after restart
+# If runtime dependencies changed, sync the service venv as shown below before gates.
 ruff check .
 mypy src
 python -m pytest -q
 ```
 
 Do not restart the live server on a commit that fails any of these.
+
+When the deployed commit changes runtime dependencies in `pyproject.toml`, sync
+the **service's venv** after checking out the exact commit and before running
+the gates or restarting. For the combined student PDF report, this installs
+`reportlab>=4.0.0`, which is required at web-app import time:
+
+```bash
+<service-venv>/bin/python -m pip install -e .
+<service-venv>/bin/python -c "import reportlab; import njit_auditor.student_pdf_report"
+```
+
+The deployment uses a worktree and `PYTHONPATH` pointing at its `src/` directory.
+The non-editable wheel still lacks some repository-level `data/` files; that
+existing packaging limitation does not apply to this established worktree
+deployment. Keep the worktree layout when deploying this feature.
 
 ## Restart procedure
 

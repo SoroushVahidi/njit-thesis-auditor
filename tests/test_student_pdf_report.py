@@ -99,8 +99,10 @@ def test_complete_thesis_and_every_finding_in_report(tmp_path: Path) -> None:
         )
         assert "Manuscript page: iv" in text
         assert "DOCUMENT-LEVEL FINDINGS" in text
-        assert combined.get_toc()[0][1] == "Thesis"
-        assert combined.get_toc()[1][1] == "Formatting Problems"
+        assert combined.get_toc() == [
+            [1, "Thesis", 1],
+            [1, "Formatting Problems", 8],
+        ]
 
 
 def test_no_bbox_and_long_unicode_text_wrap_across_pages(tmp_path: Path) -> None:
@@ -246,6 +248,11 @@ def test_original_annotations_and_very_long_filename_survive(tmp_path: Path) -> 
     with fitz.open() as doc:
         page = doc.new_page(width=612, height=792)
         page.insert_text((80, 100), "Synthetic source text")
+        page.insert_link({
+            "kind": fitz.LINK_URI,
+            "from": fitz.Rect(80, 85, 180, 110),
+            "uri": "https://example.org/synthetic",
+        })
         note = page.add_text_annot((200, 200), "Original reviewer note")
         note.update()
         doc.save(source)
@@ -261,6 +268,7 @@ def test_original_annotations_and_very_long_filename_survive(tmp_path: Path) -> 
     with fitz.open(output) as doc:
         assert doc.page_count == 1 + result.report_pages
         assert len(list(doc[0].annots() or [])) == 2
+        assert doc[0].get_links()[0]["uri"] == "https://example.org/synthetic"
         assert "Problem #1" in _report_text(doc, 1)
 
 
@@ -278,3 +286,36 @@ def test_generation_failure_never_exposes_partial_pdf(tmp_path: Path) -> None:
                 file_name="thesis.pdf",
             )
     assert not output.exists()
+
+
+def test_problem_markers_stay_visible_at_all_page_edges(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "combined.pdf"
+    with fitz.open() as document:
+        document.new_page(width=612, height=792)
+        document.save(source)
+    boxes = {
+        1: [(0, 0, 25, 20)],
+        2: [(0, 770, 25, 792)],
+        3: [(587, 300, 612, 320)],
+        4: [(0, 300, 25, 320)],
+    }
+    result = build_combined_student_pdf_report(
+        source,
+        output,
+        [_finding(number, 1) for number in range(1, 5)],
+        boxes_by_problem=boxes,
+        file_name="edges.pdf",
+    )
+    assert result.highlight_boxes_drawn == result.markers_drawn == 4
+    with fitz.open(output) as document:
+        page = document[0]
+        markers = [
+            span
+            for block in page.get_text("dict")["blocks"]
+            for line in block.get("lines", [])
+            for span in line.get("spans", [])
+            if span["text"].startswith("#")
+        ]
+        assert {span["text"] for span in markers} == {"#1", "#2", "#3", "#4"}
+        assert all(page.rect.contains(fitz.Rect(span["bbox"])) for span in markers)
