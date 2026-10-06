@@ -36,7 +36,8 @@ def is_full_commit_sha(value: str) -> bool:
     return _FULL_SHA_RE.fullmatch(value) is not None
 
 
-def _git(work_tree: Path, *args: str) -> str | None:
+def git_output(work_tree: Path, *args: str) -> str | None:
+    """Stdout of a read-only git command run against ``work_tree``, or ``None``."""
     # Inherited GIT_DIR/GIT_WORK_TREE/... (set inside git hooks, some CI
     # wrappers) override ``-C`` and would silently point at another repository.
     env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
@@ -64,19 +65,31 @@ def _enclosing_work_tree(start: Path) -> Path | None:
     return None
 
 
-def source_tree_code_sha(package_file: str | Path | None = None) -> str:
-    """Commit SHA of the work tree that ``package_file`` (default: the
-    imported ``njit_auditor/__init__.py``) belongs to, or ``UNKNOWN_CODE_SHA``."""
+def executing_repo_root(package_file: str | Path | None = None) -> Path | None:
+    """Git work tree that ``package_file`` (default: the imported
+    ``njit_auditor/__init__.py``) is tracked in, or ``None``.
+
+    Follows the package's own location -- never cwd or another checkout. A
+    worktree's ``.git`` file is handled like a ``.git`` directory.
+    """
     package_init = Path(package_file or njit_auditor.__file__).resolve()
     work_tree = _enclosing_work_tree(package_init.parent)
     if work_tree is None:
-        return UNKNOWN_CODE_SHA
+        return None
     # Reject a package copy that is not part of this work tree's tracked
     # source (e.g. an installed copy inside a venv nested in another repo).
     relative = package_init.relative_to(work_tree).as_posix()
-    if _git(work_tree, "ls-files", "--error-unmatch", "--", relative) is None:
+    if git_output(work_tree, "ls-files", "--error-unmatch", "--", relative) is None:
+        return None
+    return work_tree
+
+
+def source_tree_code_sha(package_file: str | Path | None = None) -> str:
+    """Commit SHA of :func:`executing_repo_root`, or ``UNKNOWN_CODE_SHA``."""
+    work_tree = executing_repo_root(package_file)
+    if work_tree is None:
         return UNKNOWN_CODE_SHA
-    head = _git(work_tree, "rev-parse", "--verify", "HEAD^{commit}")
+    head = git_output(work_tree, "rev-parse", "--verify", "HEAD^{commit}")
     if head is None or not is_full_commit_sha(head):
         return UNKNOWN_CODE_SHA
     return head

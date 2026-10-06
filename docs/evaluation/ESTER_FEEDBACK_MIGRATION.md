@@ -335,17 +335,37 @@ enables next" for what's still deferred.
 
 ## Running it yourself
 
+Both subcommands write to a ledger, so the target ledger must always be
+selected explicitly -- with no selection they refuse to run:
+
 ```
-PYTHONPATH=src python -m njit_auditor.review_ledger.cli migrate   # full import + replay
-PYTHONPATH=src python -m njit_auditor.review_ledger.cli replay    # replay only, against the existing ledger
+# scratch/private ledger (normal for development and checks)
+PYTHONPATH=src python -m njit_auditor.review_ledger.cli migrate --ledger-root /path/to/scratch_ledger
+PYTHONPATH=src python -m njit_auditor.review_ledger.cli replay  --ledger-root /path/to/scratch_ledger
+
+# or: export NJIT_AUDITOR_LEDGER_ROOT=/path/to/scratch_ledger
+
+# the canonical shared Ester ledger -- only when you intend to mutate it
+PYTHONPATH=src python -m njit_auditor.review_ledger.cli replay --shared-ledger
 ```
 
-Both require the real private corpus at `data/evaluation/private/` (not
-tracked; see `docs/status/CURRENT_STATUS.md`) and write to
-`data/evaluation/private/ester_review_ledger/` (gitignored, covered by the
-existing `data/evaluation/private/` entry -- no `.gitignore` change was
-needed). Neither ever prints dissertation body text -- findings are
-summarized structurally (rule, issue type, page) only.
+`--ledger-root` overrides `NJIT_AUDITOR_LEDGER_ROOT`; combining either
+with `--shared-ledger` is an error. `replay` never creates a ledger, so a
+mistyped path fails instead of starting an empty one. The shared ledger
+lives at `data/evaluation/private/ester_review_ledger/` in the canonical
+`main/` checkout (gitignored, covered by the existing
+`data/evaluation/private/` entry).
+
+Both subcommands read the real private corpus from its canonical
+read-only location (`data/evaluation/private/`, not tracked; see
+`docs/status/CURRENT_STATUS.md`). The tracked authority inputs
+(`docs/status/ester_authority_matrix_20260902.json`,
+`docs/evaluation/ester_feedback/`) and the recorded `code_sha` both come
+from the Git work tree that `njit_auditor` was imported from, so code and
+authority data always come from the same commit; if that tree is not
+available, `migrate` fails before writing anything. Neither subcommand
+ever prints dissertation body text -- findings are summarized structurally
+(rule, issue type, page) only.
 
 **PyMuPDF version note (found 2026-09-08):** the editable install can
 silently resolve to a stale sibling worktree's `njit_auditor` package
