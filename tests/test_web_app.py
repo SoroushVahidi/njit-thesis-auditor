@@ -373,6 +373,9 @@ def _inject_complete_job_with_findings(
         findings=[
             {
                 "rule_id": fv["rule_id"],
+                "finding_id": fv.get("finding_id", ""),
+                "problem_number": fv.get("problem_number", 0),
+                "problem_anchor": fv.get("problem_anchor", ""),
                 "severity": fv["severity"],
                 "page": fv["page"],
                 "issue_type": fv["issue_type"],
@@ -4333,6 +4336,281 @@ def test_highlighted_pdf_endpoint_serves_inline_for_finding_with_bbox(
     assert pdf_path.read_bytes() == original_bytes
 
 
+def test_complete_student_pdf_download_is_cached_and_preserves_upload(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    import fitz
+
+    c, wa = client
+    findings = [
+        _p012_annotation_finding_with_bbox(page=3),
+        _p012_annotation_finding_with_bbox(page=1),
+    ]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="thesis.pdf", audit_type="pdf"
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    upload = jdir / "upload.pdf"
+    original_bytes = upload.read_bytes()
+    url = f"/audits/{job_id}/download/student-report.pdf"
+    assert "Download Complete PDF Report" in c.get(f"/audits/{job_id}").text
+    first = c.get(url)
+    assert first.status_code == 200
+    assert first.headers["content-type"] == "application/pdf"
+    assert "attachment" in first.headers["content-disposition"].lower()
+    assert "thesis_NJIT_Formatting_Audit.pdf" in first.headers["content-disposition"]
+    output = jdir / "student-report.pdf"
+    metadata = json.loads((jdir / "student-report-metadata.json").read_text(encoding="utf-8"))
+    assert metadata["total_visible_findings"] == 2
+    assert metadata["highlighted_findings"] == 2
+    assert metadata["highlight_boxes_drawn"] == 2
+    before_mtime = output.stat().st_mtime_ns
+    with fitz.open(stream=first.content, filetype="pdf") as doc:
+        assert doc.page_count == 5 + metadata["report_pages"]
+        assert len(list(doc[0].annots() or [])) == 1
+        assert len(list(doc[2].annots() or [])) == 1
+        text = "\n".join(page.get_text() for page in list(doc)[5:])
+        assert text.index("Problem #1") < text.index("Problem #2")
+        assert "R012" in text
+    assert c.get(url).content == first.content
+    assert output.stat().st_mtime_ns == before_mtime
+    assert upload.read_bytes() == original_bytes
+
+
+def test_combined_report_problem_numbers_match_all_web_drilldowns_and_text(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    """A real job keeps raw IDs while every student surface uses page-order numbers."""
+    from datetime import datetime, timezone
+    from html import unescape
+
+    import fitz
+
+    from njit_auditor.audit_runner import UploadedAuditResult
+    from njit_auditor.models import AuditFinding, Severity
+    from njit_auditor.upload_handling import UploadKind
+
+    c, wa = client
+    job_id = "synthetic-numbering-job"
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    jdir.mkdir(parents=True)
+    _make_real_pdf(jdir / "upload.pdf", page_count=4)
+    raw_findings = [
+        AuditFinding(
+            rule_id="P045",
+            severity=Severity.WARNING,
+            page=page,
+            message=f"Synthetic publication issue {index}.",
+            details={
+                "issue_type": "numbered_publication_entry",
+                "rect": f"{x},100,{x + 30},120",
+                "suggested_fix": f"Remove numbering from entry {index}.",
+            },
+        )
+        for index, (page, x) in enumerate(((3, 100), (1, 200), (3, 300)), start=1)
+    ]
+    wa._set_job(
+        wa.JobState(
+            job_id=job_id,
+            state="pending",
+            created_at=datetime.now(timezone.utc).isoformat(),
+            file_name="synthetic-thesis.pdf",
+        )
+    )
+    fake_result = UploadedAuditResult(
+        upload_kind=UploadKind.PDF, audit_type="pdf", findings=raw_findings
+    )
+    with patch.object(wa, "run_audit_for_uploaded_file", return_value=fake_result):
+        wa._run_audit_task(job_id)
+    job = wa._get_job(job_id)
+    assert job is not None and job.state == "complete"
+    assert [(f["problem_number"], f["page"], f["finding_id"]) for f in job.findings] == [
+        (1, 1, "f0"),
+        (2, 3, "f1"),
+        (3, 3, "f2"),
+    ]
+    raw_export = json.loads((jdir / "report.json").read_text(encoding="utf-8"))
+    # The pre-existing JSON export sorts physical pages before FindingView.
+    assert [f["page"] for f in raw_export["findings"]] == [1, 3, 3]
+
+    base = f"/audits/{job_id}"
+    main = c.get(base)
+    sorted_main = c.get(base, params={"sort": "confidence_desc"})
+    page = c.get(base + "/problems/page/3")
+    rule = c.get(base + "/problems/rule/P045")
+    text_report = c.get(base + "/download/text")
+    combined = c.get(base + "/download/student-report.pdf")
+    assert all(response.status_code == 200 for response in (
+        main, sorted_main, page, rule, text_report, combined
+    ))
+    with fitz.open(stream=combined.content, filetype="pdf") as document:
+        pdf_report = " ".join(
+            " ".join(p.get_text() for p in list(document)[job.pdf_page_count:]).split()
+        )
+        assert "#1" in document[0].get_text()
+        assert "#2" in document[2].get_text()
+        assert "#3" in document[2].get_text()
+
+    for finding in job.findings:
+        number = finding["problem_number"]
+        anchor = f'id="problem-{number}"'
+        assert anchor in main.text and anchor in sorted_main.text
+        assert anchor in rule.text
+        if finding["page"] == 3:
+            assert anchor in page.text
+        assert f"Problem #{number}" in text_report.text
+        assert f"Problem #{number}" in pdf_report
+        assert finding["polished_comment"] in unescape(main.text)
+        assert finding["polished_comment"] in text_report.text
+        assert finding["polished_comment"] in pdf_report
+        assert finding["suggested_fix"] in unescape(main.text)
+        assert finding["suggested_fix"] in text_report.text
+        assert finding["suggested_fix"] in pdf_report
+        assert finding["public_rule_reference_id"] == "P045"
+    assert all("R045" in response.text for response in (main, page, text_report))
+    assert "R045" in pdf_report
+    assert pdf_report.count("Problem #1 ") == 1
+    assert pdf_report.count("Problem #2 ") == 1
+    assert pdf_report.count("Problem #3 ") == 1
+
+
+def test_complete_student_pdf_cache_changes_when_findings_change(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=[_p012_annotation_finding_with_bbox(page=2)],
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+    url = f"/audits/{job_id}/download/student-report.pdf"
+    before = c.get(url).content
+    job = wa._get_job(job_id)
+    assert job is not None
+    job.findings[0]["polished_comment"] = "Updated student-facing explanation."
+    after = c.get(url).content
+    assert after != before
+    import fitz
+
+    with fitz.open(stream=after, filetype="pdf") as doc:
+        assert "Updated student-facing explanation." in doc[-1].get_text()
+
+
+def test_complete_student_pdf_concurrent_requests_return_complete_files(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    import fitz
+
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=[_p012_annotation_finding_with_bbox(page=2)],
+        file_name="thesis.pdf",
+        audit_type="pdf",
+    )
+    url = f"/audits/{job_id}/download/student-report.pdf"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(c.get, (url, url)))
+    assert all(response.status_code == 200 for response in responses)
+    for response in responses:
+        with fitz.open(stream=response.content, filetype="pdf") as document:
+            assert document.page_count > 5
+            assert "Problem #1" in " ".join(page.get_text() for page in list(document)[5:])
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    with fitz.open(jdir / "student-report.pdf") as cached:
+        assert cached.page_count > 5
+
+
+def test_complete_student_pdf_missing_and_non_pdf_jobs(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    assert c.get("/audits/expired/download/student-report.pdf").status_code == 404
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[], file_name="source.tex", audit_type="tex"
+    )
+    assert c.get(f"/audits/{job_id}/download/student-report.pdf").status_code == 404
+    expired_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[], file_name="thesis.pdf", audit_type="pdf"
+    )
+    expired = wa._get_job(expired_id)
+    assert expired is not None
+    expired.created_at = "2000-01-01T00:00:00+00:00"
+    expired_dir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / expired_id
+    assert c.get(f"/audits/{expired_id}/download/student-report.pdf").status_code == 404
+    assert not expired_dir.exists()
+
+
+def test_complete_student_pdf_pending_failed_and_job_isolation(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    import fitz
+
+    c, wa = client
+    first_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=[_p012_annotation_finding_with_bbox(page=1)],
+        file_name="first.pdf",
+        audit_type="pdf",
+    )
+    second_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=[_p012_annotation_finding_with_bbox(page=3)],
+        file_name="second.pdf",
+        audit_type="pdf",
+    )
+    first_url = f"/audits/{first_id}/download/student-report.pdf"
+    second_url = f"/audits/{second_id}/download/student-report.pdf"
+    first_job = wa._get_job(first_id)
+    assert first_job is not None
+    first_job.state = "pending"
+    assert c.get(first_url).status_code == 404
+    first_job.state = "failed"
+    assert c.get(first_url).status_code == 404
+    first_job.state = "complete"
+    first = c.get(first_url)
+    second = c.get(second_url)
+    assert first.status_code == second.status_code == 200
+    assert first.content != second.content
+    with fitz.open(stream=first.content, filetype="pdf") as first_pdf:
+        assert len(list(first_pdf[0].annots() or [])) == 1
+        assert len(list(first_pdf[2].annots() or [])) == 0
+    with fitz.open(stream=second.content, filetype="pdf") as second_pdf:
+        assert len(list(second_pdf[0].annots() or [])) == 0
+        assert len(list(second_pdf[2].annots() or [])) == 1
+    runtime = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
+    assert (runtime / first_id / "student-report.pdf").exists()
+    assert (runtime / second_id / "student-report.pdf").exists()
+
+
+def test_complete_student_pdf_safe_filename(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[], file_name='../../unsafe"name.pdf', audit_type="pdf"
+    )
+    response = c.get(f"/audits/{job_id}/download/student-report.pdf")
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert "unsafe_name_NJIT_Formatting_Audit.pdf" in disposition
+    assert "../" not in disposition
+    assert 'unsafe"name' not in disposition
+    long_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[], file_name="x" * 500 + ".pdf", audit_type="pdf"
+    )
+    long_response = c.get(f"/audits/{long_id}/download/student-report.pdf")
+    assert long_response.status_code == 200
+    assert len(long_response.headers["content-disposition"]) < 200
+
+
 def test_highlighted_page_pdf_endpoint_serves_single_page_with_annotation(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -4674,6 +4952,28 @@ def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
         assert link_resp.status_code == 200, f"{link} returned {link_resp.status_code}"
         assert link_resp.headers["content-type"].startswith("application/pdf")
 
+    # The actual background pipeline must give the web card, text download,
+    # and combined PDF the same visible problem identity and wording.
+    combined_response = c.get(f"/audits/{job_id}/download/student-report.pdf")
+    text_response = c.get(f"/audits/{job_id}/download/text")
+    assert combined_response.status_code == text_response.status_code == 200
+    job = wa._get_job(job_id)
+    assert job is not None and job.findings
+    finding = job.findings[0]
+    from html import unescape
+
+    import fitz
+
+    with fitz.open(stream=combined_response.content, filetype="pdf") as combined:
+        report_text = " ".join(
+            " ".join(page.get_text() for page in list(combined)[job.pdf_page_count:]).split()
+        )
+    expected_comment = " ".join(finding["polished_comment"].split())
+    assert f"Problem #{finding['problem_number']}" in report_text
+    assert expected_comment in report_text
+    assert expected_comment in " ".join(text_response.text.split())
+    assert expected_comment in " ".join(unescape(resp.text).split())
+
 
 def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
     client: tuple[TestClient, Any], tmp_path: Path
@@ -4840,4 +5140,3 @@ def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:
         assert "Soroush Vahidi" in body, f"{path} missing author name"
         assert "mailto:sv96@njit.edu" in body, f"{path} missing mailto link"
         assert "soroush.vahidi@njit.edu" not in body, f"{path} contains wrong email address"
-

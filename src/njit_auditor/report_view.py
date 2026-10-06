@@ -2995,7 +2995,17 @@ def build_report_view(
             inventory_findings.append(visible_view)
 
     numbered_finding_views: list[FindingView] = []
-    for problem_number, index in enumerate(sorted(visible_indexes), start=1):
+    # Physical PDF page order is the canonical student problem-number order.
+    # Preserve raw-index order within a page and keep document-level items last.
+    numbered_indexes = sorted(
+        visible_indexes,
+        key=lambda index: (
+            visible_view_by_index[index].page is None,
+            visible_view_by_index[index].page or 0,
+            index,
+        ),
+    )
+    for problem_number, index in enumerate(numbered_indexes, start=1):
         numbered_view = replace(
             visible_view_by_index[index],
             finding_id=make_finding_id(index),

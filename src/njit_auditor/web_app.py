@@ -15,7 +15,7 @@ import threading
 import urllib.parse
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -55,7 +55,7 @@ from njit_auditor.report_outputs import (
     sanitize_report_for_web_export,
     write_markdown_report,
 )
-from njit_auditor.report_text import write_text_report
+from njit_auditor.report_text import _manuscript_page_labels
 from njit_auditor.report_view import (
     SORT_MODE_DEFAULT,
     build_report_view,
@@ -64,6 +64,10 @@ from njit_auditor.report_view import (
     report_view_to_dict,
     sort_findings,
     sort_grouped_problems,
+)
+from njit_auditor.student_pdf_report import (
+    build_combined_student_pdf_report,
+    render_student_report_text,
 )
 from njit_auditor.upload_handling import (
     UploadValidationError,
@@ -180,6 +184,7 @@ class JobState:
     text_layer_quality: str = ""  # "text_layer_ok" | "low_text" | "image_only" | ""
     pdf_page_count: int = 0
     pdf_page_sizes: list[tuple[float, float]] = field(default_factory=list)
+    manuscript_page_labels: dict[int, str] = field(default_factory=dict)
     findings: list[dict[str, Any]] = field(default_factory=list)
     grouped_summary: list[dict[str, Any]] = field(default_factory=list)
     report_view: dict[str, Any] = field(default_factory=dict)
@@ -1879,17 +1884,6 @@ def _run_audit_task(job_id: str) -> None:
     md_report_path = jdir / "report.md"
     write_markdown_report(export_findings, export_metadata, md_report_path)
 
-    # Write the plain-text student report (primary download): page-grouped,
-    # consolidated repeats, using the same public rule-id mapping the /rules
-    # page and web cards use so a referenced rule always resolves there.
-    txt_report_path = jdir / "report.txt"
-    write_text_report(
-        export_findings,
-        export_metadata,
-        txt_report_path,
-        public_rule_reference_id=_public_rule_reference_id,
-    )
-
     view = build_report_view(web_payload, pdf_page_sizes=pdf_page_sizes)
     view_dict = report_view_to_dict(view)
     raw_findings = web_payload.get("findings", [])
@@ -1897,10 +1891,15 @@ def _run_audit_task(job_id: str) -> None:
         raw_findings = []
 
     serialized = []
-    for index, fv in enumerate(view_dict.get("findings", [])):
+    for fv in view_dict.get("findings", []):
         raw_details: dict[str, Any] = {}
-        if index < len(raw_findings) and isinstance(raw_findings[index], dict):
-            details = raw_findings[index].get("details", {})
+        raw_index = parse_finding_id(str(fv.get("finding_id", "")))
+        if (
+            raw_index is not None
+            and raw_index < len(raw_findings)
+            and isinstance(raw_findings[raw_index], dict)
+        ):
+            details = raw_findings[raw_index].get("details", {})
             if isinstance(details, dict):
                 raw_details = {str(k): v for k, v in details.items()}
         public_ref = _public_rule_reference_id(
@@ -1961,6 +1960,15 @@ def _run_audit_task(job_id: str) -> None:
     job.warn_count = int(view.counts_by_severity.get("WARNING", 0))
     job.fail_count = int(view.counts_by_severity.get("FAIL", 0))
     job.findings = serialized
+    job.manuscript_page_labels = _manuscript_page_labels(export_findings)
+    (jdir / "report.txt").write_text(
+        render_student_report_text(
+            serialized,
+            file_name=job.file_name,
+            manuscript_page_labels=job.manuscript_page_labels,
+        ),
+        encoding="utf-8",
+    )
     job.grouped_summary = grouped_rows
     job.report_view = view_dict
     job.md_preview = md_preview
@@ -2420,6 +2428,92 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
         media_type="text/plain; charset=utf-8",
         filename=f"thesis_audit_report_{job_id[:8]}.txt",
     )
+
+
+@app.get("/audits/{job_id}/download/student-report.pdf", response_model=None)
+async def download_student_pdf_report(request: Request, job_id: str) -> FileResponse | HTMLResponse:
+    """Download the complete thesis followed by numbered formatting problems."""
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    if job.audit_type != "pdf":
+        return _index_notice(
+            request, "The complete PDF report is only available for PDF audits.", status_code=404
+        )
+    jdir = _job_dir(job_id)
+    source = _job_pdf_path(jdir)
+    output = jdir / "student-report.pdf"
+    stamp = jdir / "student-report.sha256"
+    if not all(_is_under_runtime(path) for path in (source, output, stamp)) or not source.exists():
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    raw = _report_json_findings_for_highlight(job)
+    signature = hashlib.sha256(
+        json.dumps(
+            [
+                job.findings,
+                raw,
+                job.file_name,
+                job.manuscript_page_labels,
+                source.stat().st_mtime_ns,
+            ],
+            sort_keys=True,
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    if not output.exists() or not stamp.exists() or stamp.read_text(encoding="ascii") != signature:
+        boxes_by_problem: dict[int, list[HighlightBox]] = {}
+        for finding in job.findings:
+            number = int(finding.get("problem_number") or 0)
+            page = _coerce_page_number(finding.get("page"))
+            if not number or page is None:
+                continue
+            rule = str(finding.get("rule_id", ""))
+            raw_index = parse_finding_id(str(finding.get("finding_id", "")))
+            if rule == "P011":
+                matched = [
+                    f
+                    for f in raw
+                    if _coerce_page_number(f.get("page")) == page
+                    and str(f.get("rule_id", "")) == rule
+                ]
+            elif raw_index is not None and raw_index < len(raw):
+                matched = [raw[raw_index]]
+            else:
+                matched = [
+                    f
+                    for f in raw
+                    if _coerce_page_number(f.get("page")) == page
+                    and str(f.get("rule_id", "")) == rule
+                    and _finding_issue_type(f) == str(finding.get("issue_type", ""))
+                ][:1]
+            boxes_by_problem[number] = _highlight_boxes_by_page(matched).get(page, [])
+        try:
+            result = build_combined_student_pdf_report(
+                source,
+                output,
+                job.findings,
+                boxes_by_problem=boxes_by_problem,
+                file_name=job.file_name,
+                manuscript_page_labels=job.manuscript_page_labels,
+            )
+            metadata_path = jdir / "student-report-metadata.json"
+            temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
+            temporary_metadata.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
+            os.replace(temporary_metadata, metadata_path)
+            temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
+            temporary_stamp.write_text(signature, encoding="ascii")
+            os.replace(temporary_stamp, stamp)
+        except Exception:
+            _logger.exception("Combined student PDF generation failed for job %s", job_id)
+            return _index_notice(
+                request,
+                "The complete PDF report could not be prepared. Please try again.",
+                status_code=500,
+            )
+    safe_name = sanitize_upload_filename(job.file_name or "thesis.pdf")
+    download_name = f"{Path(safe_name).stem}_NJIT_Formatting_Audit.pdf"
+    return FileResponse(path=str(output), media_type="application/pdf", filename=download_name)
 
 
 def _safe_pdf_disposition_filename(file_name: str) -> str:
