@@ -84,6 +84,14 @@ def test_follows_package_location_not_cwd(tmp_path: Path, monkeypatch) -> None:
     assert resolve_code_sha() == head != other_head
 
 
+def test_ignores_inherited_git_environment(tmp_path: Path, monkeypatch) -> None:
+    repo, head = _make_repo(tmp_path / "pkg_repo")
+    other, other_head = _make_repo(tmp_path / "unrelated_repo")
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    assert source_tree_code_sha(repo / _PKG_INIT) == head != other_head
+
+
 def test_explicit_sha_wins_and_is_normalized(tmp_path: Path, monkeypatch) -> None:
     repo, _head = _make_repo(tmp_path / "repo")
     _import_package_from(monkeypatch, repo / _PKG_INIT)

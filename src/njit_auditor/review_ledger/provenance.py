@@ -19,6 +19,7 @@ Precedence:
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -36,6 +37,9 @@ def is_full_commit_sha(value: str) -> bool:
 
 
 def _git(work_tree: Path, *args: str) -> str | None:
+    # Inherited GIT_DIR/GIT_WORK_TREE/... (set inside git hooks, some CI
+    # wrappers) override ``-C`` and would silently point at another repository.
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     try:
         result = subprocess.run(
             ["git", "-C", str(work_tree), *args],
@@ -43,6 +47,7 @@ def _git(work_tree: Path, *args: str) -> str | None:
             text=True,
             timeout=_GIT_TIMEOUT_SECONDS,
             check=False,
+            env=env,
         )
     except (OSError, subprocess.SubprocessError):
         return None
