@@ -142,6 +142,16 @@ and full docstring; summary of the semantics:
   which is exactly what keeps two distinct violations on the same page
   from colliding into one case).
 
+Ground-truth replay also has an additive, versioned `CaseLocator` registry
+derived from curated historical-case records. It keys privacy-safe PDF
+coordinates, structural role, and provenance to an **existing** case ID.
+Live replay retains bbox origin coordinates; it compares locations with a
+bounded tolerance and requires a unique one-to-one match within the coarse
+thesis-version/rule/issue/page group. The locator is not part of either
+fingerprint and does not rewrite historical JSONL. When identity is
+ambiguous, replay records an explicit non-scored result and the new-review
+gate blocks; this is separate from policy clarification and rule regression.
+
 This is the mechanism that satisfies "a tiny bbox or wording change must
 not turn the same reviewed case into a new case" while still keeping
 "materially different violations on the same page" distinguishable: the

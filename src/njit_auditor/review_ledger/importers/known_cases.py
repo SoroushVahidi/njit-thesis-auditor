@@ -80,6 +80,10 @@ class KnownHistoricalCase:
     reviewer_comment: str
     source_reference: str
     decided_at: str
+    anchor_x: float | None = None
+    anchor_y: float | None = None
+    structural_role: str | None = None
+    locator_source_reference: str | None = None
 
 
 KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
@@ -232,6 +236,32 @@ KNOWN_HISTORICAL_CASES: tuple[KnownHistoricalCase, ...] = (
         ),
         source_reference="docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md",
         decided_at="2026-08-31",
+        anchor_x=108.4,
+        anchor_y=376.1,
+        structural_role="paragraph_continuation",
+        locator_source_reference=(
+            "docs/evaluation/ester_feedback/next_targeted_followup_after_r011_r015_20260825.md"
+        ),
+    ),
+    KnownHistoricalCase(
+        document_short_name="Youra",
+        internal_rule_id="P015",
+        issue_type="missing_later_indent",
+        physical_page=101,
+        structural_location="body_paragraph:run_in_bold_phrase:paragraph_start:follow_up",
+        volatile_detail="",
+        summary="Later paragraph starts at a bold run-in phrase without its expected indent.",
+        verdict=AdjudicationVerdict.TRUE_VIOLATION,
+        reviewer_comment=(
+            "Ester confirmed that the missing-indent violation is at the bold "
+            "run-in paragraph start above the previously flagged continuation line."
+        ),
+        source_reference="docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md",
+        decided_at="2026-08-31",
+        anchor_x=108.4,
+        anchor_y=352.2,
+        structural_role="paragraph_start",
+        locator_source_reference="docs/status/p015_r015_esther_feedback_run_in_heading_20260831.md",
     ),
     # -- R015/P015: initial round (different pages from the follow-up case) ----
     KnownHistoricalCase(

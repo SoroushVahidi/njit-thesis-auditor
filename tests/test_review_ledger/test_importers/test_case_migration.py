@@ -6,6 +6,8 @@ document), never the real curated dataset in ``known_cases.py``.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from njit_auditor.review_ledger.importers.case_migration import migrate_known_cases
 from njit_auditor.review_ledger.importers.known_cases import KnownHistoricalCase
 from njit_auditor.review_ledger.importers.thesis_registry import RegisteredDocument
@@ -95,6 +97,63 @@ def test_migrates_case_and_adjudication(tmp_path) -> None:
     assert len(ledger.adjudications.all()) == 1
     # Both a case-migrated and an adjudication-migrated history event.
     assert len(ledger.history_events.all()) == 2
+
+
+def test_same_page_opposite_verdict_import_is_additive_and_idempotent(tmp_path) -> None:
+    ledger, round_id, run_ids, registered = _base_ledger_with_registration(tmp_path)
+    old = replace(
+        _SYNTHETIC_CASE,
+        structural_location="paragraph:continuation",
+        anchor_y=376.1,
+        structural_role="paragraph_continuation",
+    )
+    true = replace(
+        old,
+        structural_location="paragraph:start",
+        volatile_detail="",
+        verdict=AdjudicationVerdict.TRUE_VIOLATION,
+        anchor_y=352.2,
+        structural_role="paragraph_start",
+    )
+    first = migrate_known_cases(
+        ledger,
+        review_round_id=round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-01-02T00:00:00+00:00",
+        known_cases=(old,),
+    )
+    original_case = ledger.review_cases.all()[0]
+    original_adjudication = ledger.adjudications.all()[0]
+    second = migrate_known_cases(
+        ledger,
+        review_round_id=round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-01-03T00:00:00+00:00",
+        known_cases=(old, true),
+    )
+    third = migrate_known_cases(
+        ledger,
+        review_round_id=round_id,
+        run_id_by_short_name=run_ids,
+        registered_by_short_name=registered,
+        imported_at="2026-01-04T00:00:00+00:00",
+        known_cases=(old, true),
+    )
+    assert (first.cases_created, second.cases_created, third.cases_created) == (1, 1, 0)
+    adjudication_counts = (
+        first.adjudications_created,
+        second.adjudications_created,
+        third.adjudications_created,
+    )
+    assert adjudication_counts == (1, 1, 0)
+    assert ledger.review_cases.all()[0] == original_case
+    assert ledger.adjudications.all()[0] == original_adjudication
+    assert len({case["case_id"] for case in ledger.review_cases.all()}) == 2
+    assert {a["verdict"] for a in ledger.adjudications.all()} == {
+        "FALSE_POSITIVE", "TRUE_VIOLATION"
+    }
 
 
 def test_unavailable_document_is_version_unresolved_not_fabricated(tmp_path) -> None:
