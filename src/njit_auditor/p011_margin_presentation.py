@@ -196,6 +196,37 @@ def _secondary_margin_fix(
     return _GENERIC_FIX
 
 
+_MARGIN_SIDE_LABELS = {
+    "left_margin": "left margin",
+    "right_margin": "right margin",
+    "top_margin": "top margin",
+    "bottom_margin": "bottom margin",
+    "left": "left margin",
+    "right": "right margin",
+    "top": "top margin",
+    "bottom": "bottom margin",
+}
+
+
+def margin_side_label(details: Mapping[str, str]) -> str:
+    """Student-facing name of the margin a P011 finding crosses.
+
+    On a landscape page the 1.5-inch binding margin runs along a long edge
+    (see ``rules.pdf_margins.MarginFrame``), so a finding on that edge says so
+    rather than implying the 1-inch top/bottom requirement.
+    """
+    side = str(details.get("side", "")).strip().lower()
+    label = _MARGIN_SIDE_LABELS.get(side, "required page margin")
+    binding_edge = str(details.get("binding_edge", "")).strip().lower()
+    if (
+        details.get("page_orientation") == "landscape"
+        and binding_edge in ("top", "bottom")
+        and side.startswith(binding_edge)
+    ):
+        return f"{label} (the 1.5-inch binding margin on this landscape page)"
+    return label
+
+
 def margin_suggested_fix(
     *,
     page_context: str,

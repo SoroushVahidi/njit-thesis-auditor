@@ -965,18 +965,9 @@ def _resolve_issue_type(rule_id: str, issue_type: str, details: dict[str, str]) 
 
 
 def _margin_side_label(details: dict[str, str]) -> str:
-    side = details.get("side", "").strip().lower()
-    labels = {
-        "left_margin": "left margin",
-        "right_margin": "right margin",
-        "top_margin": "top margin",
-        "bottom_margin": "bottom margin",
-        "left": "left margin",
-        "right": "right margin",
-        "top": "top margin",
-        "bottom": "bottom margin",
-    }
-    return labels.get(side, "required page margin")
+    from njit_auditor.p011_margin_presentation import margin_side_label
+
+    return margin_side_label(details)
 
 
 def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> str:

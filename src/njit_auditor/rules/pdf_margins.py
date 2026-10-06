@@ -9,6 +9,7 @@ from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.p011_margin_presentation import (
     infer_margin_content_kind,
     infer_page_margin_context,
+    margin_side_label,
     margin_suggested_fix,
     page_has_numbered_reference_entries,
 )
@@ -138,6 +139,126 @@ class MarginSide(str, Enum):
     BOTTOM = "bottom_margin"
 
 
+# NJIT's margins belong to the bound, portrait sheet ("1.5 in left, 1 in right,
+# top, and bottom" throughout), and its guideline keeps page numbers in portrait
+# when a table or figure is set in landscape. A landscape page is therefore
+# the same portrait sheet turned sideways: the 1.5 in binding margin lies
+# along one of its long edges, never its left edge. Same aspect threshold as
+# ``pdf_layout._is_visually_landscape``.
+LANDSCAPE_ASPECT_THRESHOLD = 1.02
+_VERTICAL_DIR_MIN_COMPONENT = 0.9
+
+
+@dataclass(frozen=True)
+class MarginFrame:
+    """Allowed text area in the page's text coordinate space.
+
+    PyMuPDF reports text boxes in the *unrotated* page space even when the page
+    carries ``/Rotate``, so the frame is built from the unrotated size, not the
+    displayed ``page.width``/``page.height``.
+    """
+
+    allowed_x0: float
+    allowed_y0: float
+    allowed_x1: float
+    allowed_y1: float
+    text_space_height: float
+    # "portrait", or for a landscape sheet the edge holding the binding margin:
+    # "top", "bottom", or "undetermined".
+    binding_edge: str = "left"
+    # Edge band(s) where the sheet's portrait page number sits; numeric-only
+    # lines there are page numbers, exactly like the portrait top/bottom zones.
+    page_number_bands: tuple[BBox, ...] = ()
+
+    @property
+    def is_landscape_sheet(self) -> bool:
+        return self.binding_edge != "left"
+
+
+def _text_space_size(page: PdfPage) -> tuple[float, float]:
+    if page.page_rotation % 180 == 90:
+        return page.height, page.width
+    return page.width, page.height
+
+
+def _portrait_page_number_direction(page: PdfPage) -> int | None:
+    """+1 / -1 when every vertical page-number-like line runs down / up.
+
+    A portrait-orientation page number on a sideways sheet is the one reliable
+    marker of which long edge is the binding edge; anything else (none found,
+    or conflicting directions) is reported as undetermined.
+    """
+    signs: set[int] = set()
+    for block in page.text_blocks:
+        for line in block.lines:
+            if line.line_dir is None or not PAGE_NUM_RE.match(line.text.strip()):
+                continue
+            dx, dy = line.line_dir
+            is_vertical = abs(dy) >= _VERTICAL_DIR_MIN_COMPONENT
+            if is_vertical and abs(dx) < 1.0 - _VERTICAL_DIR_MIN_COMPONENT:
+                signs.add(1 if dy > 0 else -1)
+    return signs.pop() if len(signs) == 1 else None
+
+
+def _margin_frame(page: PdfPage) -> MarginFrame:
+    width, height = _text_space_size(page)
+    if width <= height * LANDSCAPE_ASPECT_THRESHOLD:
+        return MarginFrame(
+            allowed_x0=LEFT_MARGIN_PT,
+            allowed_y0=TOP_MARGIN_PT,
+            allowed_x1=width - RIGHT_MARGIN_PT,
+            allowed_y1=height - BOTTOM_MARGIN_PT,
+            text_space_height=height,
+        )
+    left_band = BBox(x0=0.0, y0=0.0, x1=BOTTOM_MARGIN_PT, y1=height)
+    right_band = BBox(x0=width - BOTTOM_MARGIN_PT, y0=0.0, x1=width, y1=height)
+    direction = _portrait_page_number_direction(page)
+    if direction == 1:
+        # Portrait text runs down the page: the sheet was turned clockwise, so
+        # portrait left (binding) is the top edge, portrait bottom the left edge,
+        # portrait right the bottom edge and portrait top the right edge.
+        return MarginFrame(
+            allowed_x0=BOTTOM_MARGIN_PT,
+            allowed_y0=LEFT_MARGIN_PT,
+            allowed_x1=width - TOP_MARGIN_PT,
+            allowed_y1=height - RIGHT_MARGIN_PT,
+            text_space_height=height,
+            binding_edge="top",
+            page_number_bands=(left_band,),
+        )
+    if direction == -1:
+        # Turned counter-clockwise: binding at the bottom, portrait bottom on the right.
+        return MarginFrame(
+            allowed_x0=TOP_MARGIN_PT,
+            allowed_y0=RIGHT_MARGIN_PT,
+            allowed_x1=width - BOTTOM_MARGIN_PT,
+            allowed_y1=height - LEFT_MARGIN_PT,
+            text_space_height=height,
+            binding_edge="bottom",
+            page_number_bands=(right_band,),
+        )
+    # Binding edge unknown (top or bottom): report only what violates the
+    # sheet under both possibilities, i.e. the 1 in margin on every edge.
+    return MarginFrame(
+        allowed_x0=TOP_MARGIN_PT,
+        allowed_y0=TOP_MARGIN_PT,
+        allowed_x1=width - TOP_MARGIN_PT,
+        allowed_y1=height - TOP_MARGIN_PT,
+        text_space_height=height,
+        binding_edge="undetermined",
+        page_number_bands=(left_band, right_band),
+    )
+
+
+def _in_page_number_band(text: str, bbox: BBox, bands: tuple[BBox, ...]) -> bool:
+    if not bands or not PAGE_NUM_RE.match(text.strip()):
+        return False
+    return any(
+        bbox.x0 >= band.x0 and bbox.x1 <= band.x1 and bbox.y0 >= band.y0 and bbox.y1 <= band.y1
+        for band in bands
+    )
+
+
 @dataclass
 class LineViolation:
     side: MarginSide
@@ -148,16 +269,6 @@ class LineViolation:
 
 def _page_text(page: PdfPage) -> str:
     return " ".join(block.text for block in page.text_blocks)
-
-
-def _margin_side_label_for_fix(side: MarginSide) -> str:
-    labels = {
-        MarginSide.LEFT: "left margin",
-        MarginSide.RIGHT: "right margin",
-        MarginSide.TOP: "top margin",
-        MarginSide.BOTTOM: "bottom margin",
-    }
-    return labels.get(side, "required page margin")
 
 
 def _likely_page_number_text(text: str, y0: float, y1: float, page_height: float) -> bool:
@@ -234,7 +345,9 @@ def _is_references_final_line_allowance(
     page_numbers = [
         other
         for other in page_lines
-        if _likely_page_number_text(other.text, other.bbox.y0, other.bbox.y1, page.height)
+        if _likely_page_number_text(
+            other.text, other.bbox.y0, other.bbox.y1, _text_space_size(page)[1]
+        )
     ]
     text_lines = [other for other in page_lines if other.text.strip() and other not in page_numbers]
     # The line is the last text on the page ...
@@ -313,6 +426,7 @@ def _line_violation(
     *,
     page_lines: list[PdfTextLine] | None = None,
     contents_page: bool = False,
+    page_number_bands: tuple[BBox, ...] = (),
 ) -> LineViolation | None:
     text = line.text.strip()
     if not text:
@@ -321,6 +435,8 @@ def _line_violation(
     if bbox.width < MIN_ARTIFACT_SIZE_PT or bbox.height < MIN_ARTIFACT_SIZE_PT:
         return None
     if _likely_page_number_text(text, bbox.y0, bbox.y1, page_height):
+        return None
+    if _in_page_number_band(text, bbox, page_number_bands):
         return None
 
     content_x1 = min(bbox.x1, _content_right_edge(line))
@@ -505,10 +621,11 @@ def run_pdf_margin_rule(
     for page in pdf_doc.pages:
         if page.page_number in skipped:
             continue
-        allowed_x0 = LEFT_MARGIN_PT
-        allowed_y0 = TOP_MARGIN_PT
-        allowed_x1 = page.width - RIGHT_MARGIN_PT
-        allowed_y1 = page.height - BOTTOM_MARGIN_PT
+        frame = _margin_frame(page)
+        allowed_x0 = frame.allowed_x0
+        allowed_y0 = frame.allowed_y0
+        allowed_x1 = frame.allowed_x1
+        allowed_y1 = frame.allowed_y1
         page_lines = [line for block in page.text_blocks for line in block.lines]
         contents_page = _is_contents_page(page)
 
@@ -517,7 +634,7 @@ def run_pdf_margin_rule(
         for line in page_lines:
             violation = _line_violation(
                 line,
-                page.height,
+                frame.text_space_height,
                 allowed_x0,
                 allowed_y0,
                 allowed_x1,
@@ -525,6 +642,7 @@ def run_pdf_margin_rule(
                 line_index,
                 page_lines=page_lines,
                 contents_page=contents_page,
+                page_number_bands=frame.page_number_bands,
             )
             line_index += 1
             if not violation:
@@ -690,10 +808,13 @@ def run_pdf_margin_rule(
 
             finding_details["page_context"] = page_context
             finding_details["margin_content_kind"] = content_kind
+            if frame.is_landscape_sheet:
+                finding_details["page_orientation"] = "landscape"
+                finding_details["binding_edge"] = frame.binding_edge
             finding_details["suggested_fix"] = margin_suggested_fix(
                 page_context=page_context,
                 content_kind=content_kind,
-                side_label=_margin_side_label_for_fix(side),
+                side_label=margin_side_label(finding_details),
             )
 
             findings.append(
