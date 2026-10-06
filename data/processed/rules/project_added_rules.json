@@ -1468,10 +1468,7 @@
     "implementation_status": "implemented",
     "implementation_module": "njit_auditor.rules.pdf_references_citations_structural",
     "rule_type": "infrastructure_refinement",
-    "source_q_rule_ids": [
-      "Q028",
-      "Q029"
-    ],
+    "source_q_rule_ids": [],
     "source_files": [
       "data/raw/guidelines/Self-Self Assessment Sheet.pdf",
       "data/processed/rules/njit_rule_inventory.json",

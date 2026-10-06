@@ -70,3 +70,26 @@ def test_r024d_and_r024e_stay_distinct_and_q_backed() -> None:
         == "P024E"
     )
     assert wa._public_rule_reference_id("P024", issue_type="list_of_tables_title_case") == "P024D"
+
+
+def test_p071_declares_no_q_rows_it_only_used_as_design_analogies() -> None:
+    # P071 localizes the main References section for P064; its design doc
+    # calls Q028/Q029 (Biographical Sketch publications) "analogy only" and
+    # Q030 manual-only. The explicit empty list keeps notes out of coverage.
+    p071 = _rule("P071")
+    assert p071["source_q_rule_ids"] == []
+    assert p071["rule_type"] == "infrastructure_refinement"
+    assert p071["issue_types"] == []
+    rows = _rows()
+    for q_id in ("Q028", "Q029", "Q030"):
+        assert "P071" not in rows[q_id].implementing_p_rules, q_id
+
+
+def test_q028_q029_coverage_follows_p045_behavior() -> None:
+    rows = _rows()
+    # P045 reports publication spacing (Q028); it no longer reports a missing
+    # hanging indent (Q029, optional per Ester 2026-10-05).
+    assert rows["Q028"].implementing_p_rules == ["P045"]
+    assert rows["Q028"].implementation_status == "implemented"
+    assert rows["Q029"].implementing_p_rules == []
+    assert rows["Q029"].implementation_status == "unimplemented"

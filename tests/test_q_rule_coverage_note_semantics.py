@@ -102,6 +102,6 @@ def test_real_catalog_structured_relationships_survive() -> None:
     rows = {row.q_id: row for row in build_coverage_report()}
     assert {"P018", "P075"} <= set(rows["Q052"].implementing_p_rules)
     assert {"P042", "P063"} <= set(rows["Q058"].implementing_p_rules)
-    assert "P071" in rows["Q028"].implementing_p_rules
+    assert rows["Q028"].implementing_p_rules == ["P045"]
     assert "P024" in rows["Q074"].implementing_p_rules
     assert rows["Q025"].implementing_p_rules == ["P066"]
