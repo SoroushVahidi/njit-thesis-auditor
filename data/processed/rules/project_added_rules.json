@@ -657,9 +657,9 @@
   {
     "id": "P037",
     "section": "PDF front-matter section-anchored Roman numerals",
-    "question": "Do front-matter section pages display the expected lowercase Roman numerals — Biographical Sketch (iv), Dedication (v, if present), Acknowledgements (vi), Table of Contents (vii), and List of Tables continuing the sequence after the last Table of Contents page?",
-    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Dedication, Acknowledgements, and Table of Contents are checked against fixed NJIT template slots when present. List of Tables is checked against the next Roman numeral after the page immediately before List of Tables (Q060), because a multi-page Table of Contents shifts the expected value away from any fixed slot. Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate. Does not duplicate P028 regime checks or P029 relative sequence checks.",
-    "remediation": "Ensure Biographical Sketch is numbered iv; Dedication (if present) v; Acknowledgements vi; Table of Contents vii; and List of Tables continues with the next lowercase Roman numeral after the last Table of Contents page.",
+    "question": "Does the Biographical Sketch page display iv, and do later numbered front-matter pages continue the lowercase Roman numeral sequence from the preceding page?",
+    "rule_definition": "Conservative heuristic anchored on the detected BIOGRAPHICAL SKETCH page: requires visible Roman numeral iv (4) on that page. Each later detected section (Dedication, Acknowledgements, Table of Contents, and List of Tables) is checked against the next Roman numeral after the preceding numbered front-matter page; continuation pages count in the sequence. Emits nothing when BIOGRAPHICAL SKETCH heading is not detected. Skips pages with no confident roman_lower candidate or no confident preceding numeral. Does not duplicate P028 regime checks or P029 relative sequence checks.",
+    "remediation": "Number the Biographical Sketch page iv, then continue lowercase Roman numerals by one on every numbered front-matter page, including continuation pages. Correct the preceding sequence if a later section has the wrong number.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -670,7 +670,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_roman_section_anchors",
     "priority": "medium",
-    "notes": "Conservative v1 PDF heuristic for Q022, Q031, Q035, Q046, Q060. Fixed NJIT template values: bio=4(iv), ded=5(v), ack=6(vi), toc=7(vii), lot=8(viii). Emits nothing if BIOGRAPHICAL SKETCH heading absent. Skips sections with no confident roman_lower candidate. issue_types: roman_bio_sketch_not_iv, roman_section_wrong_value."
+    "notes": "Conservative v1 PDF heuristic for Q022, Q031, Q035, Q046, Q060. Biographical Sketch is anchored at iv; later detected sections use the numeral on the immediately preceding page plus one. Emits nothing if BIOGRAPHICAL SKETCH heading absent. Skips sections with no confident roman_lower candidate or preceding numeral. issue_types: roman_bio_sketch_not_iv, roman_section_wrong_value."
   },
   {
     "id": "P038",

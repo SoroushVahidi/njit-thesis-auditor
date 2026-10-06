@@ -1252,25 +1252,22 @@ def _p037_roman_section_explanation(
         section_name = _P037_SECTION_KEY_LABELS.get(
             details.get("section_key", "").strip(), "front-matter section"
         )
-    if details.get("section_key", "").strip() == "list_of_tables":
+    if issue_type == "roman_bio_sketch_not_iv":
         return (
-            f"Observed: The {section_name} page ({page_phrase}) is numbered '{observed}'. "
-            f"Expected: the List of Tables should continue the Roman sequence after the "
-            f"Table of Contents (expected here: '{expected}'). "
-            "Why this is suspicious: the Table of Contents can span multiple pages, so "
-            "this check uses the detected preceding TOC numeral instead of a fixed slot. "
-            f"What to check or fix: change this page's Roman numeral to '{expected}' "
-            "or correct the preceding front-matter sequence."
+            f"Observed: The Biographical Sketch page ({page_phrase}) is numbered '{observed}'. "
+            "Expected: Biographical Sketch starts the numbered front matter at 'iv'. "
+            "Why this is suspicious: later front-matter pages continue sequentially "
+            "from this anchor. What to check or fix: change this page's Roman numeral "
+            "to 'iv' and check the sequence on following pages."
         )
     return (
         f"Observed: The {section_name} page ({page_phrase}) is numbered '{observed}'. "
-        f"Expected: NJIT's front-matter template assigns the {section_name} a fixed "
-        f"Roman numeral of '{expected}'. "
-        "Why this is suspicious: this is a fixed template position, not a relative "
-        "sequence count, so it does not shift even if earlier optional sections are "
-        "missing or reordered -- this check is independent of the page-to-page "
-        "sequence check. "
-        f"What to check or fix: change this page's Roman numeral to '{expected}'."
+        f"Expected: '{expected}', the next Roman numeral after the preceding "
+        "front-matter page. Why this is suspicious: numbering continues from "
+        "Biographical Sketch page iv across every numbered front-matter page, "
+        "including continuation pages. "
+        f"What to check or fix: change this page's Roman numeral to '{expected}' "
+        "or correct the preceding front-matter sequence."
     )
 
 

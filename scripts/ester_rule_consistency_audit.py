@@ -27,7 +27,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from njit_auditor.specs.q_rule_coverage import build_coverage_report, coverage_summary
+from njit_auditor.specs.q_rule_coverage import (
+    _AUTHORITY_OVERLAY_PATH,
+    build_coverage_report,
+    coverage_summary,
+    load_current_authority_overlay,
+)
 
 _FORMATTING_XLSX = _REPO_ROOT / "results/ester_feedback_raw/formatting_rules.xlsx"
 _MATRIX_XLSX = _REPO_ROOT / "data/raw/ester/260330_YESNO_audit_logic_matrix.xlsx"
@@ -53,6 +58,7 @@ _SPLIT_REQUEST_KEYWORDS = (
 
 _STATUS_VALUES = (
     "aligned",
+    "superseded by later Ester authority",
     "wording mismatch",
     "remediation mismatch",
     "detector mismatch",
@@ -796,6 +802,24 @@ def classify_q_rule(
     if public_cards:
         notes.append(f"Public atomic cards: {', '.join(sorted(public_cards))}.")
 
+    overlay = getattr(coverage, "authority_overlay", None) if coverage else None
+    if overlay:
+        notes.append(f"Historical matrix question superseded. {overlay['source']}.")
+        notes.append(f"Effective requirement: {overlay['effective_requirement']}")
+        effective_status = overlay["effective_implementation_status"]
+        if effective_status == "optional_not_enforced":
+            if detector:
+                return "detector mismatch", detector, "; ".join(notes)
+        elif effective_status == "implemented":
+            if not detector or not atomic_cards:
+                return "missing", detector, "; ".join(notes)
+            best = max(_similarity(c.question, overlay["effective_question"]) for c in atomic_cards)
+            if best < 0.5:
+                return "wording mismatch", detector, "; ".join(notes)
+        else:
+            raise ValueError(f"Unknown effective implementation status for {qid}")
+        return "superseded by later Ester authority", detector, "; ".join(notes)
+
     if status == "unimplemented":
         return "missing", detector, "Automatable Q-rule has no implementing P-rule."
     if status == "manual_review_only":
@@ -957,6 +981,14 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
                 "Q-rule": ester["id"],
                 "Matrix section": ester.get("section") or (cov.section if cov else ""),
                 "Matrix question": ester["question"],
+                "Effective current authority": (
+                    cov.authority_overlay["effective_requirement"] if cov and cov.authority_overlay
+                    else ester["question"]
+                ),
+                "Effective implementation status": (
+                    cov.authority_overlay["effective_implementation_status"] if cov and cov.authority_overlay
+                    else (cov.implementation_status if cov else "missing")
+                ),
                 "Current detector/rule": detector,
                 "Status": status,
                 "Tests": ", ".join(test_map.get(ester["id"], [])[:4]),
@@ -973,7 +1005,7 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
         if row["Status"] != "aligned":
             mismatch_inventory.append({"kind": "P-rule", **row, "priority": _priority_for(row["Status"], row["P-rule"])})
     for row in q_rows:
-        if row["Status"] != "aligned":
+        if row["Status"] not in {"aligned", "superseded by later Ester authority"}:
             mismatch_inventory.append({"kind": "Q-rule", **row, "priority": _priority_for(row["Status"], qid=row["Q-rule"])})
 
     # P018 sub-check gaps (Ester atomic TOC/list checks without public cards)
@@ -1103,6 +1135,7 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
             "yesno_matrix_xlsx": _source_label(_MATRIX_XLSX),
             "ester_p_rule_feedback_json": _source_label(_P_FEEDBACK_JSON),
             "ester_q_matrix_json": _source_label(_Q_MATRIX_JSON),
+            "ester_q_current_authority_overlay_json": _source_label(_AUTHORITY_OVERLAY_PATH),
             "project_added_rules_json": _source_label(_CATALOG_PATH),
         },
         "counts": {
@@ -1177,6 +1210,7 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
     )
     lines.append(f"| Parsed P-feedback JSON | `{_P_FEEDBACK_JSON}` | {p_feedback['metadata']['rules_with_feedback']} with edits | Subset of spreadsheet |")
     lines.append(f"| Parsed Q-matrix JSON | `{_Q_MATRIX_JSON}` | {len(q_json['rules'])} | Used by q_rule_coverage.py |")
+    lines.append(f"| Current Q authority overlay | `{_AUTHORITY_OVERLAY_PATH}` | {len(load_current_authority_overlay())} supersessions | Later Ester decisions; historical matrix preserved |")
     lines.append("")
     lines.append("### Extraction summary")
     lines.append("")
@@ -1222,13 +1256,14 @@ def generate_report(output_dir: Path) -> dict[str, Any]:
 
     lines.append("## Section 4 — Q-rule comparison table")
     lines.append("")
-    lines.append("| Q-rule | Matrix section | Matrix question | Current detector/rule | Status | Tests | Notes |")
-    lines.append("|--------|----------------|-----------------|----------------------|--------|-------|-------|")
+    lines.append("| Q-rule | Matrix section | Historical matrix question | Effective current authority | Effective implementation | Current detector/rule | Status | Tests | Notes |")
+    lines.append("|--------|----------------|----------------------------|-----------------------------|--------------------------|----------------------|--------|-------|-------|")
     for row in q_rows:
         def esc(v: str) -> str:
             return (v or "").replace("|", "\\|").replace("\n", " ")[:160]
         lines.append(
             f"| {row['Q-rule']} | {row['Matrix section']} | {esc(row['Matrix question'])} | "
+            f"{esc(row['Effective current authority'])} | {esc(row['Effective implementation status'])} | "
             f"{row['Current detector/rule']} | **{row['Status']}** | {esc(row['Tests'])} | {esc(row['Notes'])} |"
         )
     lines.append("")

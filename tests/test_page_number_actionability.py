@@ -701,5 +701,5 @@ def test_p029_and_p037_sequence_overlap_is_clearly_differentiated(
     assert set(sequence_cards) == {"P029", "P037"}
     assert sequence_cards["P029"] != sequence_cards["P037"]
     assert "front-matter sequence" in sequence_cards["P029"]
-    assert "NJIT front-matter template" in sequence_cards["P037"]
-    assert "fixed template position" in sequence_cards["P037"]
+    assert "Biographical Sketch page iv" in sequence_cards["P037"]
+    assert "preceding numbered front-matter page" in sequence_cards["P037"]

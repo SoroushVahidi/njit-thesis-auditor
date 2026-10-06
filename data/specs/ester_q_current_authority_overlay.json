@@ -1,0 +1,16 @@
+{
+  "Q029": {
+    "status": "superseded_by_later_ester_authority",
+    "effective_question": "May Biographical Sketch publication entries omit a hanging indent?",
+    "effective_requirement": "A hanging indent is optional for Biographical Sketch publication entries; its absence is not a violation.",
+    "effective_implementation_status": "optional_not_enforced",
+    "source": "Ester 2026-10-05 R045 clarification; docs/status/ester_feedback_round_20261005.md"
+  },
+  "Q074": {
+    "status": "superseded_by_later_ester_authority",
+    "effective_question": "In the List of Figures, are figure titles displayed in title case?",
+    "effective_requirement": "List of Figures titles use title case (R024E/P024).",
+    "effective_implementation_status": "implemented",
+    "source": "Ester 2026-10-05 R024 clarification and 2026-10-06 email; docs/status/ester_feedback_round_20261005.md"
+  }
+}
