@@ -700,10 +700,12 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
     "P017": {
         "rule_definition": (
             "Automatically detect punctuation and case-style issues in "
-            "figure/table caption-like PDF lines. Figure captions (body) "
-            "and List of Figures entries: check terminal punctuation and "
-            "sentence case. Table titles (body) and List of Tables "
-            "entries: check title case and unexpected terminal period."
+            "figure/table caption-like PDF lines. Figure captions (body): "
+            "check terminal punctuation and sentence case. List of Figures "
+            "entries: check terminal punctuation only; their capitalization "
+            "(title case) is checked under R024E. Table titles (body) and "
+            "List of Tables entries: check title case and unexpected "
+            "terminal period."
         ),
     },
     "P022": {
