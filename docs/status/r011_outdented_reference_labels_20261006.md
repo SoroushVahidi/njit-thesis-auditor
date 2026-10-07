@@ -84,3 +84,67 @@ the authority above.
 - No other finding changed. Patrick p88 is still reported, and the Anthony
   landscape findings are unchanged.
 - Reviewed-authority replay (scratch ledger): 46 FP / 4 TP / 0 / 0.
+
+## Cross-page continuation (2026-10-07)
+
+A page can be part of a bibliography without being able to establish the
+label column itself. The last page of a bibliography, for example, may hold a
+single entry and no heading.
+
+**Rule.** Such a page continues the label column of the **immediately
+preceding** page, which may have established the column itself or continued
+it, only when all of the following hold:
+
+- every outdented label on the page sits in the previous page's label column,
+  and its entry text starts at the previous page's text edge (each within
+  1.5 pt);
+- the page's `[n]` numbers continue the previous page's sequence exactly. A
+  gap or a restart does not continue;
+- no new section heading appears (CHAPTER, APPENDIX, VITA, BIOGRAPHICAL
+  SKETCH, or REFERENCES/BIBLIOGRAPHY);
+- the page is not a contents page and not a landscape sheet.
+
+**Limits.**
+
+- A page that meets none of these ends the chain. A page with no labels
+  ends it too, even if it holds only wrapped text from an earlier entry.
+- Geometry alone, or a single bracketed number, never qualifies.
+- The label exemption itself is unchanged. Only its page context is
+  inherited, and entry text crossing any margin is still reported.
+- Implementation: `_reference_label_columns` and `_continued_reference_column`
+  in `rules/pdf_margins.py`.
+- Tests: `tests/test_p011_references_cross_page_continuity.py`.
+
+**Authority classification.**
+
+- **DIRECT_ESTER_AUTHORITY:** unchanged (above). No new adjudication was
+  recorded.
+- **DERIVED_ENGINEERING_APPLICATION:** Cibaku (Sample A) p99 is a derived
+  continuation of the already-authorized reference-label family. It holds
+  entry [93] and continues p98's [84]–[92]. It has the same label column
+  (right edge 102.5 pt) and the same text edge (108.4 pt), and no heading.
+  Ester reviewed this bibliography (she annotated p91) without flagging the
+  labels, but **p99 itself has no Ester verdict**.
+
+**Effect.**
+
+- Sample A R011 drops from 1 to 0.
+- Sample D (Yin 4th, compressed copy), p134: one separable label line is
+  exempt, consistent with p133. The finding stays, because that copy merges
+  most labels into their text spans. Its affected lines go from 13 to 12.
+- No other R011 finding changed in Samples A–D, the other Ester-annotated
+  PDFs, or the seven-document corpus (1495 raw / 623 student-visible before
+  and after). Sample B/C: unchanged, including Ester's TP pages 10, 15, 27,
+  33 and 38. Replay (scratch ledger): 46 FP / 4 TP / 0 / 0.
+
+**Companion presentation fix (same branch).** A document with no R011
+violations keeps one document-level PASS row. Neither problem-numbering
+pipeline excluded PASS rows, so a clean document showed "Problem #N — R011 —
+Formatting problem" saying text was outside the margins.
+
+- This was already live for Youra (card #101, listed last).
+- Resolving Cibaku p99 would have exposed it on the built-in Sample A.
+- PASS rows are now never student problems
+  (`tests/test_pass_rows_are_not_student_problems.py`).
+- Effect: Youra's numbered cards go from 101 to 100. No other problem
+  number moves.

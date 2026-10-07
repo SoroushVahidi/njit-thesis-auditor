@@ -3317,6 +3317,9 @@ def _serialized_finding_is_visible_problem(
     finding_index: int | None = None,
     claimed_page_number_keys: frozenset[tuple[str, int]] = frozenset(),
 ) -> bool:
+    # A PASS row records that a check ran clean; it is never a student problem.
+    if str(finding.get("severity", "")).strip().upper() == "PASS":
+        return False
     rule_id = str(finding.get("rule_id", "")).strip()
     details_raw = finding.get("details", {})
     details = (

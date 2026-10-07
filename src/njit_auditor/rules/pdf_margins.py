@@ -375,6 +375,107 @@ def _reference_label_column_x1(
     return column_x1
 
 
+_REFERENCE_LINE_LABEL_RE = re.compile(r"^\[(\d{1,3})\]")
+# A heading that starts a new section ends a references continuation.
+_SECTION_BREAK_PREFIXES = ("CHAPTER", "APPENDIX")
+_SECTION_BREAK_KEYS = frozenset({"VITA", "BIOGRAPHICALSKETCH"}) | _REFERENCES_HEADING_KEYS
+
+
+@dataclass(frozen=True)
+class _ReferenceColumn:
+    """A page's reference-label column: label right edge, entry-text left
+    edge, and the last "[n]" number on the page."""
+
+    label_x1: float
+    text_x0: float
+    last_label: int | None
+
+
+def _line_label_numbers(page_lines: list[PdfTextLine]) -> list[int]:
+    return [
+        int(match.group(1))
+        for line in page_lines
+        if (match := _REFERENCE_LINE_LABEL_RE.match(line.text.strip()))
+    ]
+
+
+def _has_section_break_heading(page_lines: list[PdfTextLine]) -> bool:
+    for line in page_lines:
+        letters = "".join(char for char in line.text.upper() if char.isalpha())
+        if not letters or _REFERENCE_LINE_LABEL_RE.match(line.text.strip()):
+            continue
+        if letters.startswith(_SECTION_BREAK_PREFIXES) or (
+            not any(char.isdigit() for char in line.text)
+            and letters.removesuffix("CONTINUED") in _SECTION_BREAK_KEYS
+        ):
+            return True
+    return False
+
+
+def _continued_reference_column(
+    previous: _ReferenceColumn, page_lines: list[PdfTextLine]
+) -> _ReferenceColumn | None:
+    """The previous page's label column, carried onto a page that continues the
+    same numbered reference list across the page break, else None.
+
+    Requires every structural signal at once: each outdented label on this
+    page sits in the previous page's label column with its entry text at the
+    previous page's text edge; the page's "[n]" numbers continue the previous
+    page's sequence without a gap or restart; and no new section heading
+    appears. Geometry alone, or a single bracketed number, never qualifies.
+    """
+    splits = [split for line in page_lines if (split := _outdented_label_split(line)) is not None]
+    if not splits or previous.last_label is None:
+        return None
+    if any(
+        abs(label_x1 - previous.label_x1) > REFERENCE_LABEL_COLUMN_ALIGN_PT
+        or abs(text_x0 - previous.text_x0) > REFERENCE_LABEL_COLUMN_ALIGN_PT
+        for label_x1, text_x0 in splits
+    ):
+        return None
+    numbers = _line_label_numbers(page_lines)
+    expected = list(range(previous.last_label + 1, previous.last_label + 1 + len(numbers)))
+    if numbers != expected or _has_section_break_heading(page_lines):
+        return None
+    return _ReferenceColumn(previous.label_x1, previous.text_x0, numbers[-1])
+
+
+def _reference_label_columns(pdf_doc: PdfDocument) -> dict[int, float]:
+    """Reference-label column right edge per page number, in document order.
+
+    A page establishes its own column (``_reference_label_column_x1``) or, when
+    it cannot (e.g. a final page holding a single entry), continues the column
+    of the immediately preceding page under ``_continued_reference_column``.
+    Any page that does neither ends the chain. Landscape sheets and contents
+    pages never carry a column.
+    """
+    columns: dict[int, float] = {}
+    previous: _ReferenceColumn | None = None
+    for page in pdf_doc.pages:
+        current: _ReferenceColumn | None = None
+        page_lines = [line for block in page.text_blocks for line in block.lines]
+        contents_page = _is_contents_page(page)
+        if not contents_page and not _margin_frame(page).is_landscape_sheet:
+            own_x1 = _reference_label_column_x1(page, page_lines, contents_page=contents_page)
+            if own_x1 is not None:
+                text_x0s = sorted(
+                    split[1]
+                    for line in page_lines
+                    if (split := _outdented_label_split(line)) is not None
+                    and abs(split[0] - own_x1) <= REFERENCE_LABEL_COLUMN_ALIGN_PT
+                )
+                numbers = _line_label_numbers(page_lines)
+                current = _ReferenceColumn(
+                    own_x1, text_x0s[len(text_x0s) // 2], numbers[-1] if numbers else None
+                )
+            elif previous is not None:
+                current = _continued_reference_column(previous, page_lines)
+        if current is not None:
+            columns[page.page_number] = current.label_x1
+        previous = current
+    return columns
+
+
 def _left_edge_excluding_reference_label(
     line: PdfTextLine, reference_label_column_x1: float | None
 ) -> float:
@@ -683,6 +784,7 @@ def run_pdf_margin_rule(
 
     findings: list[AuditFinding] = []
     skipped = skip_pages or set()
+    reference_label_columns = _reference_label_columns(pdf_doc)
     for page in pdf_doc.pages:
         if page.page_number in skipped:
             continue
@@ -695,11 +797,7 @@ def run_pdf_margin_rule(
         contents_page = _is_contents_page(page)
         # Landscape sheets keep the plain measurement: the authority concerns
         # the portrait left (binding) margin.
-        reference_label_column_x1 = (
-            None
-            if frame.is_landscape_sheet
-            else _reference_label_column_x1(page, page_lines, contents_page=contents_page)
-        )
+        reference_label_column_x1 = reference_label_columns.get(page.page_number)
 
         grouped: dict[MarginSide, list[LineViolation]] = {}
         line_index = 0
