@@ -189,6 +189,21 @@ class MarginFrame:
     def is_landscape_sheet(self) -> bool:
         return self.binding_edge != "left"
 
+    @property
+    def last_line_bottom_allowances_apply(self) -> bool:
+        """Whether the text-space bottom edge gets the bottom-only allowances.
+
+        BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT, the final-line box exception and
+        the references final-line allowance come from Ester's verdicts on the
+        last line of a page's text flow dipping into an ordinary 1-inch
+        bottom margin ("Bottom ~0.9" to 1"" for LaTeX, Word cases too). They
+        follow the text flow's end (the text-space bottom), but never relax the
+        1.5-inch binding margin, which keeps the ordinary tolerance on every
+        sheet: a sheet turned counter-clockwise puts its binding edge at the
+        bottom.
+        """
+        return self.binding_edge != "bottom"
+
 
 def _text_space_size(page: PdfPage) -> tuple[float, float]:
     if page.page_rotation % 180 == 90:
@@ -592,6 +607,7 @@ def _line_violation(
     contents_page: bool = False,
     page_number_bands: tuple[BBox, ...] = (),
     reference_label_column_x1: float | None = None,
+    last_line_bottom_allowances: bool = True,
 ) -> LineViolation | None:
     text = line.text.strip()
     if not text:
@@ -622,7 +638,10 @@ def _line_violation(
             overflow_by_side[MarginSide.TOP] = raw
     if bbox.y1 > allowed_y1:
         raw = bbox.y1 - allowed_y1
-        if (
+        if not last_line_bottom_allowances:
+            if raw > OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
+                overflow_by_side[MarginSide.BOTTOM] = raw
+        elif (
             raw > BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT
             and not _is_ester_rejected_bottom_line_box(
                 line, page_lines or [], allowed_y1, raw, contents_page=contents_page
@@ -814,6 +833,7 @@ def run_pdf_margin_rule(
                 contents_page=contents_page,
                 page_number_bands=frame.page_number_bands,
                 reference_label_column_x1=reference_label_column_x1,
+                last_line_bottom_allowances=frame.last_line_bottom_allowances_apply,
             )
             line_index += 1
             if not violation:
@@ -855,6 +875,7 @@ def run_pdf_margin_rule(
             if (
                 side is MarginSide.BOTTOM
                 and count == 1
+                and frame.last_line_bottom_allowances_apply
                 and _is_references_final_line_allowance(
                     page,
                     page_lines,
