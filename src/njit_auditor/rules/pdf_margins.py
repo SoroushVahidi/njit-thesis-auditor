@@ -14,7 +14,14 @@ from njit_auditor.p011_margin_presentation import (
     margin_suggested_fix,
     page_has_numbered_reference_entries,
 )
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfTextLine,
+    format_bbox_detail,
+    text_space_size,
+)
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, _is_top_or_bottom_zone
 
 INCH_TO_PT = 72.0
@@ -205,12 +212,6 @@ class MarginFrame:
         return self.binding_edge != "bottom"
 
 
-def _text_space_size(page: PdfPage) -> tuple[float, float]:
-    if page.page_rotation % 180 == 90:
-        return page.height, page.width
-    return page.width, page.height
-
-
 def _portrait_page_number_direction(page: PdfPage) -> int | None:
     """+1 / -1 when every vertical page-number-like line runs down / up.
 
@@ -231,7 +232,7 @@ def _portrait_page_number_direction(page: PdfPage) -> int | None:
 
 
 def _margin_frame(page: PdfPage) -> MarginFrame:
-    width, height = _text_space_size(page)
+    width, height = text_space_size(page)
     if width <= height * LANDSCAPE_ASPECT_THRESHOLD:
         return MarginFrame(
             allowed_x0=LEFT_MARGIN_PT,
@@ -525,7 +526,7 @@ def _is_references_final_line_allowance(
         other
         for other in page_lines
         if _likely_page_number_text(
-            other.text, other.bbox.y0, other.bbox.y1, _text_space_size(page)[1]
+            other.text, other.bbox.y0, other.bbox.y1, text_space_size(page)[1]
         )
     ]
     text_lines = [other for other in page_lines if other.text.strip() and other not in page_numbers]
