@@ -97,6 +97,21 @@ class PdfPage(BaseModel):
     horizontal_rules: list[BBox] = Field(default_factory=list)
 
 
+def text_space_size(page: PdfPage) -> tuple[float, float]:
+    """Width and height of the coordinate space extracted boxes are reported in.
+
+    PyMuPDF reports text, image and drawing boxes in the page's *unrotated*,
+    CropBox-relative space, while ``PdfPage.width``/``height`` hold the
+    displayed size after ``/Rotate``. The two differ only by a swap on a
+    quarter-turned page (e.g. a pdflscape landscape page: portrait MediaBox,
+    ``/Rotate 90``), so geometry compared against extracted boxes must use this
+    size, not the displayed one.
+    """
+    if page.page_rotation % 180 == 90:
+        return page.height, page.width
+    return page.width, page.height
+
+
 class PdfDocument(BaseModel):
     """Extracted PDF document layout model."""
 

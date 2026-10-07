@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_layout import LANDSCAPE_ASPECT_THRESHOLD
+from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail, text_space_size
 
 PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
 ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
@@ -209,16 +210,32 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
 
     candidates: list[PageNumberCandidate] = []
     for page in pdf_doc.pages:
+        # Candidate boxes are in the unrotated, CropBox-relative text space, so
+        # zones and positions must use page bounds in that same space. A
+        # pdflscape landscape page (portrait MediaBox, /Rotate 90 or 270) keeps
+        # its portrait folio at the bottom of that space, while its displayed
+        # width/height are swapped.
+        width, height = text_space_size(page)
+        text_space_is_landscape = width > height * LANDSCAPE_ASPECT_THRESHOLD
+        # On a quarter-turned page, text running across the text space's
+        # writing direction is the turned landscape content, not a folio.
+        displayed_sideways = page.page_rotation % 180 == 90
         for block in page.text_blocks:
-            in_top_bottom = _is_top_or_bottom_zone(block.bbox.y0, block.bbox.y1, page.height)
-            in_left_right = page.is_visually_landscape and _is_left_or_right_zone(
-                block.bbox.x0, block.bbox.x1, page.width
+            in_top_bottom = _is_top_or_bottom_zone(block.bbox.y0, block.bbox.y1, height)
+            in_left_right = text_space_is_landscape and _is_left_or_right_zone(
+                block.bbox.x0, block.bbox.x1, width
             )
             if not in_top_bottom and not in_left_right:
                 continue
             for line in block.lines:
                 clean = " ".join(line.text.strip().split())
                 if not clean or not PAGE_NUM_RE.match(clean) or _is_math_symbol_line(line):
+                    continue
+                if (
+                    in_top_bottom
+                    and displayed_sideways
+                    and _is_vertical_line_direction(line.line_dir)
+                ):
                     continue
                 if not in_top_bottom:
                     # Landscape edge zone only: a rotated folio number is the
@@ -229,12 +246,12 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
                     if not _is_vertical_line_direction(line.line_dir):
                         continue
                     line_center_x = (line.bbox.x0 + line.bbox.x1) / 2.0
-                    location = "left" if line_center_x <= page.width / 2.0 else "right"
+                    location = "left" if line_center_x <= width / 2.0 else "right"
                     position_type = "left_center" if location == "left" else "right_center"
                 else:
-                    location = "top" if line.bbox.y1 <= page.height * 0.15 else "bottom"
+                    location = "top" if line.bbox.y1 <= height * 0.15 else "bottom"
                     position_type = _classify_position_type(
-                        line.bbox.x0, line.bbox.x1, line.bbox.y1, page.width, page.height
+                        line.bbox.x0, line.bbox.x1, line.bbox.y1, width, height
                     )
                 number_style, value = _classify_style_and_value(clean)
                 candidates.append(
