@@ -13,6 +13,8 @@ Detector decisions are not under test: boxes come straight from extraction.
 
 from __future__ import annotations
 
+import copy
+import pickle
 from pathlib import Path
 
 import fitz
@@ -162,6 +164,14 @@ def test_plain_tuple_page_size_is_treated_as_unrotated() -> None:
     assert PageBoxSpace(612.0, 792.0, 450).rotation == 90
     assert PageBoxSpace(612.0, 792.0, -90).rotation == 270
     assert PageBoxSpace(612.0, 792.0, 45).rotation == 0
+
+
+def test_page_box_space_survives_copy_and_pickle() -> None:
+    space = PageBoxSpace(612.0, 792.0, 90)
+    for clone in (copy.copy(space), copy.deepcopy(space), pickle.loads(pickle.dumps(space))):
+        assert isinstance(clone, PageBoxSpace)
+        assert tuple(clone) == (612.0, 792.0)
+        assert clone.rotation == 90
 
 
 def test_portrait_page_sizes_are_unchanged(tmp_path: Path) -> None:

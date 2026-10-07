@@ -2698,11 +2698,14 @@ def build_report_view(
 ) -> ReportView:
     """Convert an audit JSON payload into a GUI-friendly report view.
 
-    *pdf_page_sizes* is the (width, height) of each page of the audited PDF,
-    in order, when available. It lets ``has_highlight`` be computed against
-    real page geometry (page-in-range and bbox-intersects-page-bounds)
-    rather than just bbox shape validity; pass None when no PDF is available
-    (e.g. TeX-source audits) to fall back to shape-only validation.
+    *pdf_page_sizes* is each page's finding-box space, in order, when
+    available: the unrotated (width, height) that bboxes are expressed in,
+    as returned by :func:`~njit_auditor.pdf_highlight.get_pdf_page_sizes`
+    (a ``PageBoxSpace`` also carrying ``/Rotate`` for display-relative
+    labels). It lets ``has_highlight`` be computed against real page
+    geometry (page-in-range and bbox-intersects-page-bounds) rather than
+    just bbox shape validity; pass None when no PDF is available (e.g. TeX
+    source audits) to fall back to shape-only validation.
     """
     metadata = report.get("metadata", {})
     if not isinstance(metadata, Mapping):

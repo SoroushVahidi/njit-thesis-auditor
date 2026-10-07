@@ -98,6 +98,10 @@ class PageBoxSpace(tuple[float, float]):
         obj.rotation = normalize_rotation(rotation)
         return obj
 
+    def __getnewargs__(self) -> tuple[float, float, int]:
+        # copy/deepcopy/pickle rebuild via __new__; keep the rotation.
+        return (self[0], self[1], self.rotation)
+
 
 def normalize_rotation(rotation: int) -> int:
     """Return *rotation* as one of 0, 90, 180, 270 (anything else means 0)."""
