@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from pydantic import BaseModel, Field
 
 
@@ -94,6 +96,9 @@ class PdfPage(BaseModel):
     graphic_blocks: list[PdfGraphicBlock] = Field(default_factory=list)
     # Thin PDF drawing paths grouped into visible horizontal rules. Used by
     # R035 only when repeated, aligned rules bound a real table body.
+    # "Horizontal" means in the page's reading frame (see
+    # reading_frame_rotation); the boxes are stored in unrotated text space
+    # like every other box on the page.
     horizontal_rules: list[BBox] = Field(default_factory=list)
 
 
@@ -110,6 +115,59 @@ def text_space_size(page: PdfPage) -> tuple[float, float]:
     if page.page_rotation % 180 == 90:
         return page.height, page.width
     return page.width, page.height
+
+
+def _displayed_direction(direction: tuple[float, float], rotation: int) -> tuple[float, float]:
+    """Writing direction *direction* (unrotated space) as seen after /Rotate."""
+    dx, dy = direction
+    if rotation == 90:
+        return -dy, dx
+    if rotation == 180:
+        return -dx, -dy
+    if rotation == 270:
+        return dy, -dx
+    return dx, dy
+
+
+def reading_frame_rotation(
+    page_rotation: int, line_directions: Iterable[tuple[tuple[float, float] | None, int]]
+) -> int:
+    """Return the /Rotate under which the page's text reads upright, else 0.
+
+    *line_directions* pairs each text line's writing direction (unrotated
+    space) with a weight such as its character count. A pdflscape landscape
+    page (portrait MediaBox, ``/Rotate 90``) carries its text sideways in
+    unrotated space so that it reads upright once displayed; geometry that
+    asks a visual question about such a page must be measured in the
+    displayed frame. When the text already reads upright without the
+    rotation (``/Rotate`` used only to turn the sheet in the viewer), or the
+    page is unrotated, the unrotated frame is kept and 0 is returned.
+    """
+    rotation = page_rotation % 360
+    if rotation not in {90, 180, 270}:
+        return 0
+    upright_displayed = 0
+    upright_unrotated = 0
+    for direction, weight in line_directions:
+        if direction is None or weight <= 0:
+            continue
+        if direction[0] > 0.9:
+            upright_unrotated += weight
+        if _displayed_direction(direction, rotation)[0] > 0.9:
+            upright_displayed += weight
+    return rotation if upright_displayed > upright_unrotated else 0
+
+
+def page_reading_frame_rotation(page: PdfPage) -> int:
+    """:func:`reading_frame_rotation` for an extracted page."""
+    return reading_frame_rotation(
+        page.page_rotation,
+        (
+            (line.line_dir, len(line.text.strip()))
+            for block in page.text_blocks
+            for line in block.lines
+        ),
+    )
 
 
 class PdfDocument(BaseModel):

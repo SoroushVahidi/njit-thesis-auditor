@@ -14,6 +14,7 @@ from njit_auditor.pdf_models import (
     PdfTextBlock,
     PdfTextLine,
     PdfTextSpan,
+    reading_frame_rotation,
 )
 
 LANDSCAPE_ASPECT_THRESHOLD = 1.02
@@ -182,17 +183,34 @@ def _drawing_is_visible(drawing: dict) -> bool:
     return False
 
 
-def _horizontal_rule_bboxes(page: fitz.Page) -> list[BBox]:
+def _page_dict_reading_rotation(page: fitz.Page, page_dict: dict) -> int:
+    """Reading-frame rotation (see ``reading_frame_rotation``) from raw text."""
+    directions: list[tuple[tuple[float, float] | None, int]] = []
+    for block in page_dict.get("blocks", []):
+        for line in block.get("lines", []):
+            weight = sum(len(str(span.get("text", "")).strip()) for span in line.get("spans", []))
+            directions.append((_parse_line_dir(line.get("dir")), weight))
+    return reading_frame_rotation(int(page.rotation), directions)
+
+
+def _horizontal_rule_bboxes(page: fitz.Page, reading_rotation: int = 0) -> list[BBox]:
     """Join adjacent thin drawing segments into full visible horizontal rules.
 
     PDF table borders are often emitted as several touching filled rectangles,
     one per cell. The text layer does not include these visible outer bounds.
     The R035 detector later requires at least two aligned rules around table
     text before using them, so isolated underlines are inert.
+
+    Rules are horizontal in the page's reading frame: on a page whose text
+    reads upright only after ``/Rotate`` (*reading_rotation* != 0, e.g. a
+    pdflscape landscape page) a visually horizontal rule is vertical in
+    unrotated space, so segments are grouped in the displayed frame and the
+    resulting rules are mapped back to unrotated space.
     """
+    to_frame = page.rotation_matrix if reading_rotation else fitz.Identity
     segments: list[fitz.Rect] = []
     for drawing in page.get_drawings():
-        rect = drawing["rect"]
+        rect = drawing["rect"] * to_frame
         if not _drawing_is_visible(drawing):
             continue
         if (
@@ -222,10 +240,13 @@ def _horizontal_rule_bboxes(page: fitz.Page) -> list[BBox]:
             x0 = min(rect.x0 for rect in run)
             x1 = max(rect.x1 for rect in run)
             if x1 - x0 >= _MIN_COMPLETE_RULE_WIDTH_PT:
+                rule = fitz.Rect(x0, min(rect.y0 for rect in run), x1, max(rect.y1 for rect in run))
+                if reading_rotation:
+                    rule = rule * page.derotation_matrix
                 rules.append(
                     BBox(
-                        x0=float(x0), y0=float(min(rect.y0 for rect in run)),
-                        x1=float(x1), y1=float(max(rect.y1 for rect in run)),
+                        x0=float(rule.x0), y0=float(rule.y0),
+                        x1=float(rule.x1), y1=float(rule.y1),
                     )
                 )
     return rules
@@ -256,7 +277,9 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
 
             page_dict = page.get_text("dict")
             if _page_has_table_caption_hint(page_dict):
-                page_model.horizontal_rules = _horizontal_rule_bboxes(page)
+                page_model.horizontal_rules = _horizontal_rule_bboxes(
+                    page, _page_dict_reading_rotation(page, page_dict)
+                )
             seen_graphics: set[tuple[int, int, int, int]] = set()
             for image in page.get_images(full=True):
                 xref = int(image[0])

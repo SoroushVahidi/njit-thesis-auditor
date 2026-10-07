@@ -1,11 +1,27 @@
-"""Conservative PDF figure/table body layout checks (centering and caption placement)."""
+"""Conservative PDF figure/table body layout checks (centering and caption placement).
+
+Centering and caption placement are visual questions, so they are measured in
+the page's reading frame: on a page whose text reads upright only after
+``/Rotate`` (a pdflscape landscape page: portrait MediaBox, ``/Rotate 90`` or
+``270``) every box is first mapped to the displayed page, which makes it
+measure exactly like the same layout encoded as an intrinsic landscape page.
+Reported boxes are mapped back to the unrotated space the rest of the
+pipeline uses. Unrotated pages, and pages whose ``/Rotate`` only turns already
+upright text in the viewer, are measured as before.
+
+Scope: this makes intrinsic-landscape and pdflscape encodings of the same
+visual page agree, which synthetic pixel-equivalent differential tests
+verify. It does not certify arbitrary whole-page ``/Rotate`` behaviour, and
+no real thesis page available to the project uses ``/Rotate`` today.
+"""
 
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_highlight import PageBoxSpace, box_to_display_space
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -14,6 +30,8 @@ from njit_auditor.pdf_models import (
     PdfTextBlock,
     PdfTextLine,
     format_bbox_detail,
+    page_reading_frame_rotation,
+    text_space_size,
 )
 from njit_auditor.rules.pdf_captions import (
     CAPTION_START_RE,
@@ -56,6 +74,66 @@ MAX_CLUSTER_LINE_GAP_PT = 24.0
 TABLE_RULE_EDGE_TOLERANCE_PT = 3.0
 TABLE_RULE_TOP_GAP_PT = 30.0
 TABLE_RULE_MIN_OVERLAP_FRACTION = 0.70
+
+
+BBoxMapper = Callable[[BBox], BBox]
+
+
+def _map_bbox(bbox: BBox, space: PageBoxSpace) -> BBox:
+    x0, y0, x1, y1 = box_to_display_space((bbox.x0, bbox.y0, bbox.x1, bbox.y1), space)
+    return BBox(x0=x0, y0=y0, x1=x1, y1=y1)
+
+
+def _keep_bbox(bbox: BBox) -> BBox:
+    return bbox
+
+
+def _reading_frame_page(page: PdfPage) -> tuple[PdfPage, BBoxMapper]:
+    """Return *page* as R035 measures it, plus a mapper back to unrotated space.
+
+    See the module docstring. The returned page is a copy; *page* itself is
+    never modified.
+    """
+    rotation = page_reading_frame_rotation(page)
+    if rotation == 0:
+        return page, _keep_bbox
+    width, height = text_space_size(page)
+    forward = PageBoxSpace(width, height, rotation)
+    backward = PageBoxSpace(page.width, page.height, 360 - rotation)
+
+    def to_frame(bbox: BBox) -> BBox:
+        return _map_bbox(bbox, forward)
+
+    framed = page.model_copy(
+        update={
+            "text_blocks": [
+                block.model_copy(
+                    update={
+                        "bbox": to_frame(block.bbox),
+                        "lines": [
+                            line.model_copy(
+                                update={
+                                    "bbox": to_frame(line.bbox),
+                                    "spans": [
+                                        span.model_copy(update={"bbox": to_frame(span.bbox)})
+                                        for span in line.spans
+                                    ],
+                                }
+                            )
+                            for line in block.lines
+                        ],
+                    }
+                )
+                for block in page.text_blocks
+            ],
+            "graphic_blocks": [
+                graphic.model_copy(update={"bbox": to_frame(graphic.bbox)})
+                for graphic in page.graphic_blocks
+            ],
+            "horizontal_rules": [to_frame(rule) for rule in page.horizontal_rules],
+        }
+    )
+    return framed, lambda bbox: _map_bbox(bbox, backward)
 
 
 def _collect_page_lines(page: PdfPage) -> list[PdfTextLine]:
@@ -372,6 +450,7 @@ def _append_finding(
     bbox: BBox | None = None,
     body_bbox: BBox | None = None,
     caption_bbox: BBox | None = None,
+    to_source: BBoxMapper = _keep_bbox,
 ) -> None:
     allowed_delta = (
         allowed_center_delta
@@ -390,11 +469,11 @@ def _append_finding(
     if center_delta is not None:
         details["center_delta_points"] = f"{center_delta:.1f}"
     if bbox is not None:
-        details["bbox"] = format_bbox_detail(bbox)
+        details["bbox"] = format_bbox_detail(to_source(bbox))
     if body_bbox is not None:
-        details["body_bbox"] = format_bbox_detail(body_bbox)
+        details["body_bbox"] = format_bbox_detail(to_source(body_bbox))
     if caption_bbox is not None:
-        details["caption_bbox"] = format_bbox_detail(caption_bbox)
+        details["caption_bbox"] = format_bbox_detail(to_source(caption_bbox))
 
     if issue_type == "table_body_not_centered":
         message = "Inferred table body block may not be centered within the text area."
@@ -420,16 +499,17 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
     """Emit conservative P035 warnings for figure/table body layout on body pages."""
 
     findings: list[AuditFinding] = []
-    pages_by_number = {page.page_number: page for page in pdf_document.pages}
+    frames = {page.page_number: _reading_frame_page(page) for page in pdf_document.pages}
 
     captions = detect_caption_lines(pdf_document)
     for caption in captions:
         if caption.context != "body":
             continue
 
-        page = pages_by_number.get(caption.page_number)
-        if page is None:
+        frame = frames.get(caption.page_number)
+        if frame is None:
             continue
+        page, to_source = frame
 
         caption_bbox = _find_caption_line_bbox(page, caption)
         if caption_bbox is None:
@@ -454,6 +534,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                     continue
                 _append_finding(
                     findings,
+                    to_source=to_source,
                     issue_type="table_caption_not_above_body",
                     float_type="table",
                     page_number=caption.page_number,
@@ -481,6 +562,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             if not_centered:
                 _append_finding(
                     findings,
+                    to_source=to_source,
                     issue_type="table_body_not_centered",
                     float_type="table",
                     page_number=caption.page_number,
@@ -503,6 +585,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             if not_centered:
                 _append_finding(
                     findings,
+                    to_source=to_source,
                     issue_type="figure_body_not_centered",
                     float_type="figure",
                     page_number=caption.page_number,
@@ -524,6 +607,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 continue
             _append_finding(
                 findings,
+                to_source=to_source,
                 issue_type="figure_caption_not_below_body",
                 float_type="figure",
                 page_number=caption.page_number,
@@ -544,6 +628,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 continue
             _append_finding(
                 findings,
+                to_source=to_source,
                 issue_type="figure_caption_not_below_body",
                 float_type="figure",
                 page_number=caption.page_number,
