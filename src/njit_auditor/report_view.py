@@ -2795,7 +2795,11 @@ def build_report_view(
         details = finding_details_by_index.get(index, {})
         visible_view = finding_view
         is_problem = True
-        if is_layout_warning_suppressed_on_wrapper_page(
+        # A PASS row records that a check ran clean; it is never a student
+        # problem (e.g. R011's document-level "no violations" row).
+        if visible_view.severity == "PASS":
+            is_problem = False
+        elif is_layout_warning_suppressed_on_wrapper_page(
             visible_view.rule_id,
             visible_view.page,
             wrapper_pages,
