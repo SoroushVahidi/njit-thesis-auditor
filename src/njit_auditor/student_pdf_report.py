@@ -26,7 +26,12 @@ from njit_auditor.issue_type_explanations import (
     humanize_issue_type,
     issue_type_title,
 )
-from njit_auditor.pdf_highlight import HighlightBox, build_highlighted_pdf, clip_box_to_page
+from njit_auditor.pdf_highlight import (
+    HighlightBox,
+    build_highlighted_pdf,
+    clip_box_to_page,
+    page_box_space,
+)
 from njit_auditor.report_outputs import public_display_rule_id
 from njit_auditor.report_text import _detruncate_fix_text
 from njit_auditor.report_view import SORT_MODE_PAGE, sort_findings
@@ -313,9 +318,15 @@ def _report_pdf(
 def _marker_rect(
     page: fitz.Page, box: tuple[float, float, float, float], number: int, occupied: list[fitz.Rect]
 ) -> fitz.Rect | None:
+    """Return a free badge rect beside *box*, in displayed-page coordinates.
+
+    *box* is in the page's unrotated space; the badge is placed relative to
+    the box as the student sees it, so callers map it back with
+    ``page.derotation_matrix`` before drawing.
+    """
     label = f"#{number}"
     width = max(17.0, fitz.get_text_length(label, fontsize=8) + 7)
-    x0, y0, x1, y1 = box
+    x0, y0, x1, y1 = fitz.Rect(*box) * page.rotation_matrix
     positions = ((x0 - width - 3, y0), (x1 + 3, y0), (x0, y0 - 16), (x0, y1 + 3))
     for x, y in positions:
         rect = fitz.Rect(x, y, x + width, y + 13)
@@ -345,7 +356,7 @@ def build_combined_student_pdf_report(
         annotated_path = temp_dir / "annotated.pdf"
         with fitz.open(source_pdf) as source:
             thesis_pages = source.page_count
-            page_sizes = [(p.rect.width, p.rect.height) for p in source]
+            page_sizes = [page_box_space(p) for p in source]
         selected: dict[int, list[HighlightBox]] = {}
         primary: dict[int, tuple[int, tuple[float, float, float, float]]] = {}
         drawn_findings: set[int] = set()
@@ -395,14 +406,15 @@ def build_combined_student_pdf_report(
                 if marker is None:
                     continue
                 shape = page.new_shape()
-                shape.draw_rect(marker)
+                shape.draw_rect(marker * page.derotation_matrix)
                 shape.finish(color=(0.15, 0.20, 0.45), fill=(1, 1, 1), width=0.7)
                 shape.commit(overlay=True)
                 page.insert_text(
-                    (marker.x0 + 3, marker.y1 - 3),
+                    fitz.Point(marker.x0 + 3, marker.y1 - 3) * page.derotation_matrix,
                     f"#{number}",
                     fontsize=8,
                     color=(0.15, 0.20, 0.45),
+                    rotate=page.rotation,
                 )
                 occupied.append(marker)
                 markers_drawn += 1

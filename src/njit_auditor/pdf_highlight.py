@@ -76,6 +76,71 @@ BoxesByPage = dict[int, list[HighlightBox]]
 PageSize = tuple[float, float]
 
 
+class PageBoxSpace(tuple[float, float]):
+    """(width, height) of the space a page's finding boxes are expressed in.
+
+    PyMuPDF reports text, image and drawing boxes -- and reads/writes
+    annotation rects -- in the page's *unrotated*, CropBox-relative space
+    (origin 0, 0 even when the CropBox is offset). Only ``page.rect`` is the
+    displayed size after ``/Rotate``. Clipping a finding box must therefore use
+    this size, never the displayed one; ``rotation`` is carried alongside so
+    student-facing labels can still describe where the box appears on screen
+    (see :func:`box_to_display_space`).
+
+    Behaves like a plain ``(width, height)`` tuple for every existing caller; a
+    plain tuple is treated as an unrotated page.
+    """
+
+    rotation: int
+
+    def __new__(cls, width: float, height: float, rotation: int = 0) -> PageBoxSpace:
+        obj = super().__new__(cls, (width, height))
+        obj.rotation = normalize_rotation(rotation)
+        return obj
+
+
+def normalize_rotation(rotation: int) -> int:
+    """Return *rotation* as one of 0, 90, 180, 270 (anything else means 0)."""
+    value = int(rotation) % 360
+    return value if value in {0, 90, 180, 270} else 0
+
+
+def page_box_space(page: fitz.Page) -> PageBoxSpace:
+    """Return the unrotated, CropBox-relative bounds of *page* plus its rotation."""
+    unrotated = page.rect * page.derotation_matrix
+    return PageBoxSpace(abs(unrotated.width), abs(unrotated.height), page.rotation)
+
+
+def box_to_display_space(
+    box: tuple[float, float, float, float], box_space: PageSize
+) -> tuple[float, float, float, float]:
+    """Map an unrotated *box* to where it appears on the displayed page.
+
+    Pure-math equivalent of PyMuPDF's ``box * page.rotation_matrix`` (the
+    viewer turns the page clockwise by ``/Rotate``), so it works from stored
+    sizes without reopening the PDF. A plain ``(width, height)`` tuple is
+    treated as unrotated and *box* is returned unchanged.
+    """
+    rotation = getattr(box_space, "rotation", 0)
+    width, height = box_space
+    x0, y0, x1, y1 = box
+    if rotation == 90:
+        return (height - y1, x0, height - y0, x1)
+    if rotation == 180:
+        return (width - x1, height - y1, width - x0, height - y0)
+    if rotation == 270:
+        return (y0, width - x1, y1, width - x0)
+    return (x0, y0, x1, y1)
+
+
+def display_page_size(box_space: PageSize) -> PageSize:
+    """Return the displayed (width, height) for *box_space*."""
+    width, height = box_space
+    if getattr(box_space, "rotation", 0) in {90, 270}:
+        return (height, width)
+    return (width, height)
+
+
 def is_drawable_bbox(box: tuple[float, float, float, float]) -> bool:
     """Return True when *box* is a finite, positive-area (x0, y0, x1, y1) rectangle.
 
@@ -181,14 +246,20 @@ def sub_page_location_label(
 
     Returns "" whenever there is not enough reliable geometry to describe a
     location -- callers must never fabricate a label from missing or
-    untrustworthy data. This is intentionally independent of
+    untrustworthy data.
+
+    *bbox* is in the page's unrotated box space and *page_size* is that same
+    space (a :class:`PageBoxSpace` from :func:`get_pdf_page_sizes`). The label
+    describes where the box appears on the *displayed* page, so a ``/Rotate``
+    page is described the way the student sees it. This is intentionally independent of
     :func:`has_visible_highlight`: a finding can have a known rough area on
     the page even when its box does not qualify for an exact PDF highlight
     (e.g. it fails the minimum-visible-dimension check after clipping).
     """
     if bbox is None or page_size is None or not is_drawable_bbox(bbox):
         return ""
-    page_width, page_height = page_size
+    bbox = box_to_display_space(bbox, page_size)
+    page_width, page_height = display_page_size(page_size)
     if page_width <= 0 or page_height <= 0:
         return ""
     x0, y0, x1, y1 = bbox
@@ -232,9 +303,14 @@ def sub_page_location_label(
 
 
 def get_pdf_page_sizes(path: Path) -> list[PageSize]:
-    """Return the (width, height) of every page in the PDF at *path*, in order."""
+    """Return every page's finding-box space (see :class:`PageBoxSpace`), in order.
+
+    These are the bounds finding boxes are clipped against. On a ``/Rotate``
+    90/270 page they are the swap of the displayed size; use
+    :func:`display_page_size` for the latter.
+    """
     with fitz.open(path) as doc:
-        return [(page.rect.width, page.rect.height) for page in doc]
+        return [page_box_space(page) for page in doc]
 
 
 @dataclass(frozen=True)
@@ -289,10 +365,18 @@ def _draw_overflow_marker(
     in the text. Text only, no extra annotation object, so it never affects
     ``HighlightDrawResult.drawn_count``/``has_highlight``.
     """
-    x0, y0, x1, y1 = clipped
+    # Placed beside the box as displayed, then mapped back to the unrotated
+    # space insert_text works in, upright to the viewer on a /Rotate page.
+    x0, y0, x1, y1 = fitz.Rect(*clipped) * page.rotation_matrix
     stroke = _BOX_STYLES["overflow"][0]
     anchor = fitz.Point(min(x1 + 2, page.rect.width - _MARKER_LABEL_SIZE_PT), (y0 + y1) / 2 + 3)
-    page.insert_text(anchor, str(number), fontsize=_MARKER_LABEL_SIZE_PT, color=stroke)
+    page.insert_text(
+        anchor * page.derotation_matrix,
+        str(number),
+        fontsize=_MARKER_LABEL_SIZE_PT,
+        color=stroke,
+        rotate=page.rotation,
+    )
 
 
 def _draw_boxes_for_page(
@@ -309,8 +393,9 @@ def _draw_boxes_for_page(
     skipped = 0
     overflow_total = sum(1 for box in boxes if getattr(box, "kind", "default") == "overflow")
     marker_number = 0
+    box_space = page_box_space(page)
     for box in boxes:
-        clipped = clip_box_to_page(box, page.rect.width, page.rect.height)
+        clipped = clip_box_to_page(box, *box_space)
         if clipped is None:
             skipped += 1
             continue
@@ -333,10 +418,11 @@ def build_highlighted_pdf(
     """Write a copy of *source_pdf* to *output_pdf* with highlight rectangles added.
 
     ``boxes_by_page`` maps 1-based page numbers to (x0, y0, x1, y1) boxes in
-    PDF coordinate space. Page numbers outside the document and boxes that
-    are not visible on their page (see :func:`clip_box_to_page`) are skipped
-    rather than raising, so a single bad finding never breaks the whole
-    response.
+    each page's unrotated, CropBox-relative space -- the space PyMuPDF
+    extracts boxes in and draws annotations in (see :class:`PageBoxSpace`).
+    Page numbers outside the document and boxes that are not visible on their
+    page (see :func:`clip_box_to_page`) are skipped rather than raising, so a
+    single bad finding never breaks the whole response.
 
     *output_pdf* is only written when at least one highlight was actually
     drawn -- a "highlighted" PDF that is byte-for-byte indistinguishable
