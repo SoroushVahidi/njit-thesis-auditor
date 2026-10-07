@@ -40,6 +40,8 @@ from njit_auditor.p011_margin_presentation import (
     margin_content_label,
     margin_detailed_fix_guidance,
     margin_expected_phrase,
+    margin_requirement_phrase,
+    margin_side_label,
     margin_suggested_fix,
     page_context_from_details,
 )
@@ -1015,18 +1017,10 @@ def _problem_prefix(confidence: str) -> str:
     return "Problem" if confidence.strip().lower() == "high" else "Likely problem"
 
 
-def _margin_side_label(side: str) -> str:
-    labels = {
-        "left_margin": "left margin",
-        "right_margin": "right margin",
-        "top_margin": "top margin",
-        "bottom_margin": "bottom margin",
-        "left": "left margin",
-        "right": "right margin",
-        "top": "top margin",
-        "bottom": "bottom margin",
-    }
-    return labels.get(side.strip().lower(), "required page margin")
+def _margin_side_label(details: Mapping[str, str]) -> str:
+    """Same side wording as the markdown/polished-comment path, including the
+    landscape binding-margin qualifier (see ``margin_side_label``)."""
+    return margin_side_label(details)
 
 
 def _margin_overflow_extras(details: Mapping[str, str]) -> list[str]:
@@ -1072,7 +1066,7 @@ def _margin_overflow_detail_phrase(details: Mapping[str, str]) -> str:
 
 
 def _margin_observed_phrase(details: Mapping[str, str]) -> str:
-    side = _margin_side_label(details.get("side", ""))
+    side = _margin_side_label(details)
     if side == "required page margin":
         base = "Some content appears too close to or beyond a required page margin"
     else:
@@ -1084,7 +1078,7 @@ def _margin_observed_phrase(details: Mapping[str, str]) -> str:
 
 
 def _margin_issue_type_explanation(details: Mapping[str, str], *, page: int | None) -> str:
-    side = _margin_side_label(details.get("side", ""))
+    side = _margin_side_label(details)
     page_text = f" on page {page}" if page is not None else ""
     if side == "required page margin":
         return (
@@ -1100,7 +1094,7 @@ def _margin_issue_type_explanation(details: Mapping[str, str], *, page: int | No
 def _margin_detailed_explanation(
     details: Mapping[str, str], *, page: int | None, has_highlight: bool, location_label: str
 ) -> str:
-    side = _margin_side_label(details.get("side", ""))
+    side = _margin_side_label(details)
     observed = _margin_observed_phrase(details)
     page_context = page_context_from_details(details)
     content_kind = content_kind_from_details(details)
@@ -1132,11 +1126,12 @@ def _margin_detailed_explanation(
         page_context=page_context,
         content_kind=content_kind,
         side_label=side,
+        details=details,
     )
     return (
         f"Observed: {observed}{page_text}. "
         f"Expected: {expected} "
-        "(left 1.5 inches; right, top, and bottom 1 inch). "
+        f"{margin_requirement_phrase(details)}. "
         f"Why this is suspicious: {why}. "
         f"{fix_guidance}{no_highlight_text}"
     )
@@ -1147,7 +1142,7 @@ def _margin_comment_and_fix(
 ) -> tuple[str, str]:
     page_label = str(page) if page is not None else "this page"
     prefix = _problem_prefix(confidence)
-    side = _margin_side_label(details.get("side", ""))
+    side = _margin_side_label(details)
     page_context = page_context_from_details(details)
     content_kind = content_kind_from_details(details)
     overflow_detail = _margin_overflow_detail_phrase(details)
@@ -1164,6 +1159,7 @@ def _margin_comment_and_fix(
         page_context=page_context,
         content_kind=content_kind,
         side_label=side,
+        details=details,
     )
     return comment, fix
 

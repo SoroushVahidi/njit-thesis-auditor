@@ -226,13 +226,72 @@ def margin_side_label(details: Mapping[str, str]) -> str:
     return label
 
 
+_PORTRAIT_MARGIN_REQUIREMENT = "(left 1.5 inches; right, top, and bottom 1 inch)"
+
+
+def _landscape_binding_edge(details: Mapping[str, str] | None) -> str | None:
+    """"top"/"bottom"/"undetermined" for a landscape-sheet finding, else None.
+
+    Read from the details ``rules.pdf_margins.MarginFrame`` records; never
+    re-inferred here.
+    """
+    if not details or details.get("page_orientation") != "landscape":
+        return None
+    edge = str(details.get("binding_edge", "")).strip().lower()
+    return edge if edge in ("top", "bottom") else "undetermined"
+
+
+def margin_requirement_phrase(details: Mapping[str, str] | None = None) -> str:
+    """The margin requirement in parentheses, stated for this page's orientation."""
+    edge = _landscape_binding_edge(details)
+    if edge is None:
+        return _PORTRAIT_MARGIN_REQUIREMENT
+    if edge == "undetermined":
+        return (
+            "(on this landscape page, keep at least 1 inch on every edge; the "
+            "document's 1.5-inch binding margin runs along one of the long edges)"
+        )
+    return (
+        f"(on this landscape page, the document's 1.5-inch binding margin is the {edge} "
+        "edge; the other three edges need 1 inch)"
+    )
+
+
+def margin_primary_remediation(details: Mapping[str, str] | None = None) -> str:
+    """Ester's margin remediation, or its landscape equivalent for a sideways sheet."""
+    edge = _landscape_binding_edge(details)
+    if edge is None:
+        return _ESTER_MARGIN_REMEDIATION
+    side = _MARGIN_SIDE_LABELS.get(str(details.get("side", "")).strip().lower() if details else "")
+    if edge == "undetermined":
+        target = f"the 1-inch {side} line" if side else "the 1-inch margin lines"
+        return (
+            "On this landscape page, keep at least 1 inch on every edge, plus the "
+            "document's 1.5-inch binding margin along the bound long edge. Move the "
+            f"highlighted content inside {target}."
+        )
+    on_binding_edge = side == f"{edge} margin"
+    if on_binding_edge:
+        target = "the 1.5-inch binding-margin line"
+    elif side:
+        target = f"the 1-inch {side} line"
+    else:
+        target = "the required margin lines"
+    return (
+        "Landscape pages keep the document's 1.5-inch binding margin, which on this "
+        f"page is the {edge} edge; the other edges need 1 inch. Move the highlighted "
+        f"content inside {target}."
+    )
+
+
 def margin_suggested_fix(
     *,
     page_context: str,
     content_kind: str,
     side_label: str,
+    details: Mapping[str, str] | None = None,
 ) -> str:
-    primary = _ESTER_MARGIN_REMEDIATION
+    primary = margin_primary_remediation(details)
     secondary = _secondary_margin_fix(
         page_context=page_context,
         content_kind=content_kind,
@@ -271,11 +330,13 @@ def margin_detailed_fix_guidance(
     page_context: str,
     content_kind: str,
     side_label: str,
+    details: Mapping[str, str] | None = None,
 ) -> str:
     fix = margin_suggested_fix(
         page_context=page_context,
         content_kind=content_kind,
         side_label=side_label,
+        details=details,
     )
     return f"What to check or fix: {fix}"
 

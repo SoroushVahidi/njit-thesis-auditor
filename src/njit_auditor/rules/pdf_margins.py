@@ -888,6 +888,7 @@ def run_pdf_margin_rule(
                 page_context=page_context,
                 content_kind=content_kind,
                 side_label=margin_side_label(finding_details),
+                details=finding_details,
             )
 
             findings.append(
