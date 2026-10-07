@@ -73,7 +73,12 @@ def _title(finding: Mapping[str, Any]) -> str:
 
 
 def _fix(finding: Mapping[str, Any]) -> str:
-    return _detruncate_fix_text(_field(finding, "rule_id"), _field(finding, "suggested_fix"))
+    details = finding.get("details")
+    return _detruncate_fix_text(
+        _field(finding, "rule_id"),
+        _field(finding, "suggested_fix"),
+        details if isinstance(details, Mapping) else None,
+    )
 
 
 def render_student_report_text(

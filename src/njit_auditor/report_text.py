@@ -113,7 +113,9 @@ def _full_remediation_by_rule() -> dict[str, str]:
     return _full_remediation_cache
 
 
-def _detruncate_fix_text(rule_id: str, fix_text: str) -> str:
+def _detruncate_fix_text(
+    rule_id: str, fix_text: str, details: Mapping[str, str] | None = None
+) -> str:
     """Replace a word-boundary-truncated fix ("...") with the full remediation text.
 
     The full text is read straight from the canonical rule JSON (see
@@ -123,8 +125,16 @@ def _detruncate_fix_text(rule_id: str, fix_text: str) -> str:
     authoring/reviewer shorthand left in that field (e.g. a trailing
     "Ester: ..." summary note addressed to other rule authors, not
     students) would be de-truncated straight into this report verbatim.
+
+    A truncated R011 fix on a landscape sheet is rebuilt from the finding's
+    details instead: the canonical remediation states the portrait rule
+    ("left margin 1.5 inches"), which misdescribes that page.
     """
     if fix_text.endswith("...") or fix_text.endswith("…"):
+        if rule_id == "P011" and details and details.get("page_orientation") == "landscape":
+            from njit_auditor.p011_margin_presentation import margin_primary_remediation
+
+            return margin_primary_remediation(details)
         full = _full_remediation_by_rule().get(rule_id, "")
         if full:
             return _websafe_rule_text(rule_id, "remediation", full)
@@ -311,7 +321,7 @@ def _build_occurrences(
             p011_page_stats=p011_page_stats,
         )
         comment = _clean_detected_text(comment)
-        fix = _detruncate_fix_text(rule_id, fix)
+        fix = _detruncate_fix_text(rule_id, fix, details)
 
         location_text = _problem_location_text(
             finding,

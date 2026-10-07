@@ -47,6 +47,8 @@ class P011PagePresentationStats:
     raw_finding_count: int
     highlight_bboxes: tuple[tuple[float, float, float, float], ...] = ()
     side_stats: tuple[P011SideStats, ...] = ()
+    page_orientation: str = ""
+    binding_edge: str = ""
 
 
 @dataclass
@@ -103,8 +105,12 @@ def p011_combined_rolled_up_comment(stats: P011PagePresentationStats) -> str:
 
 def p011_combined_suggested_fix(stats: P011PagePresentationStats) -> str:
     side_phrase = _join_margin_labels([_side_short_label(side) for side in stats.sides])
-    primary = (
-        "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch."
+    from njit_auditor.p011_margin_presentation import margin_primary_remediation
+
+    # No single side for a multi-side card: portrait keeps Ester's remediation,
+    # a landscape sheet names its binding edge.
+    primary = margin_primary_remediation(
+        {"page_orientation": stats.page_orientation, "binding_edge": stats.binding_edge}
     )
     secondary = (
         f"Then check page {stats.page} for headers, page numbers, tables, figures, "
@@ -156,6 +162,9 @@ class P011SerializedEntry:
     highlight_bboxes: tuple[tuple[float, float, float, float], ...]
     worst_overflow_pt: float
     affected_line_count: int
+    # Landscape-sheet orientation recorded by the detector (MarginFrame).
+    page_orientation: str = ""
+    binding_edge: str = ""
 
 
 def _parse_bbox_field(raw: str) -> tuple[float, float, float, float] | None:
@@ -222,6 +231,8 @@ def collect_p011_margin_pages_from_serialized(
                 highlight_bboxes=entry_boxes,
                 worst_overflow_pt=worst_overflow_pt,
                 affected_line_count=affected_line_count,
+                page_orientation=str(details.get("page_orientation", "")).strip(),
+                binding_edge=str(details.get("binding_edge", "")).strip(),
             )
         )
     return dict(by_page)
@@ -253,6 +264,8 @@ def init_p011_display_state(
             raw_finding_count=len(entries),
             highlight_bboxes=highlight_bboxes,
             side_stats=side_stats,
+            page_orientation=next((e.page_orientation for e in entries if e.page_orientation), ""),
+            binding_edge=next((e.binding_edge for e in entries if e.binding_edge), ""),
         )
         state.page_stats[page] = stats
         if len(entries) > 1:

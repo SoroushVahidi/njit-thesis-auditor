@@ -976,6 +976,7 @@ def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> st
         margin_content_label,
         margin_detailed_fix_guidance,
         margin_expected_phrase,
+        margin_requirement_phrase,
         page_context_from_details,
     )
 
@@ -1006,11 +1007,12 @@ def _p011_margin_explanation(details: dict[str, str], *, page: int | None) -> st
         page_context=page_context,
         content_kind=content_kind,
         side_label=side,
+        details=details,
     )
     return (
         f"Observed: {observed}. "
         f"Expected: {margin_expected_phrase(page_context)} "
-        "(left 1.5 inches; right, top, and bottom 1 inch). "
+        f"{margin_requirement_phrase(details)}. "
         "Why this is suspicious: layout content appears outside the printable area. "
         f"{fix_guidance}"
     )
