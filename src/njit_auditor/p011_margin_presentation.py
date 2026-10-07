@@ -25,8 +25,7 @@ _APPROVAL_DATE_FIX = (
 )
 _REFERENCES_FIX = (
     "Adjust the references paragraph formatting or hanging-indent settings, and wrap "
-    "long URLs if needed, so all reference numbers and text remain within the "
-    "required margin."
+    "long URLs if needed, so the reference text remains within the required margin."
 )
 _TABLE_FIX = (
     "Reduce the table width, adjust column widths, wrap cell content, or reposition "

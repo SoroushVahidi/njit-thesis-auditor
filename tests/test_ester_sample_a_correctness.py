@@ -107,6 +107,13 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     instead of being heading-exempt. This mirrors Ester's Youra page-101
     correction: report the true paragraph-start line, not the following
     continuation line.
+
+    P011 dropped from 9 to 1 after the 2026-10-06 outdented reference-label
+    exemption: pages 91-98 were "[n]" label columns hanging left of the 1.5 in
+    edge with entry text starting at it, exempt under Ester's LaTeX left-margin
+    guidance (derived application, see
+    docs/status/r011_outdented_reference_labels_20261006.md). Page 99 (one
+    entry, no heading) stays reported.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -124,7 +131,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     # false-positive regressions instead of freezing a stale aggregate count.
     assert len(problem) >= 14
     assert by_rule["P038"] == 0
-    assert by_rule["P011"] == 9
+    assert by_rule["P011"] == 1
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 
@@ -103,6 +104,20 @@ REFERENCES_MARGIN_EXTRA_TOLERANCE_PT = 6.0
 # Ester explicitly confirmed a separate 18.0pt entry is a real violation.
 # Leave the left-margin hanging-indent allowance unchanged.
 REFERENCES_RIGHT_MARGIN_EXTRA_TOLERANCE_PT = 7.25
+
+# Outdented reference-number labels. Ester: "there are never problems with
+# the left margins in latex" and, for template-produced LaTeX margin
+# behavior, "I do not ask students to make this correction". She reviewed
+# numbered bibliographies whose "[n]" labels hang left of the 1.5 in edge
+# (entry text starting at it) in several LaTeX dissertations without flagging
+# the labels, while still flagging text that crossed a margin. So on a
+# references page, a right-aligned column of standalone "[n]" label spans is
+# measured by where each entry's text starts, not by the label. The entry
+# text itself stays fully constrained. Derived application, not a direct
+# ruling: docs/status/r011_outdented_reference_labels_20261006.md.
+_REFERENCE_LABEL_SPAN_RE = re.compile(r"^\[\d{1,3}\]$")
+REFERENCE_LABEL_COLUMN_ALIGN_PT = 1.5
+REFERENCE_LABEL_COLUMN_MIN_ENTRIES = 2
 
 # Standard space-glyph advance width as a fraction of font size (~0.25em is a
 # near-universal convention across text fonts), used only to correct a
@@ -325,6 +340,54 @@ def _is_confident_references_page(page: PdfPage) -> bool:
     return page_has_numbered_reference_entries(_page_text(page))
 
 
+def _outdented_label_split(line: PdfTextLine) -> tuple[float, float] | None:
+    """(label right edge, entry-text left edge) for a line that opens with a
+    standalone "[n]" label span followed by separate entry text, else None."""
+    spans = [span for span in line.spans if span.text.strip()]
+    if len(spans) < 2 or not _REFERENCE_LABEL_SPAN_RE.match(spans[0].text.strip()):
+        return None
+    label_x1 = spans[0].bbox.x1
+    text_x0 = spans[1].bbox.x0
+    if text_x0 < label_x1:
+        return None
+    return label_x1, text_x0
+
+
+def _reference_label_column_x1(
+    page: PdfPage, page_lines: list[PdfTextLine], *, contents_page: bool
+) -> float | None:
+    """Right edge of a right-aligned "[n]" label column on a references page.
+
+    None unless the page is a confident references page (not a contents page)
+    with at least two such labels whose right edges line up.
+    """
+    if contents_page or not _is_confident_references_page(page):
+        return None
+    label_x1s = sorted(
+        split[0] for line in page_lines if (split := _outdented_label_split(line)) is not None
+    )
+    if len(label_x1s) < REFERENCE_LABEL_COLUMN_MIN_ENTRIES:
+        return None
+    column_x1 = label_x1s[len(label_x1s) // 2]
+    aligned = [x1 for x1 in label_x1s if abs(x1 - column_x1) <= REFERENCE_LABEL_COLUMN_ALIGN_PT]
+    if len(aligned) < REFERENCE_LABEL_COLUMN_MIN_ENTRIES:
+        return None
+    return column_x1
+
+
+def _left_edge_excluding_reference_label(
+    line: PdfTextLine, reference_label_column_x1: float | None
+) -> float:
+    """The line's left edge, measured from its entry text when it opens with a
+    label belonging to the page's reference-label column."""
+    if reference_label_column_x1 is None:
+        return line.bbox.x0
+    split = _outdented_label_split(line)
+    if split is None or abs(split[0] - reference_label_column_x1) > REFERENCE_LABEL_COLUMN_ALIGN_PT:
+        return line.bbox.x0
+    return split[1]
+
+
 def _is_references_final_line_allowance(
     page: PdfPage,
     page_lines: list[PdfTextLine],
@@ -427,6 +490,7 @@ def _line_violation(
     page_lines: list[PdfTextLine] | None = None,
     contents_page: bool = False,
     page_number_bands: tuple[BBox, ...] = (),
+    reference_label_column_x1: float | None = None,
 ) -> LineViolation | None:
     text = line.text.strip()
     if not text:
@@ -442,8 +506,9 @@ def _line_violation(
     content_x1 = min(bbox.x1, _content_right_edge(line))
 
     overflow_by_side: dict[MarginSide, float] = {}
-    if bbox.x0 < allowed_x0:
-        raw = allowed_x0 - bbox.x0
+    left_edge = _left_edge_excluding_reference_label(line, reference_label_column_x1)
+    if left_edge < allowed_x0:
+        raw = allowed_x0 - left_edge
         if raw > OVERFLOW_TOLERANCE_PT + OVERFLOW_TOLERANCE_EPSILON_PT:
             overflow_by_side[MarginSide.LEFT] = raw
     if content_x1 > allowed_x1:
@@ -628,6 +693,13 @@ def run_pdf_margin_rule(
         allowed_y1 = frame.allowed_y1
         page_lines = [line for block in page.text_blocks for line in block.lines]
         contents_page = _is_contents_page(page)
+        # Landscape sheets keep the plain measurement: the authority concerns
+        # the portrait left (binding) margin.
+        reference_label_column_x1 = (
+            None
+            if frame.is_landscape_sheet
+            else _reference_label_column_x1(page, page_lines, contents_page=contents_page)
+        )
 
         grouped: dict[MarginSide, list[LineViolation]] = {}
         line_index = 0
@@ -643,6 +715,7 @@ def run_pdf_margin_rule(
                 page_lines=page_lines,
                 contents_page=contents_page,
                 page_number_bands=frame.page_number_bands,
+                reference_label_column_x1=reference_label_column_x1,
             )
             line_index += 1
             if not violation:
