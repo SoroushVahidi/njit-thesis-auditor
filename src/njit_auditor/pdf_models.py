@@ -273,6 +273,64 @@ class PdfReadingFrame:
         width, height = self.reading_size
         return _turn_box(bbox, width, height, (360 - self.reading_rotation) % 360)
 
+    def page_in_reading_frame(self, page: PdfPage) -> PdfPage:
+        """*page*'s text, graphics and rules as laid out in this reading frame.
+
+        Returns *page* itself when the reading frame is box space
+        (``reading_rotation == 0``). Otherwise returns a copy whose boxes and
+        line writing directions are mapped with :meth:`to_reading` and whose
+        ``page_rotation`` is 0, so the copy describes the upright authored page
+        (its displayed size already equals the reading-frame size). Per-glyph
+        ``char_x_bounds`` are horizontal-only measurements and are dropped on
+        a turned copy. *page* is never modified; map reported boxes back with
+        :meth:`from_reading`. This is a rule-local view, not extraction
+        normalization.
+        """
+        rotation = self.reading_rotation
+        if rotation == 0:
+            return page
+        to_frame = self.to_reading
+
+        def direction(value: tuple[float, float] | None) -> tuple[float, float] | None:
+            return None if value is None else _displayed_direction(value, rotation)
+
+        return page.model_copy(
+            update={
+                "page_rotation": 0,
+                "text_blocks": [
+                    block.model_copy(
+                        update={
+                            "bbox": to_frame(block.bbox),
+                            "lines": [
+                                line.model_copy(
+                                    update={
+                                        "bbox": to_frame(line.bbox),
+                                        "line_dir": direction(line.line_dir),
+                                        "spans": [
+                                            span.model_copy(
+                                                update={
+                                                    "bbox": to_frame(span.bbox),
+                                                    "char_x_bounds": None,
+                                                }
+                                            )
+                                            for span in line.spans
+                                        ],
+                                    }
+                                )
+                                for line in block.lines
+                            ],
+                        }
+                    )
+                    for block in page.text_blocks
+                ],
+                "graphic_blocks": [
+                    graphic.model_copy(update={"bbox": to_frame(graphic.bbox)})
+                    for graphic in page.graphic_blocks
+                ],
+                "horizontal_rules": [to_frame(rule) for rule in page.horizontal_rules],
+            }
+        )
+
 
 class PdfDocument(BaseModel):
     """Extracted PDF document layout model."""
