@@ -93,44 +93,10 @@ def _reading_frame_page(page: PdfPage) -> tuple[PdfPage, PdfReadingFrame]:
     """Return *page*'s content in its reading frame, plus that frame.
 
     Only the returned page's boxes are used; every size and the policy
-    orientation come from the frame. The returned page is a copy when boxes
-    move; *page* itself is never modified.
+    orientation come from the frame. *page* itself is never modified.
     """
     frame = PdfReadingFrame.for_page(page)
-    if frame.reading_rotation == 0:
-        return page, frame
-    to_frame = frame.to_reading
-
-    framed = page.model_copy(
-        update={
-            "text_blocks": [
-                block.model_copy(
-                    update={
-                        "bbox": to_frame(block.bbox),
-                        "lines": [
-                            line.model_copy(
-                                update={
-                                    "bbox": to_frame(line.bbox),
-                                    "spans": [
-                                        span.model_copy(update={"bbox": to_frame(span.bbox)})
-                                        for span in line.spans
-                                    ],
-                                }
-                            )
-                            for line in block.lines
-                        ],
-                    }
-                )
-                for block in page.text_blocks
-            ],
-            "graphic_blocks": [
-                graphic.model_copy(update={"bbox": to_frame(graphic.bbox)})
-                for graphic in page.graphic_blocks
-            ],
-            "horizontal_rules": [to_frame(rule) for rule in page.horizontal_rules],
-        }
-    )
-    return framed, frame
+    return frame.page_in_reading_frame(page), frame
 
 
 def _collect_page_lines(page: PdfPage) -> list[PdfTextLine]:

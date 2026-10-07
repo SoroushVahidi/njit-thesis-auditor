@@ -158,3 +158,24 @@ def test_frame_never_exposes_or_mutates_display_geometry() -> None:
     assert not any(
         name in {"width", "height", "display_size", "is_visually_landscape"} for name in dir(frame)
     )
+
+
+@pytest.mark.parametrize("rotation", (90, 180, 270))
+def test_page_in_reading_frame_maps_boxes_and_directions(rotation: int) -> None:
+    display = (792, 612) if rotation % 180 == 90 else (612, 792)
+    page = _page(display, rotation, UPRIGHT_AFTER[rotation])
+    before = page.model_dump()
+    frame = PdfReadingFrame.for_page(page)
+    upright = frame.page_in_reading_frame(page)
+    assert page.model_dump() == before
+    assert upright.page_rotation == 0
+    [line] = upright.text_blocks[0].lines
+    assert line.line_dir == pytest.approx(UPRIGHT)
+    assert line.bbox == frame.to_reading(page.text_blocks[0].lines[0].bbox)
+    assert PdfReadingFrame.for_page(upright).reading_size == frame.reading_size
+
+
+@pytest.mark.parametrize("rotation", (0, 90, 270))
+def test_page_in_reading_frame_is_identity_for_frame_0(rotation: int) -> None:
+    page = _page((612, 792) if rotation % 180 == 0 else (792, 612), rotation)
+    assert PdfReadingFrame.for_page(page).page_in_reading_frame(page) is page

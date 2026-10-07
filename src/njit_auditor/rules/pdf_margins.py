@@ -18,9 +18,9 @@ from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
     PdfPage,
+    PdfReadingFrame,
     PdfTextLine,
     format_bbox_detail,
-    text_space_size,
 )
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE, _is_top_or_bottom_zone
 
@@ -165,26 +165,31 @@ class MarginSide(str, Enum):
 # top, and bottom" throughout), and its guideline keeps page numbers in portrait
 # when a table or figure is set in landscape. A landscape page is therefore
 # the same portrait sheet turned sideways: the 1.5 in binding margin lies
-# along one of its long edges, never its left edge. Same aspect threshold as
-# ``pdf_layout._is_visually_landscape``.
-LANDSCAPE_ASPECT_THRESHOLD = 1.02
+# along one of its long edges, never its left edge. Whether a page is a
+# landscape sheet is ``PdfReadingFrame.is_landscape`` (the reading-frame
+# aspect, shared LANDSCAPE_ASPECT_THRESHOLD).
 _VERTICAL_DIR_MIN_COMPONENT = 0.9
 
 
 @dataclass(frozen=True)
 class MarginFrame:
-    """Allowed text area in the page's text coordinate space.
+    """Allowed text area in the page's reading frame (rotation-frames ADR).
 
-    PyMuPDF reports text boxes in the *unrotated* page space even when the page
-    carries ``/Rotate``, so the frame is built from the unrotated size, not the
-    displayed ``page.width``/``page.height``.
+    R011 measures every page as its authored content reads upright
+    (:class:`~njit_auditor.pdf_models.PdfReadingFrame`): a viewer-only
+    ``/Rotate`` leaves that frame equal to the unrotated box space, while a
+    content-turned page (e.g. pdflscape) is measured as displayed. Sizes,
+    sides, the binding edge and the bottom allowances all refer to that frame;
+    the displayed ``page.width``/``page.height`` are never used. Finding boxes
+    are mapped back to box space before they are stored.
     """
 
     allowed_x0: float
     allowed_y0: float
     allowed_x1: float
     allowed_y1: float
-    text_space_height: float
+    reading_width: float
+    reading_height: float
     # "portrait", or for a landscape sheet the edge holding the binding margin:
     # "top", "bottom", or "undetermined".
     binding_edge: str = "left"
@@ -198,13 +203,13 @@ class MarginFrame:
 
     @property
     def last_line_bottom_allowances_apply(self) -> bool:
-        """Whether the text-space bottom edge gets the bottom-only allowances.
+        """Whether the reading-frame bottom edge gets the bottom-only allowances.
 
         BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT, the final-line box exception and
         the references final-line allowance come from Ester's verdicts on the
         last line of a page's text flow dipping into an ordinary 1-inch
         bottom margin ("Bottom ~0.9" to 1"" for LaTeX, Word cases too). They
-        follow the text flow's end (the text-space bottom), but never relax the
+        follow the text flow's end (the reading-frame bottom), but never relax the
         1.5-inch binding margin, which keeps the ordinary tolerance on every
         sheet: a sheet turned counter-clockwise puts its binding edge at the
         bottom.
@@ -214,6 +219,8 @@ class MarginFrame:
 
 def _portrait_page_number_direction(page: PdfPage) -> int | None:
     """+1 / -1 when every vertical page-number-like line runs down / up.
+
+    *page* is in its reading frame, so directions are as the content reads.
 
     A portrait-orientation page number on a sideways sheet is the one reliable
     marker of which long edge is the binding edge; anything else (none found,
@@ -231,19 +238,38 @@ def _portrait_page_number_direction(page: PdfPage) -> int | None:
     return signs.pop() if len(signs) == 1 else None
 
 
+def _reading_page(page: PdfPage) -> tuple[PdfPage, PdfReadingFrame]:
+    """*page* laid out in its reading frame, plus that frame."""
+    frame = PdfReadingFrame.for_page(page)
+    return frame.page_in_reading_frame(page), frame
+
+
 def _margin_frame(page: PdfPage) -> MarginFrame:
-    width, height = text_space_size(page)
-    if width <= height * LANDSCAPE_ASPECT_THRESHOLD:
+    """The R011 margin frame of *page* (any encoding), in its reading frame."""
+    reading_page, frame = _reading_page(page)
+    return _reading_margin_frame(reading_page, frame)
+
+
+def _reading_margin_frame(reading_page: PdfPage, reading_frame: PdfReadingFrame) -> MarginFrame:
+    """Margin frame for a page already in its reading frame.
+
+    Policy orientation is the reading-frame aspect; on a landscape sheet the
+    binding edge comes from the portrait page number's reading direction,
+    never from the ``/Rotate`` value.
+    """
+    width, height = reading_frame.reading_size
+    if not reading_frame.is_landscape:
         return MarginFrame(
             allowed_x0=LEFT_MARGIN_PT,
             allowed_y0=TOP_MARGIN_PT,
             allowed_x1=width - RIGHT_MARGIN_PT,
             allowed_y1=height - BOTTOM_MARGIN_PT,
-            text_space_height=height,
+            reading_width=width,
+            reading_height=height,
         )
     left_band = BBox(x0=0.0, y0=0.0, x1=BOTTOM_MARGIN_PT, y1=height)
     right_band = BBox(x0=width - BOTTOM_MARGIN_PT, y0=0.0, x1=width, y1=height)
-    direction = _portrait_page_number_direction(page)
+    direction = _portrait_page_number_direction(reading_page)
     if direction == 1:
         # Portrait text runs down the page: the sheet was turned clockwise, so
         # portrait left (binding) is the top edge, portrait bottom the left edge,
@@ -253,7 +279,8 @@ def _margin_frame(page: PdfPage) -> MarginFrame:
             allowed_y0=LEFT_MARGIN_PT,
             allowed_x1=width - TOP_MARGIN_PT,
             allowed_y1=height - RIGHT_MARGIN_PT,
-            text_space_height=height,
+            reading_width=width,
+            reading_height=height,
             binding_edge="top",
             page_number_bands=(left_band,),
         )
@@ -264,7 +291,8 @@ def _margin_frame(page: PdfPage) -> MarginFrame:
             allowed_y0=RIGHT_MARGIN_PT,
             allowed_x1=width - BOTTOM_MARGIN_PT,
             allowed_y1=height - LEFT_MARGIN_PT,
-            text_space_height=height,
+            reading_width=width,
+            reading_height=height,
             binding_edge="bottom",
             page_number_bands=(right_band,),
         )
@@ -275,7 +303,8 @@ def _margin_frame(page: PdfPage) -> MarginFrame:
         allowed_y0=TOP_MARGIN_PT,
         allowed_x1=width - TOP_MARGIN_PT,
         allowed_y1=height - TOP_MARGIN_PT,
-        text_space_height=height,
+        reading_width=width,
+        reading_height=height,
         binding_edge="undetermined",
         page_number_bands=(left_band, right_band),
     )
@@ -456,8 +485,12 @@ def _continued_reference_column(
     return _ReferenceColumn(previous.label_x1, previous.text_x0, numbers[-1])
 
 
-def _reference_label_columns(pdf_doc: PdfDocument) -> dict[int, float]:
-    """Reference-label column right edge per page number, in document order.
+def _reference_label_columns(
+    pdf_doc: PdfDocument,
+    reading_pages: dict[int, tuple[PdfPage, PdfReadingFrame]] | None = None,
+) -> dict[int, float]:
+    """Reference-label column right edge (reading frame) per page number, in
+    document order.
 
     A page establishes its own column (``_reference_label_column_x1``) or, when
     it cannot (e.g. a final page holding a single entry), continues the column
@@ -467,11 +500,15 @@ def _reference_label_columns(pdf_doc: PdfDocument) -> dict[int, float]:
     """
     columns: dict[int, float] = {}
     previous: _ReferenceColumn | None = None
-    for page in pdf_doc.pages:
+    for raw_page in pdf_doc.pages:
+        if reading_pages is not None and raw_page.page_number in reading_pages:
+            page, reading_frame = reading_pages[raw_page.page_number]
+        else:
+            page, reading_frame = _reading_page(raw_page)
         current: _ReferenceColumn | None = None
         page_lines = [line for block in page.text_blocks for line in block.lines]
         contents_page = _is_contents_page(page)
-        if not contents_page and not _margin_frame(page).is_landscape_sheet:
+        if not contents_page and not _reading_margin_frame(page, reading_frame).is_landscape_sheet:
             own_x1 = _reference_label_column_x1(page, page_lines, contents_page=contents_page)
             if own_x1 is not None:
                 text_x0s = sorted(
@@ -513,6 +550,7 @@ def _is_references_final_line_allowance(
     overflow: float,
     *,
     contents_page: bool,
+    page_height: float,
 ) -> bool:
     """Ester's 2026-10-05 references-page final-line false positive shape."""
     if contents_page or not _is_confident_references_page(page):
@@ -525,9 +563,7 @@ def _is_references_final_line_allowance(
     page_numbers = [
         other
         for other in page_lines
-        if _likely_page_number_text(
-            other.text, other.bbox.y0, other.bbox.y1, text_space_size(page)[1]
-        )
+        if _likely_page_number_text(other.text, other.bbox.y0, other.bbox.y1, page_height)
     ]
     text_lines = [other for other in page_lines if other.text.strip() and other not in page_numbers]
     # The line is the last text on the page ...
@@ -804,11 +840,18 @@ def run_pdf_margin_rule(
 
     findings: list[AuditFinding] = []
     skipped = skip_pages or set()
-    reference_label_columns = _reference_label_columns(pdf_doc)
-    for page in pdf_doc.pages:
-        if page.page_number in skipped:
+    # Every page is measured in its reading frame; stored boxes go back to box space.
+    reading_pages = {page.page_number: _reading_page(page) for page in pdf_doc.pages}
+    reference_label_columns = _reference_label_columns(pdf_doc, reading_pages)
+    for source_page in pdf_doc.pages:
+        if source_page.page_number in skipped:
             continue
-        frame = _margin_frame(page)
+        page, reading_frame = reading_pages[source_page.page_number]
+        frame = _reading_margin_frame(page, reading_frame)
+
+        def stored(box: BBox, reading_frame: PdfReadingFrame = reading_frame) -> str:
+            return format_bbox_detail(reading_frame.from_reading(box))
+
         allowed_x0 = frame.allowed_x0
         allowed_y0 = frame.allowed_y0
         allowed_x1 = frame.allowed_x1
@@ -824,7 +867,7 @@ def run_pdf_margin_rule(
         for line in page_lines:
             violation = _line_violation(
                 line,
-                frame.text_space_height,
+                frame.reading_height,
                 allowed_x0,
                 allowed_y0,
                 allowed_x1,
@@ -884,6 +927,7 @@ def run_pdf_margin_rule(
                     allowed_y1,
                     worst,
                     contents_page=contents_page,
+                    page_height=frame.reading_height,
                 )
             ):
                 continue
@@ -984,17 +1028,15 @@ def run_pdf_margin_rule(
                 "affected_line_count": str(count),
                 "confidence": confidence,
                 "triage_tier": "informational",
-                "bbox": format_bbox_detail(highlight_bbox),
-                "highlight_bboxes": " | ".join(
-                    format_bbox_detail(box) for box in highlight_bboxes
-                ),
+                "bbox": stored(highlight_bbox),
+                "highlight_bboxes": " | ".join(stored(box) for box in highlight_bboxes),
                 "overflow_display_bboxes": " | ".join(
-                    format_bbox_detail(box) for box in overflow_display_bboxes
+                    stored(box) for box in overflow_display_bboxes
                 ),
                 "overflow_segment_bboxes": " | ".join(
-                    format_bbox_detail(box) for box in overflow_segment_bboxes
+                    stored(box) for box in overflow_segment_bboxes
                 ),
-                "margin_boundary_bbox": format_bbox_detail(margin_boundary_bbox),
+                "margin_boundary_bbox": stored(margin_boundary_bbox),
             }
             if line_previews:
                 finding_details["affected_line_texts"] = " | ".join(line_previews)
