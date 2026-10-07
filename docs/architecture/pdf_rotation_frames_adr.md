@@ -209,6 +209,7 @@ Prove each migration with pixel-equivalent intrinsic / content-turned / viewer-o
 ## Follow-up work (ranked)
 
 1. **R035 B1:** reading-frame size and orientation on R = 0, introducing the shared frame object. It is the only confirmed rule bug, and it is narrow.
+   **Implemented:** `pdf_models.PdfReadingFrame` (box size, page rotation, reading rotation, reading-frame size, policy orientation, `to_reading`/`from_reading`). R035 is its only consumer and no longer reads `PdfPage.width/height/is_visually_landscape`; viewer-only `/Rotate` 90/180/270 now gives the `/Rotate 0` verdict. `reading_confident` is deliberately not added yet: the frame uses today's `reading_frame_rotation` unchanged, so B2 (item 4) is still open.
 2. R011 whole-page `/Rotate` and pdflscape side wording.
 3. P013/P019 content-turned 180 semantics (decided above; update the interim test).
 4. B2 confidence signal and abstention.

@@ -7,6 +7,7 @@ import re
 import fitz
 
 from njit_auditor.pdf_models import (
+    LANDSCAPE_ASPECT_THRESHOLD,
     BBox,
     PdfDocument,
     PdfGraphicBlock,
@@ -17,7 +18,6 @@ from njit_auditor.pdf_models import (
     reading_frame_rotation,
 )
 
-LANDSCAPE_ASPECT_THRESHOLD = 1.02
 # When whitespace-only spans are omitted from the model, recover word breaks from
 # horizontal gaps between remaining content spans (same heuristic as P051 notice
 # reconstruction). Gaps below this floor are treated as kerning/subscript joins.
