@@ -9,8 +9,8 @@ displayed reading frame and reach the same verdict as the intrinsic page.
 
 Every variant below is asserted to render identically to its intrinsic
 control. Arbitrary whole-page ``/Rotate`` is out of scope here, except that a
-viewer-only rotation (already-upright content turned in the viewer) must keep
-its existing behaviour.
+viewer-only rotation (already-upright content turned in the viewer) must give
+the unrotated page's verdict (see ``test_r035_viewer_only_rotation.py``).
 """
 
 from __future__ import annotations
@@ -255,12 +255,14 @@ def test_pdflscape_finding_box_highlights_the_displayed_figure(
 
 
 @pytest.mark.parametrize("rotation", (90, 180, 270))
-@pytest.mark.parametrize("name", ["figure_62pt_right", "table_62pt", "figure_caption_above"])
+@pytest.mark.parametrize("name", sorted(SCENARIOS))
 def test_viewer_only_rotation_keeps_existing_measurement(
     tmp_path: Path, name: str, rotation: int
 ) -> None:
     """Upright landscape content with ``/Rotate`` set on top displays sideways;
-    it is not a pdflscape page and keeps the unrotated-frame measurement."""
+    it is not a pdflscape page, so its reading frame stays the unrotated box
+    space and every finding field (drift, 50 pt tolerance, boxes) matches the
+    unrotated page."""
     control = _variant(tmp_path, SCENARIOS[name][0], 0)
     doc = fitz.open(control)
     doc[1].set_rotation(rotation)
@@ -269,7 +271,9 @@ def test_viewer_only_rotation_keeps_existing_measurement(
     expected = check_pdf_figure_table_layout(load_pdf_layout(str(control)))
     model = load_pdf_layout(str(turned))
     actual = check_pdf_figure_table_layout(model)
-    assert [f.details["bbox"] for f in actual] == [f.details["bbox"] for f in expected]
+    assert [(f.page, f.severity, f.details) for f in actual] == [
+        (f.page, f.severity, f.details) for f in expected
+    ]
     assert len(model.pages[1].horizontal_rules) == len(
         load_pdf_layout(str(control)).pages[1].horizontal_rules
     )

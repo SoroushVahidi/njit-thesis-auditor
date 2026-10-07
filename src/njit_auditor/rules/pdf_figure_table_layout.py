@@ -1,18 +1,26 @@
 """Conservative PDF figure/table body layout checks (centering and caption placement).
 
 Centering and caption placement are visual questions, so they are measured in
-the page's reading frame: on a page whose text reads upright only after
-``/Rotate`` (a pdflscape landscape page: portrait MediaBox, ``/Rotate 90`` or
-``270``) every box is first mapped to the displayed page, which makes it
-measure exactly like the same layout encoded as an intrinsic landscape page.
-Reported boxes are mapped back to the unrotated space the rest of the
-pipeline uses. Unrotated pages, and pages whose ``/Rotate`` only turns already
-upright text in the viewer, are measured as before.
+the page's reading frame (:class:`~njit_auditor.pdf_models.PdfReadingFrame`,
+see ``docs/architecture/pdf_rotation_frames_adr.md``). Every size, the
+portrait/landscape tolerance, and every box come from that frame:
 
-Scope: this makes intrinsic-landscape and pdflscape encodings of the same
-visual page agree, which synthetic pixel-equivalent differential tests
-verify. It does not certify arbitrary whole-page ``/Rotate`` behaviour, and
-no real thesis page available to the project uses ``/Rotate`` today.
+* on a page whose text reads upright only after ``/Rotate`` (a pdflscape
+  landscape page: portrait MediaBox, ``/Rotate 90`` or ``270``) boxes are first
+  mapped to the displayed page, which makes it measure exactly like the same
+  layout encoded as an intrinsic landscape page;
+* on an unrotated page, or one whose ``/Rotate`` only turns already upright
+  text in the viewer, the reading frame is the unrotated box space, so a
+  viewer-only ``/Rotate`` gives the same verdict as ``/Rotate 0``.
+
+The displayed page size (``PdfPage.width``/``height``/``is_visually_landscape``)
+is never used. Reported boxes are mapped back to the unrotated space the rest
+of the pipeline uses.
+
+Scope: synthetic pixel-equivalent differential tests verify intrinsic
+landscape = pdflscape, and viewer-only ``/Rotate`` = ``/Rotate 0``. This does
+not certify arbitrary object rotation or ambiguous reading frames, and no
+real thesis page available to the project uses ``/Rotate`` today.
 """
 
 from __future__ import annotations
@@ -21,17 +29,15 @@ import re
 from collections.abc import Callable, Sequence
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_highlight import PageBoxSpace, box_to_display_space
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
     PdfGraphicBlock,
     PdfPage,
+    PdfReadingFrame,
     PdfTextBlock,
     PdfTextLine,
     format_bbox_detail,
-    page_reading_frame_rotation,
-    text_space_size,
 )
 from njit_auditor.rules.pdf_captions import (
     CAPTION_START_RE,
@@ -79,30 +85,21 @@ TABLE_RULE_MIN_OVERLAP_FRACTION = 0.70
 BBoxMapper = Callable[[BBox], BBox]
 
 
-def _map_bbox(bbox: BBox, space: PageBoxSpace) -> BBox:
-    x0, y0, x1, y1 = box_to_display_space((bbox.x0, bbox.y0, bbox.x1, bbox.y1), space)
-    return BBox(x0=x0, y0=y0, x1=x1, y1=y1)
-
-
 def _keep_bbox(bbox: BBox) -> BBox:
     return bbox
 
 
-def _reading_frame_page(page: PdfPage) -> tuple[PdfPage, BBoxMapper]:
-    """Return *page* as R035 measures it, plus a mapper back to unrotated space.
+def _reading_frame_page(page: PdfPage) -> tuple[PdfPage, PdfReadingFrame]:
+    """Return *page*'s content in its reading frame, plus that frame.
 
-    See the module docstring. The returned page is a copy; *page* itself is
-    never modified.
+    Only the returned page's boxes are used; every size and the policy
+    orientation come from the frame. The returned page is a copy when boxes
+    move; *page* itself is never modified.
     """
-    rotation = page_reading_frame_rotation(page)
-    if rotation == 0:
-        return page, _keep_bbox
-    width, height = text_space_size(page)
-    forward = PageBoxSpace(width, height, rotation)
-    backward = PageBoxSpace(page.width, page.height, 360 - rotation)
-
-    def to_frame(bbox: BBox) -> BBox:
-        return _map_bbox(bbox, forward)
+    frame = PdfReadingFrame.for_page(page)
+    if frame.reading_rotation == 0:
+        return page, frame
+    to_frame = frame.to_reading
 
     framed = page.model_copy(
         update={
@@ -133,7 +130,7 @@ def _reading_frame_page(page: PdfPage) -> tuple[PdfPage, BBoxMapper]:
             "horizontal_rules": [to_frame(rule) for rule in page.horizontal_rules],
         }
     )
-    return framed, lambda bbox: _map_bbox(bbox, backward)
+    return framed, frame
 
 
 def _collect_page_lines(page: PdfPage) -> list[PdfTextLine]:
@@ -143,12 +140,12 @@ def _collect_page_lines(page: PdfPage) -> list[PdfTextLine]:
     return lines
 
 
-def _text_area_bounds(page: PdfPage) -> tuple[float, float]:
-    return LEFT_MARGIN_PT, page.width - RIGHT_MARGIN_PT
+def _text_area_bounds(frame: PdfReadingFrame) -> tuple[float, float]:
+    return LEFT_MARGIN_PT, frame.reading_width - RIGHT_MARGIN_PT
 
 
-def _text_area_center(page: PdfPage) -> float:
-    x0, x1 = _text_area_bounds(page)
+def _text_area_center(frame: PdfReadingFrame) -> float:
+    x0, x1 = _text_area_bounds(frame)
     return (x0 + x1) / 2.0
 
 
@@ -215,17 +212,18 @@ def _union_bbox(blocks: Sequence[BodyRegion]) -> BBox:
     )
 
 
-def _graphic_has_body_signal(page: PdfPage, graphic: PdfGraphicBlock) -> bool:
+def _graphic_has_body_signal(frame: PdfReadingFrame, graphic: PdfGraphicBlock) -> bool:
     bbox = graphic.bbox
+    width, height = frame.reading_size
     if bbox.width < MIN_BODY_WIDTH_PT or bbox.height < MIN_GRAPHIC_BODY_HEIGHT_PT:
         return False
-    if bbox.width > page.width * MAX_GRAPHIC_PAGE_FRACTION:
+    if bbox.width > width * MAX_GRAPHIC_PAGE_FRACTION:
         return False
-    if bbox.height > page.height * MAX_GRAPHIC_PAGE_FRACTION:
+    if bbox.height > height * MAX_GRAPHIC_PAGE_FRACTION:
         return False
     if bbox.y0 < TOP_MARGIN_PT - 12.0:
         return False
-    if bbox.y1 > page.height - BOTTOM_MARGIN_PT + 12.0:
+    if bbox.y1 > height - BOTTOM_MARGIN_PT + 12.0:
         return False
     return True
 
@@ -248,12 +246,12 @@ def _cluster_graphic_blocks(
 
 
 def _select_graphic_cluster(
-    page: PdfPage, graphics: list[PdfGraphicBlock]
+    frame: PdfReadingFrame, graphics: list[PdfGraphicBlock]
 ) -> list[PdfGraphicBlock] | None:
     qualifying = [
         cluster
         for cluster in _cluster_graphic_blocks(graphics)
-        if any(_graphic_has_body_signal(page, graphic) for graphic in cluster)
+        if any(_graphic_has_body_signal(frame, graphic) for graphic in cluster)
     ]
     if not qualifying:
         return None
@@ -262,9 +260,11 @@ def _select_graphic_cluster(
     return qualifying[0]
 
 
-def _has_any_graphic_body_signal(page: PdfPage, graphics: list[PdfGraphicBlock]) -> bool:
+def _has_any_graphic_body_signal(
+    frame: PdfReadingFrame, graphics: list[PdfGraphicBlock]
+) -> bool:
     return any(
-        any(_graphic_has_body_signal(page, graphic) for graphic in cluster)
+        any(_graphic_has_body_signal(frame, graphic) for graphic in cluster)
         for cluster in _cluster_graphic_blocks(graphics)
     )
 
@@ -282,10 +282,10 @@ def _cluster_has_body_signal(cluster: list[PdfTextBlock]) -> bool:
     return alpha_chars >= MIN_BODY_ALPHA_CHARS
 
 
-def _block_in_margin_zone(page: PdfPage, block: PdfTextBlock) -> bool:
+def _block_in_margin_zone(frame: PdfReadingFrame, block: PdfTextBlock) -> bool:
     return (
         block.bbox.y0 < TOP_MARGIN_PT - 4.0
-        or block.bbox.y1 > page.height - BOTTOM_MARGIN_PT + 4.0
+        or block.bbox.y1 > frame.reading_height - BOTTOM_MARGIN_PT + 4.0
     )
 
 
@@ -308,7 +308,11 @@ def _find_caption_line_bbox(page: PdfPage, caption: CaptionLine) -> BBox | None:
 
 
 def _candidate_body_blocks(
-    page: PdfPage, caption_bbox: BBox, *, allow_multiline: bool = False
+    page: PdfPage,
+    frame: PdfReadingFrame,
+    caption_bbox: BBox,
+    *,
+    allow_multiline: bool = False,
 ) -> tuple[list[PdfTextBlock], list[PdfTextBlock]]:
     above: list[PdfTextBlock] = []
     below: list[PdfTextBlock] = []
@@ -317,7 +321,7 @@ def _candidate_body_blocks(
             continue
         if _block_is_chapter_heading(block):
             continue
-        if _block_in_margin_zone(page, block):
+        if _block_in_margin_zone(frame, block):
             continue
         if not block.text.strip():
             continue
@@ -333,12 +337,12 @@ def _candidate_body_blocks(
 
 
 def _candidate_graphic_blocks(
-    page: PdfPage, caption_bbox: BBox
+    page: PdfPage, frame: PdfReadingFrame, caption_bbox: BBox
 ) -> tuple[list[PdfGraphicBlock], list[PdfGraphicBlock]]:
     above: list[PdfGraphicBlock] = []
     below: list[PdfGraphicBlock] = []
     for graphic in page.graphic_blocks:
-        if not _graphic_has_body_signal(page, graphic):
+        if not _graphic_has_body_signal(frame, graphic):
             continue
         gap_above = caption_bbox.y0 - graphic.bbox.y1
         gap_below = graphic.bbox.y0 - caption_bbox.y1
@@ -349,9 +353,9 @@ def _candidate_graphic_blocks(
     return above, below
 
 
-def _centering_issue(page: PdfPage, body_bbox: BBox) -> tuple[bool, float, float]:
-    center_delta = abs(_bbox_center_x(body_bbox) - _text_area_center(page))
-    tolerance = LANDSCAPE_CENTER_TOLERANCE_PT if page.is_visually_landscape else CENTER_TOLERANCE_PT
+def _centering_issue(frame: PdfReadingFrame, body_bbox: BBox) -> tuple[bool, float, float]:
+    center_delta = abs(_bbox_center_x(body_bbox) - _text_area_center(frame))
+    tolerance = LANDSCAPE_CENTER_TOLERANCE_PT if frame.is_landscape else CENTER_TOLERANCE_PT
     return center_delta > tolerance, center_delta, tolerance
 
 
@@ -509,7 +513,8 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
         frame = frames.get(caption.page_number)
         if frame is None:
             continue
-        page, to_source = frame
+        page, reading_frame = frame
+        to_source = reading_frame.from_reading
 
         caption_bbox = _find_caption_line_bbox(page, caption)
         if caption_bbox is None:
@@ -523,8 +528,10 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             # adjacent text. Only the expected (below-caption) side allows
             # multi-line blocks so an ordinary paragraph above the caption
             # still can't masquerade as a misplaced table body.
-            _, below = _candidate_body_blocks(page, caption_bbox, allow_multiline=True)
-            above, _ = _candidate_body_blocks(page, caption_bbox)
+            _, below = _candidate_body_blocks(
+                page, reading_frame, caption_bbox, allow_multiline=True
+            )
+            above, _ = _candidate_body_blocks(page, reading_frame, caption_bbox)
             primary = _select_body_cluster(below)
             wrong_side = _select_body_cluster(above)
             if primary is None and wrong_side is None:
@@ -556,9 +563,9 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             ]
             body_bbox = _complete_ruled_table_body_bbox(
                 page, text_bbox, caption_bbox,
-                min(later_captions, default=page.height),
+                min(later_captions, default=reading_frame.reading_height),
             )
-            not_centered, center_delta, tolerance = _centering_issue(page, body_bbox)
+            not_centered, center_delta, tolerance = _centering_issue(reading_frame, body_bbox)
             if not_centered:
                 _append_finding(
                     findings,
@@ -573,15 +580,17 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 )
             continue
 
-        above, below = _candidate_body_blocks(page, caption_bbox)
-        graphic_above, graphic_below = _candidate_graphic_blocks(page, caption_bbox)
-        primary_graphic = _select_graphic_cluster(page, graphic_above)
+        above, below = _candidate_body_blocks(page, reading_frame, caption_bbox)
+        graphic_above, graphic_below = _candidate_graphic_blocks(
+            page, reading_frame, caption_bbox
+        )
+        primary_graphic = _select_graphic_cluster(reading_frame, graphic_above)
         primary = _select_body_cluster(above)
-        wrong_side_graphic = _select_graphic_cluster(page, graphic_below)
+        wrong_side_graphic = _select_graphic_cluster(reading_frame, graphic_below)
         wrong_side = _select_body_cluster(below)
         if primary_graphic is not None:
             body_bbox = _union_bbox(primary_graphic)
-            not_centered, center_delta, tolerance = _centering_issue(page, body_bbox)
+            not_centered, center_delta, tolerance = _centering_issue(reading_frame, body_bbox)
             if not_centered:
                 _append_finding(
                     findings,
@@ -602,7 +611,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
                 continue
         if primary is None and wrong_side_graphic is not None:
             if _has_any_text_body_signal(above) or _has_any_graphic_body_signal(
-                page, graphic_above
+                reading_frame, graphic_above
             ):
                 continue
             _append_finding(
@@ -621,7 +630,7 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             continue
         if primary is None and wrong_side is not None:
             if _has_any_text_body_signal(above) or _has_any_graphic_body_signal(
-                page, graphic_above
+                reading_frame, graphic_above
             ):
                 continue
             if _cluster_looks_like_body_paragraph(wrong_side):

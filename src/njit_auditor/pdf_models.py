@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+# A page whose width exceeds its height by more than this factor is landscape.
+LANDSCAPE_ASPECT_THRESHOLD = 1.02
 
 
 class BBox(BaseModel):
@@ -168,6 +173,105 @@ def page_reading_frame_rotation(page: PdfPage) -> int:
             for line in block.lines
         ),
     )
+
+
+def _turn_box(bbox: BBox, width: float, height: float, rotation: int) -> BBox:
+    """Turn *bbox*, given in a ``width`` x ``height`` space, clockwise by *rotation*.
+
+    The same mapping as PyMuPDF's ``box * page.rotation_matrix`` (how a viewer
+    turns an unrotated page by ``/Rotate``), as pure math on stored sizes.
+    """
+    x0, y0, x1, y1 = bbox.x0, bbox.y0, bbox.x1, bbox.y1
+    if rotation == 90:
+        return BBox(x0=height - y1, y0=x0, x1=height - y0, y1=x1)
+    if rotation == 180:
+        return BBox(x0=width - x1, y0=height - y1, x1=width - x0, y1=height - y0)
+    if rotation == 270:
+        return BBox(x0=y0, y0=width - x1, x1=y1, y1=width - x0)
+    return bbox
+
+
+@dataclass(frozen=True)
+class PdfReadingFrame:
+    """The frame a detector rule makes layout decisions in (rotation-frames ADR).
+
+    Three page sizes exist and must not be mixed:
+
+    * **box size** -- the unrotated, CropBox-relative space every extracted box
+      (text, image, drawing rule) is stored in (:func:`text_space_size`);
+    * **reading-frame size** -- box space turned by ``reading_rotation``, the
+      frame in which the page's authored content reads upright. Policy
+      orientation (portrait/landscape) and every detector measurement come
+      from here;
+    * **display size** -- ``PdfPage.width``/``height``, the sheet as a viewer
+      shows it after ``/Rotate``. It is presentation geometry only and is
+      deliberately not exposed by this object.
+
+    A viewer-only ``/Rotate`` (upright content, ``reading_rotation == 0``) leaves
+    the reading frame equal to box space, so it measures exactly like the same
+    page at ``/Rotate 0``. A content-turned page (e.g. pdflscape) has
+    ``reading_rotation == page_rotation``, so its reading frame is the
+    displayed page.
+
+    ``reading_rotation`` is the existing :func:`page_reading_frame_rotation`
+    inference, used unchanged: it carries no confidence signal, and ties or
+    textless pages fall back to 0 (the ADR's legacy fallback; B2 is deferred).
+
+    This object never mutates a page and never normalizes extraction; boxes
+    are mapped explicitly with :meth:`to_reading` / :meth:`from_reading`.
+    """
+
+    box_width: float
+    box_height: float
+    page_rotation: int
+    reading_rotation: int
+
+    @classmethod
+    def for_page(cls, page: PdfPage) -> PdfReadingFrame:
+        box_width, box_height = text_space_size(page)
+        return cls(
+            box_width=box_width,
+            box_height=box_height,
+            page_rotation=page.page_rotation % 360,
+            reading_rotation=page_reading_frame_rotation(page),
+        )
+
+    @property
+    def box_size(self) -> tuple[float, float]:
+        return self.box_width, self.box_height
+
+    @property
+    def reading_size(self) -> tuple[float, float]:
+        if self.reading_rotation % 180 == 90:
+            return self.box_height, self.box_width
+        return self.box_width, self.box_height
+
+    @property
+    def reading_width(self) -> float:
+        return self.reading_size[0]
+
+    @property
+    def reading_height(self) -> float:
+        return self.reading_size[1]
+
+    @property
+    def is_landscape(self) -> bool:
+        """Policy orientation, from the reading-frame aspect (never the display)."""
+        width, height = self.reading_size
+        return width > height * LANDSCAPE_ASPECT_THRESHOLD
+
+    @property
+    def policy_orientation(self) -> Literal["portrait", "landscape"]:
+        return "landscape" if self.is_landscape else "portrait"
+
+    def to_reading(self, bbox: BBox) -> BBox:
+        """Map a box-space *bbox* into the reading frame."""
+        return _turn_box(bbox, self.box_width, self.box_height, self.reading_rotation)
+
+    def from_reading(self, bbox: BBox) -> BBox:
+        """Map a reading-frame *bbox* back into box space."""
+        width, height = self.reading_size
+        return _turn_box(bbox, width, height, (360 - self.reading_rotation) % 360)
 
 
 class PdfDocument(BaseModel):
