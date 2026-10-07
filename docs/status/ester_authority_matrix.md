@@ -10,6 +10,13 @@
 
 ## Known deltas since 2026-09-02 not yet folded into a new dated matrix file
 
+- **R011 outdented reference labels (2026-10-06)**: a DERIVED_POLICY_APPLICATION,
+  not a new Ester adjudication. The direct authority is Ester's R011 LaTeX
+  guidance: "there are never problems with the left margins in latex", and "I
+  do not ask students to make this correction". Under it, a right-aligned
+  "[n]" label column hanging left of the 1.5 in edge is not reported when the
+  entry text starts inside it. Entry text is still fully checked. See
+  `r011_outdented_reference_labels_20261006.md`.
 - **R035/R036/R055**: the 2026-09-02 matrix rows still read "NOT judged by
   Ester" / "needs Ester judgment." Ester's Sep-4 review resolved all three
   (see commits `97cc8a3`, `1a90501`, `1d24080`, `aea0e81`, `6facf49`). R055

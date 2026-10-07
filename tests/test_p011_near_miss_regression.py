@@ -49,15 +49,21 @@ def test_ester_sample_b_suppressed_pages_remain_clear() -> None:
     assert not ({1, 24, 39} & pages)
 
 
-def test_ester_sample_b_visible_p011_count_is_26() -> None:
-    """26, not the prior 27: page 75's single-line, 6.5pt bottom-margin equation
+def test_ester_sample_b_visible_p011_count_is_20() -> None:
+    """20: the 6 reference left-margin cards (pages 103-108) are outdented
+    "[n]" label columns whose entry text starts at the 1.5 in edge, exempt
+    under Ester's LaTeX left-margin guidance (derived application, see
+    docs/status/r011_outdented_reference_labels_20261006.md). Ester annotated
+    page 103 for other reference issues and never flagged the labels; her
+    reviewed R011 pages here are 10, 15, 27, 33 and 38.
+
+    Earlier: 26, not the prior 27: page 75's single-line, 6.5pt bottom-margin equation
     finding is now suppressed by BOTTOM_MARGIN_OVERFLOW_TOLERANCE_PT. That page
     was unreviewed ("-" in docs/status/p011_precision_false_negative_audit_20260710.md
     S3) but matches, in side/content-kind/magnitude, the bottom-margin equation
     false positive Esther confirmed for a different dissertation in the 2026-08
     R011 batch (see docs/status/p011_r011_batch_2026_08_false_positive_fix.md).
-    All 20 right-margin and 6 left-margin (reference hanging-indent) findings
-    are unchanged.
+    All 20 right-margin findings are unchanged.
     """
     sample = get_builtin_sample("ester_sample_b")
     if not sample.abs_path.exists():
@@ -65,12 +71,22 @@ def test_ester_sample_b_visible_p011_count_is_26() -> None:
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p011 = [f for f in view.findings if f.rule_id == "P011"]
-    assert len(p011) == 26
-    assert 75 not in {f.page for f in view.findings if f.rule_id == "P011"}
+    assert len(p011) == 20
+    pages = {f.page for f in view.findings if f.rule_id == "P011"}
+    assert 75 not in pages
+    assert not (set(range(103, 109)) & pages)
+    assert {10, 15, 27, 33, 38} <= pages
 
 
-def test_ester_sample_a_visible_p011_count_is_9() -> None:
-    """9, not the prior 15: pages 11, 42, 66, and 71 were single-line
+def test_ester_sample_a_visible_p011_count_is_1() -> None:
+    """1: the reference left-margin cards on pages 91-98 are outdented "[n]"
+    label columns with entry text at the 1.5 in edge, exempt under Ester's
+    LaTeX left-margin guidance (see
+    docs/status/r011_outdented_reference_labels_20261006.md). Page 99 keeps
+    its card: it holds a single entry and no heading, so it is not a confident
+    references page and the label column cannot be established.
+
+    Earlier: 9, not the prior 15: pages 11, 42, 66, and 71 were single-line
     bottom-margin findings at ~9.2pt (9.17pt raw), the exact recurring
     footer-zone cluster docs/status/p011_precision_false_negative_audit_20260710.md
     S7 flagged as an open policy question rather than a confirmed false
@@ -79,8 +95,7 @@ def test_ester_sample_a_visible_p011_count_is_9() -> None:
     sheet and confirmed it is NOT a violation -- see
     docs/status/p011_r011_ester_9_2pt_boundary_resolution_20260831.md. Pages
     82 (9.8pt) and 83 (11.0pt) also have the now-recognized bounded
-    final-line-box shape. All 9 reference hanging-indent left-margin cards
-    remain flagged.
+    final-line-box shape.
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -88,7 +103,8 @@ def test_ester_sample_a_visible_p011_count_is_9() -> None:
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p011 = [f for f in view.findings if f.rule_id == "P011"]
-    assert len(p011) == 9
+    assert len(p011) == 1
     pages = {f.page for f in view.findings if f.rule_id == "P011"}
+    assert pages == {99}
     assert not ({11, 26, 42, 54, 66, 71} & pages)
     assert not ({82, 83} & pages)
