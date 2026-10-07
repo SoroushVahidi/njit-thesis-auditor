@@ -113,7 +113,13 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     edge with entry text starting at it, exempt under Ester's LaTeX left-margin
     guidance (derived application, see
     docs/status/r011_outdented_reference_labels_20261006.md). Page 99 (one
-    entry, no heading) stays reported.
+    entry, no heading) stayed reported.
+
+    P011 dropped from 1 to 0 after the 2026-10-07 cross-page continuation of
+    the reference-label column: page 99 holds entry [93], continuing page 98's
+    [84]-[92] in the same label and text columns with no new heading, so its
+    outdented label is exempt for the same reason as pages 91-98 (derived
+    application, same doc).
     """
     sample = get_builtin_sample("ester_sample_a")
     if not sample.abs_path.exists():
@@ -131,7 +137,7 @@ def test_ester_sample_a_problem_finding_baseline() -> None:
     # false-positive regressions instead of freezing a stale aggregate count.
     assert len(problem) >= 14
     assert by_rule["P038"] == 0
-    assert by_rule["P011"] == 1
+    assert by_rule["P011"] == 0
     assert by_rule["P013"] == 0
     assert by_rule["P028"] == 0
     assert by_rule["P044"] == 0

@@ -78,13 +78,16 @@ def test_ester_sample_b_visible_p011_count_is_20() -> None:
     assert {10, 15, 27, 33, 38} <= pages
 
 
-def test_ester_sample_a_visible_p011_count_is_1() -> None:
-    """1: the reference left-margin cards on pages 91-98 are outdented "[n]"
+def test_ester_sample_a_visible_p011_count_is_0() -> None:
+    """0: the reference left-margin cards on pages 91-98 are outdented "[n]"
     label columns with entry text at the 1.5 in edge, exempt under Ester's
     LaTeX left-margin guidance (see
-    docs/status/r011_outdented_reference_labels_20261006.md). Page 99 keeps
-    its card: it holds a single entry and no heading, so it is not a confident
-    references page and the label column cannot be established.
+    docs/status/r011_outdented_reference_labels_20261006.md). Page 99 holds a
+    single entry and no heading, so it cannot establish the column itself; it
+    continues page 98's column ([92] -> [93], same label and text edges, no
+    new heading) and is exempt for the same reason.
+
+    Earlier: 1, page 99 kept its card before the cross-page continuation.
 
     Earlier: 9, not the prior 15: pages 11, 42, 66, and 71 were single-line
     bottom-margin findings at ~9.2pt (9.17pt raw), the exact recurring
@@ -103,8 +106,4 @@ def test_ester_sample_a_visible_p011_count_is_1() -> None:
     findings = run_pdf_audit_full(sample.abs_path)
     view = build_report_view(audit_findings_to_json_dict(findings, {"audit_type": "pdf"}))
     p011 = [f for f in view.findings if f.rule_id == "P011"]
-    assert len(p011) == 1
-    pages = {f.page for f in view.findings if f.rule_id == "P011"}
-    assert pages == {99}
-    assert not ({11, 26, 42, 54, 66, 71} & pages)
-    assert not ({82, 83} & pages)
+    assert p011 == []
