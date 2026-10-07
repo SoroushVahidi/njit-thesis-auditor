@@ -132,5 +132,19 @@ it, only when all of the following hold:
 - Sample D (Yin 4th, compressed copy), p134: one separable label line is
   exempt, consistent with p133. The finding stays, because that copy merges
   most labels into their text spans. Its affected lines go from 13 to 12.
-- No other change in Samples A–D, the other Ester-annotated PDFs, or the
-  seven-document corpus.
+- No other R011 finding changed in Samples A–D, the other Ester-annotated
+  PDFs, or the seven-document corpus (1495 raw / 623 student-visible before
+  and after). Sample B/C: unchanged, including Ester's TP pages 10, 15, 27,
+  33 and 38. Replay (scratch ledger): 46 FP / 4 TP / 0 / 0.
+
+**Companion presentation fix (same branch).** A document with no R011
+violations keeps one document-level PASS row. Neither problem-numbering
+pipeline excluded PASS rows, so a clean document showed "Problem #N — R011 —
+Formatting problem" saying text was outside the margins.
+
+- This was already live for Youra (card #101, listed last).
+- Resolving Cibaku p99 would have exposed it on the built-in Sample A.
+- PASS rows are now never student problems
+  (`tests/test_pass_rows_are_not_student_problems.py`).
+- Effect: Youra's numbered cards go from 101 to 100. No other problem
+  number moves.
