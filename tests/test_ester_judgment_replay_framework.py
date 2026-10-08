@@ -9,6 +9,7 @@ assert _SPEC is not None and _SPEC.loader is not None
 _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 find_unexpected_removals = _MODULE.find_unexpected_removals
+find_disabled_or_retired_emissions = _MODULE.find_disabled_or_retired_emissions
 matches = _MODULE.matches
 verify_case = _MODULE.verify_case
 
@@ -85,3 +86,19 @@ def test_other_corpus_findings_cannot_disappear_without_an_explicit_allowance() 
         ]
     }
     assert find_unexpected_removals(allowance, baseline, current) == []
+
+
+def test_retired_issue_stays_silent_without_disabling_other_issues() -> None:
+    cases = [
+        {
+            "judgment": "FP",
+            "disposition": "retired",
+            "target": {"rule_id": "P068", "issue_types": ["approval_page_signature_blocks_sparse"]},
+        }
+    ]
+    other = _raw("P068", "advisor_role_label_missing", "100,100,150,115")
+    retired = _raw("P068", "approval_page_signature_blocks_sparse", "100,200,150,215")
+    reports = {"Synthetic": {"raw": {"findings": [other]}}}
+    assert find_disabled_or_retired_emissions(cases, reports) == []
+    reports["Synthetic"]["raw"]["findings"].append(retired)
+    assert find_disabled_or_retired_emissions(cases, reports)

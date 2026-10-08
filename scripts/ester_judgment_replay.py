@@ -193,6 +193,27 @@ def find_unexpected_removals(
     return unexpected
 
 
+def find_disabled_or_retired_emissions(
+    cases: list[dict[str, Any]], reports: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Require disabled reporting paths and retired issue types to stay silent."""
+    targets = {
+        (case["target"]["rule_id"], issue)
+        for case in cases
+        if case["judgment"] == "FP" and case["disposition"] in ("disabled", "retired")
+        for issue in case["target"]["issue_types"]
+    }
+    emitted = set()
+    for report in reports.values():
+        for finding in report["raw"]["findings"]:
+            key = (finding["rule_id"], finding.get("details", {}).get("issue_type", ""))
+            if key in targets:
+                emitted.add(key)
+    return [
+        f"{rule}|{issue} emitted despite retired/disabled status" for rule, issue in sorted(emitted)
+    ]
+
+
 def verify_manifest(
     manifest: dict[str, Any],
     reports: dict[str, dict[str, Any]],
@@ -231,6 +252,7 @@ def verify_manifest(
         "failed": sum(bool(result["errors"]) for result in results),
         "unexpected_removed_findings": unexpected,
         "liveness_errors": liveness_errors,
+        "disabled_detector_errors": find_disabled_or_retired_emissions(cases, reports),
     }
 
 
@@ -281,8 +303,15 @@ def main() -> int:
         print(f"unexpected removal: {finding}")
     for error in result["liveness_errors"]:
         print(f"liveness: {error}")
+    for error in result["disabled_detector_errors"]:
+        print(f"disabled detector: {error}")
     return int(
-        bool(result["failed"] or result["unexpected_removed_findings"] or result["liveness_errors"])
+        bool(
+            result["failed"]
+            or result["unexpected_removed_findings"]
+            or result["liveness_errors"]
+            or result["disabled_detector_errors"]
+        )
     )
 
 
