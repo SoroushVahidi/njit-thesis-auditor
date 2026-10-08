@@ -235,11 +235,12 @@ def test_pixel_equivalent_encodings_agree_on_p019(
     assert _p019(control) == _p019(rotated) == []
 
 
-def test_rotate_180_page_is_classified_in_text_space(tmp_path: Path) -> None:
-    """A /Rotate 180 page has the same displayed and text-space size, so the
-    fix does not change it: its upside-down-stored folio sits at the top of the
-    text space and is accepted as a top-centre number. Reading-direction
-    semantics for such pages are a separate policy question."""
+def test_content_turned_180_page_is_classified_as_displayed(tmp_path: Path) -> None:
+    """Formerly ``test_rotate_180_page_is_classified_in_text_space`` (interim,
+    top_center). Under the rotation-frames ADR a content-turned /Rotate 180
+    page is judged as it reads: its upside-down-stored folio is the displayed
+    bottom-centre number. Viewer-only 180 and the full matrix are covered in
+    ``test_p013_p019_rotate180_reading_frame.py``."""
     src = fitz.open()
     for number in range(1, 8):
         _portrait(src, str(number))
@@ -248,5 +249,5 @@ def test_rotate_180_page_is_classified_in_text_space(tmp_path: Path) -> None:
     assert _same_pixels(control, doc)
     path = tmp_path / "rot180.pdf"
     doc.save(path)
-    assert _page_candidates(path) == [("4", "top_center", "top")]
+    assert _page_candidates(path) == [("4", "bottom_center", "bottom")]
     assert _p019(path) == []
