@@ -140,6 +140,9 @@ Type=simple
 WorkingDirectory=/path/to/deploy-worktree
 Environment=PYTHONPATH=/path/to/deploy-worktree/src
 Environment=NJIT_AUDITOR_WEB_RUNTIME_DIR=/path/to/deploy-worktree/.runtime/web_audits
+# Optional: retention window (default 86400) and sweep interval (default 300).
+# Environment=NJIT_AUDITOR_WEB_JOB_TTL_SECONDS=3600
+# Environment=NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS=300
 ExecStart=/path/to/venv/bin/python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5

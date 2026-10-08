@@ -485,13 +485,15 @@ def test_results_page_shows_findings(client: tuple[TestClient, Any], tmp_path: P
     assert b"complete" in resp.content.lower() or b"finding" in resp.content.lower()
 
 
-def test_index_states_privacy_safe_local_processing(client: tuple[TestClient, Any]) -> None:
+def test_index_states_how_uploaded_files_are_handled(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
-    assert b"Privacy-safe processing" in resp.content
-    assert b"processed locally" in resp.content.lower() or b"locally" in resp.content.lower()
-    assert b"not stored permanently" in resp.content.lower()
+    body = resp.content.lower()
+    assert b"how your file is handled" in body
+    assert b"processing runs on this server" in body
+    assert b"deleted automatically" in body
+    assert b"may quote short pieces of your document" in body
 
 
 def test_index_states_pdf_only_web_support(client: tuple[TestClient, Any]) -> None:
@@ -2291,7 +2293,8 @@ def test_results_page_shows_privacy_note(client: tuple[TestClient, Any], tmp_pat
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"Privacy note" in resp.content
-    assert b"body text" in resp.content.lower()
+    assert b"may quote short pieces of your" in resp.content.lower()
+    assert b"deleted automatically" in resp.content.lower()
 
 
 def test_results_polished_comments_exclude_private_sample_text(

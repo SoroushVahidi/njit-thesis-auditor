@@ -89,6 +89,7 @@ and Jinja registrations are created at import time.
 | `NJIT_AUDITOR_WEB_RUNTIME_DIR` | `.runtime/web_audits` | Runtime job directory |
 | `NJIT_AUDITOR_WEB_MAX_UPLOAD_MB` | `50` | Maximum PDF upload size |
 | `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` | `86400` | Retention window for completed/failed jobs |
+| `NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS` | `300` | How often the background sweeper deletes expired jobs, independent of requests |
 | `NJIT_AUDITOR_WEB_HOST` | `0.0.0.0` | Helper-script bind host |
 | `NJIT_AUDITOR_WEB_PORT` | `8000` | Helper-script bind port |
 
@@ -167,7 +168,10 @@ Browser-native preview behavior can still vary by device, browser, extension, or
 
 - Uploaded files live only under the runtime directory.
 - `.runtime/` must remain gitignored.
-- The web UI shows structural metadata only by default.
+- Uploads and generated reports are deleted by a background sweeper once older than the TTL
+  (startup sweep plus one every `NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS`).
+- A student's own report may quote short document excerpts (TOC, list, and heading entries,
+  flagged words); the UI says so and does not claim otherwise.
 - JSON/Markdown downloads use basename-only paths.
 - Public URL fetches are SSRF-guarded.
 - Built-in samples should not be exposed publicly unless authorized.
