@@ -21,6 +21,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from njit_auditor.incomplete_audit import INCOMPLETE_AUDIT_TITLE, incomplete_audit_notice
 from njit_auditor.issue_type_explanations import (
     has_curated_issue_type_title,
     humanize_issue_type,
@@ -91,6 +92,7 @@ def render_student_report_text(
     *,
     file_name: str,
     manuscript_page_labels: Mapping[int, str] | None = None,
+    failed_check_count: int = 0,
 ) -> str:
     """Text download using the same web problem identities and wording as the PDF."""
     labels = manuscript_page_labels or {}
@@ -101,6 +103,9 @@ def render_student_report_text(
         f"File: {file_name}",
         "",
     ]
+    notice = incomplete_audit_notice(failed_check_count)
+    if notice:
+        lines.extend([INCOMPLETE_AUDIT_TITLE.upper(), notice, ""])
     if not ordered:
         lines.append("No formatting problems were detected by the implemented checks.")
     current_page: int | None = None
@@ -225,6 +230,7 @@ def _report_pdf(
     *,
     file_name: str,
     labels: Mapping[int, str],
+    failed_check_count: int = 0,
 ) -> bytes:
     styles = _styles()
     buffer = io.BytesIO()
@@ -250,6 +256,10 @@ def _report_pdf(
             styles["body"],
         ),
     ]
+    notice = incomplete_audit_notice(failed_check_count)
+    if notice:
+        story.append(_p(INCOMPLETE_AUDIT_TITLE, styles["subtitle"]))
+        story.append(_p(notice, styles["body"]))
     pages = {int(f["page"]) for f in findings if f.get("page") is not None}
     rules = {_public_rule(f) for f in findings}
     story.append(
@@ -343,6 +353,7 @@ def build_combined_student_pdf_report(
     boxes_by_problem: Mapping[int, Sequence[HighlightBox | tuple[float, float, float, float]]],
     file_name: str,
     manuscript_page_labels: Mapping[int, str] | None = None,
+    failed_check_count: int = 0,
 ) -> CombinedReportResult:
     """Atomically write the original thesis, visual marks, and appended report."""
     ordered = ordered_student_findings(findings)
@@ -389,7 +400,12 @@ def build_combined_student_pdf_report(
             dict(f, _combined_has_highlight=int(f["problem_number"]) in drawn_findings)
             for f in ordered
         ]
-        report_bytes = _report_pdf(display_findings, file_name=file_name, labels=labels)
+        report_bytes = _report_pdf(
+            display_findings,
+            file_name=file_name,
+            labels=labels,
+            failed_check_count=failed_check_count,
+        )
         markers_drawn = 0
         with (
             fitz.open(thesis_path) as thesis,

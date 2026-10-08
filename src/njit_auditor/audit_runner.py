@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -203,6 +204,21 @@ class AuditError(Exception):
 _logger = logging.getLogger(__name__)
 
 
+def _exception_location(exc: BaseException) -> str:
+    """Return ``file:line in function`` frames for *exc*, innermost last.
+
+    Deliberately omits the exception message, source lines, and directories:
+    messages can carry upload paths (which contain the job ID that grants
+    access to a report) or text extracted from the dissertation, and the web
+    service logs to the system journal.
+    """
+    frames = traceback.extract_tb(exc.__traceback__)
+    return " <- ".join(
+        f"{Path(frame.filename).name}:{frame.lineno} in {frame.name}"
+        for frame in reversed(frames)
+    )
+
+
 @dataclass(frozen=True)
 class UploadedAuditResult:
     """Structured result from :func:`run_audit_for_uploaded_file`."""
@@ -262,9 +278,14 @@ def collect_pdf_layout_findings(
             return check(*args, **kwargs)
         try:
             return check(*args, **kwargs)
-        except Exception:  # noqa: BLE001 - isolation is the point; logged below
+        except Exception as exc:  # noqa: BLE001 - isolation is the point; logged below
             name = getattr(check, "__name__", type(check).__name__)
-            _logger.exception("PDF check %s failed; continuing without it", name)
+            _logger.error(
+                "PDF check %s failed with %s at %s; continuing without it",
+                name,
+                type(exc).__name__,
+                _exception_location(exc),
+            )
             check_failures.append(name)
             return []
 
