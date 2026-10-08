@@ -6,9 +6,10 @@ Partial heuristic PDF coverage for Q053-Q055, Q066-Q067, and Q076-Q078.
 from __future__ import annotations
 
 import re
+from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_lot_lof_column_headers import HEADER_ZONE_ABOVE_HEADING_PT
 from njit_auditor.rules.pdf_toc_alignment import (
@@ -62,6 +63,10 @@ DETACHED_FRAGMENT_ROW_TOLERANCE_PT = 2.0
 # typical dot-leader run (150pt+), so it cannot bridge a number column to
 # an unrelated far-away fragment.
 MAX_NUMBER_TO_TITLE_GAP_PT = 40.0
+CHAPTER_WRAP_INDENT_MIN_PT = 10.0
+CHAPTER_WRAP_INDENT_MAX_PT = 24.0
+CHAPTER_WRAP_LOCAL_PITCH_RATIO = 1.35
+CHAPTER_TITLE_RE = re.compile(r"^\d+\s+[A-Z][A-Z\s,:;()\-]+")
 
 # The bare-number alternative (``\d+(?:\.|\s)\s*(?-i:[A-Z])``) recognizes a
 # top-level chapter/section heading numbered without the word "CHAPTER" and
@@ -210,7 +215,37 @@ def _classify_entry_kind(page_type: str, cleaned: str) -> str:
         return "toc_level_2"
     if re.match(r"^(?:chapter|appendix)\b", cleaned, re.IGNORECASE):
         return "toc_level_1"
+    if page_type == "table_of_contents" and CHAPTER_TITLE_RE.match(cleaned):
+        return "toc_level_1"
     return "unknown"
+
+
+def _is_chapter_title_wrap_pair(first: PdfTextLine, second: PdfTextLine) -> bool:
+    """Recognize a numbered chapter title whose wrap hangs under its title text."""
+    first_text, second_text = _clean_text(first.text), _clean_text(second.text)
+    indent = second.bbox.x0 - first.bbox.x0
+    return bool(
+        CHAPTER_TITLE_RE.match(first_text)
+        and second_text
+        and second_text[0].isupper()
+        and second_text.upper() == second_text
+        and CHAPTER_WRAP_INDENT_MIN_PT <= indent <= CHAPTER_WRAP_INDENT_MAX_PT
+        and not _looks_like_new_entry_start(second_text)
+        and not _line_has_page_number(first, first_text)
+        and not _line_has_page_number(second, second_text)
+    )
+
+
+def _local_single_wrap_pitch(context: TocPageContext, lines: list[PdfTextLine]) -> float | None:
+    """Calibrate against an unambiguous wrapped entry on the same TOC page."""
+    pitches = [
+        second.bbox.y0 - first.bbox.y0
+        for first, second in zip(lines, lines[1:])
+        if _is_wrap_continuation_pair(first, second, context.page_type)
+        and not _has_intervening_page_number_line(context, first, second)
+        and 0 < second.bbox.y0 - first.bbox.y0 <= 1.4 * _estimate_line_height(first, second)
+    ]
+    return median(pitches) if pitches else None
 
 
 def _cluster_rows_by_y0(candidates: list[PdfTextLine]) -> list[list[int]]:
@@ -402,9 +437,20 @@ def check_pdf_toc_list_wrapped_spacing(pdf_document: PdfDocument) -> list[AuditF
         lines = _collect_entry_region_lines(context)
         if len(lines) < 2:
             continue
+        local_pitch = (
+            _local_single_wrap_pitch(context, lines)
+            if context.page_type == "table_of_contents"
+            else None
+        )
 
         for first, second in zip(lines, lines[1:]):
-            if not _is_wrap_continuation_pair(first, second, context.page_type):
+            ordinary_wrap = _is_wrap_continuation_pair(first, second, context.page_type)
+            chapter_wrap = bool(
+                local_pitch is not None
+                and context.page_type == "table_of_contents"
+                and _is_chapter_title_wrap_pair(first, second)
+            )
+            if not (ordinary_wrap or chapter_wrap):
                 continue
             if _has_intervening_page_number_line(context, first, second):
                 continue
@@ -415,14 +461,30 @@ def check_pdf_toc_list_wrapped_spacing(pdf_document: PdfDocument) -> list[AuditF
 
             line_height = _estimate_line_height(first, second)
             gap_ratio = gap_pt / line_height
-            if gap_ratio <= WRAPPED_GAP_RATIO_THRESHOLD:
-                continue
-            if gap_ratio >= MAX_WRAP_INTERNAL_GAP_RATIO:
-                continue
-
-            expected_max_gap_pt = line_height * WRAPPED_GAP_RATIO_THRESHOLD
-            confidence = "high" if gap_ratio >= (WRAPPED_GAP_RATIO_THRESHOLD + 0.3) else "medium"
+            if chapter_wrap:
+                assert local_pitch is not None
+                expected_max_gap_pt = (
+                    local_pitch * CHAPTER_WRAP_LOCAL_PITCH_RATIO - first.bbox.height
+                )
+                if gap_pt <= expected_max_gap_pt:
+                    continue
+                confidence = "medium"
+            else:
+                if gap_ratio <= WRAPPED_GAP_RATIO_THRESHOLD:
+                    continue
+                if gap_ratio >= MAX_WRAP_INTERNAL_GAP_RATIO:
+                    continue
+                expected_max_gap_pt = line_height * WRAPPED_GAP_RATIO_THRESHOLD
+                confidence = (
+                    "high" if gap_ratio >= (WRAPPED_GAP_RATIO_THRESHOLD + 0.3) else "medium"
+                )
             first_text = _clean_text(first.text)
+            pair_box = BBox(
+                x0=min(first.bbox.x0, second.bbox.x0),
+                y0=first.bbox.y0,
+                x1=max(first.bbox.x1, second.bbox.x1),
+                y1=second.bbox.y1,
+            )
 
             findings.append(
                 AuditFinding(
@@ -441,6 +503,7 @@ def check_pdf_toc_list_wrapped_spacing(pdf_document: PdfDocument) -> list[AuditF
                         "observed_gap_pt": f"{gap_pt:.1f}",
                         "expected_max_gap_pt": f"{expected_max_gap_pt:.1f}",
                         "line_height_or_font_size_pt": f"{line_height:.1f}",
+                        "bbox": format_bbox_detail(pair_box),
                         "confidence": confidence,
                         "source_q_rule_ids": "Q053-Q055,Q066-Q067,Q076-Q078",
                     },
