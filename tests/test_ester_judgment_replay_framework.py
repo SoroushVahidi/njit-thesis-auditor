@@ -1,6 +1,16 @@
 """Structural checks for the private, target-level Ester replay gate."""
 
-from scripts.ester_judgment_replay import find_unexpected_removals, matches, verify_case
+import importlib.util
+from pathlib import Path
+
+_SCRIPT = Path(__file__).resolve().parents[1] / "scripts/ester_judgment_replay.py"
+_SPEC = importlib.util.spec_from_file_location("ester_judgment_replay", _SCRIPT)
+assert _SPEC is not None and _SPEC.loader is not None
+_MODULE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_MODULE)
+find_unexpected_removals = _MODULE.find_unexpected_removals
+matches = _MODULE.matches
+verify_case = _MODULE.verify_case
 
 
 def _raw(rule: str, issue: str, bbox: str) -> dict:
