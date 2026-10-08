@@ -413,11 +413,20 @@
   <div>
     {% if problems_found_count > 0 %}
     <span class="badge badge-fail">Problems found</span>
+    {% elif failed_check_count %}
+    <span class="badge badge-warn">Audit incomplete</span>
     {% else %}
     <span class="badge badge-pass">No problems found</span>
     {% endif %}
   </div>
 </div>
+
+{% if failed_check_count %}
+<div class="alert-warn" role="alert" style="margin-bottom:1rem;">
+  <strong>{{ incomplete_audit_title }}</strong>
+  {{ incomplete_audit_notice }}
+</div>
+{% endif %}
 
 {% if text_layer_quality == "image_only" %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">

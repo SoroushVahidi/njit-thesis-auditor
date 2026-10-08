@@ -12,6 +12,11 @@ from typing import Any
 
 from njit_auditor.coverage_disclosure import coverage_markdown_lines
 from njit_auditor.evaluation import map_finding_rule_to_category
+from njit_auditor.incomplete_audit import (
+    INCOMPLETE_AUDIT_TITLE,
+    failed_check_count_from_metadata,
+    incomplete_audit_notice,
+)
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.page_number_student_preview import classify_visible_page_number_issue
@@ -4033,6 +4038,10 @@ def write_markdown_report(
     lines.append("")
     if audit_type != "tex":
         lines.append(f"> {GLOBAL_AUTOMATED_REVIEW_NOTE}")
+        lines.append("")
+    incomplete_notice = incomplete_audit_notice(failed_check_count_from_metadata(meta))
+    if incomplete_notice:
+        lines.append(f"> **{INCOMPLETE_AUDIT_TITLE}** {incomplete_notice}")
         lines.append("")
     lines.append(f"- Input file: `{meta.get('input_file_name', '-')}`")
     lines.append(f"- Input path: `{meta.get('input_file_path', '-')}`")

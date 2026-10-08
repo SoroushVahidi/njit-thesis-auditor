@@ -36,6 +36,11 @@ from njit_auditor.coverage_disclosure import (
     COVERAGE_INTRO,
 )
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
+from njit_auditor.incomplete_audit import (
+    FAILED_CHECK_COUNT_KEY,
+    INCOMPLETE_AUDIT_TITLE,
+    incomplete_audit_notice,
+)
 from njit_auditor.issue_type_explanations import (
     explain_issue_type,
     has_curated_issue_type_title,
@@ -199,6 +204,7 @@ class JobState:
     fail_count: int = 0
     error_message: str = ""
     text_layer_quality: str = ""  # "text_layer_ok" | "low_text" | "image_only" | ""
+    failed_check_count: int = 0  # PDF checks that raised and were skipped
     pdf_page_count: int = 0
     pdf_page_sizes: list[tuple[float, float]] = field(default_factory=list)
     manuscript_page_labels: dict[int, str] = field(default_factory=dict)
@@ -1924,6 +1930,9 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,
+        "failed_check_count": job.failed_check_count,
+        "incomplete_audit_title": INCOMPLETE_AUDIT_TITLE,
+        "incomplete_audit_notice": incomplete_audit_notice(job.failed_check_count),
         "category_summary": category_summary,
         "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
     }
@@ -1992,8 +2001,10 @@ def _execute_audit_task(job_id: str) -> None:
             upload_path,
             max_size_bytes=MAX_UPLOAD_BYTES,
             work_dir=jdir,
+            isolate_check_failures=True,
         )
         findings = result.findings
+        job.failed_check_count = len(result.failed_checks)
         job.text_layer_quality = classify_pdf_text_layer(upload_path)
     except UploadValidationError as exc:
         job.state = "failed"
@@ -2029,6 +2040,8 @@ def _execute_audit_task(job_id: str) -> None:
         "job_id": job_id,
         "input_file_path": str(upload_path),
     }
+    if job.failed_check_count:
+        metadata[FAILED_CHECK_COUNT_KEY] = str(job.failed_check_count)
 
     export_metadata = _web_export_metadata(metadata)
     export_findings = _web_export_findings(findings)
@@ -2128,6 +2141,7 @@ def _execute_audit_task(job_id: str) -> None:
             serialized,
             file_name=job.file_name,
             manuscript_page_labels=job.manuscript_page_labels,
+            failed_check_count=job.failed_check_count,
         ),
         encoding="utf-8",
     )
@@ -2658,6 +2672,7 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
                 boxes_by_problem=boxes_by_problem,
                 file_name=job.file_name,
                 manuscript_page_labels=job.manuscript_page_labels,
+                failed_check_count=job.failed_check_count,
             )
             metadata_path = jdir / "student-report-metadata.json"
             temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
