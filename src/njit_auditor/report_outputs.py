@@ -4220,7 +4220,11 @@ def write_markdown_report(
 
     lines.append("## Notes")
     lines.append("")
-    lines.append("- Privacy: report output avoids dissertation body text and source line quotes.")
+    lines.append(
+        "- Privacy: this report may quote short excerpts of the audited document "
+        "(such as headings, list entries, and flagged words); share it only as you "
+        "would share the document."
+    )
     lines.append("- Limitation: findings are heuristic and require human review.")
 
     output_path.write_text(

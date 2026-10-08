@@ -274,7 +274,7 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Audit a public PDF URL",
         "Audit a built-in sample PDF",
         "Supported inputs",
-        "Privacy-safe processing",
+        "How your file is handled",
         "processed locally",
         "What you get",
         "Help",
