@@ -268,9 +268,11 @@ def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
     }
 
     assert page_23_issue_types == set()
-    # Page 34 is a separate, unconfirmed residual finding untouched by this fix.
+    # Page 34 resumes a sentence after a displayed equation that ends with a
+    # comma, so it is not a new paragraph and must not be flagged (a new
+    # paragraph always follows a finished sentence; Ester, R015 feedback).
     p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
-    assert 34 in p015_pages
+    assert 34 not in p015_pages
 
 
 def test_ester_sample_b_p012_visibility_stable() -> None:
