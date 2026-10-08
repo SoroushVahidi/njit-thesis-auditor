@@ -4,6 +4,13 @@
 
 {% block head_extra %}
 <style>
+  .coverage-card p { margin: 0 0 0.5rem; font-size: 0.92rem; }
+  .coverage-list { margin: 0.5rem 0 0; }
+  .coverage-item { padding: 0.5rem 0; border-top: 1px solid var(--color-border); }
+  .coverage-item dt { font-weight: 700; }
+  .coverage-item dd { margin: 0.2rem 0 0; font-size: 0.88rem; overflow-wrap: anywhere; }
+  .coverage-status { font-weight: 600; font-size: 0.78rem; color: var(--color-muted); margin-left: 0.35rem; }
+  .coverage-item--manual .coverage-status, .coverage-item--guidance_differs .coverage-status { color: #8a5a00; }
   .rule-link { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
   .rule-link:hover { color: var(--color-primary-dark); }
   .page-link { color: var(--color-primary); font-size: 0.82rem; white-space: nowrap; }
@@ -385,6 +392,7 @@
   <a href="#section-summary">Summary</a>
   <a href="#section-review-order">Recommended review order</a>
   <a href="#section-findings">Findings in page order</a>
+  <a href="#section-coverage">What was checked</a>
   {% if category_summary %}<a href="#section-topics">Findings by topic</a>{% endif %}
   <a href="#section-downloads">Downloads</a>
   {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Advanced details</a>{% endif %}
@@ -449,6 +457,27 @@
     </div>
   </div>
   <p class="file-hint" style="margin-top:0.75rem;margin-bottom:0;">These are automated review signals, not confirmed formatting defects. All findings require manual verification against NJIT guidelines.</p>
+</section>
+
+<section id="section-coverage" class="section" aria-labelledby="coverage-heading">
+  <div class="section-header">
+    <h2 id="coverage-heading">{{ coverage_heading }}</h2>
+  </div>
+  <div class="card card-compact coverage-card">
+    {% for paragraph in coverage_intro %}<p>{{ paragraph }}</p>{% endfor %}
+    <details class="collapsible coverage-details">
+      <summary>Show coverage by checklist section ({{ coverage_areas | length }} sections)</summary>
+      <dl class="coverage-list">
+        {% for area in coverage_areas %}
+        <div class="coverage-item coverage-item--{{ area.status }}">
+          <dt>{{ area.title }} <span class="coverage-status">{{ area.status_label }}</span></dt>
+          {% if area.checked %}<dd><strong>Checked:</strong> {{ area.checked }}</dd>{% endif %}
+          <dd><strong>Check yourself:</strong> {{ area.manual }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </details>
+  </div>
 </section>
 
 {% if findings %}

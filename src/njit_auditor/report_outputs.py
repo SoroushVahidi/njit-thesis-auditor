@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from njit_auditor.coverage_disclosure import coverage_markdown_lines
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.models import AuditFinding, Severity
@@ -4151,6 +4152,9 @@ def write_markdown_report(
                 )
             )
             lines.append("")
+
+    if audit_type != "tex":
+        lines.extend(coverage_markdown_lines())
 
     lines.append("## Findings by Rule")
     lines.append("")
