@@ -37,6 +37,8 @@ COVERAGE_INTRO: tuple[str, ...] = (
     "change your document.",
     "Having few or no findings does not mean your document meets NJIT requirements. Check "
     "the items listed under \"Check yourself\" by hand.",
+    "The checks read the text stored in your PDF. Pages without selectable text, such as "
+    "scanned or image-only pages, cannot be checked.",
 )
 
 
@@ -69,9 +71,15 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
     CoverageArea(
         key="font",
         title="Font",
-        status="checked",
-        checked="Body text font family and 12 pt size.",
-        manual="Fonts inside tables and figures, which may use other sizes, are not checked.",
+        status="partial",
+        checked=(
+            "Body text font family and size on main-text pages. A page is flagged only "
+            "when most of its body text differs, and sizes from 11 to 13 pt are accepted."
+        ),
+        manual=(
+            "That all body text is exactly 12 pt; fonts on the front-matter and "
+            "References pages; fonts inside tables and figures."
+        ),
         rule_ids=("P026",),
     ),
     CoverageArea(
@@ -94,20 +102,25 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="Title page",
         status="partial",
         checked=(
-            "The title matches on the Title, Abstract, and Approval pages; degree and "
-            "institution wording; graduation month (May, August, or December)."
+            "Clear differences between the title on the Title, Abstract, and Approval "
+            "pages, when the title can be read on at least two of them; that the degree "
+            "and institution lines are present; graduation month (May, August, or December)."
         ),
-        manual="That the page follows your program's template.",
+        manual=(
+            "That the title is identical, word for word, on all three pages (small "
+            "differences may not be flagged); that the page follows your program's template."
+        ),
         rule_ids=("P025", "P033", "P074"),
     ),
     CoverageArea(
         key="approval_page",
         title="Approval page",
         status="partial",
-        checked="That an advisor label and committee signature blocks are present.",
+        checked="That an advisor label appears among the committee entries.",
         manual=(
-            "Honorifics (Dr., Mr., Ms.); advisor listed first; committee order by "
-            "department and rank; external members' institution, city, and state."
+            "Signature and date lines for each member; honorifics (Dr., Mr., Ms.); advisor "
+            "listed first; committee order by department and rank; external members' "
+            "institution, city, and state."
         ),
         rule_ids=("P068",),
     ),
@@ -197,12 +210,13 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="Headings (levels 1 to 5)",
         status="partial",
         checked=(
-            "Chapter titles in all caps; level-2 titles in title case; level-3 and "
-            "level-4 titles in sentence case; level-4 titles ending with a period."
+            "Chapter titles in all caps; level-2 titles in title case; numbered level-3 "
+            "and level-4 titles in sentence case; level-4 titles ending with a period."
         ),
         manual=(
-            "Centering, alignment, and bold; two blank lines after a chapter title; "
-            "level-5 italics; where the text begins after each heading."
+            "Capitalization of unnumbered level-3 to level-5 headings; centering, "
+            "alignment, and bold; two blank lines after a chapter title; level-5 italics; "
+            "where the text begins after each heading."
         ),
         rule_ids=("P020", "P027"),
     ),

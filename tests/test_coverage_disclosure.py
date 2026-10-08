@@ -232,3 +232,62 @@ def test_results_page_with_no_findings_still_discloses_coverage(
     assert "No problems found" in html
     assert 'id="section-coverage"' in html
     assert "does not mean your document meets NJIT requirements" in html
+
+
+# ---------------------------------------------------------------------------
+# Accuracy against detector behavior: each claim is tied to the constant that
+# limits it, so changing the detector forces a review of the student wording.
+# ---------------------------------------------------------------------------
+
+
+def _area(key: str) -> Any:
+    return {area.key: area for area in COVERAGE_AREAS}[key]
+
+
+def test_font_is_partly_checked_while_p026_tolerates_size_and_majority() -> None:
+    from njit_auditor.rules import pdf_font_compliance as p026
+
+    font = _area("font")
+    assert p026.BODY_SIZE_TOLERANCE_PT > 0 and p026._MIN_VIOLATION_FRACTION > 0
+    assert font.status == "partial"
+    low = p026.EXPECTED_BODY_SIZE_PT - p026.BODY_SIZE_TOLERANCE_PT
+    high = p026.EXPECTED_BODY_SIZE_PT + p026.BODY_SIZE_TOLERANCE_PT
+    assert f"{low:g} to {high:g} pt" in font.checked
+    assert "exactly 12 pt" in font.manual
+    assert "References" in font.manual
+
+
+def test_approval_page_does_not_claim_retired_signature_block_check() -> None:
+    from njit_auditor.rules import pdf_approval_page_committee_blocks as p068
+
+    approval = _area("approval_page")
+    assert p068._SIGNATURE_BLOCKS_SPARSE_REPORTING_ENABLED is False
+    assert "signature" not in approval.checked.lower()
+    assert "Signature and date lines" in approval.manual
+
+
+def test_title_consistency_discloses_material_mismatch_threshold() -> None:
+    from njit_auditor.rules import pdf_title_consistency as p033
+
+    title_page = _area("title_page")
+    assert p033._MATERIAL_MISMATCH_SIMILARITY < 1.0
+    assert "Clear differences" in title_page.checked
+    assert "small differences may not be flagged" in title_page.manual
+
+
+def test_heading_case_claims_are_limited_to_numbered_headings() -> None:
+    headings = _area("headings")
+    assert "numbered level-3" in headings.checked
+    assert "unnumbered" in headings.manual
+
+
+def test_intro_discloses_pages_without_selectable_text() -> None:
+    intro = " ".join(COVERAGE_INTRO)
+    assert "without selectable text" in intro
+    assert "cannot be checked" in intro
+
+
+def test_no_area_claims_full_coverage() -> None:
+    # Every implemented detector is heuristic; "Checked" without qualification
+    # would tell students an item needs no manual review.
+    assert all(area.status != "checked" for area in COVERAGE_AREAS)
