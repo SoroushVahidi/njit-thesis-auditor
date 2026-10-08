@@ -2326,7 +2326,8 @@ def test_results_page_does_not_leak_raw_latex_in_comments_or_fixes(
 
     assert resp.status_code == 200
     assert b"Review note" in resp.content
-    assert b"Likely problem" in resp.content
+    assert b"Review needed: " in resp.content
+    assert b"Review needed: Likely problem:" not in resp.content
     assert b"double-spaced" in resp.content or b"double spacing" in resp.content
     assert b"Times New Roman" in resp.content
     assert b"Roman numerals" in resp.content
