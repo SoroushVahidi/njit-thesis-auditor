@@ -759,6 +759,12 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P039", "toc_l2_not_indented_relative_to_l1"): (
+        "Indent the highlighted level-2 TOC entries to the right of level-1 entries."
+    ),
+    ("P039", "toc_l3_not_indented_relative_to_l2"): (
+        "Indent the highlighted level-3 TOC entries to the right of level-2 entries."
+    ),
     ("P020", "possible_title_capitalization_issue"): "",
     ("P027", "level1_not_all_caps"): "",
     ("P027", "level2_title_case_issue"): "",

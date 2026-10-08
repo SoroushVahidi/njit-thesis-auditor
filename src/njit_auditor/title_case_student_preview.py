@@ -10,6 +10,10 @@ _BBOX_PARTS = 4
 _BBOX_ROUND_DIGITS = 1
 
 _TABLE_PREFIX_RE = re.compile(r"^table\s+\d+(?:\.\d+)*\s*", re.IGNORECASE)
+_UNFINISHED_HEADING_END_RE = re.compile(
+    r"(?:\b(?:a|an|and|as|at|by|for|from|in|of|on|or|the|to|with)\b|&)\s*$",
+    re.IGNORECASE,
+)
 
 
 def sanitize_title_case_line_preview(text: str, *, max_len: int = _LINE_PREVIEW_MAX) -> str:
@@ -92,6 +96,14 @@ def p020_short_suggested_fix(
 ) -> str:
     subject = title_case_subject_kind(source)
     preview = sanitize_title_case_line_preview(line_preview)
+    # A line ending in a connector (or a truncated preview) is often only
+    # the first physical line of a wrapped heading. Do not present it as a
+    # complete title rewrite; name the exact word correction instead.
+    if source == "heading" and (
+        preview.endswith("...") or _UNFINISHED_HEADING_END_RE.search(preview)
+    ):
+        if flagged_word and corrected_word:
+            return f'Change "{flagged_word}" to "{corrected_word}" in this heading.'
     if preview and flagged_word:
         updated = _replace_whole_word(preview, flagged_word, corrected_word)
         if updated is not None:

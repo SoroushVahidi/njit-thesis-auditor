@@ -177,7 +177,7 @@ def test_p020_short_main_card_wording() -> None:
     )
     assert comment == "Likely problem: In this heading, 'study' should be capitalized as 'Study'."
     assert "Title Case" not in comment
-    assert "A Study of perceptions" in fix
+    assert fix == 'Change "study" to "Study" in this heading.'
 
 
 def test_p020_short_main_card_wording_table_title_source() -> None:
