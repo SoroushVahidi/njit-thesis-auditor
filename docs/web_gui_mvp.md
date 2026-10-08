@@ -92,6 +92,7 @@ and Jinja registrations are created at import time.
 | `NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS` | `300` | How often the background sweeper deletes expired jobs, independent of requests |
 | `NJIT_AUDITOR_WEB_HOST` | `0.0.0.0` | Helper-script bind host |
 | `NJIT_AUDITOR_WEB_PORT` | `8000` | Helper-script bind port |
+| `NJIT_AUDITOR_WEB_ENVIRONMENT` | `local-dev` | Deployment label reported by `/version`; set it to `production` in the live service unit (not yet set there as of 2026-10-08) |
 
 ## 6. Routes
 
