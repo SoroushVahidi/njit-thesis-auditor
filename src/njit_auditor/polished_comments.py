@@ -759,6 +759,17 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    # P078 has two issue types; the rule-level remediation covers both, so a
+    # pronoun finding told students to replace "paper"/"article". Give each
+    # issue type only the half of the remediation that applies to it.
+    ("P078", "abstract_pdf_first_person_pronoun"): (
+        "Rewrite sentences to remove first-person pronouns such as \"I,\" "
+        "\"me,\" \"my,\" \"we,\" or \"our.\""
+    ),
+    ("P078", "abstract_pdf_forbidden_term"): (
+        "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" "
+        "\"work,\" or \"research.\""
+    ),
     ("P020", "possible_title_capitalization_issue"): "",
     ("P027", "level1_not_all_caps"): "",
     ("P027", "level2_title_case_issue"): "",
