@@ -4,7 +4,117 @@
 > right now." Older dated reports remain historical/forensic records under
 > `docs/status/`.
 
-## Current authority update — 2026-10-06
+## Current state and handoff — 2026-10-08
+
+This section is the current state. Every later section is a dated snapshot:
+its SHAs, deployment notes and "pending" statements were true when written
+and are not current.
+
+### Snapshot
+
+| Field | Value |
+|---|---|
+| Code baseline (`origin/main`, production checkout, live `/version`) | `a9bca5349b84e1a790e126057fd2625f1921a06d` (`a9bca53`, PR #583), all aligned |
+| Manifest status snapshot | `a9bca53`; **4482 passed**, 6 skipped (skips need private fixtures absent from a clean worktree) |
+| Quality gates at the snapshot | `ruff check .` clean, `mypy src` clean, `git diff --check` clean |
+| Seven-document corpus (Youra, Anthony, Muyeed, Philip, Praneeth, Sebastian, Patrick) | 1495 raw findings, 623 actionable, 623 numbered student cards, 0 numbered PASS rows |
+| Samples A–D | 1052 raw, 362 actionable, 362 cards, 0 PASS; visible R011 cards A 0 / B 20 / C 20 / D 50; Sample D raw R011 57 |
+| Direct review-ledger replay (`--ledger-root <scratch copy>`) | 46 reviewed false positives (0 remaining), 4 reviewed true positives (0 missing), 0 unresolved, 0 ambiguous |
+| Local `/Rotate` inventory | 2,217 corpus pages, 0 with non-zero `/Rotate`: all rotation work below is synthetic-tested and has zero real-document delta |
+| Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 |
+
+The replay figures cover only the cases stored in the direct review ledger.
+They do not mean every policy question in the guidelines is settled.
+
+### Reviewer workflow: stopped
+
+- Packet: NONE. Substitute: NONE. Outreach: stopped.
+- Reason: the authority-equivalence work through 2026-10-07 found no
+  genuinely novel reviewer case. Candidate questions were already answered
+  by prior adjudications or were materially equivalent to them.
+- Before any future question to Ester, search prior emails, the Sheets and
+  Excel workbooks, the annotated dissertations, the authority matrices,
+  previous adjudications and the Drive templates and examples. Do not ask
+  something already answered or materially equivalent.
+- Keep the authority classes separate:
+  - **DIRECT_ESTER_AUTHORITY:** Ester's own adjudications.
+  - **DERIVED_ENGINEERING_AUTHORITY:** rules reasoned from those adjudications.
+  - **ENGINEERING_EQUIVALENCE:** materially the same case as a reviewed one.
+  - **UNREVIEWED_ENGINEERING_DEBT:** findings or questions nobody has reviewed.
+
+  For example, R035 has exactly two direct adjudications, Anthony p60 and
+  Praneeth p29, both false positives. Praneeth p67 is authority reuse,
+  p69 was fixed, p72 was an engineering bug and p100 is unreviewed (see
+  `r035_praneeth_text_fallback_fix_20260907.md`).
+
+### PDF rotation architecture
+
+Accepted design: [`docs/architecture/pdf_rotation_frames_adr.md`](../architecture/pdf_rotation_frames_adr.md).
+
+- Extracted geometry stays in unrotated, CropBox-relative box space.
+- Detectors judge in the content (reading) frame.
+- A viewer-only `/Rotate` keeps the `/Rotate 0` verdict when the frame is inferred as 0.
+- Content-turned pages, including pdflscape, are judged as they read.
+- Presentation may use display semantics.
+- Global extraction normalization is rejected.
+- The shared detector object is `pdf_models.PdfReadingFrame`. Its production consumers are R035, R011 and P013/P019 page-number classification.
+
+Completed, all merged and deployed:
+
+| PR | Work |
+|---|---|
+| #577 | P013/P019 pdflscape 90/270 page-number geometry |
+| #578 | Rotated highlight clipping and location labels |
+| #579 | R035 pdflscape decision geometry |
+| #580 | Rotation-frame ADR |
+| #581 | R035 viewer-only rotation (B1) on `PdfReadingFrame` |
+| #582 | R011 margins in the reading frame (pdflscape 90/270 sides, bottom-only allowances never on a binding edge) |
+| #583 | P013/P019 content-turned `/Rotate 180` positions (readable-bottom folio is `bottom_center`) |
+
+### Remaining debt (prioritized; none started)
+
+1. **B2: reading-frame confidence and ambiguity.**
+   - The character-weighted inference can choose the wrong frame when rotated or object text narrowly outweighs the main content.
+   - Pinned exposures: R011 viewer-only 90 (`test_b2_near_tie_is_a_known_deferred_limitation`) and P013 viewer-only 180 (`test_b2_upside_down_majority_is_a_known_deferred_limitation`).
+   - No confidence threshold or abstention policy has been chosen.
+2. **Content-turned portrait 90/270 page numbers.**
+   - These are still classified in box space (`right_center`/`left_center`).
+   - A displayed bottom-right folio there still gives a false P019 `missing_page_number`.
+3. **P082** (experimental, opt-in, not in the web flow). It recomputes positions in display space and is not migrated.
+4. **Legacy CLI page numbers** (`rules/page_numbers.py`). This is a separate older implementation outside the web flow.
+
+Other known debt, carried forward from project tracking:
+- Sample D merged-span References-label false positives.
+- P013 no-page-number PASS semantics.
+- Q030 citation-format consistency (established authority, unimplemented).
+- Philip p117 R015.
+- The non-editable wheel lacks some repository `data/` files.
+- A deprecation warning from httpx through `TestClient`.
+- A deeper R011 final-line exception, only if a concrete case appears.
+- P001–P010 TeX-source rules.
+
+### Next recommended task
+
+A **read-only investigation** of B2: measure where the inference is close
+to a tie on real and synthetic pages, then propose a confidence signal and
+an abstention policy for review. Do not implement thresholds before that
+evidence exists.
+
+### Do not redo
+
+- #577–#583 (above).
+- The R011 landscape, reference-label, References-continuity and binding-bottom tolerance fixes (#572–#576).
+- The R035 provenance correction (#569).
+
+### Local layout
+
+- **Development checkout:** `/home/soroush/njit-thesis-auditor/main`, on branch `main`.
+- **Production:** the detached worktree `njit-thesis-auditor-clean-worktrees/live-current-main`, deployed per `docs/DEPLOYMENT.md`.
+- **Preserved worktrees and branches:** only those with commits not on `main`.
+- **Private QA** (synthetic rotation matrices, corpus dumps, scratch-ledger replays) lives in the untracked `notes/` directory beside the repository, one dated folder per task. It is never committed.
+- **Shared review ledger:** `main/data/evaluation/private/ester_review_ledger`. Read it through scratch copies only.
+
+## Historical authority update — 2026-10-06
 
 Baseline `origin/main`, deployment checkout, and live `/version` were all
 `817f093bf199d10225ad6eee2317c0b0684dff67` before this branch. The
@@ -29,7 +139,7 @@ from `/version`; deployment of the PR #558 changes is pending. The live-service
 worktree is at the merged main commit on disk, but the service has not been
 redeployed. Earlier rule decisions and deployment history remain below._
 
-## Repository and Production Snapshot
+## Historical Repository and Production Snapshot (2026-10-03)
 
 | Field | Value |
 |---|---|
@@ -634,7 +744,9 @@ signature-block check. Detector behavior and finding counts are unchanged.
 
 ## Pre-R045 Safe Stack (2026-10-06)
 
-Branch `integration/pre-r045-safe-stack-20261006` (not merged or deployed)
+_Status 2026-10-08: merged in PR #565 and deployed._
+
+Branch `integration/pre-r045-safe-stack-20261006` (not merged or deployed at the time)
 stacks the policy-independent work on top of the reconciliation head
 `6b70aae`: location-aware review-ledger matching, the reviewer workbook
 format, fresh-clone consistency-audit fallbacks, the closed-rule audit
@@ -669,14 +781,18 @@ reverse chronological order and use the same citation format as the
 References section, without the number in front. Hanging indent stays
 optional and single spacing mandatory (2026-10-05).
 
-Branch `fix/r045-no-numbering-final-20261006` (not merged or deployed) adds
+_Status 2026-10-08: merged in PR #565 and deployed._
+
+Branch `fix/r045-no-numbering-final-20261006` (not merged or deployed at the time) adds
 the `biosketch_publication_entry_numbered` check to R045. On the
 seven-document corpus it adds one finding (Patrick physical page 5); nothing
 else changes. Reverse chronology was already checked by R067 (Q027); the
 citation-format match (Q030) remains unimplemented. Record:
 `docs/status/r045_no_numbering_ester_20261006.md`.
 
-## Next Work Sequence
+## Next Work Sequence (historical, 2026-10-03)
+
+_Superseded: see "Current state and handoff — 2026-10-08" at the top._
 
 All rule work through R086/P086 is merged and formally catalogued. The
 three reviewer questions from

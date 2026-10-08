@@ -41,8 +41,8 @@ The live web UI runs as a **user-level systemd service**, not a manual process:
 cd <deploy-worktree>
 git fetch origin
 git status --short          # must be empty
-git checkout main
-git pull --ff-only origin main
+git branch --show-current   # must print nothing: the live worktree stays detached
+git switch --detach <merged-origin-main-sha>   # the exact squash-merge SHA, never a branch
 git rev-parse HEAD          # this is the SHA that must show up in /version after restart
 # If runtime dependencies changed, sync the service venv as shown below before gates.
 ruff check .
@@ -51,6 +51,10 @@ python -m pytest -q
 ```
 
 Do not restart the live server on a commit that fails any of these.
+
+Deployment never touches the shared review ledger
+(`main/data/evaluation/private/ester_review_ledger`). Authority replays run
+against a scratch copy with `--ledger-root <scratch>`, never `--shared-ledger`.
 
 When the deployed commit changes runtime dependencies in `pyproject.toml`, sync
 the **service's venv** after checking out the exact commit and before running
