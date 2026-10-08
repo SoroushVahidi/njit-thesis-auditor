@@ -33,6 +33,7 @@ def test_double_spaced_chapter_wrap_uses_local_single_wrap_and_has_target_bbox(
     assert len(chapter_findings) == 2
     assert all(f.rule_id == "P032" and f.page == 1 for f in chapter_findings)
     assert all(f.details.get("bbox") for f in chapter_findings)
+    assert all(len(f.details["highlight_bboxes"].split(" | ")) == 2 for f in chapter_findings)
     assert len({f.details["bbox"] for f in chapter_findings}) == 2
 
 

@@ -504,6 +504,10 @@ def check_pdf_toc_list_wrapped_spacing(pdf_document: PdfDocument) -> list[AuditF
                         "expected_max_gap_pt": f"{expected_max_gap_pt:.1f}",
                         "line_height_or_font_size_pt": f"{line_height:.1f}",
                         "bbox": format_bbox_detail(pair_box),
+                        "highlight_bboxes": (
+                            f"{format_bbox_detail(first.bbox)} | "
+                            f"{format_bbox_detail(second.bbox)}"
+                        ),
                         "confidence": confidence,
                         "source_q_rule_ids": "Q053-Q055,Q066-Q067,Q076-Q078",
                     },
