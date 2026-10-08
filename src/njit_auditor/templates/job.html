@@ -411,6 +411,13 @@
   </div>
 </div>
 
+{% if failed_check_count %}
+<div class="alert-warn" role="alert" style="margin-bottom:1rem;">
+  <strong>Some checks could not run on this file.</strong>
+  {{ failed_check_count }} automated {{ "check" if failed_check_count == 1 else "checks" }} stopped because of an internal error, so problems {{ "it looks" if failed_check_count == 1 else "they look" }} for may be missing from this report. The other checks ran normally. Please verify your formatting by hand against the NJIT guidelines; the error has been logged for the maintainers.
+</div>
+{% endif %}
+
 {% if text_layer_quality == "image_only" %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">
   <strong>This PDF has no selectable text.</strong>

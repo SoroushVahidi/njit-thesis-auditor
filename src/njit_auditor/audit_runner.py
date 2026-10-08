@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -199,6 +200,9 @@ class AuditError(Exception):
     """Raised when the audit cannot proceed (corrupt/invalid PDF)."""
 
 
+_logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class UploadedAuditResult:
     """Structured result from :func:`run_audit_for_uploaded_file`."""
@@ -210,6 +214,8 @@ class UploadedAuditResult:
     loaded_tex_file_count: int | None = None
     json_export_supported: bool = True
     limitation_note: str = ""
+    # Names of PDF checks that raised and were skipped (only when isolation is on).
+    failed_checks: tuple[str, ...] = ()
 
 
 def collect_tex_findings(
@@ -236,89 +242,110 @@ def collect_pdf_layout_findings(
     pdf_path: str | Path,
     *,
     options: AuditOptions | None = None,
+    check_failures: list[str] | None = None,
 ) -> list[AuditFinding]:
     """Run the current implemented PDF layout audit on a loaded document.
 
     This is the canonical rule sequence shared by the CLI and web UI, including
     embedded infrastructure refinements (P069–P071) wired through existing checks.
+
+    By default an exception in any check propagates, so evaluation and CLI runs
+    fail loudly. When *check_failures* is a list, each check is isolated instead:
+    a check that raises is logged with its traceback, its name is appended to
+    the list, and the remaining checks still run.
     """
+
+    def run_check(
+        check: Callable[..., list[AuditFinding]], *args: Any, **kwargs: Any
+    ) -> list[AuditFinding]:
+        if check_failures is None:
+            return check(*args, **kwargs)
+        try:
+            return check(*args, **kwargs)
+        except Exception:  # noqa: BLE001 - isolation is the point; logged below
+            name = getattr(check, "__name__", type(check).__name__)
+            _logger.exception("PDF check %s failed; continuing without it", name)
+            check_failures.append(name)
+            return []
+
     path_str = str(pdf_path)
     audit_options = options or DEFAULT_AUDIT_OPTIONS
     wrapper_pages = detect_digital_commons_wrapper_pages(pdf_doc)
     content_doc = without_wrapper_pages(pdf_doc, wrapper_pages)
     findings: list[AuditFinding] = []
     findings.extend(
-        run_pdf_page_number_candidates_rule(content_doc, skip_pages=wrapper_pages)
+        run_check(run_pdf_page_number_candidates_rule, content_doc, skip_pages=wrapper_pages)
     )
-    findings.extend(check_pdf_page_number_sequence(content_doc))
+    findings.extend(run_check(check_pdf_page_number_sequence, content_doc))
     findings.extend(
-        check_pdf_landscape_page_number_orientation(
+        run_check(
+            check_pdf_landscape_page_number_orientation,
             content_doc,
             enabled=audit_options.is_experimental_enabled("P082"),
         )
     )
-    findings.extend(check_pdf_page_numbering_regime(content_doc))
-    findings.extend(check_pdf_roman_sequence(content_doc))
-    findings.extend(check_pdf_roman_section_anchors(content_doc))
-    findings.extend(check_pdf_frontmatter_no_page_number(content_doc))
-    findings.extend(run_pdf_margin_rule(content_doc, skip_pages=wrapper_pages))
-    findings.extend(check_named_frontmatter_headings(content_doc))
-    findings.extend(check_pdf_frontmatter_headings(content_doc))
-    findings.extend(check_pdf_frontmatter_structure(content_doc))
-    findings.extend(check_pdf_title_page_graduation_month(content_doc))
-    findings.extend(check_pdf_title_consistency(content_doc))
-    findings.extend(check_pdf_copyright_page(content_doc))
-    findings.extend(check_pdf_copyright_year_format(content_doc))
-    findings.extend(check_pdf_copyright_author_format(content_doc))
-    findings.extend(check_pdf_dedication_page(content_doc))
-    findings.extend(check_pdf_abstract_word_count(content_doc))
-    findings.extend(check_pdf_abstract_keywords(content_doc))
-    findings.extend(check_pdf_indentation(content_doc))
-    findings.extend(check_pdf_abstract_indentation(content_doc))
-    findings.extend(check_pdf_acknowledgements_indentation(content_doc))
-    findings.extend(check_pdf_biosketch_birth_information(content_doc))
-    findings.extend(check_pdf_biosketch_publication_layout(content_doc))
-    findings.extend(check_pdf_biosketch_bullet_spacing(content_doc))
-    findings.extend(check_pdf_spacing(content_doc))
-    findings.extend(check_pdf_body_spacing(content_doc))
-    findings.extend(check_pdf_font_compliance(content_doc))
-    findings.extend(check_pdf_captions(content_doc))
-    findings.extend(check_pdf_figure_table_layout(content_doc))
-    findings.extend(check_pdf_heading_level_styles(content_doc))
-    findings.extend(check_pdf_first_chapter_heading(content_doc))
-    findings.extend(check_pdf_unnumbered_bold_heading(content_doc))
-    findings.extend(check_pdf_toc_alignment(content_doc))
-    findings.extend(check_pdf_toc_leader_consistency(content_doc))
-    findings.extend(check_pdf_toc_list_formatting(content_doc))
-    findings.extend(check_pdf_toc_continued_headings(content_doc))
-    findings.extend(check_pdf_lot_lof_column_headers(content_doc))
-    findings.extend(check_pdf_lot_lof_entry_number_alignment(content_doc))
-    findings.extend(check_pdf_lot_lof_page_number_alignment(content_doc))
-    findings.extend(check_pdf_lot_lof_column_header_style_alignment(content_doc))
-    findings.extend(check_pdf_lot_lof_left_column_header_bold(content_doc))
-    findings.extend(check_pdf_toc_list_wrapped_spacing(content_doc))
-    findings.extend(check_pdf_toc_list_entry_spacing(content_doc))
-    findings.extend(check_pdf_toc_entry_hierarchy(content_doc))
-    findings.extend(check_pdf_toc_appendix_format(content_doc))
-    findings.extend(check_pdf_lof_terminal_punctuation(content_doc))
-    findings.extend(check_pdf_lot_terminal_period(content_doc))
-    findings.extend(check_pdf_toc_terminal_period(content_doc))
-    findings.extend(check_pdf_lot_lof_entry_type(content_doc))
-    findings.extend(check_pdf_lot_lof_number_format(content_doc))
-    findings.extend(check_pdf_lot_lof_page_number_ordering(content_doc))
-    findings.extend(check_pdf_toc_page_number_ordering(content_doc))
-    findings.extend(check_pdf_lot_lof_entry_number_ordering(content_doc))
-    findings.extend(check_pdf_toc_entry_number_ordering(content_doc))
-    findings.extend(check_pdf_lot_lof_cross_page_entry_ordering(content_doc))
-    findings.extend(check_pdf_toc_cross_page_entry_ordering(content_doc))
-    findings.extend(check_pdf_appendix_body_headings(content_doc))
-    findings.extend(check_pdf_references_citations_structural(content_doc))
-    findings.extend(check_pdf_dedication_centering_italic(content_doc))
-    findings.extend(check_pdf_biosketch_degree_ordering(content_doc))
-    findings.extend(check_pdf_biosketch_publication_ordering(content_doc))
-    findings.extend(check_pdf_approval_page_committee_blocks(content_doc))
-    findings.extend(check_pdf_title_capitalization(content_doc))
-    findings.extend(run_pdf_annotation_rule(path_str, skip_pages=wrapper_pages))
+    findings.extend(run_check(check_pdf_page_numbering_regime, content_doc))
+    findings.extend(run_check(check_pdf_roman_sequence, content_doc))
+    findings.extend(run_check(check_pdf_roman_section_anchors, content_doc))
+    findings.extend(run_check(check_pdf_frontmatter_no_page_number, content_doc))
+    findings.extend(run_check(run_pdf_margin_rule, content_doc, skip_pages=wrapper_pages))
+    findings.extend(run_check(check_named_frontmatter_headings, content_doc))
+    findings.extend(run_check(check_pdf_frontmatter_headings, content_doc))
+    findings.extend(run_check(check_pdf_frontmatter_structure, content_doc))
+    findings.extend(run_check(check_pdf_title_page_graduation_month, content_doc))
+    findings.extend(run_check(check_pdf_title_consistency, content_doc))
+    findings.extend(run_check(check_pdf_copyright_page, content_doc))
+    findings.extend(run_check(check_pdf_copyright_year_format, content_doc))
+    findings.extend(run_check(check_pdf_copyright_author_format, content_doc))
+    findings.extend(run_check(check_pdf_dedication_page, content_doc))
+    findings.extend(run_check(check_pdf_abstract_word_count, content_doc))
+    findings.extend(run_check(check_pdf_abstract_keywords, content_doc))
+    findings.extend(run_check(check_pdf_indentation, content_doc))
+    findings.extend(run_check(check_pdf_abstract_indentation, content_doc))
+    findings.extend(run_check(check_pdf_acknowledgements_indentation, content_doc))
+    findings.extend(run_check(check_pdf_biosketch_birth_information, content_doc))
+    findings.extend(run_check(check_pdf_biosketch_publication_layout, content_doc))
+    findings.extend(run_check(check_pdf_biosketch_bullet_spacing, content_doc))
+    findings.extend(run_check(check_pdf_spacing, content_doc))
+    findings.extend(run_check(check_pdf_body_spacing, content_doc))
+    findings.extend(run_check(check_pdf_font_compliance, content_doc))
+    findings.extend(run_check(check_pdf_captions, content_doc))
+    findings.extend(run_check(check_pdf_figure_table_layout, content_doc))
+    findings.extend(run_check(check_pdf_heading_level_styles, content_doc))
+    findings.extend(run_check(check_pdf_first_chapter_heading, content_doc))
+    findings.extend(run_check(check_pdf_unnumbered_bold_heading, content_doc))
+    findings.extend(run_check(check_pdf_toc_alignment, content_doc))
+    findings.extend(run_check(check_pdf_toc_leader_consistency, content_doc))
+    findings.extend(run_check(check_pdf_toc_list_formatting, content_doc))
+    findings.extend(run_check(check_pdf_toc_continued_headings, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_column_headers, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_entry_number_alignment, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_page_number_alignment, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_column_header_style_alignment, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_left_column_header_bold, content_doc))
+    findings.extend(run_check(check_pdf_toc_list_wrapped_spacing, content_doc))
+    findings.extend(run_check(check_pdf_toc_list_entry_spacing, content_doc))
+    findings.extend(run_check(check_pdf_toc_entry_hierarchy, content_doc))
+    findings.extend(run_check(check_pdf_toc_appendix_format, content_doc))
+    findings.extend(run_check(check_pdf_lof_terminal_punctuation, content_doc))
+    findings.extend(run_check(check_pdf_lot_terminal_period, content_doc))
+    findings.extend(run_check(check_pdf_toc_terminal_period, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_entry_type, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_number_format, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_page_number_ordering, content_doc))
+    findings.extend(run_check(check_pdf_toc_page_number_ordering, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_entry_number_ordering, content_doc))
+    findings.extend(run_check(check_pdf_toc_entry_number_ordering, content_doc))
+    findings.extend(run_check(check_pdf_lot_lof_cross_page_entry_ordering, content_doc))
+    findings.extend(run_check(check_pdf_toc_cross_page_entry_ordering, content_doc))
+    findings.extend(run_check(check_pdf_appendix_body_headings, content_doc))
+    findings.extend(run_check(check_pdf_references_citations_structural, content_doc))
+    findings.extend(run_check(check_pdf_dedication_centering_italic, content_doc))
+    findings.extend(run_check(check_pdf_biosketch_degree_ordering, content_doc))
+    findings.extend(run_check(check_pdf_biosketch_publication_ordering, content_doc))
+    findings.extend(run_check(check_pdf_approval_page_committee_blocks, content_doc))
+    findings.extend(run_check(check_pdf_title_capitalization, content_doc))
+    findings.extend(run_check(run_pdf_annotation_rule, path_str, skip_pages=wrapper_pages))
     if wrapper_pages:
         wrapper_meta = digital_commons_wrapper_metadata(sorted(wrapper_pages))
         first_page = min(wrapper_pages)
@@ -365,17 +392,21 @@ def run_pdf_audit_full(
     pdf_path: str | Path,
     *,
     options: AuditOptions | None = None,
+    check_failures: list[str] | None = None,
 ) -> list[AuditFinding]:
     """Run all registered PDF layout audit checks and return findings.
 
     Raises AuditError if the file cannot be opened or is not a valid PDF.
+    See :func:`collect_pdf_layout_findings` for *check_failures*.
     """
     try:
         pdf_doc = load_pdf_layout(str(pdf_path))
     except (FileDataError, ValueError, RuntimeError) as exc:
         raise AuditError(f"Cannot read PDF: {exc}") from exc
 
-    return collect_pdf_layout_findings(pdf_doc, pdf_path, options=options)
+    return collect_pdf_layout_findings(
+        pdf_doc, pdf_path, options=options, check_failures=check_failures
+    )
 
 
 def run_pdf_audit(pdf_path: Path) -> list[AuditFinding]:
@@ -389,13 +420,23 @@ def run_audit_for_uploaded_file(
     max_size_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
     work_dir: Path | None = None,
     include_optional_linters: bool = False,
+    isolate_check_failures: bool = False,
 ) -> UploadedAuditResult:
-    """Dispatch an on-disk upload to the correct audit mode (PDF, TeX, or ZIP→TeX)."""
+    """Dispatch an on-disk upload to the correct audit mode (PDF, TeX, or ZIP→TeX).
+
+    With *isolate_check_failures*, a PDF check that raises is logged and
+    skipped, and its name is reported in ``failed_checks``; otherwise the
+    exception propagates.
+    """
     kind = validate_upload_path(path, max_size_bytes)
 
     if kind == UploadKind.PDF:
+        check_failures: list[str] = []
         try:
-            findings = run_pdf_audit_full(path)
+            if isolate_check_failures:
+                findings = run_pdf_audit_full(path, check_failures=check_failures)
+            else:
+                findings = run_pdf_audit_full(path)
         except AuditError as exc:
             raise UploadValidationError(str(exc)) from exc
         return UploadedAuditResult(
@@ -403,6 +444,7 @@ def run_audit_for_uploaded_file(
             audit_type="pdf",
             findings=findings,
             json_export_supported=True,
+            failed_checks=tuple(check_failures),
         )
 
     if kind == UploadKind.TEX:

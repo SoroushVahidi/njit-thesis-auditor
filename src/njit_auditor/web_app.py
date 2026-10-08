@@ -182,6 +182,7 @@ class JobState:
     fail_count: int = 0
     error_message: str = ""
     text_layer_quality: str = ""  # "text_layer_ok" | "low_text" | "image_only" | ""
+    failed_check_count: int = 0  # PDF checks that raised and were skipped
     pdf_page_count: int = 0
     pdf_page_sizes: list[tuple[float, float]] = field(default_factory=list)
     manuscript_page_labels: dict[int, str] = field(default_factory=dict)
@@ -1782,6 +1783,7 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,
+        "failed_check_count": job.failed_check_count,
         "category_summary": category_summary,
         "inventory_finding_count": len(report_view.get("inventory_findings", []) or []),
     }
@@ -1830,8 +1832,10 @@ def _run_audit_task(job_id: str) -> None:
             upload_path,
             max_size_bytes=MAX_UPLOAD_BYTES,
             work_dir=jdir,
+            isolate_check_failures=True,
         )
         findings = result.findings
+        job.failed_check_count = len(result.failed_checks)
         job.text_layer_quality = classify_pdf_text_layer(upload_path)
     except UploadValidationError as exc:
         job.state = "failed"
