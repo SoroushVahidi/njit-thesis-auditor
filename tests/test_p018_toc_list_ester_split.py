@@ -121,6 +121,25 @@ def test_broad_p018_is_not_public(client: tuple[TestClient, object]) -> None:
     assert "P039" not in visible_ids
 
 
+def test_disabled_inter_entry_spacing_cards_disclose_manual_review(
+    client: tuple[TestClient, object],
+) -> None:
+    web_client, wa = client
+    catalog = {
+        rule["id"]: rule for rule in wa._build_rule_catalog()["student_rules"]
+    }
+    manual_ids = {
+        rule_id
+        for rule_id, rule in catalog.items()
+        if rule.get("manual_review_only")
+    }
+    assert manual_ids == {"P018I", "P018L", "P018O"}
+    body = web_client.get("/rules").text
+    for rule_id in manual_ids:
+        assert f'id="{rule_id}"' in body
+    assert body.count("Manual review — no automated finding") == 3
+
+
 def test_p018_atomic_cards_are_public(client: tuple[TestClient, object]) -> None:
     _, wa = client
     catalog = wa._build_rule_catalog()

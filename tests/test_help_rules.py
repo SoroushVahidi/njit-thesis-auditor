@@ -281,7 +281,8 @@ def test_rules_intro_describes_pdf_audits(client: tuple[TestClient, Any]) -> Non
     c, _ = client
     resp = c.get("/rules")
     body = resp.text
-    assert "automated formatting checks used for PDF audits in this website" in body
+    assert "formatting rules for PDF audits" in body
+    assert "entries marked Manual review must be checked by hand" in body
 
 
 def test_rules_p021_mixed_rule_shown_as_pdf(client: tuple[TestClient, Any]) -> None:
