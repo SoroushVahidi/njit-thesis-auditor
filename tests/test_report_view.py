@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import os
 from pathlib import Path
@@ -1587,7 +1588,9 @@ def test_web_results_render_polished_comments(tmp_path: Path) -> None:
     client = TestClient(wa.app)
     resp = client.get("/audits/rv1")
     assert resp.status_code == 200
-    assert b"Polished comment" in resp.content
+    # The rendered card carries the finding's own polished comment text.
+    comment_head = view.findings[0].polished_comment[:40]
+    assert html.escape(comment_head, quote=False).encode() in resp.content
     assert b"Likely problem" in resp.content
     assert b"Findings by topic" in resp.content
 

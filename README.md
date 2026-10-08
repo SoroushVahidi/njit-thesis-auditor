@@ -153,7 +153,9 @@ Designed for local processing only — keep thesis/dissertation files on your ow
   is **not** sanitized — treat CLI exports as containing whatever the input document contained.
   Web exports are privacy-*reduced*, not guaranteed fully anonymized.
 - **Job TTL cleanup:** completed/failed web jobs and their runtime files are removed automatically
-  after `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24h).
+  after `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` (default 24h) by a background sweeper that runs at
+  startup and every `NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS` (default 300), even when the
+  server receives no requests. Pending/running jobs are never deleted.
 - **No authentication or rate limiting by default.** A public deployment needs a reverse proxy,
   TLS, authentication, and rate limiting — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - This repository's own evaluation data includes real, private student dissertations under

@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import threading
 import urllib.parse
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -29,6 +29,11 @@ from njit_auditor.audit_runner import (
     AuditError,
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
+)
+from njit_auditor.coverage_disclosure import (
+    COVERAGE_AREAS,
+    COVERAGE_HEADING,
+    COVERAGE_INTRO,
 )
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.incomplete_audit import (
@@ -156,6 +161,18 @@ JOB_TTL_SECONDS: int = _parse_positive_int_env(
 )
 
 
+# How often the background retention sweeper deletes expired jobs. The sweep
+# runs independently of incoming requests, so an idle server still deletes
+# expired uploads; the worst-case lifetime of a finished job's files is about
+# JOB_TTL_SECONDS + CLEANUP_INTERVAL_SECONDS.
+_DEFAULT_CLEANUP_INTERVAL_SECONDS = 300
+
+CLEANUP_INTERVAL_SECONDS: int = _parse_positive_int_env(
+    "NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS",
+    _DEFAULT_CLEANUP_INTERVAL_SECONDS,
+)
+
+
 def _format_ttl(seconds: int) -> str:
     """Convert a TTL in seconds to a human-readable string like 'about 1 hour'."""
     if seconds < 3600:
@@ -250,13 +267,39 @@ def _is_under_runtime(path: Path) -> bool:
     return True
 
 
-def _delete_job_workspace(job_id: str) -> None:
-    """Delete a job workspace directory when it is safely under RUNTIME_DIR."""
-    jdir = _job_dir(job_id)
-    if not _is_under_runtime(jdir):
-        return
-    if jdir.exists():
-        shutil.rmtree(jdir, ignore_errors=True)
+def _is_deletable_workspace(path: Path) -> bool:
+    """Return True when *path* is a real job directory strictly inside RUNTIME_DIR.
+
+    Symlinks are never deleted or followed, and the runtime root itself is
+    never a deletion target.
+    """
+    try:
+        if path.is_symlink() or not path.is_dir():
+            return False
+        root = RUNTIME_DIR.resolve()
+        resolved = path.resolve()
+    except OSError:
+        return False
+    return resolved != root and resolved.parent == root
+
+
+def _remove_workspace(path: Path) -> bool:
+    """Delete one job workspace; return False when it is still present afterwards."""
+    if not _is_deletable_workspace(path):
+        return True
+    shutil.rmtree(path, ignore_errors=True)
+    return not path.exists()
+
+
+def _delete_job_workspace(job_id: str) -> bool:
+    """Delete a job workspace directory when it is safely under RUNTIME_DIR.
+
+    Returns False only when a deletable workspace could not be removed.
+    """
+    return _remove_workspace(_job_dir(job_id))
+
+
+_last_cleanup_failures = 0
 
 
 def cleanup_expired_jobs(now: datetime | None = None) -> int:
@@ -264,7 +307,11 @@ def cleanup_expired_jobs(now: datetime | None = None) -> int:
 
     Jobs in ``pending`` or ``running`` state are never removed, even when older
     than the TTL. Orphan directories under :data:`RUNTIME_DIR` without an
-    in-memory job are removed when their mtime exceeds the TTL.
+    in-memory job (for example after a restart, or a partially written upload)
+    are removed when their mtime exceeds the TTL. Symlinks and anything outside
+    the runtime directory are never deleted. Filesystem errors are tolerated:
+    an entry that cannot be removed now is retried on the next sweep. Returns
+    the number of evicted jobs plus removed orphan directories.
     """
     if now is None:
         now = datetime.now(timezone.utc)
@@ -281,22 +328,91 @@ def cleanup_expired_jobs(now: datetime | None = None) -> int:
             _jobs.pop(job_id, None)
 
     removed = len(expired_ids)
-    for job_id in expired_ids:
-        _delete_job_workspace(job_id)
+    failures = sum(1 for job_id in expired_ids if not _delete_job_workspace(job_id))
 
-    if RUNTIME_DIR.exists():
-        for child in RUNTIME_DIR.iterdir():
-            if not child.is_dir() or not _is_under_runtime(child):
+    try:
+        children = list(RUNTIME_DIR.iterdir())
+    except OSError:
+        children = []
+    for child in children:
+        if not _is_deletable_workspace(child):
+            continue
+        with _jobs_lock:
+            if child.name in _jobs:
                 continue
-            with _jobs_lock:
-                if child.name in _jobs:
-                    continue
-            mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
-            if (now - mtime).total_seconds() > JOB_TTL_SECONDS:
-                shutil.rmtree(child, ignore_errors=True)
+        try:
+            mtime = datetime.fromtimestamp(child.lstat().st_mtime, tz=timezone.utc)
+        except OSError:
+            continue  # removed concurrently or unreadable; retried next sweep
+        if (now - mtime).total_seconds() > JOB_TTL_SECONDS:
+            if _remove_workspace(child):
                 removed += 1
+            else:
+                failures += 1
 
+    global _last_cleanup_failures
+    if failures and failures != _last_cleanup_failures:
+        # Counts only: job ids are access tokens and must not reach the logs.
+        # Logged when the count changes, so a stuck entry does not repeat every sweep.
+        _logger.warning("Retention cleanup could not delete %d job workspace(s).", failures)
+    _last_cleanup_failures = failures
     return removed
+
+
+class RetentionSweeper:
+    """Background thread that runs a retention sweep every *interval_seconds*.
+
+    The sweep runs independently of HTTP traffic, so expired uploads are
+    deleted even while the server is idle. It is a daemon thread that blocks on
+    an :class:`threading.Event`, so :meth:`stop` wakes and ends it immediately.
+    A failing sweep is logged once (exception type only) and retried on the
+    next interval; it never stops the thread.
+    """
+
+    def __init__(self, sweep: Callable[[], int], interval_seconds: float) -> None:
+        self._sweep = sweep
+        self._interval = interval_seconds
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._failing = False
+
+    @property
+    def is_running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self) -> None:
+        if self.is_running and not self._stop.is_set():
+            return
+        # A fresh event per thread: a previous thread still finishing a slow
+        # sweep after a timed-out stop() keeps its own (set) event and exits,
+        # instead of being revived alongside the new one.
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run, args=(self._stop,), name="njit-auditor-retention-sweeper",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self, timeout: float = 5.0) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout)
+            if not self._thread.is_alive():
+                self._thread = None
+
+    def run_once(self) -> None:
+        try:
+            self._sweep()
+        except Exception as exc:  # noqa: BLE001
+            if not self._failing:
+                _logger.warning("Retention sweep failed (%s); will retry.", type(exc).__name__)
+            self._failing = True
+        else:
+            self._failing = False
+
+    def _run(self, stop: threading.Event) -> None:
+        while not stop.wait(self._interval):
+            self.run_once()
 
 
 def _web_export_metadata(metadata: dict[str, str]) -> dict[str, str]:
@@ -350,10 +466,17 @@ def _expired_job_notice() -> str:
 # ---------------------------------------------------------------------------
 
 
+_retention_sweeper = RetentionSweeper(cleanup_expired_jobs, CLEANUP_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    cleanup_expired_jobs()
-    yield
+    _retention_sweeper.run_once()
+    _retention_sweeper.start()
+    try:
+        yield
+    finally:
+        _retention_sweeper.stop()
 
 
 app = FastAPI(
@@ -363,6 +486,22 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 _templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def _retention_notice() -> str:
+    """Student-facing sentence describing when uploads and results are deleted."""
+    return (
+        "Your uploaded PDF and the results made from it are deleted automatically "
+        f"{_format_ttl(JOB_TTL_SECONDS)} after you upload it; the server checks for expired "
+        f"files every {_format_ttl(CLEANUP_INTERVAL_SECONDS).removeprefix('about ')}, "
+        "even when nobody is using it. "
+        "An audit that is still running is not deleted until it finishes. If the server "
+        "restarts, your result link stops working, and deletion of the leftover files can "
+        "take up to one more retention period."
+    )
+
+
+_templates.env.globals["retention_notice"] = _retention_notice()
 
 # ---------------------------------------------------------------------------
 # Rule catalog helpers (canonical structured data)
@@ -383,6 +522,9 @@ def _is_p_rule_id(rule_id: str) -> bool:
 
 # Register as a Jinja2 global so templates can call it directly.
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
+_templates.env.globals["coverage_heading"] = COVERAGE_HEADING
+_templates.env.globals["coverage_intro"] = COVERAGE_INTRO
+_templates.env.globals["coverage_areas"] = COVERAGE_AREAS
 
 # ---------------------------------------------------------------------------
 # PDF finding links (plain page-anchor vs. highlighted-PDF endpoint)
@@ -1823,7 +1965,27 @@ def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTML
 # ---------------------------------------------------------------------------
 
 def _run_audit_task(job_id: str) -> None:
-    """Execute an upload audit in a background thread and update job state."""
+    """Execute an upload audit in a background thread and update job state.
+
+    Any unexpected error, including one while building reports after the audit
+    itself succeeded, marks the job ``failed``. A job left ``running`` would
+    never become eligible for retention cleanup, so its upload would outlive
+    the TTL for the life of the process.
+    """
+    try:
+        _execute_audit_task(job_id)
+    except Exception as exc:  # noqa: BLE001
+        job = _get_job(job_id)
+        if job is not None and job.state in ("pending", "running"):
+            job.state = "failed"
+            job.error_message = "An unexpected error occurred during the audit."
+            job.finished_at = datetime.now(timezone.utc).isoformat()
+            _set_job(job)
+        # Exception type only: messages and tracebacks can carry the job path.
+        _logger.warning("Audit task failed after start (%s).", type(exc).__name__)
+
+
+def _execute_audit_task(job_id: str) -> None:
     job = _get_job(job_id)
     if job is None:
         return

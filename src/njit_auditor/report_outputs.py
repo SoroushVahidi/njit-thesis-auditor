@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from njit_auditor.coverage_disclosure import coverage_markdown_lines
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.incomplete_audit import (
     INCOMPLETE_AUDIT_TITLE,
@@ -4161,6 +4162,9 @@ def write_markdown_report(
             )
             lines.append("")
 
+    if audit_type != "tex":
+        lines.extend(coverage_markdown_lines())
+
     lines.append("## Findings by Rule")
     lines.append("")
     for rule_id, rule_findings in grouped_by_rule.items():
@@ -4229,7 +4233,11 @@ def write_markdown_report(
 
     lines.append("## Notes")
     lines.append("")
-    lines.append("- Privacy: report output avoids dissertation body text and source line quotes.")
+    lines.append(
+        "- Privacy: this report may quote short excerpts of the audited document "
+        "(such as headings, list entries, and flagged words); share it only as you "
+        "would share the document."
+    )
     lines.append("- Limitation: findings are heuristic and require human review.")
 
     output_path.write_text(

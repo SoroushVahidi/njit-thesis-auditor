@@ -152,7 +152,7 @@
 <h1>NJIT Thesis Auditor</h1>
 <p class="subtitle">
   Upload a thesis or dissertation PDF and the tool checks it for common NJIT formatting issues automatically.
-  Results are advisory and require human review — processing runs locally on this server and files are not committed to any repository.
+  Results are advisory and require human review. Processing runs on this server; your file is not sent to any outside service.
 </p>
 
 {% if notice %}
@@ -169,10 +169,14 @@
 {% endif %}
 
 <div class="alert-info">
-  <strong>Privacy-safe processing.</strong>
-  Uploaded files are processed in a temporary runtime directory and are not stored permanently.
-  Findings use structural metadata only — no dissertation body text, titles, author names, or captions are
-  displayed in the web UI by default.
+  <strong>How your file is handled.</strong>
+  Your uploaded PDF and the reports made from it (including highlighted copies of your pages) are kept in a
+  temporary folder on this server. {{ retention_notice }}
+  Until they are deleted, anyone with your result link can open the results, so share the link only as
+  you would share your document.
+  To point at each problem, your report may quote short pieces of your document, such as table of
+  contents, list, or heading entries and individual flagged words.
+  The server's operational logs record requests and errors, not the contents of your file.
 </div>
 
 <div class="input-methods input-methods--triple section">
@@ -295,7 +299,7 @@
       <li><strong>JSON report</strong> — full structured findings for downstream tools</li>
       <li><strong>Markdown report</strong> — human-readable summary</li>
       <li><strong>Triage summaries</strong> — rollups for common, high-volume problems when applicable</li>
-      <li><strong>Polished comments</strong> — privacy-safe review guidance per finding</li>
+      <li><strong>Polished comments</strong> — plain-language review guidance per finding</li>
     </ul>
   </div>
 </div>

@@ -655,10 +655,16 @@ def test_composite_page_view_renders_for_mobile_safari_without_error(
 # page with many findings (11+, matching real-world List of Figures/Tables
 # pages) must stay usable at a narrow mobile width. Mirrors the exact
 # Playwright pattern in test_ui_help_mobile_overflow.py.
+#
+# Playwright is not a dev dependency. Skip only the browser test when it is
+# missing: a module-level importorskip here would also skip every
+# non-browser test above (as it did on CI).
 # ---------------------------------------------------------------------------
 
-playwright = pytest.importorskip("playwright.sync_api")
-sync_playwright = playwright.sync_playwright
+
+@pytest.fixture()
+def sync_playwright() -> Any:
+    return pytest.importorskip("playwright.sync_api").sync_playwright
 
 
 @pytest.fixture()
@@ -695,6 +701,7 @@ def _no_horizontal_overflow(page: Any) -> bool:
 
 
 def test_composite_page_view_no_overflow_with_long_labels_and_many_findings(
+    sync_playwright: Any,
     app_url: tuple[str, Any],
 ) -> None:
     """An artificially long issue-type label plus 11 findings on one page

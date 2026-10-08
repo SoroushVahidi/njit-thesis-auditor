@@ -183,8 +183,8 @@ def test_issues_pdf_produces_findings(client: tuple[TestClient, Any]) -> None:
 
     # Download JSON to check findings
     json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time for JSON download")
+    # TestClient runs the audit before returning, so a missing report is a failure.
+    assert json_resp.status_code == 200
     data = json_resp.json()
     findings = data.get("findings", [])
     rule_ids = {f["rule_id"] for f in findings}
@@ -242,8 +242,8 @@ def test_demo_pdf_json_download_works(client: tuple[TestClient, Any]) -> None:
     c.get(f"/audits/{job_id}")  # trigger completion
 
     json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
+    # TestClient runs the audit before returning, so a missing report is a failure.
+    assert json_resp.status_code == 200
     assert json_resp.headers["content-type"].startswith("application/json")
     data = json_resp.json()
     assert "findings" in data
@@ -281,8 +281,8 @@ def test_demo_pdf_json_no_full_path(client: tuple[TestClient, Any]) -> None:
     c.get(f"/audits/{job_id}")
 
     json_resp = c.get(f"/audits/{job_id}/download/json")
-    if json_resp.status_code != 200:
-        pytest.skip("audit did not complete in time")
+    # TestClient runs the audit before returning, so a missing report is a failure.
+    assert json_resp.status_code == 200
     runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]).resolve()
     assert str(runtime_root) not in json_resp.text, (
         "Full server path leaked into PDF JSON download"

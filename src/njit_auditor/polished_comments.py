@@ -2175,6 +2175,24 @@ def resolve_suggested_fix_for_display(
     return sanitize_suggested_fix_for_web(rule_id, _resolve_remediation(rule_id, issue_type))
 
 
+# Inner labels that rule templates write before the generic review prefix is
+# added. Stacked together ("Review needed: Problem: ...") they read as two
+# labels, and "Problem:" contradicts a low-confidence card.
+_STACKED_LEAD_IN_RE = re.compile(
+    r"^Review needed:\s+(?:(?:Likely problem|Problem|Review needed):\s+)+"
+)
+
+
+def collapse_stacked_lead_in(comment: str) -> str:
+    """Keep one lead-in label: ``Review needed: Problem: X`` becomes ``Review needed: X``.
+
+    The confidence label shown with every finding carries the certainty, so
+    the neutral review prefix is kept and the inner label is dropped. Text
+    after the labels is unchanged.
+    """
+    return _STACKED_LEAD_IN_RE.sub(f"{REVIEW_PREFIX} ", comment, count=1)
+
+
 def finalize_student_facing_comment_and_fix(
     rule_id: str,
     issue_type: str,
@@ -2183,7 +2201,7 @@ def finalize_student_facing_comment_and_fix(
 ) -> tuple[str, str]:
     """Prepare comment/fix for display without repeated boilerplate or duplicate fix prose."""
     fix = resolve_suggested_fix_for_display(rule_id, issue_type, existing=suggested_fix)
-    cleaned = comment.replace(VERIFY_SUFFIX, "").strip()
+    cleaned = collapse_stacked_lead_in(comment.replace(VERIFY_SUFFIX, "").strip())
     remediation = _resolve_remediation(rule_id, issue_type)
     if remediation and remediation in cleaned and remediation != cleaned:
         cleaned = cleaned.replace(remediation, "").strip()

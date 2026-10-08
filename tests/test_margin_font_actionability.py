@@ -224,7 +224,9 @@ def test_font_family_wording(app: tuple[TestClient, Any]) -> None:
         ],
     )
     text = _get_html(client, f"/audits/{job_id}")
-    assert "Likely problem:" in text
+    # One lead-in label; the card's confidence label carries the certainty.
+    assert "Review needed: " in text
+    assert "Review needed: Likely problem:" not in text
     assert "font family CMR12" in text
     assert "Times New Roman or accepted equivalent" in text
     assert (

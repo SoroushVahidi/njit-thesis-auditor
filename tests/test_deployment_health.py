@@ -127,3 +127,23 @@ def test_version_endpoint_survives_git_metadata_failure(
     body = resp.json()
     assert body["commit"] == "unknown"
     assert body["branch"] == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("configured", "expected"),
+    [(None, "local-dev"), ("production", "production")],
+)
+def test_version_reports_configured_environment_label(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    configured: str | None,
+    expected: str,
+) -> None:
+    """A deployment must set NJIT_AUDITOR_WEB_ENVIRONMENT, or /version says local-dev."""
+    if configured is None:
+        monkeypatch.delenv("NJIT_AUDITOR_WEB_ENVIRONMENT", raising=False)
+    else:
+        monkeypatch.setenv("NJIT_AUDITOR_WEB_ENVIRONMENT", configured)
+    app, _wa = _make_app(tmp_path)
+    resp = TestClient(app).get("/version")
+    assert resp.json()["environment"] == expected
