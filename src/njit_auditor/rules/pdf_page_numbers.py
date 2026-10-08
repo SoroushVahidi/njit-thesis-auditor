@@ -9,7 +9,15 @@ from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import LANDSCAPE_ASPECT_THRESHOLD
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine, format_bbox_detail, text_space_size
+from njit_auditor.pdf_models import (
+    BBox,
+    PdfDocument,
+    PdfPage,
+    PdfReadingFrame,
+    PdfTextLine,
+    format_bbox_detail,
+    text_space_size,
+)
 
 PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
 ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
@@ -80,6 +88,10 @@ class PageNumberCandidate:
     position_type: str
     value: int | None
     bbox: tuple[float, float, float, float] | None = None
+    # Top of the folio on the sheet it was classified on (see
+    # ``_folio_sheet``); equals ``bbox[1]`` except on a content half-turn,
+    # where ``bbox`` stays in box space. Baseline comparisons use this.
+    sheet_y0: float | None = None
 
 
 @dataclass(frozen=True)
@@ -205,16 +217,38 @@ def _classify_position_type(
     return "other"
 
 
+def _folio_sheet(page: PdfPage) -> tuple[PdfPage, PdfReadingFrame | None]:
+    """*page* laid out on the sheet its folio position is judged on.
+
+    Positions (``bottom_center``, ``top_center``, ...) describe where the folio
+    sits on the authored sheet as it is read (rotation-frames ADR). Box space
+    is that sheet for a ``/Rotate 0`` page, for a viewer-only ``/Rotate``
+    (reading frame 0) and for a pdflscape quarter turn, whose portrait folio
+    stays upright in box space. A content half-turn -- an upright page stored
+    upside down, reading frame 180 -- is the one case where box space is the
+    sheet upside down, so it is classified in its reading frame: its
+    displayed-bottom folio is ``bottom_center``. The returned frame maps the
+    reported boxes back to box space; it is None when no mapping is needed.
+    Content-turned portrait quarter turns keep box-space positions here.
+    """
+    frame = PdfReadingFrame.for_page(page)
+    if frame.reading_rotation != 180:
+        return page, None
+    return frame.page_in_reading_frame(page), frame
+
+
 def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandidate]:
     """Return page-number candidate objects with style/position metadata."""
 
     candidates: list[PageNumberCandidate] = []
-    for page in pdf_doc.pages:
+    for source_page in pdf_doc.pages:
+        page, sheet_frame = _folio_sheet(source_page)
         # Candidate boxes are in the unrotated, CropBox-relative text space, so
         # zones and positions must use page bounds in that same space. A
         # pdflscape landscape page (portrait MediaBox, /Rotate 90 or 270) keeps
         # its portrait folio at the bottom of that space, while its displayed
-        # width/height are swapped.
+        # width/height are swapped. (A content half-turn is first laid out on
+        # its readable sheet by ``_folio_sheet``.)
         width, height = text_space_size(page)
         text_space_is_landscape = width > height * LANDSCAPE_ASPECT_THRESHOLD
         # On a quarter-turned page, text running across the text space's
@@ -254,6 +288,9 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
                         line.bbox.x0, line.bbox.x1, line.bbox.y1, width, height
                     )
                 number_style, value = _classify_style_and_value(clean)
+                box: BBox = (
+                    line.bbox if sheet_frame is None else sheet_frame.from_reading(line.bbox)
+                )
                 candidates.append(
                     PageNumberCandidate(
                         page_number=page.page_number,
@@ -263,7 +300,8 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
                         number_style=number_style,
                         position_type=position_type,
                         value=value,
-                        bbox=(line.bbox.x0, line.bbox.y0, line.bbox.x1, line.bbox.y1),
+                        bbox=(box.x0, box.y0, box.x1, box.y1),
+                        sheet_y0=line.bbox.y0,
                     )
                 )
     return candidates
@@ -433,7 +471,9 @@ def _dominant_page_number_pattern(
         return None
 
     dominant_candidates = [c for c in primary_candidates if c.position_type == position_type]
-    y_values = [c.bbox[1] for c in dominant_candidates if c.bbox is not None]
+    y_values = [
+        y for c in dominant_candidates if c.bbox is not None and (y := _sheet_y0(c)) is not None
+    ]
     if len(y_values) < _MIN_DOMINANT_PATTERN_SAMPLE:
         return None
     median_y = median(y_values)
@@ -452,6 +492,13 @@ def _dominant_page_number_pattern(
     )
 
 
+def _sheet_y0(candidate: PageNumberCandidate) -> float | None:
+    """Folio top on its classification sheet (``bbox`` y0 unless recorded)."""
+    if candidate.sheet_y0 is not None:
+        return candidate.sheet_y0
+    return None if candidate.bbox is None else candidate.bbox[1]
+
+
 def _matches_dominant_page_number_pattern(
     candidate: PageNumberCandidate,
     pattern: _DominantPageNumberPattern,
@@ -466,11 +513,12 @@ def _matches_dominant_page_number_pattern(
         return pattern.position_type in _LANDSCAPE_POSITION_TYPES
     if pattern.position_type in _LANDSCAPE_POSITION_TYPES:
         return False
-    if candidate.bbox is None:
+    sheet_y0 = _sheet_y0(candidate)
+    if candidate.bbox is None or sheet_y0 is None:
         return False
     if candidate.location != pattern.location:
         return False
-    return abs(candidate.bbox[1] - pattern.median_y0) <= pattern.y_tolerance_pt
+    return abs(sheet_y0 - pattern.median_y0) <= pattern.y_tolerance_pt
 
 
 def _filter_off_pattern_noise(
