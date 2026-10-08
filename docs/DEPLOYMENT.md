@@ -102,6 +102,9 @@ A bare `kill -TERM <pid>` will **not** stay down — `Restart=always` relaunches
 2. `GET /version` → `commit` equals the SHA from step 1 of the clean-worktree checklist above.
    If `commit` is `"unknown"`, the process was started outside the git checkout — treat as a
    failed deploy.
+   `environment` should be `"production"`; `"local-dev"` means the unit does not set
+   `NJIT_AUDITOR_WEB_ENVIRONMENT` (see the unit template below). Changing the unit requires
+   `systemctl --user daemon-reload` and a restart, so do it in a planned maintenance step.
 3. `GET /` and `GET /rules` → `200`.
 4. Run one built-in sample audit (`POST /audits/sample` with a known `sample_id`) and confirm the
    job page loads and produces findings — this catches import-time/route-table regressions that a
@@ -138,6 +141,8 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/path/to/deploy-worktree
+# Label reported by /version; without it /version says "local-dev".
+Environment=NJIT_AUDITOR_WEB_ENVIRONMENT=production
 Environment=PYTHONPATH=/path/to/deploy-worktree/src
 Environment=NJIT_AUDITOR_WEB_RUNTIME_DIR=/path/to/deploy-worktree/.runtime/web_audits
 ExecStart=/path/to/venv/bin/python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000

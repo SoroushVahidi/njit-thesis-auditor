@@ -91,6 +91,7 @@ and Jinja registrations are created at import time.
 | `NJIT_AUDITOR_WEB_JOB_TTL_SECONDS` | `86400` | Retention window for completed/failed jobs |
 | `NJIT_AUDITOR_WEB_HOST` | `0.0.0.0` | Helper-script bind host |
 | `NJIT_AUDITOR_WEB_PORT` | `8000` | Helper-script bind port |
+| `NJIT_AUDITOR_WEB_ENVIRONMENT` | `local-dev` | Deployment label reported by `/version`; set it to `production` in the live service unit |
 
 ## 6. Routes
 
