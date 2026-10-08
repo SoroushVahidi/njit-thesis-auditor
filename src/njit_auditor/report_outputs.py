@@ -3735,7 +3735,11 @@ def individual_finding_comment_and_fix(
             f"{p020_short_likely_problem(flagged_word, corrected_word, source=source)}"
         )
         fix = p020_short_suggested_fix(
-            flagged_word, corrected_word, details.get("line_preview", ""), source=source
+            flagged_word,
+            corrected_word,
+            details.get("line_preview", ""),
+            source=source,
+            corrected_preview=details.get("corrected_title_preview", ""),
         )
     else:
         comment = build_polished_comment(

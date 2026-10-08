@@ -358,6 +358,29 @@ def _has_recent_hyphen_before(text: str, start: int) -> bool:
     return bool(prefix) and prefix[-1] in _HYPHEN_CHARS
 
 
+def _corrected_preview(
+    check_text: str, line_preview: str, issues: list[dict[str, str]]
+) -> str:
+    """Return *line_preview* with every flagged word in *issues* corrected.
+
+    Issue positions index the word tokens of *check_text*; the preview must be
+    a prefix of it. Returns "" when the correction cannot be placed safely.
+    """
+    if not line_preview or not check_text.startswith(line_preview):
+        return ""
+    words = _words_with_sep_info(check_text)
+    corrected = list(check_text)
+    for issue in issues:
+        try:
+            word, _sep, start, end = words[int(issue["position"])]
+        except (KeyError, ValueError, IndexError):
+            return ""
+        if word != issue["word"] or len(issue["expected"]) != end - start:
+            return ""
+        corrected[start:end] = issue["expected"]
+    return "".join(corrected)[: len(line_preview)]
+
+
 def check_apa_title_case_phrase(
     text: str, *, skip_hyphenated_fragments: bool = False
 ) -> list[dict[str, str]]:
@@ -827,6 +850,11 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
             "flagged_word": first_issue["word"],
             "corrected_word": first_issue["expected"],
         }
+        corrected_preview = _corrected_preview(check_text, line_preview, issues)
+        if corrected_preview:
+            # Every flagged word corrected, so a suggested rewrite of the
+            # title is itself in title case (not just its first problem word).
+            details["corrected_title_preview"] = corrected_preview
         if title_line.bbox is not None:
             details["bbox"] = format_bbox_detail(title_line.bbox)
         token_bbox: BBox | None = None
