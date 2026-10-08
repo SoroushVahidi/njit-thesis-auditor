@@ -30,6 +30,11 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.coverage_disclosure import (
+    COVERAGE_AREAS,
+    COVERAGE_HEADING,
+    COVERAGE_INTRO,
+)
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.issue_type_explanations import (
     explain_issue_type,
@@ -511,6 +516,9 @@ def _is_p_rule_id(rule_id: str) -> bool:
 
 # Register as a Jinja2 global so templates can call it directly.
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
+_templates.env.globals["coverage_heading"] = COVERAGE_HEADING
+_templates.env.globals["coverage_intro"] = COVERAGE_INTRO
+_templates.env.globals["coverage_areas"] = COVERAGE_AREAS
 
 # ---------------------------------------------------------------------------
 # PDF finding links (plain page-anchor vs. highlighted-PDF endpoint)

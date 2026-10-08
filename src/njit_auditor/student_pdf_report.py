@@ -21,6 +21,12 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from njit_auditor.coverage_disclosure import (
+    COVERAGE_AREAS,
+    COVERAGE_HEADING,
+    COVERAGE_INTRO,
+    coverage_text_lines,
+)
 from njit_auditor.issue_type_explanations import (
     has_curated_issue_type_title,
     humanize_issue_type,
@@ -103,6 +109,8 @@ def render_student_report_text(
     ]
     if not ordered:
         lines.append("No formatting problems were detected by the implemented checks.")
+        lines.append("")
+    lines.extend(coverage_text_lines())
     current_page: int | None = None
     doc_heading = False
     for finding in ordered:
@@ -195,6 +203,15 @@ def _styles() -> dict[str, ParagraphStyle]:
             spaceAfter=6,
             splitLongWords=True,
         ),
+        "coverage": ParagraphStyle(
+            "StudentCoverage",
+            parent=base["BodyText"],
+            fontName=font_name,
+            fontSize=8,
+            leading=10.5,
+            spaceAfter=3,
+            splitLongWords=True,
+        ),
         "small": ParagraphStyle(
             "StudentSmall",
             parent=base["BodyText"],
@@ -267,6 +284,19 @@ def _report_pdf(
                 styles["body"],
             )
         )
+    story.append(_p(COVERAGE_HEADING, styles["subtitle"]))
+    for paragraph in COVERAGE_INTRO:
+        story.append(_p(paragraph, styles["body"]))
+    for area in COVERAGE_AREAS:
+        # Heading colour marks the title: the registered DejaVu font has no bold face.
+        parts = [
+            f'<font color="#12365a">{escape(area.title)} ({escape(area.status_label)}).</font>'
+        ]
+        if area.checked:
+            parts.append(f"Checked: {escape(area.checked)}")
+        parts.append(f"Check yourself: {escape(area.manual)}")
+        story.append(Paragraph(" ".join(parts), styles["coverage"]))
+    story.append(Spacer(1, 5))
     current_page: int | None = None
     doc_heading = False
     for finding in findings:

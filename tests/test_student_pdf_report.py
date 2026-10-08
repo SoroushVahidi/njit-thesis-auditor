@@ -137,10 +137,11 @@ def test_zero_findings_has_limited_one_page_report(tmp_path: Path) -> None:
     result = build_combined_student_pdf_report(
         source, output, [], boxes_by_problem={}, file_name="thesis.pdf"
     )
-    assert result.report_pages == 1
+    # One page for the summary, plus the shared "what was checked" disclosure.
+    assert result.report_pages <= 2
     assert result.highlight_boxes_drawn == 0
     with fitz.open(output) as doc:
-        assert doc.page_count == 21
+        assert doc.page_count == 20 + result.report_pages
         assert (
             "No formatting problems were detected by the implemented checks"
             in doc[20].get_text()
