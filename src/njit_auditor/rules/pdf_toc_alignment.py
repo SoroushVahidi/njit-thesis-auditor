@@ -1287,6 +1287,17 @@ def _add_wrapped_title_alignment_finding(
     details["bbox"] = format_bbox_detail(
         _union_bbox(worst.first_row.bbox, worst.continuation.bbox)
     )
+    # One box per affected entry (its first row through its misaligned
+    # continuation), so every entry that needs fixing is highlighted, not
+    # only the one with the largest offset.
+    entry_boxes: dict[int, BBox] = {}
+    for item in violations:
+        key = id(item.first_row)
+        box = _union_bbox(item.first_row.bbox, item.continuation.bbox)
+        entry_boxes[key] = _union_bbox(entry_boxes[key], box) if key in entry_boxes else box
+    details["highlight_bboxes"] = " | ".join(
+        format_bbox_detail(box) for box in sorted(entry_boxes.values(), key=lambda b: b.y0)
+    )
     page_issue_findings["wrapped_title_continuation_misaligned"] = AuditFinding(
         rule_id="P018",
         severity=Severity.WARNING,
