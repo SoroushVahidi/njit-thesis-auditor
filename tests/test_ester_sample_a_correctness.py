@@ -367,10 +367,13 @@ def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() 
     assert p020_page80 == []
 
     p017_page80 = [f for f in view.findings if f.rule_id == "P017" and f.page == 80]
-    assert len(p017_page80) == 1
-    finding = p017_page80[0]
-
-    assert finding.issue_type == "possible_title_case_issue"
+    # Ester named two issues on this table title: title case, and the period
+    # it ends with ("table titles do not end in periods").
+    assert sorted(f.issue_type for f in p017_page80) == [
+        "possible_title_case_issue",
+        "unexpected_terminal_period",
+    ]
+    finding = next(f for f in p017_page80 if f.issue_type == "possible_title_case_issue")
     assert "table title" in finding.polished_comment
     assert "heading" not in finding.polished_comment.lower()
     assert "figure" not in finding.polished_comment.lower()

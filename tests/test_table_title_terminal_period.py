@@ -1,0 +1,65 @@
+"""Body table titles do not end with a period (Ester, Sample B feedback).
+
+Ester confirmed a table title in title-case violation and added: "this table
+title ends with a period and table titles do not end in periods". P017 now
+reports the period as its own finding, alongside any capitalization issue.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import fitz
+
+from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.rules.pdf_captions import check_pdf_captions
+
+
+def _render(tmp_path: Path, title: str) -> Path:
+    path = tmp_path / "table.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    y = 120.0
+    for _ in range(6):
+        page.insert_text(
+            (108, y),
+            "Body paragraph text that introduces the following synthetic table here.",
+            fontsize=12,
+        )
+        y += 24.0
+    page.insert_text((108, y), title, fontsize=12)
+    y += 24.0
+    for row in ("Method   Accuracy   Recall", "Alpha   0.91   0.88", "Beta   0.87   0.85"):
+        page.insert_text((180, y), row, fontsize=11)
+        y += 16.0
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def _issue_types(path: Path) -> list[str]:
+    return sorted(
+        f.details["issue_type"]
+        for f in check_pdf_captions(load_pdf_layout(str(path)))
+        if f.page == 1
+    )
+
+
+def test_table_title_ending_with_a_period_is_reported(tmp_path: Path) -> None:
+    assert "unexpected_terminal_period" in _issue_types(
+        _render(tmp_path, "Table 3.1 Accuracy of Synthetic Survey Methods.")
+    )
+
+
+def test_period_is_reported_alongside_a_title_case_issue(tmp_path: Path) -> None:
+    types = _issue_types(
+        _render(tmp_path, "Table 3.1 Accuracy of synthetic survey methods across sites.")
+    )
+    assert "unexpected_terminal_period" in types
+    assert "possible_title_case_issue" in types
+
+
+def test_table_title_without_a_period_is_clean(tmp_path: Path) -> None:
+    assert "unexpected_terminal_period" not in _issue_types(
+        _render(tmp_path, "Table 3.1 Accuracy of Synthetic Survey Methods")
+    )
