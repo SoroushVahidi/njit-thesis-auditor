@@ -291,3 +291,21 @@ def test_no_area_claims_full_coverage() -> None:
     # Every implemented detector is heuristic; "Checked" without qualification
     # would tell students an item needs no manual review.
     assert all(area.status != "checked" for area in COVERAGE_AREAS)
+
+
+def test_toc_list_spacing_claims_match_p032_and_disabled_r036() -> None:
+    from njit_auditor.rules import pdf_toc_list_wrapped_spacing as p032
+    from njit_auditor.rules import r036_production_page_relative_spacing as r036
+
+    toc, lot, lof = _area("table_of_contents"), _area("list_of_tables"), _area("list_of_figures")
+    # P032 only reports a wrapped-title gap well above single spacing, so the
+    # disclosure must not claim that "single-spaced wrapped titles" are checked.
+    assert p032.WRAPPED_GAP_RATIO_THRESHOLD > 1.0
+    for area in (toc, lot):
+        assert "single-spaced wrapped titles" not in area.checked
+        assert "large gap" in area.checked
+    # R036 (spacing between entries) has no reporting path while its gate is off.
+    assert r036.PRODUCTION_REPORTING_GATE == "suppression_abstention_only"
+    for area in (toc, lot):
+        assert "Double spacing between entries" in area.manual
+    assert "double-spaced" in lof.manual
