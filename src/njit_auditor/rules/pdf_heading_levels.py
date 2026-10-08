@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_layout import join_content_span_texts
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import (
     BOLD_FONT_HINT_RE,
@@ -449,7 +450,61 @@ def check_pdf_heading_level_styles(pdf_doc: PdfDocument) -> list[AuditFinding]:
             continue
         if _page_has_any_heading(page, _TOC_LIST_HEADINGS):
             continue
+        merged = _split_number_headings(page)
         for block in page.text_blocks:
-            for index in range(len(block.lines)):
-                findings.extend(_check_line(page, block.lines, index))
+            lines = [merged.get(id(line), line) for line in block.lines]
+            for index in range(len(lines)):
+                findings.extend(_check_line(page, lines, index))
     return findings
+
+
+# A bold line holding only a section number ("3.4.3"), with the heading text
+# extracted as a separate line on the same baseline to its right.
+_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+\.?$")
+_SPLIT_BASELINE_TOLERANCE_PT = 2.0
+_SPLIT_MAX_GAP_PT = 72.0
+
+
+def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
+    """Map each split heading's title line to one line carrying number + title.
+
+    Some PDFs extract a numbered heading's number and its title as two lines
+    (sometimes in different text blocks), so the numbered-heading patterns,
+    which need "3.4.3 Title" on one line, never see the heading. Rejoin them
+    only when both parts are bold and share a baseline, with the title just
+    to the right of the number; the number-only line then matches no pattern
+    on its own, so the heading is checked exactly once.
+    """
+    lines = [line for block in page.text_blocks for line in block.lines]
+    numbers = [
+        line
+        for line in lines
+        if _NUMBER_ONLY_RE.match(line.text.strip()) and _is_bold_line(line)
+    ]
+    merged: dict[int, PdfTextLine] = {}
+    for number in numbers:
+        candidates = [
+            line
+            for line in lines
+            if line is not number
+            and id(line) not in merged
+            and _is_bold_line(line)
+            and abs(line.bbox.y0 - number.bbox.y0) <= _SPLIT_BASELINE_TOLERANCE_PT
+            and abs(line.bbox.y1 - number.bbox.y1) <= _SPLIT_BASELINE_TOLERANCE_PT
+            and 0 <= line.bbox.x0 - number.bbox.x1 <= _SPLIT_MAX_GAP_PT
+            and line.text.strip()
+            and not line.text.strip()[0].isdigit()
+        ]
+        if not candidates:
+            continue
+        title = min(candidates, key=lambda line: line.bbox.x0)
+        merged[id(title)] = PdfTextLine(
+            spans=[*number.spans, *title.spans],
+            bbox=_union_bbox(number.bbox, title.bbox),
+            # Rebuild word spaces from span geometry: these PDFs often omit
+            # whitespace spans, which concatenates the title's words.
+            text=f"{number.text.strip()} {join_content_span_texts(title.spans).strip()}",
+            line_dir=title.line_dir,
+            wmode=title.wmode,
+        )
+    return merged
