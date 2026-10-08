@@ -155,6 +155,88 @@ def test_sweeper_survives_a_failing_sweep_and_logs_once(
     assert "synthetic failure" not in failures[0].getMessage()
 
 
+def _sweeper_threads() -> list[threading.Thread]:
+    return [
+        t for t in threading.enumerate()
+        if t.name == "njit-auditor-retention-sweeper" and t.is_alive()
+    ]
+
+
+def test_restart_after_timed_out_stop_does_not_revive_the_old_thread(wa: Any) -> None:
+    release = threading.Event()
+    in_sweep = threading.Event()
+    sweepers: set[int] = set()
+
+    def slow_sweep() -> int:
+        sweepers.add(threading.get_ident())
+        in_sweep.set()
+        release.wait(5.0)
+        return 0
+
+    before = set(_sweeper_threads())
+    sweeper = wa.RetentionSweeper(slow_sweep, 0.001)
+    sweeper.start()
+    assert in_sweep.wait(5.0)
+    first = next(iter(sweepers))
+
+    sweeper.stop(timeout=0.01)  # the sweep is still running
+    assert sweeper.is_running  # never report stopped while the thread lives
+
+    sweeper.start()  # e.g. a second lifespan in the same process
+    release.set()
+    old = [t for t in set(_sweeper_threads()) - before if t.ident == first]
+    assert all(_wait_until(lambda t=t: not t.is_alive()) for t in old)
+    sweeper.stop()
+    assert set(_sweeper_threads()) - before == set()
+
+
+def test_post_audit_failure_marks_job_failed_so_retention_can_delete_it(
+    wa: Any, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    jdir = _make_job(wa, "postfailjob00001", "pending", age_seconds=0)
+
+    class _Result:
+        findings: list[Any] = []
+        audit_type = "pdf"
+
+    monkeypatch.setattr(wa, "run_audit_for_uploaded_file", lambda *a, **k: _Result())
+    monkeypatch.setattr(wa, "classify_pdf_text_layer", lambda *a, **k: "")
+
+    def boom(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("synthetic report-building failure postfailjob00001")
+
+    monkeypatch.setattr(wa, "build_report_view", boom)
+    with caplog.at_level(logging.WARNING, logger="njit_auditor.web_app"):
+        wa._run_audit_task("postfailjob00001")  # must not raise
+
+    job = wa._get_job("postfailjob00001")
+    assert job.state == "failed"
+    assert job.finished_at
+    assert all("postfailjob00001" not in r.getMessage() for r in caplog.records)
+
+    later = datetime.now(timezone.utc) + timedelta(seconds=2 * _TTL)
+    wa.cleanup_expired_jobs(now=later)
+    assert not jdir.exists()
+
+
+def test_retention_clock_starts_at_upload_not_completion(wa: Any) -> None:
+    # Established policy: TTL is measured from created_at (upload). A job whose
+    # audit outlasted the TTL is deleted at the first sweep after it finishes.
+    jdir = wa._job_dir("longauditjob0001")
+    jdir.mkdir()
+    wa._set_job(
+        wa.JobState(
+            job_id="longauditjob0001",
+            state="complete",
+            created_at=_iso(_TTL + 10),
+            finished_at=_iso(0),
+            file_name="t",
+        )
+    )
+    wa.cleanup_expired_jobs()
+    assert not jdir.exists()
+
+
 def test_startup_sweeps_before_requests_and_shutdown_stops_sweeper(wa: Any) -> None:
     expired = _make_job(wa, "expiredatstartup", "failed", age_seconds=2 * _TTL)
     orphan = _make_orphan(wa, "orphanatstartup1", age_seconds=2 * _TTL)
@@ -403,7 +485,7 @@ _FALSE_CLAIMS = (
 
 def test_retention_notice_matches_configuration(configured_app: Any) -> None:
     notice = configured_app._retention_notice()
-    assert "deleted automatically about 1 hour after the audit" in notice
+    assert "deleted automatically about 1 hour after you upload it" in notice
     assert "checks for expired files every 5 minutes" in notice
     assert "still running is not deleted" in notice
     assert "server restarts" in notice
@@ -439,7 +521,7 @@ def test_results_page_privacy_note_is_accurate(configured_app: Any) -> None:
     body = TestClient(wa.app).get(f"/audits/{job_id}").content
     assert b"Privacy note" in body
     assert b"may quote short pieces of your" in body
-    assert b"deleted automatically about 1 hour after the audit" in body
+    assert b"deleted automatically about 1 hour after you upload it" in body
     for claim in _FALSE_CLAIMS:
         assert claim not in body.lower(), claim
 

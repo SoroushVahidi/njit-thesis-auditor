@@ -370,11 +370,15 @@ class RetentionSweeper:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self) -> None:
-        if self.is_running:
+        if self.is_running and not self._stop.is_set():
             return
-        self._stop.clear()
+        # A fresh event per thread: a previous thread still finishing a slow
+        # sweep after a timed-out stop() keeps its own (set) event and exits,
+        # instead of being revived alongside the new one.
+        self._stop = threading.Event()
         self._thread = threading.Thread(
-            target=self._run, name="njit-auditor-retention-sweeper", daemon=True
+            target=self._run, args=(self._stop,), name="njit-auditor-retention-sweeper",
+            daemon=True,
         )
         self._thread.start()
 
@@ -382,7 +386,8 @@ class RetentionSweeper:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout)
-            self._thread = None
+            if not self._thread.is_alive():
+                self._thread = None
 
     def run_once(self) -> None:
         try:
@@ -394,8 +399,8 @@ class RetentionSweeper:
         else:
             self._failing = False
 
-    def _run(self) -> None:
-        while not self._stop.wait(self._interval):
+    def _run(self, stop: threading.Event) -> None:
+        while not stop.wait(self._interval):
             self.run_once()
 
 
@@ -476,7 +481,7 @@ def _retention_notice() -> str:
     """Student-facing sentence describing when uploads and results are deleted."""
     return (
         "Your uploaded PDF and the results made from it are deleted automatically "
-        f"{_format_ttl(JOB_TTL_SECONDS)} after the audit; the server checks for expired "
+        f"{_format_ttl(JOB_TTL_SECONDS)} after you upload it; the server checks for expired "
         f"files every {_format_ttl(CLEANUP_INTERVAL_SECONDS).removeprefix('about ')}, "
         "even when nobody is using it. "
         "An audit that is still running is not deleted until it finishes. If the server "
@@ -1943,7 +1948,27 @@ def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTML
 # ---------------------------------------------------------------------------
 
 def _run_audit_task(job_id: str) -> None:
-    """Execute an upload audit in a background thread and update job state."""
+    """Execute an upload audit in a background thread and update job state.
+
+    Any unexpected error, including one while building reports after the audit
+    itself succeeded, marks the job ``failed``. A job left ``running`` would
+    never become eligible for retention cleanup, so its upload would outlive
+    the TTL for the life of the process.
+    """
+    try:
+        _execute_audit_task(job_id)
+    except Exception as exc:  # noqa: BLE001
+        job = _get_job(job_id)
+        if job is not None and job.state in ("pending", "running"):
+            job.state = "failed"
+            job.error_message = "An unexpected error occurred during the audit."
+            job.finished_at = datetime.now(timezone.utc).isoformat()
+            _set_job(job)
+        # Exception type only: messages and tracebacks can carry the job path.
+        _logger.warning("Audit task failed after start (%s).", type(exc).__name__)
+
+
+def _execute_audit_task(job_id: str) -> None:
     job = _get_job(job_id)
     if job is None:
         return
