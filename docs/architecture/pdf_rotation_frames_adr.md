@@ -119,7 +119,9 @@ These are engineering conclusions; no question to Ester is required, and no revi
 
 ## Consequences by rule
 
-| rule / component | extraction space | decision frame (ADR) | policy orientation | display transform | current compliance | future work |
+The compliance column records the state when this ADR was accepted. The implemented migrations (R035, R011, P013/P019 content-turned 180) are noted under "Follow-up work" below; items 4 and 5 there, plus content-turned portrait 90/270 page-number positions, remain open.
+
+| rule / component | extraction space | decision frame (ADR) | policy orientation | display transform | compliance when this ADR was accepted (`655485a`) | future work |
 |---|---|---|---|---|---|---|
 | R011 margins (`pdf_margins`) | box | reading frame; binding edge from folio direction | reading-frame aspect | none | **Already correct:** /Rotate 0 and viewer-only 90/180/270 (pinned test). **Largely correct:** pdflscape 90 decisions. Box space *is* the physical portrait sheet, and the 2026-10-07 differential (Anthony's pages re-encoded pdflscape-style) found identical decisions. **Not verified:** pdflscape 270, including the bottom-only allowances on a counter-clockwise sheet. **Pending:** pdflscape side *wording* (`left_margin` where intrinsic says `top_margin`, binding); content-turned portrait pages at 90/180/270 (box-space frame ≠ reading frame) | Build `MarginFrame` in the reading frame, then derive binding from folio direction as for intrinsic landscape |
 | P013/P019 page numbers | box | reading frame; portrait folio position from the sheet | reading-frame aspect | none | Compliant for /Rotate 0 and pdflscape 90/270 (tested). Viewer-only is compliant by construction (box space = content frame) but has no dedicated test. **Not compliant** for content-turned 180, and current code does **not** implement this ADR's 180 answer: the displayed-bottom folio is classified `top_center` (pinned by `test_rotate_180_page_is_classified_in_text_space`) | Classify in the reading frame. The 180 question is answered by this ADR (displayed bottom ⇒ `bottom_center`); it is engineering, not policy |
