@@ -34,7 +34,7 @@ def _page(value: Any) -> int | None:
 
 def _boxes(raw: Any) -> list[tuple[float, float, float, float]]:
     if isinstance(raw, list) and len(raw) == 4:
-        return [tuple(float(part) for part in raw)]  # type: ignore[return-value]
+        return [(float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))]
     if not isinstance(raw, str):
         return []
     result = []
@@ -61,9 +61,7 @@ def _target_boxes(finding: dict[str, Any]) -> list[tuple[float, float, float, fl
     )
 
 
-def matches(
-    finding: dict[str, Any], selector: dict[str, Any], *, allow_missing_geometry: bool = False
-) -> bool:
+def matches(finding: dict[str, Any], selector: dict[str, Any]) -> bool:
     """Match rule, issue, page and the target's own evidence; never use rule alone."""
     if finding.get("rule_id") != selector["rule_id"]:
         return False
@@ -82,8 +80,6 @@ def matches(
     if "target_bbox" in selector:
         anchor = tuple(float(part) for part in selector["target_bbox"])
         boxes = _target_boxes(finding)
-        if not boxes and allow_missing_geometry:
-            return True
         if not any(_overlaps(anchor, box) for box in boxes):
             return False
     return True
@@ -107,6 +103,8 @@ def _audit_document(path: Path, runtime_root: Path) -> dict[str, Any]:
             raise RuntimeError(f"upload failed: HTTP {response.status_code}")
         job_id = response.headers["location"].rsplit("/", 1)[-1]
         job = web_app._get_job(job_id)
+        if job is None:
+            raise RuntimeError(f"audit job missing: {job_id}")
         raw = client.get(f"/audits/{job_id}/download/json").json()
         return {
             "state": job.state,
@@ -119,17 +117,18 @@ def _audit_document(path: Path, runtime_root: Path) -> dict[str, Any]:
 def verify_case(case: dict[str, Any], report: dict[str, Any]) -> list[str]:
     selector = case["target"]
     raw = [
-        f
-        for f in report["raw"]["findings"]
-        if matches(f, selector, allow_missing_geometry=case["judgment"] != "FP")
+        (index, finding)
+        for index, finding in enumerate(report["raw"]["findings"])
+        if matches(finding, selector)
     ]
     card_selector = {
         k: v for k, v in selector.items() if k not in ("detail_equals", "detail_contains")
     }
+    linked_ids = {f"f{index}" for index, _ in raw}
     cards = [
         f
         for f in report["findings"]
-        if matches(f, card_selector, allow_missing_geometry=case["judgment"] != "FP")
+        if f.get("finding_id") in linked_ids and matches(f, card_selector)
     ]
     errors = []
     if case["judgment"] == "FP":
@@ -144,9 +143,20 @@ def verify_case(case: dict[str, Any], report: dict[str, Any]) -> list[str]:
             errors.append("student card has no highlight")
         for anchor in case.get("required_highlight_targets", []):
             if not any(
-                _overlaps(tuple(float(v) for v in anchor), box)
-                for finding in raw
-                for box in _boxes(finding.get("details", {}).get("highlight_bboxes"))
+                any(
+                    _overlaps(tuple(float(v) for v in anchor), box)
+                    for box in _boxes(finding.get("details", {}).get("highlight_bboxes"))
+                )
+                and any(
+                    card.get("finding_id") == f"f{index}" and card.get("has_highlight")
+                    and any(
+                        _overlaps(card_box, raw_box)
+                        for card_box in _target_boxes(card)
+                        for raw_box in _boxes(finding.get("details", {}).get("highlight_bboxes"))
+                    )
+                    for card in cards
+                )
+                for index, finding in raw
             ):
                 errors.append("required highlighted subtarget absent")
     else:
@@ -155,14 +165,23 @@ def verify_case(case: dict[str, Any], report: dict[str, Any]) -> list[str]:
 
 
 def _same_finding(before: dict[str, Any], after: dict[str, Any]) -> bool:
-    if any(before.get(key) != after.get(key) for key in ("rule_id", "page", "issue_type")):
+    if any(before.get(key) != after.get(key) for key in ("rule_id", "page")):
+        return False
+    if _issue_type(before) != _issue_type(after):
         return False
     old_boxes, new_boxes = _target_boxes(before), _target_boxes(after)
-    return (
-        not old_boxes
-        or not new_boxes
-        or any(_overlaps(old, new) for old in old_boxes for new in new_boxes)
-    )
+    if old_boxes and new_boxes:
+        return any(_overlaps(old, new) for old in old_boxes for new in new_boxes)
+    old_details, new_details = before.get("details", {}), after.get("details", {})
+    for key in ("entry_index", "page_entry_index", "paragraph_index", "line_index", "side"):
+        old, new = old_details.get(key), new_details.get(key)
+        if old not in (None, "") and new not in (None, "") and str(old) != str(new):
+            return False
+    return True
+
+
+def _issue_type(finding: dict[str, Any]) -> str:
+    return str(finding.get("issue_type") or finding.get("details", {}).get("issue_type") or "")
 
 
 def find_unexpected_removals(
@@ -173,8 +192,25 @@ def find_unexpected_removals(
     """Catch disappearing corpus findings, including ones Ester never adjudicated."""
     unexpected = []
     for name in baseline:
-        for finding in baseline[name]["findings"]:
-            if any(_same_finding(finding, now) for now in current[name]["findings"]):
+        old_findings = baseline[name]["findings"]
+        new_findings = current[name]["findings"]
+        # One candidate cannot account for two old findings on the same page.
+        assigned: dict[int, int] = {}
+
+        def assign(old_index: int, seen: set[int]) -> bool:
+            for new_index, now in enumerate(new_findings):
+                if new_index in seen or not _same_finding(old_findings[old_index], now):
+                    continue
+                seen.add(new_index)
+                previous = assigned.get(new_index)
+                if previous is None or assign(previous, seen):
+                    assigned[new_index] = old_index
+                    return True
+            return False
+
+        matched = {index for index in range(len(old_findings)) if assign(index, set())}
+        for index, finding in enumerate(old_findings):
+            if index in matched:
                 continue
             if any(
                 allowed["document"] == name and matches(finding, allowed["target"])
@@ -186,7 +222,7 @@ def find_unexpected_removals(
                     "document": name,
                     "page": finding.get("page"),
                     "rule_id": finding.get("rule_id"),
-                    "issue_type": finding.get("issue_type"),
+                    "issue_type": _issue_type(finding),
                     "bbox": finding.get("bbox"),
                 }
             )

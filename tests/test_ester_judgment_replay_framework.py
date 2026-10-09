@@ -22,13 +22,16 @@ def _raw(rule: str, issue: str, bbox: str) -> dict:
     }
 
 
-def _card(rule: str, issue: str, bbox: list[float], highlight: bool = True) -> dict:
+def _card(
+    rule: str, issue: str, bbox: list[float], highlight: bool = True, finding_id: str = "f0"
+) -> dict:
     return {
         "rule_id": rule,
         "page": 11,
         "issue_type": issue,
         "bbox": bbox,
         "has_highlight": highlight,
+        "finding_id": finding_id,
     }
 
 
@@ -67,6 +70,49 @@ def test_true_positive_needs_its_own_visible_highlighted_target() -> None:
     )
 
 
+def test_unrelated_same_page_card_cannot_satisfy_true_positive() -> None:
+    selector = {
+        "rule_id": "P039",
+        "page": 11,
+        "issue_types": ["toc_l3_not_indented_relative_to_l2"],
+        "target_bbox": [100, 100, 150, 115],
+        "detail_equals": {"entry_index": "3"},
+    }
+    target = _raw("P039", selector["issue_types"][0], "100,100,150,115")
+    target["details"]["entry_index"] = "3"
+    other = _raw("P039", selector["issue_types"][0], "100,200,150,215")
+    other["details"]["entry_index"] = "4"
+    report = {
+        "raw": {"findings": [target, other]},
+        "findings": [_card("P039", selector["issue_types"][0], [100, 100, 150, 115], True, "f1")],
+    }
+    errors = verify_case({"judgment": "TP", "target": selector, "highlight_required": True}, report)
+    assert "target absent from student cards" in errors
+    report["findings"] = [_card("P039", selector["issue_types"][0], [100, 200, 150, 215])]
+    errors = verify_case({"judgment": "TP", "target": selector, "highlight_required": True}, report)
+    assert "target absent from student cards" in errors
+
+
+def test_required_subtarget_needs_a_linked_visible_highlight() -> None:
+    selector = {"rule_id": "P032", "page": 11, "issue_types": ["wrapped_entry_internal_spacing"]}
+    raw = _raw("P032", selector["issue_types"][0], "100,100,150,115")
+    raw["details"]["highlight_bboxes"] = "100,100,150,115"
+    report = {
+        "raw": {"findings": [raw]},
+        "findings": [_card("P032", selector["issue_types"][0], [100, 200, 150, 215])],
+    }
+    errors = verify_case(
+        {
+            "judgment": "REVIEWER_VIOLATION",
+            "target": selector,
+            "highlight_required": True,
+            "required_highlight_targets": [[100, 100, 150, 115]],
+        },
+        report,
+    )
+    assert "required highlighted subtarget absent" in errors
+
+
 def test_other_corpus_findings_cannot_disappear_without_an_explicit_allowance() -> None:
     old = _card("P011", "margin_boundary_violation", [100, 100, 150, 115])
     baseline = {"Synthetic": {"findings": [old]}}
@@ -86,6 +132,20 @@ def test_other_corpus_findings_cannot_disappear_without_an_explicit_allowance() 
         ]
     }
     assert find_unexpected_removals(allowance, baseline, current) == []
+
+
+def test_issue_substitution_and_duplicate_loss_are_reported() -> None:
+    old = _raw("P017", "unexpected_terminal_period", "100,100,150,115")
+    new_issue = _raw("P017", "possible_title_case_issue", "100,100,150,115")
+    baseline = {"Synthetic": {"findings": [old]}}
+    current = {"Synthetic": {"findings": [new_issue]}}
+    result = find_unexpected_removals({}, baseline, current)
+    assert len(result) == 1
+    assert result[0]["issue_type"] == "unexpected_terminal_period"
+
+    baseline = {"Synthetic": {"findings": [old, dict(old)]}}
+    current = {"Synthetic": {"findings": [old]}}
+    assert len(find_unexpected_removals({}, baseline, current)) == 1
 
 
 def test_retired_issue_stays_silent_without_disabling_other_issues() -> None:

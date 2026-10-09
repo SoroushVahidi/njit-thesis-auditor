@@ -21,20 +21,23 @@ and five additional reviewer-violation cases, with unique IDs.
 Each case preserves its original source, date, rule, current owner, and
 judgment. A `target` selector requires a rule, physical PDF page, and issue
 type. It can also specify a target box and detail predicates such as entry
-index or margin side. True positives must have a matching raw finding and
-student card; cases requiring a highlight verify it. A reviewer violation
+index or margin side. True positives must have a matching raw finding and a
+student card linked to that raw finding's audit index; cases requiring a
+highlight verify its target. A reviewer violation
 covering several lines can list `required_highlight_targets` so one nearby
 highlight cannot satisfy it. False positives require the rejected target's
 absence. `disposition` records whether an FP was resolved, disabled, or
 retired. Detector liveness counts are required for rules labeled resolved.
 
 With `--baseline-dir`, the gate also reports any disappearing student finding
-outside the manifest's explicit `allowed_removed` list. Review those removals
+outside the manifest's explicit `allowed_removed` list. It preserves raw issue
+identity and matches duplicate findings one-to-one. Review those removals
 before accepting a detector change. Cases with `verification_level=claim_page`
 use a conservative page-and-claim absence guard where original coordinates
 were not preserved; `verification_level=target` has a coordinate or detail
 anchor. This distinction must remain visible in the private manifest and
-the final evidence report.
+the final evidence report. The 82 historical false positives without original
+coordinates establish page/claim absence only, not exact geometric absence.
 
 Use synthetic PDF tests in CI for the corrected detector paths. The private
 manifest and original PDFs are needed for the complete historical replay.
