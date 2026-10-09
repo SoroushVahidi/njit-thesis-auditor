@@ -64,7 +64,7 @@ def _issue_types(doc: PdfDocument) -> list[str]:
 
 
 def test_split_title_case_level3_heading_is_flagged_once() -> None:
-    title = _words_line(["Implementation,", "Experiments,", "and", "Results"], 149.0)
+    title = _words_line(["Clockwork,", "Teapots,", "and", "Lanterns"], 149.0)
     for same_block in (False, True):
         assert _issue_types(_doc(_number(), title, same_block=same_block)) == [
             "level3_sentence_case_issue"
@@ -72,9 +72,9 @@ def test_split_title_case_level3_heading_is_flagged_once() -> None:
 
 
 def test_rejoined_heading_reads_words_with_spaces() -> None:
-    title = _words_line(["Implementation,", "Experiments,", "and", "Results"], 149.0)
+    title = _words_line(["Clockwork,", "Teapots,", "and", "Lanterns"], 149.0)
     (finding,) = check_pdf_heading_level_styles(_doc(_number(), title))
-    assert "3.4.3 Implementation, Experiments, and Results" in finding.message
+    assert "3.4.3 Clockwork, Teapots, and Lanterns" in finding.message
 
 
 def test_split_sentence_case_heading_is_not_flagged() -> None:
@@ -83,14 +83,14 @@ def test_split_sentence_case_heading_is_not_flagged() -> None:
 
 
 def test_number_and_title_on_different_baselines_are_not_joined() -> None:
-    title = _words_line(["Implementation,", "Experiments,", "and", "Results"], 149.0, y0=_Y0 + 24)
+    title = _words_line(["Clockwork,", "Teapots,", "and", "Lanterns"], 149.0, y0=_Y0 + 24)
     assert _issue_types(_doc(_number(), title)) == []
 
 
 def test_non_bold_parts_are_not_joined() -> None:
-    title = _words_line(["Implementation,", "Experiments,", "and", "Results"], 149.0, bold=False)
+    title = _words_line(["Clockwork,", "Teapots,", "and", "Lanterns"], 149.0, bold=False)
     assert _issue_types(_doc(_number(), title)) == []
-    title_bold = _words_line(["Implementation,", "Experiments,", "and", "Results"], 149.0)
+    title_bold = _words_line(["Clockwork,", "Teapots,", "and", "Lanterns"], 149.0)
     assert _issue_types(_doc(_number(bold=False), title_bold)) == []
 
 
