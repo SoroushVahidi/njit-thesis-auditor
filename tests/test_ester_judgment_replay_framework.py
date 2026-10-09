@@ -113,6 +113,24 @@ def test_required_subtarget_needs_a_linked_visible_highlight() -> None:
     assert "required highlighted subtarget absent" in errors
 
 
+def test_fresh_in_memory_tuple_geometry_matches_cached_json_geometry() -> None:
+    selector = {
+        "rule_id": "P020",
+        "page": 11,
+        "issue_types": ["possible_title_capitalization_issue"],
+        "target_bbox": [100, 100, 150, 115],
+    }
+    raw = _raw("P020", selector["issue_types"][0], "100,100,150,115")
+    raw["details"]["bbox"] = (100, 100, 150, 115)
+    card = _card("P020", selector["issue_types"][0], [100, 100, 150, 115])
+    card["bbox"] = (100, 100, 150, 115)
+    report = {"raw": {"findings": [raw]}, "findings": [card]}
+    assert (
+        verify_case({"judgment": "TP", "target": selector, "highlight_required": True}, report)
+        == []
+    )
+
+
 def test_other_corpus_findings_cannot_disappear_without_an_explicit_allowance() -> None:
     old = _card("P011", "margin_boundary_violation", [100, 100, 150, 115])
     baseline = {"Synthetic": {"findings": [old]}}

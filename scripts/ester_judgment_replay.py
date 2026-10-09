@@ -33,7 +33,7 @@ def _page(value: Any) -> int | None:
 
 
 def _boxes(raw: Any) -> list[tuple[float, float, float, float]]:
-    if isinstance(raw, list) and len(raw) == 4:
+    if isinstance(raw, (list, tuple)) and len(raw) == 4:
         return [(float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))]
     if not isinstance(raw, str):
         return []
