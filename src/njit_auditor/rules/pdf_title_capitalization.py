@@ -151,6 +151,8 @@ _SKIP_WORD_RE = re.compile(r"[0-9Α-ω+*/=<>^\\{}[\]()]")
 
 # Subtitle separators that trigger capitalization of the following word.
 _SUBTITLE_SEP_RE = re.compile(r"[:–—]|--+")
+# Text allowed between a subtitle separator and the word it capitalizes.
+_SEP_LEAD_IN_RE = re.compile(r"[\s\"'“‘(\[]*")
 
 # Word token: letter-started run, optionally joined by single hyphens.
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
@@ -299,7 +301,10 @@ def _words_with_sep_info(text: str) -> list[tuple[str, bool, int, int]]:
     Return (word, after_subtitle_sep, start, end) tuples for each word token.
 
     after_subtitle_sep is True when a subtitle separator (colon, em/en dash,
-    double-hyphen) appears in the gap between the previous word and this word.
+    double-hyphen) appears in the gap between the previous word and this word
+    and only whitespace, opening quotes, or opening brackets follow it. A symbol
+    or number after the separator (": # of", ": 3 of") is itself the first word
+    of the subtitle, so the following word keeps its normal case rule.
     start/end are the token's character offsets within *text*, so callers can
     inspect the surrounding context (e.g. statistical notation) without doing
     unsafe substring searches.
@@ -309,7 +314,8 @@ def _words_with_sep_info(text: str) -> list[tuple[str, bool, int, int]]:
     after_sep = False
     for m in _WORD_RE.finditer(text):
         gap = text[last_end : m.start()]
-        if _SUBTITLE_SEP_RE.search(gap):
+        separators = list(_SUBTITLE_SEP_RE.finditer(gap))
+        if separators and _SEP_LEAD_IN_RE.fullmatch(gap[separators[-1].end() :]):
             after_sep = True
         result.append((m.group(), after_sep, m.start(), m.end()))
         after_sep = False
@@ -356,6 +362,29 @@ def _has_recent_hyphen_before(text: str, start: int) -> bool:
     """True when only extraction whitespace separates this word from a hyphen."""
     prefix = text[:start].rstrip()
     return bool(prefix) and prefix[-1] in _HYPHEN_CHARS
+
+
+def _corrected_preview(
+    check_text: str, line_preview: str, issues: list[dict[str, str]]
+) -> str:
+    """Return *line_preview* with every flagged word in *issues* corrected.
+
+    Issue positions index the word tokens of *check_text*; the preview must be
+    a prefix of it. Returns "" when the correction cannot be placed safely.
+    """
+    if not line_preview or not check_text.startswith(line_preview):
+        return ""
+    words = _words_with_sep_info(check_text)
+    corrected = list(check_text)
+    for issue in issues:
+        try:
+            word, _sep, start, end = words[int(issue["position"])]
+        except (KeyError, ValueError, IndexError):
+            return ""
+        if word != issue["word"] or len(issue["expected"]) != end - start:
+            return ""
+        corrected[start:end] = issue["expected"]
+    return "".join(corrected)[: len(line_preview)]
 
 
 def check_apa_title_case_phrase(
@@ -827,6 +856,11 @@ def check_pdf_title_capitalization(pdf_document: PdfDocument) -> list[AuditFindi
             "flagged_word": first_issue["word"],
             "corrected_word": first_issue["expected"],
         }
+        corrected_preview = _corrected_preview(check_text, line_preview, issues)
+        if corrected_preview:
+            # Every flagged word corrected, so a suggested rewrite of the
+            # title is itself in title case (not just its first problem word).
+            details["corrected_title_preview"] = corrected_preview
         if title_line.bbox is not None:
             details["bbox"] = format_bbox_detail(title_line.bbox)
         token_bbox: BBox | None = None

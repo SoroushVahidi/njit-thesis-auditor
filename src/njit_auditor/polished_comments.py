@@ -427,10 +427,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
-        "Likely problem: A {caption_type} caption on page {page} appears to end "
-        "with a terminal period where NJIT expects no ending punctuation for "
-        "this caption type. Remove the trailing period unless the caption is "
-        "written as a full sentence that requires one."
+        "Likely problem: A table title or List of Tables entry on page {page} "
+        "appears to end with a terminal period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
         "Likely problem: A {caption_type} caption on page {page} appears to "
@@ -446,7 +444,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Likely problem: A table title on page {page} appears to violate "
         "NJIT title-case expectations. Capitalize the first word and major "
         "words; leave prepositions, conjunctions, and articles lowercase "
-        "where appropriate, and do not end table titles with a period."
+        "where appropriate."
     ),
     # --- P018 TOC/LoT/LoF alignment ---
     ("P018", "misaligned_page_number_column"): (
@@ -759,6 +757,17 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    # P078 has two issue types; the rule-level remediation covers both, so a
+    # pronoun finding told students to replace "paper"/"article". Give each
+    # issue type only the half of the remediation that applies to it.
+    ("P078", "abstract_pdf_first_person_pronoun"): (
+        "Rewrite sentences to remove first-person pronouns such as \"I,\" "
+        "\"me,\" \"my,\" \"we,\" or \"our.\""
+    ),
+    ("P078", "abstract_pdf_forbidden_term"): (
+        "Replace \"paper\" or \"article\" with \"dissertation,\" \"study,\" "
+        "\"work,\" or \"research.\""
+    ),
     ("P039", "toc_l2_not_indented_relative_to_l1"): (
         "Indent the highlighted level-2 TOC entries to the right of level-1 entries."
     ),
@@ -855,13 +864,15 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "earlier line."
     ),
     ("P021", "abstract_word_count_exceeded"): "",
-    ("P017", "unexpected_terminal_period"): "",
+    ("P017", "unexpected_terminal_period"): (
+        "Remove the final period from this table title or List of Tables entry."
+    ),
     ("P017", "missing_terminal_punctuation"): "",
     ("P017", "possible_sentence_case_issue"): "",
     ("P017", "possible_title_case_issue"): (
         "Edit the table title to title case: capitalize the first word and "
         "major words; leave articles, prepositions, and conjunctions lowercase "
-        "where appropriate. Do not end the table title with a period."
+        "where appropriate."
     ),
     ("P024", "toc_level_capitalization"): "",
     ("P024", "list_of_tables_title_case"): "",
@@ -1995,6 +2006,18 @@ def build_polished_comment(
 
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P017" and issue == "unexpected_terminal_period":
+        subject = (
+            "List of Tables entry"
+            if safe_details.get("caption_context") == "list_of_tables"
+            else "table title"
+        )
+        body = (
+            f"Likely problem: A {subject} on page {_safe_page_label(page)} "
+            "appears to end with a terminal period. Remove the final period."
+        )
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P020" and issue == "possible_title_capitalization_issue":

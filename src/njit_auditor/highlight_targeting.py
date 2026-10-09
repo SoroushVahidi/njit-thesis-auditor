@@ -212,6 +212,13 @@ def parse_highlight_bboxes_from_details(
             result.extend(HighlightBox.from_tuple(box, kind="guide") for box in guide_boxes)
             return result
 
+    # Findings that name several separate targets (e.g. each unindented TOC
+    # entry for P039) list them in highlight_bboxes; draw those instead of
+    # their union bbox, which would also cover correctly formatted lines.
+    target_boxes = _parse_bbox_list(str(details.get("highlight_bboxes", "")).strip())
+    if target_boxes:
+        return target_boxes
+
     boxes: list[tuple[float, float, float, float]] = []
     line_bbox = _parse_bbox_text(str(details.get("bbox", "")).strip())
     if line_bbox is None:

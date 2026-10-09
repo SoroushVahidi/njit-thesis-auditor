@@ -435,31 +435,57 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     confidence = "low"
                     message = "Table title/caption may not follow likely title-case style."
 
+        if (
+            caption.context == "body"
+            and caption.caption_type == "table"
+            and issue_type != "unexpected_terminal_period"
+            and caption.caption_body.endswith(".")
+        ):
+            # Table titles do not end in a period (Ester, Sample B feedback);
+            # report it alongside any capitalization issue on the same title.
+            findings.append(
+                _caption_finding(
+                    caption,
+                    "unexpected_terminal_period",
+                    "medium",
+                    "Table title appears to end with a period; table titles do not end "
+                    "with a period.",
+                )
+            )
+
         if issue_type is None:
             continue
 
-        q_rule_id = _P017_Q_RULE_MAP.get((caption.context, issue_type), "")
-
-        details = {
-            "page_number": str(caption.page_number),
-            "caption_type": caption.caption_type,
-            "issue_type": issue_type,
-            "line_preview": _line_preview(caption.raw_text),
-            "caption_end_preview": _caption_end_preview(caption.raw_text),
-            "confidence": confidence,
-            "source_q_rule_id": q_rule_id,
-        }
-        if caption.bbox is not None:
-            details["bbox"] = format_bbox_detail(caption.bbox)
-
-        findings.append(
-            AuditFinding(
-                rule_id="P017",
-                severity=Severity.WARNING,
-                page=caption.page_number,
-                message=message,
-                details=details,
-            )
-        )
+        findings.append(_caption_finding(caption, issue_type, confidence, message))
 
     return findings
+
+
+def _caption_finding(
+    caption: CaptionLine, issue_type: str, confidence: str, message: str
+) -> AuditFinding:
+    details = {
+        "page_number": str(caption.page_number),
+        "caption_type": caption.caption_type,
+        "issue_type": issue_type,
+        "line_preview": _line_preview(caption.raw_text),
+        "caption_end_preview": _caption_end_preview(caption.raw_text),
+        "confidence": confidence,
+        "source_q_rule_id": _P017_Q_RULE_MAP.get((caption.context, issue_type), ""),
+    }
+    if issue_type == "unexpected_terminal_period":
+        details["caption_context"] = caption.context
+        details["suggested_fix"] = (
+            "Remove the final period from this List of Tables entry."
+            if caption.context == "list_of_tables"
+            else "Remove the final period from this table title."
+        )
+    if caption.bbox is not None:
+        details["bbox"] = format_bbox_detail(caption.bbox)
+    return AuditFinding(
+        rule_id="P017",
+        severity=Severity.WARNING,
+        page=caption.page_number,
+        message=message,
+        details=details,
+    )

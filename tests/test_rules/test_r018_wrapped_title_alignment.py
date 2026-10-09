@@ -285,3 +285,23 @@ def test_njit_model_front_matter_toc_has_no_wrapped_alignment_finding() -> None:
     assert [
         f for f in check_pdf_toc_alignment(model) if f.details.get("issue_type") in new_types
     ] == []
+
+
+def test_every_misaligned_wrapped_entry_is_highlighted(tmp_path: Path) -> None:
+    """Ester boxed three misaligned wrapped entries; highlight each one, not only the worst."""
+    rows = [
+        (108.0, 140.0, f"1 INTRODUCTION {LEADER} 1"),
+        (126.0, 168.0, f"1.1 Background {LEADER} 2"),
+        (NUMBER_X, 196.0, f"{LABEL}Sampling design for the long survey of"),
+        (NUMBER_X, 210.0, f"coastal sites {LEADER} 5"),
+        (NUMBER_X, 238.0, "1.3.4 Measurement protocol for the repeated survey of"),
+        (NUMBER_X - 20.0, 252.0, f"inland sites {LEADER} 7"),
+        (NUMBER_X, 280.0, f"1.3.5 Summary {LEADER} 9"),
+    ]
+    (finding,) = _findings(_render(tmp_path, "TABLE OF CONTENTS", rows))
+    from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
+
+    boxes = parse_highlight_bboxes_from_details(finding.details)
+    assert finding.details["affected_entry_count"] == "2"
+    assert len(boxes) == 2
+    assert boxes[0][1] < 200 < boxes[1][1]  # one box per entry, in page order

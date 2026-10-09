@@ -268,9 +268,11 @@ def test_ester_sample_b_p015_page_23_false_positive_resolved() -> None:
     }
 
     assert page_23_issue_types == set()
-    # Page 34 is a separate, unconfirmed residual finding untouched by this fix.
+    # Page 34 resumes a sentence after a displayed equation that ends with a
+    # comma, so it is not a new paragraph and must not be flagged (a new
+    # paragraph always follows a finished sentence; Ester, R015 feedback).
     p015_pages = {f.page for f in view.findings if f.rule_id == "P015"}
-    assert 34 in p015_pages
+    assert 34 not in p015_pages
 
 
 def test_ester_sample_b_p012_visibility_stable() -> None:
@@ -367,10 +369,13 @@ def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() 
     assert p020_page80 == []
 
     p017_page80 = [f for f in view.findings if f.rule_id == "P017" and f.page == 80]
-    assert len(p017_page80) == 1
-    finding = p017_page80[0]
-
-    assert finding.issue_type == "possible_title_case_issue"
+    # Ester named two issues on this table title: title case, and the period
+    # it ends with ("table titles do not end in periods").
+    assert sorted(f.issue_type for f in p017_page80) == [
+        "possible_title_case_issue",
+        "unexpected_terminal_period",
+    ]
+    finding = next(f for f in p017_page80 if f.issue_type == "possible_title_case_issue")
     assert "table title" in finding.polished_comment
     assert "heading" not in finding.polished_comment.lower()
     assert "figure" not in finding.polished_comment.lower()
@@ -378,7 +383,9 @@ def test_ester_sample_b_p020_page80_table_title_remediation_is_table_specific() 
     assert "table title" in finding.detailed_explanation
     assert "figure" not in finding.detailed_explanation.lower()
     assert "prepositions, conjunctions, and articles" in finding.detailed_explanation
-    assert "period" in finding.detailed_explanation.lower()
+    assert "period" not in finding.detailed_explanation.lower()
+    period = next(f for f in p017_page80 if f.issue_type == "unexpected_terminal_period")
+    assert period.suggested_fix == "Remove the final period from this table title."
 
 
 def test_ester_sample_b_p019_page57_58_embedded_reprint_not_flagged() -> None:

@@ -139,6 +139,18 @@ class _Row:
         return self.y1 - self.y0
 
 
+def _rows_bbox(rows: list[_Row]) -> str:
+    """Highlight box covering *rows* (the lines the finding is about)."""
+    return format_bbox_detail(
+        (
+            min(row.x0 for row in rows),
+            min(row.y0 for row in rows),
+            max(max(row.x1, row.x0) for row in rows),
+            max(row.y1 for row in rows),
+        )
+    )
+
+
 def _line_step(earlier: _Row, later: _Row) -> float:
     """Top-to-top step between rows, robust to one oversized glyph.
 
@@ -351,6 +363,7 @@ def check_pdf_biosketch_publication_layout(
                         **base_details,
                         "issue_type": "biosketch_publication_wrapped_line_spacing_not_single",
                         "entry_index": str(entry_index),
+                        "bbox": _rows_bbox(entry),
                         "observed_line_pitch_points": f"{max(pitches):.1f}",
                         "max_single_spacing_pitch_points": f"{max_within_pitch:.1f}",
                         "font_size_points": f"{font_size:.1f}",
@@ -383,6 +396,7 @@ def check_pdf_biosketch_publication_layout(
                         **base_details,
                         "issue_type": "biosketch_publication_entry_spacing_not_double",
                         "entry_index": str(entry_index),
+                        "bbox": _rows_bbox([last_row, later_entry[0]]),
                         "observed_gap_points": f"{pitch - last_row.height:.1f}",
                         "required_gap_points": f"{required_pitch - last_row.height:.1f}",
                     },

@@ -2195,6 +2195,7 @@ def _apply_title_case_presentation(
         corrected_word,
         details.get("line_preview", ""),
         source=source,
+        corrected_preview=details.get("corrected_title_preview", ""),
     )
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 

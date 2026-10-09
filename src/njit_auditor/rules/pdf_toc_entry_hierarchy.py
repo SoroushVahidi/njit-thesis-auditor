@@ -14,7 +14,7 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
@@ -50,24 +50,47 @@ def _triage_tier(delta: float) -> str:
     return "low"
 
 
+def _offending_geometry(children: list[TocEntryLine], parent_median: float) -> dict[str, str]:
+    """Highlight the child entries that are not indented past the parent level.
+
+    Returns the union ``bbox`` plus one ``highlight_bboxes`` box per offending
+    entry line, so the student sees which entries need more indentation
+    instead of an unhighlighted page-level note.
+    """
+    offending = [
+        entry.line.bbox
+        for entry in children
+        if entry.indent_x - parent_median < MIN_HIERARCHY_INDENT_PT
+    ]
+    if not offending:
+        return {}
+    union = BBox(
+        x0=min(b.x0 for b in offending),
+        y0=min(b.y0 for b in offending),
+        x1=max(b.x1 for b in offending),
+        y1=max(b.y1 for b in offending),
+    )
+    return {
+        "bbox": format_bbox_detail(union),
+        "highlight_bboxes": " | ".join(format_bbox_detail(b) for b in offending),
+        "offending_entry_count": str(len(offending)),
+    }
+
+
 def _check_toc_hierarchy_page(
     context: TocPageContext,
     entries: list[TocEntryLine],
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
 
-    l1_indents: list[float] = []
-    l2_indents: list[float] = []
-    l3_indents: list[float] = []
-
+    by_level: dict[int, list[TocEntryLine]] = {1: [], 2: [], 3: []}
     for entry in entries:
         level = _classify_entry_level(entry.cleaned_text)
-        if level == 1:
-            l1_indents.append(entry.indent_x)
-        elif level == 2:
-            l2_indents.append(entry.indent_x)
-        elif level == 3:
-            l3_indents.append(entry.indent_x)
+        if level is not None:
+            by_level[level].append(entry)
+    l1_indents = [entry.indent_x for entry in by_level[1]]
+    l2_indents = [entry.indent_x for entry in by_level[2]]
+    l3_indents = [entry.indent_x for entry in by_level[3]]
 
     if l1_indents and len(l2_indents) >= MIN_CHILD_ENTRIES_TO_CHECK:
         l1_med = median(l1_indents)
@@ -94,6 +117,7 @@ def _check_toc_hierarchy_page(
                         "l2_entry_count": str(len(l2_indents)),
                         "triage_tier": _triage_tier(delta),
                         "source_q_rule_id": "Q056",
+                        **_offending_geometry(by_level[2], l1_med),
                     },
                 )
             )
@@ -123,6 +147,7 @@ def _check_toc_hierarchy_page(
                         "l3_entry_count": str(len(l3_indents)),
                         "triage_tier": _triage_tier(delta),
                         "source_q_rule_id": "Q056",
+                        **_offending_geometry(by_level[3], l2_med),
                     },
                 )
             )
