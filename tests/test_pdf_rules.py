@@ -2089,16 +2089,17 @@ def test_p018_leader_dots_tied_isolation_is_deterministic(tmp_path: Path) -> Non
 
 
 def test_hierarchy_indent_outlier_warns_p018(tmp_path: Path) -> None:
+    """A same-level numeric chapter outlier must still warn after lettered-level fixes."""
     pdf_path = tmp_path / "toc_indent_outlier.pdf"
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text((220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
-    _draw_toc_entry(page, 140, 108, "Chapter 1 Introduction ....", 500)
-    _draw_toc_entry(page, 160, 108, "Chapter 2 Methods ....", 500)
-    _draw_toc_entry(page, 180, 108, "Chapter 3 Results ....", 500)
-    _draw_toc_entry(page, 200, 108, "Chapter 4 Discussion ....", 500)
-    _draw_toc_entry(page, 220, 108, "Chapter 5 Conclusion ....", 500)
-    _draw_toc_entry(page, 240, 160, "Odd Entry Indent ....", 500)
+    _draw_toc_entry(page, 140, 108, "1 Introduction ....", 500)
+    _draw_toc_entry(page, 160, 108, "2 Methods ....", 500)
+    _draw_toc_entry(page, 180, 108, "3 Results ....", 500)
+    _draw_toc_entry(page, 200, 108, "4 Discussion ....", 500)
+    _draw_toc_entry(page, 220, 108, "5 Conclusion ....", 500)
+    _draw_toc_entry(page, 240, 160, "6 Odd Entry Indent ....", 500)
     doc.save(pdf_path)
     doc.close()
     model = load_pdf_layout(str(pdf_path))
