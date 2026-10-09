@@ -576,9 +576,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
-        "A figure or table caption on this page appears to end with a terminal "
-        "period where NJIT expects no ending punctuation for this caption type. "
-        "Remove the trailing period unless the caption is written as a full sentence."
+        "A table title or List of Tables entry on this page appears to end with "
+        "a period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
         "A figure or table caption on this page appears to be missing terminal "
@@ -592,8 +591,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ("P017", "possible_title_case_issue"): (
         "A table title on this page may violate NJIT title-case expectations. "
         "Capitalize the first word and major words; leave prepositions, conjunctions, "
-        "and articles lowercase where appropriate, and do not end table titles "
-        "with a period."
+        "and articles lowercase where appropriate."
     ),
     # --- P018 TOC/LoT/LoF alignment ---
     ("P018", "misaligned_page_number_column"): (
