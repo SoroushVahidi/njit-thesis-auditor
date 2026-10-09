@@ -89,9 +89,15 @@ def p020_short_suggested_fix(
     line_preview: str,
     *,
     source: str = "heading",
+    corrected_preview: str = "",
 ) -> str:
     subject = title_case_subject_kind(source)
     preview = sanitize_title_case_line_preview(line_preview)
+    corrected = sanitize_title_case_line_preview(corrected_preview)
+    case_only_change = corrected != preview and corrected.casefold() == preview.casefold()
+    if preview and corrected and case_only_change:
+        # Rewrite with every flagged word corrected (capitalization only).
+        return f'Change "{preview}" to "{corrected}".'
     if preview and flagged_word:
         updated = _replace_whole_word(preview, flagged_word, corrected_word)
         if updated is not None:
