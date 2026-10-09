@@ -428,7 +428,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
         "Likely problem: A table title or List of Tables entry on page {page} "
-        "appears to end with a period. Remove the final period."
+        "appears to end with a terminal period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
         "Likely problem: A {caption_type} caption on page {page} appears to "
@@ -1999,7 +1999,7 @@ def build_polished_comment(
         )
         body = (
             f"Likely problem: A {subject} on page {_safe_page_label(page)} "
-            "appears to end with a period. Remove the final period."
+            "appears to end with a terminal period. Remove the final period."
         )
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
