@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_layout import join_content_span_texts
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.pdf_headings import (
     BOLD_FONT_HINT_RE,
@@ -79,7 +80,58 @@ def _page_has_any_heading(page: PdfPage, headings: frozenset[str]) -> bool:
     return False
 
 
-def _looks_like_title_case_violation(text: str) -> bool:
+# A capitalized word directly followed by a number or label ("Theorem 5.2",
+# "Part (i)", "Section 3") names a specific item and keeps its capital.
+_REFERENCE_LABEL_RE = re.compile(r"^\(?(?:\d+(?:\.\d+)*|[ivxlcdm]+|[IVXLCDM]+|[A-Z])\)?[,.;:]?$")
+_BODY_WORD_RE = re.compile(r"(?<![\w.])([A-Za-z][a-z]+)\b")
+_PROPER_NOUN_MIN_OCCURRENCES = 2
+
+
+def _document_proper_nouns(pdf_doc: PdfDocument) -> frozenset[str]:
+    """Words the document's body text always capitalizes mid-sentence.
+
+    Level 3-5 headings use sentence case, which still capitalizes proper
+    names (Ester: "capitalizing only the first word and proper names"). A word
+    written capitalized at least twice mid-sentence in non-bold body text and
+    never in lowercase is treated as a proper name (e.g. "Markov").
+    """
+    capitalized: dict[str, int] = {}
+    lowercase: set[str] = set()
+    for page in pdf_doc.pages:
+        for block in page.text_blocks:
+            for line in block.lines:
+                if _is_bold_line(line):
+                    continue
+                text = " ".join(join_content_span_texts(line.spans).split())
+                for match in _BODY_WORD_RE.finditer(text):
+                    word = match.group(1)
+                    before = text[: match.start()].rstrip()
+                    if not before or before.endswith((".", "?", "!", ":")):
+                        continue  # sentence or line start: case says nothing
+                    key = word.lower()
+                    if word[0].isupper():
+                        capitalized[key] = capitalized.get(key, 0) + 1
+                    else:
+                        lowercase.add(key)
+    return frozenset(
+        word
+        for word, count in capitalized.items()
+        if count >= _PROPER_NOUN_MIN_OCCURRENCES and word not in lowercase
+    )
+
+
+def _keeps_capital(words: list[str], index: int, proper_nouns: frozenset[str]) -> bool:
+    """True when words[index] is a proper name or a labelled reference."""
+    core = words[index].strip(".,;:!?\"'()-[]")
+    if core.lower() in proper_nouns:
+        return True
+    following = words[index + 1] if index + 1 < len(words) else ""
+    return bool(_REFERENCE_LABEL_RE.match(following))
+
+
+def _looks_like_title_case_violation(
+    text: str, proper_nouns: frozenset[str] = frozenset()
+) -> bool:
     """Return True if text has ≥2 non-first capitalized major words (title-case signal).
 
     Used to detect sentence-case violations: if a Level 3–5 heading looks like it
@@ -89,7 +141,9 @@ def _looks_like_title_case_violation(text: str) -> bool:
     if len(words) < 3:
         return False
     major_caps = 0
-    for word in words[1:]:
+    for index, word in enumerate(words[1:], start=1):
+        if _keeps_capital(words, index, proper_nouns):
+            continue
         clean = word.strip(".,;:!?\"'()-[]")
         if not clean or not clean[0].isupper():
             continue
@@ -128,7 +182,9 @@ def _is_bold_line(line: PdfTextLine) -> bool:
     )
 
 
-def _sentence_case_example(number_prefix: str, heading_text: str) -> str:
+def _sentence_case_example(
+    number_prefix: str, heading_text: str, proper_nouns: frozenset[str] = frozenset()
+) -> str:
     """Return a conservative sentence-case rewrite of heading_text, or "" if unsafe.
 
     Only lowercases simple Title-Case words (single leading capital, rest
@@ -141,8 +197,11 @@ def _sentence_case_example(number_prefix: str, heading_text: str) -> str:
         return ""
     rewritten = [words[0]]
     changed = False
-    for word in words[1:]:
+    for index, word in enumerate(words[1:], start=1):
         core = word.strip(".,;:!?\"'()-[]")
+        if _keeps_capital(words, index, proper_nouns):
+            rewritten.append(word)
+            continue
         if core and core[0].isupper() and core[1:].islower() and not looks_like_acronym(core):
             lowered = word[0].lower() + word[1:]
             rewritten.append(lowered)
@@ -286,7 +345,12 @@ def _finding(
     )
 
 
-def _check_line(page: PdfPage, block_lines: list[PdfTextLine], index: int) -> list[AuditFinding]:
+def _check_line(
+    page: PdfPage,
+    block_lines: list[PdfTextLine],
+    index: int,
+    proper_nouns: frozenset[str] = frozenset(),
+) -> list[AuditFinding]:
     line = block_lines[index]
     if _in_margin_zone(line, page.height):
         return []
@@ -362,8 +426,8 @@ def _check_line(page: PdfPage, block_lines: list[PdfTextLine], index: int) -> li
 
         else:  # level 3, 4, 5
             q_rule = "Q051" if level == 3 else ""
-            if _looks_like_title_case_violation(heading_text):
-                example = _sentence_case_example(number_prefix, heading_text)
+            if _looks_like_title_case_violation(heading_text, proper_nouns):
+                example = _sentence_case_example(number_prefix, heading_text, proper_nouns)
                 original = f"{number_prefix} {heading_text}"
                 if example:
                     # Prefer an exact, safe token-level replacement over a
@@ -444,12 +508,67 @@ def check_pdf_heading_level_styles(pdf_doc: PdfDocument) -> list[AuditFinding]:
     Pages with named front-matter headings, TOC/List headings, or references are skipped.
     """
     findings: list[AuditFinding] = []
+    proper_nouns = _document_proper_nouns(pdf_doc)
     for page in pdf_doc.pages:
         if _page_has_any_heading(page, _SKIP_HEADINGS):
             continue
         if _page_has_any_heading(page, _TOC_LIST_HEADINGS):
             continue
+        merged = _split_number_headings(page)
         for block in page.text_blocks:
-            for index in range(len(block.lines)):
-                findings.extend(_check_line(page, block.lines, index))
+            lines = [merged.get(id(line), line) for line in block.lines]
+            for index in range(len(lines)):
+                findings.extend(_check_line(page, lines, index, proper_nouns))
     return findings
+
+
+# A bold line holding only a section number ("3.4.3"), with the heading text
+# extracted as a separate line on the same baseline to its right.
+_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+\.?$")
+_SPLIT_BASELINE_TOLERANCE_PT = 2.0
+_SPLIT_MAX_GAP_PT = 72.0
+
+
+def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
+    """Map each split heading's title line to one line carrying number + title.
+
+    Some PDFs extract a numbered heading's number and its title as two lines
+    (sometimes in different text blocks), so the numbered-heading patterns,
+    which need "3.4.3 Title" on one line, never see the heading. Rejoin them
+    only when both parts are bold and share a baseline, with the title just
+    to the right of the number; the number-only line then matches no pattern
+    on its own, so the heading is checked exactly once.
+    """
+    lines = [line for block in page.text_blocks for line in block.lines]
+    numbers = [
+        line
+        for line in lines
+        if _NUMBER_ONLY_RE.match(line.text.strip()) and _is_bold_line(line)
+    ]
+    merged: dict[int, PdfTextLine] = {}
+    for number in numbers:
+        candidates = [
+            line
+            for line in lines
+            if line is not number
+            and id(line) not in merged
+            and _is_bold_line(line)
+            and abs(line.bbox.y0 - number.bbox.y0) <= _SPLIT_BASELINE_TOLERANCE_PT
+            and abs(line.bbox.y1 - number.bbox.y1) <= _SPLIT_BASELINE_TOLERANCE_PT
+            and 0 <= line.bbox.x0 - number.bbox.x1 <= _SPLIT_MAX_GAP_PT
+            and line.text.strip()
+            and not line.text.strip()[0].isdigit()
+        ]
+        if not candidates:
+            continue
+        title = min(candidates, key=lambda line: line.bbox.x0)
+        merged[id(title)] = PdfTextLine(
+            spans=[*number.spans, *title.spans],
+            bbox=_union_bbox(number.bbox, title.bbox),
+            # Rebuild word spaces from span geometry: these PDFs often omit
+            # whitespace spans, which concatenates the title's words.
+            text=f"{number.text.strip()} {join_content_span_texts(title.spans).strip()}",
+            line_dir=title.line_dir,
+            wmode=title.wmode,
+        )
+    return merged
