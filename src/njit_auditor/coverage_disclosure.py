@@ -156,11 +156,12 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         status="partial",
         checked=(
             "Heading and \"(Continued)\" headings; chapter titles in all caps; level-2 "
-            "titles in title case; single-spaced wrapped titles; indentation; leaders; "
-            "right-aligned page numbers in order."
+            "titles in title case; wrapped titles with a large gap between their lines; "
+            "indentation; leaders; right-aligned page numbers in order."
         ),
         manual=(
-            "Level-3 titles in sentence case; level-4 and level-5 titles not listed; "
+            "Double spacing between entries, with wrapped titles fully single-spaced; "
+            "level-3 titles in sentence case; level-4 and level-5 titles not listed; "
             "each page number matches the page where the section begins."
         ),
         rule_ids=("P014", "P018", "P024", "P030", "P032", "P038", "P039", "P058", "P075"),
@@ -170,10 +171,13 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="List of Tables",
         status="partial",
         checked=(
-            "Title case; the word \"Table\" before each number; single-spaced wrapped "
-            "titles; leaders and page-number alignment."
+            "Title case; the word \"Table\" before each number; wrapped titles with a "
+            "large gap between their lines; leaders and page-number alignment."
         ),
-        manual="Each page number matches the page where the table begins.",
+        manual=(
+            "Double spacing between entries, with wrapped titles fully single-spaced; "
+            "each page number matches the page where the table begins."
+        ),
         rule_ids=("P018", "P024", "P032", "P055"),
     ),
     CoverageArea(
@@ -187,7 +191,8 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         manual=(
             "The self-assessment sheet describes sentence case for figure descriptions; "
             "if unsure, confirm the expected style with Graduate Studies. Also check "
-            "that figure part letters are consistently upper- or lowercase."
+            "that figure part letters are consistently upper- or lowercase, and that "
+            "entries are double-spaced with wrapped titles single-spaced."
         ),
         rule_ids=("P024", "P040", "P055"),
     ),

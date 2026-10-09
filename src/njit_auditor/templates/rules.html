@@ -91,7 +91,8 @@
 {% block content %}
 <h1>Rule Reference</h1>
 <p class="rules-intro">
-  This page lists the automated formatting checks used for PDF audits in this website.
+  This page lists formatting rules for PDF audits. Most have automated checks;
+  entries marked Manual review must be checked by hand.
   Click a rule ID in your audit results to jump directly to its entry.
   Use the filters below to find checks by topic or severity.
   <a href="/help">How to read these results</a>
@@ -137,7 +138,7 @@
 <div id="rule-count" class="filter-count" aria-live="polite" style="margin-bottom:0.75rem;"></div>
 
 <div class="section-header-rules">
-  <h2>Formatting checks</h2>
+  <h2>Formatting checks and manual review</h2>
   <span class="section-note">{{ total_student }} rules</span>
 </div>
 
@@ -155,6 +156,9 @@
     {% if rule.title %}— {{ rule.title }}{% endif %}
     {% if rule.is_experimental %}
     <span class="badge badge-experimental" style="font-size:0.75rem;vertical-align:middle;margin-left:0.4rem;">Experimental — opt-in only</span>
+    {% endif %}
+    {% if rule.manual_review_only %}
+    <span class="badge badge-experimental" style="font-size:0.75rem;vertical-align:middle;margin-left:0.4rem;">Manual review — no automated finding</span>
     {% endif %}
   </p>
   {% if rule.how_to_correct %}
