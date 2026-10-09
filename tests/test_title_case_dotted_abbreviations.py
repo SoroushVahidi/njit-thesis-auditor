@@ -5,9 +5,9 @@ Privacy-safe synthetic phrases only — no dissertation prose.
 
 from __future__ import annotations
 
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextLine
 from njit_auditor.rules.pdf_title_capitalization import check_apa_title_case_phrase
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextLine
 
 
 def _flagged(text: str) -> set[str]:
