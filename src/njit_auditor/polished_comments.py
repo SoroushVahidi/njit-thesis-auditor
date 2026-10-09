@@ -427,10 +427,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P017 figure/table captions ---
     ("P017", "unexpected_terminal_period"): (
-        "Likely problem: A {caption_type} caption on page {page} appears to end "
-        "with a terminal period where NJIT expects no ending punctuation for "
-        "this caption type. Remove the trailing period unless the caption is "
-        "written as a full sentence that requires one."
+        "Likely problem: A table title or List of Tables entry on page {page} "
+        "appears to end with a period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
         "Likely problem: A {caption_type} caption on page {page} appears to "
@@ -446,7 +444,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Likely problem: A table title on page {page} appears to violate "
         "NJIT title-case expectations. Capitalize the first word and major "
         "words; leave prepositions, conjunctions, and articles lowercase "
-        "where appropriate, and do not end table titles with a period."
+        "where appropriate."
     ),
     # --- P018 TOC/LoT/LoF alignment ---
     ("P018", "misaligned_page_number_column"): (
@@ -849,13 +847,15 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "earlier line."
     ),
     ("P021", "abstract_word_count_exceeded"): "",
-    ("P017", "unexpected_terminal_period"): "",
+    ("P017", "unexpected_terminal_period"): (
+        "Remove the final period from this table title or List of Tables entry."
+    ),
     ("P017", "missing_terminal_punctuation"): "",
     ("P017", "possible_sentence_case_issue"): "",
     ("P017", "possible_title_case_issue"): (
         "Edit the table title to title case: capitalize the first word and "
         "major words; leave articles, prepositions, and conjunctions lowercase "
-        "where appropriate. Do not end the table title with a period."
+        "where appropriate."
     ),
     ("P024", "toc_level_capitalization"): "",
     ("P024", "list_of_tables_title_case"): "",
@@ -1989,6 +1989,18 @@ def build_polished_comment(
 
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
+        return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P017" and issue == "unexpected_terminal_period":
+        subject = (
+            "List of Tables entry"
+            if safe_details.get("caption_context") == "list_of_tables"
+            else "table title"
+        )
+        body = (
+            f"Likely problem: A {subject} on page {_safe_page_label(page)} "
+            "appears to end with a period. Remove the final period."
+        )
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P020" and issue == "possible_title_capitalization_issue":

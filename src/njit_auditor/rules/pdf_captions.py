@@ -473,6 +473,13 @@ def _caption_finding(
         "confidence": confidence,
         "source_q_rule_id": _P017_Q_RULE_MAP.get((caption.context, issue_type), ""),
     }
+    if issue_type == "unexpected_terminal_period":
+        details["caption_context"] = caption.context
+        details["suggested_fix"] = (
+            "Remove the final period from this List of Tables entry."
+            if caption.context == "list_of_tables"
+            else "Remove the final period from this table title."
+        )
     if caption.bbox is not None:
         details["bbox"] = format_bbox_detail(caption.bbox)
     return AuditFinding(

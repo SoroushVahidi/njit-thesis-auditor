@@ -88,7 +88,7 @@ def test_sample_b_p020_page80_owned_as_table_title_not_generic_heading() -> None
     assert "table title" in surfaces
     assert "heading" not in surfaces
     assert "figure" not in surfaces
-    assert "period" in surfaces
+    assert "period" not in surfaces
     assert "prepositions" in surfaces or "conjunctions" in surfaces
 
     assert [f for f in view.findings if f.rule_id == "P020" and f.page == 71] == []

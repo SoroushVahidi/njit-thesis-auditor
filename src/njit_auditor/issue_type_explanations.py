@@ -593,8 +593,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "continuation line flush with the left margin."
     ),
     ("P017", "unexpected_terminal_period"): (
-        "This means a figure or table caption ends with a terminal period where "
-        "NJIT expects no ending punctuation for this caption type."
+        "This means a table title or List of Tables entry ends with a period "
+        "that should be removed."
     ),
     ("P017", "missing_terminal_punctuation"): (
         "This means a figure or table caption is missing terminal punctuation. "
@@ -607,8 +607,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P017", "possible_title_case_issue"): (
         "This means a table title may violate NJIT title-case expectations. "
         "Capitalize the first word and major words; leave prepositions, conjunctions, "
-        "and articles lowercase where appropriate, and do not end table titles "
-        "with a period."
+        "and articles lowercase where appropriate."
     ),
     ("P018", "misaligned_page_number_column"): (
         "This means a TOC or list entry page-number column does not align with "
