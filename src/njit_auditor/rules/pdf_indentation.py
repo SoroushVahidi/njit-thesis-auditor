@@ -739,20 +739,15 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                 if NEGATIVE_INDENT_IGNORE_PT <= indent_pt < STRONG_INDENT_THRESHOLD_PT:
                     # A line following an unfinished sentence is its
                     # continuation, even when PDF text grouping split it into
-                    # another paragraph. This covers bold run-in leads whose
-                    # following regular text wraps to the next physical line.
+                    # another paragraph: a new paragraph always comes after a
+                    # sentence ends (Ester, R015 feedback). This covers bold
+                    # run-in leads whose text wraps, and prose that resumes
+                    # after a displayed equation (the equation number or the
+                    # formula itself ends the previous "paragraph").
                     previous_text = (
                         paragraphs[idx - 1][-1].text.rstrip() if paragraphs[idx - 1] else ""
                     )
-                    previous_lead = paragraphs[idx - 1][0] if paragraphs[idx - 1] else None
-                    previous_starts_bold = bool(
-                        previous_lead and previous_lead.spans and previous_lead.spans[0].bold
-                    )
-                    if (
-                        previous_starts_bold
-                        and previous_text
-                        and not re.search(r"[.!?][\s\"')\]]*$", previous_text)
-                    ):
+                    if previous_text and not re.search(r"[.!?][\s\"')\]]*$", previous_text):
                         continue
                     existing = page_issue_findings.get("missing_later_indent")
                     current = AuditFinding(
