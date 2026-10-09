@@ -56,6 +56,15 @@ ENTRY_START_RE = re.compile(r"^[A-Za-z0-9(\[]")
 NUMERIC_ONLY_RE = re.compile(r"^(?:[0-9]+|[ivxlcdm]+)$", re.IGNORECASE)
 SECTION_NUMBER_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?[\s:]")
 SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)*$")
+# Lettered appendix subsections such as "A.1 …" / "B.2.3 …" (require at least one
+# ".digit" segment so a bare letter is not treated as a numbered level).
+LETTERED_SECTION_PREFIX_RE = re.compile(r"^([A-Z](?:\.\d+)+)\.?[\s:]")
+# Word-prefix TOC roots that sit at chapter / back-matter level.
+TOP_LEVEL_TOC_WORD_PREFIX_RE = re.compile(
+    r"^(APPENDIX|CHAPTER|REFERENCES|BIBLIOGRAPHY|ABSTRACT|"
+    r"ACKNOWLEDGE?MENTS?|DEDICATION|VITA|BIOGRAPHICAL\s+SKETCH)\b",
+    re.IGNORECASE,
+)
 LINE_PREVIEW_MAX_LEN = 80
 RIGHT_EDGE_TOLERANCE_PT = 10.0
 MIN_ENTRIES_FOR_DOT_STYLE = 4
@@ -997,16 +1006,32 @@ def group_toc_page_runs(contexts: list[TocPageContext]) -> list[TocPageRun]:
 
 
 def _parse_toc_hierarchy_level(cleaned_text: str) -> int | None:
-    """Return 1-based hierarchy depth for numbered section entries, None for others.
+    """Return 1-based hierarchy depth for structurally classified TOC entries.
 
-    "1 INTRODUCTION" → 1, "1.1 Background" → 2, "1.1.1 Detail" → 3.
-    Entries without a leading numeric section number (chapter titles, appendix
-    labels, etc.) all return None and are compared only against each other.
+    Numeric: ``"1 INTRODUCTION"`` → 1, ``"1.1 Background"`` → 2,
+    ``"1.1.1 Detail"`` → 3.
+
+    Lettered appendix subsections: ``"A.1 Bounds"`` → 2, ``"B.2.1 Note"`` → 3.
+
+    Word-prefix chapter / back-matter roots (``APPENDIX …``, ``CHAPTER …``,
+    ``REFERENCES``, …) → 1 so they are never peer-compared with lettered or
+    numeric subsections.
+
+    Unclassified titles return ``None`` and are excluded from indent-outlier
+    comparison (ambiguous hierarchy must not produce unsupported warnings).
     """
     m = SECTION_NUMBER_PREFIX_RE.match(cleaned_text)
-    if m is None:
-        return None
-    return m.group(1).count(".") + 1
+    if m is not None:
+        return m.group(1).count(".") + 1
+
+    m = LETTERED_SECTION_PREFIX_RE.match(cleaned_text)
+    if m is not None:
+        return m.group(1).count(".") + 1
+
+    if TOP_LEVEL_TOC_WORD_PREFIX_RE.match(cleaned_text):
+        return 1
+
+    return None
 
 
 def _find_hierarchy_indent_outliers(
@@ -1019,28 +1044,22 @@ def _find_hierarchy_indent_outliers(
     needs at least MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON entries before any
     outlier can be flagged, and the deviation must exceed HIERARCHY_INDENT_TOLERANCE_PT.
 
+    Unclassified (``None``-level) entries are never compared: mixing ambiguous
+    fragments, appendix roots, and lettered subsections as a single peer set
+    produced false positives on lettered-only TOC continuation pages.
+
     Returns a list of (entry, delta_pt) pairs for outliers, empty when none found.
     """
-    by_level: dict[int | None, list[TocEntryLine]] = {}
+    by_level: dict[int, list[TocEntryLine]] = {}
     for entry in entries:
         level = _parse_toc_hierarchy_level(entry.cleaned_text)
+        if level is None:
+            continue
         by_level.setdefault(level, []).append(entry)
 
-    has_named_levels = any(
-        lvl is not None and len(lvl_entries) >= MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON
-        for lvl, lvl_entries in by_level.items()
-    )
-
     outlier_pairs: list[tuple[TocEntryLine, float]] = []
-    for level, level_entries in by_level.items():
+    for level_entries in by_level.values():
         if len(level_entries) < MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON:
-            continue
-        # Skip unclassified (None-level) entries when the TOC has well-populated
-        # numbered levels. None-level entries are often PDF-split fragments whose
-        # x-coord reflects the title text start, not the section number — mixing
-        # them with numbered-level entries or with each other across hierarchy
-        # boundaries causes false positives.
-        if level is None and has_named_levels:
             continue
         indents = [e.indent_x for e in level_entries]
         med = median(indents)
