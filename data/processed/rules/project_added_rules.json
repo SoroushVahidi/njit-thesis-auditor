@@ -418,8 +418,8 @@
     "id": "P024",
     "section": "PDF TOC and list entry formatting",
     "question": "Do TOC/LoT/LoF entries follow expected capitalization and punctuation style?",
-    "rule_definition": "Heuristically detect obvious capitalization issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); List of Tables titles should use Title Case (Q065, public card R024D); List of Figures titles should use Title Case (Q074 slot, public card R024E; Ester 2026-10-05 superseded the earlier sentence-case reading and asked for distinct LoT/LoF codes). Terminal punctuation is owned by P053 (List of Tables), P054 (Table of Contents), and P040 (List of Figures).",
-    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, List of Tables=Title Case (R024D), List of Figures=Title Case (R024E).",
+    "rule_definition": "Heuristically detect obvious capitalization issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); TOC Level 3 entries should be sentence case (Q051, public card R018C); List of Tables titles should use Title Case (Q065, public card R024D); List of Figures titles should use Title Case (Q074 slot, public card R024E; Ester 2026-10-05 superseded the earlier sentence-case reading and asked for distinct LoT/LoF codes). Terminal punctuation is owned by P053 (List of Tables), P054 (Table of Contents), and P040 (List of Figures).",
+    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, Level 3=sentence case (R018C), List of Tables=Title Case (R024D), List of Figures=Title Case (R024E).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -430,10 +430,11 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
     "priority": "high",
-    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Skips ambiguous entries, short entries, and entries without enough words. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
+    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Ester Q051 TOC Level 3 sentence-case requirement; Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Level 3 emits only for complete, aligned entries with two ordinary noninitial capitalized words, or an exact two-word title whose second word is repeatedly lowercase in ordinary body prose. It abstains on ambiguous names, notation, and unsupported short titles. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
     "source_q_rule_ids": [
       "Q049",
       "Q050",
+      "Q051",
       "Q065",
       "Q074"
     ]

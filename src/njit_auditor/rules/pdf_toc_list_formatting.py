@@ -7,6 +7,7 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines;
         Titles Examples Level 1-5.docx; Self-Self Assessment Sheet.pdf
   - TOC Level 1 chapter/front-matter entries: ALL CAPS (Q049)
   - TOC Level 2 entries: Title Case (Q050)
+  - TOC Level 3 entries: Sentence case (Q051; clear Title Case only)
   - List of Tables titles: Title Case (Q065; public card R024D)
   - List of Figures titles: Title Case (Q074 slot; public card R024E)
 
@@ -21,12 +22,24 @@ Terminal punctuation is owned elsewhere: P053 (List of Tables), P054
 from __future__ import annotations
 
 import re
+import unicodedata
+from collections import Counter
+from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_layout import join_content_span_texts
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
+from njit_auditor.rules.pdf_heading_levels import (
+    _BODY_WORD_RE,
+    _document_proper_nouns,
+    _is_bold_line,
+    _keeps_capital,
+    _looks_like_title_case_violation,
+)
 from njit_auditor.rules.pdf_title_capitalization import (
     MINOR_WORDS,
     check_apa_title_case_phrase,
+    is_minor_word,
     looks_like_acronym,
     normalize_title_text,
     tokenize_title_words,
@@ -47,7 +60,9 @@ MIN_ENTRY_WORDS = 3
 # TOC level-classification patterns.
 _CHAPTER_RE = re.compile(r"^(?:chapter|appendix)\b", re.IGNORECASE)
 _LEVEL2_NUM_RE = re.compile(r"^[0-9]+\.[0-9]+(?:\s|$)")
-_LEVEL3_NUM_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+")
+_LEVEL3_TITLE_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+\s+(?P<title>.+)$")
+_DEEPER_NUM_RE = re.compile(r"^[0-9]+(?:\.[0-9]+){3,}")
+_SIMPLE_CAPITAL_WORD_RE = re.compile(r"^[A-Z][a-z]{2,}$")
 
 # List-entry prefix: "Table 1." / "Figure 2." etc.
 _LIST_PREFIX_RE = re.compile(
@@ -121,9 +136,11 @@ def _build_indent_clusters(entries: list[TocEntryLine]) -> list[float]:
 
 
 def _classify_toc_level(entry: TocEntryLine, indent_clusters: list[float]) -> int | None:
-    """Classify TOC entry level (1, 2, 3+) or None if ambiguous."""
+    """Classify TOC entry level (1, 2, 3) or None if ambiguous."""
     text = entry.cleaned_text
-    if _LEVEL3_NUM_RE.match(text):
+    if _DEEPER_NUM_RE.match(text):
+        return None
+    if _LEVEL3_TITLE_RE.match(text):
         return 3
     if _LEVEL2_NUM_RE.match(text):
         return 2
@@ -139,6 +156,79 @@ def _classify_toc_level(entry: TocEntryLine, indent_clusters: list[float]) -> in
         if abs(entry.indent_x - indent_clusters[0]) <= INDENT_CLUSTER_TOLERANCE_PT:
             return 1
     return None
+
+
+def _prose_case_counts(
+    pdf_document: PdfDocument, excluded_pages: set[int]
+) -> dict[str, tuple[int, int]]:
+    """Count lowercase and uppercase mid-sentence words in regular prose.
+
+    This supports only two-word titles, which have just one noninitial word.
+    A common lowercase prose word can establish its ordinary usage; a word
+    repeatedly capitalized in prose stays ambiguous and is never changed.
+    """
+    lowercase: Counter[str] = Counter()
+    uppercase: Counter[str] = Counter()
+    for page in pdf_document.pages:
+        if page.page_number in excluded_pages:
+            continue
+        for block in page.text_blocks:
+            for line in block.lines:
+                if _is_bold_line(line):
+                    continue
+                text = " ".join(join_content_span_texts(line.spans).split())
+                for match in _BODY_WORD_RE.finditer(text):
+                    before = text[: match.start()].rstrip()
+                    if not before or before.endswith((".", "?", "!", ":")):
+                        continue
+                    word = match.group(1)
+                    if word[0].islower():
+                        lowercase[word.lower()] += 1
+                    else:
+                        uppercase[word.lower()] += 1
+    return {
+        word: (count, uppercase[word])
+        for word, count in lowercase.items()
+    }
+
+
+def _level3_title_case_words(
+    title: str,
+    proper_nouns: frozenset[str],
+    prose_case_counts: dict[str, tuple[int, int]],
+) -> list[str]:
+    """Return only clear ordinary-word capitals in a title-case-like L3 title.
+
+    P027 supplies the established two-capital sentence-case signal and document
+    proper-name evidence. For an exact two-word title, repeated lowercase
+    body-prose usage supplies the missing independent signal. The token filter
+    abstains on notation, acronyms, dotted abbreviations, hyphenated terms,
+    and extraction debris.
+    """
+    words = title.split()
+    capitalized: list[str] = []
+    for index, word in enumerate(words[1:], start=1):
+        if _keeps_capital(words, index, proper_nouns):
+            continue
+        core = word.strip(".,;:!?\"'()[]")
+        core = unicodedata.normalize("NFKC", core)
+        if (
+            _SIMPLE_CAPITAL_WORD_RE.fullmatch(core)
+            and not is_minor_word(core)
+            and not looks_like_acronym(core)
+        ):
+            capitalized.append(core)
+    if len(capitalized) >= 2 and _looks_like_title_case_violation(title, proper_nouns):
+        return capitalized
+    if (
+        len(words) == 2
+        and len(capitalized) == 1
+        and not words[0].endswith((":", ";", ".", "?", "!"))
+    ):
+        lowercase_count, uppercase_count = prose_case_counts.get(capitalized[0].lower(), (0, 0))
+        if lowercase_count >= 3 and uppercase_count <= 1:
+            return capitalized
+    return []
 
 
 def _obvious_not_all_caps(text: str) -> bool:
@@ -162,19 +252,27 @@ def _obvious_not_all_caps(text: str) -> bool:
 def _check_toc_page(
     context: TocPageContext,
     entries: list[TocEntryLine],
+    proper_nouns: frozenset[str],
+    prose_case_counts: dict[str, tuple[int, int]],
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     if len(entries) < 3:
         return findings
     indent_clusters = _build_indent_clusters(entries)
+    page_number_edges = [
+        entry.page_number_right_x for entry in entries
+        if entry.page_number_token and entry.page_number_right_x is not None
+    ]
+    page_number_edge = median(page_number_edges) if len(page_number_edges) >= 3 else None
     for entry_index, entry in enumerate(entries):
         entry_text = _clean_entry_text(entry)
         if not entry_text or len(entry_text) < 8:
             continue
-        if len(tokenize_title_words(entry_text)) < MIN_ENTRY_WORDS:
-            continue
         level = _classify_toc_level(entry, indent_clusters)
         if level is None:
+            continue
+        min_words = 2 if level == 3 else MIN_ENTRY_WORDS
+        if len(tokenize_title_words(entry_text)) < min_words:
             continue
         if level == 1:
             if _obvious_not_all_caps(entry_text):
@@ -232,7 +330,47 @@ def _check_toc_page(
                         },
                     )
                 )
-        # Level 3+: do not enforce (no clear guideline for sentence-case TOC entries).
+        elif level == 3:
+            match = _LEVEL3_TITLE_RE.match(entry_text)
+            if (
+                match is None
+                or not entry.page_number_token
+                or entry.page_number_right_x is None
+                or page_number_edge is None
+                or abs(entry.page_number_right_x - page_number_edge) > 12.0
+            ):
+                continue
+            capitalized = _level3_title_case_words(
+                match.group("title"), proper_nouns, prose_case_counts
+            )
+            if not capitalized:
+                continue
+            findings.append(AuditFinding(
+                rule_id="P024",
+                severity=Severity.WARNING,
+                page=context.page.page_number,
+                message=(
+                    "A level-3 Table of Contents entry appears to use Title Case "
+                    "where NJIT requires sentence case."
+                ),
+                details={
+                    "page_number": str(context.page.page_number),
+                    "page_type": "table_of_contents",
+                    "issue_type": "toc_level_capitalization",
+                    "entry_level": "3",
+                    "entry_index": str(entry_index),
+                    "line_preview": entry.cleaned_text[:LINE_PREVIEW_MAX],
+                    "bbox": format_bbox_detail(entry.line.bbox),
+                    "expected_or_reason": "Level 3 TOC entries expected sentence case",
+                    "capitalized_major_word_count": str(len(capitalized)),
+                    "confidence": "medium",
+                    "source_q_rule_id": "Q051",
+                    "suggested_fix": (
+                        "Use sentence case: capitalize the first word and proper "
+                        "names; keep acronyms and technical notation."
+                    ),
+                },
+            ))
     return findings
 
 
@@ -370,10 +508,19 @@ def _check_list_title_case_page(
 def check_pdf_toc_list_formatting(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P024 warnings for TOC/LoT/LoF entry capitalization issues."""
     findings: list[AuditFinding] = []
-    for context in detect_toc_like_pages(pdf_document):
+    proper_nouns: frozenset[str] | None = None
+    prose_case_counts: dict[str, tuple[int, int]] | None = None
+    contexts = detect_toc_like_pages(pdf_document)
+    excluded_pages = {context.page.page_number for context in contexts}
+    for context in contexts:
         entries = extract_toc_logical_entry_lines(context)
         if context.page_type == "table_of_contents":
-            findings.extend(_check_toc_page(context, entries))
+            if proper_nouns is None:
+                proper_nouns = _document_proper_nouns(pdf_document)
+                prose_case_counts = _prose_case_counts(pdf_document, excluded_pages)
+            findings.extend(_check_toc_page(
+                context, entries, proper_nouns, prose_case_counts or {}
+            ))
         elif context.page_type in _LIST_TITLE_CASE_SPECS:
             findings.extend(_check_list_title_case_page(context, entries))
     return findings

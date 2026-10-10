@@ -651,7 +651,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ),
     ("P024", "toc_level_capitalization"): (
         "This means a Table of Contents entry may not follow NJIT capitalization "
-        "rules for its heading level."
+        "rules for its heading level: Level 1 uses ALL CAPS, Level 2 uses Title "
+        "Case, and Level 3 uses sentence case."
     ),
     ("P024", "list_of_tables_title_case"): (
         "This means a List of Tables entry may not use Title Case or may include "

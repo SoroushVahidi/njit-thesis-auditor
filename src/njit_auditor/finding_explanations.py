@@ -629,7 +629,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     # --- P024 TOC/LoT/LoF capitalization ---
     ("P024", "toc_level_capitalization"): (
         "A Table of Contents entry on this page may not follow NJIT capitalization "
-        "rules for its heading level (Level 1 = ALL CAPS, Level 2 = Title Case)."
+        "rules for its heading level (Level 1 = ALL CAPS, Level 2 = Title Case, "
+        "Level 3 = sentence case)."
     ),
     ("P024", "list_of_tables_title_case"): (
         "A List of Tables entry on this page may not use Title Case or may include "

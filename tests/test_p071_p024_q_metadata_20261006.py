@@ -40,7 +40,7 @@ def test_p024_declares_the_q_rows_its_detector_emits() -> None:
     from njit_auditor.rules import pdf_toc_list_formatting
 
     declared = _rule("P024")["source_q_rule_ids"]
-    assert declared == ["Q049", "Q050", "Q065", "Q074"]
+    assert declared == ["Q049", "Q050", "Q051", "Q065", "Q074"]
     source = inspect.getsource(pdf_toc_list_formatting)
     for q_id in declared:
         assert f'"{q_id}"' in source, q_id
