@@ -284,6 +284,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "NJIT requires body text to be double-spaced, except for tables, figure "
         "descriptions, bullet points, and multi-line titles."
     ),
+    ("P023", "multiline_body_heading_not_single_spaced"): (
+        "The highlighted lines of a numbered body heading on page {page} appear "
+        "to use the same double-spaced line pitch as the surrounding prose. "
+        "Multi-line titles must be single-spaced within the title."
+    ),
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
@@ -757,6 +762,10 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P023", "multiline_body_heading_not_single_spaced"): (
+        "Single-space the wrapped lines within this heading. Keep the normal "
+        "spacing between the heading and the body paragraph."
+    ),
     # P078 has two issue types; the rule-level remediation covers both, so a
     # pronoun finding told students to replace "paper"/"article". Give each
     # issue type only the half of the remediation that applies to it.

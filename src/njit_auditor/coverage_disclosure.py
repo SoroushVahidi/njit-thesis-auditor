@@ -202,11 +202,13 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         status="partial",
         checked=(
             "Double spacing of body text; first paragraph of a section not indented and "
-            "later paragraphs indented; unusually large blank gaps."
+            "later paragraphs indented; unusually large blank gaps; clearly double-spaced "
+            "wraps within numbered body headings."
         ),
         manual=(
             "Bullet lists single-spaced within a bullet and double-spaced between "
-            "bullets; multi-line titles single-spaced."
+            "bullets; multi-line titles without clear numbered-heading geometry "
+            "single-spaced."
         ),
         rule_ids=("P015", "P016", "P023"),
     ),
