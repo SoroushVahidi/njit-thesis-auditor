@@ -1215,8 +1215,7 @@ def _p020_title_case_comment(*, page: int | None, details: dict[str, str]) -> st
 def _p024_toc_level_comment(*, page: int | None, details: dict[str, str]) -> str:
     """Build the P024 toc_level_capitalization comment body.
 
-    Level 1 and Level 2 TOC entries are checked against different
-    capitalization rules (ALL CAPS vs. Title Case); branching on the
+    TOC levels use different capitalization rules; branching on the
     recorded `entry_level` keeps each finding's comment scoped to the rule
     that actually applies, instead of describing both rules generically.
     The flagged word itself is never quoted here.
@@ -1228,6 +1227,13 @@ def _p024_toc_level_comment(*, page: int | None, details: dict[str, str]) -> str
             f"Likely problem: A Level 1 Table of Contents entry on page {page_label} "
             "may not follow NJIT capitalization rules: Level 1 entries are expected "
             "to use ALL CAPS. Correct the entry to ALL CAPS."
+        )
+    if level == "3":
+        return (
+            f"Likely problem: A Level 3 Table of Contents title on page {page_label} "
+            "appears to use Title Case. Level 3 titles must use sentence case: "
+            "capitalize the first word and retain proper names, acronyms, and "
+            "technical notation where appropriate."
         )
     reason = details.get("expected_or_reason", "") or ""
     reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")

@@ -1,5 +1,12 @@
 # P024 TOC/List Entry Formatting Evaluation
 
+> Historical evaluation snapshot. Its statements that level-3 TOC entries are
+> skipped describe the earlier detector, not NJIT policy. Q051 already required
+> sentence case for level-3 TOC titles. The current P024 detector flags clear
+> numbered level-3 title-case patterns through the existing R018C public card;
+> ambiguous capitalization remains for manual review. The historical counts
+> below have not been recomputed for this update.
+
 ## Rule Summary
 
 **Rule ID:** P024  
