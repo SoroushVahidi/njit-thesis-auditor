@@ -156,12 +156,13 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         status="partial",
         checked=(
             "Heading and \"(Continued)\" headings; chapter titles in all caps; level-2 "
-            "titles in title case; wrapped titles with a large gap between their lines; "
+            "titles in title case; clear level-3 Title Case violations; wrapped titles "
+            "with a large gap between their lines; "
             "indentation; leaders; right-aligned page numbers in order."
         ),
         manual=(
             "Double spacing between entries, with wrapped titles fully single-spaced; "
-            "level-3 titles in sentence case; level-4 and level-5 titles not listed; "
+            "ambiguous level-3 sentence case; level-4 and level-5 titles not listed; "
             "each page number matches the page where the section begins."
         ),
         rule_ids=("P014", "P018", "P024", "P030", "P032", "P038", "P039", "P058", "P075"),
