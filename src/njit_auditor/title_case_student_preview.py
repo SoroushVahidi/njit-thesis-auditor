@@ -78,8 +78,10 @@ def _replace_whole_word(text: str, flagged_word: str, corrected_word: str) -> st
     """
     if not text or not flagged_word:
         return None
+    # Ligatures must count as letters so a fragment cannot replace inside
+    # "Clariﬁcation" / "Baﬄe" the way ASCII-only lookarounds allowed.
     pattern = re.compile(
-        rf"(?<![A-Za-z]){re.escape(flagged_word)}(?![A-Za-z])",
+        rf"(?<![A-Za-zﬀﬁﬂﬃﬄ]){re.escape(flagged_word)}(?![A-Za-zﬀﬁﬂﬃﬄ])",
         re.IGNORECASE,
     )
     if pattern.search(text) is None:

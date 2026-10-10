@@ -12,6 +12,11 @@ from njit_auditor.pdf_models import BBox, PdfTextLine, format_bbox_detail
 _BBOX_PARTS = 4
 
 
+# Keep lookarounds aligned with title-case tokenization so PDF ligatures
+# (ﬀ/ﬁ/ﬂ/ﬃ/ﬄ) count as letters and cannot host a short-token false match.
+_WORD_BOUNDARY_LETTER = r"A-Za-zﬀﬁﬂﬃﬄ"
+
+
 def _whole_word_match(target: str, haystack: str) -> re.Match[str] | None:
     """Find *target* as a standalone token in *haystack*.
 
@@ -23,7 +28,9 @@ def _whole_word_match(target: str, haystack: str) -> re.Match[str] | None:
     escaped = re.escape(target)
     if target[:1].isalpha() or target[-1:].isalpha():
         return re.search(
-            rf"(?<![A-Za-z]){escaped}(?![A-Za-z])", haystack, flags=re.IGNORECASE
+            rf"(?<![{_WORD_BOUNDARY_LETTER}]){escaped}(?![{_WORD_BOUNDARY_LETTER}])",
+            haystack,
+            flags=re.IGNORECASE,
         )
     return re.search(escaped, haystack, flags=re.IGNORECASE)
 _TOKEN_HIGHLIGHT_RULES: frozenset[tuple[str, str]] = frozenset(

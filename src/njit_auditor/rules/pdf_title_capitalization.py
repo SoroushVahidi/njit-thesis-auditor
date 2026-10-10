@@ -16,6 +16,7 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines; Titles Examples Leve
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from statistics import median
 
@@ -154,8 +155,16 @@ _SUBTITLE_SEP_RE = re.compile(r"[:–—]|--+")
 # Text allowed between a subtitle separator and the word it capitalizes.
 _SEP_LEAD_IN_RE = re.compile(r"[\s\"'“‘(\[]*")
 
+# Latin typographic ligatures commonly left un-normalized in PDF text layers.
+# They must count as letters; otherwise "Clariﬁcation" tokenizes as
+# ("Clari", "cation") and "Baﬄe" as ("Ba", "e").
+_PDF_LIGATURES = "ﬀﬁﬂﬃﬄ"
+_LETTER_CLASS = f"A-Za-z{_PDF_LIGATURES}"
+_LETTER_RUN = f"[{_LETTER_CLASS}'À-ɏ]*"
 # Word token: letter-started run, optionally joined by single hyphens.
-_WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
+_WORD_RE = re.compile(
+    rf"[{_LETTER_CLASS}]{_LETTER_RUN}(?:-[{_LETTER_CLASS}]{_LETTER_RUN})*"
+)
 
 # A bold line that is *only* a Level 3+ section number (e.g. "3.4.3"), on its own
 # line, immediately followed by the bold heading text. When the number and text
@@ -278,6 +287,25 @@ def looks_like_acronym(word: str) -> bool:
     return bool(_ACRONYM_RE.match(word))
 
 
+def _expected_capitalized_word(word: str) -> str:
+    """Return the student-facing capitalized form of *word*.
+
+    Ordinary letters are uppercased in place so corrected previews keep the
+    original token length and PDF coordinates. Leading typographic ligatures
+    have no single-character uppercase form (``ﬂ``.upper() is ``FL``), so those
+    tokens are NFKC-expanded before capitalization.
+    """
+    if not word:
+        return word
+    upper_first = word[0].upper()
+    if len(upper_first) == 1:
+        return upper_first + word[1:]
+    normalized = unicodedata.normalize("NFKC", word)
+    if not normalized:
+        return word
+    return normalized[0].upper() + normalized[1:]
+
+
 def _should_skip_word(word: str) -> bool:
     """Return True if the word contains math/digit/equation notation — skip it."""
     return bool(_SKIP_WORD_RE.search(word))
@@ -371,20 +399,36 @@ def _corrected_preview(
 
     Issue positions index the word tokens of *check_text*; the preview must be
     a prefix of it. Returns "" when the correction cannot be placed safely.
+    Ligature expansion may change token length; splice from right to left so
+    later offsets stay valid, then keep at least the original preview window.
     """
     if not line_preview or not check_text.startswith(line_preview):
         return ""
     words = _words_with_sep_info(check_text)
-    corrected = list(check_text)
+    replacements: list[tuple[int, int, str]] = []
     for issue in issues:
         try:
             word, _sep, start, end = words[int(issue["position"])]
         except (KeyError, ValueError, IndexError):
             return ""
-        if word != issue["word"] or len(issue["expected"]) != end - start:
+        expected = issue["expected"]
+        if word != issue["word"] or not expected:
             return ""
-        corrected[start:end] = issue["expected"]
-    return "".join(corrected)[: len(line_preview)]
+        if len(expected) != end - start and expected != _expected_capitalized_word(word):
+            return ""
+        replacements.append((start, end, expected))
+    corrected = check_text
+    length_delta = 0
+    for start, end, expected in sorted(replacements, reverse=True):
+        length_delta += len(expected) - (end - start)
+        corrected = corrected[:start] + expected + corrected[end:]
+    # Preserve the caller's preview window unless ligature expansion grew a
+    # corrected token that would otherwise be clipped mid-word.
+    preview_len = len(line_preview)
+    if length_delta > 0:
+        preview_len = min(len(corrected), max(preview_len, preview_len + length_delta))
+        preview_len = min(preview_len, MAX_PREVIEW_LEN)
+    return corrected[:preview_len]
 
 
 def check_apa_title_case_phrase(
@@ -465,7 +509,7 @@ def check_apa_title_case_phrase(
                     "position": str(idx),
                     "reason": reason,
                     "confidence": confidence,
-                    "expected": word[0].upper() + word[1:],
+                    "expected": _expected_capitalized_word(word),
                 }
             )
 

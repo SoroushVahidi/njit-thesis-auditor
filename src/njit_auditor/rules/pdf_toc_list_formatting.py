@@ -60,8 +60,6 @@ _LEADER_STRIP_RE = re.compile(r"\s*(?:\.\s*){2,}$")
 
 _TERMINAL_PERIOD_RE = re.compile(r"\.\s*$")
 
-_WORD_RE = re.compile(r"[A-Za-z][A-Za-z'À-ɏ]*(?:-[A-Za-z][A-Za-z'À-ɏ]*)*")
-
 _SCIENTIFIC_SEQUENCE_RE = re.compile(r"\b[A-Z]{4,}\b")
 _GLUED_SCIENTIFIC_TOKEN_RE = re.compile(r"\b[a-z]{2,}[A-Z][A-Za-z]*")
 _SCIENCE_NOMENCLATURE_RE = re.compile(
@@ -145,7 +143,7 @@ def _classify_toc_level(entry: TocEntryLine, indent_clusters: list[float]) -> in
 
 def _obvious_not_all_caps(text: str) -> bool:
     """Return True if text has >=2 lowercase-starting major words (implies not ALL CAPS)."""
-    words = _WORD_RE.findall(text)
+    words = tokenize_title_words(text)
     lowercase_major = [
         w for w in words
         if len(w) > 3
