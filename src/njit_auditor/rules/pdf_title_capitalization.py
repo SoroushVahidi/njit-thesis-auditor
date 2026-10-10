@@ -385,11 +385,30 @@ def _is_statistical_notation_word(text: str, word: str, start: int, end: int) ->
 
 _HYPHEN_CHARS = "-‐‑‒–—"
 
+# Dotted Latin abbreviations (i.e., e.g., n.b., et al.) must not be split into
+# independent title-case words. Match the whole abbreviation span, then skip
+# any word token fully inside it.
+_DOTTED_ABBREV_SPAN_RE = re.compile(
+    r"(?i)\b(?:[a-z]{1,3}(?:\.[a-z]{1,3})+\.?|et\s+al\.?)\b"
+)
+
 
 def _has_recent_hyphen_before(text: str, start: int) -> bool:
     """True when only extraction whitespace separates this word from a hyphen."""
     prefix = text[:start].rstrip()
     return bool(prefix) and prefix[-1] in _HYPHEN_CHARS
+
+
+def _dotted_abbrev_spans(text: str) -> list[tuple[int, int]]:
+    """Return character spans of dotted abbreviations such as ``i.e.`` / ``e.g.``."""
+    return [(m.start(), m.end()) for m in _DOTTED_ABBREV_SPAN_RE.finditer(text)]
+
+
+def _is_dotted_abbrev_component(
+    spans: list[tuple[int, int]], start: int, end: int
+) -> bool:
+    """Return True when the word token lies entirely inside a dotted abbreviation."""
+    return any(span_start <= start and end <= span_end for span_start, span_end in spans)
 
 
 def _corrected_preview(
@@ -451,6 +470,7 @@ def check_apa_title_case_phrase(
     if len(words_with_info) < MIN_WORDS_FOR_TITLE_CHECK:
         return []
 
+    abbrev_spans = _dotted_abbrev_spans(text)
     issues: list[dict[str, str]] = []
 
     for idx, (word, after_sep, start, end) in enumerate(words_with_info):
@@ -469,6 +489,10 @@ def check_apa_title_case_phrase(
 
         # Skip letter fragments glued to digits (10k / 5k / 1k).
         if _is_digit_adjacent_unit_token(text, start, end):
+            continue
+
+        # Skip components of dotted abbreviations (i.e., e.g., et al.).
+        if _is_dotted_abbrev_component(abbrev_spans, start, end):
             continue
 
         # Skip statistical/math notation (n, p, r, R², B, SE, t, F, df, …).
