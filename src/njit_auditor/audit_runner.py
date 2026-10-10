@@ -63,6 +63,7 @@ from njit_auditor.rules.pdf_biosketch_publication_layout import (
 from njit_auditor.rules.pdf_biosketch_publication_ordering import (
     check_pdf_biosketch_publication_ordering,
 )
+from njit_auditor.rules.pdf_body_heading_spacing import check_pdf_body_heading_spacing
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import (
@@ -329,6 +330,7 @@ def collect_pdf_layout_findings(
     findings.extend(run_check(check_pdf_biosketch_bullet_spacing, content_doc))
     findings.extend(run_check(check_pdf_spacing, content_doc))
     findings.extend(run_check(check_pdf_body_spacing, content_doc))
+    findings.extend(run_check(check_pdf_body_heading_spacing, content_doc))
     findings.extend(run_check(check_pdf_font_compliance, content_doc))
     findings.extend(run_check(check_pdf_captions, content_doc))
     findings.extend(run_check(check_pdf_figure_table_layout, content_doc))

@@ -400,7 +400,7 @@
     "id": "P023",
     "section": "PDF body text double-spacing",
     "question": "Is body text double-spaced, except for tables, figure descriptions, bullet points, and multi-line titles?",
-    "rule_definition": "Body text paragraphs must be double-spaced (line spacing ≥ ~1.8–2.4× font size). This rule measures the median top-of-bbox-to-top-of-bbox distance between consecutive body-text lines and flags pages where the median ratio is below 1.55× the estimated body font size. TOC, list, and references pages are excluded. Heading, caption, page-number, bullet, and short lines are excluded per page. Minimum 5 body lines and 3 suspicious gaps required before a warning is emitted.",
+    "rule_definition": "Body text paragraphs must be double-spaced (line spacing ≥ ~1.8–2.4× font size), while wrapped body headings must be single-spaced internally. The body-text check measures consecutive prose lines and flags pages where the median ratio is below 1.55× the estimated body font size. A separate conservative check flags clearly double-spaced wraps within numbered level-2 and level-3 body headings using matching typography and page-specific prose pitch. TOC, list, and references pages are excluded from these body checks.",
     "remediation": "Apply double spacing to body text. Keep tables, figure descriptions, bullet points, and multi-line titles single-spaced.",
     "severity": "warning",
     "source_file": "project_added",
@@ -412,7 +412,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_body_spacing",
     "priority": "high",
-    "notes": "Conservative heuristic. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx (body text must be double-spaced); Self-Self Assessment Sheet.pdf (double-spacing checklist item). Threshold 1.55× is between single (≈1.1–1.3×) and double (≈2.0–2.3×) spacing at 12pt. One finding per affected page. Paragraph-break gaps (ratio > 4.0×) are excluded from spacing analysis."
+    "notes": "Conservative heuristics. Guideline basis: Thesis and Dissertation Formatting Guidelines (WIP).docx and Self-Self Assessment Sheet.pdf for double-spaced prose; Titles Examples Level 1 to 5.docx and Ester's reviewed body-heading annotation for single-spaced title wraps. The prose detector retains its 1.55× threshold, one-finding-per-page policy, and paragraph-break exclusion. The companion pdf_body_heading_spacing module checks only high-confidence numbered level-2 and level-3 internal wraps and abstains on ambiguous grouping."
   },
   {
     "id": "P024",
