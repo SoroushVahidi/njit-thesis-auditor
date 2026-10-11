@@ -63,6 +63,7 @@ _BODY_CHAPTER_HEADING_RE = re.compile(r"^(?:CHAPTER|APPENDIX)\s+[\dA-Z]")
 _SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+$")
 _ALGORITHM_HEADING_RE = re.compile(r"^algorithm\s*\d*[:.]?", re.IGNORECASE)
 _CODELIKE_CUE_RE = re.compile(r"(?:Input:|range\(|elseif|until|[{}<>])")
+_MONOSPACE_FONT_MARKERS = ("courier", "cmtt", "inconsolata", "mono")
 
 
 def first_text_x(line: PdfTextLine) -> float:
@@ -581,8 +582,55 @@ def _paragraph_is_algorithm_or_code_like(paragraph: list[PdfTextLine]) -> bool:
         return False
     if _ALGORITHM_HEADING_RE.match(line_texts[0]):
         return True
+    # Source-code comments can read like ordinary lowercase prose after PDF
+    # extraction. A multi-line typewriter-font block is still code, even when
+    # its wrapped comment has no syntax token on the first line.
+    monospace_lines = sum(
+        1
+        for line in paragraph
+        if line.spans
+        and any(
+            marker in (line.spans[0].font or "").lower()
+            for marker in _MONOSPACE_FONT_MARKERS
+        )
+    )
+    if monospace_lines >= 2 and monospace_lines * 2 >= len(paragraph):
+        return True
     cue_lines = sum(1 for text in line_texts if _CODELIKE_CUE_RE.search(text))
     return cue_lines >= 2
+
+
+def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
+    """Recover a paragraph opener's printed left edge from split PDF runs.
+
+    The grouping pass only uses this correction when it can reconnect a line
+    to the paragraph above. A line after a displayed equation cannot join
+    across that gap, but its short same-row prefix still proves that the
+    apparent indent belongs to an extraction fragment, not the printed row.
+    """
+    first = paragraph[0]
+    raw_lines = sorted(
+        (line for block in page.text_blocks for line in block.lines),
+        key=lambda line: (line.bbox.y0, line.bbox.x0),
+    )
+    for index, line in enumerate(raw_lines):
+        if line.bbox.y0 == first.bbox.y0 and line.bbox.x0 == first.bbox.x0:
+            return _effective_row_start_x(raw_lines, index)
+    return first.bbox.x0
+
+
+def _follows_completed_adjacent_paragraph(
+    paragraphs: list[list[PdfTextLine]], index: int
+) -> bool:
+    """A nearby new paragraph after terminal punctuation is not a clause continuation."""
+    if index == 0:
+        return False
+    previous = paragraphs[index - 1][-1]
+    current = paragraphs[index][0]
+    gap = current.bbox.y0 - previous.bbox.y1
+    return gap <= MAX_PARAGRAPH_GAP_PT and bool(
+        re.search(r"[.!?][\s\"')\]]*$", previous.text.rstrip())
+    )
 
 
 def _is_likely_expected_indent(indent_pt: float) -> bool:
@@ -686,7 +734,11 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                 and _paragraph_starts_like_continuation(paragraph)
                 and not _paragraph_starts_like_bracketed_marker(paragraph)
                 and not _paragraph_is_algorithm_or_code_like(paragraph)
+                and not _follows_completed_adjacent_paragraph(paragraphs, idx)
                 and indent_pt >= STRONG_INDENT_THRESHOLD_PT
+                and _first_row_start_x(page, paragraph)
+                - median(first_text_x(line) for line in paragraph[1:])
+                >= STRONG_INDENT_THRESHOLD_PT
             ):
                 current = AuditFinding(
                     rule_id="P015",
