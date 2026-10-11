@@ -128,6 +128,19 @@ def test_unnumbered_bold_run_in_heading_reports_finding() -> None:
     assert findings[0].details["bbox"] == "108.0,220.0,280.0,232.0"
 
 
+def test_run_in_heading_with_wider_word_spacing_remains_connected() -> None:
+    lead = _bold_line(
+        "Synthetic Comparison Discussion Heading", x0=108.0, x1=327.9, y0=220.0, y1=232.0
+    )
+    tail = _regular_line(
+        "continues in regular style on the same row", x0=345.2, x1=540.0, y0=220.0, y1=232.0
+    )
+    doc = _doc(_page(12, _block(lead, tail, *_following_body(244.0))))
+    assert _issue_types(check_pdf_unnumbered_bold_heading(doc)) == [
+        "bold_heading_without_section_number"
+    ]
+
+
 def test_regular_sentence_with_bold_math_symbol_is_not_run_in_heading() -> None:
     lead = _line(
         "Given a synthetic direction vector v",

@@ -19,7 +19,7 @@ from njit_auditor.pdf_models import (
     PdfTextLine,
     PdfTextSpan,
 )
-from njit_auditor.rules.pdf_indentation import check_pdf_indentation
+from njit_auditor.rules.pdf_indentation import _effective_row_start_x, check_pdf_indentation
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _BODY_TEXT = "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod."
@@ -29,6 +29,8 @@ def _span(
     text: str,
     *,
     bold: bool = False,
+    italic: bool = False,
+    font: str | None = None,
     x0: float = 108.0,
     x1: float = 504.0,
     y0: float = 50.0,
@@ -36,10 +38,10 @@ def _span(
 ) -> PdfTextSpan:
     return PdfTextSpan(
         text=text,
-        font="TimesNewRomanPSMT-Bold" if bold else "TimesNewRomanPSMT",
+        font=font or ("TimesNewRomanPSMT-Bold" if bold else "TimesNewRomanPSMT"),
         size=12.0,
         bold=bold,
-        italic=False,
+        italic=italic,
         bbox=BBox(x0=x0, y0=y0, x1=x1, y1=y1),
     )
 
@@ -52,8 +54,10 @@ def _line(
     y0: float = 50.0,
     y1: float = 62.0,
     bold: bool = False,
+    italic: bool = False,
+    font: str | None = None,
 ) -> PdfTextLine:
-    sp = _span(text, bold=bold, x0=x0, x1=x1, y0=y0, y1=y1)
+    sp = _span(text, bold=bold, italic=italic, font=font, x0=x0, x1=x1, y0=y0, y1=y1)
     return PdfTextLine(
         text=text,
         bbox=BBox(x0=x0, y0=y0, x1=x1, y1=y1),
@@ -350,6 +354,425 @@ def test_p015_does_not_flag_flush_left_continuation_line() -> None:
         and f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
     ]
     assert not findings
+
+
+@pytest.mark.parametrize(
+    "fragment_x0, fragment_x1, font, bold",
+    [
+        (108.0, 120.0, "Symbol", False),
+        (120.0, 140.0, "Symbol", False),
+        (108.0, 140.0, None, True),
+    ],
+)
+def test_p015_still_flags_indent_beside_unrelated_short_margin_fragment(
+    fragment_x0: float, fragment_x1: float, font: str | None, bold: bool
+) -> None:
+    """A discarded label, including one touching the prose, is not its prefix."""
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(_BODY_TEXT, x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=170.0,
+            y1=182.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=184.0, y1=196.0),
+        _line(_BODY_TEXT, x0=108.0, y0=198.0, y1=210.0),
+    ]
+    margin_fragment = _line(
+        "Eq.", x0=fragment_x0, x1=fragment_x1, y0=170.0, y1=182.0, font=font, bold=bold
+    )
+    doc = _doc(_page(20, _block(*opening), _block(margin_fragment), _block(*continuation)))
+    findings = check_pdf_indentation(doc)
+    assert any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in findings
+    )
+
+
+def test_p015_close_disconnected_fragment_cannot_rejoin_paragraph() -> None:
+    """Row correction during grouping must not hide a nearby real indent."""
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line("The formula describes the quantity,", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    label = _line("Eq.", x0=108.0, x1=140.0, y0=128.0, y1=140.0)
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(label), _block(*continuation)))
+    assert any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize(
+    "fragment, fragment_x0, fragment_x1, font",
+    [
+        ("and", 108.0, 120.0, None),  # 24-point gap, same font
+        ("where", 108.0, 131.0, None),  # just beyond the 12-point limit
+        ("and", 50.0, 120.0, None),  # distant left edge and gap
+        ("and", 125.0, 140.0, None),  # close edge, wrong body margin
+        ("where", 108.0, 140.0, "CourierNew"),  # near, but different font
+    ],
+)
+def test_p015_disconnected_lowercase_fragment_cannot_rejoin_during_grouping(
+    fragment: str, fragment_x0: float, fragment_x1: float, font: str | None
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line("The formula describes the quantity,", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    margin_fragment = _line(
+        fragment, x0=fragment_x0, x1=fragment_x1, y0=128.0, y1=140.0, font=font
+    )
+    doc = _doc(_page(20, _block(*opening), _block(margin_fragment), _block(*continuation)))
+    assert any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+
+
+def test_p015_connected_lowercase_prefix_rejoins_during_grouping() -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line("The formula describes the quantity,", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    prefix = _line("where q", x0=108.0, x1=140.0, y0=128.0, y1=140.0, italic=True)
+    continuation = [
+        _line(
+            "denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(prefix), _block(*continuation)))
+    assert not any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("fragment_x1", [120.0, 131.0])
+def test_p015_disconnected_lowercase_fragment_cannot_suppress_final_check(
+    fragment_x1: float,
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(_BODY_TEXT, x0=108.0, y0=108.0, y1=120.0),
+    ]
+    prefix = _line("and", x0=108.0, x1=fragment_x1, y0=170.0, y1=182.0)
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=170.0,
+            y1=182.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=184.0, y1=196.0),
+        _line(_BODY_TEXT, x0=108.0, y0=198.0, y1=210.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(prefix), _block(*continuation)))
+    assert any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("same_paragraph_gap", [True, False])
+@pytest.mark.parametrize("fragment_gap", [12.0, 13.0])
+@pytest.mark.parametrize("same_font", [True, False])
+def test_p015_fragment_connectivity_boundary_in_both_paths(
+    same_paragraph_gap: bool, fragment_gap: float, same_font: bool
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(
+            "The formula describes the quantity,",
+            x0=108.0,
+            y0=108.0,
+            y1=120.0,
+        ),
+    ]
+    first_y = 128.0 if same_paragraph_gap else 170.0
+    prefix = _line(
+        "where q",
+        x0=108.0,
+        x1=144.0 - fragment_gap,
+        y0=first_y,
+        y1=first_y + 12.0,
+        italic=True,
+        font=None if same_font else "CourierNew",
+    )
+    continuation = [
+        _line(
+            "denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=first_y,
+            y1=first_y + 12.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=first_y + 14.0, y1=first_y + 26.0),
+        _line(_BODY_TEXT, x0=108.0, y0=first_y + 28.0, y1=first_y + 40.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(prefix), _block(*continuation)))
+    flagged = any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+    assert flagged == (fragment_gap > 12.0 or not same_font)
+
+
+@pytest.mark.parametrize("same_paragraph_gap", [True, False])
+@pytest.mark.parametrize("left_gap", [6.0, 16.0])
+@pytest.mark.parametrize("same_font", [True, False])
+def test_p015_multifragment_prefix_requires_a_connected_chain_to_body_margin(
+    same_paragraph_gap: bool, left_gap: float, same_font: bool
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line("The formula describes the quantity,", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    first_y = 128.0 if same_paragraph_gap else 170.0
+    left = _line(
+        "where the",
+        x0=108.0,
+        x1=166.0 - left_gap,
+        y0=first_y,
+        y1=first_y + 12.0,
+        italic=True,
+        font=None if same_font else "CourierNew",
+    )
+    middle = _line("value", x0=166.0, x1=190.0, y0=first_y, y1=first_y + 12.0)
+    continuation = [
+        _line(
+            "denotes the closest point on the surface in this test.",
+            x0=190.0,
+            y0=first_y,
+            y1=first_y + 12.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=first_y + 14.0, y1=first_y + 26.0),
+        _line(_BODY_TEXT, x0=108.0, y0=first_y + 28.0, y1=first_y + 40.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(left), _block(middle), _block(*continuation)))
+    flagged = any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+    assert flagged == (left_gap > 12.0 or not same_font)
+
+
+def test_p015_noncontinuation_row_retains_connected_extraction_prefix() -> None:
+    prefix = _line("Model", x0=108.0, x1=155.4, y0=80.0, y1=92.0)
+    following = _line(
+        "Additional synthetic content on the same physical row.",
+        x0=168.8,
+        y0=80.0,
+        y1=92.0,
+    )
+    assert _effective_row_start_x([prefix, following], 1, body_x=108.0) == 108.0
+
+
+def test_p015_suppresses_connected_split_continuation_prefix() -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(_BODY_TEXT, x0=108.0, y0=108.0, y1=120.0),
+    ]
+    # Italic math and regular prose share a font family but do not get merged
+    # into one extracted line by the same-style row merger.
+    prefix = _line("where q", x0=108.0, x1=140.0, y0=170.0, y1=182.0, italic=True)
+    suffix = [
+        _line(
+            "denotes the closest point on the surface in this test.", x0=144.0, y0=170.0, y1=182.0
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=184.0, y1=196.0),
+        _line(_BODY_TEXT, x0=108.0, y0=198.0, y1=210.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(prefix), _block(*suffix)))
+    assert not any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("font", ["CourierNew", "MonotypeCorsiva"])
+def test_p015_still_flags_indented_continuation_in_ordinary_fonted_prose(font: str) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(_BODY_TEXT, x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=170.0,
+            y1=182.0,
+            font=font,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=184.0, y1=196.0, font=font),
+        _line(_BODY_TEXT, x0=108.0, y0=198.0, y1=210.0, font=font),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*continuation)))
+    assert any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
+def test_p015_monospace_comment_with_code_statements_is_not_body_prose() -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(_BODY_TEXT, x0=108.0, y0=108.0, y1=120.0),
+    ]
+    code = [
+        _line(
+            "where the signal is recorded for each sample",
+            x0=144.0,
+            y0=170.0,
+            y1=182.0,
+            font="CMTT10",
+        ),
+        _line("value=signal; % calculate", x0=108.0, y0=184.0, y1=196.0, font="CMTT10"),
+        _line("plot(value);", x0=108.0, y0=198.0, y1=210.0, font="CMTT10"),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*code)))
+    assert not any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("abbreviation", ["Eq.", "Fig.", "e.g.", "i.e."])
+def test_p015_does_not_treat_abbreviation_period_as_completed_sentence(
+    abbreviation: str,
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(f"The quantity is described by {abbreviation}", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*continuation)))
+    assert any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize(
+    "ending",
+    ["et al.", "etc.", "cf.", "vs.", "Dr.", "U.S.", "et seq.", "ibid.", 'et al.")'],
+)
+def test_p015_ambiguous_abbreviation_period_preserves_continuation_finding(
+    ending: str,
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(f"The quantity is described by {ending}", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*continuation)))
+    assert any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("ending", ["the observation.", "et al.", "etc."])
+def test_p015_completed_paragraph_with_capitalized_next_sentence_is_not_continuation(
+    ending: str,
+) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(f"The quantity is described by {ending}", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    next_paragraph = [
+        _line(
+            "Another observation starts a new paragraph in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*next_paragraph)))
+    assert not any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("quoted_question", ['"Why?"', '"Stop!"'])
+def test_p015_quoted_punctuation_does_not_complete_sentence(quoted_question: str) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(f"The reviewer asked {quoted_question}", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line("she repeated in the follow-up discussion.", x0=144.0, y0=128.0, y1=140.0),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*continuation)))
+    assert any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
 
 
 @pytest.mark.parametrize(
