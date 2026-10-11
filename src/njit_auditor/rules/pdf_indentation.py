@@ -76,7 +76,15 @@ _MONOSPACE_FONT_FAMILIES = (
 _SOURCE_CODE_STATEMENT_RE = re.compile(
     r"^\s*(?:[A-Za-z_]\w*\s*=[^=]|[A-Za-z_]\w*\s*\(.*\)\s*;|[%#])"
 )
-_NONTERMINAL_ABBREVIATION_RE = re.compile(r"\b(?:Eq|Fig|Sec|e\.g|i\.e)\.$", re.IGNORECASE)
+# A final period after one of these forms is ambiguous: it can terminate a
+# sentence, or it can belong only to the abbreviation. The adjacent-paragraph
+# exception requires unambiguous sentence-ending evidence. Initialisms and
+# dotted forms (e.g. U.S. and i.e.) are handled as a class rather than by name.
+_AMBIGUOUS_PERIOD_ENDING_RE = re.compile(
+    r"\b(?:Eq|Eqs|Fig|Figs|Sec|Secs|cf|vs|etc|al|seq|ibid|viz|Dr|Mr|Mrs|Ms|Prof|No|Vol|p|pp|approx|Dept|St|Jr|Sr)\."
+    r"$|\b(?:[A-Za-z]\.){2,}$",
+    re.IGNORECASE,
+)
 MAX_CONTINUATION_PREFIX_GAP_PT = 12.0
 
 
@@ -193,7 +201,9 @@ def _is_run_in_heading_lead(candidate: PdfTextLine, following: PdfTextLine) -> b
 _ROW_REMNANT_SEARCH_WINDOW = 8
 
 
-def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
+def _effective_row_start_x(
+    raw_lines: list[PdfTextLine], index: int, body_x: float | None = None
+) -> float:
     """Return the true visual left edge of a usable line's printed row.
 
     An inline displayed equation, subscript, or superscript can split one
@@ -205,12 +215,13 @@ def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
     measurement then read that position as a real first-line indent, when it
     is really just where the dropped prefix stopped.
 
-    This scans a bounded neighborhood of *raw_lines* (sorted by (y0, x0),
-    unfiltered) around *index* for fragments that (a) fail usability only for
-    being short/symbol-heavy, (b) substantially overlap this line's vertical
-    extent, and (c) start to its left -- and returns the leftmost such x0. It
-    never looks at or changes a fragment's text -- only which x0
-    grouping/indent code sees for the surviving usable line.
+    Scan a bounded neighborhood of *raw_lines* (sorted by (y0, x0),
+    unfiltered) for a chain of fragments connected to this line's left edge.
+    An equation may split one row into several short pieces, so a genuine
+    leftmost prefix need not touch the final usable piece directly. Every link
+    must satisfy the same connectivity gate, and every piece must overlap the
+    original row. When a body margin is known, only a reachable prefix at
+    that margin can change the row start.
 
     The same window also covers a second, distinct source case: a bold
     run-in heading sharing this line's row (see `_is_run_in_heading_lead`).
@@ -220,43 +231,31 @@ def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
     the run-in heading opens, not a fresh paragraph starting mid-row.
     """
     line = raw_lines[index]
-    x0 = line.bbox.x0
     lo = max(0, index - _ROW_REMNANT_SEARCH_WINDOW)
     hi = min(len(raw_lines), index + _ROW_REMNANT_SEARCH_WINDOW + 1)
-    for i in range(lo, hi):
-        if i == index:
-            continue
-        candidate = raw_lines[i]
-        if candidate.bbox.x0 >= x0:
-            continue
-        if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
-            continue
-        if _is_run_in_heading_lead(candidate, line):
-            # A bold run-in heading's own text can span most of the column
-            # width before the regular continuation starts -- unlike a
-            # dropped subscript/equation remnant, this is not bounded by
-            # MAX_ROW_REMNANT_ABSORPTION_GAP_PT (calibrated for short
-            # discarded fragments, not a full heading phrase). Same-row
-            # vertical overlap plus the bold-to-regular style transition is
-            # itself the reliable signal here.
-            x0 = candidate.bbox.x0
-            continue
-        if line.bbox.x0 - candidate.bbox.x0 > MAX_ROW_REMNANT_ABSORPTION_GAP_PT:
-            continue
-        if not _is_short_extraction_remnant(candidate):
-            continue
-        # The grouping pass can use this x0 to reconnect a close line to the
-        # preceding paragraph. For a lowercase-led line, a stray equation
-        # label must not erase a real continuation indent before the later
-        # first-row check has a chance to inspect it.
-        if _paragraph_starts_like_continuation([line]) and not (
-            _paragraph_starts_like_continuation([candidate])
-            and not candidate.text.rstrip().endswith((".", "!", "?"))
-            and _shares_font_family(candidate, line)
-        ):
-            continue
-        x0 = candidate.bbox.x0
-    return x0
+    connected = {index}
+    pending = [index]
+    while pending:
+        following = raw_lines[pending.pop()]
+        for candidate_index in range(lo, hi):
+            if candidate_index in connected:
+                continue
+            candidate = raw_lines[candidate_index]
+            if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
+                continue
+            if _is_connected_row_prefix(candidate, following):
+                connected.add(candidate_index)
+                pending.append(candidate_index)
+    starts = [
+        raw_lines[candidate_index].bbox.x0
+        for candidate_index in connected
+        if candidate_index != index
+        and (
+            body_x is None
+            or abs(raw_lines[candidate_index].bbox.x0 - body_x) <= INDENT_TOLERANCE_PT
+        )
+    ]
+    return min(starts, default=line.bbox.x0)
 
 
 def _has_page_heading_in(page: PdfPage, headings: set[str]) -> bool:
@@ -445,19 +444,15 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
     raw_lines: list[PdfTextLine] = [line for block in page.text_blocks for line in block.lines]
     raw_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
 
-    # A candidate row-remnant-corrected x0 per usable line, computed once from
-    # the unfiltered raw layout. This is deliberately *not* applied here: a
-    # candidate is only trusted in the main loop below, and only when it is
-    # the difference between reconnecting to the paragraph directly above and
-    # not -- never as an unconditional geometry rewrite. See the loop for why.
-    candidate_x0: dict[tuple[float, float], float] = {}
+    # Keep each usable line's raw index so a candidate can be checked against
+    # the actual paragraph body margin when a grouping break is encountered.
+    # That is the same independent anchor used by the final detector.
+    raw_index: dict[tuple[float, float], int] = {}
     lines: list[PdfTextLine] = []
     for index, line in enumerate(raw_lines):
         if not _is_usable_paragraph_line(line):
             continue
-        effective_x0 = _effective_row_start_x(raw_lines, index)
-        if effective_x0 != line.bbox.x0:
-            candidate_x0[(line.bbox.y0, line.bbox.x0)] = effective_x0
+        raw_index[(line.bbox.y0, line.bbox.x0)] = index
         lines.append(line)
 
     if not lines:
@@ -487,16 +482,19 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
         # across it -- x_delta above then looks too large to continue the
         # paragraph even though it visually does. Retry with the row-remnant
         # candidate only as a way to *reconnect* a break the plain check just
-        # found; if that candidate doesn't actually let this line join
-        # anything, discard it and keep the line's true, uncorrected geometry
-        # -- so an unrelated same-row coincidence (e.g. a run-in heading's
-        # own wrapped continuation sitting beside a genuinely new paragraph)
-        # never gets to silently zero out that paragraph's real indent.
+        # found. Use the preceding line's x0 as the expected body margin, so a
+        # near-edge fragment in the wrong column cannot erase a real indent.
         line_key = (line.bbox.y0, line.bbox.x0)
-        if not joins and line_key in candidate_x0:
-            corrected_x0 = candidate_x0[line_key]
+        if not joins and line_key in raw_index:
+            corrected_x0 = _effective_row_start_x(
+                raw_lines, raw_index[line_key], first_text_x(prev_line)
+            )
             corrected_x_delta = abs(corrected_x0 - first_text_x(prev_line))
-            if vertical_gap <= MAX_PARAGRAPH_GAP_PT and corrected_x_delta <= allowed_x_delta:
+            if (
+                corrected_x0 != line.bbox.x0
+                and vertical_gap <= MAX_PARAGRAPH_GAP_PT
+                and corrected_x_delta <= allowed_x_delta
+            ):
                 line = PdfTextLine(
                     spans=line.spans,
                     bbox=BBox(x0=corrected_x0, y0=line.bbox.y0, x1=line.bbox.x1, y1=line.bbox.y1),
@@ -630,17 +628,41 @@ def _shares_font_family(a: PdfTextLine, b: PdfTextLine) -> bool:
     return bool(a_fonts & b_fonts)
 
 
-def _is_connected_continuation_prefix(
-    candidate: PdfTextLine, first: PdfTextLine, body_x: float
+def _is_connected_row_prefix(
+    candidate: PdfTextLine, following: PdfTextLine
 ) -> bool:
-    """Use a discarded run only when it reads as this row's body-text lead."""
-    clean = candidate.text.strip()
-    return (
-        abs(candidate.bbox.x0 - body_x) <= INDENT_TOLERANCE_PT
-        and _paragraph_starts_like_continuation([candidate])
-        and not clean.endswith((".", "!", "?"))
-        and _shares_font_family(candidate, first)
-    )
+    """Accept a same-row prefix only when its geometry and text fit the row.
+
+    Both paragraph grouping and the final continuation check use this gate.
+    A lowercase fragment and matching font are insufficient by themselves:
+    the fragment must also meet the visual row and near-edge constraints.
+    Both callers also require an independently anchored leftmost prefix before
+    changing paragraph grouping or a finding.
+    """
+    if candidate.bbox.x0 >= following.bbox.x0:
+        return False
+    if _vertical_overlap_fraction(candidate, following) < SAME_ROW_OVERLAP_FRACTION:
+        return False
+    if not _is_short_extraction_remnant(candidate):
+        # A full bold run-in title can have wider word spacing before its
+        # regular-text continuation than a short discarded prose remnant.
+        return (
+            following.bbox.x0 - candidate.bbox.x1 <= X_GROUP_TOLERANCE_PT
+            and _is_run_in_heading_lead(candidate, following)
+        )
+    is_continuation = _paragraph_starts_like_continuation([following])
+    gap_limit = MAX_CONTINUATION_PREFIX_GAP_PT if is_continuation else X_GROUP_TOLERANCE_PT
+    if following.bbox.x0 - candidate.bbox.x1 > gap_limit:
+        return False
+    if following.bbox.x0 - candidate.bbox.x0 > MAX_ROW_REMNANT_ABSORPTION_GAP_PT:
+        return False
+    if is_continuation:
+        return (
+            _paragraph_starts_like_continuation([candidate])
+            and not candidate.text.rstrip().endswith((".", "!", "?"))
+            and _shares_font_family(candidate, following)
+        )
+    return True
 
 
 def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
@@ -659,29 +681,7 @@ def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
     )
     for index, line in enumerate(raw_lines):
         if line.bbox.y0 == first.bbox.y0 and line.bbox.x0 == first.bbox.x0:
-            lo = max(0, index - _ROW_REMNANT_SEARCH_WINDOW)
-            hi = min(len(raw_lines), index + _ROW_REMNANT_SEARCH_WINDOW + 1)
-            starts = [first.bbox.x0]
-            for candidate in raw_lines[lo:hi]:
-                if candidate is line or candidate.bbox.x0 >= first.bbox.x0:
-                    continue
-                if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
-                    continue
-                # A distant marginal note or equation label must not turn a
-                # real continuation indent into an apparent flush-left row.
-                if first.bbox.x0 - candidate.bbox.x1 > MAX_CONTINUATION_PREFIX_GAP_PT:
-                    continue
-                if abs(candidate.bbox.x0 - body_x) > INDENT_TOLERANCE_PT:
-                    continue
-                if (
-                    _is_short_extraction_remnant(candidate)
-                    and _is_connected_continuation_prefix(candidate, line, body_x)
-                ) or (
-                    not _is_short_extraction_remnant(candidate)
-                    and _is_run_in_heading_lead(candidate, line)
-                ):
-                    starts.append(candidate.bbox.x0)
-            return min(starts)
+            return _effective_row_start_x(raw_lines, index, body_x)
     return first.bbox.x0
 
 
@@ -693,7 +693,7 @@ def _follows_completed_adjacent_paragraph(paragraphs: list[list[PdfTextLine]], i
     current = paragraphs[index][0]
     gap = current.bbox.y0 - previous.bbox.y1
     previous_end = previous.text.rstrip().rstrip("\"')]")
-    if _NONTERMINAL_ABBREVIATION_RE.search(previous_end):
+    if _AMBIGUOUS_PERIOD_ENDING_RE.search(previous_end):
         return False
     # A question or exclamation can be quoted inside an unfinished sentence
     # ("Why?" she asked). The observed completed-paragraph case ends in a
