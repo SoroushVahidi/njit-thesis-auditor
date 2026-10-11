@@ -63,7 +63,20 @@ _BODY_CHAPTER_HEADING_RE = re.compile(r"^(?:CHAPTER|APPENDIX)\s+[\dA-Z]")
 _SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+$")
 _ALGORITHM_HEADING_RE = re.compile(r"^algorithm\s*\d*[:.]?", re.IGNORECASE)
 _CODELIKE_CUE_RE = re.compile(r"(?:Input:|range\(|elseif|until|[{}<>])")
-_MONOSPACE_FONT_MARKERS = ("courier", "cmtt", "inconsolata", "mono")
+_MONOSPACE_FONT_FAMILIES = (
+    "courier",
+    "cmtt",
+    "sftt",
+    "inconsolata",
+    "liberationmono",
+    "dejavusansmono",
+    "sourcecodepro",
+    "jetbrainsmono",
+)
+_SOURCE_CODE_STATEMENT_RE = re.compile(
+    r"^\s*(?:[A-Za-z_]\w*\s*=[^=]|[A-Za-z_]\w*\s*\(.*\)\s*;|[%#])"
+)
+_NONTERMINAL_ABBREVIATION_RE = re.compile(r"\b(?:Eq|Fig|Sec|e\.g|i\.e)\.$", re.IGNORECASE)
 MAX_CONTINUATION_PREFIX_GAP_PT = 12.0
 
 
@@ -419,9 +432,7 @@ def group_lines_into_paragraphs(page: PdfPage) -> list[list[PdfTextLine]]:
     if _has_page_heading_in(page, TOC_LIKE_HEADINGS):
         return []
 
-    raw_lines: list[PdfTextLine] = [
-        line for block in page.text_blocks for line in block.lines
-    ]
+    raw_lines: list[PdfTextLine] = [line for block in page.text_blocks for line in block.lines]
     raw_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
 
     # A candidate row-remnant-corrected x0 per usable line, computed once from
@@ -583,22 +594,43 @@ def _paragraph_is_algorithm_or_code_like(paragraph: list[PdfTextLine]) -> bool:
         return False
     if _ALGORITHM_HEADING_RE.match(line_texts[0]):
         return True
-    # Source-code comments can read like ordinary lowercase prose after PDF
-    # extraction. A multi-line typewriter-font block is still code, even when
-    # its wrapped comment has no syntax token on the first line.
+    # A wrapped code comment may read like prose. Require both a known
+    # typewriter font and statements elsewhere in its block: font alone also
+    # occurs in ordinary prose, and "mono" is part of proportional font names.
     monospace_lines = sum(
-        1
-        for line in paragraph
-        if line.spans
-        and any(
-            marker in (line.spans[0].font or "").lower()
-            for marker in _MONOSPACE_FONT_MARKERS
-        )
+        1 for line in paragraph if line.spans and _is_monospace_font(line.spans[0].font)
     )
-    if monospace_lines >= 2 and monospace_lines * 2 >= len(paragraph):
+    code_statements = sum(bool(_SOURCE_CODE_STATEMENT_RE.search(text)) for text in line_texts)
+    if monospace_lines >= 2 and monospace_lines * 2 >= len(paragraph) and code_statements >= 2:
         return True
     cue_lines = sum(1 for text in line_texts if _CODELIKE_CUE_RE.search(text))
     return cue_lines >= 2
+
+
+def _is_monospace_font(font: str | None) -> bool:
+    if not font:
+        return False
+    family = font.rsplit("+", 1)[-1].casefold().replace("-", "").replace(" ", "")
+    return family.startswith(_MONOSPACE_FONT_FAMILIES)
+
+
+def _shares_font_family(a: PdfTextLine, b: PdfTextLine) -> bool:
+    a_fonts = {span.font.rsplit("+", 1)[-1].casefold() for span in a.spans if span.font}
+    b_fonts = {span.font.rsplit("+", 1)[-1].casefold() for span in b.spans if span.font}
+    return bool(a_fonts & b_fonts)
+
+
+def _is_connected_continuation_prefix(
+    candidate: PdfTextLine, first: PdfTextLine, body_x: float
+) -> bool:
+    """Use a discarded run only when it reads as this row's body-text lead."""
+    clean = candidate.text.strip()
+    return (
+        abs(candidate.bbox.x0 - body_x) <= INDENT_TOLERANCE_PT
+        and _paragraph_starts_like_continuation([candidate])
+        and not clean.endswith((".", "!", "?"))
+        and _shares_font_family(candidate, first)
+    )
 
 
 def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
@@ -610,6 +642,7 @@ def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
     apparent indent belongs to an extraction fragment, not the printed row.
     """
     first = paragraph[0]
+    body_x = median(first_text_x(line) for line in paragraph[1:])
     raw_lines = sorted(
         (line for block in page.text_blocks for line in block.lines),
         key=lambda line: (line.bbox.y0, line.bbox.x0),
@@ -628,26 +661,31 @@ def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
                 # real continuation indent into an apparent flush-left row.
                 if first.bbox.x0 - candidate.bbox.x1 > MAX_CONTINUATION_PREFIX_GAP_PT:
                     continue
-                if _is_short_extraction_remnant(candidate) or _is_run_in_heading_lead(
-                    candidate, line
+                if abs(candidate.bbox.x0 - body_x) > INDENT_TOLERANCE_PT:
+                    continue
+                if (
+                    _is_short_extraction_remnant(candidate)
+                    and _is_connected_continuation_prefix(candidate, line, body_x)
+                ) or (
+                    not _is_short_extraction_remnant(candidate)
+                    and _is_run_in_heading_lead(candidate, line)
                 ):
                     starts.append(candidate.bbox.x0)
             return min(starts)
     return first.bbox.x0
 
 
-def _follows_completed_adjacent_paragraph(
-    paragraphs: list[list[PdfTextLine]], index: int
-) -> bool:
+def _follows_completed_adjacent_paragraph(paragraphs: list[list[PdfTextLine]], index: int) -> bool:
     """A nearby new paragraph after terminal punctuation is not a clause continuation."""
     if index == 0:
         return False
     previous = paragraphs[index - 1][-1]
     current = paragraphs[index][0]
     gap = current.bbox.y0 - previous.bbox.y1
-    return gap <= MAX_PARAGRAPH_GAP_PT and bool(
-        re.search(r"[.!?][\s\"')\]]*$", previous.text.rstrip())
-    )
+    previous_end = previous.text.rstrip().rstrip("\"')]")
+    if _NONTERMINAL_ABBREVIATION_RE.search(previous_end):
+        return False
+    return 0 <= gap <= MAX_PARAGRAPH_GAP_PT and bool(re.search(r"[.!?]\s*$", previous_end))
 
 
 def _is_likely_expected_indent(indent_pt: float) -> bool:
