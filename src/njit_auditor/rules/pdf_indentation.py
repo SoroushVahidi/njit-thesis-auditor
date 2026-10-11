@@ -245,6 +245,16 @@ def _effective_row_start_x(raw_lines: list[PdfTextLine], index: int) -> float:
             continue
         if not _is_short_extraction_remnant(candidate):
             continue
+        # The grouping pass can use this x0 to reconnect a close line to the
+        # preceding paragraph. For a lowercase-led line, a stray equation
+        # label must not erase a real continuation indent before the later
+        # first-row check has a chance to inspect it.
+        if _paragraph_starts_like_continuation([line]) and not (
+            _paragraph_starts_like_continuation([candidate])
+            and not candidate.text.rstrip().endswith((".", "!", "?"))
+            and _shares_font_family(candidate, line)
+        ):
+            continue
         x0 = candidate.bbox.x0
     return x0
 
@@ -685,7 +695,10 @@ def _follows_completed_adjacent_paragraph(paragraphs: list[list[PdfTextLine]], i
     previous_end = previous.text.rstrip().rstrip("\"')]")
     if _NONTERMINAL_ABBREVIATION_RE.search(previous_end):
         return False
-    return 0 <= gap <= MAX_PARAGRAPH_GAP_PT and bool(re.search(r"[.!?]\s*$", previous_end))
+    # A question or exclamation can be quoted inside an unfinished sentence
+    # ("Why?" she asked). The observed completed-paragraph case ends in a
+    # period; keep this exception that narrow.
+    return 0 <= gap <= MAX_PARAGRAPH_GAP_PT and previous_end.endswith(".")
 
 
 def _is_likely_expected_indent(indent_pt: float) -> bool:

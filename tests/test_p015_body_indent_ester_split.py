@@ -394,6 +394,31 @@ def test_p015_still_flags_indent_beside_unrelated_short_margin_fragment(
     )
 
 
+def test_p015_close_disconnected_fragment_cannot_rejoin_paragraph() -> None:
+    """Row correction during grouping must not hide a nearby real indent."""
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line("The formula describes the quantity,", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    label = _line("Eq.", x0=108.0, x1=140.0, y0=128.0, y1=140.0)
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=128.0,
+            y1=140.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(label), _block(*continuation)))
+    assert any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
 def test_p015_suppresses_connected_split_continuation_prefix() -> None:
     opening = [
         _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
@@ -482,6 +507,25 @@ def test_p015_does_not_treat_abbreviation_period_as_completed_sentence(
             y0=128.0,
             y1=140.0,
         ),
+        _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
+        _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
+    ]
+    doc = _doc(_page(20, _block(*opening), _block(*continuation)))
+    assert any(
+        f.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for f in check_pdf_indentation(doc)
+    )
+
+
+@pytest.mark.parametrize("quoted_question", ['"Why?"', '"Stop!"'])
+def test_p015_quoted_punctuation_does_not_complete_sentence(quoted_question: str) -> None:
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(f"The reviewer asked {quoted_question}", x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line("she repeated in the follow-up discussion.", x0=144.0, y0=128.0, y1=140.0),
         _line(_BODY_TEXT, x0=108.0, y0=142.0, y1=154.0),
         _line(_BODY_TEXT, x0=108.0, y0=156.0, y1=168.0),
     ]
