@@ -64,6 +64,7 @@ _SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+$")
 _ALGORITHM_HEADING_RE = re.compile(r"^algorithm\s*\d*[:.]?", re.IGNORECASE)
 _CODELIKE_CUE_RE = re.compile(r"(?:Input:|range\(|elseif|until|[{}<>])")
 _MONOSPACE_FONT_MARKERS = ("courier", "cmtt", "inconsolata", "mono")
+MAX_CONTINUATION_PREFIX_GAP_PT = 12.0
 
 
 def first_text_x(line: PdfTextLine) -> float:
@@ -615,7 +616,23 @@ def _first_row_start_x(page: PdfPage, paragraph: list[PdfTextLine]) -> float:
     )
     for index, line in enumerate(raw_lines):
         if line.bbox.y0 == first.bbox.y0 and line.bbox.x0 == first.bbox.x0:
-            return _effective_row_start_x(raw_lines, index)
+            lo = max(0, index - _ROW_REMNANT_SEARCH_WINDOW)
+            hi = min(len(raw_lines), index + _ROW_REMNANT_SEARCH_WINDOW + 1)
+            starts = [first.bbox.x0]
+            for candidate in raw_lines[lo:hi]:
+                if candidate is line or candidate.bbox.x0 >= first.bbox.x0:
+                    continue
+                if _vertical_overlap_fraction(candidate, line) < SAME_ROW_OVERLAP_FRACTION:
+                    continue
+                # A distant marginal note or equation label must not turn a
+                # real continuation indent into an apparent flush-left row.
+                if first.bbox.x0 - candidate.bbox.x1 > MAX_CONTINUATION_PREFIX_GAP_PT:
+                    continue
+                if _is_short_extraction_remnant(candidate) or _is_run_in_heading_lead(
+                    candidate, line
+                ):
+                    starts.append(candidate.bbox.x0)
+            return min(starts)
     return first.bbox.x0
 
 

@@ -20,6 +20,7 @@ _ESTER_DIR = Path(__file__).resolve().parents[1] / "data/raw/ester"
 _PENNOCK = _ESTER_DIR / "250213 Pennock Andrew Revised 1st Dissertation Draft with EF comments.pdf"
 _TERMINI = _ESTER_DIR / "250415 Termini_DoloresThirdReview with EF comments.pdf"
 _YIN = _ESTER_DIR / "Yin_Haotian_Second_R_with_EF_Feedback.pdf"
+_YIN_THIRD = _ESTER_DIR / "260428 Yin H 3rd review with EF Comments.pdf"
 
 
 def _load(path: Path) -> PdfDocument:
@@ -36,11 +37,6 @@ def pennock() -> PdfDocument:
 @pytest.fixture(scope="module")
 def termini() -> PdfDocument:
     return _load(_TERMINI)
-
-
-@pytest.fixture(scope="module")
-def yin() -> PdfDocument:
-    return _load(_YIN)
 
 
 def _page_findings(document: PdfDocument, physical_page: int) -> list:
@@ -70,10 +66,11 @@ def test_termini_wrapped_code_comment_is_not_a_body_paragraph(
     assert _page_findings(termini, 116) == []
 
 
+@pytest.mark.parametrize("path, physical_page", [(_YIN, 22), (_YIN_THIRD, 26)])
 def test_yin_ester_marked_real_continuation_indent_remains_highlighted(
-    yin: PdfDocument,
+    path: Path, physical_page: int
 ) -> None:
-    findings = _page_findings(yin, 22)
+    findings = _page_findings(_load(path), physical_page)
     assert len(findings) == 1
     finding = findings[0]
     assert finding.details["issue_type"] == "unexpected_indent_on_continuation_line"

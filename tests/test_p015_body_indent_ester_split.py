@@ -352,6 +352,32 @@ def test_p015_does_not_flag_flush_left_continuation_line() -> None:
     assert not findings
 
 
+def test_p015_still_flags_indent_beside_unrelated_short_margin_fragment() -> None:
+    """A nearby discarded fragment is not proof that the prose row starts there."""
+    opening = [
+        _line(_BODY_TEXT, x0=144.0, y0=80.0, y1=92.0),
+        _line(_BODY_TEXT, x0=108.0, y0=94.0, y1=106.0),
+        _line(_BODY_TEXT, x0=108.0, y0=108.0, y1=120.0),
+    ]
+    continuation = [
+        _line(
+            "where q denotes the closest point on the surface in this test.",
+            x0=144.0,
+            y0=170.0,
+            y1=182.0,
+        ),
+        _line(_BODY_TEXT, x0=108.0, y0=184.0, y1=196.0),
+        _line(_BODY_TEXT, x0=108.0, y0=198.0, y1=210.0),
+    ]
+    margin_fragment = _line("(1)", x0=108.0, x1=120.0, y0=170.0, y1=182.0)
+    doc = _doc(_page(20, _block(*opening), _block(margin_fragment), _block(*continuation)))
+    findings = check_pdf_indentation(doc)
+    assert any(
+        finding.details.get("issue_type") == "unexpected_indent_on_continuation_line"
+        for finding in findings
+    )
+
+
 @pytest.mark.parametrize(
     "opening_phrase",
     [
