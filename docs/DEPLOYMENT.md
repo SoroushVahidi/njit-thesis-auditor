@@ -105,8 +105,8 @@ A bare `kill -TERM <pid>` will **not** stay down — `Restart=always` relaunches
    `environment` should be `"production"`; `"local-dev"` means the unit does not set
    `NJIT_AUDITOR_WEB_ENVIRONMENT` (see the unit template below). Changing the unit requires
    `systemctl --user daemon-reload` and a restart, so do it in a planned maintenance step.
-   As of 2026-10-08 the live unit does **not** set this variable yet, so the live `/version`
-   still reports `"local-dev"` until that maintenance step is done.
+   As verified on 2026-10-12, the live unit sets this variable and `/version` reports
+   `"production"`.
 3. `GET /` and `GET /rules` → `200`.
 4. Run one built-in sample audit (`POST /audits/sample` with a known `sample_id`) and confirm the
    job page loads and produces findings — this catches import-time/route-table regressions that a
