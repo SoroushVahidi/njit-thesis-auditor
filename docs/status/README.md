@@ -8,11 +8,14 @@ archives — each has a banner at the top pointing here. See also the top-level
 [../ROADMAP.md](../ROADMAP.md), [../RULE_ARCHITECTURE.md](../RULE_ARCHITECTURE.md),
 [../EVALUATION_DATA.md](../EVALUATION_DATA.md), and [../DEPLOYMENT.md](../DEPLOYMENT.md).
 
-After merging to `main`, update **both** `CURRENT_STATUS.md` and the snapshot fields in
-`data/processed/evaluation_data_manifest.json` (`main_commit_used_for_status_snapshot` and
-`pytest_count_used_for_status_snapshot`) in the same PR — alignment/drift tests require them to
-match. Optionally set `NJITA_STRICT_STATUS_DRIFT=1` locally to also ratchet against a fresh
-`pytest --collect-only` inventory.
+When recording a new dated status snapshot, update **both** `CURRENT_STATUS.md`
+and the snapshot fields in `data/processed/evaluation_data_manifest.json`
+(`main_commit_used_for_status_snapshot`, `pytest_count_used_for_status_snapshot`,
+and `pytest_skips_used_for_status_snapshot`) in the same change. Use an observed
+commit and validation result; do not predict a future squash-merge SHA or add a
+documentation-only commit merely to chase it. The count fields record passes
+and skips separately. Optionally set `NJITA_STRICT_STATUS_DRIFT=1` locally to
+compare their sum against a fresh `pytest --collect-only` inventory.
 
 This is not the first pass at this problem — [repo_polish_inventory.md](repo_polish_inventory.md)
 (2026-07-03) identified the same staleness pattern. Keep the leading snapshot

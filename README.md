@@ -1,10 +1,10 @@
 # njit-thesis-auditor
 
 `njit-thesis-auditor` is a local-first tool for auditing NJIT thesis/dissertation formatting
-against NJIT Graduate Studies formatting guidelines. It implements 80+ heuristic checks
-(`P001`-`P086`) covering TeX source hygiene and compiled-PDF layout — margins, fonts, spacing,
-headings, TOC/List of Tables/List of Figures structure, page numbering, front matter, and
-references.
+against NJIT Graduate Studies formatting guidelines. It tracks 86 project-added rule IDs
+(`P001`-`P086`), including heuristic checks covering TeX source hygiene and
+compiled-PDF layout — margins, fonts, spacing, headings, TOC/List of
+Tables/List of Figures structure, page numbering, front matter, and references.
 
 This project is:
 - local-first and free — no paid APIs, no external service calls for document analysis
@@ -88,7 +88,7 @@ The full current rule table (what each `P###` checks, its gates, and its privacy
 [docs/RULE_ARCHITECTURE.md](docs/RULE_ARCHITECTURE.md) rather than here, so this file doesn't grow
 by one row every time a rule is added. Quick pointers:
 
-- **Detector rules with standalone findings:** P011-P068, P074, P078, P084-P086
+- **Detector rules with standalone findings:** P011-P068, P074-P075, P078, P084-P086
   (default-enabled), plus P082 (experimental, opt-in only).
 - **Reporting-only rules** (recall/precision refinements or triage rollups, no standalone
   finding): P069-P073, P076, P077, P079, P081.

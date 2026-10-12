@@ -11,6 +11,7 @@
   "auditor_rule_state": {
     "p_rules_implemented": "P001-P086",
     "pytest_count_used_for_status_snapshot": 4719,
+    "pytest_skips_used_for_status_snapshot": 6,
     "main_commit_used_for_status_snapshot": "1485625",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
@@ -419,6 +420,7 @@
   },
   "p_rules_implemented": "P001-P086",
   "pytest_count_used_for_status_snapshot": 4719,
+  "pytest_skips_used_for_status_snapshot": 6,
   "main_commit_used_for_status_snapshot": "1485625",
   "post_pr_558_reconciliation": {
     "main_sha": "1002a99a493363f4b164bea77f964d3156dc9f74",
