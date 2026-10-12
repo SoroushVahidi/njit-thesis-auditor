@@ -47,16 +47,23 @@ def test_current_status_matches_manifest_snapshot_fields() -> None:
     status = CURRENT_STATUS_PATH.read_text(encoding="utf-8")
     sha = str(manifest["main_commit_used_for_status_snapshot"])
     count = int(manifest["pytest_count_used_for_status_snapshot"])
+    skips = int(manifest["pytest_skips_used_for_status_snapshot"])
     assert re.fullmatch(r"[0-9a-f]{7}", sha)
     assert sha in status
     assert f"{count} passed" in status
+    assert f"{skips} skipped" in status
+    assert manifest["auditor_rule_state"]["pytest_count_used_for_status_snapshot"] == count
+    assert manifest["auditor_rule_state"]["pytest_skips_used_for_status_snapshot"] == skips
+    assert manifest["auditor_rule_state"]["main_commit_used_for_status_snapshot"] == sha
 
 
 def test_optional_strict_collect_count_matches_manifest_snapshot() -> None:
     if os.environ.get("NJITA_STRICT_STATUS_DRIFT") != "1":
         return
     manifest = _load_manifest()
-    expected = int(manifest["pytest_count_used_for_status_snapshot"])
+    passed = int(manifest["pytest_count_used_for_status_snapshot"])
+    skipped = int(manifest["pytest_skips_used_for_status_snapshot"])
+    expected = passed + skipped
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "tests"],
         check=True,
@@ -67,7 +74,8 @@ def test_optional_strict_collect_count_matches_manifest_snapshot() -> None:
     assert match, proc.stdout
     collected = int(match.group(1))
     assert collected == expected, (
-        f"Collected {collected} tests but status snapshot claims {expected}. "
+        f"Collected {collected} tests but status snapshot records "
+        f"{passed} passed plus {skipped} skipped ({expected} collected). "
         "Update BOTH docs/status/CURRENT_STATUS.md and "
-        "data/processed/evaluation_data_manifest.json after merges."
+        "data/processed/evaluation_data_manifest.json when recording a new snapshot."
     )

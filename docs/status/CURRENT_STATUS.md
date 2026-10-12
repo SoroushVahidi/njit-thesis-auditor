@@ -1,14 +1,59 @@
 # Current Status
 
-> **Canonical, current-only status.** This is the entry point for "what is true
-> right now." Older dated reports remain historical/forensic records under
-> `docs/status/`.
+> **Current entry point.** The first section is a dated, point-in-time snapshot.
+> Everything after the 2026-10-08 historical snapshot preserves earlier
+> decisions and measurements; pending work there is not a current instruction.
 
-## Current state and handoff — 2026-10-08
+## Verified status — 2026-10-12
 
-This section is the current state. Every later section is a dated snapshot:
-its SHAs, deployment notes and "pending" statements were true when written
-and are not current.
+This snapshot records checks made on 2026-10-12. It does not claim continuous
+production monitoring or completion of reviewer triage. The source of truth for
+the current live process remains `/version` and the deployment worktree.
+
+| Field | Verified state |
+|---|---|
+| `origin/main`, detached production worktree, live `/version` | `14856250ce2aaf7a38610a086e8f5250a92655bf` (PR #610 squash merge); aligned on 2026-10-12 |
+| Production health at inspection | `thesis-auditor-web.service` active; `/version` returned HTTP 200, the expected commit, and `environment: production` |
+| PR #610 | Merged 2026-10-11 and deployed at the SHA above; P015 historical-continuation false-positive correction |
+| Open PR at inspection | #523 (`ops/tcp8000-diagnostics`); no repository-refresh PR has been opened |
+| Reviewed PR tree validation | 4725 passed, 0 skipped with detector liveness; performed before merge on the reviewed tree |
+| Exact post-merge commit validation | 4719 passed, 6 skipped (4725 collected); all six private-PDF-dependent tests then passed separately on that same merge commit |
+| Historical Ester judgment regression gate | 136/136 case checks passed at the merge commit, with no unexpected removals or liveness errors; this is prior reviewer evidence, not a review of the new 19-PDF output |
+| Expanded Ester run | Completed successfully on 2026-10-11: 19 authorized PDFs, 63 applicable R rules, exit code 0 at the deployed SHA; finding review and deduplication remain pending |
+| Maintenance-branch checks | Phase 1 ran 173 targeted tests; Phase 2 ran 188 targeted status, manifest, registry, deployment, and stale-doc tests on `chore/repository-refresh-20261012`. Neither is a full suite result for the documentation branch. |
+| Rule inventory | P001–P086 registered; next unused internal ID P087. P082 remains opt-in. |
+
+The two full-suite counts above came from **different runs and trees**. The six
+private tests were run separately after the post-merge suite; their passing
+result is not a single 4,725-test post-merge run. CI and local validation are
+separate evidence sources; see [reproducibility](../REPRODUCIBILITY.md).
+
+### Immediate evaluation priority
+
+Review the completed 19-PDF output against Ester's prior judgments, previous
+feedback, and the private review ledger. Deduplicate equivalent or previously
+answered cases before preparing a package containing only genuinely new
+questions. The completed audit is evidence generation, not a completed review
+package. Do not contact Ester or create a workbook until that analysis is done.
+
+### Known limitations and unresolved work
+
+- The earlier B2 reading-frame ambiguity and content-turned portrait 90/270
+  page-number cases remain open; P082 is experimental and opt-in. The legacy
+  CLI page-number path is separate from the web path.
+- Q030 citation-format consistency remains unimplemented; other historical
+  authority and detector questions require case-by-case review, not inference
+  from the 19-PDF run alone.
+- A non-editable wheel omits repository-level rule/spec JSON and web templates;
+  the established deployment runs from a worktree. See
+  [reproducibility](../REPRODUCIBILITY.md) for the exact packaging boundary.
+- Some tests require private PDFs absent from a clean checkout. Their skips
+  must be reported separately from ordinary test passes.
+
+## Historical snapshot — 2026-10-08
+
+This and all later dated sections preserve earlier state and decisions. Their
+SHAs, deployment notes, and pending statements are historical.
 
 ### Snapshot
 
@@ -157,10 +202,11 @@ redeployed. Earlier rule decisions and deployment history remain below._
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
 | Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
 
-## Current Evaluation Corpus
+## Historical evaluation corpus
 
-The current human-validation corpus is seven private dissertation PDFs: Youra,
-Anthony, Muyeed, Philip, Praneeth, Sebastian, and Patrick. Elbert is excluded.
+At that snapshot, the human-validation corpus was seven private dissertation
+PDFs: Youra, Anthony, Muyeed, Philip, Praneeth, Sebastian, and Patrick.
+Elbert was excluded.
 These files remain local under `data/evaluation/private/`, ignored by Git, and
 must not be quoted, uploaded, or committed.
 
@@ -195,7 +241,7 @@ For the tested TOC-wide missing-leader consistency case, **R075** owns the
 genuine finding. **R018** retains its distinct alignment, continuation, and
 leader-placement responsibilities. The tested case is not reported twice.
 
-## R036 Current State
+## Historical R036 state
 
 R036/P036 covers inter-entry spacing between distinct entries on Table of
 Contents, List of Tables, and List of Figures pages. Ester's authoritative
@@ -230,7 +276,7 @@ Primary R036 records:
 - `docs/status/r036_production_page_relative_suppression_design_20260916.md`
 - `data/evaluation/r036_ester_false_positive_ground_truth_20260916.json`
 
-## R011 Current State
+## Historical R011 state
 
 R011/P011 covers text crossing the required margin rectangle: 1.5 inches on
 the left and 1 inch on the top, right, and bottom. The current implementation
@@ -263,7 +309,7 @@ Primary R011 records:
 - `tests/test_p011_esther_r011_batch_2026_08.py`
 - `tests/test_p011_bottom_margin_synthetic.py`
 
-## R015 Current State
+## Historical R015 state
 
 R015/P015 covers body paragraph indentation. The current follow-up branch is
 merged on current main by PR #540.
@@ -307,7 +353,7 @@ Primary R015 records:
 - `tests/test_p015_esther_r015_batch_2026_08.py`
 - `tests/test_p015_r015_ester_run_in_heading_20260831.py`
 
-## R053 Current State
+## Historical R053 state
 
 R053/P053 covers List of Tables entries that should not end with a terminal
 period. The R053 follow-up is merged on current main by PR #541.
@@ -341,7 +387,7 @@ Primary R053 records:
 - `docs/status/p053_r053_leader_dot_terminal_period_followup_20260918.md`
 - `tests/test_pdf_rules.py`
 
-## R054 Current State
+## Historical R054 state
 
 R054/P054 covers Table of Contents entries that should not end with a terminal
 period. The R054 follow-up is merged on current main by PR #542.
@@ -377,7 +423,7 @@ Primary R054 records:
 - `docs/status/p054_r054_leader_dot_terminal_period_followup_20260918.md`
 - `tests/test_pdf_rules.py`
 
-## R040 Current Follow-Up State
+## Historical R040 follow-up state
 
 R040/P040 covers List of Figures entries that should end with terminal
 punctuation. The follow-up branch
@@ -420,7 +466,7 @@ Primary R040 records:
 - `docs/status/p040_r040_ester_lof_terminal_punctuation_followup_20260919.md`
 - `tests/test_pdf_rules.py`
 
-## R046 Current Follow-Up State
+## Historical R046 follow-up state
 
 R046/P046 covers List of Tables and List of Figures entry-number left-column
 alignment. It checks whether the table/figure entry numbers align vertically in
@@ -448,7 +494,7 @@ behavior, the total changes from 6 to 0. All six removals are explained by
 hanging-continuation/title fragments that were previously measured as
 entry-number rows.
 
-## R048 Current Follow-Up State
+## Historical R048 follow-up state
 
 R048/P048 covers Q069/Q079: List of Tables and List of Figures page-number
 alignment in the visual right column. The rule compares page-number token right
@@ -475,7 +521,7 @@ Primary R048 record:
 - `docs/status/p048_r048_ester_right_column_alignment_followup_20260919.md`
 - `tests/test_pdf_rules.py`
 
-## R078 Current Follow-Up State
+## Historical R078 follow-up state
 
 R078/P078 covers Q005 first-person pronoun detection in the Abstract body only.
 The documented set is standalone capital `I` plus `me`, `my`, `mine`, `we`,
@@ -496,7 +542,7 @@ Primary R078 record:
 - `docs/status/p078_r078_ester_first_person_language_followup_20260919.md`
 - `tests/test_p078_pdf_abstract_keywords.py`
 
-## R066 Current Follow-Up State
+## Historical R066 follow-up state
 
 R066/P066 covers Q025 degree ordering in the Biographical Sketch education
 section. Ester confirmed Anthony's finding as a false positive: the degree
@@ -533,7 +579,7 @@ Primary R066 record:
 - `docs/status/r066_ester_degree_order_followup_20260920.md`
 - `tests/test_p066_biosketch_degree_ordering.py`
 
-## R068 Current Follow-Up State
+## Historical R068 follow-up state
 
 R068/P068 covers a structural extension beyond Q013 (Approval Page committee
 role labels and signature/date blocks); Q015–Q020 remain manual-only. The
@@ -574,7 +620,7 @@ Primary R046 records:
 - `docs/evaluation/p046_current_dataset_evaluation.md`
 - `tests/test_pdf_rules.py`
 
-## R021 Current State
+## Historical R021 state
 
 R021/P021 covers the abstract word-count limit for the detected degree
 type. Ester's live NJIT Thesis Auditor Formatting Rules sheet explicitly
@@ -593,7 +639,7 @@ current seven-document corpus before or after this change.
 
 Primary R021 record: PR #550 (`fix/p021-ester-abstract-word-limits-20260922`).
 
-## R086 Current State
+## Historical R086 state
 
 R086/P086 (new rule) covers a bold run-in phrase that reads as a de facto
 section heading but carries no section number.
@@ -626,7 +672,7 @@ section heading but carries no section number.
   reviewed. The remaining 7 are **unreviewed candidates**, not
   reviewer-confirmed violations.
 
-## Feedback-Cycle Rule State
+## Historical feedback-cycle rule state
 
 Use human-facing `Rxxx` identifiers in reviewer/project-progress prose. Use
 internal `Pxxx` identifiers only when describing implementation files, tests, or
@@ -643,7 +689,7 @@ rule registry entries.
 | No current selected finding/action | R012-R014, R022, R025, R027, R029-R032 |
 | Not yet reviewed this cycle | R037 onward, except separately handled R021/R040/R046/R048/R053/R054/R055/R066/R068/R078/R085/R086 |
 
-## Ester Final Three Clarifications
+## Historical Ester final three clarifications
 
 Ester answered all three questions from the pre-email backlog audit on
 2026-09-23; none remains an open reviewer question.
@@ -803,7 +849,7 @@ impact) remains an optional future policy task. Historical reconciliation is
 complete (PR #558); the 83 active requests in its final reviewer package await
 review. Production deployment of the merged changes remains pending.
 
-## Repository Hygiene Notes
+## Historical repository hygiene notes
 
 - Known historical LFS hygiene debt remains: some tracked binaries match current
   LFS patterns but exist as ordinary Git objects. No history rewrite has been

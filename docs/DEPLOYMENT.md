@@ -67,9 +67,10 @@ the gates or restarting. For the combined student PDF report, this installs
 ```
 
 The deployment uses a worktree and `PYTHONPATH` pointing at its `src/` directory.
-The non-editable wheel still lacks some repository-level `data/` files; that
-existing packaging limitation does not apply to this established worktree
-deployment. Keep the worktree layout when deploying this feature.
+An isolated non-editable wheel from this tree lacks repository rule/spec JSON
+and web HTML templates. It does not provide an equivalent standalone web
+installation. Keep the established worktree layout; see
+[reproducibility](REPRODUCIBILITY.md) for the verified packaging boundary.
 
 ## Restart procedure
 
@@ -105,8 +106,8 @@ A bare `kill -TERM <pid>` will **not** stay down — `Restart=always` relaunches
    `environment` should be `"production"`; `"local-dev"` means the unit does not set
    `NJIT_AUDITOR_WEB_ENVIRONMENT` (see the unit template below). Changing the unit requires
    `systemctl --user daemon-reload` and a restart, so do it in a planned maintenance step.
-   As of 2026-10-08 the live unit does **not** set this variable yet, so the live `/version`
-   still reports `"local-dev"` until that maintenance step is done.
+   As verified on 2026-10-12, the live unit sets this variable and `/version` reports
+   `"production"`.
 3. `GET /` and `GET /rules` → `200`.
 4. Run one built-in sample audit (`POST /audits/sample` with a known `sample_id`) and confirm the
    job page loads and produces findings — this catches import-time/route-table regressions that a
