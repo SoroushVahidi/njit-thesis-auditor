@@ -1,7 +1,8 @@
 # Project Status Documentation
 
-**Start here:** [CURRENT_STATUS.md](CURRENT_STATUS.md) — short, genuinely current SHA/tests/open-PR
-snapshot, added 2026-07-13. This replaces `current_project_state_and_next_steps.md` as the entry
+**Start here:** [CURRENT_STATUS.md](CURRENT_STATUS.md) — its first section is the dated current
+SHA, validation, and next-task snapshot; later sections preserve historical snapshots.
+This replaces `current_project_state_and_next_steps.md` as the entry
 point; that file (and `open_pr_triage.md`, `live_deployment_checklist.md`) are now historical
 archives — each has a banner at the top pointing here. See also the top-level
 [../ROADMAP.md](../ROADMAP.md), [../RULE_ARCHITECTURE.md](../RULE_ARCHITECTURE.md),
@@ -14,10 +15,9 @@ match. Optionally set `NJITA_STRICT_STATUS_DRIFT=1` locally to also ratchet agai
 `pytest --collect-only` inventory.
 
 This is not the first pass at this problem — [repo_polish_inventory.md](repo_polish_inventory.md)
-(2026-07-03) identified the same staleness pattern in these same files and fixed it for a few
-days before it drifted again. `CURRENT_STATUS.md` is intentionally short specifically so it's
-cheap to keep updated; if it goes stale again, that's the signal to fix, not to add another
-inventory doc.
+(2026-07-03) identified the same staleness pattern. Keep the leading snapshot
+of `CURRENT_STATUS.md` current and dated; preserve the later sections as
+historical records.
 
 | Topic | Document |
 |---|---|

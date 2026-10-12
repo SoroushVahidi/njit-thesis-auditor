@@ -10,19 +10,21 @@ generated/private material under the gitignored `data/evaluation/generated/` and
 `data/evaluation/private/` paths, and **do not make this repository public without a student-data
 handling review.**
 
-**Finding from this audit (2026-07-13):** `data/raw/ester/` — real, private dissertation drafts
-and reviewer-annotated PDFs/DOCX files with student and reviewer names — is already tracked in
-git history. **Independent review note (same day):** of the tracked files under `data/raw/ester/`
-plus guidelines/demo binaries covered by `.gitattributes`, only a subset are true Git LFS
-*pointer* objects in the tree; several private PDFs/DOCX/ZIP files are stored as **full Git
-blobs** (multi‑MB) despite the LFS attribute rules — classic "should have been a pointer, but
-wasn't" drift. Filenames themselves often contain student/author personal names. The repository
-is currently **private** on GitHub, which is the load-bearing control. This pass did not attempt
-to remove or rewrite history (destructive / not authorized). If anyone ever considers making this
-repository public, that must trigger the "student-data handling review" the manifest already calls
-for, plus a coordinated LFS/history cleanup (see the privacy migration plan in
-`docs/status/repository_polish_and_organization_20260713.md`). This is a maintainer/Esther
-decision, not an engineering one for this PR.
+**Current tree, verified 2026-10-12 at `14856250`:** all 16 tracked paths under
+`data/raw/ester/` are Git LFS pointers in the commit tree. A checkout with LFS
+materialized contains the corresponding private binaries. These files and
+their filenames can identify students or reviewers. The GitHub repository was
+private at inspection; keep it private. Earlier dated notes described a mixture
+of pointers and ordinary blobs, but this update did not audit historical Git
+objects and makes no claim about their storage. Publication or any history
+rewrite requires a separate student-data handling review. See the historical
+[privacy migration plan](status/repository_polish_and_organization_20260713.md).
+
+Ignored `data/evaluation/generated/`, `data/evaluation/private/`, and local
+`results/` may contain private inputs, ledgers, or derived outputs. They are
+not supplied by a clean clone. The 19-PDF evaluation completed at the deployed
+SHA, but its findings have not yet been reviewed against prior Ester feedback.
+See [reproducibility](REPRODUCIBILITY.md) for public versus private validation.
 
 ## Available evaluation sources
 
@@ -30,15 +32,15 @@ decision, not an engineering one for this PR.
 
 | Sample | Where | Notes |
 |---|---|---|
-| `ester_sample_a`, `ester_sample_b`, `ester_sample_c`, `ester_sample_d` | `data/evaluation/generated/` (gitignored) and `data/raw/ester/` (tracked; mix of LFS pointers and full blobs — see privacy note above) | Reviewer "Esther Flaim" (EF) — some docs historically misspelled the surname "Farfan"; confirmed as Flaim during a prior forensic pass, see `docs/status/sample_b_annotation_ground_truth_forensics_20260710.md`. |
+| `ester_sample_a`, `ester_sample_b`, `ester_sample_c`, `ester_sample_d` | `data/evaluation/generated/` (gitignored) and `data/raw/ester/` (tracked paths are LFS pointers at `14856250`) | Reviewer "Esther Flaim" (EF) — some docs historically misspelled the surname "Farfan"; confirmed as Flaim during a prior forensic pass, see `docs/status/sample_b_annotation_ground_truth_forensics_20260710.md`. |
 | Raw EF comment files | `data/raw/ester/*.pdf`, `*.docx` | Native reviewer annotations. Confirmed (2026-07-10 forensic audit) to never leak into any non-P012 detector's findings — only `src/njit_auditor/rules/pdf_annotations.py` calls `page.annots()`; every other rule reads `page.get_text()` only. |
-| Raw spreadsheets | `results/ester_feedback_raw/*.xlsx` (untracked, local; entire `/results/` tree is gitignored as of this audit) | Esther's formatting-rules spreadsheet and YES/NO audit-logic matrix. Required by `scripts/ester_rule_consistency_audit.py`; not present in a fresh clone. |
+| Raw spreadsheets | `results/ester_feedback_raw/*.xlsx` (local and ignored by `/results/`) | Reviewer rule spreadsheets used by `scripts/ester_rule_consistency_audit.py`; not present in a fresh clone. |
 
 ### Synthetic (safe for CI, demos, and the public web UI)
 
 | Sample | Where | Notes |
 |---|---|---|
-| `clean_minimal.pdf`, `issues_pdf.pdf`, `demo_project.zip` | `tests/fixtures/web_demo/` | Committed synthetic placeholder text (intended as LFS-tracked; some checkout trees currently materialize them as ordinary blobs). Used by the web-demo guide and manual QA checklist. |
+| `clean_minimal.pdf`, `issues_pdf.pdf`, `demo_project.zip` | `tests/fixtures/web_demo/` | Committed synthetic fixtures, all LFS pointers at `14856250`; used by the web-demo guide and manual QA checklist. |
 | `examples/latex/good_minimal_thesis/`, `examples/latex/bad_minimal_thesis/` | `examples/` | Synthetic TeX fixtures for the CLI `tex` audit demo. |
 | Per-rule synthetic PDFs | Generated inline by most `tests/test_*.py` files via `reportlab` | Not checked in as static files; built at test time. |
 | Review-label example JSON | `tests/fixtures/review_labels/synthetic_example.json` | Synthetic-only records for `njit_auditor.review_labels` (see `docs/EVALUATION_REVIEW_LABELS.md`). |
@@ -86,3 +88,4 @@ Using it is optional; labeling the full existing corpus is not required immediat
 - `docs/status/data_inventory_and_evaluation_sources.md` — older data-category breakdown.
 - `docs/sources/ester_materials.md` — catalog of Esther's raw source materials.
 - `docs/status/CURRENT_STATUS.md` — which samples are in the current evaluation corpus right now.
+- `docs/REPRODUCIBILITY.md` — setup, CI boundaries, and private validation prerequisites.

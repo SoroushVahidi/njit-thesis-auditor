@@ -67,9 +67,10 @@ the gates or restarting. For the combined student PDF report, this installs
 ```
 
 The deployment uses a worktree and `PYTHONPATH` pointing at its `src/` directory.
-The non-editable wheel still lacks some repository-level `data/` files; that
-existing packaging limitation does not apply to this established worktree
-deployment. Keep the worktree layout when deploying this feature.
+An isolated non-editable wheel from this tree lacks repository rule/spec JSON
+and web HTML templates. It does not provide an equivalent standalone web
+installation. Keep the established worktree layout; see
+[reproducibility](REPRODUCIBILITY.md) for the verified packaging boundary.
 
 ## Restart procedure
 

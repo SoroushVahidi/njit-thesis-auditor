@@ -159,8 +159,8 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 - **No authentication or rate limiting by default.** A public deployment needs a reverse proxy,
   TLS, authentication, and rate limiting — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - This repository's own evaluation data includes real, private student dissertations under
-  `data/raw/ester/` (tracked in this **private** GitHub repository; mix of Git LFS pointers and
-  ordinary blobs — see [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md)) — keep the repo private.
+  `data/raw/ester/` (all 16 tracked paths are Git LFS pointers at the verified
+  2026-10-12 commit; see [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md)) — keep the repo private.
 
 ## Limitations
 
@@ -182,7 +182,9 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 
 | Doc | Purpose |
 |---|---|
+| [docs/README.md](docs/README.md) | Navigate current guides and dated research records. |
 | [docs/status/CURRENT_STATUS.md](docs/status/CURRENT_STATUS.md) | Current SHA, test count, open PRs, next actions — the canonical "what's true right now." |
+| [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) | Setup, CI, private validation, and wheel-installation limits. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Completed capabilities, near-term/policy-dependent/longer-term work. |
 | [docs/RULE_ARCHITECTURE.md](docs/RULE_ARCHITECTURE.md) | Full rule table, taxonomy, and canonical metadata sources. |
 | [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md) | Evaluation samples, privacy rules, finding-review labeling taxonomy. |
@@ -199,3 +201,6 @@ ruff check .
 mypy src
 python -m pytest
 ```
+
+See [reproducibility](docs/REPRODUCIBILITY.md) for the tested Python versions,
+Git LFS setup, private-data-dependent skips, and exact-SHA validation.

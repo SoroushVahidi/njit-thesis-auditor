@@ -1,14 +1,59 @@
 # Current Status
 
-> **Canonical, current-only status.** This is the entry point for "what is true
-> right now." Older dated reports remain historical/forensic records under
-> `docs/status/`.
+> **Current entry point.** The first section is a dated, point-in-time snapshot.
+> Sections headed "Historical" preserve earlier decisions and measurements;
+> their pending work and deployment statements are not current instructions.
 
-## Current state and handoff — 2026-10-08
+## Verified status — 2026-10-12
 
-This section is the current state. Every later section is a dated snapshot:
-its SHAs, deployment notes and "pending" statements were true when written
-and are not current.
+This snapshot records checks made on 2026-10-12. It does not claim continuous
+production monitoring or completion of reviewer triage. The source of truth for
+the current live process remains `/version` and the deployment worktree.
+
+| Field | Verified state |
+|---|---|
+| `origin/main`, detached production worktree, live `/version` | `14856250ce2aaf7a38610a086e8f5250a92655bf` (PR #610 squash merge); aligned on 2026-10-12 |
+| Production health at inspection | `thesis-auditor-web.service` active; `/version` returned HTTP 200, the expected commit, and `environment: production` |
+| PR #610 | Merged 2026-10-11 and deployed at the SHA above; P015 historical-continuation false-positive correction |
+| Open PR at inspection | #523 (`ops/tcp8000-diagnostics`); no repository-refresh PR has been opened |
+| Reviewed PR tree validation | 4725 passed, 0 skipped with detector liveness; performed before merge on the reviewed tree |
+| Exact post-merge commit validation | 4719 passed, 6 skipped; all six private-PDF-dependent tests then passed separately on that same merge commit |
+| Historical Ester judgment regression gate | 136/136 case checks passed at the merge commit, with no unexpected removals or liveness errors; this is prior reviewer evidence, not a review of the new 19-PDF output |
+| Expanded Ester run | Completed successfully on 2026-10-11: 19 authorized PDFs, 63 applicable R rules, exit code 0 at the deployed SHA; finding review and deduplication remain pending |
+| Maintenance-branch checks | Phase 1 ran 173 targeted tests; Phase 2 ran 188 targeted status, manifest, registry, deployment, and stale-doc tests on `chore/repository-refresh-20261012`. Neither is a full suite result for the documentation branch. |
+| Rule inventory | P001–P086 registered; next unused internal ID P087. P082 remains opt-in. |
+
+The two full-suite counts above came from **different runs and trees**. The six
+private tests were run separately after the post-merge suite; their passing
+result is not a single 4,725-test post-merge run. CI and local validation are
+separate evidence sources; see [reproducibility](../REPRODUCIBILITY.md).
+
+### Immediate evaluation priority
+
+Review the completed 19-PDF output against Ester's prior judgments, previous
+feedback, and the private review ledger. Deduplicate equivalent or previously
+answered cases before preparing a package containing only genuinely new
+questions. The completed audit is evidence generation, not a completed review
+package. Do not contact Ester or create a workbook until that analysis is done.
+
+### Known limitations and unresolved work
+
+- The earlier B2 reading-frame ambiguity and content-turned portrait 90/270
+  page-number cases remain open; P082 is experimental and opt-in. The legacy
+  CLI page-number path is separate from the web path.
+- Q030 citation-format consistency remains unimplemented; other historical
+  authority and detector questions require case-by-case review, not inference
+  from the 19-PDF run alone.
+- A non-editable wheel omits repository-level rule/spec JSON and web templates;
+  the established deployment runs from a worktree. See
+  [reproducibility](../REPRODUCIBILITY.md) for the exact packaging boundary.
+- Some tests require private PDFs absent from a clean checkout. Their skips
+  must be reported separately from ordinary test passes.
+
+## Historical snapshot — 2026-10-08
+
+This and all later dated sections preserve earlier state and decisions. Their
+SHAs, deployment notes, and pending statements are historical.
 
 ### Snapshot
 

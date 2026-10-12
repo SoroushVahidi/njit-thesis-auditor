@@ -2,7 +2,9 @@
 
 > **Superseded status pointers.** Live `main` SHA, test counts, and Q-rule coverage are in
 > [CURRENT_STATUS.md](CURRENT_STATUS.md).
-> The inventory tables below remain useful; validation bullets at the top are historical.
+> The inventory tables below document an earlier, smaller evaluation set.
+> Their tracked-file and P-rule counts are historical, not a current tree inventory;
+> see [evaluation data](../EVALUATION_DATA.md) for the verified 2026-10-12 LFS state.
 
 - **Generated for commit:** `722dac0` (PR #278 — P076 P036 spacing triage rollup; substantive eval baseline)
 - **Baseline main for this status snapshot:** `07db2fa` (PR #433); prior baseline: `70dcd95` (PR #408).
