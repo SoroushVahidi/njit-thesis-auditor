@@ -14,12 +14,14 @@ from njit_auditor.pdf_models import (
     PdfDocument,
     PdfPage,
     PdfReadingFrame,
+    PdfTextBlock,
     PdfTextLine,
     format_bbox_detail,
     text_space_size,
 )
 
 PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
+MATH_STRUCTURE_RE = re.compile(r"[=≈≃≤≥∑∫∇∂∈κπαθ∥|]")
 ROMAN_CHARS_RE = re.compile(r"^[ivxlcdm]+$", re.IGNORECASE)
 MATH_SYMBOL_FONT_PREFIXES = ("cmmi", "cmsy", "cmex", "msam", "msbm", "wasy")
 DECIMAL_SECTION_NUMBER_RE = re.compile(r"\d+\.\d+")
@@ -92,6 +94,7 @@ class PageNumberCandidate:
     # ``_folio_sheet``); equals ``bbox[1]`` except on a content half-turn,
     # where ``bbox`` stays in box space. Baseline comparisons use this.
     sheet_y0: float | None = None
+    font_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -302,6 +305,10 @@ def detect_page_number_candidates(pdf_doc: PdfDocument) -> list[PageNumberCandid
                         value=value,
                         bbox=(box.x0, box.y0, box.x1, box.y1),
                         sheet_y0=line.bbox.y0,
+                        font_name=next(
+                            (span.font for span in line.spans if span.text.strip() and span.font),
+                            None,
+                        ),
                     )
                 )
     return candidates
@@ -536,6 +543,106 @@ def _filter_off_pattern_noise(
     if not on_pattern:
         return plausible
     return on_pattern
+
+
+def _candidate_line_in_block(
+    candidate: PageNumberCandidate, block: PdfTextBlock
+) -> PdfTextLine | None:
+    """Locate the extracted line that produced a candidate in source-box space."""
+    if candidate.bbox is None:
+        return None
+    x0, y0, x1, y1 = candidate.bbox
+    for line in block.lines:
+        if (
+            " ".join(line.text.strip().split()) == candidate.text
+            and abs(line.bbox.x0 - x0) < 1
+            and abs(line.bbox.y0 - y0) < 1
+            and abs(line.bbox.x1 - x1) < 1
+            and abs(line.bbox.y1 - y1) < 1
+        ):
+            return line
+    return None
+
+
+def _block_has_local_math_structure(block: PdfTextBlock, numeric_line: PdfTextLine) -> bool:
+    height = numeric_line.bbox.height
+    for line in block.lines:
+        if line is numeric_line or not MATH_STRUCTURE_RE.search(line.text):
+            continue
+        vertical_gap = max(
+            line.bbox.y0 - numeric_line.bbox.y1,
+            numeric_line.bbox.y0 - line.bbox.y1,
+            0.0,
+        )
+        horizontal_gap = max(
+            line.bbox.x0 - numeric_line.bbox.x1,
+            numeric_line.bbox.x0 - line.bbox.x1,
+            0.0,
+        )
+        if vertical_gap <= height and horizontal_gap <= 6 * height:
+            return True
+    return False
+
+
+def _has_equation_structure(candidate: PageNumberCandidate, page: PdfPage) -> bool:
+    """Require block membership or a font-matched, aligned fraction stack."""
+    if candidate.bbox is None or candidate.font_name is None:
+        return False
+    x0, y0, x1, y1 = candidate.bbox
+    height = y1 - y0
+    if height <= 0:
+        return False
+    candidate_font = candidate.font_name.split("+")[-1].lower()
+    for block in page.text_blocks:
+        numeric_line = _candidate_line_in_block(candidate, block)
+        if numeric_line is not None:
+            if _block_has_local_math_structure(block, numeric_line):
+                return True
+            continue
+        for line in block.lines:
+            if not PAGE_NUM_RE.fullmatch(line.text.strip()):
+                continue
+            line_font = next(
+                (span.font for span in line.spans if span.text.strip() and span.font), None
+            )
+            if line_font is None or line_font.split("+")[-1].lower() != candidate_font:
+                continue
+            aligned = abs((line.bbox.x0 + line.bbox.x1) - (x0 + x1)) <= x1 - x0
+            stacked = 0 < y0 - line.bbox.y1 <= 2 * height
+            if aligned and stacked and _block_has_local_math_structure(block, line):
+                return True
+    return False
+
+
+def _filter_p013_embedded_content(
+    plausible: list[PageNumberCandidate],
+    pattern: _DominantPageNumberPattern | None,
+    page: PdfPage,
+) -> list[PageNumberCandidate]:
+    """Exclude a competing number only with baseline, font, and equation structure.
+
+    A different-baseline token alone may be another genuine folio. A distinct
+    footer position, missing font, or missing equation therefore leaves the
+    candidate visible for review. Ambiguous same-position numbers stay visible.
+    """
+    if pattern is None or len(plausible) <= 1:
+        return plausible
+    on_pattern = [c for c in plausible if _matches_dominant_page_number_pattern(c, pattern)]
+    if not on_pattern:
+        return plausible
+    folio = max(on_pattern, key=_candidate_rank)
+    folio_font = folio.font_name.split("+")[-1].lower() if folio.font_name else None
+    if folio_font is None:
+        return plausible
+    return [
+        c
+        for c in plausible
+        if _matches_dominant_page_number_pattern(c, pattern)
+        or c.position_type != pattern.position_type
+        or c.font_name is None
+        or c.font_name.split("+")[-1].lower() == folio_font
+        or not _has_equation_structure(c, page)
+    ]
 
 
 def _format_candidate_tokens(candidates: list[PageNumberCandidate]) -> str:
@@ -797,6 +904,15 @@ def run_pdf_page_number_candidates_rule(
             page_is_front_matter=(pg in front_matter_pages),
         )
         for pg, pc in candidates_by_page.items()
+    }
+    # P019 uses a stable folio baseline, but P013 also requires structural
+    # equation evidence before dropping an off-baseline candidate. A second
+    # printed folio may legitimately differ in position from the first.
+    dominant_pattern = _dominant_page_number_pattern(filtered_by_page)
+    pages_by_number = {page.page_number: page for page in pdf_doc.pages}
+    filtered_by_page = {
+        pg: _filter_p013_embedded_content(pc, dominant_pattern, pages_by_number[pg])
+        for pg, pc in filtered_by_page.items()
     }
     dominant_location = _dominant_location(filtered_by_page)
 

@@ -65,6 +65,17 @@ def _number_line(text: str, font: str, bbox: tuple[float, float, float, float]) 
     return PdfTextBlock(lines=[PdfTextLine(spans=[span], bbox=box, text=text)], bbox=box, text=text)
 
 
+def _combined_block(*parts: PdfTextBlock) -> PdfTextBlock:
+    lines = [line for part in parts for line in part.lines]
+    box = BBox(
+        x0=min(line.bbox.x0 for line in lines),
+        y0=min(line.bbox.y0 for line in lines),
+        x1=max(line.bbox.x1 for line in lines),
+        y1=max(line.bbox.y1 for line in lines),
+    )
+    return PdfTextBlock(lines=lines, bbox=box, text="\n".join(line.text for line in lines))
+
+
 def test_math_font_glyph_does_not_compete_with_real_footer() -> None:
     page = PdfPage(
         page_number=1,
@@ -110,6 +121,197 @@ def test_genuine_extra_number_and_text_font_roman_remain_candidates() -> None:
         f.details.get("issue_type") == "multiple_page_numbers"
         for f in check_pdf_page_number_sequence(doc)
     )
+
+
+def test_equation_numeral_above_stable_folio_baseline_is_not_a_second_folio() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.append(
+                _combined_block(
+                    _number_line("2", "CMR12", (320, 700, 327, 713)),
+                    _number_line("E = mc", "CMMI12", (331, 698, 378, 714)),
+                )
+            )
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "1"
+    assert finding.details["candidate_sample"] == "11"
+    assert not any(
+        f.page == 11 and f.details.get("issue_type") == "multiple_page_numbers"
+        for f in check_pdf_page_number_sequence(doc)
+    )
+
+
+def test_two_folios_on_stable_baseline_remain_multiple_candidates() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.append(_number_line("12", "CMBX12", (527, 746, 542, 759)))
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+    assert set(finding.details["candidate_sample"].split(", ")) == {"11", "12"}
+    assert any(
+        f.page == 11 and f.details.get("issue_type") == "multiple_page_numbers"
+        for f in check_pdf_page_number_sequence(doc)
+    )
+
+
+def test_second_folio_at_different_footer_position_remains_visible() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.append(_number_line("12", "Times-Roman", (527, 700, 542, 713)))
+            blocks.append(_number_line("E = mc", "CMR12", (445, 695, 510, 710)))
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+    assert set(finding.details["candidate_sample"].split(", ")) == {"11", "12"}
+
+
+def test_separate_equation_near_centered_second_folio_does_not_hide_it() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.extend(
+                [
+                    _number_line("12", "Times-Roman", (320, 700, 335, 713)),
+                    _number_line("E = mc", "CMMI12", (338, 680, 385, 693)),
+                ]
+            )
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+
+
+def test_far_equation_in_same_extracted_block_does_not_hide_second_folio() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.append(
+                _combined_block(
+                    _number_line("12", "Times-Roman", (320, 700, 335, 713)),
+                    _number_line("E = mc", "CMMI12", (108, 698, 180, 714)),
+                )
+            )
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+
+
+def test_aligned_fraction_denominator_in_separate_block_is_not_a_folio() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.extend(
+                [
+                    _combined_block(
+                        _number_line("1", "CMR12", (292, 656, 298, 670)),
+                        _number_line("f = 1", "CMMI12", (328, 656, 352, 670)),
+                    ),
+                    _number_line("2", "CMR12", (292, 681, 299, 695)),
+                ]
+            )
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "1"
+    assert finding.details["candidate_sample"] == "11"
+
+
+def test_isolated_off_baseline_number_is_kept_when_context_is_unclear() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.append(_number_line("12", "Times-Roman", (527, 700, 542, 713)))
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+
+
+def test_bibliography_year_stays_visible_without_equation_evidence() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.extend(
+                [
+                    _number_line("2016.", "CMR12", (513, 688, 540, 700)),
+                    _number_line("Journal,", "CMTI12", (445, 688, 481, 700)),
+                ]
+            )
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+    assert set(finding.details["candidate_sample"].split(", ")) == {"11", "2016."}
+
+
+def test_same_font_second_folio_is_kept_near_equation() -> None:
+    pages = []
+    for number in range(1, 13):
+        blocks = [_number_line(str(number), "CMBX12", (300, 746, 320, 759))]
+        if number == 11:
+            blocks.extend(
+                [
+                    _number_line("12", "CMBX12", (320, 700, 335, 713)),
+                    _number_line("E = mc", "CMMI12", (338, 698, 385, 714)),
+                ]
+            )
+        pages.append(PdfPage(page_number=number, width=612, height=792, text_blocks=blocks))
+    doc = PdfDocument(path="synthetic.pdf", pages=pages)
+
+    finding = _page_finding(run_pdf_page_number_candidates_rule(doc), 11)
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
+
+
+def test_without_stable_baseline_second_number_remains_for_review() -> None:
+    page = PdfPage(
+        page_number=1,
+        width=612,
+        height=792,
+        text_blocks=[
+            _number_line("11", "CMBX12", (300, 746, 320, 759)),
+            _number_line("2", "CMR12", (320, 700, 327, 713)),
+        ],
+    )
+    finding = _page_finding(
+        run_pdf_page_number_candidates_rule(PdfDocument(path="synthetic.pdf", pages=[page])),
+        1,
+    )
+    assert finding is not None
+    assert finding.details["candidate_count_on_page"] == "2"
 
 
 def _page_finding(findings: list, page: int) -> object | None:
