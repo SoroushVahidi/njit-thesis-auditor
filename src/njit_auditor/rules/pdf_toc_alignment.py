@@ -141,6 +141,7 @@ class TocEntryLine:
         has_leader_dots: bool,
         *,
         is_wrapped: bool = False,
+        page_number_line: PdfTextLine | None = None,
     ) -> None:
         self.line = line
         self.cleaned_text = cleaned_text
@@ -149,6 +150,7 @@ class TocEntryLine:
         self.indent_x = indent_x
         self.has_leader_dots = has_leader_dots
         self.is_wrapped = is_wrapped
+        self.page_number_line = page_number_line
 
 
 def has_trailing_page_number_token(entry: TocEntryLine) -> bool:
@@ -512,6 +514,7 @@ def _apply_auxiliary_page_number(entry: TocEntryLine, aux_line: PdfTextLine) -> 
         right_x = aux_line.bbox.x1
     entry.page_number_token = token
     entry.page_number_right_x = right_x if right_x is not None else aux_line.bbox.x1
+    entry.page_number_line = aux_line
     if not entry.has_leader_dots and _has_leader_dot_pattern(cleaned):
         entry.has_leader_dots = True
 
@@ -644,6 +647,7 @@ def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
         page_number_right_x=page_right_x,
         indent_x=line.bbox.x0,
         has_leader_dots=_has_leader_dot_pattern(cleaned),
+        page_number_line=line if page_num is not None else None,
     )
 
 
@@ -712,6 +716,7 @@ def _merge_wrapped_entries(
                     if nxt.page_number_token is not None:
                         entry.page_number_token = nxt.page_number_token
                         entry.page_number_right_x = nxt.page_number_right_x
+                        entry.page_number_line = nxt.page_number_line
                         idx += 1
                         break
                     prev_y = nxt.line.bbox.y0
@@ -896,6 +901,7 @@ def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLin
             if glued and abs(first.bbox.x1 - column_edge) <= RIGHT_EDGE_TOLERANCE_PT:
                 original.page_number_token = glued.group("num")
                 original.page_number_right_x = first.bbox.x1
+                original.page_number_line = first
                 repaired.append(original)
                 continue
 
@@ -977,6 +983,7 @@ def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLin
             absorbed_y.add(follower.bbox.y0)
         logical.page_number_token = final_number
         logical.page_number_right_x = final_edge
+        logical.page_number_line = continuation_rows[-1] if continuation_rows else first
         repaired.append(logical)
     return repaired
 

@@ -57,25 +57,27 @@ _SECTION_LABEL = {
 
 
 def _complete_entries(entries: list[TocEntryLine]) -> list[TocEntryLine]:
-    """Return entries whose page-number token reaches the row's right edge.
+    """Return entries with reliable page-number evidence and edge geometry.
 
-    The shared TOC parser also reports terminal numerals embedded in figure
-    titles. Those tokens can have a plausible ``page_number_right_x`` while
-    ending well before the visual row edge, especially on wrapped entries.
+    A token on a separate auxiliary line, or in its own span, is reliable.
+    A numeral embedded in a title span is not a page-column anchor.
     """
-    complete = [
-        entry
-        for entry in entries
-        if entry.page_number_right_x is not None
-        and entry.page_number_token is not None
-        and any(
-            entry.page_number_token in span.text
-            and span.bbox.x1 >= entry.line.bbox.x1 - PAGE_NUMBER_EDGE_TOLERANCE_PT
-            for span in entry.line.spans
+    complete: list[TocEntryLine] = []
+    for entry in entries:
+        token = entry.page_number_token
+        source_line = entry.page_number_line
+        if token is None or entry.page_number_right_x is None or source_line is None:
+            continue
+        if source_line is not entry.line:
+            complete.append(entry)
+            continue
+        standalone = any(
+            span.text.strip() == token
+            and span.bbox.x1 >= source_line.bbox.x1 - PAGE_NUMBER_EDGE_TOLERANCE_PT
+            for span in source_line.spans
         )
-    ]
-    if sum(entry.has_leader_dots for entry in complete) >= MIN_COMPLETE_ENTRIES:
-        return [entry for entry in complete if entry.has_leader_dots]
+        if standalone or entry.has_leader_dots:
+            complete.append(entry)
     return complete
 
 

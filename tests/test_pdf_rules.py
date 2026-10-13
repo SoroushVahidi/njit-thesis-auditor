@@ -14360,6 +14360,102 @@ def test_p049_lof_reports_misaligned_header_with_multiline_entries(tmp_path: Pat
     )
 
 
+def _make_p049_auxiliary_page_number_pdf(
+    path: Path,
+    *,
+    page_header_x: float,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure", fontname="Times-Bold")
+    page.insert_text((page_header_x, 115), "Page", fontname="Times-Bold")
+    for i in range(3):
+        y = 140 + i * 30
+        page.insert_text((108, y), f"Figure {i + 1} A wrapped figure description")
+        page.insert_text((150, y + 7), "continuation text")
+        page.insert_text((500, y + 7), str(10 + i))
+    doc.save(path)
+    doc.close()
+
+
+def test_p049_accepts_auxiliary_page_number_lines(tmp_path: Path) -> None:
+    """Page numbers paired from a separate physical line remain usable."""
+    pdf_path = tmp_path / "p049_auxiliary_aligned.pdf"
+    _make_p049_auxiliary_page_number_pdf(pdf_path, page_header_x=490.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(
+        f.details.get("issue_type") == "lof_page_header_not_right_aligned"
+        for f in findings
+    )
+
+
+def test_p049_reports_auxiliary_page_number_misalignment(tmp_path: Path) -> None:
+    """Auxiliary-line page numbers still support a genuine header warning."""
+    pdf_path = tmp_path / "p049_auxiliary_misaligned.pdf"
+    _make_p049_auxiliary_page_number_pdf(pdf_path, page_header_x=200.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert any(
+        f.details.get("issue_type") == "lof_page_header_not_right_aligned"
+        for f in findings
+    )
+
+
+def _make_p049_leaderless_numeric_title_pdf(
+    path: Path,
+    *,
+    page_header_x: float,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure", fontname="Times-Bold")
+    page.insert_text((page_header_x, 115), "Page", fontname="Times-Bold")
+    for i in range(3):
+        y = 140 + i * 30
+        page.insert_text((108, y), f"Figure {i + 1} title ending in value {42 + i}")
+    doc.save(path)
+    doc.close()
+
+
+def test_p049_rejects_embedded_leaderless_title_numbers(tmp_path: Path) -> None:
+    """A title numeral is not evidence when its page number is separate."""
+    pdf_path = tmp_path / "p049_leaderless_numeric_title.pdf"
+    _make_p049_leaderless_numeric_title_pdf(pdf_path, page_header_x=200.0)
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(
+        f.details.get("issue_type") == "lof_page_header_not_right_aligned"
+        for f in findings
+    )
+
+
+def test_p049_uses_mixed_reliable_page_number_evidence(tmp_path: Path) -> None:
+    """Mixed leaders and leaderless standalone numbers share one anchor."""
+    pdf_path = tmp_path / "p049_mixed_evidence.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure", fontname="Times-Bold")
+    page.insert_text((490, 115), "Page", fontname="Times-Bold")
+    for i in range(3):
+        y = 140 + i * 30
+        page.insert_text((108, y), f"Figure {i + 1} description")
+        if i == 1:
+            page.insert_text((400, y), "........")
+        page.insert_text((500, y + 7), str(10 + i))
+    doc.save(pdf_path)
+    doc.close()
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(
+        f.details.get("issue_type") == "lof_page_header_not_right_aligned"
+        for f in findings
+    )
+
+
 def test_p049_lot_page_header_bold_no_bold_finding(tmp_path: Path) -> None:
     """LoT 'Page' header with bold font → no lot_page_header_not_bold finding."""
     pdf_path = tmp_path / "p049_lot_bold_ok.pdf"
