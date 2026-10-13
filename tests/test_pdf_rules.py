@@ -14310,6 +14310,56 @@ def test_p049_lof_page_header_misaligned_warns(tmp_path: Path) -> None:
     assert all(f.details.get("source_q_rule_id") == "Q073" for f in findings)
 
 
+def test_p049_lof_ignores_terminal_title_numbers_in_multiline_entries(
+    tmp_path: Path,
+) -> None:
+    """Title numerals must not become the page-column anchor."""
+    pdf_path = tmp_path / "p049_lof_multiline_title_numbers.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure", fontname="Times-Bold")
+    page.insert_text((490, 115), "Page", fontname="Times-Bold")
+    for i in range(3):
+        y = 140 + i * 48
+        page.insert_text((108, y), f"Figure {i + 1} A title ending in {42 + i}")
+        page.insert_text((150, y + 14), "with a wrapped continuation")
+        page.insert_text((500, y + 14), str(10 + i))
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert not any(
+        f.details.get("issue_type") == "lof_page_header_not_right_aligned"
+        for f in findings
+    )
+
+
+def test_p049_lof_reports_misaligned_header_with_multiline_entries(tmp_path: Path) -> None:
+    """Supported page-number tokens still expose a genuinely bad header."""
+    pdf_path = tmp_path / "p049_lof_multiline_bad_header.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+    page.insert_text((108, 115), "Figure", fontname="Times-Bold")
+    page.insert_text((200, 115), "Page", fontname="Times-Bold")
+    for i in range(3):
+        y = 140 + i * 48
+        page.insert_text((108, y), f"Figure {i + 1} A title ending in {42 + i}")
+        page.insert_text((150, y + 14), "with a wrapped continuation")
+        page.insert_text((500, y + 14), str(10 + i))
+    doc.save(pdf_path)
+    doc.close()
+
+    model = load_pdf_layout(str(pdf_path))
+    findings = check_pdf_lot_lof_column_header_style_alignment(model)
+    assert any(
+        f.details.get("issue_type") == "lof_page_header_not_right_aligned"
+        for f in findings
+    )
+
+
 def test_p049_lot_page_header_bold_no_bold_finding(tmp_path: Path) -> None:
     """LoT 'Page' header with bold font → no lot_page_header_not_bold finding."""
     pdf_path = tmp_path / "p049_lot_bold_ok.pdf"

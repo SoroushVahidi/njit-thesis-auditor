@@ -24,6 +24,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 MIN_COMPLETE_ENTRIES = 3
 RIGHT_ALIGNMENT_TOLERANCE_PT = 25.0
+PAGE_NUMBER_EDGE_TOLERANCE_PT = 1.0
 
 _TARGET_SECTIONS = frozenset({"list_of_tables", "list_of_figures"})
 
@@ -56,7 +57,26 @@ _SECTION_LABEL = {
 
 
 def _complete_entries(entries: list[TocEntryLine]) -> list[TocEntryLine]:
-    return [e for e in entries if e.page_number_right_x is not None]
+    """Return entries whose page-number token reaches the row's right edge.
+
+    The shared TOC parser also reports terminal numerals embedded in figure
+    titles. Those tokens can have a plausible ``page_number_right_x`` while
+    ending well before the visual row edge, especially on wrapped entries.
+    """
+    complete = [
+        entry
+        for entry in entries
+        if entry.page_number_right_x is not None
+        and entry.page_number_token is not None
+        and any(
+            entry.page_number_token in span.text
+            and span.bbox.x1 >= entry.line.bbox.x1 - PAGE_NUMBER_EDGE_TOLERANCE_PT
+            for span in entry.line.spans
+        )
+    ]
+    if sum(entry.has_leader_dots for entry in complete) >= MIN_COMPLETE_ENTRIES:
+        return [entry for entry in complete if entry.has_leader_dots]
+    return complete
 
 
 def _expected_right_x(complete: list[TocEntryLine]) -> float:
