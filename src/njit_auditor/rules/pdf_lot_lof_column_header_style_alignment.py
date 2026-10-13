@@ -24,6 +24,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 MIN_COMPLETE_ENTRIES = 3
 RIGHT_ALIGNMENT_TOLERANCE_PT = 25.0
+PAGE_NUMBER_EDGE_TOLERANCE_PT = 1.0
 
 _TARGET_SECTIONS = frozenset({"list_of_tables", "list_of_figures"})
 
@@ -56,7 +57,28 @@ _SECTION_LABEL = {
 
 
 def _complete_entries(entries: list[TocEntryLine]) -> list[TocEntryLine]:
-    return [e for e in entries if e.page_number_right_x is not None]
+    """Return entries with reliable page-number evidence and edge geometry.
+
+    A token on a separate auxiliary line, or in its own span, is reliable.
+    A numeral embedded in a title span is not a page-column anchor.
+    """
+    complete: list[TocEntryLine] = []
+    for entry in entries:
+        token = entry.page_number_token
+        source_line = entry.page_number_line
+        if token is None or entry.page_number_right_x is None or source_line is None:
+            continue
+        if source_line is not entry.line:
+            complete.append(entry)
+            continue
+        standalone = any(
+            span.text.strip() == token
+            and span.bbox.x1 >= source_line.bbox.x1 - PAGE_NUMBER_EDGE_TOLERANCE_PT
+            for span in source_line.spans
+        )
+        if standalone or entry.has_leader_dots:
+            complete.append(entry)
+    return complete
 
 
 def _expected_right_x(complete: list[TocEntryLine]) -> float:
