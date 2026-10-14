@@ -186,7 +186,15 @@ def is_isolated_terminal_grid_leader_dot(
         or spans[-2].text.strip() != "."
     ):
         return False
-    dot_x = spans[-2].bbox.x0
+    terminal_dot = spans[-2]
+    dot_x = terminal_dot.bbox.x0
+    if terminal_dot.char_x_bounds is not None:
+        dot_index = next(
+            (index for index, char in enumerate(terminal_dot.text) if char == "."),
+            None,
+        )
+        if dot_index is not None:
+            dot_x = terminal_dot.char_x_bounds[dot_index][0]
     matching_grid_rows = 0
     for peer in peers:
         if peer is entry:
@@ -194,7 +202,16 @@ def is_isolated_terminal_grid_leader_dot(
         dots = [span for span in peer.line.spans if span.text.strip() == "."]
         if len(dots) < 2:
             continue
-        if abs(dots[-1].bbox.x0 - dot_x) <= LEADER_GRID_MAX_SPREAD_PT:
+        peer_dot = dots[-1]
+        peer_dot_x = peer_dot.bbox.x0
+        if peer_dot.char_x_bounds is not None:
+            dot_index = next(
+                (index for index, char in enumerate(peer_dot.text) if char == "."),
+                None,
+            )
+            if dot_index is not None:
+                peer_dot_x = peer_dot.char_x_bounds[dot_index][0]
+        if abs(peer_dot_x - dot_x) <= LEADER_GRID_MAX_SPREAD_PT:
             matching_grid_rows += 1
     return matching_grid_rows >= LEADER_GRID_MIN_ROWS
 
