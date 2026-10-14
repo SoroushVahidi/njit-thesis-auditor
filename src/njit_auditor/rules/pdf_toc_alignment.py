@@ -383,8 +383,14 @@ def _right_edge_page_number_span(line: PdfTextLine) -> PdfTextSpan | None:
     return span
 
 
-def _extract_page_number_from_spans(line: PdfTextLine) -> tuple[str | None, float | None]:
-    span = _right_column_page_number_span(line)
+def _extract_page_number_from_spans(
+    line: PdfTextLine, *, require_right_edge: bool = False
+) -> tuple[str | None, float | None]:
+    span = (
+        _right_edge_page_number_span(line)
+        if require_right_edge
+        else _right_column_page_number_span(line)
+    )
     if span is None:
         return None, None
     return _clean_text(span.text), span.bbox.x1
@@ -433,14 +439,14 @@ def _extract_trailing_right_column_page_number(
 
 
 def _extract_page_number_token(
-    line: PdfTextLine, cleaned_text: str
+    line: PdfTextLine, cleaned_text: str, *, require_right_edge: bool = False
 ) -> tuple[str | None, float | None]:
     match = PAGE_NUMBER_TOKEN_RE.search(cleaned_text)
     if match is not None:
         token = match.group("num")
         right_x = _page_number_right_x_for_token(line, token)
         return token, right_x
-    span_token = _extract_page_number_from_spans(line)
+    span_token = _extract_page_number_from_spans(line, require_right_edge=require_right_edge)
     if span_token[0] is not None:
         return span_token
     return _extract_trailing_right_column_page_number(line, cleaned_text)
@@ -493,7 +499,9 @@ def _merge_baseline_group_to_line(group: list[PdfTextLine]) -> PdfTextLine:
     return PdfTextLine(spans=spans or ordered[0].spans, bbox=bbox, text=merged_text)
 
 
-def _assemble_same_baseline_toc_rows(lines: list[PdfTextLine]) -> list[PdfTextLine]:
+def _assemble_same_baseline_toc_rows(
+    lines: list[PdfTextLine], *, y_tolerance: float = SAME_BASELINE_Y_TOLERANCE_PT
+) -> list[PdfTextLine]:
     """Group TOC/list lines that share a baseline into visual rows."""
 
     if not lines:
@@ -504,7 +512,7 @@ def _assemble_same_baseline_toc_rows(lines: list[PdfTextLine]) -> list[PdfTextLi
     current_mid: float | None = None
     for line in ordered:
         mid = _line_mid_y(line)
-        if current_mid is None or abs(mid - current_mid) <= SAME_BASELINE_Y_TOLERANCE_PT:
+        if current_mid is None or abs(mid - current_mid) <= y_tolerance:
             current.append(line)
             current_mid = mid if current_mid is None else (current_mid * 0.7 + mid * 0.3)
         else:
@@ -655,8 +663,12 @@ def _pair_right_column_number(
     return auxiliary_lines.pop(best_idx)
 
 
-def _make_entry_from_line(line: PdfTextLine, cleaned: str) -> TocEntryLine:
-    page_num, page_right_x = _extract_page_number_token(line, cleaned)
+def _make_entry_from_line(
+    line: PdfTextLine, cleaned: str, *, require_right_edge: bool = False
+) -> TocEntryLine:
+    page_num, page_right_x = _extract_page_number_token(
+        line, cleaned, require_right_edge=require_right_edge
+    )
     return TocEntryLine(
         line=line,
         cleaned_text=cleaned,
@@ -769,7 +781,9 @@ def _drop_merge_orphans(entries: list[TocEntryLine]) -> list[TocEntryLine]:
     return retained
 
 
-def collect_toc_visual_rows(context: TocPageContext) -> list[PdfTextLine]:
+def collect_toc_visual_rows(
+    context: TocPageContext, *, require_right_edge: bool = False
+) -> list[PdfTextLine]:
     """Return the page's entry-region lines assembled into visual rows.
 
     Rows are ordered top to bottom; same-baseline column fragments (section
@@ -799,15 +813,22 @@ def collect_toc_visual_rows(context: TocPageContext) -> list[PdfTextLine]:
     ordered_lines.sort(key=lambda line: (line.bbox.y0, line.bbox.x0))
     # Rebuild visual TOC rows from same-baseline column fragments before
     # classifying entries / pairing page numbers.
-    return _assemble_same_baseline_toc_rows(ordered_lines)
+    # R055 sees some number/title fragments with baselines a few points apart.
+    # Keep the wider grouping local to its right-edge parsing mode.
+    return _assemble_same_baseline_toc_rows(
+        ordered_lines,
+        y_tolerance=5.0 if require_right_edge else SAME_BASELINE_Y_TOLERANCE_PT,
+    )
 
 
-def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
+def extract_toc_entry_lines(
+    context: TocPageContext, *, require_right_edge: bool = False
+) -> list[TocEntryLine]:
     """Extract likely entry lines below TOC/List heading on a page."""
 
     page_width = context.page.width or 612.0
     max_entry_left = page_width * TOC_ENTRY_MAX_LEFT_FRACTION
-    ordered_lines = collect_toc_visual_rows(context)
+    ordered_lines = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
 
     entries: list[TocEntryLine] = []
     auxiliary_lines: list[PdfTextLine] = []
@@ -826,11 +847,13 @@ def extract_toc_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
         # Margin notes / annotation fragments in the right half are not TOC rows.
         if line.bbox.x0 >= max_entry_left and not _has_prefix_entry_shape(cleaned):
             continue
-        page_num, page_right_x = _extract_page_number_token(line, cleaned)
+        page_num, page_right_x = _extract_page_number_token(
+            line, cleaned, require_right_edge=require_right_edge
+        )
         has_signal = page_num is not None or page_right_x is not None
         if not _likely_entry_line(cleaned, has_page_number_signal=has_signal):
             continue
-        entries.append(_make_entry_from_line(line, cleaned))
+        entries.append(_make_entry_from_line(line, cleaned, require_right_edge=require_right_edge))
 
     unused_auxiliary = sorted(auxiliary_lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
     for entry in entries:
@@ -877,7 +900,9 @@ def _append_logical_row(entry: TocEntryLine, row: PdfTextLine, text: str) -> Non
     entry.is_wrapped = True
 
 
-def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLine]:
+def extract_toc_logical_entry_lines(
+    context: TocPageContext, *, require_right_edge: bool = False
+) -> list[TocEntryLine]:
     """Repair demonstrable wrapped entries for R018/R024/R040.
 
     The ordinary extractor deliberately filters rows that do not resemble a
@@ -886,8 +911,8 @@ def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLin
     only hanging rows that lead to a page number in the page's established
     right column. R075 and other rules keep the ordinary extractor.
     """
-    entries = extract_toc_entry_lines(context)
-    rows = collect_toc_visual_rows(context)
+    entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
+    rows = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
     column_edge = _logical_page_column_edge(entries)
     if not entries or not rows:
         return entries
@@ -907,7 +932,16 @@ def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLin
             continue
         first = rows[first_index]
         first_text = _row_text(first)
-        if not _has_prefix_entry_shape(first_text):
+        # Some list PDFs extract the number and title without a separating
+        # space. In right-edge mode, retain that numbered start so its wrapped
+        # page token can be attached to the same logical entry.
+        if not (
+            _has_prefix_entry_shape(first_text)
+            or (
+                require_right_edge
+                and re.match(r"^\d+(?:[.\-]\d+)*[A-Z]", first_text)
+            )
+        ):
             repaired.append(original)
             continue
 
@@ -974,7 +1008,9 @@ def extract_toc_logical_entry_lines(context: TocPageContext) -> list[TocEntryLin
             ):
                 break
             continuation_rows.append(follower)
-            token, edge = _extract_page_number_token(follower, text)
+            token, edge = _extract_page_number_token(
+                follower, text, require_right_edge=require_right_edge
+            )
             if token is not None and (
                 (
                     column_edge is None
