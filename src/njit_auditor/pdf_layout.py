@@ -143,6 +143,8 @@ def _page_has_leader_run(page_dict: dict) -> bool:
 
 def _char_x_bounds_by_span(
     page: fitz.Page,
+    *,
+    exclude_annotation_appearances: bool = False,
 ) -> dict[tuple[int, int, int], tuple[str, list[tuple[float, float]]]]:
     """Map (block, line, span) indices to that span's per-character x-extents.
 
@@ -150,7 +152,9 @@ def _char_x_bounds_by_span(
     so indices line up; callers still verify the joined characters equal the
     ``dict`` span text before trusting a mapping.
     """
-    raw = page.get_text("rawdict")
+    raw = _page_text_dict(
+        page, raw=True, exclude_annotation_appearances=exclude_annotation_appearances
+    )
     out: dict[tuple[int, int, int], tuple[str, list[tuple[float, float]]]] = {}
     for bi, block in enumerate(raw.get("blocks", [])):
         for li, line in enumerate(block.get("lines", []) or []):
@@ -160,6 +164,25 @@ def _char_x_bounds_by_span(
                 bounds = [(float(ch["bbox"][0]), float(ch["bbox"][2])) for ch in chars]
                 out[(bi, li, si)] = (text, bounds)
     return out
+
+
+def _page_text_dict(
+    page: fitz.Page, *, raw: bool = False, exclude_annotation_appearances: bool = False
+) -> dict:
+    """Extract authored page text without treating annotation artwork as content.
+
+    PyMuPDF's usual text extraction includes visible annotation appearances,
+    including reviewer labels drawn outside the dissertation margins. A display
+    list with annotations disabled retains the underlying page content, even
+    where an annotation overlaps genuine text. Use matching extraction flags
+    for the span and character-detail dictionaries.
+    """
+    kind = "rawdict" if raw else "dict"
+    if not exclude_annotation_appearances:
+        return page.get_text(kind)
+    flags = fitz.TEXTFLAGS_RAWDICT if raw else fitz.TEXTFLAGS_DICT
+    textpage = fitz.TextPage(page.get_displaylist(annots=False).get_textpage(flags=flags))
+    return textpage.extractRAWDICT() if raw else textpage.extractDICT()
 
 
 def _page_has_table_caption_hint(page_dict: dict) -> bool:
@@ -276,7 +299,10 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                 graphic_blocks=[],
             )
 
-            page_dict = page.get_text("dict")
+            exclude_annotation_appearances = page.first_annot is not None
+            page_dict = _page_text_dict(
+                page, exclude_annotation_appearances=exclude_annotation_appearances
+            )
             if _page_has_table_caption_hint(page_dict):
                 page_model.horizontal_rules = _horizontal_rule_bboxes(
                     page, _page_dict_reading_rotation(page, page_dict)
@@ -309,7 +335,11 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                     )
 
             glyph_map = (
-                _char_x_bounds_by_span(page) if _page_has_leader_run(page_dict) else {}
+                _char_x_bounds_by_span(
+                    page, exclude_annotation_appearances=exclude_annotation_appearances
+                )
+                if _page_has_leader_run(page_dict)
+                else {}
             )
             for block_index, block in enumerate(page_dict.get("blocks", [])):
                 if block.get("type") != 0:
