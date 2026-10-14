@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from statistics import median as _median
 
 import fitz
 
@@ -363,6 +364,11 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                     # titles/captions) use join_content_span_texts(spans) explicitly.
                     line_text = "".join(span_text_chunks).strip()
                     block_text_chunks.append(line_text)
+                    baselines = [
+                        float(origin[1])
+                        for span in line.get("spans", [])
+                        if (origin := span.get("origin")) is not None and len(origin) > 1
+                    ]
                     wmode_raw = line.get("wmode")
                     block_lines.append(
                         PdfTextLine(
@@ -374,6 +380,7 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                                 y1=float(line["bbox"][3]),
                             ),
                             text=line_text,
+                            baseline_y=_median(baselines) if baselines else None,
                             line_dir=_parse_line_dir(line.get("dir")),
                             wmode=int(wmode_raw) if wmode_raw is not None else None,
                         )

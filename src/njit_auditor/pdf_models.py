@@ -65,6 +65,7 @@ class PdfTextLine(BaseModel):
     spans: list[PdfTextSpan] = Field(default_factory=list)
     bbox: BBox
     text: str
+    baseline_y: float | None = None
     line_dir: tuple[float, float] | None = None
     wmode: int | None = None
 
