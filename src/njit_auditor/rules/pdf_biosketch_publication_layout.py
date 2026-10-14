@@ -155,12 +155,12 @@ def _rows_bbox(rows: list[_Row]) -> str:
 def _line_step(earlier: _Row, later: _Row) -> float:
     """Return the baseline step between two rows.
 
-    Span origins are the authoritative baseline when available. The lower
-    edge is a compatibility fallback for synthetic geometry without origins.
+    Span origins are the authoritative baseline when available. Without
+    origins, retain the prior smaller-edge estimate for synthetic geometry.
     """
     if earlier.baseline_y is not None and later.baseline_y is not None:
         return later.baseline_y - earlier.baseline_y
-    return later.y1 - earlier.y1
+    return min(later.y0 - earlier.y0, later.y1 - earlier.y1)
 
 
 def _letters_key(text: str) -> str:
