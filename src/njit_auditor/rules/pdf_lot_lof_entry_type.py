@@ -23,7 +23,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
     detect_toc_like_pages,
-    extract_toc_entry_lines,
+    extract_toc_logical_entry_lines,
 )
 
 MIN_ENTRY_TEXT_LEN = 10
@@ -35,7 +35,8 @@ _TABLE_PREFIX_RE = re.compile(
     r"^table\s+([0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)", re.IGNORECASE
 )
 _NUMERIC_PREFIX_RE = re.compile(
-    r"^([0-9ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*)", re.IGNORECASE
+    r"^(?:\d+(?:[.\-]\d+)*(?=\s|[.):]|(?-i:[A-Z])|$)|[ivxlcdm]+(?:[.\-][0-9ivxlcdm]+)*(?=\s|[.):]|$))",
+    re.IGNORECASE,
 )
 
 
@@ -173,14 +174,14 @@ def check_pdf_lot_lof_entry_type(pdf_document: PdfDocument) -> list[AuditFinding
     entry_offset = 0
     for context in detect_toc_like_pages(pdf_document):
         if context.page_type == "list_of_tables":
-            entries = extract_toc_entry_lines(context)
+            entries = extract_toc_logical_entry_lines(context, require_right_edge=True)
             if len(entries) >= 2:
                 findings.extend(
                     _check_lot_entry_type_page(context, entries, entry_offset)
                 )
             entry_offset += len(entries)
         elif context.page_type == "list_of_figures":
-            entries = extract_toc_entry_lines(context)
+            entries = extract_toc_logical_entry_lines(context, require_right_edge=True)
             if len(entries) >= 2:
                 findings.extend(
                     _check_lof_entry_type_page(context, entries, entry_offset)
