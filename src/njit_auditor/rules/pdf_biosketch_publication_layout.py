@@ -132,6 +132,7 @@ class _Row:
     y1: float
     text: str
     font_size: float
+    baseline_y: float | None = None
     x1: float = 0.0
 
     @property
@@ -152,11 +153,13 @@ def _rows_bbox(rows: list[_Row]) -> str:
 
 
 def _line_step(earlier: _Row, later: _Row) -> float:
-    """Top-to-top step between rows, robust to one oversized glyph.
+    """Return the baseline step between two rows.
 
-    A tall glyph or superscript moves only one edge of a row, so the smaller
-    of the top-edge and bottom-edge steps tracks the baseline step.
+    Span origins are the authoritative baseline when available. Without
+    origins, retain the prior smaller-edge estimate for synthetic geometry.
     """
+    if earlier.baseline_y is not None and later.baseline_y is not None:
+        return later.baseline_y - earlier.baseline_y
     return min(later.y0 - earlier.y0, later.y1 - earlier.y1)
 
 
@@ -190,6 +193,13 @@ def _rows_for_page(page: PdfPage) -> list[_Row]:
                     default=0.0,
                 )
                 or max(line.bbox.height for line in ordered),
+                baseline_y=(
+                    _median(
+                        [line.baseline_y for line in ordered if line.baseline_y is not None]
+                    )
+                    if any(line.baseline_y is not None for line in ordered)
+                    else None
+                ),
             )
         )
     return rows
