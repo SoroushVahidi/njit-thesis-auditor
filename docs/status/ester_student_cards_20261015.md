@@ -23,3 +23,5 @@ These screenshots use only `tests/fixtures/web_demo/issues_pdf.pdf`. They show t
 | Phone | [Before phone](ester_student_cards_screenshots/before_phone.png) | [After phone](ester_student_cards_screenshots/after_phone.png) |
 
 The Playwright browser regression runs at both widths and found no horizontal page overflow. Page filtering showed one visible card labeled `Issue 1 of 1`; resetting restored both cards, and confidence sorting kept the real two-card total. It also checks keyboard focus on the PDF action. The PDF links and report downloads remain covered by automated tests.
+
+GitHub Actions remains under the documented billing restriction. The PR head commit requests that push and pull-request CI be skipped; local validation is reported in the PR instead.
