@@ -57,6 +57,7 @@ REFERENCES_LIKE_HEADINGS = {
 }
 
 CAPTION_PREFIX_RE = re.compile(r"^(figure|table)\s+[\divxlcdm]+[.:)]?\s+", re.IGNORECASE)
+_CAPTION_NUMBER_RE = re.compile(r"[\divxlcdm]+(?:[.\-][\divxlcdm]+)*[.:)]?", re.IGNORECASE)
 BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|[a-zA-Z][.)])\s+")
 _BODY_SECTION_HEADING_RE = re.compile(r"^\d+(?:\.\d+)+\s+\S")
 _BODY_CHAPTER_HEADING_RE = re.compile(r"^(?:CHAPTER|APPENDIX)\s+[\dA-Z]")
@@ -104,6 +105,28 @@ def _is_named_heading_line(line: PdfTextLine) -> bool:
     return normalized.upper() in EXPECTED_HEADINGS
 
 
+def _has_glued_caption_lead(line: PdfTextLine) -> bool:
+    """Recognize a caption whose PDF spans retain spaces lost in line.text.
+
+    Require a bold label and number followed by regular description text.
+    This keeps a prose sentence beginning with a figure reference eligible for
+    the paragraph check.
+    """
+    if len(line.spans) < 3:
+        return False
+    label, number, description = line.spans[:3]
+    return (
+        label.text.strip().casefold() in {"figure", "table"}
+        and bool(_CAPTION_NUMBER_RE.fullmatch(number.text.strip()))
+        and label.bold
+        and number.bold
+        and not description.bold
+        and 0 <= number.bbox.x0 - label.bbox.x1 <= X_GROUP_TOLERANCE_PT
+        and 0 <= description.bbox.x0 - number.bbox.x1 <= X_GROUP_TOLERANCE_PT
+        and any(char.isalpha() for char in description.text)
+    )
+
+
 def _is_usable_paragraph_line(line: PdfTextLine) -> bool:
     if _is_named_heading_line(line) or _is_page_number_line(line):
         return False
@@ -112,7 +135,7 @@ def _is_usable_paragraph_line(line: PdfTextLine) -> bool:
         return False
     if BULLET_PREFIX_RE.match(clean):
         return False
-    if CAPTION_PREFIX_RE.match(clean):
+    if CAPTION_PREFIX_RE.match(clean) or _has_glued_caption_lead(line):
         return False
     alpha_count = sum(ch.isalpha() for ch in clean)
     if alpha_count < 10:
@@ -135,7 +158,11 @@ def _is_short_extraction_remnant(line: PdfTextLine) -> bool:
     clean = " ".join(line.text.strip().split())
     if not clean:
         return False
-    if BULLET_PREFIX_RE.match(clean) or CAPTION_PREFIX_RE.match(clean):
+    if (
+        BULLET_PREFIX_RE.match(clean)
+        or CAPTION_PREFIX_RE.match(clean)
+        or _has_glued_caption_lead(line)
+    ):
         return False
     # A bare section number ("2.4.3") split from its title text onto a
     # separate fragment is a distinct, already-handled structural marker
@@ -277,12 +304,28 @@ def _is_section_heading_line(line: PdfTextLine) -> bool:
         return False
     if clean.endswith((",", ";")):
         return False
-    # Level-4 numbered headings are required to end with a period.  A
-    # standalone heading such as "3.3.9.1 Datasets." still resets the
-    # opening-paragraph indent expectation.
-    if clean.endswith(".") and not _BODY_SECTION_HEADING_RE.match(clean):
+    if _BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean):
+        return True
+    # Some PDFs join the visible gaps between a numbered run-in heading, its
+    # bold title, and regular prose into one string. Use the retained spans
+    # to identify the heading boundary without exempting numeric-led prose.
+    if len(line.spans) < 3:
         return False
-    return bool(_BODY_SECTION_HEADING_RE.match(clean) or _BODY_CHAPTER_HEADING_RE.match(clean))
+    number, title, prose = line.spans[:3]
+    title_text = title.text.strip()
+    return (
+        bool(_SECTION_NUMBER_ONLY_RE.fullmatch(number.text.strip()))
+        and number.bold
+        and title.bold
+        and not prose.bold
+        and title_text.endswith(".")
+        and bool(title_text)
+        and title_text[0].isupper()
+        and 0 <= title.bbox.x0 - number.bbox.x1 <= X_GROUP_TOLERANCE_PT
+        and -SAME_ROW_OVERLAP_ALLOWANCE_PT
+        <= prose.bbox.x0 - title.bbox.x1
+        <= X_GROUP_TOLERANCE_PT
+    )
 
 
 def _paragraph_starts_with_run_in_heading(paragraph: list[PdfTextLine]) -> bool:
