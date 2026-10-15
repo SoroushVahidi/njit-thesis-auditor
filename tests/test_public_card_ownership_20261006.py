@@ -199,7 +199,8 @@ def test_job_page_links_toc_page_number_finding_to_r075(
     assert "/audits/" in str(post.url)
     html = post.content.decode()
     assert 'href="/rules#P075"' in html
-    assert 'aria-label="R075: see rule reference">R075</a>' in html
+    assert 'aria-label="TOC / LISTS: see rule reference">TOC / LISTS</a>' in html
+    assert 'aria-label="R075: see rule reference">R075</a>' not in html
     assert ">P075<" not in html
 
 

@@ -25,3 +25,11 @@ These screenshots use only `tests/fixtures/web_demo/issues_pdf.pdf`. They show t
 The Playwright browser regression runs at both widths and found no horizontal page overflow. Page filtering showed one visible card labeled `Issue 1 of 1`; resetting restored both cards, and confidence sorting kept the real two-card total. It also checks keyboard focus on the PDF action. The PDF links and report downloads remain covered by automated tests.
 
 GitHub Actions remains under the documented billing restriction. The PR head commit requests that push and pull-request CI be skipped; local validation is reported in the PR instead.
+
+## Full-suite failure analysis and repair
+
+| Original failure | Root cause | Intended result |
+|---|---|---|
+| Page-view badge assertion | The old test looked for a blue `Page 7` badge. The new detail cards repeated the page in `Where` even though the page view already names it. | Keep `Page 7` in the page title and use `Where: This page` on its cards. The revised test checks both cards and the title. Other detail views retain their page labels. |
+| R075 link label assertion | The rule link still pointed to `/rules#P075`, but the test expected the old visible technical code. | Show the student-facing `TOC / LISTS` topic in the link and accessible name while retaining the existing documentation target and technical ID in details. |
+| Issue wording assertion | An older in-memory test job supplied only `issue_type`, without the polished `issue_type_label`, so its card fell back to `Review this finding`. | Humanize that existing issue type as a short factual fallback. Show it once on detail cards. Use the polished label or measured margin summary whenever available; do not infer measurements. |

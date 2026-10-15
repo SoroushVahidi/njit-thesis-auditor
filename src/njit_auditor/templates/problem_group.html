@@ -253,7 +253,7 @@
         </div>
       </div>
       <div class="example-card__meta">
-        <div><strong>Where:</strong> {% if example.page is not none %}{{ example.page_display_label if example.page_display_label else "Page " ~ example.page }}{% else %}Document-wide{% endif %}{% if example.student_location %} · {{ example.student_location }}{% endif %}</div>
+        <div><strong>Where:</strong> {% if group_kind == "page" %}This page{% elif example.page is not none %}{{ example.page_display_label if example.page_display_label else "Page " ~ example.page }}{% else %}Document-wide{% endif %}{% if example.student_location %} · {{ example.student_location }}{% endif %}</div>
         <div class="example-card__issue">{{ example.student_summary }}</div>
         {% if example.issue_type_label %}
         <details class="issue-type-help">
@@ -263,7 +263,7 @@
           <p style="margin:0.3rem 0 0;font-size:0.86rem"><a href="/audits/{{ job_id }}/problems/rule/{{ example.rule_id }}/issue-type/{{ example.issue_type | issue_type_slug }}" class="rule-link">View all findings of this type &rarr;</a></p>
           {% endif %}
         </details>
-        {% elif example.issue_type %}
+        {% elif example.issue_type and example.student_summary != (example.issue_type | humanize_detail_key) %}
         <div><strong>Issue type:</strong> {{ example.issue_type | humanize_detail_key }}</div>
         {% endif %}
         {% if example.suggested_fix %}

@@ -233,12 +233,17 @@ def test_issue_type_humanized_in_results_page(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    # Humanized form should appear somewhere
+    # An older in-memory finding with no polished label still gets a factual,
+    # readable description instead of a generic prompt.
     assert "margin boundary violation" in body
+    assert "Review this finding" not in body
     # Raw underscore form must not appear as a standalone rendered value
     # (it may appear in data-* attributes which is fine, but not in visible text)
     # We check it doesn't appear as a bare text token in the card title
     assert "· margin_boundary_violation" not in body
+    detail = c.get(f"/audits/{job_id}/problems/rule/P011")
+    assert detail.status_code == 200
+    assert detail.text.count("margin boundary violation") == 1
 
 
 def test_triage_highlight_keys_humanized(

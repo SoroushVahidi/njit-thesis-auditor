@@ -42,7 +42,13 @@ def issue_summary(finding: Mapping[str, Any], details: Mapping[str, Any]) -> str
             overflow = 0.0
         if side and math.isfinite(overflow) and overflow > 0:
             return f"{side.capitalize()} margin exceeded by approximately {overflow:.1f} pt"
-    return str(finding.get("issue_type_label") or "Review this finding")
+    label = str(finding.get("issue_type_label") or "").strip()
+    if label:
+        return label
+    # Older in-memory jobs may have only the detector's issue type. Keep that
+    # short, factual description instead of replacing it with a generic prompt.
+    issue_type = str(finding.get("issue_type") or "").strip()
+    return issue_type.replace("_", " ") if issue_type else "Review this finding"
 
 
 def margin_questions(
