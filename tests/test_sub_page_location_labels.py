@@ -483,7 +483,7 @@ def test_location_label_consistent_across_drilldown_pages(app: tuple[TestClient,
         f"/audits/{job_id}/problems/rule/P011/issue-type/margin-boundary-violation",
     ):
         text = _get_html(client, path)
-        assert "Page 4 — right margin" in text, f"missing location label on {path}"
+        assert "Page 4" in text and "right margin" in text.lower(), path
 
 
 # ---------------------------------------------------------------------------

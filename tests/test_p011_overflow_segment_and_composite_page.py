@@ -363,9 +363,14 @@ def test_composite_page_view_omits_redundant_per_card_page_badge(
     job_id = _inject_job(wa, [_make_p013(7), _make_p020(7)])
     resp = c.get(f"/audits/{job_id}/problems/page/7")
     text = html.unescape(resp.text)
-    # Exactly one "Page 7" info badge (the hero's) -- not one per card, which
-    # would repeat the page the whole view is already scoped to.
-    assert text.count('badge-info">Page 7<') == 1
+    # The page title identifies the shared page; cards use contextual wording.
+    assert '<h1>Page 7</h1>' in text
+    cards = re.findall(
+        r'<article\b[^>]*class="card example-card"[^>]*>(.*?)</article>', text, re.DOTALL
+    )
+    assert len(cards) == 2
+    assert all("<strong>Where:</strong> This page" in card for card in cards)
+    assert all("<strong>Where:</strong> Page 7" not in card for card in cards)
 
 
 def test_composite_page_view_404_for_page_with_no_findings(

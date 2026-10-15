@@ -1487,7 +1487,7 @@ def test_results_page_confidence_badges_use_only_three_public_values(
     # visible label, and no fourth/fifth confidence category leaks into the badge
     # text either.
     assert "Priority" not in body
-    assert "Needs review" not in body
+    assert "Needs review confidence" not in body
     assert "Mixed confidence" not in body
     assert "Low confidence" in body  # from the missing-confidence P030 card
 
@@ -2056,9 +2056,10 @@ def test_results_page_atomic_sub_rule_finding_card_shows_r_form_not_raw_p_form(
     html = post.content.decode()
     # The href legitimately keeps the raw internal anchor id (it must match
     # the /rules page's own DOM id for that atomic sub-rule) -- only the
-    # visible label and aria-label are student-facing and must show R018D.
+    # visible label and aria-label are student-facing topic names.
     assert 'href="/rules#P018D"' in html
-    assert 'aria-label="R018D: see rule reference">R018D</a>' in html
+    assert 'aria-label="TOC / LISTS: see rule reference">TOC / LISTS</a>' in html
+    assert "Rule R018" in html  # available in optional technical details
     assert ">P018D<" not in html
     assert 'aria-label="P018D' not in html
 

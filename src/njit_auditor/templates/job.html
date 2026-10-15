@@ -28,8 +28,8 @@
   .grouped-problem__pattern-note {
     margin: 0.6rem 0 0;
     padding: 0.55rem 0.75rem;
-    background: #f0f6fc;
-    border-left: 3px solid var(--color-primary);
+    background: #f8f9fa;
+    border-left: 3px solid #adb5bd;
     border-radius: 4px;
     font-size: 0.89rem;
     color: var(--color-text);
@@ -58,26 +58,12 @@
     white-space: normal;
     text-align: center;
   }
-  /* Confidence palette is separate from category tags (.badge-info) and severity
-     labels. Public display supports exactly three values: low=blue, medium=yellow,
-     high=red. Missing/mixed confidence displays as low (see report_view.py). This
-     block is duplicated in problem_group.html (not shared via base.html) so pages
-     that never show a confidence badge, like /help, don't pick up the CSS class
-     name incidentally. */
-  .confidence-badge--low {
-    background: #dbeafe;
-    border-color: #60a5fa;
-    color: #1e3a8a;
-  }
-  .confidence-badge--medium {
-    background: #fef3c7;
-    border-color: #fbbf24;
-    color: #92400e;
-  }
+  .confidence-badge--low,
+  .confidence-badge--medium,
   .confidence-badge--high {
-    background: #fee2e2;
-    border-color: #f87171;
-    color: #991b1b;
+    background: #f1f3f5;
+    border-color: #adb5bd;
+    color: #343a40;
   }
   .confidence-filter {
     display: grid;
@@ -129,6 +115,7 @@
   }
   .finding-card {
     border: 1px solid #e2e8f0;
+    border-left: 4px solid #b42318;
     border-radius: var(--radius);
     background: #fff;
     padding: 0.65rem 0.85rem;
@@ -171,7 +158,9 @@
     overflow-wrap: anywhere;
   }
   .finding-card__issue {
-    font-size: 0.88rem;
+    color: #9f1d16;
+    font-weight: 700;
+    font-size: 0.95rem;
     line-height: 1.4;
     overflow-wrap: anywhere;
     margin-bottom: 0.25rem;
@@ -180,7 +169,8 @@
     display: block;
     margin-top: 0.2rem;
     font-size: 0.8rem;
-    color: var(--color-muted);
+    color: var(--color-text);
+    font-weight: 400;
     overflow-wrap: anywhere;
   }
   .finding-card__note {
@@ -194,10 +184,15 @@
     display: inline-flex;
     align-items: center;
   }
+  .margin-checks { margin: 0.45rem 0; padding-left: 1.2rem; font-size: 0.83rem; }
+  .margin-checks li { margin: 0.2rem 0; }
+  .margin-checks .margin-answer--no { color: #9f1d16; }
+  .margin-checks .margin-answer--yes { color: #155724; }
+  .margin-checks .margin-answer--needs-review { color: #495057; }
   @media (min-width: 720px) {
     .finding-card {
       display: grid;
-      grid-template-columns: minmax(4.5rem, auto) minmax(7rem, 1.1fr) minmax(8rem, 1.6fr) auto auto;
+      grid-template-columns: minmax(7rem, 1fr) minmax(9rem, 1.3fr) minmax(12rem, 2fr) auto;
       gap: 0.55rem 0.85rem;
       align-items: start;
       padding: 0.55rem 0.85rem;
@@ -208,7 +203,8 @@
     .finding-card__meta { grid-column: 2; margin: 0; }
     .finding-card__issue { grid-column: 3; margin: 0; }
     .finding-card__note { grid-column: 3 / 5; margin: 0; }
-    .finding-card__action { grid-column: 5; margin: 0; justify-self: end; }
+    .finding-card__action { grid-column: 3 / 5; margin: 0; }
+    .margin-checks { grid-column: 3 / 5; margin: 0; }
     .finding-card__action .btn { white-space: nowrap; }
   }
 </style>
@@ -256,6 +252,16 @@
         if (confidenceVal && row.dataset.confidence !== confidenceVal) show = false;
         row.classList.toggle("finding-row--hidden", !show);
         if (show) visible += 1;
+        if (show) {
+          var position = row.querySelector(".finding-card__problem");
+          if (position) position.textContent = "Issue " + visible;
+        }
+      });
+      rows.forEach(function(row) {
+        if (!row.classList.contains("finding-row--hidden")) {
+          var position = row.querySelector(".finding-card__problem");
+          if (position) position.textContent += " of " + visible;
+        }
       });
       return { visible: visible, total: rows.length };
     }
@@ -619,36 +625,45 @@
           <div class="finding-card__rule">
             <strong>
               {% if f.public_rule_reference_id %}
-              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.public_rule_reference_id | display_rule_id }}: see rule reference">{{ f.public_rule_reference_id | display_rule_id }}</a>
+              <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.student_topic }}: see rule reference">{{ f.student_topic }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
-              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.rule_id | display_rule_id }}: see rule reference">{{ f.rule_id | display_rule_id }}</a>
+              <a href="{{ public_rule_reference_href(f.rule_id, issue_type=f.issue_type) }}" class="rule-link" aria-label="{{ f.student_topic }}: see rule reference">{{ f.student_topic }}</a>
               {% elif is_p_rule_id(f.rule_id) %}
-              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.rule_id | display_rule_id }}: see rule reference">{{ f.rule_id | display_rule_id }}</a>
-              {% else %}{{ f.rule_id | display_rule_id }}{% endif %}
+              <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.student_topic }}: see rule reference">{{ f.student_topic }}</a>
+              {% else %}{{ f.student_topic }}{% endif %}
             </strong>
           </div>
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
         </div>
         <div class="finding-card__meta">
-          {% if f.problem_number %}<span class="finding-card__problem">Problem {{ f.problem_number }}</span>{% endif %}
+          <span class="finding-card__problem">Issue {{ loop.index }} of {{ findings|length }}</span>
           <span class="finding-card__page">
-            {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="page-link" title="{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}">{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}</a>{% elif f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}No page{% endif %}
+            {% if f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}Document-wide{% endif %}
           </span>
-          {% if f.location_label %}<span class="finding-card__location">{{ f.location_label }}</span>{% endif %}
+          {% if f.student_location %}<span class="finding-card__location">{{ f.student_location }}</span>{% endif %}
         </div>
         <div class="finding-card__issue">
-          {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}Review this finding{% endif %}
+          {{ f.student_summary }}
           {% if f.suggested_fix %}<span class="finding-card__fix">Suggested fix: {{ f.suggested_fix }}</span>{% endif %}
         </div>
+        {% if f.margin_questions %}
+        <ul class="margin-checks" aria-label="Margin questions for this finding">
+          {% for question, answer in f.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}
+        </ul>
+        {% endif %}
         {% if f.polished_comment %}
         <details class="finding-explanation finding-card__note">
           <summary>Review note</summary>
           <p>{{ f.polished_comment }}</p>
         </details>
         {% endif %}
+        <details class="finding-explanation finding-card__note">
+          <summary>Technical details</summary>
+          <p>Rule {{ f.rule_id | display_rule_id }} · Original finding {{ f.problem_number if f.problem_number else loop.index }}</p>
+        </details>
         <div class="finding-card__action">
-          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
-          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">See all findings on page {{ f.page }}</a>{% endif %}
+          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">All findings on this page</a>{% endif %}
         </div>
       </article>
       {% endfor %}
@@ -784,7 +799,7 @@
             <div class="grouped-problem__summary">
               {{ severity_status_badge(problem.severity, problem.triage_tier) }}
               {{ confidence_badge(problem.confidence_level, problem.confidence_label, problem.confidence_css_class) }}
-              <span class="badge badge-info">{{ problem.category | humanize_cat }}</span>
+              <span class="badge badge-muted">{{ problem.category | humanize_cat }}</span>
               {% if problem.is_grouped %}
               <span class="badge badge-muted">{{ problem.occurrence_count }} occurrences</span>
               {% endif %}

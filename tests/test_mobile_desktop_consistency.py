@@ -433,14 +433,14 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "No exact highlight is available",
         "Page 1",
         "Page 6",
-        "Issue type:",
+        "About this issue",
     ]
     rule_tokens = [
         "Examples for this rule",
         "Back to all results",
         "Open highlighted PDF page",
         "Page 3",
-        "Issue type:",
+        "About this issue",
         "Does the PDF contain annotations/comments?",
     ]
     for comment in {f.polished_comment for f in view.findings if f.category == "page_numbering"}:
