@@ -75,6 +75,7 @@ from njit_auditor.report_view import (
     sort_findings,
     sort_grouped_problems,
 )
+from njit_auditor.student_cards import student_card_fields
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
     render_student_report_text,
@@ -1522,6 +1523,18 @@ def _student_location_text(finding: dict[str, Any]) -> str:
     return "Document-wide overview"
 
 
+def _card_fields(
+    finding: Mapping[str, Any], details: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Keep saved card wording while supporting older in-memory demo jobs."""
+    raw = details if details is not None else finding.get("details", {})
+    fields = student_card_fields(finding, raw if isinstance(raw, dict) else {})
+    for key in ("student_topic", "student_summary", "margin_questions", "student_location"):
+        if key in finding:
+            fields[key] = finding[key]
+    return fields
+
+
 def _short_rule_explanation(rule: dict[str, Any] | None) -> str:
     """Return a compact student-facing explanation for a rule group."""
     if not isinstance(rule, dict):
@@ -1705,6 +1718,7 @@ def _problem_group_examples(
                 "detailed_explanation": detailed_explanation,
                 "issue_type_label": issue_type_label,
                 "issue_type_explanation": issue_type_explanation,
+                **_card_fields(finding),
             }
         )
 
@@ -1877,7 +1891,10 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     sorted_grouped_problems = sort_grouped_problems(grouped_problems, sort_mode)
     if report_view:
         report_view = {**report_view, "grouped_problems": sorted_grouped_problems}
-    sorted_findings = sort_findings(job.findings, sort_mode)
+    sorted_findings = [
+        {**finding, **_card_fields(finding)}
+        for finding in sort_findings(job.findings, sort_mode)
+    ]
     pages = report_view.get("pages", []) or []
     counts_by_rule = report_view.get("counts_by_rule", {}) or {}
     counts_by_category = report_view.get("counts_by_category", {}) or {}
@@ -2118,6 +2135,7 @@ def _execute_audit_task(job_id: str) -> None:
             "detailed_explanation": fv.get("detailed_explanation", ""),
             "issue_type_label": fv.get("issue_type_label", ""),
                 "issue_type_explanation": fv.get("issue_type_explanation", ""),
+                **_card_fields(fv, raw_details),
             }
         )
 

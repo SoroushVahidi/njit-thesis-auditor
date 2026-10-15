@@ -5,15 +5,15 @@
 {% block head_extra %}
 <style>
   .problem-group-hero {
-    background: linear-gradient(135deg, #eef6ff 0%, #f8fbff 100%);
-    border: 1px solid #b8d4f0;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
   }
   .problem-group-kicker {
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--color-primary);
+    color: var(--color-muted);
     margin: 0 0 0.35rem;
   }
   .problem-group-meta {
@@ -25,8 +25,8 @@
   .problem-group-pattern-note {
     margin: 0.7rem 0 0;
     padding: 0.55rem 0.75rem;
-    background: #f0f6fc;
-    border-left: 3px solid var(--color-primary);
+    background: #f8f9fa;
+    border-left: 3px solid #adb5bd;
     border-radius: 4px;
     font-size: 0.89rem;
   }
@@ -46,7 +46,7 @@
     gap: 0.9rem;
   }
   .example-card {
-    border-left: 4px solid var(--color-primary);
+    border-left: 4px solid #b42318;
   }
   .example-card__header {
     display: flex;
@@ -62,6 +62,12 @@
     font-weight: 700;
     overflow-wrap: anywhere;
   }
+  .example-card__issue { color: #9f1d16; font-weight: 700; margin: 0.3rem 0; }
+  .margin-checks { margin: 0.5rem 0; padding-left: 1.2rem; font-size: 0.9rem; }
+  .margin-checks li { margin: 0.2rem 0; }
+  .margin-checks .margin-answer--no { color: #9f1d16; }
+  .margin-checks .margin-answer--yes { color: #155724; }
+  .margin-checks .margin-answer--needs-review { color: #495057; }
   .example-card__title-row {
     display: flex;
     align-items: flex-start;
@@ -111,22 +117,12 @@
     white-space: normal;
     text-align: center;
   }
-  /* Kept in sync with the identical block in job.html -- see the comment there
-     for why this isn't shared via base.html. */
-  .confidence-badge--low {
-    background: #dbeafe;
-    border-color: #60a5fa;
-    color: #1e3a8a;
-  }
-  .confidence-badge--medium {
-    background: #fef3c7;
-    border-color: #fbbf24;
-    color: #92400e;
-  }
+  .confidence-badge--low,
+  .confidence-badge--medium,
   .confidence-badge--high {
-    background: #fee2e2;
-    border-color: #f87171;
-    color: #991b1b;
+    background: #f1f3f5;
+    border-color: #adb5bd;
+    color: #343a40;
   }
   @media (max-width: 640px) {
     .example-card__header {
@@ -166,8 +162,8 @@
     height: 1.5rem;
     padding: 0 0.3rem;
     border-radius: 50%;
-    border: 1px solid var(--color-primary);
-    color: var(--color-primary);
+    border: 1px solid #6c757d;
+    color: #495057;
     font-weight: 700;
     font-size: 0.82rem;
   }
@@ -180,8 +176,8 @@
     height: 1.6rem;
     padding: 0 0.35rem;
     border-radius: 50%;
-    border: 2px solid var(--color-primary);
-    color: var(--color-primary);
+    border: 2px solid #6c757d;
+    color: #495057;
     font-weight: 700;
     font-size: 0.88rem;
     background: #fff;
@@ -200,11 +196,6 @@
     <p class="problem-group-pattern-note">{{ pattern_note }}</p>
     {% endif %}
     <div class="problem-group-meta">
-      {% if group_kind == "rule" %}
-      <span class="badge badge-info">{{ group_key }}</span>
-      {% else %}
-      <span class="badge badge-info">{{ group_title }}</span>
-      {% endif %}
       <span class="badge badge-muted">{{ example_count }} {{ "example" if example_count == 1 else "examples" }}</span>
       {% if pages_to_review %}
       <span class="badge badge-muted">Pages to review: {{ pages_to_review }}</span>
@@ -217,9 +208,8 @@
         <span class="page-legend__marker" aria-hidden="true">{{ entry.number }}</span>
         <span>
           {% if is_p_rule_id(entry.rule_id) %}
-          <a href="/rules#{{ entry.rule_id }}" class="rule-link">{{ entry.rule_id | display_rule_id }}</a>
-          {% else %}<strong>{{ entry.rule_id | display_rule_id }}</strong>{% endif %}
-          — {{ entry.label }}
+          <a href="/rules#{{ entry.rule_id }}" class="rule-link">{{ entry.label }}</a>
+          {% else %}<strong>{{ entry.label }}</strong>{% endif %}
         </span>
       </li>
       {% endfor %}
@@ -239,9 +229,7 @@
 <section class="section" aria-label="Problem examples" id="examples">
   <div class="section-header">
     <h2>{{ group_examples_heading if group_examples_heading else "Examples of this problem" }}</h2>
-    {% if pages_to_review %}
-    <span class="section-note">Pages to review: {{ pages_to_review }}</span>
-    {% endif %}
+    <span class="section-note">{{ example_count }} findings in this view</span>
   </div>
   <div class="example-list">
     {% for example in examples %}
@@ -252,42 +240,24 @@
           <span class="example-card__marker" aria-label="Legend item {{ example.legend_number }}">{{ example.legend_number }}</span>
           {% endif %}
           <p class="example-card__title">
-            {% if example.problem_number %}Problem {{ example.problem_number }} — {% endif %}
-            {% if group_kind in ("category", "page") %}
-              {% if example.public_rule_reference_id %}
-              <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.public_rule_reference_id | display_rule_id }}: see rule reference">{{ example.public_rule_reference_id | display_rule_id }}</a>
-              {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
-              <a href="{{ public_rule_reference_href(example.rule_id, issue_type=example.issue_type) }}" class="rule-link" aria-label="{{ example.rule_id | display_rule_id }}: see rule reference">{{ example.rule_id | display_rule_id }}</a>
-              {% elif is_p_rule_id(example.rule_id) %}
-              <a href="/rules#{{ example.rule_id }}" class="rule-link" aria-label="{{ example.rule_id | display_rule_id }}: see rule reference">{{ example.rule_id | display_rule_id }}</a>
-              {% else %}{{ example.rule_id | display_rule_id }}{% endif %}
-              {% if example.issue_type_label %} · {{ example.issue_type_label }}
-              {% elif example.issue_type %} · {{ example.issue_type | humanize_detail_key }}
-              {% elif example.rule_title %} · {{ example.rule_title }}{% endif %}
-            {% else %}
-              {% if example.issue_type_label %}{{ example.issue_type_label }}{% elif example.issue_type %}{{ example.issue_type | humanize_detail_key }}{% else %}Finding {{ loop.index }}{% endif %}
-            {% endif %}
+            Issue {{ loop.index }} of {{ examples|length }} ·
+            {% if example.public_rule_reference_id %}
+            <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.student_topic }}: see rule reference">{{ example.student_topic }}</a>
+            {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
+            <a href="{{ public_rule_reference_href(example.rule_id, issue_type=example.issue_type) }}" class="rule-link" aria-label="{{ example.student_topic }}: see rule reference">{{ example.student_topic }}</a>
+            {% else %}{{ example.student_topic }}{% endif %}
           </p>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
-          {% if group_kind == "page" %}
-          {# The page number is already the page this whole view is for -- showing it
-             again on every card would duplicate it needlessly. #}
-          {% elif example.page is not none %}
-          <span class="badge badge-info">{{ example.page_display_label if example.page_display_label else "Page " ~ example.page }}</span>
-          {% elif example.location_text and example.location_text.startswith("Document-wide") %}
-          <span class="badge badge-muted">Document-wide</span>
-          {% else %}
-          <span class="badge badge-muted">No page number</span>
-          {% endif %}
           {{ confidence_badge(example.confidence_level, example.confidence_label, example.confidence_css_class) }}
         </div>
       </div>
       <div class="example-card__meta">
-        <div><strong>Location:</strong> {{ example.location_text }}</div>
+        <div><strong>Where:</strong> {% if example.page is not none %}{{ example.page_display_label if example.page_display_label else "Page " ~ example.page }}{% else %}Document-wide{% endif %}{% if example.student_location %} · {{ example.student_location }}{% endif %}</div>
+        <div class="example-card__issue">{{ example.student_summary }}</div>
         {% if example.issue_type_label %}
         <details class="issue-type-help">
-          <summary>Issue type: {{ example.issue_type_label }}</summary>
+          <summary>About this issue</summary>
           <p>{{ example.issue_type_explanation if example.issue_type_explanation else "Review this finding against NJIT formatting requirements." }}</p>
           {% if example.issue_type and example.rule_id %}
           <p style="margin:0.3rem 0 0;font-size:0.86rem"><a href="/audits/{{ job_id }}/problems/rule/{{ example.rule_id }}/issue-type/{{ example.issue_type | issue_type_slug }}" class="rule-link">View all findings of this type &rarr;</a></p>
@@ -296,11 +266,12 @@
         {% elif example.issue_type %}
         <div><strong>Issue type:</strong> {{ example.issue_type | humanize_detail_key }}</div>
         {% endif %}
-        <div>{{ example.polished_comment }}</div>
         {% if example.suggested_fix %}
         <div><strong>Suggested fix:</strong> {{ example.suggested_fix }}</div>
         {% endif %}
       </div>
+      {% if example.margin_questions %}<ul class="margin-checks" aria-label="Margin questions for this finding">{% for question, answer in example.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}</ul>{% endif %}
+      {% if example.polished_comment %}<details class="finding-explanation"><summary>Review note</summary><p>{{ example.polished_comment }}</p></details>{% endif %}
       {% if example.detailed_explanation %}
       <details class="finding-explanation">
         <summary>What does this mean?</summary>
@@ -310,12 +281,13 @@
       <div class="example-card__actions">
         {% if example.action_kind in ("highlight", "original_page") and example.pdf_page_url %}
         <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
-          {{ example.action_label }} {{ example.page_action_suffix if example.page_action_suffix else example.page }}
+          {{ "Open highlighted PDF" if example.action_kind == "highlight" else "Open original PDF" }}
         </a>
         {% else %}
         <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>
         {% endif %}
       </div>
+      <details class="finding-explanation"><summary>Technical details</summary><p>Rule {{ example.rule_id | display_rule_id }} · Original finding {{ example.problem_number }}</p></details>
     </article>
     {% endfor %}
   </div>
