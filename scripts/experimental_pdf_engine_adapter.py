@@ -38,7 +38,7 @@ from njit_auditor.experimental_pdf_text import (
     _page_glyphs,
 )
 
-Strategy = Literal["random", "width", "structural", "balanced"]
+Strategy = Literal["random", "width", "structural", "balanced", "boundary", "segmented"]
 _GENERIC_HEADINGS = frozenset(
     {
         "TABLE OF CONTENTS",
@@ -265,7 +265,12 @@ def _substitute(char: str, font: str, size: float, strategy: Strategy, rng: rand
 
 
 def _balanced_replacement(
-    text: str, keep: set[int], font: str, size: float, rng: random.Random
+    text: str,
+    keep: set[int],
+    font: str,
+    size: float,
+    rng: random.Random,
+    skeleton: str | None = None,
 ) -> str:
     """Choose different glyphs while minimizing total line and glyph width drift.
 
@@ -281,24 +286,32 @@ def _balanced_replacement(
     # centipoint of cumulative error, then retain a bounded diverse beam.
     beam: list[tuple[float, float, str]] = [(0.0, 0.0, "")]
     for index, char in enumerate(text):
-        if index in keep or char not in widths:
-            beam = [(error, drift, output + char) for error, drift, output in beam]
+        wanted = skeleton[index] if skeleton is not None else char
+        if index in keep or wanted not in widths:
+            delta = fitz.get_text_length(
+                wanted, fontname=font, fontsize=size
+            ) - fitz.get_text_length(char, fontname=font, fontsize=size)
+            beam = [
+                (error + delta, drift + abs(delta), output + wanted)
+                for error, drift, output in beam
+            ]
             continue
         alphabet = (
             string.ascii_lowercase
-            if char.islower()
+            if wanted.islower()
             else string.ascii_uppercase
-            if char.isupper()
+            if wanted.isupper()
             else string.digits
         )
         candidates = [candidate for candidate in alphabet if candidate != char]
         rng.shuffle(candidates)
-        candidates.sort(key=lambda candidate: abs(widths[candidate] - widths[char]))
+        source_width = fitz.get_text_length(char, fontname=font, fontsize=size)
+        candidates.sort(key=lambda candidate: abs(widths[candidate] - source_width))
         choices = candidates[:12]
         states: dict[int, tuple[float, float, str]] = {}
         for error, drift, output in beam:
             for candidate in choices:
-                delta = widths[candidate] - widths[char]
+                delta = widths[candidate] - source_width
                 state = (error + delta, drift + abs(delta), output + candidate)
                 bucket = round(state[0] * 100)
                 previous = states.get(bucket)
@@ -308,6 +321,54 @@ def _balanced_replacement(
             :128
         ]
     return min(beam, key=lambda item: (abs(item[0]), item[1]))[2]
+
+
+def _shift_word_boundaries(text: str, keep: set[int], rng: random.Random) -> str:
+    """Move eligible synthetic word breaks while retaining the character count.
+
+    This changes one weak fingerprint without pretending to change the line
+    positions, font, page geometry, or known structural prefixes.
+    """
+    # List entries, folios, and rule-bearing prefixes need their lexical
+    # structure for auditor equivalence on the supported fixtures.
+    if keep:
+        return text
+    skeleton = list(text)
+    spaces = [index for index, char in enumerate(text) if char == " "]
+    rng.shuffle(spaces)
+    for index in spaces:
+        if index in keep or skeleton[index] != " ":
+            continue
+        for offset in rng.sample((1, -1), 2):
+            adjacent = index + offset
+            beyond = adjacent + offset
+            if (
+                0 <= beyond < len(text)
+                and adjacent not in keep
+                and skeleton[adjacent].isalpha()
+                and skeleton[beyond].isalpha()
+                and skeleton[beyond] != " "
+            ):
+                skeleton[index] = "a" if skeleton[adjacent].islower() else "A"
+                skeleton[adjacent] = " "
+                break
+    return "".join(skeleton)
+
+
+def _independent_word_boundaries(text: str, keep: set[int], rng: random.Random) -> str:
+    """Sample word breaks without looking at the source word-length sequence."""
+    if keep:
+        return text
+    skeleton = list(text)
+    for match in re.finditer(r"[A-Za-z ]{12,}", text):
+        start, end = match.span()
+        for index in range(start, end):
+            skeleton[index] = "A" if index == start and text[index].isupper() else "a"
+        index = start + rng.randint(4, 8)
+        while index < end - 3:
+            skeleton[index] = " "
+            index += rng.randint(4, 9)
+    return "".join(skeleton)
 
 
 def _verify_content_operators(
@@ -539,11 +600,40 @@ def _planned_lines(source: Path, strategy: Strategy, *, seed: int | None = None)
                             page_width=page.rect.width,
                             page_height=page.rect.height,
                         )
-                        if strategy in {"structural", "balanced"}
+                        if strategy in {"structural", "balanced", "boundary", "segmented"}
                         else set()
                     )
-                    if strategy == "balanced":
-                        replacement = _balanced_replacement(text, keep, font, size, rng)
+                    if strategy in {"balanced", "boundary", "segmented"}:
+                        skeleton = None
+                        if strategy == "boundary":
+                            skeleton = _shift_word_boundaries(text, keep, rng)
+                            replacement = _balanced_replacement(
+                                text, keep, font, size, rng, skeleton
+                            )
+                        elif strategy == "segmented":
+                            source_width = fitz.get_text_length(text, fontname=font, fontsize=size)
+                            attempts = [
+                                _balanced_replacement(
+                                    text,
+                                    keep,
+                                    font,
+                                    size,
+                                    rng,
+                                    _independent_word_boundaries(text, keep, rng),
+                                )
+                                for _ in range(4 if not keep else 1)
+                            ]
+                            replacement = min(
+                                attempts,
+                                key=lambda candidate: abs(
+                                    fitz.get_text_length(candidate, fontname=font, fontsize=size)
+                                    - source_width
+                                ),
+                            )
+                        else:
+                            replacement = _balanced_replacement(
+                                text, keep, font, size, rng, skeleton
+                            )
                     else:
                         replacement = "".join(
                             char if i in keep else _substitute(char, font, size, strategy, rng)
@@ -575,7 +665,7 @@ def transform_with_pdf_edit_engine(
     A fresh nonincremental PDF with generic metadata is written only after
     every edit succeeds. Complex/unverified sources are rejected.
     """
-    if strategy not in ("random", "width", "structural", "balanced"):
+    if strategy not in ("random", "width", "structural", "balanced", "boundary", "segmented"):
         raise ValueError("Unknown replacement strategy")
     source, destination = Path(source), Path(destination)
     if destination.exists() or source.resolve() == destination.resolve():
@@ -633,9 +723,10 @@ def transform_with_pdf_edit_engine(
                 or result.fidelity_report.overflow_detected
                 or result.fidelity_report.reflow_applied
                 or result.fidelity_report.glyphs_missing
+                or result.fidelity_report.degradations
             ):
                 raise UnsupportedEditorPDF(
-                    "Upstream edit changed fonts or triggered layout degradation"
+                    "Upstream edit reported a font, content, or geometry degradation"
                 )
             font_preserved += 1
             current = next_path
@@ -663,7 +754,9 @@ def main() -> None:
     parser.add_argument("source", type=Path)
     parser.add_argument("destination", type=Path)
     parser.add_argument(
-        "--strategy", choices=("random", "width", "structural", "balanced"), required=True
+        "--strategy",
+        choices=("random", "width", "structural", "balanced", "boundary", "segmented"),
+        required=True,
     )
     parser.add_argument("--seed", type=int, help="Deterministic text seed for synthetic tests")
     args = parser.parse_args()

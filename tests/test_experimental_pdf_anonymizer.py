@@ -17,6 +17,67 @@ from scripts.generate_synthetic_obfuscation_fixtures import generate_fixtures
 from scripts.probe_pdf_editor_privacy import PLANTED, generate_planted_fixture
 
 
+@pytest.mark.parametrize(
+    ("kind", "severity"),
+    [
+        ("kerning_widened", "info"),
+        ("overflow_shift_suppressed", "warning"),
+        ("font_extension_failed", "error"),
+    ],
+)
+def test_any_upstream_degradation_refuses_output(
+    tmp_path: Path, kind: str, severity: str
+) -> None:
+    """Even an informational upstream event must be reviewed before publication."""
+    pytest.importorskip("pdf_edit_engine")
+    from pdf_edit_engine import replace
+    from pdf_edit_engine.models import Degradation
+
+    source = generate_fixtures(tmp_path)[0]
+    output = tmp_path / "degraded-output.pdf"
+
+    def degraded(*args: object, **kwargs: object) -> object:
+        result = replace(*args, **kwargs)
+        result.fidelity_report.degradations.append(
+            Degradation(kind=kind, detail="synthetic trigger", severity=severity)
+        )
+        return result
+
+    with patch("pdf_edit_engine.replace", side_effect=degraded):
+        with pytest.raises(UnsupportedEditorPDF, match="degradation"):
+            run(source, output, seed=42)
+    assert not output.exists()
+
+
+def test_boundary_policy_changes_word_pattern_with_strict_gates(tmp_path: Path) -> None:
+    pytest.importorskip("pdf_edit_engine")
+    source = generate_fixtures(tmp_path)[0]
+    output = tmp_path / "boundary-output.pdf"
+    report = run(source, output, seed=17, strategy="boundary")
+    assert output.is_file()
+    assert report["privacy"]["word_length_pattern_equal"] is False
+    assert report["auditor"]["lost"] == report["auditor"]["introduced"] == 0
+    assert report["geometry"]["max_line_end_x_delta_pt"] <= 0.25
+
+
+def test_pinned_upstream_reports_real_oversize_degradation(tmp_path: Path) -> None:
+    pytest.importorskip("pdf_edit_engine")
+    from pdf_edit_engine import find, replace
+
+    source = generate_fixtures(tmp_path)[0]
+    with fitz.open(source) as doc:
+        body_line = next(
+            line.strip() for line in doc[2].get_text().splitlines() if len(line.strip()) > 45
+        )
+    matches = find(str(source), body_line, page=2)
+    assert len(matches) == 1
+    result = replace(
+        str(source), matches[0], body_line * 2, str(tmp_path / "oversize.pdf"), reflow=False
+    )
+    kinds = {event.kind for event in result.fidelity_report.degradations}
+    assert {"kerning_compressed", "overflow_shift_clamped"} <= kinds
+
+
 def test_balanced_cli_preserves_synthetic_auditor_and_is_deterministic(tmp_path: Path) -> None:
     pytest.importorskip("pdf_edit_engine")
     sources = generate_fixtures(tmp_path)

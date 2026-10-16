@@ -17,7 +17,7 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import fitz
 import pikepdf
@@ -216,6 +216,7 @@ def _run_local(
     seed: int,
     planted_tokens: tuple[str, ...] = (),
     max_line_drift_pt: float = 0.25,
+    strategy: Literal["balanced", "boundary", "segmented"] = "balanced",
 ) -> dict[str, Any]:
     """Publish only after format, auditor, and technical privacy gates pass."""
     if importlib.metadata.version("pdf-edit-engine") != "0.2.0":
@@ -230,7 +231,9 @@ def _run_local(
         prefix="synthetic-anonymizer-", dir=destination.parent
     ) as name:
         stage = Path(name) / "candidate.pdf"
-        summary = transform_with_pdf_edit_engine(source, stage, "balanced", seed=seed)
+        if strategy not in {"balanced", "boundary", "segmented"}:
+            raise ValueError("Unknown gated research strategy")
+        summary = transform_with_pdf_edit_engine(source, stage, strategy, seed=seed)
         comparison = evaluate_pair(source, stage)
         detail = _geometry_detail(source, stage)
         anchors = _anchor_comparison(source, stage)
@@ -254,6 +257,7 @@ def _run_local(
             "status": "SYNTHETIC_TECHNICAL_GATES_PASSED",
             "upstream": "AryanBV/pdf-edit-engine 0.2.0 @ cee1d2cc042f84d0fb02c874765509c04a8624ac",
             "seed": seed,
+            "strategy": strategy,
             "edited_lines": summary.edited_lines,
             "preserved_generic_lines": summary.preserved_generic_lines,
             "pages": comparison["pages"],
@@ -286,6 +290,7 @@ def run(
     seed: int,
     planted_tokens: tuple[str, ...] = (),
     max_line_drift_pt: float = 0.25,
+    strategy: Literal["balanced", "boundary", "segmented"] = "balanced",
 ) -> dict[str, Any]:
     """Run the synthetic gate with outbound Python sockets blocked."""
     with _block_network():
@@ -296,6 +301,7 @@ def run(
                 seed=seed,
                 planted_tokens=planted_tokens,
                 max_line_drift_pt=max_line_drift_pt,
+                strategy=strategy,
             )
         except (UnsupportedEditorPDF, FileExistsError, ValueError):
             raise
@@ -312,12 +318,15 @@ def main() -> None:
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--planted-token", action="append", default=[])
     parser.add_argument("--max-line-drift-pt", type=float, default=0.25)
+    parser.add_argument(
+        "--strategy", choices=("balanced", "boundary", "segmented"), default="balanced"
+    )
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
-    if (
-        args.report.exists()
-        or args.report.resolve() in {args.source.resolve(), args.destination.resolve()}
-    ):
+    if args.report.exists() or args.report.resolve() in {
+        args.source.resolve(),
+        args.destination.resolve(),
+    }:
         parser.error("Report path must be new and distinct from input and output")
     try:
         report = run(
@@ -326,6 +335,7 @@ def main() -> None:
             seed=args.seed,
             planted_tokens=tuple(args.planted_token),
             max_line_drift_pt=args.max_line_drift_pt,
+            strategy=args.strategy,
         )
     except (UnsupportedEditorPDF, FileExistsError, ValueError) as exc:
         parser.exit(2, f"Refused: {exc}\n")
