@@ -6,7 +6,6 @@ import argparse
 import importlib
 import os
 import secrets
-import shutil
 import socket
 import tempfile
 import threading
@@ -17,7 +16,13 @@ from typing import BinaryIO
 
 import uvicorn
 
-from njit_auditor.offline_app import create_offline_app, local_data_root, prepare_local_storage
+from njit_auditor.offline_app import (
+    _is_link_or_junction,
+    _remove_entry,
+    create_offline_app,
+    local_data_root,
+    prepare_local_storage,
+)
 
 
 def _single_instance_lock(root: Path) -> BinaryIO:
@@ -42,6 +47,8 @@ def _single_instance_lock(root: Path) -> BinaryIO:
 
 def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
     root_dir = local_data_root()
+    if _is_link_or_junction(root_dir):
+        raise RuntimeError("Unsafe local storage directory")
     root_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     with _single_instance_lock(root_dir):
         prepare_local_storage(root_dir)
@@ -52,13 +59,33 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
         listener.listen(128)
         port = listener.getsockname()[1]
         ticket = secrets.token_urlsafe(32)
+        offline = create_offline_app(
+            port=port,
+            data_root=root_dir,
+            launch_ticket=ticket,
+            on_quit=lambda: setattr(server, "should_exit", True),
+        )
+
+        def ticket_url(value: str) -> str:
+            return f"http://127.0.0.1:{port}/_session/start?ticket={urllib.parse.quote(value)}"
+
+        def reopen_auditor() -> None:
+            webbrowser.open(ticket_url(offline.state.issue_launch_ticket()))
+
+        def quit_from_window() -> None:
+            status = offline.state.request_quit_cleanup()
+            if status == "failed":
+                from tkinter import messagebox
+
+                messagebox.showerror(
+                    "Local data could not be deleted",
+                    "Please try Delete all local audit data in the browser before quitting.",
+                )
+                return
+            server.should_exit = True
+
         config = uvicorn.Config(
-            create_offline_app(
-                port=port,
-                data_root=root_dir,
-                launch_ticket=ticket,
-                on_quit=lambda: setattr(server, "should_exit", True),
-            ),
+            offline,
             host="127.0.0.1",
             port=port,
             access_log=False,
@@ -83,15 +110,9 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
                     window.title("NJIT Thesis Auditor")
                     window.geometry("360x160")
                     tk.Label(window, text="NJIT Thesis Auditor", font=("Arial", 16)).pack(pady=16)
-                    tk.Button(
-                        window, text="Open auditor", command=lambda: webbrowser.open(url)
-                    ).pack()
-                    tk.Button(
-                        window, text="Quit", command=lambda: setattr(server, "should_exit", True)
-                    ).pack(pady=12)
-                    window.protocol(
-                        "WM_DELETE_WINDOW", lambda: setattr(server, "should_exit", True)
-                    )
+                    tk.Button(window, text="Open auditor", command=reopen_auditor).pack()
+                    tk.Button(window, text="Quit", command=quit_from_window).pack(pady=12)
+                    window.protocol("WM_DELETE_WINDOW", quit_from_window)
 
                     def update_window() -> None:
                         if thread.is_alive() and not server.should_exit:
@@ -100,7 +121,7 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
                             window.destroy()
 
                     window.after(250, update_window)
-            url = f"http://127.0.0.1:{port}/_session/start?ticket={urllib.parse.quote(ticket)}"
+            url = ticket_url(ticket)
             for _ in range(100):
                 if server.started or not thread.is_alive():
                     break
@@ -115,14 +136,17 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
                 window.mainloop()
         finally:
             server.should_exit = True
-            thread.join(timeout=30)
+            # Uvicorn lets an active audit finish during graceful shutdown.
+            # Keep its private temp files until that worker has stopped.
+            thread.join()
             listener.close()
-            for child in (root_dir / "tmp").iterdir():
-                if child.is_dir() and not child.is_symlink():
-                    shutil.rmtree(child)
-                else:
-                    child.unlink()
-            tempfile.tempdir = previous_tempdir
+            try:
+                if _is_link_or_junction(root_dir) or _is_link_or_junction(root_dir / "tmp"):
+                    raise RuntimeError("Unsafe local storage directory")
+                for child in (root_dir / "tmp").iterdir():
+                    _remove_entry(child)
+            finally:
+                tempfile.tempdir = previous_tempdir
 
 
 def main() -> None:
