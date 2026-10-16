@@ -6,6 +6,7 @@ import hmac
 import os
 import secrets
 import shutil
+import stat
 import threading
 import time
 from collections.abc import Callable
@@ -54,19 +55,44 @@ def local_data_root() -> Path:
     return base / "njit-thesis-auditor"
 
 
+def is_link_or_junction(path: Path) -> bool:
+    """Detect links and Windows reparse points, including on Python 3.10/3.11."""
+    if path.is_symlink():
+        return True
+    try:
+        attributes = getattr(path.lstat(), "st_file_attributes", 0)
+    except FileNotFoundError:
+        return False
+    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
+
+
+def remove_local_storage_child(path: Path) -> None:
+    """Remove one entry without traversing a directory link or junction."""
+    if is_link_or_junction(path):
+        if not path.is_symlink() and stat.S_ISDIR(path.lstat().st_mode):
+            path.rmdir()
+        else:
+            path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
 def prepare_local_storage(root: Path) -> Path:
     """Clear abandoned audit workspaces before a new single-instance launch."""
+    if is_link_or_junction(root):
+        raise RuntimeError("The local application data directory must not be a link")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(root, 0o700)
     audits = root / "audits"
     for directory in (audits, root / "tmp"):
+        if is_link_or_junction(directory):
+            raise RuntimeError("The local audit storage directory must not be a link")
         directory.mkdir(mode=0o700, exist_ok=True)
         os.chmod(directory, 0o700)
         for child in directory.iterdir():
-            if child.is_dir() and not child.is_symlink():
-                shutil.rmtree(child)
-            else:
-                child.unlink()
+            remove_local_storage_child(child)
     return audits
 
 

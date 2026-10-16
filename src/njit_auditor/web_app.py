@@ -283,7 +283,7 @@ def _is_under_runtime(path: Path) -> bool:
     """Return True when *path* resolves inside the configured runtime directory."""
     try:
         path.resolve().relative_to(RUNTIME_DIR.resolve())
-    except ValueError:
+    except (ValueError, OSError, RuntimeError):
         return False
     return True
 
@@ -2617,7 +2617,7 @@ async def download_json(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.json"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2632,7 +2632,7 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.md"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2647,7 +2647,7 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.txt"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2731,8 +2731,9 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
             temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
             temporary_stamp.write_text(signature, encoding="ascii")
             os.replace(temporary_stamp, stamp)
-        except Exception:
-            _logger.exception("Combined student PDF generation failed for job %s", job_id)
+        except Exception as exc:  # noqa: BLE001
+            # Paths, job IDs, and input-derived text can occur in exception messages.
+            _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
             return _index_notice(
                 request,
                 "The complete PDF report could not be prepared. Please try again.",
@@ -3030,9 +3031,8 @@ async def serve_job_pdf_highlighted(
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
-                    "Highlight request for job %s matched %d finding(s) but drew no "
+                    "Highlight request matched %d finding(s) but drew no "
                     "visible annotation (skipped=%d); falling back to plain PDF.",
-                    job_id,
                     len(matches),
                     result.skipped_count,
                 )
@@ -3040,11 +3040,10 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning(
-            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
-            job_id,
-            exc_info=True,
+            "Highlighted PDF generation failed (%s); falling back to plain PDF.",
+            type(exc).__name__,
         )
         return plain_response
 
@@ -3136,9 +3135,8 @@ async def serve_job_highlighted_page_pdf(
                 )
                 if not result.has_highlight:
                     _logger.warning(
-                        "Page-focused highlight for job %s page=%s matched %d finding(s) "
+                        "Page-focused highlight on page=%s matched %d finding(s) "
                         "but drew no visible annotation (skipped=%d); serving single page only.",
-                        job_id,
                         page,
                         len(matches),
                         result.skipped_count,
@@ -3153,12 +3151,11 @@ async def serve_job_highlighted_page_pdf(
                 )
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning(
-            "Page-focused highlighted PDF generation failed for job %s; "
+            "Page-focused highlighted PDF generation failed (%s); "
             "attempting single-page extract.",
-            job_id,
-            exc_info=True,
+            type(exc).__name__,
         )
         return _extract_plain_single_page()
 

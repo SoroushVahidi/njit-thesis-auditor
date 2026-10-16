@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import re
 import socket
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 import fitz
@@ -16,6 +18,7 @@ from fastapi.testclient import TestClient
 
 from njit_auditor import offline_app, web_app
 from njit_auditor.offline_app import create_offline_app, prepare_local_storage
+from njit_auditor.offline_launcher import _single_instance_lock
 
 HOST = "http://127.0.0.1:17391"
 
@@ -29,6 +32,11 @@ def _pdf(kind: str) -> bytes:
         page.insert_text((60, 80), "Synthetic résumé — naïve study", fontsize=12)
     elif kind == "normal":
         page.insert_text((60, 80), "Synthetic dissertation chapter", fontsize=12)
+    elif kind == "uri_link":
+        page.insert_text((60, 80), "Synthetic dissertation chapter", fontsize=12)
+        page.insert_link(
+            {"kind": fitz.LINK_URI, "from": fitz.Rect(60, 60, 220, 85), "uri": "https://invalid.example/audit"}
+        )
     result = doc.tobytes()
     doc.close()
     return result
@@ -238,23 +246,44 @@ def test_offline_auth_routes_csrf_deletion_and_recovery() -> None:
         assert not any(audits.iterdir())
 
 
-def test_audit_with_connections_denied(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A synthetic audit completes when application socket connects are disabled."""
+@pytest.mark.parametrize("kind", ["normal", "uri_link", "malformed"])
+def test_audit_with_connections_denied(monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
+    """Synthetic and malformed PDFs cause no outbound connects or DNS lookups."""
     attempts: list[object] = []
 
     def deny_connect(self: socket.socket, address: object) -> None:
         attempts.append(address)
         raise AssertionError("outbound socket connect attempted")
 
+    def deny_dns(*args: object, **kwargs: object) -> None:
+        attempts.append((args, kwargs))
+        raise AssertionError("DNS lookup attempted")
+
     monkeypatch.setattr(socket.socket, "connect", deny_connect)
+    monkeypatch.setattr(socket, "getaddrinfo", deny_dns)
+    monkeypatch.setattr(socket, "gethostbyname", deny_dns)
     with TemporaryDirectory() as d:
         root = Path(d)
         prepare_local_storage(root)
         app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
         with TestClient(app, base_url=HOST) as client:
             client.get("/_session/start?ticket=ticket")
-            url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
-            assert client.get(url + "/status").json()["state"] == "complete"
+            if kind == "malformed":
+                response = client.post(
+                    "/audits",
+                    files={
+                        "file": ("malformed.pdf", b"%PDF-synthetic-malformed", "application/pdf")
+                    },
+                    data={"csrf_token": app.state.csrf_token},
+                    headers={"Origin": HOST},
+                    follow_redirects=False,
+                )
+                assert response.status_code == 303
+                status = client.get(response.headers["location"] + "/status").json()
+                assert status["state"] == "failed"
+            else:
+                url = _upload(client, _pdf(kind), csrf=app.state.csrf_token)
+                assert client.get(url + "/status").json()["state"] == "complete"
     assert attempts == []
 
 
@@ -362,3 +391,207 @@ def test_invalid_pdf_failure_page_parity() -> None:
         assert response_online.status_code == response_offline.status_code == 400
         assert "Could not start audit" in response_online.text
         assert "Could not start audit" in response_offline.text
+
+
+@pytest.mark.parametrize("filename", ["../odd name.pdf", "nested\\name.pdf", "é résumé.pdf"])
+def test_odd_filename_stays_in_workspace(filename: str) -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        audits = prepare_local_storage(root)
+        app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
+        with TestClient(app, base_url=HOST) as client:
+            client.get("/_session/start?ticket=ticket")
+            response = client.post(
+                "/audits",
+                files={"file": (filename, _pdf("normal"), "application/pdf")},
+                data={"csrf_token": app.state.csrf_token},
+                headers={"Origin": HOST},
+                follow_redirects=False,
+            )
+            assert response.status_code == 303
+            job_id = response.headers["location"].rsplit("/", 1)[-1]
+            assert (audits / job_id / "upload.pdf").exists()
+            assert len(list((audits / job_id).glob("*.pdf"))) >= 1
+            assert not (root / "odd name.pdf").exists()
+            assert client.get(response.headers["location"] + "/pdf").status_code == 200
+
+
+def test_encrypted_pdf_error_parity() -> None:
+    doc = fitz.open(stream=_pdf("normal"), filetype="pdf")
+    encrypted = doc.tobytes(
+        encryption=fitz.PDF_ENCRYPT_AES_256, owner_pw="synthetic-owner", user_pw="synthetic-user"
+    )
+    doc.close()
+    with TemporaryDirectory() as online_dir, TemporaryDirectory() as offline_dir:
+        web_app.RUNTIME_DIR = Path(online_dir)
+        with TestClient(web_app.app, base_url=HOST) as online:
+            online_response = online.post(
+                "/audits",
+                files={"file": ("encrypted.pdf", encrypted, "application/pdf")},
+                follow_redirects=False,
+            )
+            online_state = online.get(online_response.headers["location"] + "/status").json()
+            online_error = web_app._get_job(online_state["job_id"]).error_message
+        root = Path(offline_dir)
+        prepare_local_storage(root)
+        app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
+        with TestClient(app, base_url=HOST) as offline:
+            offline.get("/_session/start?ticket=ticket")
+            offline_response = offline.post(
+                "/audits",
+                files={"file": ("encrypted.pdf", encrypted, "application/pdf")},
+                data={"csrf_token": app.state.csrf_token},
+                headers={"Origin": HOST},
+                follow_redirects=False,
+            )
+            offline_state = offline.get(offline_response.headers["location"] + "/status").json()
+            offline_error = web_app._get_job(offline_state["job_id"]).error_message
+        assert online_response.status_code == offline_response.status_code
+        assert online_response.status_code == 303
+        assert online_state["state"] == offline_state["state"] == "failed"
+        assert online_error == offline_error
+
+
+@pytest.mark.parametrize("linked_directory", ["audits", "tmp"])
+def test_startup_refuses_linked_storage_without_deleting_target(linked_directory: str) -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        root = base / "app"
+        root.mkdir()
+        outside = base / "outside"
+        outside.mkdir()
+        sentinel = outside / "keep.txt"
+        sentinel.write_text("synthetic private data")
+        try:
+            (root / linked_directory).symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("directory symlinks unavailable on this platform")
+        with pytest.raises(RuntimeError, match="must not be a link"):
+            prepare_local_storage(root)
+        assert sentinel.read_text() == "synthetic private data"
+
+
+def test_launcher_refuses_linked_root_without_creating_lock_file() -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        outside = base / "outside"
+        outside.mkdir()
+        linked_root = base / "app"
+        try:
+            linked_root.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("directory symlinks unavailable on this platform")
+        with pytest.raises(RuntimeError, match="must not be a link"):
+            _single_instance_lock(linked_root)
+        assert not (outside / "desktop.lock").exists()
+
+
+@pytest.mark.parametrize("parent_name", ["audits", "tmp"])
+def test_startup_removes_child_link_without_following_target(parent_name: str) -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        root = base / "app"
+        prepare_local_storage(root)
+        outside = base / "outside"
+        outside.mkdir()
+        sentinel = outside / "keep.txt"
+        sentinel.write_text("synthetic private data")
+        link = root / parent_name / "abandoned-link"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("directory symlinks unavailable on this platform")
+        prepare_local_storage(root)
+        assert not link.exists()
+        assert sentinel.read_text() == "synthetic private data"
+
+
+def test_reparse_point_detection_works_without_path_is_junction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = Path("synthetic-windows-junction")
+    monkeypatch.setattr(Path, "is_symlink", lambda self: False)
+    monkeypatch.setattr(
+        Path, "lstat", lambda self: SimpleNamespace(st_file_attributes=0x400)
+    )
+    assert offline_app.is_link_or_junction(path)
+
+
+def test_report_download_refuses_link_outside_runtime() -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        root = base / "app"
+        audits = prepare_local_storage(root)
+        outside = base / "outside.txt"
+        outside.write_text("synthetic outside sentinel")
+        app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
+        with TestClient(app, base_url=HOST) as client:
+            client.get("/_session/start?ticket=ticket")
+            url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
+            job_id = url.rsplit("/", 1)[-1]
+            for extension, route in (
+                ("json", "json"), ("md", "markdown"), ("txt", "text")
+            ):
+                report = audits / job_id / f"report.{extension}"
+                report.unlink()
+                try:
+                    report.symlink_to(outside)
+                except (OSError, NotImplementedError):
+                    pytest.skip("file symlinks unavailable on this platform")
+                response = client.get(url + f"/download/{route}")
+                assert response.status_code == 404
+                assert outside.read_bytes() not in response.content
+            report = audits / job_id / "report.json"
+            report.unlink()
+            report.symlink_to(report)
+            assert client.get(url + "/download/json").status_code == 404
+
+
+def test_combined_pdf_failure_does_not_log_job_id_or_exception_message(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        prepare_local_storage(root)
+        app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
+        with TestClient(app, base_url=HOST) as client:
+            client.get("/_session/start?ticket=ticket")
+            url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
+            job_id = url.rsplit("/", 1)[-1]
+
+            def fail_report(*args: object, **kwargs: object) -> None:
+                raise RuntimeError("synthetic-secret-pdf-content")
+
+            monkeypatch.setattr(web_app, "build_combined_student_pdf_report", fail_report)
+            with caplog.at_level(logging.WARNING, logger="njit_auditor.web_app"):
+                response = client.get(url + "/download/student-report.pdf")
+            assert response.status_code == 500
+            assert "synthetic-secret-pdf-content" not in response.text
+            assert "synthetic-secret-pdf-content" not in caplog.text
+            assert job_id not in caplog.text
+            assert "RuntimeError" in caplog.text
+
+
+def test_highlight_failure_does_not_log_job_id_or_exception_message(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        prepare_local_storage(root)
+        app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
+        with TestClient(app, base_url=HOST) as client:
+            client.get("/_session/start?ticket=ticket")
+            url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
+            job_id = url.rsplit("/", 1)[-1]
+
+            def fail_highlight(*args: object, **kwargs: object) -> None:
+                raise RuntimeError("synthetic-secret-highlight-text")
+
+            monkeypatch.setattr(web_app, "_matching_findings_for_highlight", fail_highlight)
+            with caplog.at_level(logging.WARNING, logger="njit_auditor.web_app"):
+                response = client.get(url + "/pdf/highlighted?page=1")
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "application/pdf"
+            assert "synthetic-secret-highlight-text" not in caplog.text
+            assert job_id not in caplog.text
+            assert "RuntimeError" in caplog.text

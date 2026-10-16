@@ -6,7 +6,6 @@ import argparse
 import importlib
 import os
 import secrets
-import shutil
 import socket
 import tempfile
 import threading
@@ -17,10 +16,18 @@ from typing import BinaryIO
 
 import uvicorn
 
-from njit_auditor.offline_app import create_offline_app, local_data_root, prepare_local_storage
+from njit_auditor.offline_app import (
+    create_offline_app,
+    is_link_or_junction,
+    local_data_root,
+    prepare_local_storage,
+    remove_local_storage_child,
+)
 
 
 def _single_instance_lock(root: Path) -> BinaryIO:
+    if is_link_or_junction(root):
+        raise RuntimeError("The local application data directory must not be a link")
     lock_file = (root / "desktop.lock").open("a+b")
     if lock_file.tell() == 0:
         lock_file.write(b"0")
@@ -117,11 +124,10 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
             server.should_exit = True
             thread.join(timeout=30)
             listener.close()
-            for child in (root_dir / "tmp").iterdir():
-                if child.is_dir() and not child.is_symlink():
-                    shutil.rmtree(child)
-                else:
-                    child.unlink()
+            temp_dir = root_dir / "tmp"
+            if not is_link_or_junction(temp_dir):
+                for child in temp_dir.iterdir():
+                    remove_local_storage_child(child)
             tempfile.tempdir = previous_tempdir
 
 
