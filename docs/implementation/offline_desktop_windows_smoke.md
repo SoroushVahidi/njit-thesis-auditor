@@ -19,7 +19,7 @@ Run this on a genuine Windows x64 machine with Python 3.12 x64 for the build. Re
 7. Upload synthetic normal, Unicode, rotated, low-text, malformed, encrypted, and oddly named PDFs. Record accepted/rejected states and compare normal cases with the online app on the same SHA: finding IDs and counts, pages, boxes, JSON, Markdown, text and combined PDF reports, original and highlighted PDFs, problem cards, sort/filter controls, and navigation links.
 8. For a completed job, open every report and PDF route. Confirm the viewer, download filenames, highlights, page controls, filters, and sorting work in a real browser. Check that errors for malformed and encrypted PDFs show no path or exception details.
 9. Without the session cookie, request the index, job page, original PDF, highlighted PDF, and each report URL. Each must deny access. Test wrong Host, wrong Origin, cross-site `Sec-Fetch-Site`, missing Origin on POST, missing/wrong CSRF, invalid ticket, and expiration. Confirm mutation routes reject unauthorized requests.
-10. Try URL-encoded traversal in job IDs and report paths and a symlink or junction pointing from `audits` or `tmp` to a disposable sentinel directory. Confirm outside files survive and startup refuses linked storage. Use only disposable synthetic data.
+10. Try URL-encoded traversal in job IDs and report paths and a symlink or junction pointing from `audits` or `tmp` to a disposable sentinel directory. Also link `desktop.lock` to an empty disposable outside file and confirm startup refuses it without writing to that file. Confirm outside files survive and startup refuses linked storage. Use only disposable synthetic data.
 
 ## Data and shutdown
 
