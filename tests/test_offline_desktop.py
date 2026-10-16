@@ -379,6 +379,38 @@ def test_second_launcher_cannot_acquire_local_profile_lock() -> None:
             pass
 
 
+def test_launcher_rejects_symlinked_lock_without_writing_target() -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        root = base / "managed"
+        root.mkdir()
+        outside = base / "synthetic-sentinel"
+        outside.touch()
+        try:
+            (root / "desktop.lock").symlink_to(outside)
+        except OSError:
+            pytest.skip("this Windows account cannot create symlinks")
+        with pytest.raises(RuntimeError, match="Unsafe local storage lock"):
+            _single_instance_lock(root)
+        assert outside.read_bytes() == b""
+
+
+def test_launcher_rejects_hardlinked_lock_without_writing_target() -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        root = base / "managed"
+        root.mkdir()
+        outside = base / "synthetic-sentinel"
+        outside.touch()
+        try:
+            (root / "desktop.lock").hardlink_to(outside)
+        except OSError:
+            pytest.skip("this filesystem cannot create hard links")
+        with pytest.raises(RuntimeError, match="Unsafe local storage lock"):
+            _single_instance_lock(root)
+        assert outside.read_bytes() == b""
+
+
 def test_audit_with_connections_denied(monkeypatch: pytest.MonkeyPatch) -> None:
     """A synthetic audit completes when application socket connects are disabled."""
     attempts: list[object] = []

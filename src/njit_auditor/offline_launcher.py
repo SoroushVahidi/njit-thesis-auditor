@@ -26,8 +26,20 @@ from njit_auditor.offline_app import (
 
 
 def _single_instance_lock(root: Path) -> BinaryIO:
-    lock_file = (root / "desktop.lock").open("a+b")
-    if lock_file.tell() == 0:
+    lock_path = root / "desktop.lock"
+    if _is_link_or_junction(lock_path):
+        raise RuntimeError("Unsafe local storage lock")
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lock_path, flags, 0o600)
+    lock_file = os.fdopen(descriptor, "r+b")
+    if (
+        _is_link_or_junction(lock_path)
+        or not lock_path.is_file()
+        or os.fstat(lock_file.fileno()).st_nlink != 1
+    ):
+        lock_file.close()
+        raise RuntimeError("Unsafe local storage lock")
+    if lock_file.seek(0, os.SEEK_END) == 0:
         lock_file.write(b"0")
         lock_file.flush()
     lock_file.seek(0)
