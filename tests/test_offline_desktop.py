@@ -192,8 +192,10 @@ def test_offline_auth_routes_csrf_deletion_and_recovery() -> None:
         assert "/audits/url" not in routes
         assert "/audits/sample" not in routes
         assert "/version" not in routes
+        assert "/openapi.json" not in routes
         with TestClient(app, base_url=HOST) as client:
             assert client.get("/").status_code == 403
+            assert client.get("/openapi.json").status_code == 403
             for path in (
                 "/audits/x/pdf",
                 "/audits/x/pdf/highlighted",
@@ -219,6 +221,7 @@ def test_offline_auth_routes_csrf_deletion_and_recovery() -> None:
                 == 303
             )
             assert client.get("/", headers={"Host": "evil.example"}).status_code == 403
+            assert client.get("/openapi.json").status_code == 404
             assert client.get("/", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
             assert (
                 client.post("/local-data/delete-all", headers={"Origin": HOST}).status_code == 403
