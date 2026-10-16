@@ -486,6 +486,22 @@ def test_launcher_refuses_linked_root_without_creating_lock_file() -> None:
         assert not (outside / "desktop.lock").exists()
 
 
+def test_launcher_refuses_linked_lock_without_writing_target() -> None:
+    with TemporaryDirectory() as d:
+        base = Path(d)
+        root = base / "app"
+        root.mkdir()
+        outside = base / "outside-empty.txt"
+        outside.write_bytes(b"")
+        try:
+            (root / "desktop.lock").symlink_to(outside)
+        except (OSError, NotImplementedError):
+            pytest.skip("file symlinks unavailable on this platform")
+        with pytest.raises(RuntimeError, match="lock file must not be a link"):
+            _single_instance_lock(root)
+        assert outside.read_bytes() == b""
+
+
 @pytest.mark.parametrize("parent_name", ["audits", "tmp"])
 def test_startup_removes_child_link_without_following_target(parent_name: str) -> None:
     with TemporaryDirectory() as d:

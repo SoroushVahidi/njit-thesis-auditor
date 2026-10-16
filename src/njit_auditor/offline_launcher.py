@@ -28,7 +28,10 @@ from njit_auditor.offline_app import (
 def _single_instance_lock(root: Path) -> BinaryIO:
     if is_link_or_junction(root):
         raise RuntimeError("The local application data directory must not be a link")
-    lock_file = (root / "desktop.lock").open("a+b")
+    lock_path = root / "desktop.lock"
+    if is_link_or_junction(lock_path):
+        raise RuntimeError("The local application lock file must not be a link")
+    lock_file = lock_path.open("a+b")
     if lock_file.tell() == 0:
         lock_file.write(b"0")
         lock_file.flush()
