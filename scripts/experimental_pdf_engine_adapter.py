@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
 import re
 import secrets
 import string
@@ -37,7 +38,7 @@ from njit_auditor.experimental_pdf_text import (
     _page_glyphs,
 )
 
-Strategy = Literal["random", "width", "structural"]
+Strategy = Literal["random", "width", "structural", "balanced"]
 _GENERIC_HEADINGS = frozenset(
     {
         "TABLE OF CONTENTS",
@@ -62,6 +63,7 @@ _STRUCTURAL_PREFIXES = (
 )
 _SAFE_TEXT_OPERATORS = {b"q", b"Q", b"BT", b"ET", b"Tf", b"Tm", b"TJ", b"Tj"}
 _FONT_ALIASES = frozenset({"/helv", "/hebo", "/tiro", "/tibo", "/tiit", "/cour", "/cobo"})
+_MAX_OBJECTS = 2048
 
 
 class UnsupportedEditorPDF(ValueError):
@@ -111,6 +113,8 @@ def _verify_object_graph(reader: PdfReader) -> None:
         trailer = reader.trailer
         if set(trailer) - {"/Size", "/Root", "/Info", "/ID"}:
             raise UnsupportedEditorPDF("Unverified PDF trailer")
+        if int(trailer["/Size"]) > _MAX_OBJECTS:
+            raise UnsupportedEditorPDF("PDF object count exceeds synthetic experiment limit")
         root_ref = trailer.raw_get("/Root")
         if not isinstance(root_ref, IndirectObject):
             raise UnsupportedEditorPDF("Inline catalog unsupported")
@@ -138,8 +142,15 @@ def _verify_object_graph(reader: PdfReader) -> None:
                 raise UnsupportedEditorPDF("Inline trailer metadata unsupported")
             seen.add(info_ref.idnum)
             if set(info_ref.get_object()) - {
-                "/Title", "/Author", "/Subject", "/Keywords", "/Creator",
-                "/Producer", "/CreationDate", "/ModDate", "/Trapped",
+                "/Title",
+                "/Author",
+                "/Subject",
+                "/Keywords",
+                "/Creator",
+                "/Producer",
+                "/CreationDate",
+                "/ModDate",
+                "/Trapped",
             }:
                 raise UnsupportedEditorPDF("Unverified trailer metadata")
         for page_ref in children:
@@ -148,9 +159,14 @@ def _verify_object_graph(reader: PdfReader) -> None:
             seen.add(page_ref.idnum)
             page = page_ref.get_object()
             if (
-                set(page) != {
-                    "/Type", "/MediaBox", "/Rotate", "/Resources",
-                    "/Parent", "/Contents",
+                set(page)
+                != {
+                    "/Type",
+                    "/MediaBox",
+                    "/Rotate",
+                    "/Resources",
+                    "/Parent",
+                    "/Contents",
                 }
                 or page["/Type"] != "/Page"
                 or page.raw_get("/Parent") != tree_ref
@@ -164,11 +180,7 @@ def _verify_object_graph(reader: PdfReader) -> None:
             if set(resources) != {"/Font"}:
                 raise UnsupportedEditorPDF("Unverified resource dictionary")
             fonts = resources["/Font"]
-            if (
-                not isinstance(fonts, dict)
-                or not fonts
-                or not set(fonts).issubset(_FONT_ALIASES)
-            ):
+            if not isinstance(fonts, dict) or not fonts or not set(fonts).issubset(_FONT_ALIASES):
                 raise UnsupportedEditorPDF("Unverified font map")
             for font_ref in fonts.values():
                 if not isinstance(font_ref, IndirectObject):
@@ -200,8 +212,22 @@ def _verify_object_graph(reader: PdfReader) -> None:
         raise UnsupportedEditorPDF("Cannot verify PDF object graph") from exc
 
 
-def _preserved_positions(text: str) -> set[int]:
-    if text in _GENERIC_HEADINGS or re.fullmatch(r"(?:[0-9]+|[ivxlcdm]+)", text):
+def _preserved_positions(
+    text: str,
+    *,
+    bbox: tuple[float, float, float, float],
+    page_width: float,
+    page_height: float,
+) -> set[int]:
+    if text in _GENERIC_HEADINGS:
+        return set(range(len(text)))
+    # A numeric value is not automatically a folio. Only a short, centered
+    # footer in the synthetic fixture grammar may be retained as one.
+    if (
+        re.fullmatch(r"(?:[0-9]{1,4}|[ivxlcdm]{1,8})", text)
+        and bbox[1] >= 0.85 * page_height
+        and abs((bbox[0] + bbox[2]) / 2 - page_width / 2) <= 0.2 * page_width
+    ):
         return set(range(len(text)))
     positions: set[int] = set()
     for pattern in _STRUCTURAL_PREFIXES:
@@ -211,13 +237,13 @@ def _preserved_positions(text: str) -> set[int]:
     for match in re.finditer(r"\b(?:dissertation|thesis)\b", text, flags=re.IGNORECASE):
         positions.update(range(*match.span()))
     if re.search(r"\.{3,}", text):
-        match = re.search(r"\b(?:[0-9]+|[ivxlcdm]+)$", text)
+        match = re.search(r"\b(?:[0-9]{1,4}|[ivxlcdm]{1,8})$", text)
         if match:
             positions.update(range(*match.span()))
     return positions
 
 
-def _substitute(char: str, font: str, size: float, strategy: Strategy) -> str:
+def _substitute(char: str, font: str, size: float, strategy: Strategy, rng: random.Random) -> str:
     if char in string.ascii_lowercase:
         alphabet = string.ascii_lowercase
     elif char in string.ascii_uppercase:
@@ -228,14 +254,60 @@ def _substitute(char: str, font: str, size: float, strategy: Strategy) -> str:
         return char
     choices = [candidate for candidate in alphabet if candidate != char]
     if strategy == "random":
-        return secrets.choice(choices)
+        return rng.choice(choices)
     width = fitz.get_text_length(char, fontname=font, fontsize=size)
     scores = [
         (abs(width - fitz.get_text_length(candidate, fontname=font, fontsize=size)), candidate)
         for candidate in choices
     ]
     best = min(score for score, _ in scores)
-    return secrets.choice([candidate for score, candidate in scores if score <= best + 0.01])
+    return rng.choice([candidate for score, candidate in scores if score <= best + 0.01])
+
+
+def _balanced_replacement(
+    text: str, keep: set[int], font: str, size: float, rng: random.Random
+) -> str:
+    """Choose different glyphs while minimizing total line and glyph width drift.
+
+    The upstream engine edits the original text-show operand. A beam over
+    available Base14 glyph widths improves the line end without changing its
+    text matrix or font. It does not remove width-pattern re-identification risk.
+    """
+    widths = {
+        char: fitz.get_text_length(char, fontname=font, fontsize=size)
+        for char in string.ascii_letters + string.digits
+    }
+    # error, cumulative per-glyph drift, output. Keep one best path per
+    # centipoint of cumulative error, then retain a bounded diverse beam.
+    beam: list[tuple[float, float, str]] = [(0.0, 0.0, "")]
+    for index, char in enumerate(text):
+        if index in keep or char not in widths:
+            beam = [(error, drift, output + char) for error, drift, output in beam]
+            continue
+        alphabet = (
+            string.ascii_lowercase
+            if char.islower()
+            else string.ascii_uppercase
+            if char.isupper()
+            else string.digits
+        )
+        candidates = [candidate for candidate in alphabet if candidate != char]
+        rng.shuffle(candidates)
+        candidates.sort(key=lambda candidate: abs(widths[candidate] - widths[char]))
+        choices = candidates[:12]
+        states: dict[int, tuple[float, float, str]] = {}
+        for error, drift, output in beam:
+            for candidate in choices:
+                delta = widths[candidate] - widths[char]
+                state = (error + delta, drift + abs(delta), output + candidate)
+                bucket = round(state[0] * 100)
+                previous = states.get(bucket)
+                if previous is None or state[1] < previous[1]:
+                    states[bucket] = state
+        beam = sorted(states.values(), key=lambda item: (abs(item[0]) + 0.025 * item[1], item[1]))[
+            :128
+        ]
+    return min(beam, key=lambda item: (abs(item[0]), item[1]))[2]
 
 
 def _verify_content_operators(
@@ -261,9 +333,7 @@ def _verify_content_operators(
                 font_object = font.get_object()
                 if (
                     not isinstance(font_object, dict)
-                    or set(font_object) != {
-                        "/Type", "/Subtype", "/BaseFont", "/Encoding"
-                    }
+                    or set(font_object) != {"/Type", "/Subtype", "/BaseFont", "/Encoding"}
                     or font_object.get("/Type") != "/Font"
                     or font_object.get("/Subtype") != "/Type1"
                     or font_object.get("/Encoding") != "/WinAnsiEncoding"
@@ -292,8 +362,7 @@ def _verify_content_operators(
                     origin, size = None, None
                 if operator == b"Tf" and not (
                     state == "text"
-                    and
-                    len(operands) == 2
+                    and len(operands) == 2
                     and isinstance(operands[0], NameObject)
                     and str(operands[0]) in _FONT_ALIASES
                     and isinstance(operands[1], (NumberObject, FloatObject))
@@ -304,8 +373,7 @@ def _verify_content_operators(
                     size = float(operands[1])
                 if operator == b"Tm" and not (
                     state == "text"
-                    and
-                    len(operands) == 6
+                    and len(operands) == 6
                     and all(isinstance(item, (NumberObject, FloatObject)) for item in operands)
                     and [float(value) for value in operands[:4]] == [1, 0, 0, 1]
                 ):
@@ -314,8 +382,7 @@ def _verify_content_operators(
                     origin = (float(operands[4]), float(operands[5]))
                 if operator == b"TJ" and not (
                     state == "text"
-                    and
-                    len(operands) == 1
+                    and len(operands) == 1
                     and isinstance(operands[0], ArrayObject)
                     and all(
                         isinstance(
@@ -328,8 +395,7 @@ def _verify_content_operators(
                     raise UnsupportedEditorPDF("Unsupported text-show array")
                 if operator == b"Tj" and not (
                     state == "text"
-                    and
-                    len(operands) == 1
+                    and len(operands) == 1
                     and isinstance(operands[0], (TextStringObject, ByteStringObject))
                 ):
                     raise UnsupportedEditorPDF("Unsupported text-show operand")
@@ -364,14 +430,26 @@ def _verify_content_operators(
         raise UnsupportedEditorPDF("Cannot verify PDF content operators") from exc
 
 
-def _planned_lines(source: Path, strategy: Strategy) -> list[LineEdit]:
+def _planned_lines(source: Path, strategy: Strategy, *, seed: int | None = None) -> list[LineEdit]:
     if not source.is_file() or source.stat().st_size > _MAX_BYTES:
         raise UnsupportedEditorPDF("Source absent or exceeds synthetic experiment size limit")
     raw_pdf = source.read_bytes()
-    if raw_pdf.count(b"%%EOF") != 1 or b"/Prev" in raw_pdf:
+    if (
+        raw_pdf.count(b"%%EOF") != 1
+        or b"/Prev" in raw_pdf
+        or not raw_pdf.rstrip().endswith(b"%%EOF")
+    ):
         raise UnsupportedEditorPDF("Incremental-save history is unsupported")
     edits: list[LineEdit] = []
+    rng = random.Random(seed) if seed is not None else random.SystemRandom()
     with fitz.open(source) as doc:
+        if doc.xref_length() > _MAX_OBJECTS:
+            raise UnsupportedEditorPDF("PDF object count exceeds synthetic experiment limit")
+        definitions = sorted(
+            int(match.group(1)) for match in re.finditer(rb"(?m)^(\d+)\s+\d+\s+obj\b", raw_pdf)
+        )
+        if definitions != list(range(1, doc.xref_length())):
+            raise UnsupportedEditorPDF("Duplicate, residual, or unindexed PDF objects")
         if doc.needs_pass or doc.is_encrypted or not 0 < len(doc) <= _MAX_PAGES:
             raise UnsupportedEditorPDF("Encrypted or oversized PDF unsupported")
         if not str(doc.metadata.get("title", "")).startswith("SYNTHETIC "):
@@ -385,8 +463,15 @@ def _planned_lines(source: Path, strategy: Strategy) -> list[LineEdit]:
         if info_type == "xref":
             info_xref = int(info_value.split()[0])
             allowed_info = {
-                "Title", "Author", "Subject", "Keywords", "Creator", "Producer",
-                "CreationDate", "ModDate", "Trapped",
+                "Title",
+                "Author",
+                "Subject",
+                "Keywords",
+                "Creator",
+                "Producer",
+                "CreationDate",
+                "ModDate",
+                "Trapped",
             }
             if set(doc.xref_get_keys(info_xref)) - allowed_info:
                 raise UnsupportedEditorPDF("Unverified metadata fields are unsupported")
@@ -446,14 +531,26 @@ def _planned_lines(source: Path, strategy: Strategy) -> list[LineEdit]:
                         or abs(source_size - size) > 0.01
                     ):
                         raise UnsupportedEditorPDF("Text show is not fully accounted for")
-                    keep = _preserved_positions(text) if strategy == "structural" else set()
-                    replacement = "".join(
-                        char if i in keep else _substitute(char, font, size, strategy)
-                        for i, char in enumerate(text)
+                    bbox = tuple(float(value) for value in line["bbox"])
+                    keep = (
+                        _preserved_positions(
+                            text,
+                            bbox=bbox,
+                            page_width=page.rect.width,
+                            page_height=page.rect.height,
+                        )
+                        if strategy in {"structural", "balanced"}
+                        else set()
                     )
+                    if strategy == "balanced":
+                        replacement = _balanced_replacement(text, keep, font, size, rng)
+                    else:
+                        replacement = "".join(
+                            char if i in keep else _substitute(char, font, size, strategy, rng)
+                            for i, char in enumerate(text)
+                        )
                     if replacement == text and not keep:
                         raise UnsupportedEditorPDF("Unmodified nonstructural line")
-                    bbox = line["bbox"]
                     edits.append(
                         LineEdit(
                             page_index,
@@ -471,19 +568,19 @@ def _planned_lines(source: Path, strategy: Strategy) -> list[LineEdit]:
 
 
 def transform_with_pdf_edit_engine(
-    source: Path, destination: Path, strategy: Strategy
+    source: Path, destination: Path, strategy: Strategy, *, seed: int | None = None
 ) -> EditorSummary:
     """Replace every extracted line using upstream content-stream edits.
 
     A fresh nonincremental PDF with generic metadata is written only after
     every edit succeeds. Complex/unverified sources are rejected.
     """
-    if strategy not in ("random", "width", "structural"):
+    if strategy not in ("random", "width", "structural", "balanced"):
         raise ValueError("Unknown replacement strategy")
     source, destination = Path(source), Path(destination)
     if destination.exists() or source.resolve() == destination.resolve():
         raise FileExistsError("Destination must be a new path")
-    edits = _planned_lines(source, strategy)
+    edits = _planned_lines(source, strategy, seed=seed)
     try:
         from pdf_edit_engine import find, replace
     except ImportError as exc:
@@ -499,7 +596,10 @@ def transform_with_pdf_edit_engine(
             if edit.text == edit.replacement:
                 generic_lines += 1
                 continue
-            matches = find(str(current), edit.text, page=edit.page)
+            try:
+                matches = find(str(current), edit.text, page=edit.page)
+            except Exception:
+                raise UnsupportedEditorPDF("Upstream editor could not search a line") from None
             if not matches:
                 raise UnsupportedEditorPDF("Upstream editor could not locate a source line")
             with fitz.open(current) as doc:
@@ -518,11 +618,14 @@ def transform_with_pdf_edit_engine(
             ]
             vertical, horizontal, chosen = min(candidates, key=lambda item: (item[0], item[1]))
             if vertical > 15 or horizontal > 70:
-                raise UnsupportedEditorPDF(
-                    f"Upstream match location is ambiguous at line {index}"
-                )
+                raise UnsupportedEditorPDF(f"Upstream match location is ambiguous at line {index}")
             next_path = scratch / f"step-{index:04d}.pdf"
-            result = replace(str(current), chosen, edit.replacement, str(next_path), reflow=False)
+            try:
+                result = replace(
+                    str(current), chosen, edit.replacement, str(next_path), reflow=False
+                )
+            except Exception:
+                raise UnsupportedEditorPDF("Upstream editor could not replace a line") from None
             if not result.success or not next_path.is_file():
                 raise UnsupportedEditorPDF("Upstream edit failed or was refused")
             if (
@@ -559,9 +662,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("destination", type=Path)
-    parser.add_argument("--strategy", choices=("random", "width", "structural"), required=True)
+    parser.add_argument(
+        "--strategy", choices=("random", "width", "structural", "balanced"), required=True
+    )
+    parser.add_argument("--seed", type=int, help="Deterministic text seed for synthetic tests")
     args = parser.parse_args()
-    print(transform_with_pdf_edit_engine(args.source, args.destination, args.strategy))
+    print(
+        transform_with_pdf_edit_engine(args.source, args.destination, args.strategy, seed=args.seed)
+    )
     print("Synthetic experiment only; output is not certified anonymous or confidential.")
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import tempfile
@@ -27,9 +28,7 @@ def _anchor_key(finding: AuditFinding) -> tuple[Any, ...]:
     if raw:
         try:
             x0, y0, _x1, y1 = (float(part) for part in raw.split(","))
-            location: tuple[int, int, int] | str = (
-                round(x0), round(y0), round(y1)
-            )
+            location: tuple[int, int, int] | str = (round(x0), round(y0), round(y1))
         except ValueError:
             location = raw
     else:
@@ -42,6 +41,83 @@ def _anchor_key(finding: AuditFinding) -> tuple[Any, ...]:
         location,
         finding.message if not raw else "",
     )
+
+
+def _strict_key(finding: AuditFinding) -> tuple[Any, ...]:
+    """Match issue, page, severity and rounded full box with multiplicity.
+
+    A digest distinguishes unboxed messages without storing their text in a
+    report. This remains a fixture comparison, not adjudicated reviewer truth.
+    """
+    raw = str(finding.details.get("bbox") or "")
+    if raw:
+        try:
+            location: tuple[int, ...] | str = tuple(round(float(part)) for part in raw.split(","))
+        except ValueError:
+            location = raw
+        message_digest = ""
+    else:
+        location = ""
+        message_digest = hashlib.sha256(finding.message.encode()).hexdigest()[:16]
+    return (
+        finding.rule_id,
+        finding.page,
+        str(finding.details.get("issue_type", "")),
+        finding.severity.value,
+        location,
+        message_digest,
+    )
+
+
+def _strict_comparison(original: Path, transformed: Path) -> dict[str, Any]:
+    source = Counter(
+        _strict_key(f) for f in run_pdf_audit_full(original) if f.severity.value != "PASS"
+    )
+    output = Counter(
+        _strict_key(f) for f in run_pdf_audit_full(transformed) if f.severity.value != "PASS"
+    )
+    matched, lost, introduced = source & output, source - output, output - source
+    rules = sorted({key[0] for key in source | output})
+    return {
+        "original": sum(source.values()),
+        "matched": sum(matched.values()),
+        "lost": sum(lost.values()),
+        "introduced": sum(introduced.values()),
+        "per_rule": {
+            rule: {
+                name: sum(value for key, value in counts.items() if key[0] == rule)
+                for name, counts in (
+                    ("original", source),
+                    ("matched", matched),
+                    ("lost", lost),
+                    ("introduced", introduced),
+                )
+            }
+            for rule in rules
+        },
+        "lost_issue_locations": [
+            {
+                "rule": key[0],
+                "page": key[1],
+                "issue_type": key[2],
+                "severity": key[3],
+                "rounded_bbox": key[4],
+                "count": count,
+            }
+            for key, count in sorted(lost.items(), key=lambda item: str(item[0]))
+        ],
+        "introduced_issue_locations": [
+            {
+                "rule": key[0],
+                "page": key[1],
+                "issue_type": key[2],
+                "severity": key[3],
+                "rounded_bbox": key[4],
+                "count": count,
+            }
+            for key, count in sorted(introduced.items(), key=lambda item: str(item[0]))
+        ],
+    }
 
 
 def _anchor_comparison(original: Path, transformed: Path) -> dict[str, Any]:
@@ -207,9 +283,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "pairs": len(rows),
         "totals": dict(totals),
         "per_rule": {rule: dict(counts) for rule, counts in sorted(per_rule.items())},
-        "max_character_bbox_delta_pt": max(
-            row["max_character_bbox_delta_pt"] for row in rows
-        ),
+        "max_character_bbox_delta_pt": max(row["max_character_bbox_delta_pt"] for row in rows),
         "max_line_bbox_delta_pt": max(row["max_line_bbox_delta_pt"] for row in rows),
         "all_page_sizes_identical": all(row["page_sizes_identical"] for row in rows),
         "all_line_counts_identical": all(
@@ -235,8 +309,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             row["geometry_detail"]["max_line_end_x_delta_pt"] for row in rows
         ),
         "all_span_counts_identical": all(
-            row["geometry_detail"]["original_spans"]
-            == row["geometry_detail"]["transformed_spans"]
+            row["geometry_detail"]["original_spans"] == row["geometry_detail"]["transformed_spans"]
             for row in rows
         ),
         "anchor_totals": {
@@ -267,6 +340,7 @@ def main() -> None:
     }
     if args.anonpdf_script:
         rows["anonpdf_fixed"] = []
+
     def transform(source: Path, strategy: str, trial: int) -> dict[str, Any]:
         destination = source.with_name(f"{source.stem}_{strategy}_{trial}.pdf")
         if strategy == "reconstruction":
