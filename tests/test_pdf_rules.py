@@ -14851,6 +14851,7 @@ def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
     finding = findings[0]
     allowed_keys = {
         "issue_type",
+        "bbox",
         "page",
         "section_type",
         "entry_index",
@@ -14861,6 +14862,7 @@ def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
         "source_q_rule_id",
     }
     assert finding.details.keys() <= allowed_keys
+    assert len(parse_highlight_bboxes_from_details(finding.details)) == 1
     assert finding.details.get("triage_tier") == "medium"
     assert finding.details.get("source_q_rule_id") == "Q063"
     for value in finding.details.values():
