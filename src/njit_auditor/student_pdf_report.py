@@ -42,6 +42,7 @@ from njit_auditor.pdf_highlight import (
 from njit_auditor.report_outputs import public_display_rule_id
 from njit_auditor.report_text import _detruncate_fix_text
 from njit_auditor.report_view import SORT_MODE_PAGE, sort_findings
+from njit_auditor.resource_paths import resource_path
 
 
 @dataclass(frozen=True)
@@ -158,6 +159,7 @@ def _styles() -> dict[str, ParagraphStyle]:
     # supports manuscript titles, names, and comments containing Unicode.
     font_name = "Helvetica"
     for candidate in (
+        resource_path("assets", "fonts", "DejaVuSans.ttf"),
         Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
         Path("/usr/local/share/fonts/DejaVuSans.ttf"),
     ):

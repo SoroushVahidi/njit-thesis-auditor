@@ -1,0 +1,269 @@
+"""Authenticated, local-only route set around the existing PDF audit UI."""
+
+from __future__ import annotations
+
+import hmac
+import os
+import secrets
+import shutil
+import threading
+import time
+from collections.abc import Callable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from starlette.routing import Route
+
+from njit_auditor import web_app
+from njit_auditor.resource_paths import resource_path
+
+SESSION_SECONDS = 8 * 60 * 60
+IDLE_SECONDS = 30 * 60
+COOKIE_NAME = "njit_offline_session"
+_DISALLOWED = {"/healthz", "/version", "/audits/url", "/audits/sample"}
+_delete_after_finish: set[str] = set()
+_delete_lock = threading.Lock()
+_cleanup_failed = False
+
+
+@dataclass
+class DeletionSummary:
+    deleted: int = 0
+    pending: int = 0
+    failed: int = 0
+
+    def add(self, result: str) -> None:
+        if result == "deleted":
+            self.deleted += 1
+        elif result == "pending":
+            self.pending += 1
+        else:
+            self.failed += 1
+
+
+def local_data_root() -> Path:
+    """Use an application-specific directory in the user's local profile."""
+    if os.name == "nt":
+        profile = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        return profile / "NJIT Thesis Auditor"
+    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "njit-thesis-auditor"
+
+
+def prepare_local_storage(root: Path) -> Path:
+    """Clear abandoned audit workspaces before a new single-instance launch."""
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(root, 0o700)
+    audits = root / "audits"
+    for directory in (audits, root / "tmp"):
+        directory.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(directory, 0o700)
+        for child in directory.iterdir():
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    return audits
+
+
+def _delete_job(job_id: str) -> str:
+    global _cleanup_failed
+    with web_app._jobs_lock:
+        job = web_app._jobs.get(job_id)
+        if job is not None and job.state in ("pending", "running"):
+            with _delete_lock:
+                _delete_after_finish.add(job_id)
+            return "pending"
+        web_app._jobs.pop(job_id, None)
+    if web_app._delete_job_workspace(job_id):
+        return "deleted"
+    with _delete_lock:
+        _cleanup_failed = True
+    return "failed"
+
+
+def _after_audit(job_id: str) -> None:
+    with _delete_lock:
+        pending = job_id in _delete_after_finish
+        _delete_after_finish.discard(job_id)
+    if pending:
+        _delete_job(job_id)
+
+
+def delete_all_local_audits() -> DeletionSummary:
+    """Delete finished audits and queue running ones for removal on completion."""
+    global _cleanup_failed
+    result = DeletionSummary()
+    with web_app._jobs_lock:
+        ids = list(web_app._jobs)
+    for job_id in ids:
+        result.add(_delete_job(job_id))
+    for child in web_app.RUNTIME_DIR.iterdir():
+        if child.is_dir() and not child.is_symlink() and child.name not in ids:
+            result.add("deleted" if web_app._remove_workspace(child) else "failed")
+    with _delete_lock:
+        _cleanup_failed = result.failed > 0
+    return result
+
+
+def create_offline_app(
+    *,
+    port: int,
+    data_root: Path,
+    launch_ticket: str,
+    on_quit: Callable[[], None] | None = None,
+) -> FastAPI:
+    """Build an offline app with a separate route table and per-launch session."""
+    web_app.RUNTIME_DIR = data_root / "audits"
+    web_app._after_audit_task = _after_audit
+    global _cleanup_failed
+    _cleanup_failed = False
+    session = secrets.token_urlsafe(32)
+    csrf = secrets.token_urlsafe(32)
+    expires_at = time.monotonic() + SESSION_SECONDS
+    last_activity = time.monotonic()
+    allowed_host = f"127.0.0.1:{port}"
+    allowed_origin = f"http://{allowed_host}"
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        expiry_timer = threading.Timer(SESSION_SECONDS, on_quit) if on_quit is not None else None
+        idle_stop = threading.Event()
+
+        def idle_watchdog() -> None:
+            while not idle_stop.wait(60):
+                if time.monotonic() - last_activity < IDLE_SECONDS:
+                    continue
+                with web_app._jobs_lock:
+                    busy = any(j.state in ("pending", "running") for j in web_app._jobs.values())
+                if not busy and on_quit is not None:
+                    on_quit()
+                    return
+
+        idle_thread = threading.Thread(target=idle_watchdog, daemon=True)
+        if expiry_timer is not None:
+            expiry_timer.daemon = True
+            expiry_timer.start()
+            idle_thread.start()
+        try:
+            async with web_app._lifespan(_app):
+                yield
+        finally:
+            if expiry_timer is not None:
+                expiry_timer.cancel()
+                idle_stop.set()
+                idle_thread.join(timeout=1)
+            delete_all_local_audits()
+
+    offline = FastAPI(
+        title="NJIT Thesis Auditor Offline",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+        telemetry={
+            "tracing": False,
+            "metrics": False,
+            "logs": False,
+            "operation_spans": False,
+            "auto_configure": False,
+        },
+    )
+    offline.state.offline_mode = True
+    offline.state.csrf_token = csrf
+    offline.state.data_root = data_root
+
+    templates = Jinja2Templates(
+        directory=[
+            str(resource_path("src", "njit_auditor", "offline_templates")),
+            str(resource_path("src", "njit_auditor", "templates")),
+        ]
+    )
+    templates.env.globals.update(web_app._templates.env.globals)
+    templates.env.filters.update(web_app._templates.env.filters)
+    templates.env.globals["retention_notice"] = lambda: (
+        "This audit is stored only in your local application data until you delete it "
+        "or quit. Downloaded reports saved elsewhere are yours to manage."
+    )
+    templates.env.globals["offline_cleanup_failed"] = lambda: _cleanup_failed
+    offline.state.templates = templates
+
+    @offline.middleware("http")
+    async def protect(request: Request, call_next):
+        nonlocal last_activity
+        if request.headers.get("host") != allowed_host:
+            return JSONResponse({"error": "invalid host"}, status_code=403)
+        if request.headers.get("sec-fetch-site", "") == "cross-site":
+            return JSONResponse({"error": "cross-site request denied"}, status_code=403)
+        origin = request.headers.get("origin")
+        if origin is not None and origin != allowed_origin:
+            return JSONResponse({"error": "invalid origin"}, status_code=403)
+        if request.url.path != "/_session/start":
+            cookie = request.cookies.get(COOKIE_NAME, "")
+            if time.monotonic() >= expires_at or not hmac.compare_digest(cookie, session):
+                return JSONResponse(
+                    {"error": "desktop session expired or unavailable"}, status_code=403
+                )
+            if request.method not in ("GET", "HEAD", "OPTIONS"):
+                if origin != allowed_origin:
+                    return JSONResponse({"error": "origin required"}, status_code=403)
+                # Cache the body before parsing; Starlette must replay it to the
+                # existing upload endpoint after middleware checks the form.
+                await request.body()
+                form = await request.form()
+                submitted = str(form.get("csrf_token", ""))
+                if not hmac.compare_digest(submitted, csrf):
+                    return JSONResponse({"error": "invalid CSRF token"}, status_code=403)
+            last_activity = time.monotonic()
+        response = await call_next(request)
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; connect-src 'self'; img-src 'self' data:; "
+            "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+            "object-src 'self'; frame-ancestors 'none'; form-action 'self'"
+        )
+        return response
+
+    @offline.get("/_session/start", include_in_schema=False)
+    async def start_session(ticket: str = ""):
+        if time.monotonic() >= expires_at or not hmac.compare_digest(ticket, launch_ticket):
+            return JSONResponse({"error": "invalid launch ticket"}, status_code=403)
+        response = RedirectResponse("/", status_code=303)
+        response.set_cookie(
+            COOKIE_NAME,
+            session,
+            httponly=True,
+            samesite="strict",
+            max_age=SESSION_SECONDS,
+            path="/",
+        )
+        return response
+
+    for route in web_app.app.router.routes:
+        if isinstance(route, Route) and route.path not in _DISALLOWED:
+            offline.router.routes.append(route)
+
+    @offline.post("/audits/{job_id}/delete")
+    async def delete_audit(job_id: str):
+        status = _delete_job(job_id)
+        return RedirectResponse(f"/?deletion={status}", status_code=303)
+
+    @offline.post("/local-data/delete-all")
+    async def delete_all():
+        result = delete_all_local_audits()
+        status = "failed" if result.failed else "pending" if result.pending else "deleted"
+        return RedirectResponse(f"/?deletion={status}", status_code=303)
+
+    @offline.post("/quit")
+    async def quit_app():
+        if on_quit is not None:
+            on_quit()
+        return HTMLResponse("<p>Auditor closed. You may close this tab.</p>")
+
+    return offline

@@ -47,12 +47,12 @@
 <section class="help-section" id="how-it-works">
   <h2>How it works</h2>
   <ol>
-    <li>Upload a thesis or dissertation PDF — or audit a public PDF URL, or try a built-in sample.</li>
+    <li>{% if offline_mode %}Select a thesis or dissertation PDF on this computer.{% else %}Upload a thesis or dissertation PDF — or audit a public PDF URL, or try a built-in sample.{% endif %}</li>
     <li>The tool runs a series of automated formatting checks against common NJIT requirements: margins, spacing, fonts, page numbering, headings, table of contents, and similar layout details.</li>
     <li>The results page lists the possible formatting problems found, organized by topic and linked to the page where each was found.</li>
     <li>You review each item and verify it manually against the official NJIT thesis/dissertation formatting guidelines.</li>
   </ol>
-  <p>This tool checks structural and layout details; it does not judge the content of your dissertation. To point at each problem, your report may quote short pieces of your document, such as table of contents, list, or heading entries and individual flagged words. {{ retention_notice }} Until they are deleted, anyone with your result link can open the results.</p>
+  <p>This tool checks structural and layout details; it does not judge the content of your dissertation. To point at each problem, your report may quote short pieces of your document, such as table of contents, list, or heading entries and individual flagged words. {{ retention_notice }} {% if not offline_mode %}Until they are deleted, anyone with your result link can open the results.{% endif %}</p>
 </section>
 
 <!-- Results -->
