@@ -13,6 +13,7 @@ claim as current.
 | Service operation and rollback | [Deployment](DEPLOYMENT.md) |
 | Evaluation privacy, input provenance, and review labels | [Evaluation data](EVALUATION_DATA.md), [review labels](EVALUATION_REVIEW_LABELS.md), and [Ester judgment replay](ester_judgment_replay.md) |
 | Product terminology | [Terminology](TERMINOLOGY.md) |
+| Local PDF content anonymization and limits | [Anonymizer guide](features/practical_pdf_anonymizer.md) and [development evidence](status/practical_pdf_anonymizer_development_20261016.md) |
 
 For prior research and implementation evidence, use the dated material under
 [`evaluation/`](evaluation/), [`status/`](status/README.md),
