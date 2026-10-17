@@ -1529,7 +1529,9 @@ def _card_fields(
     """Keep saved card wording while supporting older in-memory demo jobs."""
     raw = details if details is not None else finding.get("details", {})
     fields = student_card_fields(finding, raw if isinstance(raw, dict) else {})
-    for key in ("student_topic", "student_summary", "margin_questions", "student_location"):
+    for key in (
+        "student_topic", "student_summary", "student_action", "margin_questions", "student_location"
+    ):
         if key in finding:
             fields[key] = finding[key]
     return fields
@@ -2158,19 +2160,20 @@ def _execute_audit_task(job_id: str) -> None:
     job.fail_count = int(view.counts_by_severity.get("FAIL", 0))
     job.findings = serialized
     job.manuscript_page_labels = _manuscript_page_labels(export_findings)
+    job.finished_at = datetime.now(timezone.utc).isoformat()
     (jdir / "report.txt").write_text(
         render_student_report_text(
             serialized,
             file_name=job.file_name,
             manuscript_page_labels=job.manuscript_page_labels,
             failed_check_count=job.failed_check_count,
+            audit_at=job.finished_at,
         ),
         encoding="utf-8",
     )
     job.grouped_summary = grouped_rows
     job.report_view = view_dict
     job.md_preview = md_preview
-    job.finished_at = datetime.now(timezone.utc).isoformat()
     _set_job(job)
 
 
@@ -2653,6 +2656,8 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
                 raw,
                 job.file_name,
                 job.manuscript_page_labels,
+                job.finished_at,
+                job.failed_check_count,
                 source.stat().st_mtime_ns,
             ],
             sort_keys=True,
@@ -2695,6 +2700,7 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
                 file_name=job.file_name,
                 manuscript_page_labels=job.manuscript_page_labels,
                 failed_check_count=job.failed_check_count,
+                audit_at=job.finished_at or job.created_at,
             )
             metadata_path = jdir / "student-report-metadata.json"
             temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"

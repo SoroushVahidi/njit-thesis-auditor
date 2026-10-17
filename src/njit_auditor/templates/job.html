@@ -254,7 +254,7 @@
         if (show) visible += 1;
         if (show) {
           var position = row.querySelector(".finding-card__problem");
-          if (position) position.textContent = "Issue " + visible;
+          if (position) position.textContent = "Problem " + visible;
         }
       });
       rows.forEach(function(row) {
@@ -636,7 +636,7 @@
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
         </div>
         <div class="finding-card__meta">
-          <span class="finding-card__problem">Issue {{ loop.index }} of {{ findings|length }}</span>
+          <span class="finding-card__problem">Problem {{ loop.index }} of {{ findings|length }}</span>
           <span class="finding-card__page">
             {% if f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}Document-wide{% endif %}
           </span>
@@ -644,7 +644,7 @@
         </div>
         <div class="finding-card__issue">
           {{ f.student_summary }}
-          {% if f.suggested_fix %}<span class="finding-card__fix">Suggested fix: {{ f.suggested_fix }}</span>{% endif %}
+          {% if f.student_action or f.suggested_fix %}<span class="finding-card__fix">What to do: {{ f.student_action or f.suggested_fix }}</span>{% endif %}
         </div>
         {% if f.margin_questions %}
         <ul class="margin-checks" aria-label="Margin questions for this finding">
@@ -655,6 +655,7 @@
         <details class="finding-explanation finding-card__note">
           <summary>Review note</summary>
           <p>{{ f.polished_comment }}</p>
+          {% if f.student_action and f.suggested_fix %}<p>Detailed correction: {{ f.suggested_fix }}</p>{% endif %}
         </details>
         {% endif %}
         <details class="finding-explanation finding-card__note">

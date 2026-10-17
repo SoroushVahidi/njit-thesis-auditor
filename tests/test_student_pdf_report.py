@@ -36,7 +36,8 @@ def _finding(number: int, page: int | None, *, long: bool = False) -> dict[str, 
         "issue_type_label": f"Annotation issue {number}",
         "polished_comment": (
             "Reviewer annotation detected near the résumé section. " + "Read this carefully. " * 190
-            if long else f"Reviewer annotation {number} detected."
+            if long
+            else f"Reviewer annotation {number} detected."
         ),
         "suggested_fix": "Remove reviewer notes before submission. " * (40 if long else 1),
         "location_label": "Upper-left area",
@@ -86,7 +87,7 @@ def test_complete_thesis_and_every_finding_in_report(tmp_path: Path) -> None:
         for index in range(7):
             assert combined[index].rect == original[index].rect
             assert combined[index].rotation == original[index].rotation
-            assert f"Synthetic thesis page {index+1}" in combined[index].get_text()
+            assert f"Synthetic thesis page {index + 1}" in combined[index].get_text()
         for index, expected in ((0, 1), (3, 2), (6, 1)):
             assert len(list(combined[index].annots() or [])) == expected
         assert "#1" in combined[0].get_text()
@@ -143,8 +144,7 @@ def test_zero_findings_has_limited_one_page_report(tmp_path: Path) -> None:
     with fitz.open(output) as doc:
         assert doc.page_count == 20 + result.report_pages
         assert (
-            "No formatting problems were detected by the implemented checks"
-            in doc[20].get_text()
+            "No formatting problems were detected by the implemented checks" in doc[20].get_text()
         )
         assert all(len(list(doc[index].annots() or [])) == 0 for index in range(20))
 
@@ -159,11 +159,13 @@ def test_p011_special_box_styles_and_one_problem_marker(tmp_path: Path) -> None:
         source,
         output,
         [finding],
-        boxes_by_problem={1: [
-            HighlightBox(80, 85, 180, 110, kind="line"),
-            HighlightBox(175, 85, 190, 110, kind="overflow"),
-            HighlightBox(190, 85, 193, 110, kind="guide"),
-        ]},
+        boxes_by_problem={
+            1: [
+                HighlightBox(80, 85, 180, 110, kind="line"),
+                HighlightBox(175, 85, 190, 110, kind="overflow"),
+                HighlightBox(190, 85, 193, 110, kind="guide"),
+            ]
+        },
         file_name="thesis.pdf",
     )
     assert result.highlight_boxes_drawn == 3
@@ -180,6 +182,80 @@ def test_order_and_text_use_existing_problem_numbers() -> None:
     assert text.index("Problem #1") < text.index("Problem #2") < text.index("Problem #3")
     assert "Public rule reference: P012" not in text
     assert "R012" in text
+
+
+def test_student_report_identifies_scope_date_and_manual_work(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "combined.pdf"
+    _source(source, pages=2)
+    finding = _finding(1, 2)
+    finding["rule_id"] = "P011"
+    finding["public_rule_reference_id"] = "P011"
+    finding["category"] = "margin_or_overflow"
+    finding["student_summary"] = "Bottom margin — approximately 22 pt over"
+    finding["student_action"] = "Move the flagged text inside the bottom margin."
+    finding["student_location"] = "Bottom margin"
+    report = render_student_report_text(
+        [finding],
+        file_name="synthetic.pdf",
+        manuscript_page_labels={2: "1"},
+        failed_check_count=1,
+        audit_at="2026-10-16T19:35:00+00:00",
+    )
+    assert "Audit date (UTC): 2026-10-16" in report
+    assert "Findings needing review: 1" in report
+    assert "Verified passing requirements: not measured" in report
+    assert "GSO area: Margins; rule: R011" in report
+    assert "Expected requirement:" in report
+    assert "The left margin is 1.5 inches" in report
+    assert "Correction detail: Remove reviewer notes" in report
+    assert "Manuscript page: 1" in report
+    assert "Bottom margin — approximately 22 pt over" in report
+    assert "GSO approval" in report
+    build_combined_student_pdf_report(
+        source,
+        output,
+        [finding],
+        boxes_by_problem={1: [(80, 85, 180, 110)]},
+        file_name="synthetic.pdf",
+        manuscript_page_labels={2: "1"},
+        failed_check_count=1,
+        audit_at="2026-10-16T19:35:00+00:00",
+    )
+    with fitz.open(output) as pdf:
+        appendix = _report_text(pdf, 2)
+    for phrase in (
+        "Audit date (UTC): 2026-10-16",
+        "Findings needing review: 1",
+        "Verified passing requirements: not measured",
+        "Expected requirement:",
+        "Correction detail: Remove reviewer notes",
+        "Manuscript page: 1",
+        "GSO approval",
+    ):
+        assert phrase in appendix
+
+
+def test_report_requirement_is_not_detector_tolerance() -> None:
+    font = _finding(1, 1)
+    font["category"] = "font_format"
+    font["rule_id"] = "P026"
+    font["public_rule_reference_id"] = "P026"
+    report = render_student_report_text([font], file_name="synthetic.pdf")
+    expected = report.split("Expected requirement:", 1)[1].split("\n", 1)[0]
+    assert "12 pt" in expected
+    assert "11 to 13" not in expected
+
+    page = _finding(1, 1)
+    page["category"] = "page_numbering"
+    assert "GSO area: Page numbers" in render_student_report_text([page], file_name="synthetic.pdf")
+
+    lof = _finding(1, 1)
+    lof["category"] = "list_of_tables_figures_toc"
+    lof["issue_type"] = "lof_terminal_punctuation"
+    assert "GSO area: List of Figures" in render_student_report_text(
+        [lof], file_name="synthetic.pdf"
+    )
 
 
 def test_many_findings_on_one_page_are_not_capped(tmp_path: Path) -> None:
@@ -249,11 +325,13 @@ def test_original_annotations_and_very_long_filename_survive(tmp_path: Path) -> 
     with fitz.open() as doc:
         page = doc.new_page(width=612, height=792)
         page.insert_text((80, 100), "Synthetic source text")
-        page.insert_link({
-            "kind": fitz.LINK_URI,
-            "from": fitz.Rect(80, 85, 180, 110),
-            "uri": "https://example.org/synthetic",
-        })
+        page.insert_link(
+            {
+                "kind": fitz.LINK_URI,
+                "from": fitz.Rect(80, 85, 180, 110),
+                "uri": "https://example.org/synthetic",
+            }
+        )
         note = page.add_text_annot((200, 200), "Original reviewer note")
         note.update()
         doc.save(source)
