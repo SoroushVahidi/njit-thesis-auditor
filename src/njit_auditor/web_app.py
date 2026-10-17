@@ -2705,8 +2705,10 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
             temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
             temporary_stamp.write_text(signature, encoding="ascii")
             os.replace(temporary_stamp, stamp)
-        except Exception:
-            _logger.exception("Combined student PDF generation failed for job %s", job_id)
+        except Exception as exc:
+            # Exception messages and tracebacks may include uploaded content or
+            # server paths. The job ID is also a bearer token for PDF access.
+            _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
             return _index_notice(
                 request,
                 "The complete PDF report could not be prepared. Please try again.",
@@ -3004,9 +3006,8 @@ async def serve_job_pdf_highlighted(
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
-                    "Highlight request for job %s matched %d finding(s) but drew no "
+                    "Highlight request matched %d finding(s) but drew no "
                     "visible annotation (skipped=%d); falling back to plain PDF.",
-                    job_id,
                     len(matches),
                     result.skipped_count,
                 )
@@ -3014,11 +3015,10 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:
         _logger.warning(
-            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
-            job_id,
-            exc_info=True,
+            "Highlighted PDF generation failed (%s); falling back to plain PDF.",
+            type(exc).__name__,
         )
         return plain_response
 
@@ -3110,9 +3110,8 @@ async def serve_job_highlighted_page_pdf(
                 )
                 if not result.has_highlight:
                     _logger.warning(
-                        "Page-focused highlight for job %s page=%s matched %d finding(s) "
+                        "Page-focused highlight for page=%s matched %d finding(s) "
                         "but drew no visible annotation (skipped=%d); serving single page only.",
-                        job_id,
                         page,
                         len(matches),
                         result.skipped_count,
@@ -3127,12 +3126,11 @@ async def serve_job_highlighted_page_pdf(
                 )
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:
         _logger.warning(
-            "Page-focused highlighted PDF generation failed for job %s; "
+            "Page-focused highlighted PDF generation failed (%s); "
             "attempting single-page extract.",
-            job_id,
-            exc_info=True,
+            type(exc).__name__,
         )
         return _extract_plain_single_page()
 

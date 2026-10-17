@@ -4459,6 +4459,52 @@ def test_complete_student_pdf_download_is_cached_and_preserves_upload(
     assert upload.read_bytes() == original_bytes
 
 
+@pytest.mark.parametrize(
+    ("route", "generator", "expected_status"),
+    [
+        ("download/student-report.pdf", "build_combined_student_pdf_report", 500),
+        ("pdf/highlighted", "build_highlighted_pdf", 200),
+        ("highlighted-page.pdf", "build_highlighted_single_page_pdf", 200),
+    ],
+)
+def test_pdf_generation_failure_keeps_exception_details_out_of_logs(
+    client: tuple[TestClient, Any],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    route: str,
+    generator: str,
+    expected_status: int,
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa,
+        tmp_path,
+        findings=[_p012_annotation_finding_with_bbox(page=3)],
+        file_name="synthetic.pdf",
+        audit_type="pdf",
+    )
+    marker = "synthetic_sensitive_marker"
+
+    def fail_generation(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError(marker)
+
+    monkeypatch.setattr(wa, generator, fail_generation)
+    caplog.set_level("WARNING", logger="njit_auditor.web_app")
+    response = c.get(
+        f"/audits/{job_id}/{route}",
+        params={"page": 3, "rule_id": "P012", "issue_type": "pdf_annotation_detected"},
+    )
+    assert response.status_code == expected_status
+    assert marker not in response.text
+    app_logs = "\n".join(
+        record.getMessage() for record in caplog.records if record.name == "njit_auditor.web_app"
+    )
+    assert "RuntimeError" in app_logs
+    assert marker not in caplog.text
+    assert job_id not in app_logs
+
+
 def test_combined_report_problem_numbers_match_all_web_drilldowns_and_text(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
