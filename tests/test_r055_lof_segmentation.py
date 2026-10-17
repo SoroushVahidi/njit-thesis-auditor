@@ -1,5 +1,7 @@
 """Regression for wrapped list entries with numbers inside their titles."""
 
+import pytest
+
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -12,6 +14,7 @@ from njit_auditor.rules.pdf_lot_lof_entry_type import check_pdf_lot_lof_entry_ty
 from njit_auditor.rules.pdf_toc_alignment import (
     detect_toc_like_pages,
     extract_toc_entry_lines,
+    extract_toc_logical_entry_lines,
 )
 
 
@@ -138,3 +141,40 @@ def test_glued_numbered_title_and_near_baseline_fragments() -> None:
     )
     findings = check_pdf_lot_lof_entry_type(doc)
     assert [f.details["entry_index"] for f in findings] == ["0", "1"]
+
+
+@pytest.mark.parametrize(
+    ("heading", "second_prefix", "third_prefix", "expected_issue"),
+    [
+        ("LIST OF FIGURES", "2.2", "Figure", "lof_entry_missing_figure_prefix"),
+        ("LIST OF FIGURES", "II.2", "Figure", "lof_entry_missing_figure_prefix"),
+        ("LIST OF FIGURES", "Figure 2.2", "Figure", None),
+        ("LIST OF FIGURES", "Table 2.2", "Figure", "lof_entry_is_table"),
+        ("LIST OF TABLES", "2.2", "Table", "lot_entry_missing_table_prefix"),
+        ("LIST OF TABLES", "Figure 2.2", "Table", "lot_entry_is_figure"),
+    ],
+)
+def test_indented_numbered_row_keeps_its_own_page_number(
+    heading: str, second_prefix: str, third_prefix: str, expected_issue: str | None
+) -> None:
+    doc = _doc(
+        [
+            _line(80, (heading, 190, 350)),
+            _line(140, ("2.1 First synthetic item with no folio", 108, 510)),
+            _line(156, (f"{second_prefix} Second synthetic item with folio 9", 149, 540)),
+            _line(185, (f"{third_prefix} 2.3 Third synthetic item 10", 108, 540)),
+        ]
+    )
+    entries = extract_toc_logical_entry_lines(
+        detect_toc_like_pages(doc)[0], require_right_edge=True
+    )
+    assert [(entry.page_number_token, entry.line.bbox.y0) for entry in entries] == [
+        (None, 140.0),
+        ("9", 156.0),
+        ("10", 185.0),
+    ]
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert [
+        (finding.details["entry_index"], finding.details["issue_type"], finding.page)
+        for finding in findings
+    ] == ([] if expected_issue is None else [("1", expected_issue, 12)])
