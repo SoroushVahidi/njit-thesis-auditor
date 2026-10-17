@@ -177,23 +177,23 @@ def _student_location(finding: Mapping[str, Any]) -> str:
     return _field(finding, "student_location") or _field(finding, "location_label")
 
 
-def _audit_date(value: str | None) -> str:
+def _audit_timestamp(value: str | None) -> str:
     if value:
         try:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return parsed.astimezone(timezone.utc).date().isoformat()
+            if parsed.tzinfo is not None:
+                return parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             pass
-    return datetime.now(timezone.utc).date().isoformat()
+    return "not recorded"
 
 
 def _scope_lines(findings: Sequence[Mapping[str, Any]], failed_check_count: int) -> list[str]:
-    represented = {area.key for area in COVERAGE_AREAS if area.checked}
-    manual = [area for area in COVERAGE_AREAS if area.status == "manual"]
     return [
         f"Findings needing review: {len(findings)} (warnings, not verified failures)",
-        f"Checklist areas with implemented checks: {len(represented)} of {len(COVERAGE_AREAS)}",
-        f"Manual-only areas: {len(manual)}; skipped or failed checks: {failed_check_count}",
+        "Every GSO checklist topic needs manual review; some individual items "
+        "have no automatic check.",
+        f"Skipped or failed checks in this audit: {failed_check_count}",
         "Verified passing requirements: not measured by this audit; no finding is not a pass.",
     ]
 
@@ -213,7 +213,7 @@ def render_student_report_text(
         "NJIT THESIS/DISSERTATION FORMATTING AUDIT",
         "Formatting Problems",
         f"File: {file_name}",
-        f"Audit date (UTC): {_audit_date(audit_at)}",
+        f"Audit date/time (UTC): {_audit_timestamp(audit_at)}",
         "",
     ]
     lines.extend(_scope_lines(ordered, failed_check_count))
@@ -314,7 +314,7 @@ def _styles() -> dict[str, ParagraphStyle]:
             fontName=font_name,
             fontSize=10.5,
             leading=15,
-            textColor=colors.HexColor("#12365a"),
+            textColor=colors.HexColor("#9f1d16"),
             spaceBefore=12,
             spaceAfter=6,
         ),
@@ -385,7 +385,7 @@ def _report_pdf(
         _p("NJIT Thesis/Dissertation Formatting Audit", styles["title"]),
         _p("Formatting Problems", styles["subtitle"]),
         _p(f"File: {file_name}", styles["body"]),
-        _p(f"Audit date (UTC): {_audit_date(audit_at)}", styles["body"]),
+        _p(f"Audit date/time (UTC): {_audit_timestamp(audit_at)}", styles["body"]),
         _p(
             "The preceding pages contain your thesis with detected formatting problems "
             "highlighted where an exact location was available. The problems below are "

@@ -3078,8 +3078,8 @@ def test_web_samples_list_filters_missing(
     (fake_dir / "exists.pdf").write_bytes(b"%PDF-1.4\n")
 
     fake_curated = [
-        ws.SampleInfo("test_exists", "Exists", "data/raw/ester/exists.pdf"),
-        ws.SampleInfo("test_missing", "Missing", "data/raw/ester/gone.pdf"),
+        ws.SampleInfo("test_exists", "Exists", "data/raw/ester/exists.pdf", public=True),
+        ws.SampleInfo("test_missing", "Missing", "data/raw/ester/gone.pdf", public=True),
     ]
     monkeypatch.setattr(ws, "_REPO_ROOT", tmp_path)
     monkeypatch.setattr(ws, "_CURATED", fake_curated)
@@ -3089,6 +3089,32 @@ def test_web_samples_list_filters_missing(
     ids = [s.sample_id for s in result]
     assert "test_exists" in ids
     assert "test_missing" not in ids
+
+
+def test_public_sample_registry_exposes_only_synthetic_demo() -> None:
+    import njit_auditor.web_samples as ws
+
+    assert [sample.sample_id for sample in ws.list_builtin_samples()] == ["synthetic_demo"]
+    assert ws.get_builtin_sample("ester_sample_a").public is False
+
+
+def test_private_sample_cannot_be_copied_by_public_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import njit_auditor.web_samples as ws
+
+    source = tmp_path / "private.pdf"
+    source.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    private = ws.SampleInfo("private_test", "Private test", "private.pdf")
+    monkeypatch.setattr(ws, "_REPO_ROOT", tmp_path)
+    monkeypatch.setattr(ws, "_CURATED", [private])
+    monkeypatch.setattr(ws, "_BY_ID", {private.sample_id: private})
+
+    destination = tmp_path / "out.pdf"
+    assert ws.list_builtin_samples() == []
+    with pytest.raises(ValueError, match="unavailable in the public web audit"):
+        ws.copy_builtin_sample_to_job(private.sample_id, destination)
+    assert not destination.exists()
 
 
 def test_web_samples_copy_writes_file(
@@ -3101,7 +3127,9 @@ def test_web_samples_copy_writes_file(
     src = fake_dir / "sample.pdf"
     src.write_bytes(b"%PDF-1.4\n%%EOF\n")
 
-    fake_curated = [ws.SampleInfo("test_copy", "Copy test", "data/raw/ester/sample.pdf")]
+    fake_curated = [
+        ws.SampleInfo("test_copy", "Copy test", "data/raw/ester/sample.pdf", public=True)
+    ]
     monkeypatch.setattr(ws, "_REPO_ROOT", tmp_path)
     monkeypatch.setattr(ws, "_CURATED", fake_curated)
     monkeypatch.setattr(ws, "_BY_ID", {s.sample_id: s for s in fake_curated})
@@ -3122,7 +3150,9 @@ def test_web_samples_copy_rejects_bad_magic(
     src = fake_dir / "notapdf.pdf"
     src.write_bytes(b"NOTPDF\n")
 
-    fake_curated = [ws.SampleInfo("test_badpdf", "Bad PDF", "data/raw/ester/notapdf.pdf")]
+    fake_curated = [
+        ws.SampleInfo("test_badpdf", "Bad PDF", "data/raw/ester/notapdf.pdf", public=True)
+    ]
     monkeypatch.setattr(ws, "_REPO_ROOT", tmp_path)
     monkeypatch.setattr(ws, "_CURATED", fake_curated)
     monkeypatch.setattr(ws, "_BY_ID", {s.sample_id: s for s in fake_curated})
@@ -3140,7 +3170,7 @@ def test_web_samples_copy_raises_for_missing_file(
     fake_dir = tmp_path / "data" / "raw" / "ester"
     fake_dir.mkdir(parents=True)
 
-    fake_curated = [ws.SampleInfo("test_gone", "Gone", "data/raw/ester/gone.pdf")]
+    fake_curated = [ws.SampleInfo("test_gone", "Gone", "data/raw/ester/gone.pdf", public=True)]
     monkeypatch.setattr(ws, "_REPO_ROOT", tmp_path)
     monkeypatch.setattr(ws, "_CURATED", fake_curated)
     monkeypatch.setattr(ws, "_BY_ID", {s.sample_id: s for s in fake_curated})
@@ -3163,6 +3193,26 @@ def _fake_sample_info() -> Any:
         label="Sample A — first review (EF-annotated)",
         rel_path="data/raw/ester/250218 Cibaku Elson First Review.pdf",
     )
+
+
+def test_sample_post_rejects_private_id_even_when_file_exists(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import njit_auditor.web_samples as ws
+
+    c, wa = client
+    (tmp_path / "private-test.pdf").write_bytes(_MINIMAL_PDF)
+    private = ws.SampleInfo("private_test", "Private test", "private-test.pdf")
+    monkeypatch.setattr(ws, "_REPO_ROOT", tmp_path)
+    monkeypatch.setattr(ws, "_CURATED", [private])
+    monkeypatch.setattr(ws, "_BY_ID", {private.sample_id: private})
+
+    with patch.object(wa, "get_builtin_sample", return_value=private):
+        response = c.post(
+            "/audits/sample", data={"sample_id": private.sample_id}, follow_redirects=False
+        )
+    assert response.status_code == 400
+    assert b"unavailable in the public web audit" in response.content
 
 
 def test_index_contains_sample_form(client: tuple[TestClient, Any]) -> None:

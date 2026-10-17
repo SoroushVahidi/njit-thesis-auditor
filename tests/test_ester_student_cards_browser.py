@@ -78,6 +78,13 @@ def test_synthetic_cards_filter_sort_and_fit_screen(
             assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
             assert cards.first.locator(".finding-card__problem").inner_text() == "Problem 1 of 2"
             assert cards.first.locator(".finding-card__rule").inner_text() == "MARGINS"
+            assert page.locator(".status-banner--complete").evaluate(
+                "element => getComputedStyle(element).borderTopColor"
+            ) == "rgb(213, 221, 229)"
+            assert cards.first.locator(".finding-card__issue").evaluate(
+                "element => getComputedStyle(element).color"
+            ) == "rgb(159, 29, 22)"
+            assert page.locator(".badge-pass").count() == 0
             assert cards.first.inner_text().count("Page 1") == 1
             assert (
                 cards.first.locator(".finding-card__confidence").inner_text().endswith("confidence")

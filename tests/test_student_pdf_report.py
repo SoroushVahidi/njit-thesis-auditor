@@ -202,8 +202,11 @@ def test_student_report_identifies_scope_date_and_manual_work(tmp_path: Path) ->
         failed_check_count=1,
         audit_at="2026-10-16T19:35:00+00:00",
     )
-    assert "Audit date (UTC): 2026-10-16" in report
+    assert "Audit date/time (UTC): 2026-10-16 19:35:00" in report
     assert "Findings needing review: 1" in report
+    assert "Every GSO checklist topic needs manual review" in report
+    assert "15 of 16" not in report
+    assert "Manual-only areas: 1" not in report
     assert "Verified passing requirements: not measured" in report
     assert "GSO area: Margins; rule: R011" in report
     assert "Expected requirement:" in report
@@ -224,9 +227,19 @@ def test_student_report_identifies_scope_date_and_manual_work(tmp_path: Path) ->
     )
     with fitz.open(output) as pdf:
         appendix = _report_text(pdf, 2)
+        problem_spans = [
+            span
+            for page in list(pdf)[2:]
+            for block in page.get_text("dict")["blocks"]
+            for line in block.get("lines", [])
+            for span in line["spans"]
+            if span["text"].startswith("Problem #1")
+        ]
+        assert problem_spans and all(span["color"] == 0x9F1D16 for span in problem_spans)
     for phrase in (
-        "Audit date (UTC): 2026-10-16",
+        "Audit date/time (UTC): 2026-10-16 19:35:00",
         "Findings needing review: 1",
+        "Every GSO checklist topic needs manual review",
         "Verified passing requirements: not measured",
         "Expected requirement:",
         "Correction detail: Remove reviewer notes",
@@ -234,6 +247,17 @@ def test_student_report_identifies_scope_date_and_manual_work(tmp_path: Path) ->
         "GSO approval",
     ):
         assert phrase in appendix
+
+
+def test_report_timestamp_does_not_invent_missing_or_local_time() -> None:
+    finding = _finding(1, 1)
+    converted = render_student_report_text(
+        [finding], file_name="synthetic.pdf", audit_at="2026-10-16T23:35:00-04:00"
+    )
+    assert "Audit date/time (UTC): 2026-10-17 03:35:00" in converted
+    for value in (None, "invalid", "2026-10-16T23:35:00"):
+        report = render_student_report_text([finding], file_name="synthetic.pdf", audit_at=value)
+        assert "Audit date/time (UTC): not recorded" in report
 
 
 def test_report_requirement_is_not_detector_tolerance() -> None:
