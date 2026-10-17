@@ -99,6 +99,18 @@ def test_synthetic_cards_filter_sort_and_fit_screen(
             pdf_link.focus()
             assert pdf_link.evaluate("element => document.activeElement === element")
             assert "PDF" in pdf_link.inner_text()
+            triage_targets = page.locator(
+                ".jump-links a, .filter-bar select, .confidence-filter__chip, "
+                ".filter-actions button, .finding-card__action a"
+            )
+            assert triage_targets.count() > 0
+            undersized = triage_targets.evaluate_all(
+                "elements => elements.filter(element => {const height = "
+                "element.getBoundingClientRect().height; return height > 0 && height < 44})"
+                ".map(element => "
+                "[element.tagName, element.className, element.getBoundingClientRect().height])"
+            )
+            assert not undersized, undersized
 
             page.locator("#filter-reset").click()
             assert page.locator("#individual-findings-panel .finding-card:visible").count() == 2

@@ -79,6 +79,7 @@ def test_every_area_has_a_status_and_student_guidance() -> None:
     assert len(keys) == len(set(keys))
     for area in COVERAGE_AREAS:
         assert area.status in STATUS_LABELS
+        assert area.status != "checked"  # No whole checklist section has a verified pass.
         assert area.title and area.manual
         if area.status == "manual":
             assert not area.checked and not area.rule_ids
@@ -106,6 +107,7 @@ def test_known_policy_conflict_is_disclosed_not_resolved() -> None:
     by_key = {area.key: area for area in COVERAGE_AREAS}
     lof = by_key["list_of_figures"]
     assert lof.status == "guidance_differs"
+    assert lof.status_label == "Partly checked; guidance differs"
     assert "title case" in lof.checked
     assert "sentence case" in lof.manual
     assert "Graduate Studies" in lof.manual

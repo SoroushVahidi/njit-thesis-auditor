@@ -2029,15 +2029,11 @@ def _execute_audit_task(job_id: str) -> None:
         findings = result.findings
         job.failed_check_count = len(result.failed_checks)
         job.text_layer_quality = classify_pdf_text_layer(upload_path)
-    except UploadValidationError as exc:
+    except (UploadValidationError, AuditError):
         job.state = "failed"
-        job.error_message = str(exc)
-        job.finished_at = datetime.now(timezone.utc).isoformat()
-        _set_job(job)
-        return
-    except AuditError as exc:
-        job.state = "failed"
-        job.error_message = str(exc)
+        # The upload already passed public validation. Later PDF parser errors
+        # can contain the server's private upload path.
+        job.error_message = "Could not read this PDF. Check that it is a valid PDF and try again."
         job.finished_at = datetime.now(timezone.utc).isoformat()
         _set_job(job)
         return

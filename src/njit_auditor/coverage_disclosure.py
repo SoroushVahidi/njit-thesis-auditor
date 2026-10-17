@@ -24,7 +24,7 @@ STATUS_LABELS: dict[CoverageStatus, str] = {
     "checked": "Checked",
     "partial": "Partly checked",
     "manual": "Not checked",
-    "guidance_differs": "Checked; guidance differs",
+    "guidance_differs": "Partly checked; guidance differs",
 }
 
 COVERAGE_HEADING = "What this report checked and what you must check yourself"

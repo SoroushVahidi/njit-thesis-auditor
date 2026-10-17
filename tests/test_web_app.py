@@ -176,6 +176,33 @@ def test_upload_too_small_rejected(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 400
 
 
+def test_malformed_pdf_failure_does_not_expose_runtime_path(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, wa = client
+    response = c.post(
+        "/audits",
+        files={
+            "file": (
+                "synthetic_broken.pdf",
+                b"%PDF-1.7\nsynthetic invalid bytes\n",
+                "application/pdf",
+            )
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    job_id = response.headers["location"].rsplit("/", 1)[-1]
+    job = wa._get_job(job_id)
+    assert job is not None and job.state == "failed"
+    page = c.get(response.headers["location"])
+    assert page.status_code == 200
+    assert "Could not read this PDF" in page.text
+    assert "Try another file" in page.text
+    assert str(wa.RUNTIME_DIR) not in page.text
+    assert "Failed to open file" not in page.text
+
+
 # ---------------------------------------------------------------------------
 # Successful upload (monkeypatched audit runner)
 # ---------------------------------------------------------------------------
