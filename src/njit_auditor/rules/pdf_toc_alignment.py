@@ -82,6 +82,14 @@ PREFIX_ENTRY_MIN_LEN = 4
 DEFAULT_ENTRY_MIN_LEN = 8
 PREFIX_ENTRY_RE = re.compile(r"^(TABLE|FIGURE|CHAPTER|APPENDIX)\b", re.IGNORECASE)
 NUMERIC_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\.?\s")
+# A new list row can be indented like a wrap continuation; its full entry
+# marker must keep its own page number rather than donate it to the row above.
+_DISTINCT_LIST_ENTRY_START_RE = re.compile(
+    r"^(?:(?:table|figure)\s+(?:\d+|[ivxlcdm]+)"
+    r"(?:[.\-](?:\d+|[ivxlcdm]+))*|"
+    r"(?:\d+|[ivxlcdm]+)(?:[.\-](?:\d+|[ivxlcdm]+))+)[.]?\s",
+    re.IGNORECASE,
+)
 INDENT_CLUSTER_TOLERANCE_PT = 12.0
 MIN_SAME_LEVEL_FOR_HIERARCHY_COMPARISON = 3
 HIERARCHY_INDENT_TOLERANCE_PT = 10.0
@@ -692,6 +700,7 @@ def _strip_trailing_page_token(text: str, token: str | None) -> str:
 def _merge_wrapped_entries(
     entries: list[TocEntryLine],
     auxiliary_lines: list[PdfTextLine],
+    page_type: str,
 ) -> list[TocEntryLine]:
     if not entries:
         return entries
@@ -722,7 +731,10 @@ def _merge_wrapped_entries(
                     y_gap = nxt.line.bbox.y0 - prev_y
                     if y_gap > WRAPPED_ENTRY_Y_GAP_PT:
                         break
-                    if _has_prefix_entry_shape(nxt.cleaned_text):
+                    if _has_prefix_entry_shape(nxt.cleaned_text) or (
+                        page_type in {"list_of_tables", "list_of_figures"}
+                        and _DISTINCT_LIST_ENTRY_START_RE.match(nxt.cleaned_text)
+                    ):
                         break
                     cont = _strip_trailing_page_token(
                         nxt.cleaned_text, nxt.page_number_token
@@ -867,7 +879,7 @@ def extract_toc_entry_lines(
         if matched is not None:
             _apply_auxiliary_page_number(entry, matched)
 
-    entries = _merge_wrapped_entries(entries, unused_auxiliary)
+    entries = _merge_wrapped_entries(entries, unused_auxiliary, context.page_type)
     entries = _drop_merge_orphans(entries)
     entries.sort(key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
     return entries
@@ -1003,6 +1015,17 @@ def extract_toc_logical_entry_lines(
                 or (
                     context.page_type == "table_of_contents"
                     and _has_prefix_entry_shape(text)
+                )
+                or (
+                    context.page_type in {"list_of_tables", "list_of_figures"}
+                    and _DISTINCT_LIST_ENTRY_START_RE.match(text)
+                    # A typed parent with a weak interior title numeral may
+                    # legitimately continue with a numbered final row.
+                    and (
+                        not weak_first_number
+                        or not PREFIX_ENTRY_RE.match(first_text)
+                        or PREFIX_ENTRY_RE.match(text)
+                    )
                 )
                 or len(continuation_rows) >= LOGICAL_WRAP_MAX_ROWS
             ):
