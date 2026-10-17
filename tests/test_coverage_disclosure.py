@@ -230,6 +230,8 @@ def test_results_page_with_no_findings_still_discloses_coverage(
     )
     html = c.get(f"/audits/{job_id}").text
     assert "No problems found" in html
+    assert '<span class="badge badge-muted">No problems found</span>' in html
+    assert '<span class="badge badge-pass">No problems found</span>' not in html
     assert 'id="section-coverage"' in html
     assert "does not mean your document meets NJIT requirements" in html
 

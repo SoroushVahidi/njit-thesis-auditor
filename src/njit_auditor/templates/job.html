@@ -254,7 +254,7 @@
         if (show) visible += 1;
         if (show) {
           var position = row.querySelector(".finding-card__problem");
-          if (position) position.textContent = "Issue " + visible;
+          if (position) position.textContent = "Problem " + visible;
         }
       });
       rows.forEach(function(row) {
@@ -350,7 +350,7 @@
 
 {% macro severity_status_badge(severity, triage_tier="") -%}
   {% if severity == "PASS" %}
-  <span class="badge badge-pass">Info</span>
+  <span class="badge badge-muted">Info</span>
   {% elif triage_tier == "informational" %}
   <span class="badge badge-muted">Info</span>
   {% elif triage_tier == "review" %}
@@ -413,7 +413,7 @@
     <p class="status-banner__meta">
       Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
       &middot; PDF layout audit
-      {% if finished_at %} &middot; Finished {{ finished_at[:19] }}{% endif %}
+      {% if finished_at %} &middot; Finished {{ finished_at[:19] }} UTC{% endif %}
     </p>
   </div>
   <div>
@@ -422,7 +422,7 @@
     {% elif failed_check_count %}
     <span class="badge badge-warn">Audit incomplete</span>
     {% else %}
-    <span class="badge badge-pass">No problems found</span>
+    <span class="badge badge-muted">No problems found</span>
     {% endif %}
   </div>
 </div>
@@ -636,7 +636,7 @@
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
         </div>
         <div class="finding-card__meta">
-          <span class="finding-card__problem">Issue {{ loop.index }} of {{ findings|length }}</span>
+          <span class="finding-card__problem">Problem {{ loop.index }} of {{ findings|length }}</span>
           <span class="finding-card__page">
             {% if f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}Document-wide{% endif %}
           </span>
@@ -644,7 +644,7 @@
         </div>
         <div class="finding-card__issue">
           {{ f.student_summary }}
-          {% if f.suggested_fix %}<span class="finding-card__fix">Suggested fix: {{ f.suggested_fix }}</span>{% endif %}
+          {% if f.student_action or f.suggested_fix %}<span class="finding-card__fix">What to do: {{ f.student_action or f.suggested_fix }}</span>{% endif %}
         </div>
         {% if f.margin_questions %}
         <ul class="margin-checks" aria-label="Margin questions for this finding">
@@ -655,6 +655,7 @@
         <details class="finding-explanation finding-card__note">
           <summary>Review note</summary>
           <p>{{ f.polished_comment }}</p>
+          {% if f.student_action and f.suggested_fix %}<p>Detailed correction: {{ f.suggested_fix }}</p>{% endif %}
         </details>
         {% endif %}
         <details class="finding-explanation finding-card__note">

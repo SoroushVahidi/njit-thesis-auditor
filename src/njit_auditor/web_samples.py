@@ -14,6 +14,7 @@ class SampleInfo:
     sample_id: str
     label: str
     rel_path: str  # path relative to _REPO_ROOT
+    public: bool = False
 
     @property
     def abs_path(self) -> Path:
@@ -21,6 +22,12 @@ class SampleInfo:
 
 
 _CURATED: list[SampleInfo] = [
+    SampleInfo(
+        sample_id="synthetic_demo",
+        label="Synthetic formatting demo",
+        rel_path="tests/fixtures/web_demo/issues_pdf.pdf",
+        public=True,
+    ),
     SampleInfo(
         sample_id="ester_sample_a",
         label="Sample A ? first review (EF-annotated)",
@@ -47,8 +54,8 @@ _BY_ID: dict[str, SampleInfo] = {s.sample_id: s for s in _CURATED}
 
 
 def list_builtin_samples() -> list[SampleInfo]:
-    """Return curated samples that currently exist as local PDF files."""
-    return [s for s in _CURATED if s.abs_path.exists() and s.abs_path.is_file()]
+    """Expose only public synthetic samples that exist on this server."""
+    return [s for s in _CURATED if s.public and s.abs_path.exists() and s.abs_path.is_file()]
 
 
 def get_builtin_sample(sample_id: str) -> SampleInfo:
@@ -59,8 +66,10 @@ def get_builtin_sample(sample_id: str) -> SampleInfo:
 
 
 def copy_builtin_sample_to_job(sample_id: str, destination_path: Path) -> None:
-    """Validate and copy the sample PDF to destination_path."""
+    """Validate and copy a public sample PDF to destination_path."""
     info = get_builtin_sample(sample_id)
+    if not info.public:
+        raise ValueError("This sample is unavailable in the public web audit.")
     src = info.abs_path
 
     # Defense-in-depth: verify resolved path stays under repo root.

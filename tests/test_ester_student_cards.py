@@ -61,7 +61,7 @@ def test_margin_wording_uses_only_detector_evidence() -> None:
     }
     measured = student_card_fields(finding, {"side": "bottom_margin", "worst_overflow_pt": "22.0"})
     assert measured["student_topic"] == "MARGINS"
-    assert measured["student_summary"] == "Bottom margin exceeded by approximately 22.0 pt"
+    assert measured["student_summary"] == "Bottom margin — approximately 22.0 pt over"
     assert measured["student_location"] == ""
     assert [answer for _, answer in measured["margin_questions"]] == [
         "Needs review",
@@ -97,15 +97,15 @@ def test_synthetic_results_cards_and_drilldown_agree(web: tuple[TestClient, Any]
     body = unescape(response.text)
     cards = _primary_cards(body)
     assert len(cards) == len(job.findings) > 0
-    assert [f"Issue {index} of {len(cards)}" in card for index, card in enumerate(cards, 1)] == [
+    assert [f"Problem {index} of {len(cards)}" in card for index, card in enumerate(cards, 1)] == [
         True
     ] * len(cards)
     assert 'id="filter-rule"' in body and 'id="sort-problems"' in body
-    assert 'position.textContent = "Issue " + visible' in body
+    assert 'position.textContent = "Problem " + visible' in body
     assert "Open highlighted PDF" in body or "Open PDF" in body
     for card in cards:
-        assert "Problem " not in card.split("<details", 1)[0]
-        assert "Suggested fix:" in card or "Review this finding" in card
+        assert "Problem #" not in card.split("<details", 1)[0]
+        assert "What to do:" in card or "Review this finding" in card
         assert re.search(r'<span class="finding-card__page">\s*Page \d+', card)
         assert "All findings on this page" in card
         assert "Technical details" in card
@@ -119,14 +119,14 @@ def test_synthetic_results_cards_and_drilldown_agree(web: tuple[TestClient, Any]
     margin = next(card for card in cards if ">MARGINS</a>" in card)
     assert ">R011</a>" not in margin.split("<details", 1)[0]
     assert "Needs review" in margin and ">No</strong>" in margin
-    assert re.search(r"margin exceeded by approximately \d+\.\d pt", margin)
+    assert re.search(r"margin — approximately \d+\.\d pt over", margin)
     assert "margin-answer--yes" not in margin
     assert "Page " not in re.search(
         r'<div class="finding-card__action">(.*?)</div>', margin, re.DOTALL
     ).group(1)
 
     detail = unescape(client.get(f"/audits/{job_id}/problems/rule/P011").text)
-    assert "MARGINS" in detail and "Issue 1 of" in detail
+    assert "MARGINS" in detail and "Problem 1 of" in detail
     assert "Needs review" in detail and "Open" in detail
     assert "highlighted-page.pdf" in detail or "/pdf" in detail
     assert "Review note" in detail and "Technical details" in detail
@@ -145,7 +145,7 @@ def test_sort_and_viewport_keep_real_totals(web: tuple[TestClient, Any]) -> None
             assert response.status_code == 200
             cards = _primary_cards(response.text)
             assert len(cards) == count
-            assert all(f"Issue {i} of {count}" in card for i, card in enumerate(cards, 1))
+            assert all(f"Problem {i} of {count}" in card for i, card in enumerate(cards, 1))
             assert 'aria-pressed="true"' in response.text
             assert 'target="_blank" rel="noopener noreferrer"' in response.text
 
@@ -183,8 +183,8 @@ def test_other_topics_render_as_names_on_both_views(web: tuple[TestClient, Any])
     assert len(cards) == len(job.findings) == 2
     assert ">FONT FORMATTING</a>" in cards[0]
     assert ">PAGE NUMBERING</a>" in cards[1]
-    assert "Issue 1 of 2" in cards[0] and "Issue 2 of 2" in cards[1]
+    assert "Problem 1 of 2" in cards[0] and "Problem 2 of 2" in cards[1]
     detail = client.get(f"/audits/{job_id}/problems/rule/P026").text
-    assert "FONT FORMATTING" in detail and "Issue 1 of 1" in detail
+    assert "FONT FORMATTING" in detail and "Problem 1 of 1" in detail
     assert "About this issue" in detail
     assert "Issue type: Possible body font family issue" not in detail

@@ -76,8 +76,15 @@ def test_synthetic_cards_filter_sort_and_fit_screen(
             cards.first.wait_for(timeout=30000)
             assert cards.count() == 2
             assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
-            assert cards.first.locator(".finding-card__problem").inner_text() == "Issue 1 of 2"
+            assert cards.first.locator(".finding-card__problem").inner_text() == "Problem 1 of 2"
             assert cards.first.locator(".finding-card__rule").inner_text() == "MARGINS"
+            assert page.locator(".status-banner--complete").evaluate(
+                "element => getComputedStyle(element).borderTopColor"
+            ) == "rgb(213, 221, 229)"
+            assert cards.first.locator(".finding-card__issue").evaluate(
+                "element => getComputedStyle(element).color"
+            ) == "rgb(159, 29, 22)"
+            assert page.locator(".badge-pass").count() == 0
             assert cards.first.inner_text().count("Page 1") == 1
             assert (
                 cards.first.locator(".finding-card__confidence").inner_text().endswith("confidence")
@@ -86,7 +93,7 @@ def test_synthetic_cards_filter_sort_and_fit_screen(
             page.locator("#filter-page").select_option("1")
             visible = page.locator("#individual-findings-panel .finding-card:visible")
             assert visible.count() == 1
-            assert visible.first.locator(".finding-card__problem").inner_text() == "Issue 1 of 1"
+            assert visible.first.locator(".finding-card__problem").inner_text() == "Problem 1 of 1"
             assert page.locator("#filter-count").inner_text() == "Showing 1 of 2 findings"
             pdf_link = visible.first.locator(".finding-card__action a").first
             pdf_link.focus()
@@ -97,8 +104,8 @@ def test_synthetic_cards_filter_sort_and_fit_screen(
             assert page.locator("#individual-findings-panel .finding-card:visible").count() == 2
             page.locator("#sort-problems").select_option("confidence_desc")
             page.wait_for_load_state("domcontentloaded")
-            assert page.locator(".finding-card__problem").first.inner_text() == "Issue 1 of 2"
-            assert page.locator(".finding-card__problem").last.inner_text() == "Issue 2 of 2"
+            assert page.locator(".finding-card__problem").first.inner_text() == "Problem 1 of 2"
+            assert page.locator(".finding-card__problem").last.inner_text() == "Problem 2 of 2"
             assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
         finally:
             browser.close()
