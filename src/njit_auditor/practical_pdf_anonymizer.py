@@ -45,6 +45,8 @@ _PREFIX = re.compile(
     re.IGNORECASE,
 )
 _FOLIO = re.compile(r"(?:\d{1,4}|[ivxlcdm]{1,8})$")
+_SUPERSCRIPT_DIGITS = set("⁰¹²³⁴⁵⁶⁷⁸⁹")
+_SUBSCRIPT_DIGITS = set("₀₁₂₃₄₅₆₇₈₉")
 _DANGEROUS_OPERATORS = {b"Do", b"BI", b"ID", b"EI", b"BDC", b"BMC", b"DP", b"MP"}
 _SAFE_OPERATORS = {
     b"q",
@@ -469,6 +471,7 @@ def _replacement(
     """Sample compatible glyphs while bounding cumulative position drift."""
     widths: dict[str, float] = {}
     candidates = alphabet | set(text) | set(string.ascii_letters + string.digits)
+    candidates |= _SUPERSCRIPT_DIGITS | _SUBSCRIPT_DIGITS
     candidates |= set("αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ")
     for char in sorted(candidates):
         if char.isalnum() and font.has_glyph(ord(char)):
@@ -488,6 +491,8 @@ def _replacement(
             and c.isupper() == char.isupper()
             and c.islower() == char.islower()
             and (c.isascii() == char.isascii())
+            and (c in _SUPERSCRIPT_DIGITS) == (char in _SUPERSCRIPT_DIGITS)
+            and (c in _SUBSCRIPT_DIGITS) == (char in _SUBSCRIPT_DIGITS)
         ]
         if not choices:
             raise UnsupportedPDF("A font has too few compatible glyphs to replace substantive text")

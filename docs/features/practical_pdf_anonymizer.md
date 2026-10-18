@@ -17,6 +17,22 @@ anonymize original.pdf --output-dir ./outputs --authorized-local-input \
   --seed 42 --strategy width --verify-auditor --report ./outputs/check.json
 ```
 
+For a local file picker, install a Python build with Tkinter and run
+`anonymize-gui`. Select the source PDF, then choose a **new, separate** output
+path. The picker calls the same anonymizer with the auditor compatibility check
+enabled. It displays a refusal when the PDF or destination is unsupported. It
+does not start a server or upload the file. On Windows, a one-folder build can
+be prepared with `python -m pip install -e '.[anonymizer]' pyinstaller` followed
+by `pyinstaller --noconfirm packaging/anonymizer_gui.spec`; the spec is a build
+recipe, not a tested Windows executable. The picker runs synchronously, so its
+window may be unresponsive while a large PDF is processed.
+
+**Distribution licensing:** PyMuPDF is available under AGPLv3 or a commercial
+license. Review the applicable license obligations before distributing a
+packaged anonymizer; this branch does not provide a redistribution clearance.
+The pinned editor is MIT and pikepdf is MPL-2.0. See the
+[PyMuPDF licensing page](https://pymupdf.io/licensing).
+
 `--authorized-local-input` confirms that you have permission to process the
 document locally. There is no title marker requirement. No document bytes are
 sent to a service by this command. The input is never overwritten; an existing
@@ -46,6 +62,9 @@ progress without printing source text.
   Mixed bold/italic spans, ordinary paragraphs, page
   numbers, TOC/list labels, captions, references, indents, and two-column
   examples are covered by synthetic tests.
+  Superscript and subscript digits are replaced only with glyphs in the same
+  notation class when the font supports them; mathematical operators and
+  punctuation remain visible and can disclose subject matter.
 - MediaBox, CropBox, landscape pages, and page rotation are preserved in
   accepted PDFs. Up to 250 pages and 100 MB are admitted; those bounds are
   safety limits, not a performance guarantee.

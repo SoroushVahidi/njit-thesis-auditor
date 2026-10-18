@@ -42,6 +42,7 @@ anonymizer = [
 [project.scripts]
 njit-audit = "njit_auditor.cli:app"
 anonymize = "njit_auditor.practical_pdf_anonymizer:main"
+anonymize-gui = "njit_auditor.anonymizer_gui:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
