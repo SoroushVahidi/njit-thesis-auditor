@@ -201,6 +201,27 @@ def test_mixed_leaders_message_uses_singular_plural_correctly() -> None:
     assert "dot leaders: 2 entries; hyphen leaders: 1 entry" in message
 
 
+def test_mixed_leader_warning_anchors_minority_style_page() -> None:
+    first_page = _page(
+        _block(_toc_heading()),
+        *[_block(_entry_dot(f"CHAPTER {i} SYNTHETIC TITLE", 80.0 + i * 20)) for i in range(3)],
+        page_number=3,
+    )
+    continued_heading = _line(
+        "TABLE OF CONTENTS (Continued)", x0=170, x1=442, y0=50, y1=62, bold=True
+    )
+    second_page = _page(
+        _block(continued_heading),
+        _block(_entry_hyphen("CHAPTER 4 SYNTHETIC TITLE", 80.0)),
+        page_number=4,
+    )
+    findings = check_pdf_toc_leader_consistency(_doc(first_page, second_page))
+    assert len(findings) == 1
+    assert findings[0].details["issue_type"] == "toc_mixed_leader_styles"
+    assert findings[0].page == 4
+    assert findings[0].details["page_number"] == "4"
+
+
 # ---------------------------------------------------------------------------
 # D. Some entries missing leaders while others have → toc_missing_leader_style
 # ---------------------------------------------------------------------------

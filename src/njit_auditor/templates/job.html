@@ -80,6 +80,7 @@
     gap: 0.45rem;
   }
   .confidence-filter__chip {
+    min-height: 2.75rem;
     background: #fff;
     color: var(--color-primary);
     border: 1px solid var(--color-primary);
@@ -180,10 +181,11 @@
     margin-top: 0.35rem;
   }
   .finding-card__action .btn {
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     display: inline-flex;
     align-items: center;
   }
+  .filter-actions button { min-height: 2.75rem; }
   .margin-checks { margin: 0.45rem 0; padding-left: 1.2rem; font-size: 0.83rem; }
   .margin-checks li { margin: 0.2rem 0; }
   .margin-checks .margin-answer--no { color: #9f1d16; }
@@ -254,7 +256,7 @@
         if (show) visible += 1;
         if (show) {
           var position = row.querySelector(".finding-card__problem");
-          if (position) position.textContent = "Issue " + visible;
+          if (position) position.textContent = "Problem " + visible;
         }
       });
       rows.forEach(function(row) {
@@ -350,7 +352,7 @@
 
 {% macro severity_status_badge(severity, triage_tier="") -%}
   {% if severity == "PASS" %}
-  <span class="badge badge-pass">Info</span>
+  <span class="badge badge-muted">Info</span>
   {% elif triage_tier == "informational" %}
   <span class="badge badge-muted">Info</span>
   {% elif triage_tier == "review" %}
@@ -413,7 +415,7 @@
     <p class="status-banner__meta">
       Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
       &middot; PDF layout audit
-      {% if finished_at %} &middot; Finished {{ finished_at[:19] }}{% endif %}
+      {% if finished_at %} &middot; Finished {{ finished_at[:19] }} UTC{% endif %}
     </p>
   </div>
   <div>
@@ -422,7 +424,7 @@
     {% elif failed_check_count %}
     <span class="badge badge-warn">Audit incomplete</span>
     {% else %}
-    <span class="badge badge-pass">No problems found</span>
+    <span class="badge badge-muted">No problems found</span>
     {% endif %}
   </div>
 </div>
@@ -636,7 +638,7 @@
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
         </div>
         <div class="finding-card__meta">
-          <span class="finding-card__problem">Issue {{ loop.index }} of {{ findings|length }}</span>
+          <span class="finding-card__problem">Problem {{ loop.index }} of {{ findings|length }}</span>
           <span class="finding-card__page">
             {% if f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}Document-wide{% endif %}
           </span>
@@ -644,7 +646,7 @@
         </div>
         <div class="finding-card__issue">
           {{ f.student_summary }}
-          {% if f.suggested_fix %}<span class="finding-card__fix">Suggested fix: {{ f.suggested_fix }}</span>{% endif %}
+          {% if f.student_action or f.suggested_fix %}<span class="finding-card__fix">What to do: {{ f.student_action or f.suggested_fix }}</span>{% endif %}
         </div>
         {% if f.margin_questions %}
         <ul class="margin-checks" aria-label="Margin questions for this finding">
@@ -655,6 +657,7 @@
         <details class="finding-explanation finding-card__note">
           <summary>Review note</summary>
           <p>{{ f.polished_comment }}</p>
+          {% if f.student_action and f.suggested_fix %}<p>Detailed correction: {{ f.suggested_fix }}</p>{% endif %}
         </details>
         {% endif %}
         <details class="finding-explanation finding-card__note">
@@ -662,8 +665,8 @@
           <p>Rule {{ f.rule_id | display_rule_id }} · Original finding {{ f.problem_number if f.problem_number else loop.index }}</p>
         </details>
         <div class="finding-card__action">
-          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
-          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">All findings on this page</a>{% endif %}
+          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem">All findings on this page</a>{% endif %}
         </div>
       </article>
       {% endfor %}

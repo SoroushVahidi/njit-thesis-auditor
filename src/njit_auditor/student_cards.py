@@ -41,7 +41,7 @@ def issue_summary(finding: Mapping[str, Any], details: Mapping[str, Any]) -> str
         except (TypeError, ValueError):
             overflow = 0.0
         if side and math.isfinite(overflow) and overflow > 0:
-            return f"{side.capitalize()} margin exceeded by approximately {overflow:.1f} pt"
+            return f"{side.capitalize()} margin — approximately {overflow:.1f} pt over"
     label = str(finding.get("issue_type_label") or "").strip()
     if label:
         return label
@@ -113,6 +113,11 @@ def student_card_fields(finding: Mapping[str, Any], details: Mapping[str, Any]) 
     return {
         "student_topic": topic_label(finding),
         "student_summary": issue_summary(finding, details),
+        "student_action": (
+            f"Move the flagged text inside the {side} margin."
+            if str(finding.get("rule_id", "")) == "P011" and (side := _margin_side(details))
+            else ""
+        ),
         "margin_questions": margin_questions(finding, details),
         "student_location": location,
     }

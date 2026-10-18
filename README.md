@@ -39,9 +39,8 @@ Open `http://localhost:8000`. The public web UI is **PDF-only** and offers three
 - **Upload a PDF file.**
 - **Audit a public PDF URL** — server-side fetch is SSRF-guarded (only `http`/`https`, blocks
   localhost/private IP ranges and hostnames resolving to internal addresses).
-- **Audit a built-in sample PDF** — private evaluation samples, available only on servers where
-  the repository is checked out; do not expose on a public deployment without authorization (see
-  [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md)).
+- **Audit a built-in sample PDF** — a committed synthetic formatting example. Private evaluation
+  files remain available to authorized command-line checks but are not exposed by the public sample route.
 
 Results include summary cards, findings by topic, findings in page order, client-side filters
 (rule/category/page/confidence), privacy-safe polished comments per finding, and a **Complete PDF
@@ -77,6 +76,12 @@ njit-audit tex path/to/main.tex --linters   # optional chktex/lacheck if install
 njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comments.md
 njit-audit pdf-comments clean input.pdf --out clean.pdf
 ```
+
+The optional local [PDF content anonymizer](docs/features/practical_pdf_anonymizer.md)
+replaces substantive text in supported searchable PDFs while preserving
+measured formatting. Install with `pip install -e '.[anonymizer]'`, then run
+`anonymize original.pdf -o anonymized.pdf --authorized-local-input`. It refuses
+unsupported PDF structures and does not guarantee source unlinkability.
 
 `--json-out` includes a `grouped_summary` that aggregates high-volume repeated findings by rule
 and issue type, plus optional reporting-only triage rollups for the highest-volume rules (P011,

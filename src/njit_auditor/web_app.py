@@ -1529,7 +1529,9 @@ def _card_fields(
     """Keep saved card wording while supporting older in-memory demo jobs."""
     raw = details if details is not None else finding.get("details", {})
     fields = student_card_fields(finding, raw if isinstance(raw, dict) else {})
-    for key in ("student_topic", "student_summary", "margin_questions", "student_location"):
+    for key in (
+        "student_topic", "student_summary", "student_action", "margin_questions", "student_location"
+    ):
         if key in finding:
             fields[key] = finding[key]
     return fields
@@ -2027,15 +2029,11 @@ def _execute_audit_task(job_id: str) -> None:
         findings = result.findings
         job.failed_check_count = len(result.failed_checks)
         job.text_layer_quality = classify_pdf_text_layer(upload_path)
-    except UploadValidationError as exc:
+    except (UploadValidationError, AuditError):
         job.state = "failed"
-        job.error_message = str(exc)
-        job.finished_at = datetime.now(timezone.utc).isoformat()
-        _set_job(job)
-        return
-    except AuditError as exc:
-        job.state = "failed"
-        job.error_message = str(exc)
+        # The upload already passed public validation. Later PDF parser errors
+        # can contain the server's private upload path.
+        job.error_message = "Could not read this PDF. Check that it is a valid PDF and try again."
         job.finished_at = datetime.now(timezone.utc).isoformat()
         _set_job(job)
         return
@@ -2158,19 +2156,20 @@ def _execute_audit_task(job_id: str) -> None:
     job.fail_count = int(view.counts_by_severity.get("FAIL", 0))
     job.findings = serialized
     job.manuscript_page_labels = _manuscript_page_labels(export_findings)
+    job.finished_at = datetime.now(timezone.utc).isoformat()
     (jdir / "report.txt").write_text(
         render_student_report_text(
             serialized,
             file_name=job.file_name,
             manuscript_page_labels=job.manuscript_page_labels,
             failed_check_count=job.failed_check_count,
+            audit_at=job.finished_at,
         ),
         encoding="utf-8",
     )
     job.grouped_summary = grouped_rows
     job.report_view = view_dict
     job.md_preview = md_preview
-    job.finished_at = datetime.now(timezone.utc).isoformat()
     _set_job(job)
 
 
@@ -2653,6 +2652,8 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
                 raw,
                 job.file_name,
                 job.manuscript_page_labels,
+                job.finished_at,
+                job.failed_check_count,
                 source.stat().st_mtime_ns,
             ],
             sort_keys=True,
@@ -2695,6 +2696,7 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
                 file_name=job.file_name,
                 manuscript_page_labels=job.manuscript_page_labels,
                 failed_check_count=job.failed_check_count,
+                audit_at=job.finished_at or job.created_at,
             )
             metadata_path = jdir / "student-report-metadata.json"
             temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
@@ -2703,8 +2705,10 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
             temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
             temporary_stamp.write_text(signature, encoding="ascii")
             os.replace(temporary_stamp, stamp)
-        except Exception:
-            _logger.exception("Combined student PDF generation failed for job %s", job_id)
+        except Exception as exc:
+            # Exception messages and tracebacks may include uploaded content or
+            # server paths. The job ID is also a bearer token for PDF access.
+            _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
             return _index_notice(
                 request,
                 "The complete PDF report could not be prepared. Please try again.",
@@ -3002,9 +3006,8 @@ async def serve_job_pdf_highlighted(
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
-                    "Highlight request for job %s matched %d finding(s) but drew no "
+                    "Highlight request matched %d finding(s) but drew no "
                     "visible annotation (skipped=%d); falling back to plain PDF.",
-                    job_id,
                     len(matches),
                     result.skipped_count,
                 )
@@ -3012,11 +3015,10 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:
         _logger.warning(
-            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
-            job_id,
-            exc_info=True,
+            "Highlighted PDF generation failed (%s); falling back to plain PDF.",
+            type(exc).__name__,
         )
         return plain_response
 
@@ -3108,9 +3110,8 @@ async def serve_job_highlighted_page_pdf(
                 )
                 if not result.has_highlight:
                     _logger.warning(
-                        "Page-focused highlight for job %s page=%s matched %d finding(s) "
+                        "Page-focused highlight for page=%s matched %d finding(s) "
                         "but drew no visible annotation (skipped=%d); serving single page only.",
-                        job_id,
                         page,
                         len(matches),
                         result.skipped_count,
@@ -3125,12 +3126,11 @@ async def serve_job_highlighted_page_pdf(
                 )
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:
         _logger.warning(
-            "Page-focused highlighted PDF generation failed for job %s; "
+            "Page-focused highlighted PDF generation failed (%s); "
             "attempting single-page extract.",
-            job_id,
-            exc_info=True,
+            type(exc).__name__,
         )
         return _extract_plain_single_page()
 

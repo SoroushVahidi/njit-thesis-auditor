@@ -1,0 +1,58 @@
+name: Codex managed CI (optional)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout exact workflow commit without persisted credentials or LFS
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pinned resolver
+        run: python -m pip install --no-cache-dir uv==0.13.1
+
+      - name: Verify immutable checkout
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Run privacy-safe checks
+        env:
+          CI_SHA: ${{ github.sha }}
+          CI_OUTPUT: ${{ runner.temp }}/codex-managed-ci
+        run: |
+          python scripts/codex_managed_ci.py \
+            --repo . \
+            --sha "$CI_SHA" \
+            --output-dir "$CI_OUTPUT" \
+            --python "$(command -v python)"
+
+      - name: Preserve manifest and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-managed-ci-py${{ matrix.python-version }}
+          path: |
+            ${{ runner.temp }}/codex-managed-ci/manifest.json
+            ${{ runner.temp }}/codex-managed-ci/pytest_result.json
+            ${{ runner.temp }}/codex-managed-ci/*.log
+          if-no-files-found: warn

@@ -240,7 +240,7 @@
           <span class="example-card__marker" aria-label="Legend item {{ example.legend_number }}">{{ example.legend_number }}</span>
           {% endif %}
           <p class="example-card__title">
-            Issue {{ loop.index }} of {{ examples|length }} ·
+            Problem {{ loop.index }} of {{ examples|length }} ·
             {% if example.public_rule_reference_id %}
             <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.student_topic }}: see rule reference">{{ example.student_topic }}</a>
             {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
@@ -266,12 +266,12 @@
         {% elif example.issue_type and example.student_summary != (example.issue_type | humanize_detail_key) %}
         <div><strong>Issue type:</strong> {{ example.issue_type | humanize_detail_key }}</div>
         {% endif %}
-        {% if example.suggested_fix %}
-        <div><strong>Suggested fix:</strong> {{ example.suggested_fix }}</div>
+        {% if example.student_action or example.suggested_fix %}
+        <div><strong>What to do:</strong> {{ example.student_action or example.suggested_fix }}</div>
         {% endif %}
       </div>
       {% if example.margin_questions %}<ul class="margin-checks" aria-label="Margin questions for this finding">{% for question, answer in example.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}</ul>{% endif %}
-      {% if example.polished_comment %}<details class="finding-explanation"><summary>Review note</summary><p>{{ example.polished_comment }}</p></details>{% endif %}
+      {% if example.polished_comment %}<details class="finding-explanation"><summary>Review note</summary><p>{{ example.polished_comment }}</p>{% if example.student_action and example.suggested_fix %}<p>Detailed correction: {{ example.suggested_fix }}</p>{% endif %}</details>{% endif %}
       {% if example.detailed_explanation %}
       <details class="finding-explanation">
         <summary>What does this mean?</summary>

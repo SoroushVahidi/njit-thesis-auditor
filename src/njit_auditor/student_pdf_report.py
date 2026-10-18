@@ -12,6 +12,7 @@ import os
 import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,7 @@ from njit_auditor.pdf_highlight import (
     clip_box_to_page,
     page_box_space,
 )
-from njit_auditor.report_outputs import public_display_rule_id
+from njit_auditor.report_outputs import category_display_label, public_display_rule_id
 from njit_auditor.report_text import _detruncate_fix_text
 from njit_auditor.report_view import SORT_MODE_PAGE, sort_findings
 
@@ -85,6 +86,8 @@ def _title(finding: Mapping[str, Any]) -> str:
 
 
 def _fix(finding: Mapping[str, Any]) -> str:
+    if _field(finding, "student_action"):
+        return _field(finding, "student_action")
     details = finding.get("details")
     return _detruncate_fix_text(
         _field(finding, "rule_id"),
@@ -93,12 +96,115 @@ def _fix(finding: Mapping[str, Any]) -> str:
     )
 
 
+def _checklist_area(finding: Mapping[str, Any]) -> str:
+    """Use a broad checklist label without implying that a check passed."""
+    category = _field(finding, "category")
+    mapping = {
+        "margin_or_overflow": "Margins",
+        "font_format": "Font",
+        "page_numbering": "Page numbers",
+        "title_page_metadata": "Title page",
+        "committee_approval_page": "Approval page",
+        "figure_format": "Figures",
+        "table_format": "Tables",
+        "references_citations": "References",
+        "indentation": "Text spacing and paragraphs",
+        "spacing_blank_lines": "Text spacing and paragraphs",
+    }
+    if category == "list_of_tables_figures_toc":
+        issue = _field(finding, "issue_type").lower()
+        public = _field(finding, "public_rule_reference_id").upper()
+        if issue.startswith(("lot_", "list_of_tables_")) or public in {"P024D", "R024D"}:
+            return "List of Tables"
+        if issue.startswith(("lof_", "list_of_figures_")) or public in {"P024E", "R024E"}:
+            return "List of Figures"
+        if issue.startswith(("toc_", "table_of_contents_")):
+            return "Table of Contents"
+        return "Table of Contents and lists"
+    return mapping.get(
+        category, category_display_label(category) if category else "Other formatting"
+    )
+
+
+def _summary(finding: Mapping[str, Any]) -> str:
+    return _field(finding, "student_summary") or _title(finding)
+
+
+def _expected(finding: Mapping[str, Any]) -> str:
+    area = _checklist_area(finding)
+    # These are requirement summaries, not detector capabilities or tolerances.
+    requirements = {
+        "Margins": "The left margin is 1.5 inches; top, right, and bottom are 1 inch. "
+        "Only page numbers may enter a margin.",
+        "Font": "Document text is 12 pt in an accepted font. Later reviewer guidance also "
+        "accepts Computer Modern and Latin Modern for appropriate LaTeX documents; "
+        "table text may differ in size.",
+        "Page numbers": "Front matter uses Roman numerals, with specified unnumbered "
+        "pages and the Biographical Sketch at iv. Main text starts Arabic 1 at "
+        "Chapter 1 and continues through the end.",
+        "Title page": "Use the program template, a consistent title, and a May, August, "
+        "or December graduation month.",
+        "Approval page": "List committee members and advisor in the required order "
+        "with honorifics and affiliation details.",
+        "Table of Contents": "Use the required heading, case, hierarchy, spacing, "
+        "leaders, aligned page numbers, and matching destinations.",
+        "List of Tables": "Use title-case entries, single-spaced wraps, leaders, and "
+        "page numbers matching each table's first page.",
+        "List of Figures": "Use punctuation, consistent part labels, leaders, and "
+        "matching page numbers. Confirm case with current GSO guidance: the sheet "
+        "and later reviewer direction differ.",
+        "Table of Contents and lists": "Use the relevant GSO section's case, "
+        "spacing, leaders, alignment, and matching page numbers.",
+        "Text spacing and paragraphs": "Use double-spaced body text, except specified "
+        "single-spaced material; leave first section paragraphs unindented and "
+        "indent subsequent paragraphs.",
+        "Tables": "Center tables and put properly styled titles above them.",
+        "Figures": "Center figures and put properly styled descriptions below them.",
+        "References": "Use a consistent reference style agreed with the advisor.",
+    }
+    return requirements.get(
+        area, f"Follow the {area.lower()} item on the GSO self-assessment sheet."
+    )
+
+
+def _extra_fix(finding: Mapping[str, Any]) -> str:
+    if _field(finding, "student_action") and _field(finding, "suggested_fix"):
+        return _field(finding, "suggested_fix")
+    return ""
+
+
+def _student_location(finding: Mapping[str, Any]) -> str:
+    return _field(finding, "student_location") or _field(finding, "location_label")
+
+
+def _audit_timestamp(value: str | None) -> str:
+    if value:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if parsed.tzinfo is not None:
+                return parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+    return "not recorded"
+
+
+def _scope_lines(findings: Sequence[Mapping[str, Any]], failed_check_count: int) -> list[str]:
+    return [
+        f"Findings needing review: {len(findings)} (warnings, not verified failures)",
+        "Every GSO checklist topic needs manual review; some individual items "
+        "have no automatic check.",
+        f"Skipped or failed checks in this audit: {failed_check_count}",
+        "Verified passing requirements: not measured by this audit; no finding is not a pass.",
+    ]
+
+
 def render_student_report_text(
     findings: Sequence[Mapping[str, Any]],
     *,
     file_name: str,
     manuscript_page_labels: Mapping[int, str] | None = None,
     failed_check_count: int = 0,
+    audit_at: str | None = None,
 ) -> str:
     """Text download using the same web problem identities and wording as the PDF."""
     labels = manuscript_page_labels or {}
@@ -107,8 +213,18 @@ def render_student_report_text(
         "NJIT THESIS/DISSERTATION FORMATTING AUDIT",
         "Formatting Problems",
         f"File: {file_name}",
+        f"Audit date/time (UTC): {_audit_timestamp(audit_at)}",
         "",
     ]
+    lines.extend(_scope_lines(ordered, failed_check_count))
+    lines.extend(
+        [
+            "",
+            "This report supports review. It is not GSO approval or a replacement "
+            "for the self-assessment sheet.",
+            "",
+        ]
+    )
     notice = incomplete_audit_notice(failed_check_count)
     if notice:
         lines.extend([INCOMPLETE_AUDIT_TITLE.upper(), notice, ""])
@@ -129,25 +245,28 @@ def render_student_report_text(
             if labels.get(current_page):
                 lines.append(f"Manuscript page: {labels[current_page]}")
             lines.append("")
-        lines.append(
-            f"Problem #{finding['problem_number']} — {_public_rule(finding)} — {_title(finding)}"
-        )
-        if _field(finding, "location_label"):
-            lines.append(f"Location: {_field(finding, 'location_label')}")
+        lines.append(f"Problem #{finding['problem_number']} — {_summary(finding)}")
+        lines.append(f"GSO area: {_checklist_area(finding)}; rule: {_public_rule(finding)}")
+        if _student_location(finding):
+            lines.append(f"Location: {_student_location(finding)}")
+        lines.append(f"Expected requirement: {_expected(finding)}")
         lines.append(f"What was detected: {_field(finding, 'polished_comment')}")
         if _fix(finding):
-            lines.append(f"How to fix: {_fix(finding)}")
+            lines.append(f"Student action: {_fix(finding)}")
+        if _extra_fix(finding):
+            lines.append(f"Correction detail: {_extra_fix(finding)}")
         if _field(finding, "confidence_label"):
             lines.append(f"Confidence: {_field(finding, 'confidence_label')}")
-        if _field(finding, "detailed_explanation"):
-            lines.append(f"More detail: {_field(finding, 'detailed_explanation')}")
         if page is not None and not finding.get(
             "_combined_has_highlight", finding.get("has_highlight", False)
         ):
             lines.append("Exact visual highlight unavailable.")
             if _field(finding, "no_highlight_reason"):
                 lines.append(_field(finding, "no_highlight_reason"))
-        lines.append(f"Public rule reference: {_public_rule(finding)}")
+        elif page is not None:
+            lines.append(
+                f"Highlight reference: #{finding['problem_number']} when a badge could be placed."
+            )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -195,7 +314,7 @@ def _styles() -> dict[str, ParagraphStyle]:
             fontName=font_name,
             fontSize=10.5,
             leading=15,
-            textColor=colors.HexColor("#12365a"),
+            textColor=colors.HexColor("#9f1d16"),
             spaceBefore=12,
             spaceAfter=6,
         ),
@@ -248,6 +367,7 @@ def _report_pdf(
     file_name: str,
     labels: Mapping[int, str],
     failed_check_count: int = 0,
+    audit_at: str | None = None,
 ) -> bytes:
     styles = _styles()
     buffer = io.BytesIO()
@@ -265,6 +385,7 @@ def _report_pdf(
         _p("NJIT Thesis/Dissertation Formatting Audit", styles["title"]),
         _p("Formatting Problems", styles["subtitle"]),
         _p(f"File: {file_name}", styles["body"]),
+        _p(f"Audit date/time (UTC): {_audit_timestamp(audit_at)}", styles["body"]),
         _p(
             "The preceding pages contain your thesis with detected formatting problems "
             "highlighted where an exact location was available. The problems below are "
@@ -277,6 +398,15 @@ def _report_pdf(
     if notice:
         story.append(_p(INCOMPLETE_AUDIT_TITLE, styles["subtitle"]))
         story.append(_p(notice, styles["body"]))
+    for line in _scope_lines(findings, failed_check_count):
+        story.append(_p(line, styles["body"]))
+    story.append(
+        _p(
+            "This report supports review. It is not GSO approval or a replacement "
+            "for the self-assessment sheet.",
+            styles["small"],
+        )
+    )
     pages = {int(f["page"]) for f in findings if f.get("page") is not None}
     rules = {_public_rule(f) for f in findings}
     story.append(
@@ -319,27 +449,37 @@ def _report_pdf(
             story.append(_p(f"PDF PAGE {current_page}", styles["subtitle"]))
             if labels.get(current_page):
                 story.append(_p(f"Manuscript page: {labels[current_page]}", styles["small"]))
-        heading = (
-            f"Problem #{finding['problem_number']} — {_public_rule(finding)} — {_title(finding)}"
-        )
+        heading = f"Problem #{finding['problem_number']} — {_summary(finding)}"
         block: list[Any] = [_p(heading, styles["problem"])]
-        if _field(finding, "location_label"):
-            block.append(_p(f"Location: {_field(finding, 'location_label')}", styles["small"]))
+        block.append(
+            _p(
+                f"GSO area: {_checklist_area(finding)}  |  Rule: {_public_rule(finding)}",
+                styles["small"],
+            )
+        )
+        if _student_location(finding):
+            block.append(_p(f"Location: {_student_location(finding)}", styles["small"]))
+        block.append(_p(f"Expected requirement: {_expected(finding)}", styles["body"]))
         block.append(
             _p(f"What was detected: {_field(finding, 'polished_comment')}", styles["body"])
         )
         if _fix(finding):
             block.append(_p(f"How to fix: {_fix(finding)}", styles["body"]))
+        if _extra_fix(finding):
+            block.append(_p(f"Correction detail: {_extra_fix(finding)}", styles["small"]))
         if _field(finding, "confidence_label"):
             block.append(_p(f"Confidence: {_field(finding, 'confidence_label')}", styles["small"]))
-        if _field(finding, "detailed_explanation"):
-            block.append(
-                _p(f"More detail: {_field(finding, 'detailed_explanation')}", styles["small"])
-            )
         if page is not None and not finding.get("_combined_has_highlight", False):
             block.append(_p("Exact visual highlight unavailable.", styles["small"]))
             if _field(finding, "no_highlight_reason"):
                 block.append(_p(_field(finding, "no_highlight_reason"), styles["small"]))
+        elif page is not None:
+            block.append(
+                _p(
+                    f"Highlight #{finding['problem_number']} when a badge could be placed.",
+                    styles["small"],
+                )
+            )
         block.append(Spacer(1, 5))
         # The heading stays with the first text line; long explanations can
         # flow naturally onto subsequent report pages.
@@ -384,6 +524,7 @@ def build_combined_student_pdf_report(
     file_name: str,
     manuscript_page_labels: Mapping[int, str] | None = None,
     failed_check_count: int = 0,
+    audit_at: str | None = None,
 ) -> CombinedReportResult:
     """Atomically write the original thesis, visual marks, and appended report."""
     ordered = ordered_student_findings(findings)
@@ -435,6 +576,7 @@ def build_combined_student_pdf_report(
             file_name=file_name,
             labels=labels,
             failed_check_count=failed_check_count,
+            audit_at=audit_at,
         )
         markers_drawn = 0
         with (

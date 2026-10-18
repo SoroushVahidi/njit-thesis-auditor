@@ -99,6 +99,11 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
     first_page = paged[0][1]
 
     if dot_count > 0 and hyphen_count > 0:
+        if dot_count == hyphen_count:
+            affected_page = first_page
+        else:
+            minority = "dot" if dot_count < hyphen_count else "hyphen"
+            affected_page = next(page for style, page in paged if style == minority)
         style_summary = "; ".join(
             [
                 _count_phrase("dot leaders", dot_count),
@@ -109,7 +114,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
             AuditFinding(
                 rule_id="P075",
                 severity=Severity.WARNING,
-                page=first_page,
+                page=affected_page,
                 message=(
                     f"Table of Contents entries are not connected to page numbers by one "
                     f"consistent leader style: {style_summary} "
@@ -117,7 +122,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                     "NJIT guidelines require one consistent leader style throughout the TOC."
                 ),
                 details={
-                    "page_number": str(first_page),
+                    "page_number": str(affected_page),
                     "issue_type": "toc_mixed_leader_styles",
                     "dot_leader_count": str(dot_count),
                     "hyphen_leader_count": str(hyphen_count),

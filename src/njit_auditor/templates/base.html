@@ -117,6 +117,9 @@
       font-size: 0.82rem;
     }
     .jump-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2.75rem;
       color: var(--color-primary);
       text-decoration: none;
       background: #eef4fb;
@@ -152,8 +155,8 @@
       box-shadow: var(--shadow);
     }
     .status-banner--complete {
-      background: linear-gradient(135deg, #e8f5e9 0%, #f1f8f2 100%);
-      border: 1px solid #b7dfc0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8fafc 100%);
+      border: 1px solid #d5dde5;
     }
     .status-banner--pending {
       background: linear-gradient(135deg, #eef4fb 0%, #f5f8fc 100%);
@@ -250,6 +253,7 @@
     }
     .filter-bar label { margin: 0; font-size: 0.8rem; font-weight: 600; }
     .filter-bar select {
+      min-height: 2.75rem;
       width: auto;
       min-width: 120px;
       margin: 0;

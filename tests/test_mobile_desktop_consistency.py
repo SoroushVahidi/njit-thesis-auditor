@@ -283,10 +283,16 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Use this URL",
         "Start audit",
         "Audit PDF URL",
-        "Audit Sample",
     ]
     _assert_contains_tokens(mobile, common_tokens)
     _assert_contains_tokens(desktop, common_tokens)
+    sample_state = (
+        "Audit Sample"
+        if "Audit Sample" in mobile
+        else "No built-in samples are available on this server."
+    )
+    assert sample_state in mobile
+    assert sample_state in desktop
     assert "TeX" not in mobile
     assert "TeX" not in desktop
     assert ".zip" not in mobile
