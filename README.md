@@ -77,6 +77,12 @@ njit-audit pdf-comments extract input.pdf --json-out comments.json --md-out comm
 njit-audit pdf-comments clean input.pdf --out clean.pdf
 ```
 
+The optional local [PDF content anonymizer](docs/features/practical_pdf_anonymizer.md)
+replaces substantive text in supported searchable PDFs while preserving
+measured formatting. Install with `pip install -e '.[anonymizer]'`, then run
+`anonymize original.pdf -o anonymized.pdf --authorized-local-input`. It refuses
+unsupported PDF structures and does not guarantee source unlinkability.
+
 `--json-out` includes a `grouped_summary` that aggregates high-volume repeated findings by rule
 and issue type, plus optional reporting-only triage rollups for the highest-volume rules (P011,
 P012, P013/P081, P019/P073, P026/P081, P036/P076, P038/P077, P044/P079) — see

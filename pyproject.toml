@@ -34,9 +34,15 @@ dev = [
   "openpyxl>=3.1.0",
   "httpx>=0.27.0",
 ]
+anonymizer = [
+  "pikepdf>=10.17.0,<11",
+  "pdf-edit-engine @ git+https://github.com/AryanBV/pdf-edit-engine.git@cee1d2cc042f84d0fb02c874765509c04a8624ac",
+]
 
 [project.scripts]
 njit-audit = "njit_auditor.cli:app"
+anonymize = "njit_auditor.practical_pdf_anonymizer:main"
+anonymize-gui = "njit_auditor.anonymizer_gui:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
