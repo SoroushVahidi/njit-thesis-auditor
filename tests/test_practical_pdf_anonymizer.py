@@ -143,6 +143,28 @@ def test_subset_font_uses_local_font_redraw(tmp_path: Path) -> None:
         assert doc[0].get_text().strip()
 
 
+def test_equation_superscript_is_replaced_with_same_style(tmp_path: Path) -> None:
+    font = Path("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf")
+    if not font.is_file():
+        pytest.skip("Synthetic DejaVu test font unavailable")
+    source = tmp_path / "equation.pdf"
+    with fitz.open() as doc:
+        page = doc.new_page(width=612, height=792)
+        page.insert_font(fontname="math", fontfile=str(font))
+        page.insert_text((108, 120), "α + β = 42; ∑ x²", fontname="math", fontsize=12)
+        page.insert_text((108, 170), "Fabricated explanatory prose is invented.")
+        doc.save(source)
+    output = tmp_path / "output.pdf"
+    report = anonymize(source, output, authorized=True, verify_auditor=True)
+    assert report["status"] == "COMPLETED_SUCCESS"
+    with fitz.open(output) as doc:
+        text = doc[0].get_text()
+        assert any(char in text for char in "⁰¹³⁴⁵⁶⁷⁸⁹")
+        assert "²" not in text
+        assert "Fabricated explanatory" not in text
+        assert "α + β = 42" not in text
+
+
 def test_raster_figure_is_replaced_in_same_region(tmp_path: Path) -> None:
     source = tmp_path / "source.pdf"
     with fitz.open() as doc, fitz.open() as donor:
