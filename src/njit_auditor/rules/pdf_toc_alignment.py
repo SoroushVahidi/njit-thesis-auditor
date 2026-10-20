@@ -891,9 +891,9 @@ LOGICAL_WRAP_MIN_INDENT_PT = 8.0
 LOGICAL_WRAP_MAX_ROWS = 8
 
 
-def _logical_page_column_edge(entries: list[TocEntryLine]) -> float | None:
+def _logical_page_column_edges(entries: list[TocEntryLine]) -> list[float]:
     """Use terminal folios, never interior title numerals, as column peers."""
-    edges = [
+    return [
         entry.page_number_right_x
         for entry in entries
         if entry.page_number_right_x is not None
@@ -909,6 +909,10 @@ def _logical_page_column_edge(entries: list[TocEntryLine]) -> float | None:
             re.IGNORECASE,
         )
     ]
+
+
+def _logical_page_column_edge(entries: list[TocEntryLine]) -> float | None:
+    edges = _logical_page_column_edges(entries)
     return median(edges) if len(edges) >= 3 else None
 
 
@@ -1560,9 +1564,33 @@ def _add_leader_placement_findings(
         )
 
 
+def _trusted_recovery_column_edge(entries: list[TocEntryLine]) -> float | None:
+    """Require a compact majority of independently measured terminal folios.
+
+    Presence alone (e.g. digits embedded in a title span) is not a column
+    measurement. A median between modes, a diffuse group, or fewer than three
+    agreeing peers cannot authorize recovery. Reuse the alignment tolerance;
+    no document margin or recovered number participates in this decision.
+    """
+    edges = _logical_page_column_edges([
+        entry for entry in entries if _entry_column_number_line(entry) is not None
+    ])
+    if len(edges) < 3:
+        return None
+    center = median(edges)
+    peers = [edge for edge in edges if abs(edge - center) <= RIGHT_EDGE_TOLERANCE_PT]
+    if (
+        len(peers) < 3
+        or len(peers) * 2 <= len(edges)
+        or max(peers) - min(peers) > RIGHT_EDGE_TOLERANCE_PT
+    ):
+        return None
+    return median(peers)
+
+
 def _attach_displaced_terminal_folios(
     entries: list[TocEntryLine], rows: list[PdfTextLine],
-) -> None:
+) -> float | None:
     """Recover a standalone folio at a wrapped title's hanging indent for R018.
 
     Require a completed title, an established peer column, and the next
@@ -1571,8 +1599,11 @@ def _attach_displaced_terminal_folios(
     Keep this recovery local to R018: other consumers require right-column
     ownership and should not acquire new entry-type or punctuation findings.
     """
-    if _logical_page_column_edge(entries) is None:
-        return
+    column_edge = _trusted_recovery_column_edge(entries)
+    if column_edge is None:
+        # Keep ordinary presence/consistency checks when ownership is uncertain.
+        return None
+    recovered = False
     for entry in entries:
         if (
             entry.page_number_token is not None
@@ -1605,6 +1636,9 @@ def _attach_displaced_terminal_folios(
             continue
         _append_logical_row(entry, number, text)
         _apply_auxiliary_page_number(entry, number)
+        recovered = True
+    # Preserve the evidence used to authorize recovery, not its new population.
+    return column_edge if recovered else None
 
 
 def _entry_column_number_line(entry: TocEntryLine) -> PdfTextLine | None:
@@ -1618,6 +1652,8 @@ def _add_entry_consistency_findings(
     context: TocPageContext,
     entries: list[TocEntryLine],
     page_issue_findings: dict[str, AuditFinding],
+    *,
+    reference_edge: float | None = None,
 ) -> None:
     """Peer-relative checks: page-number column, presence, leader dots, indent."""
 
@@ -1654,7 +1690,7 @@ def _add_entry_consistency_findings(
         ]
         if len(right_edges) < 3:
             return
-        median_right_edge = median(right_edges)
+        median_right_edge = reference_edge if reference_edge is not None else median(right_edges)
         deltas = [abs(edge - median_right_edge) for edge in right_edges]
         misaligned_count = sum(1 for delta in deltas if delta > RIGHT_EDGE_TOLERANCE_PT)
         if misaligned_count > 0:
@@ -1808,9 +1844,11 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
             _add_wrapped_title_alignment_finding(context, rows, page_issue_findings)
 
         entries = extract_toc_logical_entry_lines(context)
-        _attach_displaced_terminal_folios(entries, rows)
+        reference_edge = _attach_displaced_terminal_folios(entries, rows)
         if len(entries) >= 3:
-            _add_entry_consistency_findings(context, entries, page_issue_findings)
+            _add_entry_consistency_findings(
+                context, entries, page_issue_findings, reference_edge=reference_edge,
+            )
 
         for issue_type in (
             "misaligned_page_number_column",

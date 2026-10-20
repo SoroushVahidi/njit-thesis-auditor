@@ -99,7 +99,10 @@ def test_interior_numerals_cannot_define_the_logical_folio_column():
     assert entry.page_number_token == "16"
     assert entry.page_number_right_x == 540
     assert entry.line.bbox.y1 == 236
-    assert not _findings(doc, "missing_page_number")
+    assert not any(
+        f.details.get("affected_entry_preview", "").startswith("2.6 ")
+        for f in _findings(doc, "missing_page_number")
+    )
 
 
 @pytest.mark.parametrize(
@@ -231,16 +234,8 @@ def test_standalone_folio_targets_survive_student_pdf_routes(tmp_path, monkeypat
     from njit_auditor import web_app
 
     source = tmp_path / "synthetic.pdf"
-    document, _ = _standalone(3, gap=24)
+    document, _ = _column_reference_case(5, number_gap=24)
     lines = document.pages[0].text_blocks[0].lines
-    lines.extend(
-        [
-            _line(400, ("3.4 Another wrapped description", 108, 510)),
-            _line(414, ("ending with a sentence.", 149, 350)),
-            _line(438, ("31", 149, 161)),
-            _peer(462, "3.5"),
-        ]
-    )
     with fitz.open() as pdf:
         pdf.new_page(width=612, height=792).insert_text((108, 100), "SYNTHETIC TITLE")
         page = pdf.new_page(width=612, height=792)
@@ -251,9 +246,9 @@ def test_standalone_folio_targets_survive_student_pdf_routes(tmp_path, monkeypat
         expected = [
             fitz.Rect(word[:4])
             for word in page.get_text("words")
-            if word[4] in {"30", "31"} and word[0] < 200
+            if word[4] in {"30", "31", "32", "33", "34"} and word[0] < 200
         ]
-        assert len(expected) == 2
+        assert len(expected) == 5
         page.set_rotation(90)
         pdf.save(source)
 
@@ -277,7 +272,7 @@ def test_standalone_folio_targets_survive_student_pdf_routes(tmp_path, monkeypat
             f for f in findings if f["details"]["issue_type"] == "misaligned_page_number_column"
         ]
         assert finding["page"] == 2
-        assert finding["details"]["affected_entry_count"] == "2"
+        assert finding["details"]["affected_entry_count"] == "5"
         (card,) = [
             c
             for c in job.findings
@@ -297,7 +292,7 @@ def test_standalone_folio_targets_survive_student_pdf_routes(tmp_path, monkeypat
                 target = result[target_index]
                 assert target.rotation == 90
                 annotations = list(target.annots() or [])
-                assert len(annotations) == 2
+                assert len(annotations) == 5
                 for box in expected:
                     (annotation,) = [a for a in annotations if a.rect.intersects(box)]
                     assert abs(annotation.rect.y0 - box.y0) < 2
@@ -323,3 +318,115 @@ def test_adjacent_missing_present_and_displaced_rows_keep_separate_ownership(pre
     (finding,) = _findings(doc, "misaligned_page_number_column")
     assert finding.details["affected_entry_count"] == ("2" if preceding_edge == 561.2 else "1")
     assert finding.details["bbox"] == format_bbox_detail(number.bbox)
+
+
+def _column_reference_case(displaced, edge=540, heading="LIST OF FIGURES", number_gap=14):
+    rows = [_peer(110, edge=edge), _peer(134, "2.2", edge), _peer(158, "2.3", edge)]
+    digits = []
+    for i in range(displaced):
+        y = 190 + (38 + number_gap) * i
+        number = _line(y + 14 + number_gap, (str(30 + i), 149, 161))
+        rows.extend(
+            [
+                _line(y, (f"3.{i + 1} Synthetic wrapped description", 108, 510)),
+                _line(y + 14, ("final description.", 149, 350)),
+                number,
+            ]
+        )
+        digits.append(number)
+    rows.append(_peer(190 + (38 + number_gap) * displaced, "3.9", edge))
+    return _doc(rows, heading), digits
+
+
+@pytest.mark.parametrize("displaced", [1, 2, 4, 5], ids=["single", "minority", "tie", "majority"])
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+@pytest.mark.parametrize(
+    ("heading", "edge"),
+    [
+        ("LIST OF FIGURES", 540),
+        ("LIST OF TABLES", 520),
+        ("TABLE OF CONTENTS", 540),
+    ],
+)
+def test_recovered_folios_cannot_redefine_a_reliable_column(displaced, reverse, heading, edge):
+    from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
+
+    doc, digits = _column_reference_case(displaced, edge, heading)
+    if reverse:
+        doc.pages[0].text_blocks[0].lines.reverse()
+    assert not _findings(doc, "missing_page_number")
+    (finding,) = _findings(doc, "misaligned_page_number_column")
+    assert finding.page == 7
+    assert finding.details["affected_entry_count"] == str(displaced)
+    assert finding.details["affected_entry_preview"].startswith("3.1 ")
+    assert finding.details["bbox"] == format_bbox_detail(digits[0].bbox)
+    assert float(finding.details["worst_delta_pt"]) == edge - 161
+    assert set(parse_highlight_bboxes_from_details(finding.details)) == {
+        tuple(number.bbox.model_dump().values()) for number in digits
+    }
+    assert p018_short_suggested_fix(finding.details["issue_type"]) == (
+        "Align this entry's page number with the dominant right-hand column on this list page."
+    )
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize(
+    ("edges", "trusted"),
+    [
+        ([540, 540], None),  # Too few genuine peers, even with misleading title numerals.
+        ([500, 500, 540, 540], None),  # Median lies between equally plausible columns.
+        ([500, 500, 500, 540, 540, 540], None),
+        ([500, 520, 540], None),  # No supported column at the median.
+        ([532, 540, 548], None),  # A diffuse chain is not a compact peer group.
+        ([500, 540, 540, 540], 540),  # A genuine majority survives an initial outlier.
+        ([540, 539, 541, 561.2], 540),  # Existing tolerance admits small extraction jitter.
+    ],
+)
+def test_recovery_requires_supported_initial_peers(edges, trusted, reverse):
+    from njit_auditor.rules import pdf_toc_alignment as rule
+
+    doc, _ = _column_reference_case(1)
+    rows = doc.pages[0].text_blocks[0].lines
+    rows[:] = [
+        rows[0],
+        *[
+            _line(100 + 24 * i, (f"2.{i + 1} Reference ....", 108, 450), ("40", e - 12, e))
+            for i, e in enumerate(edges)
+        ],
+        _line(300, ("3.1 Synthetic wrapped description", 108, 510)),
+        _line(314, ("final description.", 149, 350)),
+        _line(328, ("30", 149, 161)),
+        _line(352, ("3.9 Actual missing folio", 108, 450)),
+    ]
+    # Neither internal quantities nor embedded terminal digits establish a measured column.
+    for i in range(4):
+        rows.append(
+            _line(
+                400 + 24 * i,
+                (f"4.{i + 1} Measurement", 108, 300),
+                ("100", 340, 358),
+                ("units", 365, 510),
+            )
+        )
+        rows.append(_line(510 + 24 * i, (f"5.{i + 1} Embedded title .... 40", 108, 500)))
+    ctx = rule.detect_toc_like_pages(doc)[0]
+    entries = rule.extract_toc_logical_entry_lines(ctx)
+    if reverse:
+        entries.reverse()
+    reference = rule._attach_displaced_terminal_folios(entries, rule.collect_toc_visual_rows(ctx))
+    assert reference == trusted
+    entry = next(e for e in entries if e.cleaned_text.startswith("3.1 "))
+    assert entry.page_number_token == ("30" if trusted is not None else None)
+    missing = _findings(doc, "missing_page_number")
+    assert len(missing) == 1
+    assert missing[0].page == 7
+    assert missing[0].details["affected_entry_count"] == ("1" if trusted is not None else "2")
+    assert (
+        missing[0]
+        .details["affected_entry_preview"]
+        .startswith("3.9 " if trusted is not None else "3.1 ")
+    )
+    assert "Add" in p018_short_suggested_fix("missing_page_number")
+    if trusted is None and len(edges) >= 3 and max(edges) - min(edges) > 20:
+        # Conservative recovery does not blanket-suppress ordinary column evidence.
+        assert _findings(doc, "misaligned_page_number_column")
