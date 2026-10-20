@@ -178,3 +178,23 @@ def test_indented_numbered_row_keeps_its_own_page_number(
         (finding.details["entry_index"], finding.details["issue_type"], finding.page)
         for finding in findings
     ] == ([] if expected_issue is None else [("1", expected_issue, 12)])
+    if findings:
+        assert findings[0].details["bbox"] == "149.0,156.0,540.0,168.0"
+
+
+def test_wrapped_warning_box_contains_only_its_logical_entry() -> None:
+    doc = _doc(
+        [
+            _line(80, ("LIST OF FIGURES", 190, 350)),
+            _line(140, ("7.1 Invented observations across", 108, 300), ("80", 310, 330)),
+            _line(155, ("several synthetic trials", 149, 510)),
+            _line(170, ("with a concluding description . . . 21", 149, 540)),
+            _line(200, ("Figure 7.2 Compliant neighboring entry . . . 22", 108, 540)),
+            _line(230, ("7.3 Independent synthetic entry . . . 23", 108, 540)),
+        ]
+    )
+    findings = check_pdf_lot_lof_entry_type(doc)
+    assert [(f.details["entry_index"], f.details["bbox"]) for f in findings] == [
+        ("0", "108.0,140.0,540.0,182.0"),
+        ("2", "108.0,230.0,540.0,242.0"),
+    ]

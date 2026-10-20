@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     TocPageContext,
@@ -66,6 +66,7 @@ def _check_lot_entry_type_page(
                     ),
                     details={
                         "issue_type": "lot_entry_is_figure",
+                        "bbox": format_bbox_detail(entry.line.bbox),
                         "page": str(context.page.page_number),
                         "section_type": "list_of_tables",
                         "entry_index": str(page_entry_offset + idx),
@@ -90,6 +91,7 @@ def _check_lot_entry_type_page(
                     ),
                     details={
                         "issue_type": "lot_entry_missing_table_prefix",
+                        "bbox": format_bbox_detail(entry.line.bbox),
                         "page": str(context.page.page_number),
                         "section_type": "list_of_tables",
                         "entry_index": str(page_entry_offset + idx),
@@ -130,6 +132,7 @@ def _check_lof_entry_type_page(
                     ),
                     details={
                         "issue_type": "lof_entry_is_table",
+                        "bbox": format_bbox_detail(entry.line.bbox),
                         "page": str(context.page.page_number),
                         "section_type": "list_of_figures",
                         "entry_index": str(page_entry_offset + idx),
@@ -154,6 +157,7 @@ def _check_lof_entry_type_page(
                     ),
                     details={
                         "issue_type": "lof_entry_missing_figure_prefix",
+                        "bbox": format_bbox_detail(entry.line.bbox),
                         "page": str(context.page.page_number),
                         "section_type": "list_of_figures",
                         "entry_index": str(page_entry_offset + idx),

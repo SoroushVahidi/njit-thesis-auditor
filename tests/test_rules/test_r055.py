@@ -1,3 +1,7 @@
+import pytest
+
+from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
+from njit_auditor.pdf_highlight import is_drawable_bbox
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -155,6 +159,31 @@ def test_r055_numeric_only_lof_entry():
         "lof_entry_missing_figure_prefix" in f.details.get("issue_type", "")
         for f in findings
     )
+
+
+@pytest.mark.parametrize(
+    ("page_type", "entry_text", "issue_type"),
+    [
+        ("list_of_tables", "Figure 1.1 Synthetic result", "lot_entry_is_figure"),
+        ("list_of_tables", "1.1 Synthetic result", "lot_entry_missing_table_prefix"),
+        ("list_of_figures", "Table 1.1 Synthetic result", "lof_entry_is_table"),
+        ("list_of_figures", "1.1 Synthetic result", "lof_entry_missing_figure_prefix"),
+    ],
+)
+def test_r055_finding_highlights_offending_entry(
+    page_type: str, entry_text: str, issue_type: str
+) -> None:
+    doc = make_mock_list_doc(
+        [(entry_text, 12), ("Figure 1.2 Valid entry", 13)], page_type
+    )
+    finding = next(
+        f for f in check_pdf_lot_lof_entry_type(doc)
+        if f.details["issue_type"] == issue_type
+    )
+    boxes = parse_highlight_bboxes_from_details(finding.details)
+    assert len(boxes) == 1
+    assert is_drawable_bbox(boxes[0])
+    assert boxes[0] == (108.0, 150.0, 540.0, 162.0)
 
 
 def test_r055_missing_prefix_suggested_fix_names_the_prefix():
