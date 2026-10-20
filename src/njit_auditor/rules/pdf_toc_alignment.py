@@ -892,11 +892,22 @@ LOGICAL_WRAP_MAX_ROWS = 8
 
 
 def _logical_page_column_edge(entries: list[TocEntryLine]) -> float | None:
-    """Use the page's own numbered entries to locate its page-number column."""
+    """Use terminal folios, never interior title numerals, as column peers."""
     edges = [
         entry.page_number_right_x
         for entry in entries
         if entry.page_number_right_x is not None
+        and entry.page_number_line is not None
+        and _extract_page_number_token(
+            entry.page_number_line,
+            _row_text(entry.page_number_line),
+            require_right_edge=True,
+        )[0] == entry.page_number_token
+        and re.search(
+            rf"(?:^|\s){re.escape(entry.page_number_token or '')}\s*$",
+            _row_text(entry.page_number_line),
+            re.IGNORECASE,
+        )
     ]
     return median(edges) if len(edges) >= 3 else None
 
@@ -1549,6 +1560,60 @@ def _add_leader_placement_findings(
         )
 
 
+def _attach_displaced_terminal_folios(
+    entries: list[TocEntryLine], rows: list[PdfTextLine],
+) -> None:
+    """Recover a standalone folio at a wrapped title's hanging indent for R018.
+
+    Require a completed title, an established peer column, and the next
+    distinct entry. A numeral within continuing content, at the footer, or
+    beside the next entry is not evidence of a displaced terminal folio.
+    Keep this recovery local to R018: other consumers require right-column
+    ownership and should not acquire new entry-type or punctuation findings.
+    """
+    if _logical_page_column_edge(entries) is None:
+        return
+    for entry in entries:
+        if (
+            entry.page_number_token is not None
+            or not entry.is_wrapped
+            or not _has_prefix_entry_shape(entry.cleaned_text)
+        ):
+            continue
+        last_index = next(
+            (i for i, row in enumerate(rows) if abs(row.bbox.y1 - entry.line.bbox.y1) < 0.5),
+            None,
+        )
+        if last_index is None or last_index + 2 >= len(rows):
+            continue
+        last, number, following = rows[last_index : last_index + 3]
+        text = _row_text(number)
+        if (
+            not _row_text(last).endswith(".")
+            or not re.fullmatch(r"[0-9]{1,4}", text)
+            or last.bbox.x0 < entry.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
+            or abs(number.bbox.x0 - last.bbox.x0) > INDENT_CLUSTER_TOLERANCE_PT
+            or not 0 <= number.bbox.y0 - last.bbox.y1 <= WRAPPED_ENTRY_Y_GAP_PT
+            or not 0 <= following.bbox.y0 - number.bbox.y1 <= WRAPPED_ENTRY_Y_GAP_PT
+            or following.bbox.y0 - number.bbox.y0 <= PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT
+            or not _has_prefix_entry_shape(_row_text(following))
+            or not any(
+                other is not entry and abs(other.line.bbox.y0 - following.bbox.y0) < 0.5
+                for other in entries
+            )
+        ):
+            continue
+        _append_logical_row(entry, number, text)
+        _apply_auxiliary_page_number(entry, number)
+
+
+def _entry_column_number_line(entry: TocEntryLine) -> PdfTextLine | None:
+    number_line = entry.page_number_line
+    if number_line is not None and NUMERIC_ONLY_RE.fullmatch(_row_text(number_line)):
+        return number_line
+    return entry.line if _right_edge_page_number_span(entry.line) is not None else None
+
+
 def _add_entry_consistency_findings(
     context: TocPageContext,
     entries: list[TocEntryLine],
@@ -1567,7 +1632,7 @@ def _add_entry_consistency_findings(
         # Column-alignment compares dedicated right-column number spans.
         # Trailing digits embedded in a long title span are still valid page
         # numbers for presence checks, but their span x1 is not the column.
-        and _right_edge_page_number_span(entry.line) is not None
+        and _entry_column_number_line(entry) is not None
     ]
     entries_missing_page_num = [
         entry
@@ -1613,6 +1678,23 @@ def _add_entry_consistency_findings(
                     },
                     worst_entry,
                 ),
+            )
+            number_line = _entry_column_number_line(worst_entry)
+            if number_line is not None and NUMERIC_ONLY_RE.fullmatch(_row_text(number_line)):
+                # The misplaced number itself is the actionable target; the
+                # merged title can span many lines and a different column.
+                page_issue_findings["misaligned_page_number_column"].details["bbox"] = (
+                    format_bbox_detail(number_line.bbox)
+                )
+            # An aggregate can include several misplaced folios. Preserve
+            # each target, even when another entry has a larger displacement.
+            page_issue_findings["misaligned_page_number_column"].details["highlight_bboxes"] = (
+                " | ".join(
+                    format_bbox_detail(number_line.bbox)
+                    for entry, delta in zip(entries_with_page_num, deltas)
+                    if delta > RIGHT_EDGE_TOLERANCE_PT
+                    and (number_line := _entry_column_number_line(entry)) is not None
+                )
             )
 
     if entries_missing_page_num:
@@ -1726,6 +1808,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
             _add_wrapped_title_alignment_finding(context, rows, page_issue_findings)
 
         entries = extract_toc_logical_entry_lines(context)
+        _attach_displaced_terminal_folios(entries, rows)
         if len(entries) >= 3:
             _add_entry_consistency_findings(context, entries, page_issue_findings)
 
