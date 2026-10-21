@@ -14851,6 +14851,7 @@ def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
     finding = findings[0]
     allowed_keys = {
         "issue_type",
+        "bbox",
         "page",
         "section_type",
         "entry_index",
@@ -14861,6 +14862,12 @@ def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
         "source_q_rule_id",
     }
     assert finding.details.keys() <= allowed_keys
+    # Highlight geometry is numeric metadata, not copied entry text.
+    coordinates = [float(value) for value in finding.details["bbox"].split(",")]
+    assert len(coordinates) == 4
+    x0, y0, x1, y1 = coordinates
+    assert 0 <= x0 < x1 <= model.pages[0].width
+    assert 0 <= y0 < y1 <= model.pages[0].height
     assert finding.details.get("triage_tier") == "medium"
     assert finding.details.get("source_q_rule_id") == "Q063"
     for value in finding.details.values():
