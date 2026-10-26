@@ -639,12 +639,12 @@ def test_results_unknown_rule_id_no_broken_link(
 def test_results_page_has_help_link_in_summary(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Summary section must contain contextual help link to /help#results."""
+    """Summary links to the concise findings explanation on About."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=1)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"/help#results" in resp.content
+    assert b"/about#findings" in resp.content
 
 
 # ---------------------------------------------------------------------------

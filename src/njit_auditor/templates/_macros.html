@@ -33,3 +33,24 @@
   {% endif %}
   <span class="confidence-badge {{ badge_class }}">{{ badge_label }}</span>
 {%- endmacro %}
+
+
+{% macro finding_explanation(f, job_id) -%}
+<details class="finding-explanation finding-card__note">
+  <summary>Why is this flagged?</summary>
+  {% if f.polished_comment %}<p>{{ f.polished_comment }}</p>{% endif %}
+  {% if f.suggested_fix and (f.student_web_action or f.student_action) != f.suggested_fix %}<p>Full correction: {{ f.suggested_fix }}</p>{% endif %}
+  {% if f.issue_type_explanation %}<p>{{ f.issue_type_explanation }}</p>{% endif %}
+  {% if f.detailed_explanation %}<p>{{ f.detailed_explanation }}</p>{% endif %}
+  {% if f.margin_questions %}
+  <ul class="margin-checks" aria-label="Margin questions for this finding">
+    {% for question, answer in f.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if f.issue_type and f.rule_id %}<p><a href="/audits/{{ job_id }}/problems/rule/{{ f.rule_id }}/issue-type/{{ f.issue_type | issue_type_slug }}">View findings of this type</a></p>{% endif %}
+  <details>
+    <summary>Technical details</summary>
+    <p>Rule {{ f.rule_id | display_rule_id }} · Original finding {{ f.problem_number }}</p>
+  </details>
+</details>
+{%- endmacro %}

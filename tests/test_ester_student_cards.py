@@ -105,7 +105,7 @@ def test_synthetic_results_cards_and_drilldown_agree(web: tuple[TestClient, Any]
     assert "Open highlighted PDF" in body or "Open PDF" in body
     for card in cards:
         assert "Problem #" not in card.split("<details", 1)[0]
-        assert "What to do:" in card or "Review this finding" in card
+        assert "Suggested fix:" in card or "Review this finding" in card
         assert re.search(r'<span class="finding-card__page">\s*Page \d+', card)
         assert "All findings on this page" in card
         assert "Technical details" in card
@@ -129,7 +129,7 @@ def test_synthetic_results_cards_and_drilldown_agree(web: tuple[TestClient, Any]
     assert "MARGINS" in detail and "Problem 1 of" in detail
     assert "Needs review" in detail and "Open" in detail
     assert "highlighted-page.pdf" in detail or "/pdf" in detail
-    assert "Review note" in detail and "Technical details" in detail
+    assert "Why is this flagged?" in detail and "Technical details" in detail
     assert client.get(f"/audits/{job_id}/download/json").status_code == 200
     assert client.get(f"/audits/{job_id}/download/markdown").status_code == 200
 
@@ -186,5 +186,5 @@ def test_other_topics_render_as_names_on_both_views(web: tuple[TestClient, Any])
     assert "Problem 1 of 2" in cards[0] and "Problem 2 of 2" in cards[1]
     detail = client.get(f"/audits/{job_id}/problems/rule/P026").text
     assert "FONT FORMATTING" in detail and "Problem 1 of 1" in detail
-    assert "About this issue" in detail
+    assert "Why is this flagged?" in detail
     assert "Issue type: Possible body font family issue" not in detail

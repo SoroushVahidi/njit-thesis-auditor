@@ -1530,7 +1530,8 @@ def _card_fields(
     raw = details if details is not None else finding.get("details", {})
     fields = student_card_fields(finding, raw if isinstance(raw, dict) else {})
     for key in (
-        "student_topic", "student_summary", "student_action", "margin_questions", "student_location"
+        "student_topic", "student_summary", "student_action", "student_web_action",
+        "margin_questions", "student_location"
     ):
         if key in finding:
             fields[key] = finding[key]
@@ -1950,6 +1951,10 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
         "rules_flagged": len(counts_by_rule),
         "grouped_problem_count": len(report_view.get("grouped_problems", []) or []),
         "filter_rules": filter_rules,
+        "filter_rule_labels": {
+            rule_id: _public_rule_lookup().get(rule_id, {}).get("title", "Formatting check")
+            for rule_id in filter_rules
+        },
         "filter_categories": filter_categories,
         "filter_pages": filter_pages,
         "text_layer_quality": job.text_layer_quality,
@@ -1961,11 +1966,19 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     }
 
 
-def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
+def _index_error(
+    request: Request, error: str, status_code: int = 400, *,
+    title: str = "Could not start audit.",
+) -> HTMLResponse:
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": list_builtin_samples()},
+        {
+            "error": error,
+            "error_title": title,
+            "max_upload_mb": MAX_UPLOAD_MB,
+            "builtin_samples": list_builtin_samples(),
+        },
         status_code=status_code,
     )
 
@@ -2279,7 +2292,7 @@ async def submit_audit_url(
         fetch_pdf_url(url, jdir / "upload.pdf", MAX_UPLOAD_BYTES)
     except FetchError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _index_error(request, str(exc), title="Couldn't download the PDF.")
 
     job = JobState(
         job_id=job_id,
@@ -3140,6 +3153,19 @@ async def serve_job_highlighted_page_pdf(
 @app.get("/help", response_class=HTMLResponse)
 async def help_page(request: Request) -> HTMLResponse:
     return _render(request, "help.html", {})
+
+
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request) -> HTMLResponse:
+    return _render(
+        request,
+        "about.html",
+        {
+            "commit": _GIT_COMMIT,
+            "environment": ENVIRONMENT_NAME,
+            "max_upload_mb": MAX_UPLOAD_MB,
+        },
+    )
 
 
 @app.get("/rules", response_class=HTMLResponse)

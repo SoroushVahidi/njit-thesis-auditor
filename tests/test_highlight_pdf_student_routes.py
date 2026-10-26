@@ -362,7 +362,7 @@ def test_out_of_range_page_returns_html_not_json(app: tuple[TestClient, Any]) ->
     _assert_not_json_error(resp)
 
 
-@pytest.mark.parametrize("sample_id", ["ester_sample_a", "ester_sample_b"])
+@pytest.mark.parametrize("sample_id", ["synthetic_demo"])
 def test_sample_audit_pdf_links_never_return_json(
     app: tuple[TestClient, Any], sample_id: str
 ) -> None:

@@ -83,13 +83,13 @@ def test_manual_qa_checklist_no_open_pdf_page_in_actionability_section() -> None
     assert "Open first example page" not in section
 
 
-def test_index_page_example_url_ui_present(client: tuple[TestClient, object]) -> None:
-    """PR #305 behavior is already on main — verify it remains."""
+def test_index_page_explains_url_import_limits(client: tuple[TestClient, object]) -> None:
+    """The blocked example is replaced by an optional form and upload fallback."""
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
     body = resp.content
-    assert b"example-thesis-box" in body
-    assert b"fill-example-url" in body
-    assert b"digitalcommons.njit.edu" in body
-    assert b"Digital Commons" in body
+    assert b"example-thesis-box" not in body
+    assert b"fill-example-url" not in body
+    assert b"digitalcommons.njit.edu" not in body
+    assert b"Some websites block downloads" in body

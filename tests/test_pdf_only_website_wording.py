@@ -170,10 +170,10 @@ def test_homepage_states_pdf_only_advisory_local_processing(
     resp = c.get("/")
     assert resp.status_code == 200
     body = resp.text
-    assert "thesis or dissertation PDF" in body
-    assert "automatically" in body.lower()
-    assert "advisory" in body.lower()
-    assert "locally" in body.lower()
+    assert "Upload your PDF" in body
+    assert "Automated findings" in body
+    assert "does not grant NJIT approval" in body
+    assert "Processed on this server" in body
 
 
 # ---------------------------------------------------------------------------

@@ -149,168 +149,61 @@
 {% endblock %}
 
 {% block content %}
-<h1>NJIT Thesis Auditor</h1>
-<p class="subtitle">
-  Upload a thesis or dissertation PDF and the tool checks it for common NJIT formatting issues automatically.
-  Results are advisory and require human review. Processing runs on this server; your file is not sent to any outside service.
-</p>
-
-{% if notice %}
-<div class="alert-warn" role="alert">
-  <strong>Audit result no longer available.</strong><br>
-  {{ notice }}
-</div>
-{% endif %}
+<h1>Find formatting issues in your thesis</h1>
+<p class="subtitle">Upload a PDF. Review flagged pages. Download your report.</p>
+{% if notice %}<div class="alert-warn" role="alert"><strong>Audit result no longer available.</strong> {{ notice }}</div>{% endif %}
 {% if error %}
 <div class="alert-error" role="alert">
-  <strong>Could not start audit.</strong><br>
-  {{ error }}
+  <strong>{{ error_title or "Could not start audit." }}</strong><br>{{ error }}
+  <a href="#file">Upload a PDF</a>
 </div>
 {% endif %}
-
-<div class="alert-info">
-  <strong>How your file is handled.</strong>
-  Your uploaded PDF and the reports made from it (including highlighted copies of your pages) are kept in a
-  temporary folder on this server. {{ retention_notice }}
-  Until they are deleted, anyone with your result link can open the results, so share the link only as
-  you would share your document.
-  To point at each problem, your report may quote short pieces of your document, such as table of
-  contents, list, or heading entries and individual flagged words.
-  The server's operational logs record requests and errors, not the contents of your file.
-</div>
-
-<div class="input-methods input-methods--triple section">
-  <div class="card">
-    <h2 style="margin-top:0;">Upload a file</h2>
-    <form action="/audits" method="post" enctype="multipart/form-data">
-      <label for="file">Select PDF</label>
-      <label
-        for="file"
-        id="upload-drop-zone"
-        class="upload-zone"
-        data-state="idle"
-        tabindex="0"
-        role="button"
-        aria-controls="file"
-        aria-describedby="file-drop-help file-hint file-selection-status"
-      >
-        <span class="upload-zone__icon" aria-hidden="true">+</span>
-        <span class="upload-zone__copy">
-          <span class="upload-zone__eyebrow">Drag and drop</span>
-          <span id="file-drop-help" class="upload-zone__title">Drop a PDF file here</span>
-          <span id="file-drop-subtitle" class="upload-zone__subtitle">Or click to browse from your device. Submit when ready.</span>
-        </span>
-      </label>
-      <input
-        type="file"
-        id="file"
-        name="file"
-        accept=".pdf"
-        required
-        aria-describedby="file-drop-help file-hint file-selection-status"
-      >
-      <p id="file-selection-status" class="upload-zone__status" data-state="idle" role="status" aria-live="polite">
-        No file selected.
-      </p>
-      <p id="file-hint" class="file-hint">
-        PDF &middot; maximum {{ max_upload_mb }} MB &middot; processed locally
-      </p>
-      <noscript>
-        <p class="file-hint">
-          Drag-and-drop is available when JavaScript is enabled. The standard file picker works without JavaScript.
-        </p>
-      </noscript>
-      <button type="submit">Start audit</button>
-    </form>
-    <ul class="bullet-list" style="margin-top:0.75rem">
-      <li><strong>PDF</strong> — checks margins, spacing, fonts, page numbering, headings, TOC, and more</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2 style="margin-top:0;">Audit a public PDF URL</h2>
+<section class="card section" aria-labelledby="upload-heading">
+  <h2 id="upload-heading">Upload your PDF</h2>
+  <form action="/audits" method="post" enctype="multipart/form-data">
+    <label for="file">Select PDF</label>
+    <label for="file" id="upload-drop-zone" class="upload-zone" data-state="idle"
+      tabindex="0" role="button" aria-controls="file"
+      aria-describedby="file-drop-help file-hint file-selection-status upload-privacy">
+      <span class="upload-zone__icon" aria-hidden="true">+</span>
+      <span class="upload-zone__copy">
+        <span id="file-drop-help" class="upload-zone__title">Drop a PDF file here</span>
+        <span id="file-drop-subtitle" class="upload-zone__subtitle">Or click to browse.</span>
+      </span>
+    </label>
+    <input type="file" id="file" name="file" accept=".pdf" required
+      aria-describedby="file-hint file-selection-status upload-privacy">
+    <p id="file-selection-status" class="upload-zone__status" data-state="idle" role="status" aria-live="polite">No file selected.</p>
+    <p id="file-hint" class="file-hint">PDF · maximum {{ max_upload_mb }} MB</p>
+    <p id="upload-privacy" class="privacy-summary">
+      Processed on this server. Your PDF and reports are kept temporarily; anyone with a valid result link can open them.
+      <a href="/about#privacy">Privacy and retention</a>.
+    </p>
+    <button type="submit">Start audit</button>
+  </form>
+  <p class="file-hint">Automated findings need your review; this tool does not grant NJIT approval.</p>
+</section>
+<div class="input-methods section">
+  <details class="card">
+    <summary>Use a public PDF link</summary>
     <form action="/audits/url" method="post">
       <label for="pdf_url">Public PDF URL</label>
-      <input type="url" id="pdf_url" name="pdf_url"
-             placeholder="https://example.com/thesis.pdf" required>
-      <p class="file-hint">
-        Works with direct public PDF links such as NJIT Digital Commons and arXiv.
-        Login-required or paywalled URLs are not supported.
-        For private dissertations, upload only if you are authorized.
-        Maximum {{ max_upload_mb }} MB.
-      </p>
+      <input type="url" id="pdf_url" name="pdf_url" placeholder="https://example.com/thesis.pdf" required aria-describedby="url-help">
+      <p id="url-help" class="file-hint">Use a direct public PDF link (maximum {{ max_upload_mb }} MB). Some websites block downloads; download the PDF yourself and upload it here. Login-required or paywalled links are not supported.</p>
       <button type="submit">Audit PDF URL</button>
     </form>
-    <div class="example-url-box" id="example-thesis-box">
-      <p class="example-url-box__eyebrow">Try an example</p>
-      <p class="example-url-box__desc">
-        This is a public NJIT Digital Commons thesis PDF. Use it to test the auditor without uploading private files.
-      </p>
-      <code class="example-url-box__url">https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&amp;context=theses</code>
-      <br>
-      <button type="button" id="fill-example-url" class="btn btn-secondary"
-              style="margin-top:0.6rem;font-size:0.85rem;padding:0.4rem 0.9rem;">
-        Use this URL
-      </button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2 style="margin-top:0;">Audit a built-in sample PDF</h2>
+  </details>
+  <details class="card">
+    <summary>Try a synthetic sample</summary>
+    {% if builtin_samples %}
     <form action="/audits/sample" method="post">
       <label for="sample_id">Select sample</label>
-      {% if builtin_samples %}
-      <select id="sample_id" name="sample_id">
-        {% for sample in builtin_samples %}
-        <option value="{{ sample.sample_id }}">{{ sample.label }}</option>
-        {% endfor %}
-      </select>
-      <p class="file-hint">
-        Synthetic demonstration file; no dissertation or reviewer document is included.
-      </p>
-      <button type="submit">Audit Sample</button>
-      {% else %}
-      <p class="file-hint" style="color:#c0392b;">No built-in samples are available on this server.</p>
-      {% endif %}
+      <select id="sample_id" name="sample_id">{% for sample in builtin_samples %}<option value="{{ sample.sample_id }}">{{ sample.label }}</option>{% endfor %}</select>
+      <p class="file-hint">A demonstration PDF with no student document.</p>
+      <button type="submit">Audit sample</button>
     </form>
-  </div>
-</div>
-
-<div class="info-grid section">
-  <div class="card card-compact">
-    <h2 style="margin-top:0;">Supported inputs</h2>
-    <table class="support-table">
-      <thead>
-        <tr><th>Format</th><th>Web UI</th><th>Rule scope</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>PDF</strong></td>
-          <td class="support-yes">Supported</td>
-          <td>Automated formatting checks; JSON and Markdown export</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card card-compact">
-    <h2 style="margin-top:0;">What you get</h2>
-    <ul class="bullet-list">
-      <li><strong>JSON report</strong> — full structured findings for downstream tools</li>
-      <li><strong>Markdown report</strong> — human-readable summary</li>
-      <li><strong>Triage summaries</strong> — rollups for common, high-volume problems when applicable</li>
-      <li><strong>Polished comments</strong> — plain-language review guidance per finding</li>
-    </ul>
-  </div>
-</div>
-
-<div class="section">
-  <h2>What it checks</h2>
-  <p style="font-size:0.9rem;color:var(--color-muted);margin:0;">
-    <strong>PDF uploads</strong> are checked for common NJIT formatting issues automatically: margins, spacing,
-    fonts, page numbering, headings, table of contents, and similar formatting requirements.
-    Results are advisory — please verify against NJIT guidelines manually.
-  </p>
+    {% else %}<p>No sample is available. Upload a PDF instead.</p>{% endif %}
+  </details>
 </div>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
@@ -324,7 +217,7 @@
     }
 
     var defaultTitle = "Drop a PDF file here";
-    var defaultSubtitle = "Or click to browse from your device. Submit when ready.";
+    var defaultSubtitle = "Or click to browse.";
     var dragTitle = "Release to attach this file";
     var dragSubtitle = "Only one file is accepted per audit. Supported format: .pdf.";
     var allowedExtensions = [".pdf"];
@@ -355,7 +248,7 @@
         "selected",
         "Selected file: " + file.name + ". Submit when ready or choose another file.",
         file.name,
-        "Ready to upload. Drop or browse to replace this file before submitting."
+        "Ready to audit."
       );
     }
 
@@ -364,7 +257,7 @@
         "invalid",
         message,
         "File not accepted",
-        "Use one .pdf file. The server will validate the upload again after submit."
+        "Choose one PDF file."
       );
     }
 
@@ -471,16 +364,6 @@
   });
 </script>
 <script>
-  (function () {
-    var fillBtn = document.getElementById("fill-example-url");
-    var urlInput = document.getElementById("pdf_url");
-    if (!fillBtn || !urlInput) return;
-    fillBtn.addEventListener("click", function () {
-      urlInput.value = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses";
-      urlInput.focus();
-      fillBtn.textContent = "URL filled — click “Audit PDF URL” to start";
-      fillBtn.disabled = true;
-    });
-  })();
+
 </script>
 {% endblock %}

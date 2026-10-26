@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}About — NJIT Thesis Auditor{% endblock %}
+{% block content %}
+<h1>About the NJIT Thesis Auditor</h1>
+<p class="subtitle">Automated formatting checks to help you prepare for human review.</p>
+<section class="card section" id="purpose">
+  <h2>What it does</h2>
+  <p>Checks a PDF for common formatting issues in margins, spacing, fonts, page numbers, headings, and contents lists. It does not assess your research or grant NJIT approval.</p>
+</section>
+<section class="card section" id="how-to">
+  <h2>How to use it</h2>
+  <ol>
+    <li><a href="/">Upload a PDF</a> up to {{ max_upload_mb }} MB.</li>
+    <li>Review each problem, its page, and the suggested fix; open the highlighted PDF when available.</li>
+    <li>Edit your original document, export a new PDF, and audit it again.</li>
+    <li>Download the PDF or text report to keep your findings.</li>
+  </ol>
+</section>
+<section class="card section" id="findings">
+  <h2>What the findings mean</h2>
+  <p>A finding is a prompt to check your document. High, Medium, and Low confidence describe the automated evidence, not approval or certainty.</p>
+  <details><summary>Understanding the results</summary>
+    <p>Findings appear in page order. Filter by topic, page, or confidence. Counts exclude informational page-number candidates in the Advanced section.</p>
+    <p>Some findings apply to a whole document or lack a precise highlight. They still appear in reports. “Why is this flagged?” preserves the full correction and background.</p>
+    <p>Technical rule IDs remain available in optional details, the <a href="/rules">Rule Reference</a>, and structured exports.</p>
+  </details>
+</section>
+<section class="card section" id="limitations">
+  <h2>Limitations and human review</h2>
+  <p>This research prototype can miss problems or flag correct formatting. No findings does not mean full compliance. Verify results against NJIT guidelines and complete official human review.</p>
+  <details><summary>What needs extra review?</summary>
+    <p>Scanned PDFs and poor text extraction limit checks. Some requirements need human judgment; the results page lists coverage and manual checks. A skipped or failed check is not a pass.</p>
+    <p>For detailed terminology and limitations, see <a href="/help">Help</a>.</p>
+  </details>
+</section>
+<section class="card section" id="privacy">
+  <h2>Privacy and document retention</h2>
+  <p>Your PDF is processed on the configured server. Uploaded files, reports, and highlighted copies are stored temporarily. Anyone possessing a valid result link can access its contents until deletion; share it as carefully as your document.</p>
+  <p>{{ retention_notice }}</p>
+  <details><summary>What is stored?</summary>
+    <p>Reports may quote flagged words, headings, or list entries. Highlighted PDFs contain copies of your pages. Downloaded copies remain wherever you save or share them.</p>
+    <p>Result links do not require a separate sign-in. Temporary retention is not immediate deletion or a guarantee of confidentiality. Only upload documents you are authorized to process on this server.</p>
+  </details>
+</section>
+<section class="card section" id="faq">
+  <h2>Frequently asked questions</h2>
+  <details><summary>Why won't my public PDF link work?</summary>
+    <p>Some repositories, including NJIT Digital Commons, may block automated downloads or require a security check. Use your normal authorized access to download the PDF, then upload it here. Login-required and paywalled links are not supported.</p>
+  </details>
+  <details><summary>Where do I make corrections?</summary>
+    <p>Edit your original Word, LaTeX, or other source document, then export a new PDF. The auditor does not edit your original file.</p>
+  </details>
+  <details><summary>Which report should I download?</summary>
+    <p>The PDF report combines highlighted pages and findings. The text report is easier to copy. Markdown and JSON are optional exports for other tools.</p>
+  </details>
+</section>
+<section class="card section" id="version">
+  <h2>Version information</h2>
+  <p>Environment: {{ environment }}. Commit: <code style="overflow-wrap:anywhere">{{ commit }}</code>.</p>
+  <p><a href="/version">Version metadata</a> · <a href="/">Start an audit</a></p>
+</section>
+{% endblock %}

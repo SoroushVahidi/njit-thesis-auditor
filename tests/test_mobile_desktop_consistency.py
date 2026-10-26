@@ -270,26 +270,26 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
     desktop = _get_html(c, "/", _DESKTOP_HEADERS)
 
     common_tokens = [
-        "Upload a file",
-        "Audit a public PDF URL",
-        "Audit a built-in sample PDF",
-        "Supported inputs",
-        "How your file is handled",
-        "processed locally",
-        "What you get",
+        "Upload your PDF",
+        "Use a public PDF link",
+        "Try a synthetic sample",
+        "PDF",
+        "Privacy and retention",
+        "Processed on this server",
+        "Download your report",
         "Help",
         "Rule Reference",
         "Drop a PDF file here",
-        "Use this URL",
+        "Use a public PDF link",
         "Start audit",
         "Audit PDF URL",
     ]
     _assert_contains_tokens(mobile, common_tokens)
     _assert_contains_tokens(desktop, common_tokens)
     sample_state = (
-        "Audit Sample"
-        if "Audit Sample" in mobile
-        else "No built-in samples are available on this server."
+        "Audit sample"
+        if "Audit sample" in mobile
+        else "No sample is available. Upload a PDF instead."
     )
     assert sample_state in mobile
     assert sample_state in desktop
@@ -366,7 +366,7 @@ def test_result_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Rules flagged",
         "Findings in page order",
         "Download JSON",
-        "Download Full Student Report",
+        "Download text report",
         "View original PDF",
         "Privacy note",
         "Audit another file",
@@ -439,14 +439,14 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "No exact highlight is available",
         "Page 1",
         "Page 6",
-        "About this issue",
+        "Why is this flagged?",
     ]
     rule_tokens = [
         "Examples for this rule",
         "Back to all results",
         "Open highlighted PDF page",
         "Page 3",
-        "About this issue",
+        "Why is this flagged?",
         "Does the PDF contain annotations/comments?",
     ]
     for comment in {f.polished_comment for f in view.findings if f.category == "page_numbering"}:
