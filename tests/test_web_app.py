@@ -40,6 +40,12 @@ def client(tmp_path: Path) -> tuple[TestClient, Any]:
     return TestClient(app, raise_server_exceptions=False), wa
 
 
+@pytest.fixture()
+def url_auditing_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preserve reactivation coverage without changing default-disabled tests."""
+    monkeypatch.setenv("NJIT_AUDITOR_ENABLE_PDF_URL_AUDITING", "1")
+
+
 # ---------------------------------------------------------------------------
 # Index page
 # ---------------------------------------------------------------------------
@@ -2863,6 +2869,7 @@ def test_fetch_pdf_url_custom_user_agent_regression() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_contains_url_form(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
@@ -2870,6 +2877,7 @@ def test_index_contains_url_form(client: tuple[TestClient, Any]) -> None:
     assert b"/audits/url" in resp.content
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_missing_url_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post("/audits/url", data={}, follow_redirects=False)
@@ -2877,12 +2885,14 @@ def test_url_audit_missing_url_rejected(client: tuple[TestClient, Any]) -> None:
     assert b"PDF URL" in resp.content or b"provide" in resp.content.lower()
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_whitespace_url_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post("/audits/url", data={"pdf_url": "   "}, follow_redirects=False)
     assert resp.status_code == 400
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_non_http_scheme_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post(
@@ -2894,6 +2904,7 @@ def test_url_audit_non_http_scheme_rejected(client: tuple[TestClient, Any]) -> N
     assert b"http" in resp.content.lower()
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_localhost_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post(
@@ -2904,6 +2915,7 @@ def test_url_audit_localhost_rejected(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 400
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_loopback_ip_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post(
@@ -2914,6 +2926,7 @@ def test_url_audit_loopback_ip_rejected(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 400
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_private_ip_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.post(
@@ -2924,6 +2937,7 @@ def test_url_audit_private_ip_rejected(client: tuple[TestClient, Any]) -> None:
     assert resp.status_code == 400
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_resolves_to_private_rejected(
     client: tuple[TestClient, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2946,6 +2960,7 @@ def test_url_audit_resolves_to_private_rejected(
     assert resp.status_code == 400
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_valid_public_url_creates_job(
     client: tuple[TestClient, Any],
 ) -> None:
@@ -2965,6 +2980,7 @@ def test_url_audit_valid_public_url_creates_job(
     assert resp.headers["location"].startswith("/audits/")
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_fetch_error_shows_error(
     client: tuple[TestClient, Any],
 ) -> None:
@@ -2984,6 +3000,7 @@ def test_url_audit_fetch_error_shows_error(
     assert b"does not point to a valid PDF" in resp.content
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_oversized_shows_error(
     client: tuple[TestClient, Any],
 ) -> None:
@@ -3003,6 +3020,7 @@ def test_url_audit_oversized_shows_error(
     assert b"exceeds" in resp.content.lower()
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_job_download_json(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -3015,6 +3033,7 @@ def test_url_audit_job_download_json(
     assert "findings" in data
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_job_download_markdown(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -3026,6 +3045,7 @@ def test_url_audit_job_download_markdown(
     assert "text/markdown" in ct or "text/plain" in ct
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_audit_fetch_error_cleans_up_dir(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
@@ -3240,6 +3260,7 @@ def test_index_contains_sample_form(client: tuple[TestClient, Any]) -> None:
     assert b"/audits/sample" in resp.content
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_shows_three_input_methods(client: tuple[TestClient, Any]) -> None:
     c, wa = client
     with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
@@ -5094,6 +5115,7 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
 _EXAMPLE_URL = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses"
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_page_has_optional_url_import(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     body = c.get("/").text
@@ -5101,6 +5123,7 @@ def test_index_page_has_optional_url_import(client: tuple[TestClient, Any]) -> N
     assert "example-thesis-box" not in body
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_page_does_not_promote_blocked_example(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     body = c.get("/").text
@@ -5108,6 +5131,7 @@ def test_index_page_does_not_promote_blocked_example(client: tuple[TestClient, A
     assert "Some websites block downloads" in body
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_page_keeps_upload_primary(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     body = c.get("/").text
@@ -5115,6 +5139,7 @@ def test_index_page_keeps_upload_primary(client: tuple[TestClient, Any]) -> None
     assert "fill-example-url" not in body
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_page_url_help_text_explains_access_limits(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     body = c.get("/").text
@@ -5122,6 +5147,7 @@ def test_index_page_url_help_text_explains_access_limits(client: tuple[TestClien
     assert "download the PDF yourself and upload it here" in body
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_index_page_url_help_text_mentions_login_paywalled(
     client: tuple[TestClient, Any],
 ) -> None:
@@ -5170,6 +5196,7 @@ def test_get_audits_sample_does_not_show_job_not_found(client: tuple[TestClient,
     assert b"job" not in resp.content.lower() or b"job 'sample'" not in resp.content.lower()
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
     """The URL-audit form on the upload page must use method=\"post\"."""
     c, _ = client
@@ -5180,6 +5207,7 @@ def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
     assert b'method="post"' in resp.content
 
 
+@pytest.mark.usefixtures("url_auditing_enabled")
 def test_url_import_is_optional_and_labeled(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     body = c.get("/").text

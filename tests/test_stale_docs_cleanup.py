@@ -83,8 +83,8 @@ def test_manual_qa_checklist_no_open_pdf_page_in_actionability_section() -> None
     assert "Open first example page" not in section
 
 
-def test_index_page_explains_url_import_limits(client: tuple[TestClient, object]) -> None:
-    """The blocked example is replaced by an optional form and upload fallback."""
+def test_index_page_hides_disabled_url_import(client: tuple[TestClient, object]) -> None:
+    """The default upload page does not advertise unavailable URL auditing."""
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
@@ -92,4 +92,5 @@ def test_index_page_explains_url_import_limits(client: tuple[TestClient, object]
     assert b"example-thesis-box" not in body
     assert b"fill-example-url" not in body
     assert b"digitalcommons.njit.edu" not in body
-    assert b"Some websites block downloads" in body
+    assert b'action="/audits/url"' not in body
+    assert b'action="/audits"' in body

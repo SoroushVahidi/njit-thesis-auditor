@@ -46,7 +46,7 @@ uvicorn.run(wa.app, host='127.0.0.1',
 
 
 @pytest.fixture()
-def browser_site(tmp_path: Path) -> Any:
+def browser_site(tmp_path: Path, request: pytest.FixtureRequest) -> Any:
     root = Path(__file__).resolve().parents[1]
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -58,6 +58,7 @@ def browser_site(tmp_path: Path) -> Any:
         PYTHONDONTWRITEBYTECODE="1",
         NJIT_AUDITOR_WEB_RUNTIME_DIR=str(tmp_path / "jobs"),
         NJIT_AUDITOR_WEB_ENVIRONMENT="isolated-synthetic-browser",
+        NJIT_AUDITOR_ENABLE_PDF_URL_AUDITING=str(getattr(request, "param", "0")),
         UX_PORT=str(port),
         UX_SYNTHETIC_PDF=str(fixture),
     )
@@ -84,6 +85,7 @@ def browser_site(tmp_path: Path) -> Any:
         log.close()
 
 
+@pytest.mark.parametrize("browser_site", ["1"], indirect=True)
 @pytest.mark.parametrize("width,height", [(320, 800), (390, 844), (768, 1024), (1440, 900)])
 def test_student_workflow(browser_site: Any, width: int, height: int, tmp_path: Path) -> None:
     if os.environ.get("NJIT_REQUIRE_BROWSER") == "1":
@@ -245,4 +247,24 @@ def test_affected_corrections_fit_and_keep_details(
                 details.locator(":scope > summary").click()
         assert seen == set(EXPECTED_ACTIONS)
         assert not errors
+        browser.close()
+
+
+@pytest.mark.parametrize("width", [390, 1440])
+def test_disabled_url_upload_interface(browser_site, width):
+    """Exercise the default-disabled student UI in an actual browser."""
+    from playwright.sync_api import sync_playwright
+
+    base, _ = browser_site
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": width, "height": 900})
+        page.goto(base)
+        assert page.locator('input[name="pdf_url"]').count() == 0
+        assert page.get_by_role("button", name="Audit PDF URL", exact=True).count() == 0
+        assert page.locator('input[type="file"]').count() == 1
+        assert page.get_by_role("button", name="Start audit", exact=True).is_visible()
+        response = page.request.post(base + "/audits/url", form={
+            "pdf_url": "https://fixture.example/ok.pdf"})
+        assert response.status == 404
         browser.close()

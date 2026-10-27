@@ -172,6 +172,18 @@ class ProcessTree:
             elif self.process.poll() is None:
                 self.process.kill()
             self.process.wait(timeout=2)
+            if sys.platform == "darwin":
+                # launchd reaps orphaned children on macOS; confirm the entire
+                # group disappeared before claiming cleanup or releasing files.
+                end = time.monotonic() + 2
+                while True:
+                    try:
+                        os.killpg(self.process.pid, 0)
+                    except ProcessLookupError:
+                        break
+                    if time.monotonic() >= end:
+                        raise OSError("Desktop descendants did not stop")
+                    time.sleep(0.01)
             if sys.platform == "linux":
                 end = time.monotonic() + 1
                 while True:

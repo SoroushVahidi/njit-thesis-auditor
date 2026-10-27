@@ -10,6 +10,9 @@ The app's temporary data lives under `%LOCALAPPDATA%\NJIT Thesis Auditor` on Win
 
 The browser, OS, browser extensions, or a synced profile can have their own behavior outside the application's control. The application itself does not upload the original PDF or call a remote API. The service requires a per-launch session cookie established with a ticket, validates Host and Origin, blocks cross-site requests, requires CSRF tokens for mutations, and expires the session after eight hours. Session secrets stay in process memory and are not included in reports.
 
+For the unqualified macOS `.app` build path, installation/uninstall steps and
+native validation procedure, see [macOS private development candidate](macos_desktop.md).
+
 ## Build from source
 
 Use a clean **Python 3.12 x64** environment on the target operating system. PyInstaller does not cross-compile a Windows executable from Linux. These commands are for builders; end users run the packaged application directly.

@@ -184,6 +184,7 @@
   <p class="file-hint">Automated findings need your review; this tool does not grant NJIT approval.</p>
 </section>
 <div class="input-methods section">
+  {% if pdf_url_auditing_enabled %}
   <details class="card">
     <summary>Use a public PDF link</summary>
     <form action="/audits/url" method="post">
@@ -193,6 +194,7 @@
       <button type="submit">Audit PDF URL</button>
     </form>
   </details>
+  {% endif %}
   <details class="card">
     <summary>Try a synthetic sample</summary>
     {% if builtin_samples %}

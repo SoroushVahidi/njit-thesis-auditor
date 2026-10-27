@@ -38,6 +38,7 @@ from njit_auditor.coverage_disclosure import (
     OFFICIAL_CHECKLIST_URL,
     STUDENT_LIMITATION_DISCLOSURE,
 )
+from njit_auditor.feature_flags import pdf_url_auditing_enabled
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.incomplete_audit import (
     FAILED_CHECK_COUNT_KEY,
@@ -1906,6 +1907,9 @@ def _render(
     """Render a Jinja2 template using the Starlette 1.x API."""
     templates = getattr(request.app.state, "templates", _templates)
     context = {**context, "offline_mode": getattr(request.app.state, "offline_mode", False)}
+    context["pdf_url_auditing_enabled"] = (
+        not context["offline_mode"] and pdf_url_auditing_enabled()
+    )
     if context["offline_mode"]:
         from njit_auditor.desktop_metadata import DESKTOP_VERSION, desktop_build_info
 
@@ -2320,6 +2324,11 @@ async def submit_audit_url(
     background_tasks: BackgroundTasks,
     pdf_url: str = Form(default=""),
 ) -> RedirectResponse | HTMLResponse:
+    if not pdf_url_auditing_enabled():
+        return _index_notice(
+            request, "PDF URL auditing is temporarily unavailable. Upload a local PDF instead.",
+            status_code=404,
+        )
     url = pdf_url.strip()
     if not url:
         return _index_error(request, "Please provide a PDF URL.")

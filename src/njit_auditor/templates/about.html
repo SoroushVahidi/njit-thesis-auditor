@@ -77,7 +77,7 @@
 </section>
 <section class="card section" id="faq">
   <h2>Frequently asked questions</h2>
-  {% if not offline_mode %}<details><summary>Why won't my public PDF link work?</summary>
+  {% if pdf_url_auditing_enabled %}<details><summary>Why won't my public PDF link work?</summary>
     <p>Some repositories, including NJIT Digital Commons, may block automated downloads or require a security check. Use your normal authorized access to download the PDF, then upload it here. Login-required and paywalled links are not supported.</p>
   </details>{% endif %}
   <details><summary>Where do I make corrections?</summary>
