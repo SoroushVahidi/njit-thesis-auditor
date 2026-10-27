@@ -12,6 +12,32 @@ from pathlib import Path
 
 from njit_auditor.desktop_metadata import DESKTOP_VERSION
 
+REQUIRED_FILES = (
+    "READ-ME-FIRST.txt",
+    "DESKTOP-RELEASE-NOTES.txt",
+    "_internal/base_library.zip",
+    "_internal/src/njit_auditor/offline_templates/index.html",
+    *[
+        "_internal/src/njit_auditor/templates/" + name
+        for name in (
+            "_macros.html",
+            "about.html",
+            "base.html",
+            "help.html",
+            "job.html",
+            "problem_group.html",
+            "rules.html",
+        )
+    ],
+    "_internal/data/processed/rules/project_added_rules.json",
+    "_internal/data/specs/ester_warning_wording_map.json",
+    "_internal/assets/fonts/DejaVuSans.ttf",
+    "_internal/assets/fonts/DejaVu-LICENSE.txt",
+    "_internal/assets/icons/njit-auditor.ico",
+    "_internal/third-party-licenses/DEPENDENCIES.json",
+    "_internal/third-party-licenses/Python-LICENSE.txt",
+)
+
 
 def package_windows(bundle: Path, output: Path) -> dict[str, object]:
     if platform.system() != "Windows" or platform.machine().lower() not in {"amd64", "x86_64"}:
@@ -38,8 +64,12 @@ def package_windows(bundle: Path, output: Path) -> dict[str, object]:
             raise ValueError("Bundle contains a link or excluded data directory")
         if path.suffix.lower() in {".pdf", ".docx", ".xlsx", ".log", ".env"}:
             raise ValueError("Bundle contains an excluded document or log")
-    if not (bundle / "READ-ME-FIRST.txt").is_file():
-        raise ValueError("Student installation instructions are missing")
+    if any(not (bundle / name).is_file() for name in REQUIRED_FILES):
+        raise ValueError(
+            "Required application assets, instructions, or license notices are missing"
+        )
+    if not any((bundle / "_internal").glob("python3*.dll")):
+        raise ValueError("The bundled Python runtime is missing")
     output.mkdir(parents=True, exist_ok=True)
     filename = f"NJIT-Thesis-Auditor-{DESKTOP_VERSION}-windows-x64.zip"
     archive = output / filename

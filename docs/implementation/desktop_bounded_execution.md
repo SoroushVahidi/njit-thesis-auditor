@@ -29,8 +29,10 @@ Linux descendant-reaping allowance. The local server has a
 five-second graceful-shutdown allowance, and launcher joins are bounded to ten
 seconds plus a two-second forced-server-exit attempt. These are cleanup limits,
 not permission to leave a stuck audit running. They do not interrupt arbitrary
-Python threads: document auditing is in the killable processes. OS termination
-or filesystem failures must be surfaced rather than treated as deletion success.
+Python threads: document auditing is in the killable processes. If the OS refuses termination, Quit displays a short retry message and retains
+process ownership and local files; it does not report a successful shutdown.
+OS termination or filesystem failures are surfaced rather than treated as
+deletion success.
 Failed file cleanup remains visible and can be retried with Delete all; ordinary
 deletion is not secure erasure. Lazy interactive PDF/highlight rendering retains
 its existing shared route implementation; this change bounds the audit pipeline.

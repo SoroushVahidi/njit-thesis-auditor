@@ -150,10 +150,12 @@ def create_offline_app(
     web_app._after_audit_task = _after_audit
     manager = executor if executor is not None else DesktopExecutor()
 
-    def request_quit() -> None:
-        manager.close()
+    def request_quit() -> bool:
+        if not manager.close():
+            return False
         if on_quit is not None:
             on_quit()
+        return True
 
     global _cleanup_failed
     _cleanup_failed = False
@@ -322,8 +324,11 @@ def create_offline_app(
         return RedirectResponse(f"/?deletion={status}", status_code=303)
 
     @offline.post("/quit")
-    async def quit_app():
-        request_quit()
+    async def quit_app(request: Request):
+        if not request_quit():
+            return web_app._index_notice(
+                request, "Could not stop the audit yet. Try Quit again.", status_code=503
+            )
         return HTMLResponse("<p>Auditor closed. You may close this tab.</p>")
 
     return offline

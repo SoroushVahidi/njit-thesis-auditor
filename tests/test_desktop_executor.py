@@ -219,7 +219,6 @@ def test_frozen_worker_reexecutes_app_without_python(monkeypatch) -> None:
     ]
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Linux process-group check; Windows uses Job Objects")
 def test_descendant_is_stopped_with_worker_group(runtime, tmp_path) -> None:
     pid_file = tmp_path / "descendant.pid"
 
@@ -236,9 +235,27 @@ def test_descendant_is_stopped_with_worker_group(runtime, tmp_path) -> None:
     manager.run("tree")
     assert pid_file.is_file()
     pid = int(pid_file.read_text())
-    state = Path(f"/proc/{pid}/stat")
-    # The Linux subreaper must collect descendants too, not leave zombie orphans.
-    assert not state.exists()
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = getattr(ctypes, "WinDLL")("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.GetExitCodeProcess.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+        if handle:
+            code = wintypes.DWORD()
+            try:
+                assert kernel.GetExitCodeProcess(handle, ctypes.byref(code))
+                assert code.value != 259  # STILL_ACTIVE
+            finally:
+                kernel.CloseHandle(handle)
+    else:
+        # The Linux subreaper collects descendants instead of leaving zombie orphans.
+        assert not Path(f"/proc/{pid}").exists()
     assert not (runtime / "tree").exists()
     manager.close()
 
@@ -266,3 +283,64 @@ def test_deadline_begins_at_acceptance_before_supervisor_is_queued(runtime, monk
     assert web_app._get_job("delayed").error_message == TIMEOUT_MESSAGE
     assert not (runtime / "delayed").exists() and not manager._trees
     manager.close()
+
+
+def test_termination_failure_keeps_ownership_and_does_not_log_private_errors(
+    runtime, monkeypatch, caplog
+):
+    trees = []
+
+    class UnavailableTermination:
+        fail = True
+
+        def __init__(self, process):
+            self.real = ProcessTree(process)
+            trees.append(self)
+
+        def stop(self):
+            if self.fail:
+                raise OSError("synthetic-private-stop-path")
+            self.real.stop()
+
+    monkeypatch.setattr(desktop_executor, "ProcessTree", UnavailableTermination)
+    job(runtime, "retained")
+    manager = DesktopExecutor(deadline=0.1, command=hang)
+    manager.run("retained")
+    assert manager._trees and (runtime / "retained/upload.pdf").is_file()
+    assert web_app._get_job("retained").state == "running"
+    assert not manager.close()
+    assert manager.cleanup_failed.is_set()
+    assert "Try Quit again" in web_app._get_job("retained").error_message
+    assert "synthetic-private-stop-path" not in caplog.text
+    trees[0].fail = False
+    assert manager.close()
+    assert trees[0].real.process.poll() is not None
+    assert web_app._delete_job_workspace("retained")
+
+
+def test_quit_does_not_report_success_when_termination_is_unconfirmed(runtime, monkeypatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from njit_auditor.offline_app import create_offline_app
+
+    manager = DesktopExecutor()
+    quit_called = threading.Event()
+    app = create_offline_app(
+        port=17391,
+        data_root=runtime.parent,
+        launch_ticket="ticket",
+        on_quit=quit_called.set,
+        executor=manager,
+    )
+    with TestClient(app, base_url="http://127.0.0.1:17391") as client:
+        client.get("/_session/start?ticket=ticket")
+        with monkeypatch.context() as patch:
+            patch.setattr(manager, "close", lambda: False)
+            response = client.post(
+                "/quit",
+                data={"csrf_token": app.state.csrf_token},
+                headers={"Origin": "http://127.0.0.1:17391"},
+            )
+            assert response.status_code == 503
+            assert "Try Quit again" in response.text and "Auditor closed" not in response.text
+            assert not quit_called.is_set()

@@ -22,6 +22,9 @@ MAX_ACTIVE_AUDITS = 2
 TIMEOUT_MESSAGE = "This audit took too long and was stopped. Try a smaller PDF or audit it again."
 CANCEL_MESSAGE = "This audit was cancelled. You can start another audit."
 FAILURE_MESSAGE = "Could not complete this audit. Check the PDF and try again."
+STOP_MESSAGE = (
+    "Could not stop this audit yet. Try Quit again; local files are retained until it stops."
+)
 
 
 def worker_command(request: Path) -> list[str]:
@@ -49,6 +52,7 @@ class DesktopExecutor:
         self._cancel: dict[str, threading.Event] = {}
         self._trees: dict[str, ProcessTree] = {}
         self._deadlines: dict[str, float] = {}
+        self._retained: set[str] = set()
 
     def register(self, job_id: str) -> None:
         # Capture acceptance time before the web framework queues the supervisor.
@@ -64,18 +68,50 @@ class DesktopExecutor:
             event = self._cancel.setdefault(job_id, threading.Event())
             event.set()
             tree = self._trees.get(job_id)
-        if tree is not None:
-            tree.stop()
+        if tree is not None and self._stop_tree(tree):
+            self._finish_retained(job_id)
         return True
 
-    def close(self) -> None:
+    def _stop_tree(self, tree: ProcessTree) -> bool:
+        try:
+            tree.stop()
+            return True
+        except Exception:
+            self.cleanup_failed.set()
+            return False
+
+    def _finish_retained(self, job_id: str) -> None:
+        with self._lock:
+            if job_id not in self._retained:
+                return
+            self._retained.discard(job_id)
+            self._trees.pop(job_id, None)
+            self._cancel.pop(job_id, None)
+            self._deadlines.pop(job_id, None)
+        job = web_app._get_job(job_id)
+        if job is not None:
+            job.state = "failed"
+            job.error_message = CANCEL_MESSAGE
+            job.finished_at = datetime.now(timezone.utc).isoformat()
+            web_app._set_job(job)
+        if not web_app._delete_job_workspace(job_id):
+            self.cleanup_failed.set()
+        if web_app._after_audit_task is not None:
+            web_app._after_audit_task(job_id)
+
+    def close(self) -> bool:
         self._closing.set()
         with self._lock:
             for event in self._cancel.values():
                 event.set()
-            trees = list(self._trees.values())
-        for tree in trees:
-            tree.stop()
+            trees = list(self._trees.items())
+        stopped = True
+        for job_id, tree in trees:
+            if self._stop_tree(tree):
+                self._finish_retained(job_id)
+            else:
+                stopped = False
+        return stopped
 
     def run(self, job_id: str) -> None:
         job = web_app._get_job(job_id)
@@ -161,7 +197,9 @@ class DesktopExecutor:
             if process.returncode != 0:
                 return
             # Stop any leftover descendants before reading data or deleting files.
-            tree.stop()
+            if not self._stop_tree(tree):
+                failure = STOP_MESSAGE
+                return
             payload = decode(json.loads(result.read_text(encoding="utf-8")))
             if payload.get("job_id") != job_id or payload.get("state") not in {
                 "complete",
@@ -178,8 +216,22 @@ class DesktopExecutor:
             # Never log worker output, exception text, document paths, or job IDs.
             failure = FAILURE_MESSAGE
         finally:
-            if tree is not None:
-                tree.stop()
+            stopped = tree is None or self._stop_tree(tree)
+            if not stopped:
+                # Retain ownership and files until a later Quit can confirm termination.
+                self._closing.set()
+                with self._lock:
+                    self._retained.add(job_id)
+                # Preserve the running state so Delete all cannot erase live work.
+                job.state = "running"
+                job.error_message = STOP_MESSAGE
+                job.finished_at = datetime.now(timezone.utc).isoformat()
+                web_app._set_job(job)
+                if acquired:
+                    self._slots.release()
+                return
+            if failure == STOP_MESSAGE:
+                failure = FAILURE_MESSAGE
             for path in (request, result, ready):
                 try:
                     path.unlink(missing_ok=True)

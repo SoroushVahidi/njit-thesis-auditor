@@ -151,8 +151,17 @@ def _configure_window(window, server, thread, open_auditor, request_quit) -> Non
     tk.Label(window, text="NJIT Thesis Auditor", font=("Arial", 16)).pack(pady=12)
     tk.Label(window, text=f"Version {DESKTOP_VERSION} · Runs on this computer").pack()
     tk.Button(window, text="Open auditor", command=open_auditor).pack(pady=8)
-    tk.Button(window, text="Quit", command=request_quit).pack()
-    window.protocol("WM_DELETE_WINDOW", request_quit)
+
+    def close_window() -> None:
+        if not request_quit():
+            from tkinter import messagebox
+
+            messagebox.showwarning(
+                "NJIT Thesis Auditor", "Could not stop the audit yet. Try Quit again."
+            )
+
+    tk.Button(window, text="Quit", command=close_window).pack()
+    window.protocol("WM_DELETE_WINDOW", close_window)
 
     def update_window() -> None:
         if thread.is_alive() and not server.should_exit:

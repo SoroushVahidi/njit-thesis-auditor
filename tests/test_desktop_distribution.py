@@ -158,7 +158,11 @@ def test_zip_manifest_checksum_and_disabled_state_using_mocked_pe(tmp_path) -> N
     header[64:68] = b"PE\0\0"
     struct.pack_into("<H", header, 68, 0x8664)
     (bundle / "NJIT Thesis Auditor.exe").write_bytes(header)
-    (bundle / "READ-ME-FIRST.txt").write_text("Synthetic instructions")
+    required = runpy.run_path(str(ROOT / "scripts/package_offline_desktop.py"))["REQUIRED_FILES"]
+    for name in (*required, "_internal/python312.dll"):
+        path = bundle / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"Synthetic placeholder for presence checks, not native verification")
     (bundle / "_internal/desktop-build-info.json").write_text(
         json.dumps(
             {
@@ -178,6 +182,13 @@ def test_zip_manifest_checksum_and_disabled_state_using_mocked_pe(tmp_path) -> N
     assert record["size_bytes"] == archive.stat().st_size
     assert not record["enabled"] and not record["approved_for_distribution"]
     assert not parse_release(record).available
+    (bundle / "_internal/src/njit_auditor/templates/about.html").unlink()
+    with (
+        patch("platform.system", return_value="Windows"),
+        patch("platform.machine", return_value="AMD64"),
+        pytest.raises(ValueError, match="Required application assets"),
+    ):
+        package(bundle, tmp_path / "incomplete")
 
 
 def test_public_verifier_checks_bytes_without_enabling_release(
