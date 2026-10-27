@@ -56,10 +56,10 @@ class DesktopExecutor:
             self._cancel.setdefault(job_id, threading.Event())
 
     def cancel(self, job_id: str) -> bool:
-        job = web_app._get_job(job_id)
-        if job is None or job.state not in {"pending", "running"}:
-            return False
         with self._lock:
+            job = web_app._get_job(job_id)
+            if job is None or job.state not in {"pending", "running"}:
+                return False
             event = self._cancel.setdefault(job_id, threading.Event())
             event.set()
             tree = self._trees.get(job_id)
@@ -167,8 +167,12 @@ class DesktopExecutor:
                 "failed",
             }:
                 return
-            web_app._set_job(web_app.JobState(**payload))
-            completed = True
+            with self._lock:
+                if cancel.is_set() or self._closing.is_set():
+                    failure = CANCEL_MESSAGE
+                    return
+                web_app._set_job(web_app.JobState(**payload))
+                completed = True
         except Exception:
             # Never log worker output, exception text, document paths, or job IDs.
             failure = FAILURE_MESSAGE

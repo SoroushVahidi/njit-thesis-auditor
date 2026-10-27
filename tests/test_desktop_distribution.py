@@ -61,6 +61,7 @@ def test_download_is_unpublished_by_default() -> None:
         ("approved_for_distribution", False),
         ("licensing_reviewed", False),
         ("license_basis", ""),
+        ("license_basis", ["commercial"]),
         ("native_windows_build_verified", False),
         ("public_download_verified", False),
         ("native_tested_windows_versions", ["Windows 11"]),

@@ -79,6 +79,7 @@ def test_normal_worker_retains_reports_and_geometry(runtime: Path) -> None:
         assert (runtime / "normal" / name).is_file()
     assert not list((runtime / "normal").glob(".desktop-*"))
     assert not manager._trees and not manager._cancel
+    assert not manager.cancel("normal")
     manager.close()
 
 
