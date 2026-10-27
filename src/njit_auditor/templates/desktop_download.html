@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Download Desktop App — NJIT Thesis Auditor{% endblock %}
+{% block content %}
+<h1>Download Desktop App</h1>
+<p class="subtitle">Audit your thesis locally, even without internet access.</p>
+<section class="card section">
+  <h2>Version {{ desktop_release.version }}</h2>
+  <p>{{ desktop_release.windows_versions | join(' / ') }} · x64 · {{ desktop_release.size_label }} ({{ desktop_release.size_bytes }} bytes)</p>
+  <a class="btn btn-primary" href="{{ desktop_release.url }}">Download Desktop App</a>
+  <p>Portable ZIP: {{ desktop_release.filename }}</p>
+  <details><summary>SHA-256 checksum</summary><code style="overflow-wrap:anywhere">{{ desktop_release.sha256 }}</code></details>
+</section>
+<section class="card section">
+  <h2>Open and audit</h2>
+  <ol><li>Download the ZIP and choose Extract all in Windows. Keep the entire extracted folder together.</li>
+    <li>Open the folder and double-click <strong>NJIT Thesis Auditor.exe</strong>. Python is included; no command prompt or installation is needed.</li>
+    <li>Select a PDF in the browser page, then choose Start audit. Findings and reports are generated on your computer.</li>
+    <li>Save reports you need and choose Quit when finished. Closing only the browser tab leaves the local application running.</li></ol>
+  <p>The app uses your default browser and needs no internet connection for auditing. Review findings manually against NJIT guidelines.</p>
+</section>
+<section class="card section">
+  <h2>Release notes and updates</h2>
+  <p>This edition combines local PDF auditing with short corrections, optional explanations, highlighting, filters, and PDF, text, Markdown, and JSON reports.</p>
+  <p>Updates are manual. Quit the old version, download the complete new package, and extract it into a new folder. The app does not check for updates or download code in the background.</p>
+</section>
+{% endblock %}

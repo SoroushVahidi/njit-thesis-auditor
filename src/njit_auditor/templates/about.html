@@ -35,18 +35,26 @@
 </section>
 <section class="card section" id="privacy">
   <h2>Privacy and document retention</h2>
+  {% if offline_mode %}
+  <p>Your PDF is audited on this computer. The application does not send document-processing requests to a remote server. This desktop session is required to open local results.</p>
+  {% else %}
   <p>Your PDF is processed on the configured server. Uploaded files, reports, and highlighted copies are stored temporarily. Anyone possessing a valid result link can access its contents until deletion; share it as carefully as your document.</p>
+  {% endif %}
   <p>{{ retention_notice }}</p>
   <details><summary>What is stored?</summary>
     <p>Reports may quote flagged words, headings, or list entries. Highlighted PDFs contain copies of your pages. Downloaded copies remain wherever you save or share them.</p>
+    {% if offline_mode %}
+    <p>Use Delete this audit, Delete all local audit data, or Quit to clear working copies. Startup removes abandoned work after an interrupted run. Ordinary deletion is not secure disk erasure. Browser downloads, browser extensions, and OS behavior are outside the app's control.</p>
+    {% else %}
     <p>Result links do not require a separate sign-in. Temporary retention is not immediate deletion or a guarantee of confidentiality. Only upload documents you are authorized to process on this server.</p>
+    {% endif %}
   </details>
 </section>
 <section class="card section" id="faq">
   <h2>Frequently asked questions</h2>
-  <details><summary>Why won't my public PDF link work?</summary>
+  {% if not offline_mode %}<details><summary>Why won't my public PDF link work?</summary>
     <p>Some repositories, including NJIT Digital Commons, may block automated downloads or require a security check. Use your normal authorized access to download the PDF, then upload it here. Login-required and paywalled links are not supported.</p>
-  </details>
+  </details>{% endif %}
   <details><summary>Where do I make corrections?</summary>
     <p>Edit your original Word, LaTeX, or other source document, then export a new PDF. The auditor does not edit your original file.</p>
   </details>
@@ -56,7 +64,8 @@
 </section>
 <section class="card section" id="version">
   <h2>Version information</h2>
+  {% if offline_mode %}<p>Desktop version: {{ desktop_version }}. Target: Windows 10/11 x64; release qualification is separate.</p>{% endif %}
   <p>Environment: {{ environment }}. Commit: <code style="overflow-wrap:anywhere">{{ commit }}</code>.</p>
-  <p><a href="/version">Version metadata</a> · <a href="/">Start an audit</a></p>
+  <p>{% if not offline_mode %}<a href="/version">Version metadata</a> · {% endif %}<a href="/">Start an audit</a></p>
 </section>
 {% endblock %}

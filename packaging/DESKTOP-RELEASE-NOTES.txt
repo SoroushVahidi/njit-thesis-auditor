@@ -1,0 +1,13 @@
+NJIT Thesis Auditor 0.2.0-rc.1 — unpublished candidate
+
+Combines the reviewed local desktop implementation with the latest student UI:
+- PDF selection and auditing on this computer.
+- Short, qualified corrections and optional explanations.
+- About, highlighting, filtering, navigation, and accessible keyboard controls.
+- PDF, text, Markdown, and JSON reports generated locally.
+- Per-launch session protection, loopback-only listener, deletion, and Quit.
+- App icon, version information, and versioned portable ZIP preparation.
+
+Windows x64 native build and smoke verification are pending. No public download
+or student release is approved. Other architectures and macOS are not qualified.
+Detector thresholds and anonymizer functionality are unchanged.

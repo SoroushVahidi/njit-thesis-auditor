@@ -11,6 +11,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import urllib.parse
 from collections.abc import Callable, Mapping
@@ -138,6 +139,10 @@ def _read_git_metadata() -> tuple[str, str]:
     (e.g. an exported archive), so any failure here must degrade to
     "unknown" rather than raise.
     """
+    if getattr(sys, "frozen", False):
+        from njit_auditor.desktop_metadata import desktop_build_info
+
+        return str(desktop_build_info().get("commit", "unknown")), "packaged-desktop"
     repo_root = Path(__file__).resolve().parent.parent.parent
     try:
         commit = subprocess.run(
@@ -1896,8 +1901,16 @@ def _render(
     templates = getattr(request.app.state, "templates", _templates)
     context = {**context, "offline_mode": getattr(request.app.state, "offline_mode", False)}
     if context["offline_mode"]:
+        from njit_auditor.desktop_metadata import DESKTOP_VERSION, desktop_build_info
+
+        context["desktop_version"] = DESKTOP_VERSION
+        context["environment"] = "offline-desktop"
+        context["commit"] = desktop_build_info().get("commit", _GIT_COMMIT)
         context["csrf_token"] = request.app.state.csrf_token
         context["deletion_status"] = request.query_params.get("deletion", "")
+    from njit_auditor.desktop_download import desktop_release
+
+    context["desktop_release"] = None if context["offline_mode"] else desktop_release()
     return templates.TemplateResponse(request=request, name=template, context=context,
                                       status_code=status_code)
 
@@ -3197,3 +3210,12 @@ async def about_page(request: Request) -> HTMLResponse:
 async def rules_page(request: Request) -> HTMLResponse:
     catalog = _build_rule_catalog()
     return _render(request, "rules.html", catalog)
+
+
+@app.get("/desktop", response_class=HTMLResponse)
+async def desktop_download_page(request: Request) -> HTMLResponse:
+    from njit_auditor.desktop_download import desktop_release
+
+    if not desktop_release().available:
+        return _index_notice(request, "Desktop downloads are not available yet.")
+    return _render(request, "desktop_download.html", {})

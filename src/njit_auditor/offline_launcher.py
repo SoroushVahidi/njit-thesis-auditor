@@ -7,6 +7,7 @@ import importlib
 import os
 import secrets
 import socket
+import sys
 import tempfile
 import threading
 import urllib.parse
@@ -16,6 +17,7 @@ from typing import BinaryIO
 
 import uvicorn
 
+from njit_auditor.desktop_metadata import DESKTOP_VERSION
 from njit_auditor.offline_app import (
     create_offline_app,
     is_link_or_junction,
@@ -23,6 +25,7 @@ from njit_auditor.offline_app import (
     prepare_local_storage,
     remove_local_storage_child,
 )
+from njit_auditor.resource_paths import resource_path
 
 
 def _single_instance_lock(root: Path) -> BinaryIO:
@@ -79,6 +82,7 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
         server = uvicorn.Server(config)
         thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=False)
         thread.start()
+        url = f"http://127.0.0.1:{port}/_session/start?ticket={urllib.parse.quote(ticket)}"
         try:
             window = None
             if not headless:
@@ -89,28 +93,12 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
                     # the interface itself has a visible Quit action.
                     pass
                 else:
-                    window = tk.Tk()
-                    window.title("NJIT Thesis Auditor")
-                    window.geometry("360x160")
-                    tk.Label(window, text="NJIT Thesis Auditor", font=("Arial", 16)).pack(pady=16)
-                    tk.Button(
-                        window, text="Open auditor", command=lambda: webbrowser.open(url)
-                    ).pack()
-                    tk.Button(
-                        window, text="Quit", command=lambda: setattr(server, "should_exit", True)
-                    ).pack(pady=12)
-                    window.protocol(
-                        "WM_DELETE_WINDOW", lambda: setattr(server, "should_exit", True)
-                    )
-
-                    def update_window() -> None:
-                        if thread.is_alive() and not server.should_exit:
-                            window.after(250, update_window)
-                        else:
-                            window.destroy()
-
-                    window.after(250, update_window)
-            url = f"http://127.0.0.1:{port}/_session/start?ticket={urllib.parse.quote(ticket)}"
+                    try:
+                        window = tk.Tk()
+                    except tk.TclError:
+                        window = None
+                    if window is not None:
+                        _configure_window(window, server, thread, lambda: webbrowser.open(url))
             for _ in range(100):
                 if server.started or not thread.is_alive():
                     break
@@ -134,12 +122,49 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
             tempfile.tempdir = previous_tempdir
 
 
+def _configure_window(window, server, thread, open_auditor) -> None:
+    import tkinter as tk
+
+    window.title("NJIT Thesis Auditor")
+    window.geometry("400x220")
+    if os.name == "nt":
+        window.iconbitmap(default=str(resource_path("assets", "icons", "njit-auditor.ico")))
+    tk.Label(window, text="NJIT Thesis Auditor", font=("Arial", 16)).pack(pady=12)
+    tk.Label(window, text=f"Version {DESKTOP_VERSION} · Runs on this computer").pack()
+    tk.Button(window, text="Open auditor", command=open_auditor).pack(pady=8)
+    tk.Button(window, text="Quit", command=lambda: setattr(server, "should_exit", True)).pack()
+    window.protocol("WM_DELETE_WINDOW", lambda: setattr(server, "should_exit", True))
+
+    def update_window() -> None:
+        if thread.is_alive() and not server.should_exit:
+            window.after(250, update_window)
+        else:
+            window.destroy()
+
+    window.after(250, update_window)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Start the offline NJIT Thesis Auditor")
     parser.add_argument("--headless", action="store_true", help="Development smoke testing only")
     parser.add_argument("--no-browser", action="store_true", help="Development smoke testing only")
     args = parser.parse_args()
-    run_desktop(headless=args.headless, open_browser=not args.no_browser)
+    try:
+        run_desktop(headless=args.headless, open_browser=not args.no_browser)
+    except Exception:
+        if args.headless:
+            raise
+        # A windowed executable has no console; never show paths/exception text.
+        message = (
+            "Could not open the local auditor. Close any other copy, check that "
+            "your local application data folder is writable, and try again."
+        )
+        if os.name == "nt":
+            ctypes = importlib.import_module("ctypes")
+            ctypes.windll.user32.MessageBoxW(None, message, "NJIT Thesis Auditor", 0x10)
+        else:
+            print(message, file=sys.stderr)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

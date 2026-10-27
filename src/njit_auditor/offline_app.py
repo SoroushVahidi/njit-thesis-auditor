@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.routing import Route
 
@@ -25,7 +25,7 @@ from njit_auditor.resource_paths import resource_path
 SESSION_SECONDS = 8 * 60 * 60
 IDLE_SECONDS = 30 * 60
 COOKIE_NAME = "njit_offline_session"
-_DISALLOWED = {"/healthz", "/version", "/audits/url", "/audits/sample"}
+_DISALLOWED = {"/healthz", "/version", "/audits/url", "/audits/sample", "/desktop"}
 _delete_after_finish: set[str] = set()
 _delete_lock = threading.Lock()
 _cleanup_failed = False
@@ -246,7 +246,12 @@ def create_offline_app(
                     return JSONResponse({"error": "invalid CSRF token"}, status_code=403)
             last_activity = time.monotonic()
         response = await call_next(request)
-        response.headers["Referrer-Policy"] = "no-referrer"
+        # Chromium sends Origin: null for form POSTs from a no-referrer page.
+        # Keep the launch ticket private, then allow same-origin form origins
+        # without weakening Host, Origin, session, or CSRF validation.
+        response.headers["Referrer-Policy"] = (
+            "no-referrer" if request.url.path == "/_session/start" else "same-origin"
+        )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Cache-Control"] = "no-store"
         response.headers["Content-Security-Policy"] = (
@@ -274,6 +279,11 @@ def create_offline_app(
     for route in web_app.app.router.routes:
         if isinstance(route, Route) and route.path not in _DISALLOWED:
             offline.router.routes.append(route)
+
+    @offline.get("/app-icon.ico")
+    async def app_icon():
+        return FileResponse(resource_path("assets", "icons", "njit-auditor.ico"),
+                            media_type="image/vnd.microsoft.icon")
 
     @offline.post("/audits/{job_id}/delete")
     async def delete_audit(job_id: str):

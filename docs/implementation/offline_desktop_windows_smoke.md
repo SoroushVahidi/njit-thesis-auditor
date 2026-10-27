@@ -4,13 +4,13 @@ Run this on a genuine Windows x64 machine with Python 3.12 x64 for the build. Re
 
 ## Build and inspect
 
-1. Start from a clean checkout of the exact candidate SHA. Run `powershell -ExecutionPolicy Bypass -File packaging/build_offline_windows.ps1` from the repository root. Record the complete build log and final `Get-FileHash` output.
+1. Start from a clean checkout of the exact candidate SHA. Run `powershell -ExecutionPolicy Bypass -File packaging/build_offline_windows.ps1` from the repository root. Record the complete build log, source revision, `dist/packages` ZIP byte size, ZIP SHA-256 and candidate JSON, plus final `Get-FileHash` output.
 2. Keep the complete `dist\NJIT Thesis Auditor` folder together. Search all bundled names and text resources for private samples, review ledgers, credentials, `.git`, source PDFs, and unexpected environment files. Confirm the expected templates, rule catalog, wording map, font, and font license are present. Record file count and total size. Do not attach private content to the report.
-3. Run `ruff check .`, `mypy src`, and `python -m pytest -q` on the same SHA. Record exact versions and counts. Do not substitute a Linux test result.
+3. Run `ruff check .`, `mypy src`, and the safe automated suite on the same SHA with the review's explicit private/historical exclusions. Install development dependencies and Chromium separately for browser tests; use `NJIT_REQUIRE_BROWSER=1`. Record exact versions, counts, exclusions, and Windows results. Do not fetch private dissertations or substitute a Linux test result.
 
 ## Launch and process lifecycle
 
-4. Set `LOCALAPPDATA` to a disposable, user-owned test directory. Launch the packaged `.exe` normally. Confirm the browser opens at `http://127.0.0.1:<random-port>/`, the ticket URL redirects without retaining the ticket in the address bar, and the interface works with and without Tk available.
+4. Set `LOCALAPPDATA` to a disposable, user-owned test directory. Launch the packaged `.exe` normally. Confirm the browser opens at `http://127.0.0.1:<random-port>/`, the ticket URL redirects without retaining the ticket in the address bar, and the interface works with and without Tk available. Verify the app icon, launcher version, About build revision, and all About/help links; confirm no website/server-processing wording is shown.
 5. Use `Get-NetTCPConnection` to confirm the process listens only on `127.0.0.1`. Confirm no listener on `0.0.0.0`, a LAN address, or IPv6. With a packet capture or firewall log covering the process, exercise launch, upload, report generation, and shutdown; record any DNS queries or outbound connections. Disable networking and repeat the synthetic audit.
 6. Start a second packaged instance using the same data directory. It must exit with the single-instance warning without clearing the first instance's audit. Confirm the first instance remains usable.
 
@@ -27,5 +27,7 @@ Run this on a genuine Windows x64 machine with Python 3.12 x64 for the build. Re
 12. Use **Delete this audit** and **Delete all local audit data**. Confirm report/PDF URLs stop working, workspaces disappear, and a simulated failed deletion is visible and retryable. Leave an interrupted synthetic workspace, relaunch, and confirm startup cleanup.
 13. Use **Quit** and close the launcher window separately. Confirm the process and listener exit and `tmp` and audit workspaces are cleared. Exercise the 30-minute idle and eight-hour session expiry on a test host or with controlled clock constants. Check Task Manager for lingering child processes.
 14. Inspect application logs, crash output, browser responses, and bundled resources for synthetic PDF text, file paths, job IDs, ticket, cookie, and CSRF token. Record any leaks and redacted evidence.
+
+Repeat on clean Windows 10 and Windows 11 x64 with no Python installed for end-user launch, then record each tested Windows version in the candidate manifest. Do not enable downloads before anonymous public-asset checksum verification and distribution approval.
 
 Mark the Windows gate PASS only after the packaged executable passes these steps on native Windows x64. Preserve detailed logs outside Git; summarize results and remaining limits in the release readiness report.

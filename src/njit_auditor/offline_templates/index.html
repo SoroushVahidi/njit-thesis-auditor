@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>NJIT Thesis Auditor — Offline</h1>
-<p class="subtitle">Select a PDF from this computer. The audit runs locally, without uploading the document to another computer. Findings are advisory and require human review.</p>
+<p class="subtitle">Select a PDF. Audit it on this computer, even without internet access.</p>
 {% if notice %}<div class="alert-warn" role="alert">{{ notice }}</div>{% endif %}
-{% if error %}<div class="alert-error" role="alert"><strong>Could not start audit.</strong><br>{{ error }}</div>{% endif %}
+{% if error %}<div class="alert-error" role="alert"><strong>{{ error_title or "Could not start audit." }}</strong><br>{{ error }}</div>{% endif %}
 {% if deletion_status == "pending" %}<div class="alert-warn" role="status">An audit is still running. Its local files are queued for deletion as soon as it finishes.</div>{% endif %}
 {% if deletion_status == "deleted" %}<div class="alert-info" role="status">Local audit data was deleted.</div>{% endif %}
 {% if deletion_status == "failed" or offline_cleanup_failed() %}<div class="alert-error" role="alert">Some local audit files could not be deleted. Close the application and check its local data directory, or try Delete all again.</div>{% endif %}
-<div class="alert-info"><strong>Local data.</strong> {{ retention_notice }} The application stores a temporary working copy in its private local data directory while it runs.</div>
+<p class="privacy-note">Processed on this computer. Temporary working copies are removed when you quit. <a href="/about#privacy">Local storage and privacy</a>.</p>
 <section class="section card">
   <h2>Audit a PDF</h2>
   <form action="/audits" method="post" enctype="multipart/form-data">
@@ -18,9 +18,9 @@
     <button type="submit">Start audit</button>
   </form>
 </section>
-<section class="section card">
-  <h2>Local data</h2>
+<details class="section card">
+  <summary>Manage local audit data</summary>
   <p>Delete all audits stored by this application. Reports you chose to save elsewhere are unaffected.</p>
   <form action="/local-data/delete-all" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Delete all local audit data</button></form>
-</section>
+</details>
 {% endblock %}

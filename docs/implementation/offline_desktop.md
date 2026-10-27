@@ -20,7 +20,7 @@ python -m venv .venv-build
 .venv-build/bin/pyinstaller --noconfirm --clean packaging/offline_desktop.spec
 ```
 
-On native Windows x64, `packaging/build_offline_windows.ps1` runs the corresponding PowerShell build. Use the [native Windows smoke checklist](offline_desktop_windows_smoke.md) before any distribution. The output is `dist/NJIT Thesis Auditor/`; distribute the whole folder after validation. The spec explicitly includes six shared HTML templates used offline, the offline upload template, the rule catalog, Ester's warning wording map, and a redistributable DejaVu font with its license. The original online index, dissertations, private samples, evaluation ledgers, private notes, credentials, and repository history are not included as data. The Python runtime and PDF libraries are collected from the clean build environment. Inspect the final artifact and run the packaged smoke check on each target operating system before distribution.
+On native Windows x64, `packaging/build_offline_windows.ps1` runs the corresponding PowerShell build. Use the [native Windows smoke checklist](offline_desktop_windows_smoke.md) before any distribution. The output is `dist/NJIT Thesis Auditor/`; distribute the whole folder after validation. The spec explicitly includes seven shared HTML templates (including About) used offline, the offline upload template, the rule catalog, Ester's warning wording map, and a redistributable DejaVu font with its license. The original online index, dissertations, private samples, evaluation ledgers, private notes, credentials, and repository history are not included as data. The Python runtime and PDF libraries are collected from the clean build environment. Inspect the final artifact and run the packaged smoke check on each target operating system before distribution.
 
 For development without packaging, install the project and run `python -m njit_auditor.offline_launcher`; the launcher opens the browser and stays alive until Quit. `--headless` and `--no-browser` exist only for automated smoke testing.
 
@@ -35,3 +35,15 @@ Online/offline parity tests use normal, Unicode, rotated, and low-text synthetic
 ## Candidate validation record (2026-10-16)
 
 The portable code at `7f6b165` passed Ruff (exit 0), mypy on 149 source files (exit 0), and the full local suite (4,769 passed, 10 private-material skips, 3 warnings; exit 0). The focused offline/web/report suite passed 374 tests (exit 0). The Linux x64 one-folder executable was rebuilt from that code and its launcher SHA-256 is `849b7e5cd5910cf18aa1a86150df73b4837c590c6f284be2f4ffbe5195cc1a05`; the binary is only one part of the 132 MB folder. Independent review: **APPROVE** for portable implementation and Linux development build, with Windows untested. A real browser interaction pass for the filter controls and a native Windows build remain before end-user distribution.
+
+
+## Current student-interface integration
+
+The October 26 development integration combines the reviewed desktop security
+branch with corrected student PR #634. It preserves short subtype-specific
+actions and complete exports, adapts About/privacy to local operation, and
+adds icons, build provenance, and Windows portable-ZIP preparation. See
+[desktop distribution preparation](desktop_distribution.md) for current
+versioning, the disabled website feature, verification gates, and remaining
+platform limits. Historical Linux build hashes above refer to earlier source;
+they do not certify this integration or any Windows artifact.

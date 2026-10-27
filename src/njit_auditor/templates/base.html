@@ -464,7 +464,7 @@
     .site-nav__brand, .site-nav__link { min-height: 44px; display: inline-flex; align-items: center; }
     .privacy-summary { font-size: 0.9rem; color: var(--color-text); max-width: 65ch; }
     .skip-link { position: absolute; left: -10000px; }
-    .skip-link:focus { position: static; display: block; padding: 0.75rem; }
+    .skip-link:focus { position: fixed; left: 0.75rem; top: 0.5rem; z-index: 1000; display: block; padding: 0.75rem; background: #fff; border: 2px solid var(--color-primary); }
     :focus-visible { outline: 3px solid #0059a8; outline-offset: 3px; }
     details > summary { cursor: pointer; min-height: 44px; padding: 0.5rem 0; }
     details > summary:focus-visible { border-radius: 3px; }
@@ -483,6 +483,7 @@
       .section-note { margin-top: 0; }
     }
   </style>
+  {% if offline_mode %}<link rel="icon" href="/app-icon.ico">{% endif %}
   {% block head_extra %}{% endblock %}
 </head>
 <body>

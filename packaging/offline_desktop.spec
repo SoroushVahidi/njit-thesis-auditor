@@ -2,10 +2,36 @@
 
 from pathlib import Path
 import sys
+import json
+import platform
+import subprocess
 
 ROOT = Path(SPECPATH).parent
+sys.path.insert(0, str(ROOT / "src"))
+from njit_auditor.desktop_metadata import DESKTOP_VERSION, FILE_VERSION
+
+resources = Path(WORKPATH) / "desktop-resources"
+resources.mkdir(parents=True, exist_ok=True)
+commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+(resources / "desktop-build-info.json").write_text(json.dumps({
+    "version": DESKTOP_VERSION, "commit": commit,
+    "system": platform.system(), "architecture": platform.machine(),
+    "python": platform.python_version(),
+}), encoding="utf-8")
+version_file = resources / "windows-version.txt"
+version_file.write_text(f"""VSVersionInfo(
+  ffi=FixedFileInfo(filevers={FILE_VERSION!r}, prodvers={FILE_VERSION!r},
+    mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0, 0)),
+  kids=[StringFileInfo([StringTable('040904B0', [
+    StringStruct('CompanyName', 'Soroush Vahidi'),
+    StringStruct('FileDescription', 'NJIT Thesis Auditor — local PDF auditing'),
+    StringStruct('FileVersion', '{DESKTOP_VERSION}'),
+    StringStruct('ProductVersion', '{DESKTOP_VERSION}'),
+    StringStruct('ProductName', 'NJIT Thesis Auditor'),
+    StringStruct('OriginalFilename', 'NJIT Thesis Auditor.exe')])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])])""", encoding="utf-8")
 TEMPLATES = (
-    "_macros.html", "base.html", "help.html", "job.html",
+    "_macros.html", "about.html", "base.html", "help.html", "job.html",
     "problem_group.html", "rules.html",
 )
 DATA = [
@@ -13,6 +39,8 @@ DATA = [
     for name in TEMPLATES
 ]
 DATA += [
+    (str(resources / "desktop-build-info.json"), "."),
+    (str(ROOT / "assets/icons/njit-auditor.ico"), "assets/icons"),
     (str(ROOT / "src/njit_auditor/offline_templates/index.html"),
      "src/njit_auditor/offline_templates"),
     (str(ROOT / "data/processed/rules/project_added_rules.json"), "data/processed/rules"),
@@ -26,7 +54,7 @@ a = Analysis(
     pathex=[str(ROOT / "src")],
     binaries=[],
     datas=DATA,
-    hiddenimports=[],
+    hiddenimports=["msvcrt"] if sys.platform == "win32" else [],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -45,6 +73,8 @@ exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name="NJIT Thesis Auditor", debug=False, bootloader_ignore_signals=False,
     strip=False, upx=False, console=sys.platform != "win32",
+    icon=str(ROOT / "assets/icons/njit-auditor.ico") if sys.platform == "win32" else None,
+    version=str(version_file) if sys.platform == "win32" else None,
 )
 coll = COLLECT(
     exe, a.binaries, a.datas, strip=False, upx=False,

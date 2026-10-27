@@ -1,0 +1,14 @@
+{% if desktop_release and (desktop_release.available or desktop_release.preview) %}
+<section class="card section" id="desktop-download" aria-labelledby="desktop-heading" style="border-left:4px solid var(--color-primary);background:#f4f9fe">
+  <h2 id="desktop-heading">Your thesis, on your computer</h2>
+  <p>Audit your thesis locally, even without internet access.</p>
+  {% if desktop_release.available %}
+  <a class="btn btn-primary" href="{{ desktop_release.url }}">Download Desktop App</a>
+  <p class="file-hint">{{ desktop_release.windows_versions | join(' / ') }} · x64 · {{ desktop_release.size_label }} · Version {{ desktop_release.version }}</p>
+  <a href="/desktop">Installation instructions, checksum, and release notes</a>
+  {% else %}
+  <button type="button" disabled aria-describedby="desktop-pending">Download Desktop App</button>
+  <p id="desktop-pending" class="file-hint">Windows package in preparation. Downloads are not available yet.</p>
+  {% endif %}
+</section>
+{% endif %}

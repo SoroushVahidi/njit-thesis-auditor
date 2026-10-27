@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "preview": false,
+  "version": "0.2.0-rc.1",
+  "url": "",
+  "sha256": "",
+  "size_bytes": 0,
+  "windows_versions": ["Windows 10", "Windows 11"],
+  "native_tested_windows_versions": [],
+  "native_windows_build_verified": false,
+  "public_download_verified": false,
+  "verified_at": "",
+  "approved_for_distribution": false
+}
