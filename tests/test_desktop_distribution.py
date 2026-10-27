@@ -38,6 +38,8 @@ def _record() -> dict:
         "public_download_verified": True,
         "verified_at": "2026-10-26T00:00:00Z",
         "approved_for_distribution": True,
+        "licensing_reviewed": True,
+        "license_basis": "commercial",
     }
 
 
@@ -57,6 +59,8 @@ def test_download_is_unpublished_by_default() -> None:
     [
         ("enabled", False),
         ("approved_for_distribution", False),
+        ("licensing_reviewed", False),
+        ("license_basis", ""),
         ("native_windows_build_verified", False),
         ("public_download_verified", False),
         ("native_tested_windows_versions", ["Windows 11"]),
@@ -202,3 +206,31 @@ def test_public_verifier_checks_bytes_without_enabling_release(
     assert not receipt["enabled"] and not receipt["approved_for_distribution"]
     with pytest.raises(ValueError):
         verify({**record, "url": "http://localhost/private.zip"})
+
+
+def test_license_collection_includes_nested_dependency_notices_only(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    collect = runpy.run_path(str(ROOT / "scripts/collect_desktop_licenses.py"))["collect"]
+    (tmp_path / "fake.dist-info/licenses/LICENSES").mkdir(parents=True)
+    (tmp_path / "fake.dist-info/licenses/LICENSES/BSD-3-Clause.txt").write_text("Synthetic notice")
+    (tmp_path / "fake.dist-info/direct_url.json").write_text("private-checkout-path")
+    dist = SimpleNamespace(
+        metadata={"Name": "synthetic", "License": "BSD-3-Clause"},
+        version="1.0",
+        files=[
+            "fake.dist-info/licenses/LICENSES/BSD-3-Clause.txt",
+            "fake.dist-info/direct_url.json",
+        ],
+        locate_file=lambda name: tmp_path / name,
+    )
+
+    class Meta(dict):
+        def get_all(self, key, default):
+            return default
+
+    dist.metadata = Meta(dist.metadata)
+    monkeypatch.setattr("importlib.metadata.distributions", lambda: [dist])
+    records = collect(tmp_path / "out")
+    assert records[0]["notices"] == ["synthetic/00-BSD-3-Clause.txt"]
+    assert "private-checkout-path" not in (tmp_path / "out/DEPENDENCIES.json").read_text()

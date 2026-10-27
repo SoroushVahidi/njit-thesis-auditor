@@ -377,6 +377,7 @@
   <p class="file-hint" style="margin:0.5rem 0 0;">Started: {{ created_at }}</p>
 </div>
 
+{% if offline_mode %}<form action="/audits/{{ job_id }}/cancel" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Cancel audit</button></form>{% endif %}
 {% elif state == "failed" %}
 <div class="status-banner status-banner--failed">
   <div class="status-banner__body">

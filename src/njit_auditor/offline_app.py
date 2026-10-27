@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.routing import Route
 
 from njit_auditor import web_app
+from njit_auditor.desktop_executor import DesktopExecutor
 from njit_auditor.resource_paths import resource_path
 
 SESSION_SECONDS = 8 * 60 * 60
@@ -142,10 +143,18 @@ def create_offline_app(
     data_root: Path,
     launch_ticket: str,
     on_quit: Callable[[], None] | None = None,
+    executor: DesktopExecutor | None = None,
 ) -> FastAPI:
     """Build an offline app with a separate route table and per-launch session."""
     web_app.RUNTIME_DIR = data_root / "audits"
     web_app._after_audit_task = _after_audit
+    manager = executor if executor is not None else DesktopExecutor()
+
+    def request_quit() -> None:
+        manager.close()
+        if on_quit is not None:
+            on_quit()
+
     global _cleanup_failed
     _cleanup_failed = False
     session = secrets.token_urlsafe(32)
@@ -157,7 +166,9 @@ def create_offline_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        expiry_timer = threading.Timer(SESSION_SECONDS, on_quit) if on_quit is not None else None
+        expiry_timer = (
+            threading.Timer(SESSION_SECONDS, request_quit) if on_quit is not None else None
+        )
         idle_stop = threading.Event()
 
         def idle_watchdog() -> None:
@@ -167,7 +178,7 @@ def create_offline_app(
                 with web_app._jobs_lock:
                     busy = any(j.state in ("pending", "running") for j in web_app._jobs.values())
                 if not busy and on_quit is not None:
-                    on_quit()
+                    request_quit()
                     return
 
         idle_thread = threading.Thread(target=idle_watchdog, daemon=True)
@@ -183,6 +194,7 @@ def create_offline_app(
                 expiry_timer.cancel()
                 idle_stop.set()
                 idle_thread.join(timeout=1)
+            manager.close()
             delete_all_local_audits()
 
     offline = FastAPI(
@@ -200,6 +212,10 @@ def create_offline_app(
         },
     )
     offline.state.offline_mode = True
+    offline.state.audit_executor = manager.run
+    offline.state.prepare_audit = manager.register
+    offline.state.desktop_executor = manager
+    offline.state.request_quit = request_quit
     offline.state.csrf_token = csrf
     offline.state.data_root = data_root
 
@@ -215,7 +231,9 @@ def create_offline_app(
         "This audit is stored only in your local application data until you delete it "
         "or quit. Downloaded reports saved elsewhere are yours to manage."
     )
-    templates.env.globals["offline_cleanup_failed"] = lambda: _cleanup_failed
+    templates.env.globals["offline_cleanup_failed"] = (
+        lambda: _cleanup_failed or manager.cleanup_failed.is_set()
+    )
     offline.state.templates = templates
 
     @offline.middleware("http")
@@ -285,6 +303,11 @@ def create_offline_app(
         return FileResponse(resource_path("assets", "icons", "njit-auditor.ico"),
                             media_type="image/vnd.microsoft.icon")
 
+    @offline.post("/audits/{job_id}/cancel")
+    async def cancel_audit(job_id: str):
+        manager.cancel(job_id)
+        return RedirectResponse(f"/audits/{job_id}", status_code=303)
+
     @offline.post("/audits/{job_id}/delete")
     async def delete_audit(job_id: str):
         status = _delete_job(job_id)
@@ -293,13 +316,14 @@ def create_offline_app(
     @offline.post("/local-data/delete-all")
     async def delete_all():
         result = delete_all_local_audits()
+        if not result.failed and not result.pending:
+            manager.cleanup_failed.clear()
         status = "failed" if result.failed else "pending" if result.pending else "deleted"
         return RedirectResponse(f"/?deletion={status}", status_code=303)
 
     @offline.post("/quit")
     async def quit_app():
-        if on_quit is not None:
-            on_quit()
+        request_quit()
         return HTMLResponse("<p>Auditor closed. You may close this tab.</p>")
 
     return offline

@@ -76,6 +76,8 @@ def parse_release(value: object) -> DesktopRelease:
         and value.get("native_windows_build_verified") is True
         and value.get("public_download_verified") is True
         and bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}T.+Z", str(value.get("verified_at", ""))))
+        and value.get("licensing_reviewed") is True
+        and value.get("license_basis") in {"commercial", "agpl-compliant"}
         and value.get("approved_for_distribution") is True
         and value.get("enabled") is True
     )

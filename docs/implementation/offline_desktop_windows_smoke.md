@@ -26,8 +26,9 @@ Run this on a genuine Windows x64 machine with Python 3.12 x64 for the build. Re
 11. Inspect `%LOCALAPPDATA%\NJIT Thesis Auditor\audits` and `tmp` during processing. Confirm files stay in the app directory and inspect their ACLs with `icacls`. Check two concurrent synthetic uploads and deletion while one audit is running.
 12. Use **Delete this audit** and **Delete all local audit data**. Confirm report/PDF URLs stop working, workspaces disappear, and a simulated failed deletion is visible and retryable. Leave an interrupted synthetic workspace, relaunch, and confirm startup cleanup.
 13. Use **Quit** and close the launcher window separately. Confirm the process and listener exit and `tmp` and audit workspaces are cleared. Exercise the 30-minute idle and eight-hour session expiry on a test host or with controlled clock constants. Check Task Manager for lingering child processes.
-14. Inspect application logs, crash output, browser responses, and bundled resources for synthetic PDF text, file paths, job IDs, ticket, cookie, and CSRF token. Record any leaks and redacted evidence.
+14. Exercise an owned hung-worker fixture on the native test host: verify the two-minute deadline, Cancel audit, Quit with running/queued work, process-tree termination, file cleanup, and a successful audit after recovery/relaunch. Run the deterministic lifecycle tests and real browser lifecycle case.
+15. Inspect application logs, crash output, browser responses, and bundled resources for synthetic PDF text, file paths, job IDs, ticket, cookie, and CSRF token. Record any leaks and redacted evidence.
 
-Repeat on clean Windows 10 and Windows 11 x64 with no Python installed for end-user launch, then record each tested Windows version in the candidate manifest. Do not enable downloads before anonymous public-asset checksum verification and distribution approval.
+Repeat on clean Windows 10 and Windows 11 x64 with no Python installed for end-user launch, then record each tested Windows version in the candidate manifest. Do not enable downloads before anonymous public-asset checksum verification, dependency licensing review, and distribution approval.
 
 Mark the Windows gate PASS only after the packaged executable passes these steps on native Windows x64. Preserve detailed logs outside Git; summarize results and remaining limits in the release readiness report.

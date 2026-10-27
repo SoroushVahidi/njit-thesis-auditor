@@ -34,6 +34,20 @@ def open_browser(url):
         output.write(url)
     return True
 webbrowser.open = open_browser
+if os.environ.get('DESKTOP_TEST_LIFECYCLE') == '1':
+    import json,sys
+    from njit_auditor import offline_app
+    from njit_auditor.desktop_executor import DesktopExecutor,worker_command
+    from njit_auditor.desktop_protocol import decode
+    def command(request):
+        payload=json.loads(request.read_text())
+        if decode(payload['job'])['file_name']=='hang.pdf':
+            code=("import os,pathlib,time; "
+                  "f=pathlib.Path(os.environ['DESKTOP_TEST_PIDS']).open('a'); "
+                  "f.write(str(os.getpid())+chr(10)); f.close(); time.sleep(60)")
+            return [sys.executable,'-c',code]
+        return worker_command(request)
+    offline_app.DesktopExecutor=lambda:DesktopExecutor(deadline=2,command=command)
 run_desktop(headless=True)
 """
 
@@ -227,4 +241,92 @@ def test_disabled_download_preview_fits(width, tmp_path, monkeypatch) -> None:
         folder = Path(os.environ.get("NJIT_DESKTOP_SCREENSHOTS", str(tmp_path)))
         folder.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(folder / f"download-preview-{width}.png"))
+        browser.close()
+
+
+@pytest.fixture()
+def bounded_desktop_process(request, monkeypatch, tmp_path):
+    monkeypatch.setenv("DESKTOP_TEST_LIFECYCLE", "1")
+    monkeypatch.setenv("DESKTOP_TEST_PIDS", str(tmp_path / "worker-pids"))
+    return request.getfixturevalue("desktop_process")
+
+
+def test_timeout_cancel_quit_and_reopen_via_real_browser(bounded_desktop_process, tmp_path):
+    from test_offline_desktop import _pdf
+
+    playwright = pytest.importorskip("playwright.sync_api")
+    session = bounded_desktop_process
+    with playwright.sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(session.url)
+
+        def upload(name):
+            page.goto(session.base)
+            page.locator("#file").set_input_files(
+                {
+                    "name": name,
+                    "mimeType": "application/pdf",
+                    "buffer": _pdf("normal"),
+                }
+            )
+            page.get_by_role("button", name="Start audit", exact=True).click()
+
+        upload("hang.pdf")
+        page.get_by_text("This audit took too long", exact=False).wait_for(timeout=10000)
+        upload("normal.pdf")
+        page.locator(".finding-card").first.wait_for(timeout=10000)
+        upload("hang.pdf")
+        page.get_by_role("button", name="Cancel audit", exact=True).click()
+        page.get_by_text("This audit was cancelled", exact=False).wait_for(timeout=10000)
+        upload("hang.pdf")
+        page.get_by_role("button", name="Quit", exact=True).click()
+        session.process.wait(timeout=5)
+        assert session.process.returncode == 0
+        for line in (tmp_path / "worker-pids").read_text().splitlines():
+            with pytest.raises(ProcessLookupError):
+                os.kill(int(line), 0)
+        for folder in (tmp_path / "local-data").rglob("audits"):
+            assert not any(folder.iterdir())
+        ticket = tmp_path / "reopen-ticket"
+        root = Path(__file__).parents[1]
+        env = {
+            **os.environ,
+            "PYTHONPATH": str(root / "src"),
+            "XDG_DATA_HOME": str(tmp_path / "local-data"),
+            "LOCALAPPDATA": str(tmp_path / "local-data"),
+            "DESKTOP_TEST_TICKET": str(ticket),
+            "DESKTOP_TEST_LIFECYCLE": "0",
+        }
+        reopened = subprocess.Popen(
+            [sys.executable, "-c", SERVER],
+            cwd=root,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            for _ in range(100):
+                assert reopened.poll() is None
+                if ticket.is_file():
+                    break
+                time.sleep(0.05)
+            assert ticket.is_file()
+            page.goto(ticket.read_text())
+            page.locator("#file").set_input_files(
+                {
+                    "name": "reopened.pdf",
+                    "mimeType": "application/pdf",
+                    "buffer": _pdf("normal"),
+                }
+            )
+            page.get_by_role("button", name="Start audit", exact=True).click()
+            page.locator(".finding-card").first.wait_for(timeout=10000)
+            page.get_by_role("button", name="Quit", exact=True).click()
+            reopened.wait(timeout=5)
+            assert reopened.returncode == 0
+        finally:
+            if reopened.poll() is None:
+                reopened.terminate()
+            reopened.wait(timeout=10)
         browser.close()

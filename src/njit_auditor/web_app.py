@@ -2299,7 +2299,11 @@ async def submit_audit(
         file_name=safe_name,
     )
     _set_job(job)
-    background_tasks.add_task(_run_audit_task, job_id)
+    # Desktop supplies a process supervisor; hosted web keeps its existing runner.
+    prepare_audit = getattr(request.app.state, "prepare_audit", None)
+    if prepare_audit is not None:
+        prepare_audit(job_id)
+    background_tasks.add_task(getattr(request.app.state, "audit_executor", _run_audit_task), job_id)
 
     return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 

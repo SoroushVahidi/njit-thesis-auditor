@@ -72,10 +72,13 @@ An unavailable `/desktop` returns 404. For a local visual review only,
 installer URL. Desktop mode excludes the download route and never advertises
 web downloads.
 
+The [dependency licensing review](desktop_license_review.md) is also a release
+gate; copying notices alone does not authorize distribution.
+
 A visible link requires all of: a versioned allowed HTTPS URL, valid SHA-256,
 positive measured size, native build verification, recorded native tests for
 every advertised Windows version, anonymous public-download verification and
-timestamp, explicit distribution approval, and enablement. The site reads only
+timestamp, explicit licensing review/basis, distribution approval, and enablement. The site reads only
 this static record; it does not make verification requests during page loads.
 
 ## Proposed public hosting
@@ -130,8 +133,10 @@ remain user-managed; deletion is not secure erasure. Existing link/junction
 and report path guards remain. Native Windows ACL/junction behavior is still
 a required verification gate.
 
-A stuck audit can still delay service exit: the inherited background execution
-has no killable per-audit deadline. This task does not redesign workers.
+Desktop audits now use a killable process supervisor with a 120-second
+deadline, cancellation, and process-tree cleanup. See
+[bounded desktop execution](desktop_bounded_execution.md). The hosted web
+execution policy is unchanged.
 The inherited IPv4-mapped IPv6 URL validation issue is unreachable through the
 desktop route table, which has no URL-import endpoint; it remains a separate
 web deployment issue. The inherited #621 PDF failure-log fixes are retained,

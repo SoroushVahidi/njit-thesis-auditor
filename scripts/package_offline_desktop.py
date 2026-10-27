@@ -65,6 +65,8 @@ def package_windows(bundle: Path, output: Path) -> dict[str, object]:
         "public_download_verified": False,
         "verified_at": "",
         "approved_for_distribution": False,
+        "licensing_reviewed": False,
+        "license_basis": "",
     }
     (output / (filename + ".sha256")).write_text(f"{digest}  {filename}\n", encoding="ascii")
     (output / (filename + ".json")).write_text(json.dumps(record, indent=2) + "\n", "utf-8")

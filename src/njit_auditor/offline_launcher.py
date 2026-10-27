@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import sys
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--desktop-worker":
+    from njit_auditor.desktop_worker import main as worker_main
+
+    raise SystemExit(worker_main(sys.argv[2:]))
+
 import argparse
 import importlib
 import os
 import secrets
 import socket
-import sys
 import tempfile
 import threading
 import urllib.parse
@@ -65,19 +71,21 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
         listener.listen(128)
         port = listener.getsockname()[1]
         ticket = secrets.token_urlsafe(32)
+        application = create_offline_app(
+            port=port,
+            data_root=root_dir,
+            launch_ticket=ticket,
+            on_quit=lambda: setattr(server, "should_exit", True),
+        )
         config = uvicorn.Config(
-            create_offline_app(
-                port=port,
-                data_root=root_dir,
-                launch_ticket=ticket,
-                on_quit=lambda: setattr(server, "should_exit", True),
-            ),
+            application,
             host="127.0.0.1",
             port=port,
             access_log=False,
             log_level="warning",
             server_header=False,
             proxy_headers=False,
+            timeout_graceful_shutdown=5,
         )
         server = uvicorn.Server(config)
         thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=False)
@@ -98,7 +106,13 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
                     except tk.TclError:
                         window = None
                     if window is not None:
-                        _configure_window(window, server, thread, lambda: webbrowser.open(url))
+                        _configure_window(
+                            window,
+                            server,
+                            thread,
+                            lambda: webbrowser.open(url),
+                            application.state.request_quit,
+                        )
             for _ in range(100):
                 if server.started or not thread.is_alive():
                     break
@@ -112,8 +126,13 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
             else:
                 window.mainloop()
         finally:
-            server.should_exit = True
-            thread.join(timeout=30)
+            application.state.request_quit()
+            thread.join(timeout=10)
+            if thread.is_alive():
+                server.force_exit = True
+                thread.join(timeout=2)
+            if thread.is_alive():
+                raise RuntimeError("The local auditor did not stop")
             listener.close()
             temp_dir = root_dir / "tmp"
             if not is_link_or_junction(temp_dir):
@@ -122,7 +141,7 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
             tempfile.tempdir = previous_tempdir
 
 
-def _configure_window(window, server, thread, open_auditor) -> None:
+def _configure_window(window, server, thread, open_auditor, request_quit) -> None:
     import tkinter as tk
 
     window.title("NJIT Thesis Auditor")
@@ -132,8 +151,8 @@ def _configure_window(window, server, thread, open_auditor) -> None:
     tk.Label(window, text="NJIT Thesis Auditor", font=("Arial", 16)).pack(pady=12)
     tk.Label(window, text=f"Version {DESKTOP_VERSION} · Runs on this computer").pack()
     tk.Button(window, text="Open auditor", command=open_auditor).pack(pady=8)
-    tk.Button(window, text="Quit", command=lambda: setattr(server, "should_exit", True)).pack()
-    window.protocol("WM_DELETE_WINDOW", lambda: setattr(server, "should_exit", True))
+    tk.Button(window, text="Quit", command=request_quit).pack()
+    window.protocol("WM_DELETE_WINDOW", request_quit)
 
     def update_window() -> None:
         if thread.is_alive() and not server.should_exit:

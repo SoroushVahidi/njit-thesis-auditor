@@ -5,6 +5,7 @@ import sys
 import json
 import platform
 import subprocess
+import runpy
 from PyInstaller.config import CONF
 
 ROOT = Path(SPECPATH).parent
@@ -13,6 +14,8 @@ from njit_auditor.desktop_metadata import DESKTOP_VERSION, FILE_VERSION
 
 resources = Path(CONF["workpath"]) / "desktop-resources"
 resources.mkdir(parents=True, exist_ok=True)
+collect_notices = runpy.run_path(str(ROOT / "scripts/collect_desktop_licenses.py"))["collect"]
+collect_notices(resources / "third-party-licenses")
 commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 (resources / "desktop-build-info.json").write_text(json.dumps({
     "version": DESKTOP_VERSION, "commit": commit,
@@ -41,6 +44,7 @@ DATA = [
 ]
 DATA += [
     (str(resources / "desktop-build-info.json"), "."),
+    (str(resources / "third-party-licenses"), "third-party-licenses"),
     (str(ROOT / "assets/icons/njit-auditor.ico"), "assets/icons"),
     (str(ROOT / "src/njit_auditor/offline_templates/index.html"),
      "src/njit_auditor/offline_templates"),
@@ -55,7 +59,7 @@ a = Analysis(
     pathex=[str(ROOT / "src")],
     binaries=[],
     datas=DATA,
-    hiddenimports=["msvcrt"] if sys.platform == "win32" else [],
+    hiddenimports=["njit_auditor.desktop_worker"] + (["msvcrt"] if sys.platform == "win32" else []),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

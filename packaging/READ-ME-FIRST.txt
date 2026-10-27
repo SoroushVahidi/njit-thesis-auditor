@@ -21,6 +21,9 @@ Delete this audit or Delete all local audit data removes working copies;
 Quit clears them too. Startup removes abandoned work after interruption.
 Downloaded reports remain where you save them. Deletion is not secure erasure.
 
+Each audit stops after two minutes, including queueing. Use Cancel audit
+to stop it sooner. If it times out, try a smaller PDF or audit it again.
+
 Findings are advisory. Check the NJIT requirements and obtain human review.
 Edit your original document and export a new PDF before auditing again.
 
