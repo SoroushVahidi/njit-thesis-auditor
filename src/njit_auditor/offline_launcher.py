@@ -13,7 +13,9 @@ import argparse
 import importlib
 import os
 import secrets
+import signal
 import socket
+import subprocess
 import tempfile
 import threading
 import urllib.parse
@@ -91,7 +93,12 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
         thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=False)
         thread.start()
         url = f"http://127.0.0.1:{port}/_session/start?ticket={urllib.parse.quote(ticket)}"
+        previous_sigterm = None
         try:
+            if sys.platform == "darwin" and threading.current_thread() is threading.main_thread():
+                previous_sigterm = signal.signal(
+                    signal.SIGTERM, lambda *_: application.state.request_quit()
+                )
             window = None
             if not headless:
                 try:
@@ -113,6 +120,8 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
                             lambda: webbrowser.open(url),
                             application.state.request_quit,
                         )
+                if sys.platform == "darwin" and window is None:
+                    raise RuntimeError("The macOS application requires bundled Tcl/Tk")
             for _ in range(100):
                 if server.started or not thread.is_alive():
                     break
@@ -126,6 +135,8 @@ def run_desktop(*, headless: bool = False, open_browser: bool = True) -> None:
             else:
                 window.mainloop()
         finally:
+            if previous_sigterm is not None:
+                signal.signal(signal.SIGTERM, previous_sigterm)
             application.state.request_quit()
             thread.join(timeout=10)
             if thread.is_alive():
@@ -162,6 +173,11 @@ def _configure_window(window, server, thread, open_auditor, request_quit) -> Non
 
     tk.Button(window, text="Quit", command=close_window).pack()
     window.protocol("WM_DELETE_WINDOW", close_window)
+    if sys.platform == "darwin":
+        # Tcl/Tk's default macOS Quit exits the interpreter without our cleanup.
+        window.createcommand("tk::mac::Quit", close_window)
+        window.createcommand("tk::mac::ReopenApplication", open_auditor)
+        window.bind_all("<Command-q>", lambda _event: close_window())
 
     def update_window() -> None:
         if thread.is_alive() and not server.should_exit:
@@ -190,6 +206,13 @@ def main() -> None:
         if os.name == "nt":
             ctypes = importlib.import_module("ctypes")
             ctypes.windll.user32.MessageBoxW(None, message, "NJIT Thesis Auditor", 0x10)
+        elif sys.platform == "darwin":
+            subprocess.run(
+                ["/usr/bin/osascript", "-e", f'display alert "NJIT Thesis Auditor" '
+                 f'message "{message}" as critical'],
+                check=False,
+                timeout=30,
+            )
         else:
             print(message, file=sys.stderr)
         raise SystemExit(1)

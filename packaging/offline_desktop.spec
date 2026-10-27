@@ -14,13 +14,25 @@ from njit_auditor.desktop_metadata import DESKTOP_VERSION, FILE_VERSION
 
 resources = Path(CONF["workpath"]) / "desktop-resources"
 resources.mkdir(parents=True, exist_ok=True)
+macos = sys.platform == "darwin"
+mac_icon = resources / "njit-auditor.icns"
+if macos:
+    from PIL import Image
+    with Image.open(ROOT / "assets/icons/njit-auditor.ico") as image:
+        image.convert("RGBA").resize((1024, 1024)).save(mac_icon)
 collect_notices = runpy.run_path(str(ROOT / "scripts/collect_desktop_licenses.py"))["collect"]
 collect_notices(resources / "third-party-licenses")
+if macos:
+    collect_native_notices = runpy.run_path(
+        str(ROOT / "scripts/collect_macos_runtime_licenses.py"))["collect"]
+    collect_native_notices(resources / "third-party-licenses")
 commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 (resources / "desktop-build-info.json").write_text(json.dumps({
     "version": DESKTOP_VERSION, "commit": commit,
     "system": platform.system(), "architecture": platform.machine(),
     "python": platform.python_version(),
+    "macos_build_version": platform.mac_ver()[0] if macos else None,
+    "distribution_approved": False,
 }), encoding="utf-8")
 version_file = resources / "windows-version.txt"
 version_file.write_text(f"""VSVersionInfo(
@@ -77,11 +89,30 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name="NJIT Thesis Auditor", debug=False, bootloader_ignore_signals=False,
-    strip=False, upx=False, console=sys.platform != "win32",
-    icon=str(ROOT / "assets/icons/njit-auditor.ico") if sys.platform == "win32" else None,
+    strip=False, upx=False, console=sys.platform not in {"win32", "darwin"},
+    icon=str(mac_icon) if macos else (
+        str(ROOT / "assets/icons/njit-auditor.ico") if sys.platform == "win32" else None),
     version=str(version_file) if sys.platform == "win32" else None,
+    target_arch=platform.machine() if macos else None,
+    argv_emulation=False,
 )
 coll = COLLECT(
     exe, a.binaries, a.datas, strip=False, upx=False,
     name="NJIT Thesis Auditor",
 )
+if macos:
+    app = BUNDLE(
+        coll,
+        name="NJIT Thesis Auditor.app",
+        icon=str(mac_icon),
+        bundle_identifier="io.github.soroushvahidi.njit-thesis-auditor",
+        version=".".join(str(part) for part in FILE_VERSION[:3]),
+        info_plist={
+            "CFBundleDisplayName": "NJIT Thesis Auditor",
+            "CFBundleShortVersionString": ".".join(str(part) for part in FILE_VERSION[:3]),
+            "NJITDesktopVersion": DESKTOP_VERSION,
+            "NSHighResolutionCapable": True,
+            "LSMinimumSystemVersion": platform.mac_ver()[0],
+            "NSHumanReadableCopyright": "Private development candidate; distribution not approved",
+        },
+    )

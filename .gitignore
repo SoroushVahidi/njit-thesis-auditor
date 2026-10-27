@@ -10,6 +10,8 @@ dist/
 
 # Virtual environments
 .venv/
+.venv-validation/
+.venv-macos-*/
 venv/
 
 # Tool caches

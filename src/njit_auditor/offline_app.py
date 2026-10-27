@@ -7,6 +7,7 @@ import os
 import secrets
 import shutil
 import stat
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -52,6 +53,8 @@ def local_data_root() -> Path:
     if os.name == "nt":
         profile = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
         return profile / "NJIT Thesis Auditor"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "NJIT Thesis Auditor"
     base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
     return base / "njit-thesis-auditor"
 
