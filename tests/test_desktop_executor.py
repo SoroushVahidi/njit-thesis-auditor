@@ -344,3 +344,40 @@ def test_quit_does_not_report_success_when_termination_is_unconfirmed(runtime, m
             assert response.status_code == 503
             assert "Try Quit again" in response.text and "Auditor closed" not in response.text
             assert not quit_called.is_set()
+
+
+@pytest.mark.parametrize("failure", [None, "terminate", "query", "active", "close"])
+def test_windows_job_requires_confirmed_empty_tree_before_release(monkeypatch, failure):
+    """API contract simulation only; native Windows Job Objects still require testing."""
+    from njit_auditor import desktop_process
+
+    calls = []
+    times = iter([100.0, 103.0])
+    monkeypatch.setattr(desktop_process.time, "monotonic", lambda: next(times))
+
+    class Kernel:
+        def TerminateJobObject(self, handle, code):
+            calls.append("terminate")
+            return failure != "terminate"
+
+        def QueryInformationJobObject(self, handle, kind, pointer, size, returned):
+            calls.append("query")
+            pointer._obj.ActiveProcesses = 1 if failure == "active" else 0
+            return failure != "query"
+
+        def CloseHandle(self, handle):
+            calls.append("close")
+            return failure != "close"
+
+    tree = ProcessTree.__new__(ProcessTree)
+    tree._job = 123
+    tree._kernel = Kernel()
+    if failure:
+        with pytest.raises(OSError):
+            tree._stop_windows_job()
+        assert tree._job == 123
+        if failure != "close":
+            assert "close" not in calls
+    else:
+        tree._stop_windows_job()
+        assert tree._job is None and calls == ["terminate", "query", "close"]

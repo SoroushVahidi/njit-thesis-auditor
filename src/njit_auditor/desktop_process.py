@@ -95,6 +95,14 @@ class ProcessTree:
         kernel.AssignProcessToJobObject.restype = wintypes.BOOL
         kernel.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
         kernel.TerminateJobObject.restype = wintypes.BOOL
+        kernel.QueryInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+        ]
+        kernel.QueryInformationJobObject.restype = wintypes.BOOL
         kernel.CloseHandle.argtypes = [wintypes.HANDLE]
         kernel.CloseHandle.restype = wintypes.BOOL
         job = kernel.CreateJobObjectW(None, None)
@@ -115,15 +123,47 @@ class ProcessTree:
             raise
         self._kernel, self._job = kernel, job
 
+    def _stop_windows_job(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class Accounting(ctypes.Structure):
+            _fields_ = [
+                ("TotalUserTime", ctypes.c_longlong),
+                ("TotalKernelTime", ctypes.c_longlong),
+                ("ThisPeriodTotalUserTime", ctypes.c_longlong),
+                ("ThisPeriodTotalKernelTime", ctypes.c_longlong),
+                ("TotalPageFaultCount", wintypes.DWORD),
+                ("TotalProcesses", wintypes.DWORD),
+                ("ActiveProcesses", wintypes.DWORD),
+                ("TotalTerminatedProcesses", wintypes.DWORD),
+            ]
+
+        if not self._kernel.TerminateJobObject(self._job, 1):
+            raise OSError("Could not terminate desktop process containment")
+        end = time.monotonic() + 2
+        while True:
+            info = Accounting()
+            if not self._kernel.QueryInformationJobObject(
+                self._job, 1, ctypes.byref(info), ctypes.sizeof(info), None
+            ):
+                raise OSError("Could not confirm desktop process termination")
+            if info.ActiveProcesses == 0:
+                break
+            if time.monotonic() >= end:
+                raise OSError("Desktop descendants did not stop")
+            time.sleep(0.01)
+        if not self._kernel.CloseHandle(self._job):
+            raise OSError("Could not release desktop process containment")
+        self._job = None
+
     def stop(self) -> None:
         """Kill descendants even if the root already exited; never cancel a Python thread."""
         with self._lock:
             if self._closed:
                 return
             if self._job is not None:
-                self._kernel.TerminateJobObject(self._job, 1)
-                self._kernel.CloseHandle(self._job)
-                self._job = None
+                self._stop_windows_job()
             elif os.name != "nt":
                 try:
                     os.killpg(self.process.pid, signal.SIGKILL)

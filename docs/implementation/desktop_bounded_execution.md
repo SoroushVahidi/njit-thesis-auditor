@@ -24,7 +24,10 @@ Worker stdout/stderr are discarded so native parser exceptions cannot become
 document text, paths, or bearer IDs in application logs. Worker Python socket
 and DNS operations are denied. An OS-level network-off test is still required.
 
-Process-tree reaping has a two-second wait per worker, plus a one-second
+Windows shutdown checks termination API results and waits up to two seconds
+for the Job Object's active-process count to reach zero before releasing its
+handle. An unconfirmed result retains ownership and files for retry.
+Process-tree reaping has a further two-second wait per worker, plus a one-second
 Linux descendant-reaping allowance. The local server has a
 five-second graceful-shutdown allowance, and launcher joins are bounded to ten
 seconds plus a two-second forced-server-exit attempt. These are cleanup limits,
@@ -88,3 +91,24 @@ that a new package will receive no reputation warning.
 The public website remains `enabled=false`, `preview=false`. No Windows ZIP,
 Windows checksum, Windows offline verification, public release, merge, or
 production deployment is claimed by this preparation work.
+
+## Preparation verification
+
+On Linux x86_64 / CPython 3.12.3, the safe automated suite, real Chromium
+desktop/mobile checks, and a clean pinned PyInstaller one-folder build passed.
+Four synthetic PDF types preserved same-revision web findings and JSON,
+Markdown, text, and PDF report content/drawings; only independent audit IDs,
+paths, and recorded timestamps were normalized. Highlight routes, malformed
+input recovery, repeated audits, access rejection, cleanup, and Quit passed.
+The frozen executable ran with no Python on PATH. A genuinely SIGSTOP-frozen
+worker was killed and reaped by protected Quit; the application reopened the
+same data root and completed another audit. Network syscall tracing recorded
+only a loopback listener and zero outbound connect calls. These observations
+do not establish native Windows behavior or disconnected-OS operation.
+
+The Windows Job Object failure/success API-contract tests run with a simulated
+kernel on Linux. They verify fail-closed ownership and cleanup decisions, not
+the native API, DLL layout, Windows process behavior, or package compatibility.
+The source worker/descendant tests also have Windows paths that remain unrun.
+No private dissertations were used. Historical/private-fixture exclusions and
+exact test counts are recorded in the external validation report for this task.
