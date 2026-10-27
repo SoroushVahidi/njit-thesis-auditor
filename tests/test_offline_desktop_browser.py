@@ -25,6 +25,8 @@ def deny(*args, **kwargs):
 socket.socket.connect = deny
 socket.getaddrinfo = deny
 socket.gethostbyname = deny
+from njit_auditor import offline_launcher
+offline_launcher.local_data_root = lambda: Path(os.environ["XDG_DATA_HOME"]) / "njit-thesis-auditor"
 from njit_auditor.offline_launcher import run_desktop
 
 def open_browser(url):

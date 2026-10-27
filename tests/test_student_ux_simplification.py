@@ -89,7 +89,9 @@ def test_real_downloader_error_processing_and_cleanup(
     case: str,
     expected: str | None,
     status: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("NJIT_AUDITOR_ENABLE_PDF_URL_AUDITING", "1")
     client, wa = web
     real_build = urllib.request.build_opener
     requested: list[str] = []
@@ -171,7 +173,10 @@ def test_real_downloader_error_processing_and_cleanup(
         "https://fixture.example:invalid/a.pdf",
     ],
 )
-def test_validation_keeps_requests_off_network(web: tuple[TestClient, Any], url: str) -> None:
+def test_validation_keeps_requests_off_network(
+    web: tuple[TestClient, Any], url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("NJIT_AUDITOR_ENABLE_PDF_URL_AUDITING", "1")
     client, wa = web
     with patch("urllib.request.build_opener") as opener:
         response = client.post("/audits/url", data={"pdf_url": url})

@@ -261,7 +261,10 @@ def test_pdf_upload_still_creates_job(client: tuple[TestClient, Any]) -> None:
     assert resp.headers["location"].startswith("/audits/")
 
 
-def test_public_pdf_url_audit_still_creates_job(client: tuple[TestClient, Any]) -> None:
+def test_public_pdf_url_audit_still_creates_job(
+    client: tuple[TestClient, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("NJIT_AUDITOR_ENABLE_PDF_URL_AUDITING", "1")
     c, wa = client
 
     def _fake_fetch(url: str, dest: Path, max_bytes: int) -> None:

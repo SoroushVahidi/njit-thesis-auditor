@@ -271,7 +271,6 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
 
     common_tokens = [
         "Upload your PDF",
-        "Use a public PDF link",
         "Try a synthetic sample",
         "PDF",
         "Privacy and retention",
@@ -280,10 +279,9 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Help",
         "Rule Reference",
         "Drop a PDF file here",
-        "Use a public PDF link",
         "Start audit",
-        "Audit PDF URL",
     ]
+    assert "pdf_url" not in mobile and "pdf_url" not in desktop
     _assert_contains_tokens(mobile, common_tokens)
     _assert_contains_tokens(desktop, common_tokens)
     sample_state = (
