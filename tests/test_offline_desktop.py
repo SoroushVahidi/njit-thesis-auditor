@@ -35,7 +35,11 @@ def _pdf(kind: str) -> bytes:
     elif kind == "uri_link":
         page.insert_text((60, 80), "Synthetic dissertation chapter", fontsize=12)
         page.insert_link(
-            {"kind": fitz.LINK_URI, "from": fitz.Rect(60, 60, 220, 85), "uri": "https://invalid.example/audit"}
+            {
+                "kind": fitz.LINK_URI,
+                "from": fitz.Rect(60, 60, 220, 85),
+                "uri": "https://invalid.example/audit",
+            }
         )
     result = doc.tobytes()
     doc.close()
@@ -74,9 +78,19 @@ def _normalize(value: object) -> object:
     return value
 
 
+def _normalize_audit_time(text: str) -> str:
+    # Independent audits legitimately cross a wall-clock second. Only the
+    # report header's recorded audit time is volatile; findings stay exact.
+    return re.sub(
+        r"(?m)^(Audit date/time \(UTC\): )\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$",
+        r"\1<time>",
+        text,
+    )
+
+
 def _report_pdf_content(payload: bytes) -> list[tuple[str, list[dict]]]:
     with fitz.open(stream=payload, filetype="pdf") as doc:
-        return [(page.get_text(), page.get_drawings()) for page in doc]
+        return [(_normalize_audit_time(page.get_text()), page.get_drawings()) for page in doc]
 
 
 def _normalize_markdown(payload: bytes) -> str:
@@ -142,7 +156,9 @@ def test_online_offline_parity(kind: str) -> None:
             offline_highlight = offline.get(offline_url + "/highlighted-page.pdf?page=1")
             assert offline_pdf.status_code == offline_combined.status_code == 200
             assert online_pdf.content == offline_pdf.content
-            assert online_text == offline_text
+            assert _normalize_audit_time(online_text.decode()) == _normalize_audit_time(
+                offline_text.decode()
+            )
             assert _normalize_markdown(online_md) == _normalize_markdown(offline_md)
             assert _report_pdf_content(online_combined.content) == _report_pdf_content(
                 offline_combined.content
@@ -527,9 +543,7 @@ def test_reparse_point_detection_works_without_path_is_junction(
 ) -> None:
     path = Path("synthetic-windows-junction")
     monkeypatch.setattr(Path, "is_symlink", lambda self: False)
-    monkeypatch.setattr(
-        Path, "lstat", lambda self: SimpleNamespace(st_file_attributes=0x400)
-    )
+    monkeypatch.setattr(Path, "lstat", lambda self: SimpleNamespace(st_file_attributes=0x400))
     assert offline_app.is_link_or_junction(path)
 
 
@@ -545,9 +559,7 @@ def test_report_download_refuses_link_outside_runtime() -> None:
             client.get("/_session/start?ticket=ticket")
             url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
             job_id = url.rsplit("/", 1)[-1]
-            for extension, route in (
-                ("json", "json"), ("md", "markdown"), ("txt", "text")
-            ):
+            for extension, route in (("json", "json"), ("md", "markdown"), ("txt", "text")):
                 report = audits / job_id / f"report.{extension}"
                 report.unlink()
                 try:
@@ -611,3 +623,10 @@ def test_highlight_failure_does_not_log_job_id_or_exception_message(
             assert "synthetic-secret-highlight-text" not in caplog.text
             assert job_id not in caplog.text
             assert "RuntimeError" in caplog.text
+
+
+def test_parity_normalization_changes_only_the_report_audit_time() -> None:
+    first = "Audit date/time (UTC): 2026-10-26 23:59:59\nMeasured gap: 12.5 pt\n"
+    second = "Audit date/time (UTC): 2026-10-27 00:00:00\nMeasured gap: 12.5 pt\n"
+    assert _normalize_audit_time(first) == _normalize_audit_time(second)
+    assert _normalize_audit_time(first) != _normalize_audit_time(second.replace("12.5", "13.5"))

@@ -45,7 +45,8 @@ This developer command creates a fresh build environment, installs the pinned
 constraints, runs the allowlisted PyInstaller spec, and prepares the portable
 ZIP. The spec includes About and the current shared finding templates, font
 and license, application icon, Windows version resource, and build provenance.
-The Windows-specific dynamically imported lock module is included explicitly.
+The Windows-specific dynamically imported lock module is included explicitly;
+PyInstaller's Windows-only pefile and pywin32-ctypes dependencies are also pinned.
 It excludes private samples, raw documents, repository history, and the URL
 fetcher. The packager refuses a non-Windows host or a non-x64 PE launcher.
 Neither a mocked PE test nor a Linux bundle satisfies native verification.
@@ -136,3 +137,31 @@ desktop route table, which has no URL-import endpoint; it remains a separate
 web deployment issue. The inherited #621 PDF failure-log fixes are retained,
 not treated as a newly completed production deployment. Browser/OS telemetry,
 extensions, and exported files are outside the app's session boundary.
+
+
+## Verification performed during this preparation
+
+The integrated source's real local-launcher/Chromium checks passed at 390 and
+1440 pixels, including all eight corrected student actions, About, keyboard
+controls, filters, highlights, exports, repeated audits, deletion, corrupt-PDF
+recovery, and Quit. The download preview is disabled and has no installer link.
+
+The pure Windows version-resource parser/serializer was checked on Linux with
+the unavailable native API stubbed out; this does not test native embedding. A clean pinned Linux x64
+PyInstaller build was also exercised with Python
+absent from PATH. Four synthetic fixture types matched the same source
+revision's web auditor for normalized JSON, Markdown, text, and PDF reports.
+Its traced application run bound only 127.0.0.1, recorded no connect syscalls,
+rejected unauthorized HTTP access, and cleared working files and its listener
+on Quit. Bundle names and archive module listings excluded the private/sample
+and URL-fetch modules; this is an inventory check, not a confidentiality proof
+for arbitrary bytes. The archive is marked Linux DEVELOPMENT only, is kept
+outside Git, and is not a Windows build or approved public release.
+
+Source audit tests denied application socket/DNS calls; the browser harness
+blocked external requests. A genuine disabled-network namespace was unavailable
+(permission denied), so OS-level disconnected-network verification remains
+open. Tcl/Tk was absent from the Linux build environment, so its browser fallback
+was exercised. Windows GUI controls, clean Windows machines, ACLs/junctions,
+and Windows network behavior remain unverified. No production service was
+contacted for document processing, deployed, or restarted.
