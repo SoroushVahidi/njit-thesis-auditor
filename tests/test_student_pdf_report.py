@@ -204,17 +204,17 @@ def test_student_report_identifies_scope_date_and_manual_work(tmp_path: Path) ->
     )
     assert "Audit date/time (UTC): 2026-10-16 19:35:00" in report
     assert "Findings needing review: 1" in report
-    assert "Every GSO checklist topic needs manual review" in report
+    assert "Automated checks may miss problems" in report
     assert "15 of 16" not in report
     assert "Manual-only areas: 1" not in report
-    assert "Verified passing requirements: not measured" in report
+    assert "Verified passing requirements" not in report
     assert "GSO area: Margins; rule: R011" in report
     assert "Expected requirement:" in report
     assert "The left margin is 1.5 inches" in report
     assert "Correction detail: Remove reviewer notes" in report
     assert "Manuscript page: 1" in report
     assert "Bottom margin — approximately 22 pt over" in report
-    assert "GSO approval" in report
+    assert "official thesis checklist before submission" in report
     build_combined_student_pdf_report(
         source,
         output,
@@ -239,14 +239,13 @@ def test_student_report_identifies_scope_date_and_manual_work(tmp_path: Path) ->
     for phrase in (
         "Audit date/time (UTC): 2026-10-16 19:35:00",
         "Findings needing review: 1",
-        "Every GSO checklist topic needs manual review",
-        "Verified passing requirements: not measured",
+        "Automated checks may miss problems",
         "Expected requirement:",
         "Correction detail: Remove reviewer notes",
         "Manuscript page: 1",
-        "GSO approval",
+        "official thesis checklist before submission",
     ):
-        assert phrase in appendix
+        assert phrase in " ".join(appendix.split())
 
 
 def test_report_timestamp_does_not_invent_missing_or_local_time() -> None:

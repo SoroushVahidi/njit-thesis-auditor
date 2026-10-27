@@ -19,6 +19,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from njit_auditor.coverage_disclosure import (
+    OFFICIAL_CHECKLIST_URL,
+    STUDENT_LIMITATION_DISCLOSURE,
+)
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.issue_type_explanations import (
     has_curated_issue_type_title,
@@ -532,12 +536,8 @@ def _render_text(
         lines.append(f"{total_problems} {problem_noun} requiring review.")
     lines.append(_SEP_LIGHT)
     lines.append("")
-    lines.append(
-        "This is an automated formatting check. It does not replace a full "
-        "Graduate Studies review. Verify every item below against the current "
-        "NJIT Thesis/Dissertation Formatting Guidelines and your committee's "
-        "requirements before you submit."
-    )
+    lines.append(STUDENT_LIMITATION_DISCLOSURE)
+    lines.append(f"Official checklist and review process: {OFFICIAL_CHECKLIST_URL}")
     lines.append("")
 
     for page, manuscript_page, records in page_sections:
@@ -561,11 +561,7 @@ def _render_text(
             lines.extend(_render_record(record))
 
     lines.append(_SEP_LIGHT)
-    lines.append(
-        "End of report. This report was generated automatically and may contain "
-        "false positives or miss issues outside its checks. Confirm every item "
-        "against the official NJIT formatting guidelines before submission."
-    )
+    lines.append("End of report.")
     lines.append(_SEP_LIGHT)
 
     return "\n".join(lines) + "\n"

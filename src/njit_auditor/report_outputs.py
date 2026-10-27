@@ -10,7 +10,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from njit_auditor.coverage_disclosure import coverage_markdown_lines
+from njit_auditor.coverage_disclosure import (
+    OFFICIAL_CHECKLIST_URL,
+    STUDENT_LIMITATION_DISCLOSURE,
+)
 from njit_auditor.evaluation import map_finding_rule_to_category
 from njit_auditor.incomplete_audit import (
     INCOMPLETE_AUDIT_TITLE,
@@ -4022,7 +4025,6 @@ def write_markdown_report(
     findings: list[AuditFinding], metadata: dict[str, str], output_path: Path
 ) -> None:
     """Write student/office-friendly markdown audit report."""
-    from njit_auditor.polished_comments import GLOBAL_AUTOMATED_REVIEW_NOTE
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     audit_type = metadata.get("audit_type", "pdf")
@@ -4041,7 +4043,8 @@ def write_markdown_report(
     lines.append(title)
     lines.append("")
     if audit_type != "tex":
-        lines.append(f"> {GLOBAL_AUTOMATED_REVIEW_NOTE}")
+        lines.append(f"> {STUDENT_LIMITATION_DISCLOSURE}")
+        lines.append(f"[Official NJIT checklist and review process]({OFFICIAL_CHECKLIST_URL})")
         lines.append("")
     incomplete_notice = incomplete_audit_notice(failed_check_count_from_metadata(meta))
     if incomplete_notice:
@@ -4166,9 +4169,6 @@ def write_markdown_report(
             )
             lines.append("")
 
-    if audit_type != "tex":
-        lines.extend(coverage_markdown_lines())
-
     lines.append("## Findings by Rule")
     lines.append("")
     for rule_id, rule_findings in grouped_by_rule.items():
@@ -4242,7 +4242,8 @@ def write_markdown_report(
         "(such as headings, list entries, and flagged words); share it only as you "
         "would share the document."
     )
-    lines.append("- Limitation: findings are heuristic and require human review.")
+    if audit_type == "tex":
+        lines.append("- Limitation: findings are heuristic and require human review.")
 
     output_path.write_text(
         convert_pxxx_tokens_to_public_display("\n".join(lines) + "\n"), encoding="utf-8"

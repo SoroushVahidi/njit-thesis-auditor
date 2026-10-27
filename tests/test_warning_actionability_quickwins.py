@@ -9,9 +9,9 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from njit_auditor.coverage_disclosure import STUDENT_LIMITATION_DISCLOSURE
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.polished_comments import (
-    GLOBAL_AUTOMATED_REVIEW_NOTE,
     VERIFY_SUFFIX,
     build_polished_comment,
 )
@@ -148,7 +148,7 @@ def test_markdown_has_global_caveat_not_per_line_verify_suffix(tmp_path: Path) -
     md_path = tmp_path / "report.md"
     write_markdown_report(findings, {"audit_type": "pdf"}, md_path)
     text = md_path.read_text(encoding="utf-8")
-    assert GLOBAL_AUTOMATED_REVIEW_NOTE in text
+    assert text.count(STUDENT_LIMITATION_DISCLOSURE) == 1
     assert VERIFY_SUFFIX not in text
 
 

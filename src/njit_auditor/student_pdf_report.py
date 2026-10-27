@@ -20,13 +20,11 @@ from typing import Any
 import fitz
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
 
 from njit_auditor.coverage_disclosure import (
-    COVERAGE_AREAS,
-    COVERAGE_HEADING,
-    COVERAGE_INTRO,
-    coverage_text_lines,
+    OFFICIAL_CHECKLIST_URL,
+    STUDENT_LIMITATION_DISCLOSURE,
 )
 from njit_auditor.incomplete_audit import INCOMPLETE_AUDIT_TITLE, incomplete_audit_notice
 from njit_auditor.issue_type_explanations import (
@@ -44,6 +42,7 @@ from njit_auditor.report_outputs import category_display_label, public_display_r
 from njit_auditor.report_text import _detruncate_fix_text
 from njit_auditor.report_view import SORT_MODE_PAGE, sort_findings
 from njit_auditor.resource_paths import resource_path
+from njit_auditor.student_confidence import CONFIDENCE_COLORS
 
 
 @dataclass(frozen=True)
@@ -231,13 +230,10 @@ def _audit_timestamp(value: str | None) -> str:
 
 
 def _scope_lines(findings: Sequence[Mapping[str, Any]], failed_check_count: int) -> list[str]:
-    return [
-        f"Findings needing review: {len(findings)} (warnings, not verified failures)",
-        "Every GSO checklist topic needs manual review; some individual items "
-        "have no automatic check.",
-        f"Skipped or failed checks in this audit: {failed_check_count}",
-        "Verified passing requirements: not measured by this audit; no finding is not a pass.",
-    ]
+    lines = [f"Findings needing review: {len(findings)}"]
+    if failed_check_count:
+        lines.append(f"Skipped or failed checks in this audit: {failed_check_count}")
+    return lines
 
 
 def render_student_report_text(
@@ -262,8 +258,8 @@ def render_student_report_text(
     lines.extend(
         [
             "",
-            "This report supports review. It is not GSO approval or a replacement "
-            "for the self-assessment sheet.",
+            STUDENT_LIMITATION_DISCLOSURE,
+            f"Official checklist and review process: {OFFICIAL_CHECKLIST_URL}",
             "",
         ]
     )
@@ -273,7 +269,6 @@ def render_student_report_text(
     if not ordered:
         lines.append("No formatting problems were detected by the implemented checks.")
         lines.append("")
-    lines.extend(coverage_text_lines())
     current_page: int | None = None
     doc_heading = False
     for finding in ordered:
@@ -370,15 +365,17 @@ def _styles() -> dict[str, ParagraphStyle]:
             spaceAfter=6,
             splitLongWords=True,
         ),
-        "coverage": ParagraphStyle(
-            "StudentCoverage",
-            parent=base["BodyText"],
-            fontName=font_name,
-            fontSize=8,
-            leading=10.5,
-            spaceAfter=3,
-            splitLongWords=True,
-        ),
+        **{
+            f"confidence-{level}": ParagraphStyle(
+                f"StudentConfidence{level}", parent=base["BodyText"],
+                fontName=font_name, fontSize=8, leading=12, spaceAfter=7,
+                textColor=colors.HexColor(palette["foreground"]),
+                backColor=colors.HexColor(palette["background"]),
+                borderColor=colors.HexColor(palette["border"]),
+                borderWidth=0.5, borderPadding=4,
+            )
+            for level, palette in CONFIDENCE_COLORS.items()
+        },
         "small": ParagraphStyle(
             "StudentSmall",
             parent=base["BodyText"],
@@ -430,10 +427,8 @@ def _report_pdf(
         _p(f"File: {file_name}", styles["body"]),
         _p(f"Audit date/time (UTC): {_audit_timestamp(audit_at)}", styles["body"]),
         _p(
-            "The preceding pages contain your thesis with detected formatting problems "
-            "highlighted where an exact location was available. The problems below are "
-            "listed in document order. Problem numbers correspond to numbered highlights "
-            "when shown.",
+            "The preceding PDF pages show available highlights. Findings below follow PDF "
+            "page order; numbers match highlight markers where available.",
             styles["body"],
         ),
     ]
@@ -445,8 +440,7 @@ def _report_pdf(
         story.append(_p(line, styles["body"]))
     story.append(
         _p(
-            "This report supports review. It is not GSO approval or a replacement "
-            "for the self-assessment sheet.",
+            STUDENT_LIMITATION_DISCLOSURE,
             styles["small"],
         )
     )
@@ -462,23 +456,14 @@ def _report_pdf(
     if not findings:
         story.append(
             _p(
-                "No formatting problems were detected by the implemented checks. "
-                "This automated check does not establish full compliance with NJIT requirements.",
+                "No formatting problems were detected by the implemented checks.",
                 styles["body"],
             )
         )
-    story.append(_p(COVERAGE_HEADING, styles["subtitle"]))
-    for paragraph in COVERAGE_INTRO:
-        story.append(_p(paragraph, styles["body"]))
-    for area in COVERAGE_AREAS:
-        # Heading colour marks the title: the registered DejaVu font has no bold face.
-        parts = [
-            f'<font color="#12365a">{escape(area.title)} ({escape(area.status_label)}).</font>'
-        ]
-        if area.checked:
-            parts.append(f"Checked: {escape(area.checked)}")
-        parts.append(f"Check yourself: {escape(area.manual)}")
-        story.append(Paragraph(" ".join(parts), styles["coverage"]))
+    story.append(Paragraph(
+        f'<link href="{OFFICIAL_CHECKLIST_URL}" color="#0059a8">'
+        'Official NJIT checklist and review process</link>', styles["small"]
+    ))
     story.append(Spacer(1, 5))
     current_page: int | None = None
     doc_heading = False
@@ -511,7 +496,16 @@ def _report_pdf(
         if _extra_fix(finding):
             block.append(_p(f"Correction detail: {_extra_fix(finding)}", styles["small"]))
         if _field(finding, "confidence_label"):
-            block.append(_p(f"Confidence: {_field(finding, 'confidence_label')}", styles["small"]))
+            label = _field(finding, "confidence_label")
+            level = label.split()[0].lower()
+            style = styles.get(f"confidence-{level}", styles["small"])
+            block.append(Table(
+                [[_p(label, style)]], colWidths=[110], hAlign="LEFT",
+                style=[("LEFTPADDING", (0, 0), (-1, -1), 0),
+                       ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                       ("TOPPADDING", (0, 0), (-1, -1), 4),
+                       ("BOTTOMPADDING", (0, 0), (-1, -1), 8)],
+            ))
         if page is not None and not finding.get("_combined_has_highlight", False):
             block.append(_p("Exact visual highlight unavailable.", styles["small"]))
             if _field(finding, "no_highlight_reason"):
@@ -527,13 +521,6 @@ def _report_pdf(
         # The heading stays with the first text line; long explanations can
         # flow naturally onto subsequent report pages.
         story.extend(block)
-    story.append(
-        _p(
-            "Automated checks can miss issues or flag acceptable formatting. "
-            "Confirm findings against the current NJIT guidelines before submission.",
-            styles["small"],
-        )
-    )
     doc.build(story, onFirstPage=_report_page_footer, onLaterPages=_report_page_footer)
     return buffer.getvalue()
 

@@ -2,8 +2,8 @@ import json
 import re
 from pathlib import Path
 
+from njit_auditor.coverage_disclosure import STUDENT_LIMITATION_DISCLOSURE
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.polished_comments import GLOBAL_AUTOMATED_REVIEW_NOTE
 from njit_auditor.report_outputs import (
     P011_ISSUE_TYPE,
     P012_ISSUE_TYPE,
@@ -1407,7 +1407,7 @@ def test_markdown_grouped_section_adds_manual_check_hint_for_non_high_confidence
         _repeated_synthetic_findings(confidence="medium"), _metadata(), output_path
     )
     text = output_path.read_text(encoding="utf-8")
-    assert GLOBAL_AUTOMATED_REVIEW_NOTE in text
+    assert STUDENT_LIMITATION_DISCLOSURE in text
     assert "verify this item against the NJIT format requirements" not in text
 
 
@@ -1419,7 +1419,7 @@ def test_markdown_grouped_section_omits_manual_check_hint_for_high_confidence(
         _repeated_synthetic_findings(confidence="high"), _metadata(), output_path
     )
     text = output_path.read_text(encoding="utf-8")
-    assert GLOBAL_AUTOMATED_REVIEW_NOTE in text
+    assert STUDENT_LIMITATION_DISCLOSURE in text
     assert "verify this item against the NJIT format requirements" not in text
 
 

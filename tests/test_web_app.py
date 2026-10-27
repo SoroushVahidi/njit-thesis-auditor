@@ -567,7 +567,7 @@ def test_summary_all_warning_report_hides_needs_fixing_and_worth_checking_cards(
     assert '<div class="summary-card__value">3</div>' in html
     assert '<div class="summary-card__label">Needs fixing</div>' not in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
-    assert "No automatic check replaces NJIT review." in html
+    assert html.count("Automated checks may miss problems or flag things incorrectly.") == 1
 
 
 def test_summary_shows_needs_fixing_card_when_fail_count_positive(
@@ -1502,7 +1502,7 @@ def test_results_page_confidence_badges_use_only_three_public_values(
     assert resp.status_code == 200
     body = resp.text
 
-    badge_classes = set(re.findall(r"confidence-badge--(\S+?)[\"' ]", body))
+    badge_classes = set(re.findall(r'class="confidence-badge confidence-badge--([^"\s]+)', body))
     assert badge_classes, "expected at least one confidence badge on the page"
     assert badge_classes <= {"high", "medium", "low"}, badge_classes
 
@@ -4099,12 +4099,14 @@ def test_results_page_review_order_uses_simple_priority_labels(
 def test_results_page_verify_wording_in_status_banner(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Status banner must include automated / verify wording, without the word "heuristic"."""
+    """One concise disclosure replaces the repeated status-banner warning."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Review each flagged item against NJIT guidelines." in resp.content
+    assert resp.content.count(
+        b"Automated checks may miss problems or flag things incorrectly."
+    ) == 1
     assert b"heuristic" not in resp.content.lower()
 
 

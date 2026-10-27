@@ -1,9 +1,9 @@
 """What the PDF audit checks, and what students must still verify themselves.
 
 One shared description of check coverage, organized by the sections of the
-Graduate Studies self-assessment sheet. The web results page, the plain-text
-and Markdown downloads, and the combined student PDF all render from this
-data so the disclosure cannot drift between surfaces.
+Graduate Studies self-assessment sheet. About retains this full inventory.
+Results and student downloads share one concise disclosure instead of
+repeating the coverage inventory.
 
 Coverage was classified from the rule modules and their tests, not from the
 rule registry. ``rule_ids`` lists the internal rules behind each "checked" or
@@ -26,6 +26,16 @@ STATUS_LABELS: dict[CoverageStatus, str] = {
     "manual": "Not checked",
     "guidance_differs": "Partly checked; guidance differs",
 }
+
+STUDENT_LIMITATION_DISCLOSURE = (
+    "Automated checks may miss problems or flag things incorrectly. "
+    "Review the findings and use NJIT's official thesis checklist before submission."
+)
+# NJIT's review-process page links to the current self-assessment sheet.
+# Prefer this public landing page over a document that may require sign-in.
+OFFICIAL_CHECKLIST_URL = (
+    "https://www.njit.edu/graduatestudies/gso-announcements-graduate-students"
+)
 
 COVERAGE_HEADING = "What this report checked and what you must check yourself"
 

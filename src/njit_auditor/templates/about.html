@@ -18,7 +18,7 @@
 </section>
 <section class="card section" id="findings">
   <h2>What the findings mean</h2>
-  <p>A finding is a prompt to check your document. High, Medium, and Low confidence describe the automated evidence, not approval or certainty.</p>
+  <p>Confidence indicates how certain the auditor is about a finding, not how serious the problem is.</p>
   <details><summary>Understanding the results</summary>
     <p>Findings appear in page order. Filter by topic, page, or confidence. Counts exclude informational page-number candidates in the Advanced section.</p>
     <p>Some findings apply to a whole document or lack a precise highlight. They still appear in reports. “Why is this flagged?” preserves the full correction and background.</p>
@@ -29,9 +29,33 @@
   <h2>Limitations and human review</h2>
   <p>This research prototype can miss problems or flag correct formatting. No findings does not mean full compliance. Verify results against NJIT guidelines and complete official human review.</p>
   <details><summary>What needs extra review?</summary>
-    <p>Scanned PDFs and poor text extraction limit checks. Some requirements need human judgment; the results page lists coverage and manual checks. A skipped or failed check is not a pass.</p>
+    <p>Scanned PDFs and poor text extraction limit checks. Some requirements need human judgment; the coverage details below list manual checks. A skipped or failed check is not a pass.</p>
     <p>For detailed terminology and limitations, see <a href="/help">Help</a>.</p>
   </details>
+  <details id="coverage"><summary>Automatic checks and manual review by topic</summary>
+    {% for paragraph in coverage_intro %}<p>{{ paragraph }}</p>{% endfor %}
+    {% for area in coverage_areas %}
+    <details class="coverage-item coverage-item--{{ area.status }}">
+      <summary>{{ area.title }} — {{ area.status_label }}</summary>
+      {% if area.checked %}<p><strong>Automatically examined:</strong> {{ area.checked }}</p>{% endif %}
+      <p><strong>Check yourself:</strong> {{ area.manual }}</p>
+    </details>
+    {% endfor %}
+  </details>
+  <details><summary>Requirements not yet implemented</summary>
+    <p>The 83-requirement review records 45 partially automated requirements, 32 requiring manual review, 5 not implemented, and 1 unresolved guidance conflict. Partial checks do not establish full compliance.</p>
+    <ul>
+      <li>Spacing within and between bullet items.</li>
+      <li>Continued-table headings and linking only the initial page in the List of Tables.</li>
+      <li>Chapter-based equation numbering.</li>
+      <li>Equation centering and right-aligned parenthesized numbers.</li>
+      <li>In-text “Equation” capitalization and matching numbers.</li>
+    </ul>
+  </details>
+  <details><summary>Unresolved List of Figures guidance</summary>
+    <p>The self-assessment sheet describes sentence case; later Graduate Studies reviewer guidance calls for title case. The check follows that later guidance. Confirm the expected style with Graduate Studies; this conflict remains unresolved.</p>
+  </details>
+  <p><a href="{{ official_checklist_url }}">NJIT's official thesis checklist and review process</a></p>
 </section>
 <section class="card section" id="privacy">
   <h2>Privacy and document retention</h2>

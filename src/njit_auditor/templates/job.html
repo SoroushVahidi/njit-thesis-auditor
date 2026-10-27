@@ -4,13 +4,6 @@
 
 {% block head_extra %}
 <style>
-  .coverage-card p { margin: 0 0 0.5rem; font-size: 0.92rem; }
-  .coverage-list { margin: 0.5rem 0 0; }
-  .coverage-item { padding: 0.5rem 0; border-top: 1px solid var(--color-border); }
-  .coverage-item dt { font-weight: 700; }
-  .coverage-item dd { margin: 0.2rem 0 0; font-size: 0.88rem; overflow-wrap: anywhere; }
-  .coverage-status { font-weight: 600; font-size: 0.78rem; color: var(--color-muted); margin-left: 0.35rem; }
-  .coverage-item--manual .coverage-status, .coverage-item--guidance_differs .coverage-status { color: #8a5a00; }
   .rule-link { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
   .rule-link:hover { color: var(--color-primary-dark); }
   .page-link { color: var(--color-primary); font-size: 0.82rem; white-space: nowrap; }
@@ -43,28 +36,6 @@
   .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.15rem 0; }
   .issue-type-help summary:hover { text-decoration: underline; }
   .issue-type-help p { margin: 0.3rem 0 0; color: var(--color-text-muted, #555); font-size: 0.88rem; }
-  .confidence-badge {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    border: 1px solid transparent;
-    text-transform: none;
-    letter-spacing: 0;
-    line-height: 1.2;
-    max-width: 100%;
-    white-space: normal;
-    text-align: center;
-  }
-  .confidence-badge--low,
-  .confidence-badge--medium,
-  .confidence-badge--high {
-    background: #f1f3f5;
-    border-color: #adb5bd;
-    color: #343a40;
-  }
   .confidence-filter {
     display: grid;
     gap: 0.45rem;
@@ -91,14 +62,14 @@
     line-height: 1.2;
   }
   .confidence-filter__chip[aria-pressed="true"] {
-    background: var(--color-primary);
-    color: #fff;
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
   }
   .confidence-filter__chip:hover {
-    background: #eef4fb;
+    text-decoration: underline;
   }
   .confidence-filter__chip[aria-pressed="true"]:hover {
-    background: var(--color-primary-dark);
+    text-decoration: underline;
   }
   @media (max-width: 640px) {
     .grouped-problem__summary {
@@ -402,7 +373,6 @@
   <a href="#section-summary">Summary</a>
   <a href="#section-review-order">Recommended review order</a>
   <a href="#section-findings">Findings in page order</a>
-  <a href="#section-coverage">What was checked</a>
   {% if category_summary %}<a href="#section-topics">Findings by topic</a>{% endif %}
   <a href="#section-downloads">Downloads</a>
   {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Advanced details</a>{% endif %}
@@ -413,7 +383,6 @@
 <div class="status-banner status-banner--complete" role="status" aria-live="polite">
   <div class="status-banner__body">
     <p class="status-banner__title">Audit complete</p>
-    <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Review each flagged item against NJIT guidelines.</p>
     <p class="status-banner__meta">
       {{ file_name }}
       &middot; PDF layout audit
@@ -430,6 +399,8 @@
     {% endif %}
   </div>
 </div>
+
+<p class="student-disclosure">{{ student_disclosure | replace("NJIT's official thesis checklist", '<a href="' ~ official_checklist_url ~ '">NJIT\'s official thesis checklist</a>') | safe }} <a href="/about#limitations">About these checks</a>.</p>
 
 {% if failed_check_count %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">
@@ -475,7 +446,6 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
   </div>
-  <p class="file-hint" style="margin-top:0.75rem;margin-bottom:0;">No automatic check replaces NJIT review.</p>
 </section>
 
 <section id="section-findings" class="section" aria-label="Findings in page order">
@@ -595,29 +565,8 @@
     </div>
   </div>
   {% else %}
-  <div class="card"><p>No issues detected by the checks that ran. <a href="/about#limitations">Human review is still required.</a></p></div>
+  <div class="card"><p>No issues detected by the checks that ran.</p></div>
   {% endif %}
-</section>
-
-<section id="section-coverage" class="section" aria-labelledby="coverage-heading">
-  <div class="section-header">
-    <h2 id="coverage-heading">{{ coverage_heading }}</h2>
-  </div>
-  <details class="card card-compact coverage-card"><summary>Coverage and checks to review yourself</summary>
-    {% for paragraph in coverage_intro %}<p>{{ paragraph }}</p>{% endfor %}
-    <details class="collapsible coverage-details">
-      <summary>Show coverage by checklist section ({{ coverage_areas | length }} sections)</summary>
-      <dl class="coverage-list">
-        {% for area in coverage_areas %}
-        <div class="coverage-item coverage-item--{{ area.status }}">
-          <dt>{{ area.title }} <span class="coverage-status">{{ area.status_label }}</span></dt>
-          {% if area.checked %}<dd><strong>Checked:</strong> {{ area.checked }}</dd>{% endif %}
-          <dd><strong>Check yourself:</strong> {{ area.manual }}</dd>
-        </div>
-        {% endfor %}
-      </dl>
-    </details>
-  </details>
 </section>
 
 {% if findings %}
@@ -724,10 +673,11 @@
 <section id="section-rule-summary" class="section" aria-label="Advanced: rule-by-rule technical summary">
   <div class="section-header">
     <h2>Advanced: rule-by-rule technical summary</h2>
-    <span class="section-note">For reviewers and maintainers &middot; Click a rule ID for rule reference, or Review to see every finding for that rule.</span>
+
   </div>
   <details class="card collapsible">
     <summary>{{ grouped_summary|length }} rule{{ "" if grouped_summary|length == 1 else "s" }} flagged — rule IDs, counts, and categories</summary>
+    <p class="file-hint">For reviewers and maintainers &middot; Click a rule ID for rule reference, or Review to see every finding for that rule.</p>
     <div class="table-scroll" style="margin-top:0.75rem;">
     <table>
       <thead>
@@ -757,10 +707,11 @@
 <section id="section-grouped-summary" class="section" aria-label="Advanced: grouped problem summaries">
   <div class="section-header">
     <h2>Advanced: grouped problem summaries</h2>
-    <span class="section-note">For reviewers and maintainers &middot; the same findings above, combined into one card per matching issue with every affected page listed together.</span>
+
   </div>
   <details class="card collapsible">
     <summary>{{ report_view.grouped_problems|length }} grouped problem card{{ "" if report_view.grouped_problems|length == 1 else "s" }}</summary>
+    <p class="file-hint">For reviewers and maintainers &middot; the same findings above, combined into one card per matching issue with every affected page listed together.</p>
     <div class="grouped-problem-list" style="margin-top:0.75rem;">
       {% for problem in report_view.grouped_problems %}
       <div id="{{ problem.problem_anchor if problem.problem_anchor else '' }}" class="card grouped-problem-card {% if not problem.is_grouped %}grouped-problem-card--single{% endif %} grouped-problem"

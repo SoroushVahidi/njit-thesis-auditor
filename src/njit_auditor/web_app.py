@@ -35,6 +35,8 @@ from njit_auditor.coverage_disclosure import (
     COVERAGE_AREAS,
     COVERAGE_HEADING,
     COVERAGE_INTRO,
+    OFFICIAL_CHECKLIST_URL,
+    STUDENT_LIMITATION_DISCLOSURE,
 )
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.incomplete_audit import (
@@ -78,6 +80,7 @@ from njit_auditor.report_view import (
 )
 from njit_auditor.resource_paths import resource_path
 from njit_auditor.student_cards import student_card_fields
+from njit_auditor.student_confidence import CONFIDENCE_COLORS
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
     render_student_report_text,
@@ -546,6 +549,9 @@ def _is_p_rule_id(rule_id: str) -> bool:
 
 # Register as a Jinja2 global so templates can call it directly.
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
+_templates.env.globals["student_disclosure"] = STUDENT_LIMITATION_DISCLOSURE
+_templates.env.globals["official_checklist_url"] = OFFICIAL_CHECKLIST_URL
+_templates.env.globals["confidence_colors"] = CONFIDENCE_COLORS
 _templates.env.globals["coverage_heading"] = COVERAGE_HEADING
 _templates.env.globals["coverage_intro"] = COVERAGE_INTRO
 _templates.env.globals["coverage_areas"] = COVERAGE_AREAS

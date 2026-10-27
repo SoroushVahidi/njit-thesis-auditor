@@ -17,6 +17,20 @@
       --radius: 8px;
       --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
+    .student-disclosure { font-size: 0.9rem; color: var(--color-muted); margin: 0 0 1.25rem; }
+    .confidence-badge {
+      display: inline-flex; align-items: center; border-radius: 999px;
+      padding: 0.2rem 0.65rem; font-size: 0.78rem; font-weight: 700;
+      border: 1px solid; line-height: 1.2; max-width: 100%;
+      white-space: normal; text-align: center;
+    }
+    {% for level, palette in confidence_colors.items() %}
+    .confidence-badge--{{ level }}, .confidence-filter__chip[data-confidence-filter="{{ level }}"] {
+      color: {{ palette.foreground }};
+      background: {{ palette.background }};
+      border-color: {{ palette.border }};
+    }
+    {% endfor %}
     body {
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
       max-width: 1060px;
@@ -497,7 +511,7 @@
   </nav>
   <main id="main-content">{% block content %}{% endblock %}</main>
   <footer>
-    Automated checks; human review required. <a href="/about">About this tool</a>.<br>
+    <a href="/about">About this tool</a>.<br>
     Created by Soroush Vahidi &middot; Questions, suggestions, and feedback welcome &middot; <a href="mailto:sv96@njit.edu">sv96@njit.edu</a>
   </footer>
 </body>

@@ -960,7 +960,9 @@ def test_drilldown_pages_confidence_badges_use_only_three_public_values(
         f"/audits/{job_id}/problems/rule/P026/issue-type/possible-body-font-family-issue",
     ):
         text = _get_html(c, path)
-        badge_classes = set(re.findall(r"confidence-badge--(\S+?)[\"' ]", text))
+        badge_classes = set(re.findall(
+            r'class="confidence-badge confidence-badge--([^"\s]+)', text
+        ))
         assert badge_classes, f"expected at least one confidence badge on {path}"
         assert badge_classes <= {"high", "medium", "low"}, (path, badge_classes)
 

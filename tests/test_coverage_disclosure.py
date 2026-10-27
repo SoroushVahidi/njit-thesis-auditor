@@ -15,7 +15,9 @@ from njit_auditor.coverage_disclosure import (
     COVERAGE_AREAS,
     COVERAGE_HEADING,
     COVERAGE_INTRO,
+    OFFICIAL_CHECKLIST_URL,
     STATUS_LABELS,
+    STUDENT_LIMITATION_DISCLOSURE,
     coverage_markdown_lines,
     coverage_text_lines,
 )
@@ -131,8 +133,9 @@ def test_markdown_report_places_coverage_before_findings(tmp_path: Path) -> None
     output = tmp_path / "report.md"
     write_markdown_report([_finding(2)], {"input_file_name": "t.pdf"}, output)
     text = output.read_text(encoding="utf-8")
-    assert text.count(f"## {COVERAGE_HEADING}") == 1
-    assert text.index(f"## {COVERAGE_HEADING}") < text.index("## Findings by Rule")
+    assert text.count(STUDENT_LIMITATION_DISCLOSURE) == 1
+    assert COVERAGE_HEADING not in text
+    assert text.index(STUDENT_LIMITATION_DISCLOSURE) < text.index("## Findings by Rule")
     assert "## Notes" in text
 
 
@@ -145,9 +148,10 @@ def test_markdown_report_for_tex_audits_omits_pdf_coverage(tmp_path: Path) -> No
 @pytest.mark.parametrize("findings", [[], [_student_finding(1, 2), _student_finding(2, None)]])
 def test_student_text_report_includes_coverage(findings: list[dict[str, object]]) -> None:
     text = render_student_report_text(findings, file_name="t.pdf")
-    assert text.count(COVERAGE_HEADING.upper()) == 1
-    for area in COVERAGE_AREAS:
-        assert f"{area.title}: {area.status_label}" in text
+    assert text.count(STUDENT_LIMITATION_DISCLOSURE) == 1
+    assert OFFICIAL_CHECKLIST_URL in text
+    assert COVERAGE_HEADING.upper() not in text
+    assert "Partly checked" not in text
     for finding in findings:
         assert f"Problem #{finding['problem_number']} — " in text
 
@@ -181,10 +185,10 @@ def test_combined_pdf_report_includes_coverage_and_keeps_problem_numbers(
     assert result.total_visible_findings == 2
     assert result.markers_drawn == 1
     text = _pdf_report_text(output, 3)
-    assert COVERAGE_HEADING in text
-    for area in COVERAGE_AREAS:
-        assert f"{area.title} ({area.status_label})." in text
-    assert text.index(COVERAGE_HEADING) < text.index("Problem #1") < text.index("Problem #2")
+    assert text.count(STUDENT_LIMITATION_DISCLOSURE) == 1
+    assert "Partly checked" not in text and COVERAGE_HEADING not in text
+    assert (text.index(STUDENT_LIMITATION_DISCLOSURE)
+            < text.index("Problem #1") < text.index("Problem #2"))
 
 
 def test_zero_finding_pdf_report_stays_short(tmp_path: Path) -> None:
@@ -197,7 +201,7 @@ def test_zero_finding_pdf_report_stays_short(tmp_path: Path) -> None:
     assert result.report_pages <= 2
     text = _pdf_report_text(output, 2)
     assert "No formatting problems were detected by the implemented checks" in text
-    assert "does not mean your document meets NJIT requirements" in text
+    assert STUDENT_LIMITATION_DISCLOSURE in text
 
 
 @pytest.fixture()
@@ -212,13 +216,14 @@ def test_results_page_shows_coverage_after_summary(
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
     html = c.get(f"/audits/{job_id}").text
-    assert 'id="section-coverage"' in html
-    assert 'href="#section-coverage"' in html
-    assert html.index('id="section-summary"') < html.index('id="section-coverage"')
-    assert html.index('id="section-findings"') < html.index('id="section-coverage"')
+    assert 'id="section-coverage"' not in html
+    assert "Partly checked" not in html
+    assert html.count("Automated checks may miss problems") == 1
+    assert 'href="/about#limitations"' in html
+    about = c.get("/about").text
     for area in COVERAGE_AREAS:
-        assert f"coverage-item--{area.status}" in html
-    assert "<details class=\"collapsible coverage-details\">" in html
+        assert f"coverage-item--{area.status}" in about
+        assert area.title in about
     # Existing problem anchors and numbering are untouched.
     assert "Problem 1" in html and "Problem 2" in html
 
@@ -234,8 +239,8 @@ def test_results_page_with_no_findings_still_discloses_coverage(
     assert "No problems found" in html
     assert '<span class="badge badge-muted">No problems found</span>' in html
     assert '<span class="badge badge-pass">No problems found</span>' not in html
-    assert 'id="section-coverage"' in html
-    assert "does not mean your document meets NJIT requirements" in html
+    assert 'id="section-coverage"' not in html
+    assert html.count("Automated checks may miss problems") == 1
 
 
 # ---------------------------------------------------------------------------
