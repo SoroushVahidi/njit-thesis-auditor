@@ -92,9 +92,50 @@ _SHORT_ACTIONS = {
 # fmt: on
 
 
-def short_student_action(finding: Mapping[str, Any], original: str) -> str:
+# Match both rule and subtype: neighbouring findings must keep their own advice.
+_SUBTYPE_ACTIONS = {
+    ("P027", "level2_title_case_issue"): (
+        "Check whether this level-2 heading needs title case: "
+        "capitalize the first word and major words."
+    ),
+    ("P027", "level4_sentence_case_or_punctuation_issue"): (
+        "Check whether this level-4 heading needs a final period."
+    ),
+    ("P063", "single_appendix_uses_letter_label"): (
+        "If this is the only appendix, remove its letter and use APPENDIX followed by the title."
+    ),
+    ("P064", "references_entry_indentation_inconsistent"): (
+        "If these reference entries mix indentation styles, use one style consistently, "
+        "following the style agreed with your advisor."
+    ),
+    ("P065", "dedication_text_not_centered"): (
+        "Check whether the dedication text is centered within the text area."
+    ),
+    ("P065", "dedication_text_not_italic"): (
+        "Check whether the dedication text uses an italic or oblique font."
+    ),
+    ("P067", "biosketch_publication_order_suspicious"): (
+        "Check the publication years, then order entries from newest to oldest if needed."
+    ),
+}
+
+
+def short_student_action(
+    finding: Mapping[str, Any], original: str, *, details: Mapping[str, Any] | None = None
+) -> str:
     """Shorten reviewed phrases, preserve evidence, and qualify uncertain advice."""
     text = " ".join(original.split())
+    key = (str(finding.get("rule_id", "")), str(finding.get("issue_type", "")))
+    if key == ("P027", "level1_not_all_caps"):
+        preview = str((details or {}).get("line_preview", "")).lstrip()
+        role = "level-1"
+        if re.match(r"APPENDIX\b", preview, re.I):
+            role = "appendix"
+        elif re.match(r"CHAPTER\b", preview, re.I):
+            role = "chapter"
+        text = f"Check whether this {role} heading should be in ALL CAPITALS."
+    else:
+        text = _SUBTYPE_ACTIONS.get(key, text)
     # This reference is background, not part of the punctuation correction.
     text = re.sub(
         r"; their capitalization is checked under R024E\.{1,4}",
@@ -119,7 +160,9 @@ def short_student_action(finding: Mapping[str, Any], original: str) -> str:
         "low",
         "medium",
     } or "possible" in str(finding.get("issue_type", ""))
-    qualified = re.search(r"\b(check|review|verify|confirm|if|may|might|whether)\b", text, re.I)
+    # Qualification must govern the opening action. A later "may" in
+    # unrelated background cannot qualify an imperative such as "Reorder".
+    qualified = re.match(r"^(check|review|verify|confirm|if)\b", text, re.I)
     if text and uncertain and not qualified:
         if re.match(
             r"^(Add|Align|Apply|Begin|Center|Change|Correct|Delete|Edit|Format|Hide|Indent|"

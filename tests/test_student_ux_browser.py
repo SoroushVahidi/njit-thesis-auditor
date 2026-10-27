@@ -86,13 +86,20 @@ def browser_site(tmp_path: Path) -> Any:
 
 @pytest.mark.parametrize("width,height", [(320, 800), (390, 844), (768, 1024), (1440, 900)])
 def test_student_workflow(browser_site: Any, width: int, height: int, tmp_path: Path) -> None:
-    from playwright.sync_api import sync_playwright
+    if os.environ.get("NJIT_REQUIRE_BROWSER") == "1":
+        import playwright.sync_api as playwright
+    else:
+        playwright = pytest.importorskip("playwright.sync_api")
 
     base, fixture = browser_site
     screenshots = Path(os.environ.get("NJIT_UX_SCREENSHOTS", str(tmp_path)))
     screenshots.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
-    with sync_playwright() as pw:
+    with playwright.sync_playwright() as pw:
+        if not Path(pw.chromium.executable_path).is_file():
+            if os.environ.get("NJIT_REQUIRE_BROWSER") == "1":
+                pytest.fail("Chromium missing: run python -m playwright install chromium")
+            pytest.skip("Chromium missing: run python -m playwright install chromium")
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": width, "height": height})
         page.on("pageerror", lambda exc: errors.append(str(exc)))
@@ -188,4 +195,54 @@ def test_student_workflow(browser_site: Any, width: int, height: int, tmp_path: 
                 indent=2,
             )
         )
+        browser.close()
+
+
+@pytest.mark.parametrize("width,height", [(390, 844), (1440, 900)])
+def test_affected_corrections_fit_and_keep_details(
+    browser_site: Any, width: int, height: int, tmp_path: Path
+) -> None:
+    from test_student_correction_subtypes import EXPECTED_ACTIONS, correction_pdfs
+
+    if os.environ.get("NJIT_REQUIRE_BROWSER") == "1":
+        import playwright.sync_api as playwright
+    else:
+        playwright = pytest.importorskip("playwright.sync_api")
+    base, _ = browser_site
+    screenshots = Path(os.environ.get("NJIT_UX_SCREENSHOTS", str(tmp_path)))
+    screenshots.mkdir(parents=True, exist_ok=True)
+    seen = set()
+    with playwright.sync_playwright() as pw:
+        if not Path(pw.chromium.executable_path).is_file():
+            if os.environ.get("NJIT_REQUIRE_BROWSER") == "1":
+                pytest.fail("Chromium missing: run python -m playwright install chromium")
+            pytest.skip("Chromium missing: run python -m playwright install chromium")
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": width, "height": height})
+        errors: list[str] = []
+        page.on("pageerror", lambda exc: errors.append(str(exc)))
+        for fixture in correction_pdfs(tmp_path / "corrections"):
+            page.goto(base)
+            page.locator("#file").set_input_files(str(fixture))
+            page.get_by_role("button", name="Start audit", exact=True).click()
+            page.locator(".finding-card").first.wait_for(timeout=15000)
+            for key, action in EXPECTED_ACTIONS.items():
+                cards = page.locator(".finding-card").filter(has_text=action)
+                if not cards.count():
+                    continue
+                seen.add(key)
+                card = cards.first
+                card.scroll_into_view_if_needed()
+                details = card.locator("details.finding-explanation")
+                assert details.get_attribute("open") is None
+                assert action in card.inner_text()
+                assert "Full correction:" not in card.inner_text()
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+                page.screenshot(path=str(screenshots / f"correction-{width}-{key[1]}.png"))
+                details.locator(":scope > summary").click()
+                assert "Full correction:" in card.inner_text()
+                assert "source text is incomplete" not in card.inner_text()
+                details.locator(":scope > summary").click()
+        assert seen == set(EXPECTED_ACTIONS)
+        assert not errors
         browser.close()

@@ -28,9 +28,9 @@ Evidence **C** means the implementation and its documented limitations in `cover
 | Biographical Sketch first numbered page, iv | P019,P037 | AUTOMATED_PARTIAL | Detects common sequence and anchor | finding, scope | Check physical and printed page | C,R | None | Retain |
 | Arabic numerals only in main text | P013,P019,P029 | AUTOMATED_PARTIAL | Parsed footer numbers; image numbers can be missed | finding, scope | Inspect all body pages | C,R | None | Retain |
 | Start 1 at Chapter 1 and continue through references/end | P019,P037,P085 | AUTOMATED_PARTIAL | Sequence and structural cues; exact endpoints not always established | finding, scope | Compare chapter and final reference pages | C,R | None | Manual endpoint check |
-| Same dissertation title on Abstract, Title, Approval | P074 | AUTOMATED_PARTIAL | Flags clear differences when two titles are readable | finding, scope | Compare spelling and spacing on all three | C,R | None | Retain |
+| Same dissertation title on Abstract, Title, Approval | P033 | AUTOMATED_PARTIAL | Flags clear differences when two titles are readable | finding, scope | Compare spelling and spacing on all three | C,R | None | Retain |
 | Title page uses program template | — | MANUAL_REVIEW | Program template not available to detector | scope | Compare with program template | C | None | Provide manual item |
-| Graduation month is December, May, or August | P025 | AUTOMATED_PARTIAL | Text/metadata extraction only | finding, scope | Confirm actual graduation date | C,R | None | Retain |
+| Graduation month is December, May, or August | P074 | AUTOMATED_PARTIAL | Text/metadata extraction only | finding, scope | Confirm actual graduation date | C,R | None | Retain |
 | Approval names have Dr./Mr./Ms. honorific | — | MANUAL_REVIEW | Names and roles ambiguous in PDF | scope | Inspect every name | C | None | Manual item |
 | Advisor appears first | P068 | AUTOMATED_PARTIAL | Advisor label may be found; order not proved | finding, scope | Check first committee entry | C,R | None | Manual item |
 | Own department members before others | — | MANUAL_REVIEW | Department affiliation external to PDF | scope | Confirm departmental membership/order | C | None | Manual item |

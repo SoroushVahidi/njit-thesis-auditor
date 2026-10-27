@@ -8,7 +8,8 @@ correction. Background and technical detail remain available on demand.
 The implementation stacks on `research/student-beta-validation-20261017`,
 `8b13dc6c225780e9487f6a7c8e153d7b9cca6fc1` (draft #627). It reuses the
 student-beta cards, synthetic public sample gate, report improvements, and PDF
-error privacy repair. The rehearsed candidate has identical templates and card
+error handling. The independent review found that exception-log privacy
+hardening is absent from this stack and remains a separate deployment gate. The rehearsed candidate has identical templates and card
 code, but also incorporates separate detector/anonymizer work. It is preserved.
 
 Main and production were independently verified as
@@ -134,3 +135,34 @@ performed. Screenshots, logs, constraints, and exact full-suite commands are
 local review artifacts under `/tmp/njit-student-ux-20261026/`, not committed
 student documents or generated report outputs. External repository access and
 formal stakeholder acceptance remain separate questions.
+
+
+## October 26 integration corrections
+
+The follow-up to the independent review adds eight subtype-specific primary
+corrections, qualifies the opening instruction, and retains complete source
+correction text in optional explanations and exports. Older incomplete source
+text is labelled an excerpt. Restoring complete catalog guidance also removes
+internal routing references and authoring notes from its student-facing wording.
+Raw detector findings, severity, measurements, and locations remain unchanged;
+grouped JSON correction strings intentionally become complete where truncated.
+
+Report attribution now distinguishes Biographical Sketch publications from body
+paragraph spacing. Numbering comes from the documented October 6 reviewer
+instruction; citation-style consistency is the GSO sheet topic. Annotation
+advice is identified as project guidance with no specific GSO sheet item
+established. No requirement numbers are invented. The 83-row matrix remains
+45 partial, 32 manual, 5 unimplemented, and 1 unresolved conflict, including the
+List of Figures capitalization conflict.
+
+The earlier validation and unchanged-manifest statements above describe the
+original snapshot. The correction follow-up declares Playwright in the dev
+extra, changes the image fixture's proportions explicitly, and qualifies a
+PyMuPDF minimum using measured compatibility results. See the
+[test setup and compatibility policy](../implementation/student_ux_test_setup.md).
+
+Inherited deployment gates remain open and outside this correction task:
+IPv4-mapped IPv6 destination validation, PDF-failure logging, and an enforced
+per-audit deadline. No changes to those implementations, production, services,
+anonymizer behavior, or URL security restrictions are made here. Merge review
+is separate from deployment and November student-pilot authorization.

@@ -272,10 +272,14 @@ def test_report_requirement_is_not_detector_tolerance() -> None:
 
     page = _finding(1, 1)
     page["category"] = "page_numbering"
+    page["rule_id"] = "P019"
+    page["public_rule_reference_id"] = "P019"
     assert "GSO area: Page numbers" in render_student_report_text([page], file_name="synthetic.pdf")
 
     lof = _finding(1, 1)
     lof["category"] = "list_of_tables_figures_toc"
+    lof["rule_id"] = "P040"
+    lof["public_rule_reference_id"] = "P040"
     lof["issue_type"] = "lof_terminal_punctuation"
     assert "GSO area: List of Figures" in render_student_report_text(
         [lof], file_name="synthetic.pdf"
@@ -422,3 +426,104 @@ def test_problem_markers_stay_visible_at_all_page_edges(tmp_path: Path) -> None:
         ]
         assert {span["text"] for span in markers} == {"#1", "#2", "#3", "#4"}
         assert all(page.rect.contains(fitz.Rect(span["bbox"])) for span in markers)
+
+
+@pytest.mark.parametrize(
+    "rule,issue,category,area,expected,absent",
+    [
+        (
+            "P045",
+            "biosketch_publication_entry_numbered",
+            "indentation",
+            "Biographical Sketch",
+            "unnumbered",
+            "double-spaced body",
+        ),
+        (
+            "P045",
+            "biosketch_publication_wrapped_line_spacing_not_single",
+            "indentation",
+            "Biographical Sketch",
+            "Q028",
+            "body text",
+        ),
+        (
+            "P045",
+            "biosketch_publication_entry_spacing_not_double",
+            "spacing_blank_lines",
+            "Biographical Sketch",
+            "blank line",
+            "body text",
+        ),
+        (
+            "P067",
+            "biosketch_publication_order_suspicious",
+            "other",
+            "Biographical Sketch",
+            "most recent to oldest",
+            "sheet item",
+        ),
+        (
+            "P012",
+            "pdf_annotation_detected",
+            "annotations",
+            "project guidance",
+            "No specific GSO self-assessment sheet item is established",
+            "annotations item",
+        ),
+        (
+            "P015",
+            "paragraph_indentation",
+            "indentation",
+            "Text spacing and paragraphs",
+            "double-spaced body",
+            "unnumbered",
+        ),
+        ("P011", "margin_overflow", "margin_or_overflow", "Margins", "1.5 inches", "unnumbered"),
+        (
+            "P055",
+            "lof_entry_missing_figure_prefix",
+            "list_of_tables_figures_toc",
+            "List of Figures",
+            "sheet and later reviewer direction differ",
+            "title-case entries",
+        ),
+        (
+            "P064",
+            "references_entry_indentation_inconsistent",
+            "references_citations",
+            "References",
+            "agreed with the advisor",
+            "body text",
+        ),
+    ],
+)
+def test_requirement_authority_by_rule_and_subtype(
+    tmp_path: Path,
+    rule: str,
+    issue: str,
+    category: str,
+    area: str,
+    expected: str,
+    absent: str,
+) -> None:
+    from njit_auditor.student_pdf_report import (
+        _checklist_area,
+        _expected,
+        render_student_report_text,
+    )
+
+    finding = _finding(1, 1)
+    finding.update(rule_id=rule, issue_type=issue, category=category)
+    assert area in _checklist_area(finding)
+    assert expected in _expected(finding)
+    assert absent not in _expected(finding)
+    text = render_student_report_text([finding], file_name="synthetic.pdf")
+    assert _expected(finding) in text
+    source, output = tmp_path / "source.pdf", tmp_path / "report.pdf"
+    _source(source, pages=1)
+    build_combined_student_pdf_report(
+        source, output, [finding], boxes_by_problem={}, file_name="synthetic.pdf"
+    )
+    with fitz.open(output) as report:
+        assert _expected(finding) in " ".join(_report_text(report, 1).split())

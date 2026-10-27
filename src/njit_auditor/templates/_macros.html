@@ -39,7 +39,7 @@
 <details class="finding-explanation finding-card__note">
   <summary>Why is this flagged?</summary>
   {% if f.polished_comment %}<p>{{ f.polished_comment }}</p>{% endif %}
-  {% if f.suggested_fix and (f.student_web_action or f.student_action) != f.suggested_fix %}<p>Full correction: {{ f.suggested_fix }}</p>{% endif %}
+  {% if f.suggested_fix and (f.student_web_action or f.student_action) != f.suggested_fix %}<p>{% if f.suggested_fix.endswith(('...', '…')) %}Correction excerpt (source text is incomplete):{% else %}Full correction:{% endif %} {{ f.suggested_fix }}</p>{% endif %}
   {% if f.issue_type_explanation %}<p>{{ f.issue_type_explanation }}</p>{% endif %}
   {% if f.detailed_explanation %}<p>{{ f.detailed_explanation }}</p>{% endif %}
   {% if f.margin_questions %}

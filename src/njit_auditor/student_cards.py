@@ -120,7 +120,9 @@ def student_card_fields(finding: Mapping[str, Any], details: Mapping[str, Any]) 
         "student_summary": issue_summary(finding, details),
         # Reports already consume student_action; preserve its baseline value.
         "student_action": report_action,
-        "student_web_action": short_student_action(finding, report_action or original_action),
+        "student_web_action": short_student_action(
+            finding, report_action or original_action, details=details
+        ),
         "margin_questions": margin_questions(finding, details),
         "student_location": location,
     }

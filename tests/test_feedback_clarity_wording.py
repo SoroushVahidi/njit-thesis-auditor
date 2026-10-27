@@ -2,7 +2,7 @@
 
 Covers, using synthetic metadata only (no dissertation body text, no LaTeX):
 
-1. P063 — remediation truncation breaks on a word boundary, not mid-word
+1. P063 — remediation remains complete for details and exports
 2. Confidence:/Triage tier: labels no longer appear in polished comments
 3. VERIFY_SUFFIX is not appended to polished comments (global report caveat instead)
 4. P036 — missing issue_type_explanations entries are filled in
@@ -38,7 +38,6 @@ from njit_auditor.issue_type_explanations import explain_issue_type
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.polished_comments import (
     VERIFY_SUFFIX,
-    _truncate_at_word_boundary,
     build_polished_comment,
     contains_blocked_detail_text,
     resolve_suggested_fix_for_display,
@@ -50,30 +49,20 @@ from njit_auditor.report_view import (
 )
 
 # ---------------------------------------------------------------------------
-# 1. P063 — word-boundary-aware truncation
+# 1. P063 — full source remediation is retained
 # ---------------------------------------------------------------------------
 
 
-def test_truncate_at_word_boundary_does_not_cut_mid_word() -> None:
-    text = (
-        "For a single appendix: rename the heading to APPENDIX (remove any letter "
-        "suffix). For multiple appendices: ensure each appendix heading uses "
-        "APPENDIX A, APPENDIX B, etc. in consecutive alphabetical order."
-    )
-    truncated = _truncate_at_word_boundary(text, 200)
-    assert len(truncated) <= 200
-    assert truncated.endswith("...")
-    core = truncated[: -len("...")]
-    assert not core.endswith(" ")
-    # The original text at the same cut point is mid-word ("alphabetical...");
-    # the fixed version must stop at a preceding word boundary instead.
-    assert not text.startswith(core + "a")
-    assert text.startswith(core)
+def test_catalog_remediation_keeps_its_complete_final_clause() -> None:
+    fix = resolve_suggested_fix_for_display("P063", "single_appendix_uses_letter_label")
+    assert len(fix) > 200
+    assert fix.endswith("in consecutive alphabetical order.")
+    assert not fix.endswith("...")
 
 
-def test_truncate_at_word_boundary_leaves_short_text_untouched() -> None:
-    text = "Short remediation text."
-    assert _truncate_at_word_boundary(text, 200) == text
+def test_existing_detector_correction_is_not_truncated() -> None:
+    text = "Check this source instruction. " * 12
+    assert resolve_suggested_fix_for_display("P063", existing=text) == text.strip()
 
 
 def test_p063_remediation_does_not_end_mid_word() -> None:
