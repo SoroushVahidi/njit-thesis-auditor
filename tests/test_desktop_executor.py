@@ -237,8 +237,8 @@ def test_descendant_is_stopped_with_worker_group(runtime, tmp_path) -> None:
     assert pid_file.is_file()
     pid = int(pid_file.read_text())
     state = Path(f"/proc/{pid}/stat")
-    # Non-child zombies have terminated and cannot retain files or execute code.
-    assert not state.exists() or state.read_text().split(")", 1)[1].split()[0] == "Z"
+    # The Linux subreaper must collect descendants too, not leave zombie orphans.
+    assert not state.exists()
     assert not (runtime / "tree").exists()
     manager.close()
 

@@ -47,7 +47,7 @@ if os.environ.get('DESKTOP_TEST_LIFECYCLE') == '1':
                   "f.write(str(os.getpid())+chr(10)); f.close(); time.sleep(60)")
             return [sys.executable,'-c',code]
         return worker_command(request)
-    offline_app.DesktopExecutor=lambda:DesktopExecutor(deadline=2,command=command)
+    offline_app.DesktopExecutor=lambda:DesktopExecutor(deadline=5,command=command)
 run_desktop(headless=True)
 """
 
@@ -273,7 +273,7 @@ def test_timeout_cancel_quit_and_reopen_via_real_browser(bounded_desktop_process
             page.get_by_role("button", name="Start audit", exact=True).click()
 
         upload("hang.pdf")
-        page.get_by_text("This audit took too long", exact=False).wait_for(timeout=10000)
+        page.get_by_text("This audit took too long", exact=False).wait_for(timeout=15000)
         upload("normal.pdf")
         page.locator(".finding-card").first.wait_for(timeout=10000)
         upload("hang.pdf")

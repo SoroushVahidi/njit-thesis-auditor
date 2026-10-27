@@ -5,8 +5,28 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import sys
 import threading
+import time
 from typing import Any
+
+
+def prepare_containment() -> None:
+    """On Linux, adopt orphaned descendants so shutdown can reap its whole group."""
+    if sys.platform == "linux":
+        import ctypes
+
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.prctl.argtypes = [
+            ctypes.c_int,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+        ]
+        libc.prctl.restype = ctypes.c_int
+        if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
+            raise OSError("Desktop descendant containment is unavailable")
 
 
 class ProcessTree:
@@ -112,4 +132,15 @@ class ProcessTree:
             elif self.process.poll() is None:
                 self.process.kill()
             self.process.wait(timeout=2)
+            if sys.platform == "linux":
+                end = time.monotonic() + 1
+                while True:
+                    try:
+                        pid, _status = os.waitpid(-self.process.pid, os.WNOHANG)
+                    except ChildProcessError:
+                        break
+                    if pid == 0:
+                        if time.monotonic() >= end:
+                            raise OSError("Desktop descendants did not stop")
+                        time.sleep(0.01)
             self._closed = True

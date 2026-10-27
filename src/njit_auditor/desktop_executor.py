@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from njit_auditor import web_app
-from njit_auditor.desktop_process import ProcessTree
+from njit_auditor.desktop_process import ProcessTree, prepare_containment
 from njit_auditor.desktop_protocol import decode, encode
 from njit_auditor.resource_paths import resource_root
 
@@ -39,6 +39,7 @@ class DesktopExecutor:
     ) -> None:
         if deadline <= 0:
             raise ValueError("Audit deadline must be positive")
+        prepare_containment()
         self.deadline = deadline
         self.cleanup_failed = threading.Event()
         self._command = command

@@ -13,7 +13,8 @@ session expiry all close the same executor before requesting server shutdown.
 Expired work says: “This audit took too long and was stopped. Try a smaller PDF
 or audit it again.” Normal completed audits use the existing report pipeline.
 
-On Linux, each worker has its own process group. On Windows, it is assigned to
+On Linux, each worker has its own process group, and the desktop process
+acts as a subreaper to collect terminated descendants as well as the worker. On Windows, it is assigned to
 an unnamed Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. The worker
 waits for a supervisor handshake before importing or running document code.
 Failure to establish containment fails the audit; it never retries without
@@ -23,7 +24,8 @@ Worker stdout/stderr are discarded so native parser exceptions cannot become
 document text, paths, or bearer IDs in application logs. Worker Python socket
 and DNS operations are denied. An OS-level network-off test is still required.
 
-Process-tree reaping has a two-second wait per worker. The local server has a
+Process-tree reaping has a two-second wait per worker, plus a one-second
+Linux descendant-reaping allowance. The local server has a
 five-second graceful-shutdown allowance, and launcher joins are bounded to ten
 seconds plus a two-second forced-server-exit attempt. These are cleanup limits,
 not permission to leave a stuck audit running. They do not interrupt arbitrary
