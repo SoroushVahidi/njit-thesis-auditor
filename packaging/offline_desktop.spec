@@ -5,12 +5,13 @@ import sys
 import json
 import platform
 import subprocess
+from PyInstaller.config import CONF
 
 ROOT = Path(SPECPATH).parent
 sys.path.insert(0, str(ROOT / "src"))
 from njit_auditor.desktop_metadata import DESKTOP_VERSION, FILE_VERSION
 
-resources = Path(WORKPATH) / "desktop-resources"
+resources = Path(CONF["workpath"]) / "desktop-resources"
 resources.mkdir(parents=True, exist_ok=True)
 commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 (resources / "desktop-build-info.json").write_text(json.dumps({
