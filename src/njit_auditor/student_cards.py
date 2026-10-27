@@ -15,6 +15,7 @@ from njit_auditor.rules.pdf_margins import (
     RIGHT_MARGIN_PT,
     TOP_MARGIN_PT,
 )
+from njit_auditor.student_actions import short_student_action
 
 
 def topic_label(finding: Mapping[str, Any]) -> str:
@@ -110,13 +111,17 @@ def student_card_fields(finding: Mapping[str, Any], details: Mapping[str, Any]) 
         flags=re.IGNORECASE,
     ):
         location = ""
+    original_action = str(finding.get("suggested_fix") or "").strip()
+    report_action = ""
+    if str(finding.get("rule_id", "")) == "P011" and (side := _margin_side(details)):
+        report_action = f"Move the flagged text inside the {side} margin."
     return {
         "student_topic": topic_label(finding),
         "student_summary": issue_summary(finding, details),
-        "student_action": (
-            f"Move the flagged text inside the {side} margin."
-            if str(finding.get("rule_id", "")) == "P011" and (side := _margin_side(details))
-            else ""
+        # Reports already consume student_action; preserve its baseline value.
+        "student_action": report_action,
+        "student_web_action": short_student_action(
+            finding, report_action or original_action, details=details
         ),
         "margin_questions": margin_questions(finding, details),
         "student_location": location,

@@ -98,6 +98,12 @@ def _fix(finding: Mapping[str, Any]) -> str:
 
 def _checklist_area(finding: Mapping[str, Any]) -> str:
     """Use a broad checklist label without implying that a check passed."""
+    rule = _field(finding, "rule_id")
+    issue = _field(finding, "issue_type")
+    if rule in {"P045", "P067"} and issue.startswith("biosketch_publication_"):
+        return "Biographical Sketch publications and presentations"
+    if rule == "P012":
+        return "PDF annotations (project guidance)"
     category = _field(finding, "category")
     mapping = {
         "margin_or_overflow": "Margins",
@@ -131,6 +137,39 @@ def _summary(finding: Mapping[str, Any]) -> str:
 
 
 def _expected(finding: Mapping[str, Any]) -> str:
+    rule = _field(finding, "rule_id")
+    issue = _field(finding, "issue_type")
+    if rule == "P012":
+        return (
+            "Project guidance: review PDF annotations and resolve reviewer comments before "
+            "submission. No specific GSO self-assessment sheet item is established."
+        )
+    publication_requirements = {
+        (
+            "P045",
+            "biosketch_publication_entry_numbered",
+        ): "The GSO sheet asks that Biographical Sketch publications/presentations match "
+        "the References citation style. Later reviewer guidance (6 October 2026) "
+        "requires these entries to be unnumbered.",
+        (
+            "P045",
+            "biosketch_publication_wrapped_line_spacing_not_single",
+        ): "Publication-layout guidance (Q028) calls for single-spaced wrapped lines "
+        "within each Biographical Sketch publication/presentation entry.",
+        (
+            "P045",
+            "biosketch_publication_entry_spacing_not_double",
+        ): "Publication-layout guidance (Q028) calls for a blank line between "
+        "Biographical Sketch publication/presentation entries.",
+        (
+            "P067",
+            "biosketch_publication_order_suspicious",
+        ): "Documented reviewer guidance (P067) calls for Biographical Sketch "
+        "publications/presentations in order from most recent to oldest; "
+        "ambiguous years need manual review.",
+    }
+    if (rule, issue) in publication_requirements:
+        return publication_requirements[(rule, issue)]
     area = _checklist_area(finding)
     # These are requirement summaries, not detector capabilities or tolerances.
     requirements = {
@@ -163,7 +202,9 @@ def _expected(finding: Mapping[str, Any]) -> str:
         "References": "Use a consistent reference style agreed with the advisor.",
     }
     return requirements.get(
-        area, f"Follow the {area.lower()} item on the GSO self-assessment sheet."
+        area,
+        f"Review {area.lower()} against the documented rule guidance; "
+        "no specific GSO self-assessment sheet item is established here.",
     )
 
 

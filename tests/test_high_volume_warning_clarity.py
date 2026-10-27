@@ -387,7 +387,7 @@ def test_rule_problem_page_shows_pattern_note_for_high_volume_p036(
     html = c.get(f"/audits/{job_id}/problems/rule/P036").text
     assert "6 examples" in html
     assert "same formatting issue repeated" in html
-    assert "What to do:" in html
+    assert "Suggested fix:" in html
 
 
 def test_issue_type_problem_page_shows_pattern_note_for_high_volume_p012(

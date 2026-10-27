@@ -74,7 +74,7 @@ def test_index_contains_drag_drop_upload_zone_markup(
     assert b'aria-controls="file"' in resp.content
     assert b'id="file-selection-status"' in resp.content
     assert b'aria-live="polite"' in resp.content
-    assert b'Drag-and-drop is available when JavaScript is enabled' in resp.content
+    assert b'type="file"' in resp.content  # Native picker also works without JavaScript.
 
 
 def test_index_contains_drag_drop_progressive_enhancement_script(
@@ -97,7 +97,7 @@ def test_index_advertises_pdf_only_support(client: tuple[TestClient, Any]) -> No
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
-    assert b"formatting issues automatically" in resp.content
+    assert b"Find formatting issues" in resp.content
     assert b"TeX" not in resp.content
     assert b".zip" not in resp.content
     assert b"source audit" not in resp.content.lower()
@@ -514,35 +514,31 @@ def test_results_page_shows_findings(client: tuple[TestClient, Any], tmp_path: P
 
 def test_index_states_how_uploaded_files_are_handled(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    body = resp.content.lower()
-    assert b"how your file is handled" in body
-    assert b"processing runs on this server" in body
-    assert b"deleted automatically" in body
-    assert b"may quote short pieces of your document" in body
+    body = c.get("/").text
+    assert "Processed on this server" in body
+    assert "kept temporarily" in body and "valid result link" in body
+    assert 'href="/about#privacy"' in body
+    about = c.get("/about").text
+    assert "deleted automatically" in about and "Reports may quote" in about
 
 
 def test_index_states_pdf_only_web_support(client: tuple[TestClient, Any]) -> None:
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
-    assert b"Supported inputs" in resp.content
+    assert b"Upload your PDF" in resp.content
     assert b"PDF" in resp.content
-    assert b"Supported" in resp.content
+    assert b'accept=".pdf"' in resp.content
     assert b"TeX" not in resp.content
     assert b".zip" not in resp.content
 
 
 def test_index_lists_what_you_get_deliverables(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"What you get" in resp.content
-    assert b"JSON report" in resp.content
-    assert b"Markdown report" in resp.content
-    assert b"Triage summaries" in resp.content
-    assert b"Polished comments" in resp.content
+    assert "Download your report" in c.get("/").text
+    about = c.get("/about").text
+    assert "PDF report" in about and "text report" in about
+    assert "Markdown and JSON" in about
 
 
 def test_results_page_shows_summary_cards(client: tuple[TestClient, Any], tmp_path: Path) -> None:
@@ -571,7 +567,7 @@ def test_summary_all_warning_report_hides_needs_fixing_and_worth_checking_cards(
     assert '<div class="summary-card__value">3</div>' in html
     assert '<div class="summary-card__label">Needs fixing</div>' not in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
-    assert "These are automated review signals, not confirmed formatting defects." in html
+    assert "No automatic check replaces NJIT review." in html
 
 
 def test_summary_shows_needs_fixing_card_when_fail_count_positive(
@@ -906,7 +902,7 @@ def test_findings_in_page_order_precedes_findings_by_topic(
     idx_review_order = html.index('id="section-review-order"')
     idx_findings = html.index('id="section-findings"')
     idx_topics = html.index('id="section-topics"')
-    assert idx_review_order < idx_findings < idx_topics
+    assert idx_findings < idx_review_order < idx_topics
     assert 'id="section-triage"' not in html
 
 
@@ -972,7 +968,7 @@ def test_results_page_defaults_to_individual_findings_with_advanced_grouped_summ
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Inventory-only page-number candidates appear in Advanced below"
+        b"Review the flagged pages and suggested fixes."
         in resp.content
     )
     assert b'id="grouped-problems-panel"' not in resp.content
@@ -2194,7 +2190,7 @@ def test_results_page_renders_polished_comments(
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Review note" in resp.content
+    assert b"Why is this flagged?" in resp.content
     assert b"Likely problem" in resp.content
 
 
@@ -2318,11 +2314,11 @@ def test_results_page_filter_script_defers_until_dom_ready(
 def test_results_page_shows_privacy_note(client: tuple[TestClient, Any], tmp_path: Path) -> None:
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
-    resp = c.get(f"/audits/{job_id}")
-    assert resp.status_code == 200
-    assert b"Privacy note" in resp.content
-    assert b"may quote short pieces of your" in resp.content.lower()
-    assert b"deleted automatically" in resp.content.lower()
+    response = c.get(f"/audits/{job_id}")
+    assert response.status_code == 200
+    assert "Anyone with this result link" in response.text
+    assert 'href="/about#privacy"' in response.text
+    assert "deleted automatically" in c.get("/about").text
 
 
 def test_results_polished_comments_exclude_private_sample_text(
@@ -2353,7 +2349,7 @@ def test_results_page_does_not_leak_raw_latex_in_comments_or_fixes(
     resp = c.get(f"/audits/{job_id}")
 
     assert resp.status_code == 200
-    assert b"Review note" in resp.content
+    assert b"Why is this flagged?" in resp.content
     assert b"Review needed: " in resp.content
     assert b"Review needed: Likely problem:" not in resp.content
     assert b"double-spaced" in resp.content or b"double spacing" in resp.content
@@ -2785,12 +2781,10 @@ def test_url_fetch_public_ip_not_private() -> None:
 
 
 def test_fetch_pdf_url_sends_no_custom_user_agent() -> None:
-    """fetch_pdf_url must not set a custom User-Agent header on the Request.
+    """Preserve the normal HTTP client; this mock makes no availability claim.
 
-    Institutional repositories (e.g., NJIT Digital Commons / bepress) run AWS WAF
-    bot-management rules that block arbitrary custom UAs with HTTP 403.  Leaving
-    User-Agent unset lets urllib use its own default ('Python-urllib/3.x'), which
-    those WAFs recognise and pass through.
+    October 26 same-host diagnostics showed a Cloudflare challenge even with
+    urllib's default User-Agent. A synthetic request cannot validate WAF policy.
     """
     import io
     import urllib.request
@@ -2846,17 +2840,13 @@ def test_fetch_pdf_url_sends_no_custom_user_agent() -> None:
     ua = req_arg.get_header("User-agent")
     assert ua is None, (
         f"fetch_pdf_url must not set a custom User-Agent; got {ua!r}. "
-        "Custom UAs are blocked by AWS WAF on institutional repositories."
+        "Preserve the normal client; do not impersonate a browser."
     )
     dest.unlink(missing_ok=True)
 
 
 def test_fetch_pdf_url_custom_user_agent_regression() -> None:
-    """Regression: 'NJIT-Thesis-Auditor/1.0' must not appear in any outgoing request.
-
-    This string was previously hardcoded and caused HTTP 403 from NJIT Digital Commons
-    (bepress / AWS WAF). Any reintroduction of that exact string must fail this test.
-    """
+    """Keep the previous custom identity absent without claiming it solves access restrictions."""
     import inspect
 
     from njit_auditor import web_url_fetch
@@ -2864,7 +2854,7 @@ def test_fetch_pdf_url_custom_user_agent_regression() -> None:
     source = inspect.getsource(web_url_fetch)
     assert "NJIT-Thesis-Auditor/1.0" not in source, (
         "The custom User-Agent 'NJIT-Thesis-Auditor/1.0' was reintroduced into "
-        "web_url_fetch. This UA is blocked by AWS WAF on NJIT Digital Commons."
+        "web_url_fetch. Do not change client identity as an access-control workaround."
     )
 
 
@@ -4114,7 +4104,7 @@ def test_results_page_verify_wording_in_status_banner(
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Automated review signals" in resp.content
+    assert b"Review each flagged item against NJIT guidelines." in resp.content
     assert b"heuristic" not in resp.content.lower()
 
 
@@ -4435,7 +4425,7 @@ def test_complete_student_pdf_download_is_cached_and_preserves_upload(
     upload = jdir / "upload.pdf"
     original_bytes = upload.read_bytes()
     url = f"/audits/{job_id}/download/student-report.pdf"
-    assert "Download Complete PDF Report" in c.get(f"/audits/{job_id}").text
+    assert "Download PDF report" in c.get(f"/audits/{job_id}").text
     first = c.get(url)
     assert first.status_code == 200
     assert first.headers["content-type"] == "application/pdf"
@@ -5102,41 +5092,32 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
 _EXAMPLE_URL = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses"
 
 
-def test_index_page_has_example_thesis_box(client: tuple[TestClient, Any]) -> None:
-    """Upload page must include the example-thesis box with its stable id."""
+def test_index_page_has_optional_url_import(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"example-thesis-box" in resp.content
+    body = c.get("/").text
+    assert "Use a public PDF link" in body
+    assert "example-thesis-box" not in body
 
 
-def test_index_page_example_url_is_present(client: tuple[TestClient, Any]) -> None:
-    """The Digital Commons example URL must appear on the upload page."""
+def test_index_page_does_not_promote_blocked_example(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    # URL appears HTML-encoded (&amp; for &) inside a <code> element
-    assert b"digitalcommons.njit.edu" in resp.content
-    assert b"article=4387" in resp.content
+    body = c.get("/").text
+    assert "article=4387" not in body
+    assert "Some websites block downloads" in body
 
 
-def test_index_page_has_fill_example_url_button(client: tuple[TestClient, Any]) -> None:
-    """Upload page must include the fill-example-url button with its stable id."""
+def test_index_page_keeps_upload_primary(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"fill-example-url" in resp.content
+    body = c.get("/").text
+    assert body.index('action="/audits"') < body.index('action="/audits/url"')
+    assert "fill-example-url" not in body
 
 
-def test_index_page_url_help_text_mentions_direct_public_links(
-    client: tuple[TestClient, Any],
-) -> None:
-    """URL help text must mention NJIT Digital Commons and arXiv as supported sources."""
+def test_index_page_url_help_text_explains_access_limits(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"Digital Commons" in resp.content
-    assert b"arXiv" in resp.content
+    body = c.get("/").text
+    assert "direct public PDF link" in body
+    assert "download the PDF yourself and upload it here" in body
 
 
 def test_index_page_url_help_text_mentions_login_paywalled(
@@ -5197,19 +5178,11 @@ def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
     assert b'method="post"' in resp.content
 
 
-def test_fill_example_url_button_has_type_button(client: tuple[TestClient, Any]) -> None:
-    """The fill-example-url button must be type=\"button\" so it never submits the form."""
+def test_url_import_is_optional_and_labeled(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    # type="button" must appear alongside the fill-example-url id
-    body = resp.content.decode()
-    assert 'id="fill-example-url"' in body
-    # Locate the button tag containing the id and verify type="button"
-    import re as _re
-    btn_match = _re.search(r'<button[^>]*id="fill-example-url"[^>]*>', body)
-    assert btn_match is not None, "fill-example-url button not found"
-    assert 'type="button"' in btn_match.group(0)
+    body = c.get("/").text
+    assert '<summary>Use a public PDF link</summary>' in body
+    assert 'aria-describedby="url-help"' in body
 
 
 def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:

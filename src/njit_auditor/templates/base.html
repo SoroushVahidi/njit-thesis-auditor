@@ -251,16 +251,18 @@
       border: 1px solid var(--color-border);
       border-radius: var(--radius);
     }
+    .filter-bar > div { min-width: 0; max-width: 100%; flex: 1 1 9rem; }
+    .filter-bar .confidence-filter { flex-basis: 100%; }
     .filter-bar label { margin: 0; font-size: 0.8rem; font-weight: 600; }
     .filter-bar select {
       min-height: 2.75rem;
-      width: auto;
-      min-width: 120px;
+      width: 100%;
+      min-width: 0;
       margin: 0;
       font-size: 0.85rem;
       padding: 0.35rem 0.5rem;
     }
-    .filter-bar .filter-actions { margin-left: auto; }
+    .filter-bar .filter-actions { margin-left: auto; flex: 0 1 auto; }
     .filter-count { font-size: 0.82rem; color: var(--color-muted); }
     .grouped-problem-list {
       display: grid;
@@ -459,7 +461,18 @@
       font-weight: 500;
     }
     .site-nav__link:hover { text-decoration: underline; }
-    .site-nav__sep { color: var(--color-border); }
+    .site-nav__brand, .site-nav__link { min-height: 44px; display: inline-flex; align-items: center; }
+    .privacy-summary { font-size: 0.9rem; color: var(--color-text); max-width: 65ch; }
+    .skip-link { position: absolute; left: -10000px; }
+    .skip-link:focus { position: static; display: block; padding: 0.75rem; }
+    :focus-visible { outline: 3px solid #0059a8; outline-offset: 3px; }
+    details > summary { cursor: pointer; min-height: 44px; padding: 0.5rem 0; }
+    details > summary:focus-visible { border-radius: 3px; }
+    .site-nav__link[aria-current="page"] { font-weight: 700; text-decoration: underline; }
+    @media (max-width: 640px) {
+      .site-nav { gap: 0.25rem 1rem; }
+      .site-nav__brand { flex-basis: 100%; }
+    }
     @media (max-width: 640px) {
       .section-header {
         flex-direction: column;
@@ -473,16 +486,16 @@
   {% block head_extra %}{% endblock %}
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <nav class="site-nav" aria-label="Site navigation">
     <a href="/" class="site-nav__brand">NJIT Thesis Auditor</a>
-    <span class="site-nav__sep" aria-hidden="true">|</span>
+    <a href="/about" class="site-nav__link"{% if request.url.path == "/about" %} aria-current="page"{% endif %}>About</a>
     <a href="/help" class="site-nav__link">Help</a>
-    <span class="site-nav__sep" aria-hidden="true">|</span>
     <a href="/rules" class="site-nav__link">Rule Reference</a>
   </nav>
-  {% block content %}{% endblock %}
+  <main id="main-content">{% block content %}{% endblock %}</main>
   <footer>
-    NJIT Thesis Auditor — automated checks only; all findings require human review.<br>
+    Automated checks; human review required. <a href="/about">About this tool</a>.<br>
     Created by Soroush Vahidi &middot; Questions, suggestions, and feedback welcome &middot; <a href="mailto:sv96@njit.edu">sv96@njit.edu</a>
   </footer>
 </body>

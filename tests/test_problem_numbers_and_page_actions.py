@@ -329,7 +329,7 @@ def test_no_page_findings_have_no_pdf_action(app: tuple[TestClient, Any]) -> Non
     p025_html = _get_html(c, f"/audits/{job_id}/problems/rule/P025")
     assert "Open highlighted PDF page" not in p025_html
     assert "Open original PDF page" not in p025_html
-    assert "What does this mean?" in p025_html
+    assert "Why is this flagged?" in p025_html
 
 
 def test_no_highlight_explanation_is_specific_and_privacy_safe(

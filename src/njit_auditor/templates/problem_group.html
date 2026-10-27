@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import confidence_badge %}
+{% from "_macros.html" import confidence_badge, finding_explanation %}
 {% block title %}{{ group_title }} — NJIT Thesis Auditor{% endblock %}
 
 {% block head_extra %}
@@ -191,7 +191,7 @@
     <p class="problem-group-kicker">{{ group_kicker if group_kicker else "Examples of this problem" }}</p>
     <h1>{{ group_title }}</h1>
     <p class="subtitle" style="margin-bottom:0.9rem;">Audit file: <strong>{{ file_name }}</strong></p>
-    <p style="margin:0;">{{ group_explanation }}</p>
+    <details><summary>About this group</summary><p>{{ group_explanation }}</p></details>
     {% if pattern_note %}
     <p class="problem-group-pattern-note">{{ pattern_note }}</p>
     {% endif %}
@@ -255,29 +255,11 @@
       <div class="example-card__meta">
         <div><strong>Where:</strong> {% if group_kind == "page" %}This page{% elif example.page is not none %}{{ example.page_display_label if example.page_display_label else "Page " ~ example.page }}{% else %}Document-wide{% endif %}{% if example.student_location %} · {{ example.student_location }}{% endif %}</div>
         <div class="example-card__issue">{{ example.student_summary }}</div>
-        {% if example.issue_type_label %}
-        <details class="issue-type-help">
-          <summary>About this issue</summary>
-          <p>{{ example.issue_type_explanation if example.issue_type_explanation else "Review this finding against NJIT formatting requirements." }}</p>
-          {% if example.issue_type and example.rule_id %}
-          <p style="margin:0.3rem 0 0;font-size:0.86rem"><a href="/audits/{{ job_id }}/problems/rule/{{ example.rule_id }}/issue-type/{{ example.issue_type | issue_type_slug }}" class="rule-link">View all findings of this type &rarr;</a></p>
-          {% endif %}
-        </details>
-        {% elif example.issue_type and example.student_summary != (example.issue_type | humanize_detail_key) %}
-        <div><strong>Issue type:</strong> {{ example.issue_type | humanize_detail_key }}</div>
-        {% endif %}
-        {% if example.student_action or example.suggested_fix %}
-        <div><strong>What to do:</strong> {{ example.student_action or example.suggested_fix }}</div>
+        {% if example.student_web_action or example.student_action or example.suggested_fix %}
+        <div><strong>Suggested fix:</strong> {{ example.student_web_action or example.student_action or example.suggested_fix }}</div>
         {% endif %}
       </div>
-      {% if example.margin_questions %}<ul class="margin-checks" aria-label="Margin questions for this finding">{% for question, answer in example.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}</ul>{% endif %}
-      {% if example.polished_comment %}<details class="finding-explanation"><summary>Review note</summary><p>{{ example.polished_comment }}</p>{% if example.student_action and example.suggested_fix %}<p>Detailed correction: {{ example.suggested_fix }}</p>{% endif %}</details>{% endif %}
-      {% if example.detailed_explanation %}
-      <details class="finding-explanation">
-        <summary>What does this mean?</summary>
-        <p>{{ example.detailed_explanation }}</p>
-      </details>
-      {% endif %}
+      {{ finding_explanation(example, job_id) }}
       <div class="example-card__actions">
         {% if example.action_kind in ("highlight", "original_page") and example.pdf_page_url %}
         <a href="{{ example.pdf_page_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
@@ -287,7 +269,6 @@
         <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>
         {% endif %}
       </div>
-      <details class="finding-explanation"><summary>Technical details</summary><p>Rule {{ example.rule_id | display_rule_id }} · Original finding {{ example.problem_number }}</p></details>
     </article>
     {% endfor %}
   </div>

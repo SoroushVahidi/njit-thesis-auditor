@@ -8,7 +8,7 @@ from pathlib import Path
 
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.issue_type_explanations import humanize_issue_type
-from njit_auditor.report_outputs import derive_source_issue_type
+from njit_auditor.report_outputs import _strip_internal_authoring_note, derive_source_issue_type
 
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
@@ -733,6 +733,17 @@ _RULE_FALLBACKS: dict[str, str] = {
 # web/GUI-facing comment swaps in student-friendly wording. Mirrors the
 # rules-page override of the same names in web_app.py's _RULE_TEXT_OVERRIDES.
 _REMEDIATION_OVERRIDES: dict[str, str] = {
+    # Complete catalog tails contain internal routing references, not extra
+    # student instructions. Preserve the instructions without those references.
+    "P014": (
+        "Format each front-matter heading in all-caps, bold, centered, "
+        "at the top of its page."
+    ),
+    "P015": (
+        "Remove first-line indentation from the first body paragraph after a heading; "
+        "indent later body paragraphs. Follow the separate Abstract and Acknowledgements "
+        "indentation requirements for those sections."
+    ),
     "P011": (
         "Set left margin to 1.5 inches and top, bottom, and right margin to 1 inch."
     ),
@@ -937,7 +948,7 @@ def _resolve_remediation(rule_id: str, issue_type: str) -> str:
 
 @lru_cache(maxsize=1)
 def _remediation_by_rule() -> dict[str, str]:
-    """Load short remediation snippets from processed rule JSON (cached)."""
+    """Load complete remediation text; only the primary web action is shortened."""
     rules_path = (
         Path(__file__).resolve().parents[2] / "data/processed/rules/project_added_rules.json"
     )
@@ -959,21 +970,8 @@ def _remediation_by_rule() -> dict[str, str]:
         remediation = str(item.get("remediation", "")).strip()
         if rule_id and remediation:
             remediation = _REMEDIATION_OVERRIDES.get(rule_id, remediation)
-            remediation = _truncate_at_word_boundary(remediation, 200)
-            result[rule_id] = remediation
+            result[rule_id] = _strip_internal_authoring_note(remediation)
     return result
-
-
-def _truncate_at_word_boundary(text: str, limit: int) -> str:
-    """Truncate text to fit within limit, breaking on a word boundary, not mid-word."""
-    if len(text) <= limit:
-        return text
-    budget = limit - 3
-    truncated = text[:budget]
-    last_space = truncated.rfind(" ")
-    if last_space > 0:
-        truncated = truncated[:last_space]
-    return f"{truncated.rstrip()}..."
 
 
 def _safe_page_label(page: int | None) -> str:

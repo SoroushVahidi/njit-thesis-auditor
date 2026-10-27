@@ -85,10 +85,9 @@ _full_remediation_cache: dict[str, str] | None = None
 def _full_remediation_by_rule() -> dict[str, str]:
     """Return {rule_id: full remediation text} loaded straight from the rule JSON.
 
-    ``polished_comments._remediation_by_rule`` caps this text at ~200 chars
-    (with a trailing "...") for compact web-card display. The full-length
-    downloadable report must never show a truncated "How to fix it" line, so
-    this reads the same source file without that cap.
+    Older findings may carry a 200-character catalog excerpt. Keep recovery
+    available for those records; current presentation loads complete text and
+    shortens only the primary web action.
     """
     global _full_remediation_cache
     if _full_remediation_cache is not None:

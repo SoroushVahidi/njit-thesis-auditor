@@ -215,7 +215,7 @@ def test_results_page_shows_coverage_after_summary(
     assert 'id="section-coverage"' in html
     assert 'href="#section-coverage"' in html
     assert html.index('id="section-summary"') < html.index('id="section-coverage"')
-    assert html.index('id="section-coverage"') < html.index('id="section-findings"')
+    assert html.index('id="section-findings"') < html.index('id="section-coverage"')
     for area in COVERAGE_AREAS:
         assert f"coverage-item--{area.status}" in html
     assert "<details class=\"collapsible coverage-details\">" in html

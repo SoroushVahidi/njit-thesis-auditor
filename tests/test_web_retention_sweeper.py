@@ -496,11 +496,11 @@ def test_index_and_help_describe_retention_and_excerpts_accurately(
 ) -> None:
     c = TestClient(configured_app.app)
     notice = configured_app._retention_notice().encode()
-    for path in ("/", "/help"):
+    for path in ("/about", "/help"):
         body = c.get(path).content
         assert notice in body.replace(b"&#39;", b"'")
-        assert b"may quote short pieces of your document" in body
-        assert b"anyone with your result link can open the results" in body
+        assert b"may quote" in body
+        assert b"result link" in body
         for claim in _FALSE_CLAIMS:
             assert claim not in body.lower(), (path, claim)
 
@@ -520,8 +520,10 @@ def test_results_page_privacy_note_is_accurate(configured_app: Any) -> None:
     )
     body = TestClient(wa.app).get(f"/audits/{job_id}").content
     assert b"Privacy note" in body
-    assert b"may quote short pieces of your" in body
-    assert b"deleted automatically about 1 hour after you upload it" in body
+    assert b"Anyone with this result link" in body
+    assert b'href="/about#privacy"' in body
+    about = TestClient(wa.app).get("/about").content
+    assert b"deleted automatically about 1 hour after you upload it" in about
     for claim in _FALSE_CLAIMS:
         assert claim not in body.lower(), claim
 

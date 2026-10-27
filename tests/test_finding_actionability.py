@@ -497,7 +497,7 @@ def test_abstract_no_fake_highlight(app: tuple[TestClient, Any]) -> None:
     job_id = _inject_job(wa, findings)
     page_html = _get_html(c, f"/audits/{job_id}")
     assert "/pdf/highlighted" not in page_html
-    assert "400" in page_html or "What does this mean?" in page_html
+    assert "400" in page_html or "Why is this flagged?" in page_html
 
 
 def test_abstract_word_count_title_and_comment_are_specific_without_issue_type_key() -> None:
@@ -967,9 +967,9 @@ def test_main_category_rule_parity(app: tuple[TestClient, Any]) -> None:
     assert p012_question in rule_p012_html.lower()
 
     # explanation present everywhere
-    assert "What does this mean?" in main_html
-    assert "What does this mean?" in cat_html
-    assert "What does this mean?" in rule_p012_html
+    assert "Why is this flagged?" in main_html
+    assert "Why is this flagged?" in cat_html
+    assert "Why is this flagged?" in rule_p012_html
 
 
 def test_rule_page_explanation_present(app: tuple[TestClient, Any]) -> None:
@@ -986,7 +986,7 @@ def test_rule_page_explanation_present(app: tuple[TestClient, Any]) -> None:
     job_id = _inject_job(wa, findings)
     rule_html = _get_html(c, f"/audits/{job_id}/problems/rule/P021")
     # Explanation shown
-    assert "What does this mean?" in rule_html
+    assert "Why is this flagged?" in rule_html
     assert "Open original PDF page" in rule_html
     assert "/pdf/highlighted" not in rule_html
     assert "Page 5" in rule_html
@@ -1113,7 +1113,7 @@ def test_mobile_desktop_parity_job_page(app: tuple[TestClient, Any]) -> None:
     desktop = html.unescape(c.get(f"/audits/{job_id}", headers=_DESKTOP_HEADERS).text)
 
     # Same action labels on both viewports
-    for label in ("Open highlighted PDF page", "Open original PDF page", "What does this mean?"):
+    for label in ("Open highlighted PDF page", "Open original PDF page", "Why is this flagged?"):
         if label in desktop:
             assert label in mobile, f"Mobile missing: {label!r}"
         if label in mobile:
@@ -1149,8 +1149,8 @@ def test_mobile_desktop_parity_category_and_rule_pages(app: tuple[TestClient, An
             f"PDF links differ on {path}"
         )
         # explanation present on both
-        assert "What does this mean?" in mobile
-        assert "What does this mean?" in desktop
+        assert "Why is this flagged?" in mobile
+        assert "Why is this flagged?" in desktop
 
 
 def test_no_mobile_only_or_desktop_only_classes() -> None:
@@ -1787,7 +1787,7 @@ def test_document_level_structure_finding_no_pdf_button_explanation_only(
     assert f'href="/audits/{job_id}/pdf"' not in card_section
     assert "/pdf/highlighted" not in card_section
     assert "document-level" in card_section.lower()
-    assert "What does this mean?" in main_html
+    assert "Why is this flagged?" in main_html
 
     payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
     view = build_report_view(payload)
