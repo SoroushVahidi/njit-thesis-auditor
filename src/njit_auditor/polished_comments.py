@@ -9,6 +9,7 @@ from pathlib import Path
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.report_outputs import _strip_internal_authoring_note, derive_source_issue_type
+from njit_auditor.resource_paths import resource_path
 
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
@@ -949,9 +950,7 @@ def _resolve_remediation(rule_id: str, issue_type: str) -> str:
 @lru_cache(maxsize=1)
 def _remediation_by_rule() -> dict[str, str]:
     """Load complete remediation text; only the primary web action is shortened."""
-    rules_path = (
-        Path(__file__).resolve().parents[2] / "data/processed/rules/project_added_rules.json"
-    )
+    rules_path = resource_path("data", "processed", "rules", "project_added_rules.json")
     if not rules_path.exists():
         return {}
     try:

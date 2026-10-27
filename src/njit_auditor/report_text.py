@@ -48,12 +48,11 @@ from njit_auditor.report_outputs import (
     individual_finding_comment_and_fix,
     public_display_rule_id,
 )
+from njit_auditor.resource_paths import resource_path
 
 PublicRuleReferenceFn = Callable[..., str]
 
-_RULES_JSON_PATH = (
-    Path(__file__).resolve().parents[2] / "data/processed/rules/project_added_rules.json"
-)
+_RULES_JSON_PATH = resource_path("data", "processed", "rules", "project_added_rules.json")
 
 _CONFIDENCE_LABELS: dict[str, str] = {"high": "High", "medium": "Medium", "low": "Low"}
 

@@ -704,6 +704,7 @@
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON</a></details>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
+    {% if offline_mode %}<form action="/audits/{{ job_id }}/delete" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Delete this audit</button></form>{% endif %}
   </div>
 </section>
 
@@ -716,7 +717,7 @@
 </section>
 {% endif %}
 
-<p class="privacy-note"><strong>Privacy note:</strong> Anyone with this result link can open your PDF and reports until deletion. <a href="/about#privacy">Privacy and retention</a>.</p>
+<p class="privacy-note"><strong>Privacy note:</strong> {% if offline_mode %}This audit stays on this computer until you delete it or quit.{% else %}Anyone with this result link can open your PDF and reports until deletion.{% endif %} <a href="/about#privacy">Privacy and retention</a>.</p>
 
 {% if grouped_summary %}
 <section id="section-rule-summary" class="section" aria-label="Advanced: rule-by-rule technical summary">

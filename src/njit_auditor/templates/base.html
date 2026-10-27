@@ -492,6 +492,7 @@
     <a href="/about" class="site-nav__link"{% if request.url.path == "/about" %} aria-current="page"{% endif %}>About</a>
     <a href="/help" class="site-nav__link">Help</a>
     <a href="/rules" class="site-nav__link">Rule Reference</a>
+    {% if offline_mode %}<form action="/quit" method="post" style="display:inline;margin-left:auto"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Quit</button></form>{% endif %}
   </nav>
   <main id="main-content">{% block content %}{% endblock %}</main>
   <footer>

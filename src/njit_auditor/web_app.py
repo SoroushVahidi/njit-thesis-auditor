@@ -75,6 +75,7 @@ from njit_auditor.report_view import (
     sort_findings,
     sort_grouped_problems,
 )
+from njit_auditor.resource_paths import resource_path
 from njit_auditor.student_cards import student_card_fields
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
@@ -85,12 +86,31 @@ from njit_auditor.upload_handling import (
     sanitize_upload_filename,
     validate_upload_path,
 )
-from njit_auditor.web_samples import (
-    copy_builtin_sample_to_job,
-    get_builtin_sample,
-    list_builtin_samples,
-)
-from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
+from njit_auditor.web_fetch_error import FetchError
+
+
+def list_builtin_samples() -> list[Any]:
+    from njit_auditor.web_samples import list_builtin_samples
+
+    return list_builtin_samples()
+
+
+def get_builtin_sample(sample_id: str) -> Any:
+    from njit_auditor.web_samples import get_builtin_sample
+
+    return get_builtin_sample(sample_id)
+
+
+def copy_builtin_sample_to_job(sample_id: str, destination: Path) -> None:
+    from njit_auditor.web_samples import copy_builtin_sample_to_job
+
+    copy_builtin_sample_to_job(sample_id, destination)
+
+
+def fetch_pdf_url(url: str, destination: Path, max_bytes: int) -> None:
+    from njit_auditor.web_url_fetch import fetch_pdf_url
+
+    fetch_pdf_url(url, destination, max_bytes)
 
 # ---------------------------------------------------------------------------
 # Configuration from environment
@@ -263,7 +283,7 @@ def _is_under_runtime(path: Path) -> bool:
     """Return True when *path* resolves inside the configured runtime directory."""
     try:
         path.resolve().relative_to(RUNTIME_DIR.resolve())
-    except ValueError:
+    except (ValueError, OSError, RuntimeError):
         return False
     return True
 
@@ -468,6 +488,7 @@ def _expired_job_notice() -> str:
 
 
 _retention_sweeper = RetentionSweeper(cleanup_expired_jobs, CLEANUP_INTERVAL_SECONDS)
+_after_audit_task: Callable[[str], None] | None = None
 
 
 @asynccontextmanager
@@ -486,7 +507,7 @@ app = FastAPI(
     redoc_url=None,
     lifespan=_lifespan,
 )
-_templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+_templates = Jinja2Templates(directory=str(resource_path("src", "njit_auditor", "templates")))
 
 
 def _retention_notice() -> str:
@@ -508,10 +529,7 @@ _templates.env.globals["retention_notice"] = _retention_notice()
 # Rule catalog helpers (canonical structured data)
 # ---------------------------------------------------------------------------
 
-_RULES_JSON_PATH = (
-    Path(__file__).parent.parent.parent
-    / "data" / "processed" / "rules" / "project_added_rules.json"
-)
+_RULES_JSON_PATH = resource_path("data", "processed", "rules", "project_added_rules.json")
 
 _P_RULE_RE = re.compile(r"^P\d+$")
 
@@ -1875,9 +1893,13 @@ def _render(
     status_code: int = 200,
 ) -> HTMLResponse:
     """Render a Jinja2 template using the Starlette 1.x API."""
-    return _templates.TemplateResponse(
-        request=request, name=template, context=context, status_code=status_code
-    )
+    templates = getattr(request.app.state, "templates", _templates)
+    context = {**context, "offline_mode": getattr(request.app.state, "offline_mode", False)}
+    if context["offline_mode"]:
+        context["csrf_token"] = request.app.state.csrf_token
+        context["deletion_status"] = request.query_params.get("deletion", "")
+    return templates.TemplateResponse(request=request, name=template, context=context,
+                                      status_code=status_code)
 
 
 
@@ -1970,6 +1992,7 @@ def _index_error(
     request: Request, error: str, status_code: int = 400, *,
     title: str = "Could not start audit.",
 ) -> HTMLResponse:
+    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
@@ -1977,20 +2000,21 @@ def _index_error(
             "error": error,
             "error_title": title,
             "max_upload_mb": MAX_UPLOAD_MB,
-            "builtin_samples": list_builtin_samples(),
+            "builtin_samples": samples,
         },
         status_code=status_code,
     )
 
 
 def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTMLResponse:
+    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
         {
             "notice": notice,
             "max_upload_mb": MAX_UPLOAD_MB,
-            "builtin_samples": list_builtin_samples(),
+            "builtin_samples": samples,
         },
         status_code=status_code,
     )
@@ -2019,6 +2043,9 @@ def _run_audit_task(job_id: str) -> None:
             _set_job(job)
         # Exception type only: messages and tracebacks can carry the job path.
         _logger.warning("Audit task failed after start (%s).", type(exc).__name__)
+    finally:
+        if _after_audit_task is not None:
+            _after_audit_task(job_id)
 
 
 def _execute_audit_task(job_id: str) -> None:
@@ -2214,10 +2241,11 @@ async def version() -> JSONResponse:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, error: str = "") -> HTMLResponse:
+    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": list_builtin_samples()},
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": samples},
     )
 
 
@@ -2601,7 +2629,7 @@ async def download_json(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.json"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2616,7 +2644,7 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.md"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2631,7 +2659,7 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.txt"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2718,8 +2746,9 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
             temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
             temporary_stamp.write_text(signature, encoding="ascii")
             os.replace(temporary_stamp, stamp)
-        except Exception:
-            _logger.exception("Combined student PDF generation failed for job %s", job_id)
+        except Exception as exc:  # noqa: BLE001
+            # Paths, job IDs, and input-derived text can occur in exception messages.
+            _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
             return _index_notice(
                 request,
                 "The complete PDF report could not be prepared. Please try again.",
@@ -3017,9 +3046,8 @@ async def serve_job_pdf_highlighted(
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
-                    "Highlight request for job %s matched %d finding(s) but drew no "
+                    "Highlight request matched %d finding(s) but drew no "
                     "visible annotation (skipped=%d); falling back to plain PDF.",
-                    job_id,
                     len(matches),
                     result.skipped_count,
                 )
@@ -3027,11 +3055,10 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning(
-            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
-            job_id,
-            exc_info=True,
+            "Highlighted PDF generation failed (%s); falling back to plain PDF.",
+            type(exc).__name__,
         )
         return plain_response
 
@@ -3123,9 +3150,8 @@ async def serve_job_highlighted_page_pdf(
                 )
                 if not result.has_highlight:
                     _logger.warning(
-                        "Page-focused highlight for job %s page=%s matched %d finding(s) "
+                        "Page-focused highlight on page=%s matched %d finding(s) "
                         "but drew no visible annotation (skipped=%d); serving single page only.",
-                        job_id,
                         page,
                         len(matches),
                         result.skipped_count,
@@ -3140,12 +3166,11 @@ async def serve_job_highlighted_page_pdf(
                 )
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning(
-            "Page-focused highlighted PDF generation failed for job %s; "
+            "Page-focused highlighted PDF generation failed (%s); "
             "attempting single-page extract.",
-            job_id,
-            exc_info=True,
+            type(exc).__name__,
         )
         return _extract_plain_single_page()
 

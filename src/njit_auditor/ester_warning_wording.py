@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-_MAP_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "specs" / "ester_warning_wording_map.json"
-)
+from njit_auditor.resource_paths import resource_path
+
+_MAP_PATH = resource_path("data", "specs", "ester_warning_wording_map.json")
 
 
 @lru_cache(maxsize=1)
