@@ -1,61 +1,89 @@
-# R055: Email-Sourced Policy Guidance (2026-09-04)
+# R055: Reviewer guidance and policy provenance
 
-## Why this document exists
+## Distinct sources and requirements
 
-`docs/status/ester_authority_matrix_20260902.json` records R055 as
-`ester_decision_exists: NO` / "NO ESTER DECISION FOUND" as of 2026-09-02.
-That was an accurate read of the sources checked at the time (the live
-sheet's `R055` tab and the repository prose docs). It is not the complete
-picture: Ester separately emailed an explicit, rule-wide policy statement
-about R055 on 2026-09-04, reported by the repository owner (who received
-and has direct access to the email; it is not independently re-derivable
-from any source stored in this checkout — the live sheet and Gmail are
-both outside this repository by design, consistent with this project's
-existing sourcing convention, see the authority matrix's own
-`source_limitations` field). This document records that provenance so the
-ledger's policy resolution cites something reviewable in-repo rather than
-a bare, uncheckable assertion.
+| Source | What it establishes | Limit |
+| --- | --- | --- |
+| Published NJIT formatting material and the supplied YES/NO matrix, Q063/Q072 | The left column labels are respectively Table and Figure, bold and left-aligned beneath the list heading. | These matrix questions do not themselves require a repeated word before every entry number. |
+| Ester Flaim's written reviewer clarification, September 4, 2026 | Each List of Tables or List of Figures entry should include its applicable Table or Figure word before the X.x number. | This is later reviewer guidance applied by this project, not evidence of a formally published university-wide policy revision. |
+| Current P055 implementation at baseline `4efd780dde53eea907a714df8bfed86e923ef86a` | Separately reports a complete entry naming the wrong object type, or a numeric-only entry lacking the applicable word. | PDF extraction and conservative gates limit which entries can be evaluated; findings still require case review. |
 
-## Source
+The reviewer clarification supplements the matrix's column-heading requirements.
+A correct column heading does not satisfy the separate entry-prefix requirement.
+Conversely, correctly prefixed entries do not satisfy a missing or incorrectly
+styled column heading. P031 checks header presence/coarse alignment; P049/P050
+check header alignment and bold style. P055 does not replace those checks.
 
-- **Sender:** Ester Flaim <ester.flaim@njit.edu>
-- **Date:** 2026-09-04
-- **Subject:** `Re: Thesis Auditor – Feedback on R035, R036, and R055`
+## Provenance and access limitation
 
-## Policy statement (as reported)
+Minimal source metadata: reviewer **Ester Flaim**, written guidance dated
+**September 4, 2026**, stable project reference **`R055@email:2026-09-04`**.
+The original message was independently inspected through an authorized,
+configured integration during this reconciliation. Its immediate context is
+a direct answer about R055 list-entry type, rather than a judgment on an
+individual finding or a revision to the published matrix.
 
-> For List of Tables / List of Figures entry type, entries should always
-> appear with the word "Table" or "Figure" before the X.x number.
+Earlier versions of this record relied on the repository owner's report of
+that message. The original remains private and is not stored in this checkout.
+An offline reader cannot independently inspect it without authorized access
+or verification by its custodian. This record provides only a policy paraphrase
+and minimal provenance; it does not reproduce the email, headers, private
+message identifiers, private URLs, or unrelated correspondence.
 
-## Why this is policy guidance, not a case-level adjudication
+The September 2 authority snapshot's "NO ESTER DECISION FOUND" entry describes
+the sources available at that earlier date. It does not negate the later
+clarification. The June 5 [original scope](../planning/p055_scope_and_design.md)
+also predates the prefix clarification and describes the original cross-type
+check rather than the complete current behavior.
 
-The live sheet's `R055` tab (`data/evaluation/private/ester_sheet_exports/
-audito_feedback_20260908_live.xlsx`, checked cell-by-cell on 2026-09-08)
-has zero populated findings for any of the seven documents — every row
-reads exactly `"No current auditor R055 finding."` in column B and both
-`Comment`/`Ester Question 1` are blank for all seven. Per this migration's
-own normalization rule E ("No current auditor finding" is historical
-auditor state only, not an Ester verdict), there is no document/page to
-attach a `ReviewCase`/`Adjudication` to. The policy statement above is
-real and rule-wide, so it is recorded as a `Resolution` with
-`case_id=None` and `policy_reference="R055@email:2026-09-04"` — the same
-shape `importers.authority_matrix` uses for matrix-sourced policy — via
-`importers.known_policies`. It is **not** counted in
-`ESTER_REVIEWED_FP_TOTAL`/`ESTER_REVIEWED_TP_TOTAL` (those are case-level
-metrics only) and no `TRUE_VIOLATION`/`FALSE_POSITIVE` was fabricated for
-any of the seven documents on R055.
+## Actual behavior and correction guidance
 
-## Relationship to the existing P055 implementation
+- Correctly prefixed Table entries in the List of Tables and Figure entries in
+  the List of Figures do not trigger P055.
+- Numeric-only entries can trigger `lot_entry_missing_table_prefix` or
+  `lof_entry_missing_figure_prefix`. The correction is to add the applicable
+  word before the number, not to move the entry into another list.
+- A Figure entry in the List of Tables or Table entry in the List of Figures
+  can trigger `lot_entry_is_figure` or `lof_entry_is_table`. That is a separate
+  wrong-list correction, not a request merely to add a missing prefix.
+- Existing gates remain: list-page detection, at least two extracted entries,
+  a page-number token, sufficient entry text, and a recognizable prefix pattern.
+  Incomplete or ambiguous extraction is not proof of noncompliance.
 
-`docs/planning/p055_scope_and_design.md` (2026-06-05, predates this
-policy statement) already implements a related but distinct check:
-`check_pdf_lot_lof_entry_type` flags a List-of-Tables entry that starts
-with "Figure" (or a List-of-Figures entry that starts with "Table") —
-cross-*type* consistency. Ester's 2026-09-04 statement is about entry
-*format* (the literal word "Table"/"Figure" must appear before the `X.x`
-number at all), which is not the same check and is not verified here to
-be already covered by P055's current implementation. No detector code was
-changed as part of recording this policy — whether P055 (or a new rule)
-should enforce the format requirement is deferred to a future scoping
-task, consistent with this migration's constraint not to change detector
-semantics.
+Existing `source_q_rule_id` values Q063/Q072 identify related list context;
+they are not complete provenance for the per-entry prefix requirement. Its
+specific basis is the later reviewer clarification above. This reconciliation
+does not change those serialized fields, any detector logic, or student wording.
+
+## Correction to the earlier accuracy evaluation
+
+The earlier evaluation omitted this later guidance and incorrectly described
+numeric-prefix enforcement as unsupported. Its counts must be interpreted as
+follows; the detector is not being disabled to make older examples pass:
+
+- **26 warnings on the supplied historical mock front matter:** a conflict
+  between that older example and the later reviewer guidance, not 26 confirmed
+  false positives. The example can still illustrate column headings without
+  being a complete compliance oracle for subsequent reviewer clarification.
+- **Six warnings on six synthetic numeric-only entries with correct headers:**
+  expected entry-prefix findings under the later guidance, not six confirmed
+  false positives. Correct headers and correct entry prefixes are independent.
+- **277 records across eight of nine private PDF versions:** unadjudicated
+  findings requiring individual case review. Neither the policy clarification
+  nor this count establishes that all 277 are true positives or false positives.
+
+Those private-corpus counts are historical measurements from the preceding
+evaluation, not a fresh private-document rerun in this reconciliation. No
+precision or recall estimate follows from them.
+
+## Historical judgments remain separate
+
+The historical sheet export had no populated R055 finding rows to adjudicate;
+"No current auditor R055 finding" describes auditor state, not a reviewer
+verdict. The ledger therefore records this guidance as a policy resolution
+with `case_id=None` and `policy_reference="R055@email:2026-09-04"` through
+`importers.known_policies`. It is not a case-level TRUE_VIOLATION or
+FALSE_POSITIVE and must not increase reviewed-case accuracy totals.
+
+No matrix contents, historical adjudications, policy-resolution records,
+private student documents, or detector behavior are changed by this update.

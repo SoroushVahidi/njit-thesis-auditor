@@ -4,6 +4,13 @@
 - **Status:** **Implemented**
 - **Baseline main:** `01103fa` (PR #169 — post-P054 consistency audit; P001–P054 implemented)
 
+> **Historical design snapshot.** The scope below predates Ester's September 4,
+> 2026 entry-prefix clarification. For the current distinction between matrix
+> column labels, later reviewer guidance, and actual P055 behavior, see
+> [R055 policy provenance](../status/r055_ester_email_policy_20260904.md).
+> Numeric-only entry enforcement is supported by that later clarification;
+> it is not derived from Q063/Q072's column-label wording alone.
+
 ---
 
 ## Current state
