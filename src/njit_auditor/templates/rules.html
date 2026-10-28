@@ -90,6 +90,7 @@
 
 {% block content %}
 <h1>Rule Reference</h1>
+{% if offline_mode %}<p>This reference is included in the app and works without internet access.</p>{% endif %}
 <p class="rules-intro">
   This page lists formatting rules for PDF audits. Most have automated checks;
   entries marked Manual review must be checked by hand.

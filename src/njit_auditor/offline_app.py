@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import TemplateNotFound
 from starlette.routing import Route
 
 from njit_auditor import web_app
@@ -229,7 +230,7 @@ def create_offline_app(
     )
     templates.env.globals.update(web_app._templates.env.globals)
     templates.env.filters.update(web_app._templates.env.filters)
-    templates.env.globals["retention_notice"] = lambda: (
+    templates.env.globals["retention_notice"] = (
         "This audit is stored only in your local application data until you delete it "
         "or quit. Downloaded reports saved elsewhere are yours to manage."
     )
@@ -237,6 +238,23 @@ def create_offline_app(
         lambda: _cleanup_failed or manager.cleanup_failed.is_set()
     )
     offline.state.templates = templates
+
+    @offline.exception_handler(TemplateNotFound)
+    async def missing_page(request: Request, _exc: TemplateNotFound):
+        # Do not depend on another template or expose the missing resource path.
+        return HTMLResponse(
+            '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            '<title>Page unavailable — NJIT Thesis Auditor</title></head><body>'
+            '<h1>This local page is unavailable</h1>'
+            '<p>An application file is missing or damaged. Return to the auditor to continue. '
+            'If this happens again, quit and replace the app with a complete copy.</p>'
+            '<p><a href="/">Return to the auditor</a></p>'
+            '<form action="/quit" method="post">'
+            f'<input type="hidden" name="csrf_token" value="{csrf}">'
+            '<button type="submit">Quit</button></form></body></html>',
+            status_code=503,
+        )
 
     @offline.middleware("http")
     async def protect(request: Request, call_next):

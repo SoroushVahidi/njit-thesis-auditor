@@ -400,7 +400,8 @@
   </div>
 </div>
 
-<p class="student-disclosure">{{ student_disclosure | replace("NJIT's official thesis checklist", '<a href="' ~ official_checklist_url ~ '">NJIT\'s official thesis checklist</a>') | safe }} <a href="/about#limitations">About these checks</a>.</p>
+{% set official_link = '<a href="' ~ official_checklist_url ~ '"' ~ (' target="_blank" rel="noopener noreferrer"' if offline_mode else '') ~ '>NJIT\'s official thesis checklist' ~ (' (external; internet required)' if offline_mode else '') ~ '</a>' %}
+<p class="student-disclosure">{{ student_disclosure | replace("NJIT's official thesis checklist", official_link) | safe }} <a href="/about#limitations">About these checks</a>.</p>
 
 {% if failed_check_count %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">

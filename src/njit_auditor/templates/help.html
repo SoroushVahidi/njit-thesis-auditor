@@ -28,6 +28,7 @@
 {% block content %}
 <h1>Help &amp; Terminology</h1>
 <p class="subtitle">Plain-language explanations of how the NJIT Thesis Auditor works and what its results mean.</p>
+{% if offline_mode %}<p>Help and Rule Reference are included in this app and work without internet access. External NJIT website links require internet access and open in a separate tab.</p>{% endif %}
 
 <div class="disclaimer-box" role="note" aria-label="Important disclaimer">
   <strong>Important disclaimer.</strong>

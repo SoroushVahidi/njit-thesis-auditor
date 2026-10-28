@@ -1358,7 +1358,9 @@ def _build_rule_catalog() -> dict[str, Any]:
     """Load P-rules from canonical source and classify for the rules page."""
     try:
         raw = json.loads(_RULES_JSON_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
+        raw = []
+    if not isinstance(raw, list) or not all(isinstance(rule, dict) for rule in raw):
         raw = []
 
     student_rules: list[dict[str, Any]] = []
@@ -3219,6 +3221,15 @@ async def about_page(request: Request) -> HTMLResponse:
 @app.get("/rules", response_class=HTMLResponse)
 async def rules_page(request: Request) -> HTMLResponse:
     catalog = _build_rule_catalog()
+    if not catalog["total_student"]:
+        recovery = (
+            "Quit and replace the app with a complete copy, then try again."
+            if getattr(request.app.state, "offline_mode", False)
+            else "Please try again later."
+        )
+        return _index_notice(
+            request, f"The Rule Reference is unavailable. {recovery}", status_code=503
+        )
     return _render(request, "rules.html", catalog)
 
 
