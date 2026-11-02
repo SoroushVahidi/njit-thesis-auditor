@@ -43,6 +43,41 @@ def require_no_auditor_processes(processes) -> None:
             )
 
 
+def finish_installer(window) -> bool:
+    """Click Finish only after positively disabling the postinstall launch."""
+    finish = window.child_window(title_re=".*Finish.*", control_type="Button")
+    if not finish.exists(timeout=0.2) or not finish.is_enabled():
+        return False
+    try:
+        matches = [
+            checkbox
+            for checkbox in window.descendants(control_type="CheckBox")
+            if checkbox.window_text().replace("&", "") == "Launch NJIT Thesis Auditor"
+            and checkbox.is_visible()
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("Expected exactly one visible Launch NJIT Thesis Auditor checkbox")
+        checkbox = matches[0]
+        if not checkbox.is_enabled():
+            raise RuntimeError("Launch checkbox is disabled")
+        state = checkbox.get_toggle_state()
+        if state not in (0, 1):
+            raise RuntimeError(f"Unknown launch checkbox state: {state!r}")
+        if state == 1:
+            # Inno's RunList is a TNewCheckListBox. Its UIA state is readable,
+            # but Toggle() can raise COMError (0x80131509). Use real mouse input
+            # and verify the result; never blindly toggle again on another poll.
+            checkbox.click_input()
+        if checkbox.get_toggle_state() != 0:
+            raise RuntimeError("Launch checkbox did not become unchecked")
+    except Exception as exc:
+        # Includes unavailable UIA/COM providers. Do not guess a state or click
+        # Finish when we cannot prove that automatic launch has been disabled.
+        raise RuntimeError("Cannot verify launch is disabled; refusing to click Finish") from exc
+    finish.click_input()
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--installer", type=Path, required=True)
@@ -110,15 +145,7 @@ def main() -> None:
         window = desktop_ui.window(handle=wizard.handle)
         window.wait("visible", timeout=15)
         window.capture_as_image().save(str(args.output / "installer.png"))
-        for checkbox in window.descendants(control_type="CheckBox"):
-            if (
-                "Launch NJIT Thesis Auditor" in checkbox.window_text()
-                and checkbox.get_toggle_state()
-            ):
-                checkbox.toggle()
-        finish = window.child_window(title_re=".*Finish.*", control_type="Button")
-        if finish.exists(timeout=0.2) and finish.is_enabled():
-            finish.click_input()
+        if finish_installer(window):
             finished = True
             break
         for label in [".*Next.*", "^Install$"]:
@@ -128,6 +155,8 @@ def main() -> None:
                 break
         time.sleep(0.5)
     assert finished, "Graphical installer did not finish; see installer.log/installer-windows.json"
+    ui.wait_for_process_exit(timeout=30)
+    require_no_auditor_processes(psutil.process_iter(["name"]))
     exe = directory / "NJIT Thesis Auditor.exe"
     assert exe.is_file()
     programs = Path(shell.SHGetFolderPath(0, shellcon.CSIDL_PROGRAMS, None, 0))
