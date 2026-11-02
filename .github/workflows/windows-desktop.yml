@@ -62,14 +62,14 @@ jobs:
           $validator = Join-Path $env:RUNNER_TEMP 'njit-validator'
           python -m venv $validator
           $python = Join-Path $validator 'Scripts/python.exe'
-          & $python -m pip install -c packaging/offline-build-constraints.txt -e '.[dev]' playwright pywinauto
+          & $python -m pip install -c packaging/offline-build-constraints.txt -e '.[dev]' playwright pywinauto psutil
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $python -m playwright install chromium
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "NJIT_VALIDATOR_PYTHON=$python" >> $env:GITHUB_ENV
       - name: Native startup, network and concurrent export regressions
         run: |
-          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_startup.py tests/test_desktop_network.py tests/test_offline_desktop.py::test_audit_with_connections_denied tests/test_web_app.py::test_complete_student_pdf_concurrent_requests_return_complete_files --junitxml=.runtime/windows-validation/native-smoke.xml
+          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_startup.py tests/test_windows_install_harness.py tests/test_desktop_network.py tests/test_offline_desktop.py::test_audit_with_connections_denied tests/test_web_app.py::test_complete_student_pdf_concurrent_requests_return_complete_files --junitxml=.runtime/windows-validation/native-smoke.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build full NJIT application and Inno Setup installer
         run: |
@@ -80,7 +80,7 @@ jobs:
           & $env:NJIT_VALIDATOR_PYTHON scripts/build_desktop_parity_matrix.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git ls-files --eol data/processed/rules/project_added_rules.json src/njit_auditor/audit_runner.py
-          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_download.py tests/test_offline_desktop.py tests/test_windows_startup.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_desktop_parity_checkout.py tests/test_desktop_reference.py tests/test_web_app.py tests/test_student_pdf_report.py tests/test_help_rules.py tests/test_mobile_desktop_consistency.py tests/test_pdf_only_website_wording.py --junitxml=.runtime/windows-validation/regressions.xml
+          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_download.py tests/test_offline_desktop.py tests/test_windows_startup.py tests/test_windows_install_harness.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_desktop_parity_checkout.py tests/test_desktop_reference.py tests/test_web_app.py tests/test_student_pdf_report.py tests/test_help_rules.py tests/test_mobile_desktop_consistency.py tests/test_pdf_only_website_wording.py --junitxml=.runtime/windows-validation/regressions.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Interactive install, offline parity, reopen and uninstall
         run: |
@@ -100,6 +100,8 @@ jobs:
             .runtime/windows-validation/regressions.xml
             .runtime/windows-validation/native-smoke.xml
             .runtime/windows-validation/installer.png
+            .runtime/windows-validation/installer.log
+            .runtime/windows-validation/installer-windows.json
             .runtime/windows-validation/first-launch/result.json
             .runtime/windows-validation/reopened/result.json
             .runtime/windows-reference/provenance.json

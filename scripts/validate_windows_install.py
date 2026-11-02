@@ -16,7 +16,20 @@ import sys
 import time
 from pathlib import Path
 
-from validate_desktop_parity import validate
+
+def select_installer_window(windows, owned_pids: set[int]):
+    """Find the visible Inno wizard in this launch's process tree only."""
+    matches = [
+        window
+        for window in windows
+        if window.process_id() in owned_pids
+        and window.is_visible()
+        and window.class_name() == "TWizardForm"
+        and "NJIT Thesis Auditor" in window.window_text()
+    ]
+    if len(matches) > 1:
+        raise RuntimeError("Multiple owned NJIT installer wizards; refusing ambiguous input")
+    return matches[0] if matches else None
 
 
 def main() -> None:
@@ -27,20 +40,62 @@ def main() -> None:
     args = parser.parse_args()
     if sys.platform != "win32" or platform.machine().lower() not in {"amd64", "x86_64"}:
         raise RuntimeError("This test requires native Windows x64")
-    from pywinauto import Application
+    import psutil
+    from pywinauto import Application, Desktop
+    from validate_desktop_parity import validate
     from win32com.shell import shell, shellcon
 
     args.output.mkdir(parents=True, exist_ok=True)
     directory = args.output.resolve() / "Custom Install Résumé" / "NJIT Thesis Auditor"
     assert not directory.exists(), "Use a fresh install directory"
     installer = args.installer.resolve()
+    install_log = args.output.resolve() / "installer.log"
     ui = Application(backend="uia").start(
-        f'"{installer}" /DIR="{directory}" /TASKS="desktopicon" /LANG=english'
+        f'"{installer}" /DIR="{directory}" /TASKS="desktopicon" /LANG=english /LOG="{install_log}"'
     )
+    # Inno's initial EXE is SetupLdr; the actual wizard runs in its child
+    # temporary executable. Application.top_window() searches the loader only.
+    desktop_ui = Desktop(backend="uia")
+    processes = {ui.process: psutil.Process(ui.process)}
     deadline = time.monotonic() + 180
     finished = False
     while time.monotonic() < deadline:
-        window = ui.top_window()
+        for process in list(processes.values()):
+            try:
+                for child in process.children(recursive=True):
+                    processes[child.pid] = child
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        owned_pids = {pid for pid, process in processes.items() if process.is_running()}
+        windows = [
+            window
+            for window in desktop_ui.windows(visible_only=True)
+            if window.process_id() in owned_pids
+        ]
+        (args.output / "installer-windows.json").write_text(
+            json.dumps(
+                {
+                    "loader_pid": ui.process,
+                    "live_owned_pids": sorted(owned_pids),
+                    "windows": [
+                        {
+                            "pid": w.process_id(),
+                            "class": w.class_name(),
+                            "title": w.window_text(),
+                            "handle": w.handle,
+                        }
+                        for w in windows
+                    ],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        wizard = select_installer_window(windows, owned_pids)
+        if wizard is None:
+            time.sleep(0.5)
+            continue
+        window = desktop_ui.window(handle=wizard.handle)
         window.wait("visible", timeout=15)
         window.capture_as_image().save(str(args.output / "installer.png"))
         for checkbox in window.descendants(control_type="CheckBox"):
@@ -60,7 +115,7 @@ def main() -> None:
                 button.click_input()
                 break
         time.sleep(0.5)
-    assert finished, "Graphical installer did not finish"
+    assert finished, "Graphical installer did not finish; see installer.log/installer-windows.json"
     exe = directory / "NJIT Thesis Auditor.exe"
     assert exe.is_file()
     programs = Path(shell.SHGetFolderPath(0, shellcon.CSIDL_PROGRAMS, None, 0))
