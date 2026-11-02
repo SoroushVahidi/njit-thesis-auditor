@@ -1,6 +1,7 @@
 """Local event-loop traffic is allowed; remote, DNS and worker traffic is not."""
 
 import asyncio
+import ipaddress
 import socket
 
 import pytest
@@ -60,6 +61,16 @@ def test_ui_rejects_non_loopback_ipv6(guard, method, host):
     with socket.socket(socket.AF_INET6) as client:
         with pytest.raises(OSError, match="Network requests are unavailable"):
             getattr(client, method)((host, 80))
+
+
+@pytest.mark.parametrize("method", ["connect", "connect_ex"])
+def test_mapped_ipv6_rejected_independent_of_python_classification(guard, monkeypatch, method):
+    # Reproduce the newer Windows Python's classification on older Python too.
+    monkeypatch.setattr(ipaddress.IPv6Address, "is_loopback", property(lambda _: True))
+    guard(allow_loopback=True)
+    with socket.socket(socket.AF_INET6) as client:
+        with pytest.raises(OSError, match="Network requests are unavailable"):
+            getattr(client, method)(("::ffff:127.0.0.1", 80))
 
 
 @pytest.mark.parametrize("allow_loopback", [False, True])

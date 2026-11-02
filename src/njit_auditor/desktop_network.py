@@ -22,7 +22,11 @@ def is_loopback_address(family: int, address: object) -> bool:
         host = ipaddress.ip_address(address[0])
     except ValueError:
         return False  # Hostnames are never resolved, including 'localhost'.
-    return host.is_loopback and host.version == (4 if family == socket.AF_INET else 6)
+    if family == socket.AF_INET6:
+        # Python patch versions differ on is_loopback for IPv4-mapped IPv6.
+        # The event loop needs only native ::1, never mapped or scoped aliases.
+        return host == ipaddress.IPv6Address("::1")
+    return isinstance(host, ipaddress.IPv4Address) and host.is_loopback
 
 
 def loopback_connect(sock: socket.socket, address):
