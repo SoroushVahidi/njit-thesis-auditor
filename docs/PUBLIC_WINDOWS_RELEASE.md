@@ -67,6 +67,16 @@ OS network, audit/export/view original and annotated PDFs, open Help/Rules, Quit
 reopen and uninstall through Windows Settings. Preserve exported user files.
 Record OS build, source commit, installer SHA-256, screenshots and each result.
 
+Before this workflow is merged to the default branch, run it by pushing a normal
+commit to the open PR #640 branch (without `[skip ci]`). The `pull_request`
+`synchronize` event runs the branch's workflow even while the PR is a draft;
+`gh workflow run` cannot dispatch a workflow that is not registered on main.
+The existing Linux CI selects synthetic tests and skips LFS downloads for this
+candidate branch only. Other branches retain the full regression suite. Both
+native and Linux candidate suites include the desktop worker/lifecycle tests.
+If Actions rejects the run before assigning a runner, retain the run URL and
+check annotations; a queued workflow or successful push is not a native pass.
+
 Parity capture checks `/version` against the authoritative SHA, then uses six
 nonconfidential PDFs. Comparisons retain IDs, severity, locations, explanations,
 card text, grouped-route status/content, original bytes, report content, drawing
