@@ -63,14 +63,11 @@ def _single_instance_lock(root: Path) -> BinaryIO:
 def run_desktop(
     *, headless: bool = False, open_browser: bool = True, state_file: Path | None = None
 ) -> None:
-    from njit_auditor.desktop_worker import deny_network
+    from njit_auditor.desktop_network import restrict_network
 
-    # Local document processing must never initiate network requests. The browser
-    # connects to our listener; the application itself only accepts connections.
-    socket.socket.connect = deny_network  # type: ignore[method-assign]
-    socket.create_connection = deny_network
-    socket.getaddrinfo = deny_network
-    socket.gethostbyname = deny_network
+    # Windows asyncio creates its internal wakeup socket pair over loopback TCP.
+    # Permit literal loopback only; remote addresses and DNS remain prohibited.
+    restrict_network(allow_loopback=True)
     root_dir = local_data_root()
     root_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     with _single_instance_lock(root_dir):

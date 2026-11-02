@@ -4506,6 +4506,7 @@ def test_complete_student_pdf_cache_changes_when_findings_change(
 def test_complete_student_pdf_concurrent_requests_return_complete_files(
     client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    import time
     import traceback
     from concurrent.futures import ThreadPoolExecutor
 
@@ -4513,11 +4514,24 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
 
     c, wa = client
     failures: list[str] = []
+    readers: list[Any] = []
+    build_calls: list[int] = []
     original_replace = os.replace
+    original_build = wa.build_combined_student_pdf_report
+
+    def slow_build(*args, **kwargs):
+        build_calls.append(1)
+        time.sleep(0.1)  # Let the other request encounter the same cold cache.
+        return original_build(*args, **kwargs)
 
     def record_replace(*args, **kwargs):
         try:
-            return original_replace(*args, **kwargs)
+            result = original_replace(*args, **kwargs)
+            if Path(args[1]).name == "student-report.pdf" and not readers:
+                # Model a download that is still reading when another request
+                # finishes generation. Windows denies replacement of this file.
+                readers.append(Path(args[1]).open("rb"))
+            return result
         except OSError:
             # Synthetic test only: retain native file-sharing details without
             # exposing document paths in production application logs.
@@ -4525,6 +4539,7 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
             raise
 
     monkeypatch.setattr(os, "replace", record_replace)
+    monkeypatch.setattr(wa, "build_combined_student_pdf_report", slow_build)
     job_id = _inject_complete_job_with_findings(
         wa,
         tmp_path,
@@ -4533,9 +4548,15 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
         audit_type="pdf",
     )
     url = f"/audits/{job_id}/download/student-report.pdf"
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        responses = list(pool.map(c.get, (url, url)))
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            responses = list(pool.map(c.get, (url, url)))
+    finally:
+        for reader in readers:
+            reader.close()
     assert all(response.status_code == 200 for response in responses), "\n".join(failures)
+    assert len(build_calls) == 1, "Concurrent downloads must reuse the same published report"
+    assert responses[0].content == responses[1].content
     for response in responses:
         with fitz.open(stream=response.content, filetype="pdf") as document:
             assert document.page_count > 5

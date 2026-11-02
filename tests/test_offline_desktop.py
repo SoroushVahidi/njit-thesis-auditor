@@ -17,6 +17,11 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from njit_auditor import offline_app, web_app
+from njit_auditor.desktop_network import (
+    is_loopback_address,
+    loopback_connect,
+    loopback_connect_ex,
+)
 from njit_auditor.offline_app import create_offline_app, prepare_local_storage
 from njit_auditor.offline_launcher import _single_instance_lock
 
@@ -268,14 +273,23 @@ def test_audit_with_connections_denied(monkeypatch: pytest.MonkeyPatch, kind: st
     attempts: list[object] = []
 
     def deny_connect(self: socket.socket, address: object) -> None:
+        if is_loopback_address(self.family, address):
+            return loopback_connect(self, address)
         attempts.append(address)
         raise AssertionError("outbound socket connect attempted")
+
+    def deny_connect_ex(self: socket.socket, address: object) -> int:
+        if is_loopback_address(self.family, address):
+            return loopback_connect_ex(self, address)
+        attempts.append(address)
+        raise AssertionError("outbound socket connect_ex attempted")
 
     def deny_dns(*args: object, **kwargs: object) -> None:
         attempts.append((args, kwargs))
         raise AssertionError("DNS lookup attempted")
 
     monkeypatch.setattr(socket.socket, "connect", deny_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", deny_connect_ex)
     monkeypatch.setattr(socket, "getaddrinfo", deny_dns)
     monkeypatch.setattr(socket, "gethostbyname", deny_dns)
     with TemporaryDirectory() as d:

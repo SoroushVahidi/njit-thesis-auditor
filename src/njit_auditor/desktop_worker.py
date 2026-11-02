@@ -4,15 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import sys
 import tempfile
 import time
 from pathlib import Path
 
-
-def deny_network(*_args, **_kwargs):
-    raise OSError("Network requests are unavailable in a desktop audit")
+from njit_auditor.desktop_network import restrict_network
 
 
 def execute(request: Path) -> int:
@@ -23,10 +20,7 @@ def execute(request: Path) -> int:
             return 1
         time.sleep(0.01)
     # Containment has been assigned by the supervisor before any audit imports.
-    socket.socket.connect = deny_network  # type: ignore[method-assign]
-    socket.create_connection = deny_network
-    socket.getaddrinfo = deny_network
-    socket.gethostbyname = deny_network
+    restrict_network()
     payload = json.loads(request.read_text(encoding="utf-8"))
     runtime = Path(payload["runtime_dir"])
     os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"] = str(runtime)
