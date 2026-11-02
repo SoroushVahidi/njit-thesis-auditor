@@ -214,9 +214,18 @@
     var statusUrl = "/audits/{{ job_id }}/status";
     function poll() {
       fetch(statusUrl)
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+          {% if offline_mode %}
+          if (r.status === 403) {
+            window.location.reload();
+            return null;
+          }
+          {% endif %}
+          return r.json();
+        })
         .then(function(data) {
-          if (data.state === "complete" || data.state === "failed") {
+          if (!data) { return; }
+          if (data.state === "complete" || data.state === "failed" || data.state === "cancelled") {
             window.location.reload();
           } else {
             setTimeout(poll, 2000);
@@ -374,6 +383,19 @@
   <p>Your file is being audited (PDF layout audit). This page refreshes automatically when results are ready.</p>
   <p class="file-hint" style="margin:0.5rem 0 0;">Started: {{ created_at }}</p>
 </div>
+
+{% elif state == "cancelled" %}
+<div class="status-banner" role="status">
+  <div class="status-banner__body">
+    <p class="status-banner__title">Audit canceled</p>
+    <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
+  </div>
+</div>
+<p>{{ error_message }}</p>
+<p>
+  <a href="/" class="btn btn-secondary">Audit another PDF</a>
+  <a href="/help" class="btn btn-secondary" style="margin-left:0.5rem;">Help</a>
+</p>
 
 {% elif state == "failed" %}
 <div class="status-banner status-banner--failed">

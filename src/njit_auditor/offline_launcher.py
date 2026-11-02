@@ -47,7 +47,7 @@ def _single_instance_lock(root: Path) -> BinaryIO:
         lock_file.flush()
     lock_file.seek(0)
     try:
-        if os.name == "nt":
+        if sys.platform == "win32":
             msvcrt = importlib.import_module("msvcrt")
             msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
         else:

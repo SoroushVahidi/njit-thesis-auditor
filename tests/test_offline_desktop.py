@@ -240,7 +240,7 @@ def test_offline_auth_routes_csrf_deletion_and_recovery() -> None:
             assert (audits / job_id / "upload.pdf").exists()
             report_bytes = client.get(url + "/download/json").content
             assert app.state.csrf_token.encode() not in report_bytes
-            assert client.cookies["njit_offline_session"].encode() not in report_bytes
+            assert client.cookies["njit_offline_session_17391"].encode() not in report_bytes
             assert client.get(url + "/highlighted-page.pdf?page=1").status_code == 200
             assert (
                 client.post(

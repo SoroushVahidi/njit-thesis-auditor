@@ -164,7 +164,7 @@ class ProcessTree:
                 return
             if self._job is not None:
                 self._stop_windows_job()
-            elif os.name != "nt":
+            elif sys.platform != "win32":
                 try:
                     os.killpg(self.process.pid, signal.SIGKILL)
                 except ProcessLookupError:

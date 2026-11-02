@@ -204,6 +204,11 @@ def validate(
     executable: Path | None, directory: Path, output: Path, profile_root: Path | None = None
 ) -> None:
     reference = load_reference(directory)
+    if executable and os.name == "nt":
+        import psutil
+        from validate_windows_install import require_no_auditor_processes
+
+        require_no_auditor_processes(psutil.process_iter(["name"]))
     output.mkdir(parents=True, exist_ok=True)
     root = profile_root.resolve() if profile_root is not None else output.resolve() / "profile"
     root.mkdir(exist_ok=True)
@@ -221,7 +226,9 @@ def validate(
                 env.get("SystemRoot", "C:\\Windows") + "\\System32",
             ]
         )
-        command = [str(executable.resolve())]
+        # Keep the native launcher, but use only the owned Chromium context below.
+        # Opening the default browser would interfere with manual GUI sessions.
+        command = [str(executable.resolve()), "--no-browser"]
     else:
         command = [
             sys.executable,

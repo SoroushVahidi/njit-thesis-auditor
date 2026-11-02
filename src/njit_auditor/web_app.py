@@ -223,7 +223,7 @@ _PDF_ONLY_ERROR = "Only PDF files are supported in the web interface. Please upl
 @dataclass
 class JobState:
     job_id: str
-    state: str  # pending | running | complete | failed
+    state: str  # pending | running | complete | failed | cancelled (desktop only)
     created_at: str
     file_name: str
     audit_type: str = "pdf"

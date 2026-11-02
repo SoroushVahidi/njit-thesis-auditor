@@ -90,7 +90,7 @@ class DesktopExecutor:
             self._deadlines.pop(job_id, None)
         job = web_app._get_job(job_id)
         if job is not None:
-            job.state = "failed"
+            job.state = "cancelled"
             job.error_message = CANCEL_MESSAGE
             job.finished_at = datetime.now(timezone.utc).isoformat()
             web_app._set_job(job)
@@ -244,13 +244,14 @@ class DesktopExecutor:
             if acquired:
                 self._slots.release()
             if not completed:
-                # Keep the short failure state, but remove uploaded and partial documents.
+                # Keep the terminal status, but remove uploaded and partial documents.
+                cancelled = failure == CANCEL_MESSAGE
                 if not web_app._delete_job_workspace(job_id):
                     self.cleanup_failed.set()
                     failure += (
                         " Some local files could not be deleted. Use Delete all local audit data."
                     )
-                job.state = "failed"
+                job.state = "cancelled" if cancelled else "failed"
                 job.error_message = failure
                 job.finished_at = datetime.now(timezone.utc).isoformat()
                 web_app._set_job(job)

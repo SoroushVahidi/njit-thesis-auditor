@@ -10,6 +10,16 @@ Run this on a genuine Windows x64 machine with Python 3.12 x64 for the build. Re
 
 ## Launch and process lifecycle
 
+Run manual GUI checks and automated installer/parity validation **sequentially**.
+Before each phase, record its executable, PID, data profile and loopback port (never
+the launch ticket). Finish/export any active audit and quit that phase's launcher
+before continuing. Do not close someone else's session automatically. Installer and
+packaged parity validation refuse to start while an Auditor process is running.
+The installer harness deselects its final automatic launch; parity owns one native
+launcher and a fresh Chromium cookie store, without opening the default browser.
+Wait for its verified shutdown before reopening. Separate `LOCALAPPDATA` directories
+deliberately permit separate instances and do not test same-directory exclusion.
+
 4. Set `LOCALAPPDATA` to a disposable, user-owned test directory. Launch the packaged `.exe` normally. Confirm the browser opens at `http://127.0.0.1:<random-port>/`, the ticket URL redirects without retaining the ticket in the address bar, and the interface works with and without Tk available.
 5. Use `Get-NetTCPConnection` to confirm the process listens only on `127.0.0.1`. Confirm no listener on `0.0.0.0`, a LAN address, or IPv6. With a packet capture or firewall log covering the process, exercise launch, upload, report generation, and shutdown; record any DNS queries or outbound connections. Disable networking and repeat the synthetic audit.
 6. Start a second packaged instance using the same data directory. It must exit with the single-instance warning without clearing the first instance's audit. Confirm the first instance remains usable.
@@ -19,6 +29,16 @@ Run this on a genuine Windows x64 machine with Python 3.12 x64 for the build. Re
 7. Upload synthetic normal, Unicode, rotated, low-text, malformed, encrypted, and oddly named PDFs. Record accepted/rejected states and compare normal cases with the online app on the same SHA: finding IDs and counts, pages, boxes, JSON, Markdown, text and combined PDF reports, original and highlighted PDFs, problem cards, sort/filter controls, and navigation links.
 8. For a completed job, open every report and PDF route. Confirm the viewer, download filenames, highlights, page controls, filters, and sorting work in a real browser. Check that errors for malformed and encrypted PDFs show no path or exception details.
 9. Without the session cookie, request the index, job page, original PDF, highlighted PDF, and each report URL. Each must deny access. Test wrong Host, wrong Origin, cross-site `Sec-Fetch-Site`, missing Origin on POST, missing/wrong CSRF, invalid ticket, and expiration. Confirm mutation routes reject unauthorized requests.
+   Cancel both a pending and a running synthetic audit. Each must reach an **Audit
+   canceled** page, retain its browser session, keep Help/Rule Reference available,
+   and allow a new audit. Invalid-session browser navigation must display recovery
+   instructions with HTTP 403; API requests must retain JSON errors. In a separate,
+   explicitly isolated regression, run two disposable profiles on different ports
+   in one browser cookie store and verify each session survives opening the other.
+   Close both test processes before resuming manual qualification. The native
+   `tests/test_windows_startup.py` same-directory test checks that rejection leaves
+   the first audit and temporary-work sentinel intact; it does not replace the
+   packaged executable qualification above.
 10. Try URL-encoded traversal in job IDs and report paths and a symlink or junction pointing from `audits` or `tmp` to a disposable sentinel directory. Also link `desktop.lock` to an empty disposable outside file and confirm startup refuses it without writing to that file. Confirm outside files survive and startup refuses linked storage. Use only disposable synthetic data.
 
 ## Data and shutdown

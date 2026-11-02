@@ -9,6 +9,9 @@ import pytest
 SELECT = runpy.run_path(
     str(Path(__file__).resolve().parents[1] / "scripts/validate_windows_install.py")
 )["select_installer_window"]
+PREFLIGHT = runpy.run_path(
+    str(Path(__file__).resolve().parents[1] / "scripts/validate_windows_install.py")
+)["require_no_auditor_processes"]
 
 
 def window(pid, *, title="Setup - NJIT Thesis Auditor", kind="TWizardForm", visible=True):
@@ -48,3 +51,15 @@ def test_wait_for_visible_actual_wizard(candidate):
 def test_ambiguous_owned_wizards_are_rejected():
     with pytest.raises(RuntimeError, match="Multiple owned"):
         SELECT([window(11), window(22)], {11, 22})
+
+
+def test_validation_refuses_existing_auditor_without_closing_it():
+    class Existing:
+        info = {"name": "NJIT Thesis Auditor.exe"}
+
+        def terminate(self):
+            pytest.fail("Validation must not terminate an existing audit")
+
+    with pytest.raises(RuntimeError, match="already running"):
+        PREFLIGHT([Existing()])
+    PREFLIGHT([SimpleNamespace(info={"name": "unrelated.exe"}), SimpleNamespace(info={})])

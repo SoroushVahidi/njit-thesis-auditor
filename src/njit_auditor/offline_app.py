@@ -34,6 +34,39 @@ _delete_lock = threading.Lock()
 _cleanup_failed = False
 
 
+def _session_unavailable(request: Request, error: str) -> HTMLResponse | JSONResponse:
+    """Explain recovery without granting access or exposing a launch credential."""
+    response: HTMLResponse | JSONResponse
+    if (
+        "text/html" in request.headers.get("accept", "").lower()
+        and request.headers.get("sec-fetch-mode", "navigate") == "navigate"
+    ):
+        response = HTMLResponse(
+            '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            '<title>Reopen your session — NJIT Thesis Auditor</title></head><body>'
+            '<main><h1>This auditor session is unavailable</h1>'
+            '<p>The session may have expired, or this tab may belong to an older launch.</p>'
+            '<p>In the NJIT Thesis Auditor launcher window, choose <strong>Open auditor</strong> '
+            'and continue in the tab it opens. If the app has closed or the session has expired, '
+            'reopen the app using its shortcut.</p>'
+            '<p>This request did not cancel, delete, or submit an audit. '
+            'Keep any other working audit tab open. Quitting the app removes its temporary '
+            'audit data; downloaded reports saved elsewhere are preserved.</p>'
+            '</main></body></html>',
+            status_code=403,
+        )
+    else:
+        response = JSONResponse({"error": error}, status_code=403)
+    response.headers.update({
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+    })
+    return response
+
+
 @dataclass
 class DeletionSummary:
     deleted: int = 0
@@ -167,6 +200,9 @@ def create_offline_app(
     last_activity = time.monotonic()
     allowed_host = f"127.0.0.1:{port}"
     allowed_origin = f"http://{allowed_host}"
+    # Cookies are scoped by host/path, not TCP port. Two isolated desktop
+    # profiles may share a browser; never overwrite another port's credential.
+    cookie_name = f"{COOKIE_NAME}_{port}"
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -268,10 +304,10 @@ def create_offline_app(
         if origin is not None and origin != allowed_origin:
             return JSONResponse({"error": "invalid origin"}, status_code=403)
         if request.url.path != "/_session/start":
-            cookie = request.cookies.get(COOKIE_NAME, "")
+            cookie = request.cookies.get(cookie_name, "")
             if time.monotonic() >= expires_at or not hmac.compare_digest(cookie, session):
-                return JSONResponse(
-                    {"error": "desktop session expired or unavailable"}, status_code=403
+                return _session_unavailable(
+                    request, "desktop session expired or unavailable"
                 )
             if request.method not in ("GET", "HEAD", "OPTIONS"):
                 if origin != allowed_origin:
@@ -301,12 +337,12 @@ def create_offline_app(
         return response
 
     @offline.get("/_session/start", include_in_schema=False)
-    async def start_session(ticket: str = ""):
+    async def start_session(request: Request, ticket: str = ""):
         if time.monotonic() >= expires_at or not hmac.compare_digest(ticket, launch_ticket):
-            return JSONResponse({"error": "invalid launch ticket"}, status_code=403)
+            return _session_unavailable(request, "invalid launch ticket")
         response = RedirectResponse("/", status_code=303)
         response.set_cookie(
-            COOKIE_NAME,
+            cookie_name,
             session,
             httponly=True,
             samesite="strict",

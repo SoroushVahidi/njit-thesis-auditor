@@ -12,6 +12,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
+import pytest
+from desktop_session_support import desktop, wait_state
+from test_offline_desktop import _pdf
 
 
 def test_launcher_without_console_streams_starts_and_quits(tmp_path: Path) -> None:
@@ -70,3 +73,35 @@ run_desktop(headless=True, open_browser=False, state_file=Path(sys.argv[1]))
         if process.poll() is None:
             process.terminate()
             process.wait(timeout=15)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Exercises native Windows byte-range locking")
+def test_same_profile_second_launch_is_rejected_without_touching_first_audit(tmp_path):
+    with desktop(tmp_path / "first") as server:
+        root = server.profile / "NJIT Thesis Auditor"
+        sentinel = root / "tmp" / "active-work.txt"
+        sentinel.write_text("synthetic active work", encoding="utf-8")
+        response = server.client.post(
+            "/audits", data={"csrf_token": server.csrf},
+            files={"file": ("synthetic.pdf", _pdf("normal"), "application/pdf")},
+            headers={"Origin": server.origin}, follow_redirects=False,
+        )
+        assert response.status_code == 303
+        job = response.headers["location"]
+        assert wait_state(server.client, server.origin, job, {"complete", "failed"})[
+            "state"
+        ] == "complete"
+        before = server.client.get(job + "/download/json").content
+        second_state = tmp_path / "second.json"
+        second = subprocess.run(
+            [sys.executable, "-m", "njit_auditor.offline_launcher", "--headless",
+             "--no-browser", "--state-file", str(second_state)],
+            env=server.env, capture_output=True, timeout=15, creationflags=0x08000000,
+        )
+        assert second.returncode != 0
+        assert b"NJIT Thesis Auditor is already running" in second.stderr
+        assert not second_state.exists()
+        assert sentinel.read_text(encoding="utf-8") == "synthetic active work"
+        assert server.process.poll() is None
+        assert server.client.get(job + "/download/json").content == before
+        assert server.client.get("/help").status_code == 200

@@ -32,6 +32,17 @@ def select_installer_window(windows, owned_pids: set[int]):
     return matches[0] if matches else None
 
 
+def require_no_auditor_processes(processes) -> None:
+    """Fail closed instead of interfering with an existing GUI/audit session."""
+    for process in processes:
+        if (process.info.get("name") or "").casefold() == "njit thesis auditor.exe":
+            raise RuntimeError(
+                "An NJIT Thesis Auditor process is already running. Finish/export its audit "
+                "and quit it before starting installer or parity validation. "
+                "Validation will not close it automatically."
+            )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--installer", type=Path, required=True)
@@ -45,6 +56,7 @@ def main() -> None:
     from validate_desktop_parity import validate
     from win32com.shell import shell, shellcon
 
+    require_no_auditor_processes(psutil.process_iter(["name"]))
     args.output.mkdir(parents=True, exist_ok=True)
     directory = args.output.resolve() / "Custom Install Résumé" / "NJIT Thesis Auditor"
     assert not directory.exists(), "Use a fresh install directory"
