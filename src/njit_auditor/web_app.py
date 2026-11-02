@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import urllib.parse
+from _thread import LockType
 from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
@@ -21,6 +22,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from weakref import WeakValueDictionary
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -253,6 +255,19 @@ class JobState:
 
 _jobs: dict[str, JobState] = {}
 _jobs_lock = threading.Lock()
+_student_pdf_locks: WeakValueDictionary[str, LockType] = WeakValueDictionary()
+
+
+def _student_pdf_lock(job_id: str) -> LockType:
+    # Concurrent requests must recheck the cache after the first writer publishes
+    # PDF, metadata and stamp. Windows cannot replace a PDF held by a downloader.
+    # Weak references release idle locks without accumulating expired job IDs.
+    with _jobs_lock:
+        lock = _student_pdf_locks.get(job_id)
+        if lock is None:
+            lock = threading.Lock()
+            _student_pdf_locks[job_id] = lock
+        return lock
 
 
 def _get_job(job_id: str) -> JobState | None:
@@ -2698,58 +2713,65 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
             default=str,
         ).encode("utf-8")
     ).hexdigest()
-    if not output.exists() or not stamp.exists() or stamp.read_text(encoding="ascii") != signature:
-        boxes_by_problem: dict[int, list[HighlightBox]] = {}
-        for finding in job.findings:
-            number = int(finding.get("problem_number") or 0)
-            page = _coerce_page_number(finding.get("page"))
-            if not number or page is None:
-                continue
-            rule = str(finding.get("rule_id", ""))
-            raw_index = parse_finding_id(str(finding.get("finding_id", "")))
-            if rule == "P011":
-                matched = [
-                    f
-                    for f in raw
-                    if _coerce_page_number(f.get("page")) == page
-                    and str(f.get("rule_id", "")) == rule
-                ]
-            elif raw_index is not None and raw_index < len(raw):
-                matched = [raw[raw_index]]
-            else:
-                matched = [
-                    f
-                    for f in raw
-                    if _coerce_page_number(f.get("page")) == page
-                    and str(f.get("rule_id", "")) == rule
-                    and _finding_issue_type(f) == str(finding.get("issue_type", ""))
-                ][:1]
-            boxes_by_problem[number] = _highlight_boxes_by_page(matched).get(page, [])
-        try:
-            result = build_combined_student_pdf_report(
-                source,
-                output,
-                job.findings,
-                boxes_by_problem=boxes_by_problem,
-                file_name=job.file_name,
-                manuscript_page_labels=job.manuscript_page_labels,
-                failed_check_count=job.failed_check_count,
-            )
-            metadata_path = jdir / "student-report-metadata.json"
-            temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
-            temporary_metadata.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
-            os.replace(temporary_metadata, metadata_path)
-            temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
-            temporary_stamp.write_text(signature, encoding="ascii")
-            os.replace(temporary_stamp, stamp)
-        except Exception as exc:  # noqa: BLE001
-            # Paths, job IDs, and input-derived text can occur in exception messages.
-            _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
-            return _index_notice(
-                request,
-                "The complete PDF report could not be prepared. Please try again.",
-                status_code=500,
-            )
+    with _student_pdf_lock(job_id):
+        if (
+            not output.exists()
+            or not stamp.exists()
+            or stamp.read_text(encoding="ascii") != signature
+        ):
+            boxes_by_problem: dict[int, list[HighlightBox]] = {}
+            for finding in job.findings:
+                number = int(finding.get("problem_number") or 0)
+                page = _coerce_page_number(finding.get("page"))
+                if not number or page is None:
+                    continue
+                rule = str(finding.get("rule_id", ""))
+                raw_index = parse_finding_id(str(finding.get("finding_id", "")))
+                if rule == "P011":
+                    matched = [
+                        f
+                        for f in raw
+                        if _coerce_page_number(f.get("page")) == page
+                        and str(f.get("rule_id", "")) == rule
+                    ]
+                elif raw_index is not None and raw_index < len(raw):
+                    matched = [raw[raw_index]]
+                else:
+                    matched = [
+                        f
+                        for f in raw
+                        if _coerce_page_number(f.get("page")) == page
+                        and str(f.get("rule_id", "")) == rule
+                        and _finding_issue_type(f) == str(finding.get("issue_type", ""))
+                    ][:1]
+                boxes_by_problem[number] = _highlight_boxes_by_page(matched).get(page, [])
+            try:
+                result = build_combined_student_pdf_report(
+                    source,
+                    output,
+                    job.findings,
+                    boxes_by_problem=boxes_by_problem,
+                    file_name=job.file_name,
+                    manuscript_page_labels=job.manuscript_page_labels,
+                    failed_check_count=job.failed_check_count,
+                )
+                metadata_path = jdir / "student-report-metadata.json"
+                temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
+                temporary_metadata.write_text(
+                    json.dumps(asdict(result), indent=2), encoding="utf-8"
+                )
+                os.replace(temporary_metadata, metadata_path)
+                temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
+                temporary_stamp.write_text(signature, encoding="ascii")
+                os.replace(temporary_stamp, stamp)
+            except Exception as exc:  # noqa: BLE001
+                # Paths, job IDs, and input-derived text can occur in exception messages.
+                _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
+                return _index_notice(
+                    request,
+                    "The complete PDF report could not be prepared. Please try again.",
+                    status_code=500,
+                )
     safe_name = sanitize_upload_filename(job.file_name or "thesis.pdf")
     download_name = f"{Path(safe_name).stem}_NJIT_Formatting_Audit.pdf"
     return FileResponse(path=str(output), media_type="application/pdf", filename=download_name)

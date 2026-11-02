@@ -4566,6 +4566,30 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
         assert cached.page_count > 5
 
 
+def test_complete_student_pdf_generation_failure_allows_retry(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[_p012_annotation_finding_with_bbox(page=2)],
+        file_name="synthetic.pdf", audit_type="pdf",
+    )
+    url = f"/audits/{job_id}/download/student-report.pdf"
+    original = wa.build_combined_student_pdf_report
+    calls = []
+
+    def fail_once(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise PermissionError("Synthetic transient write failure")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(wa, "build_combined_student_pdf_report", fail_once)
+    assert c.get(url).status_code == 500
+    assert c.get(url).status_code == 200
+    assert len(calls) == 2
+
+
 def test_complete_student_pdf_missing_and_non_pdf_jobs(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
