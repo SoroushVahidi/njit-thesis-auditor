@@ -366,6 +366,7 @@
 <div class="status-banner status-banner--pending">
   <div class="status-banner__body">
     <p class="status-banner__title"><span class="spinner"></span> Processing audit&hellip;</p>
+    {% if offline_mode %}<form action="/audits/{{ job_id }}/cancel" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Cancel audit</button></form>{% endif %}
     <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
   </div>
 </div>
@@ -713,6 +714,7 @@
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON (structured/developer export)</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
+    {% if offline_mode %}<form action="/audits/{{ job_id }}/delete" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Delete this audit</button></form>{% endif %}
   </div>
 </section>
 
@@ -728,8 +730,8 @@
 <div class="privacy-note">
   <strong>Privacy note:</strong> This report is for you. To point at each problem it may quote short pieces of your
   document, such as table of contents, list, or heading entries and individual flagged words; highlighted PDFs are
-  copies of your own pages. {{ retention_notice }} Until they are deleted, anyone with this page's link can
-  open it, so share the link or downloads only as you would share your document.
+  copies of your own pages. {{ retention_notice }} {% if not offline_mode %}Until they are deleted, anyone with this page's link can
+  open it, so share the link or downloads only as you would share your document.{% endif %}
   Automated findings require manual verification against NJIT guidelines. Routine page-number candidates in the inventory section are not counted as problems.
 </div>
 

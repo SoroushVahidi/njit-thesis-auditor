@@ -1,5 +1,7 @@
 # njit-thesis-auditor
 
+For the local desktop edition and build instructions, see [Offline desktop auditor](docs/implementation/offline_desktop.md).
+
 `njit-thesis-auditor` is a local-first tool for auditing NJIT thesis/dissertation formatting
 against NJIT Graduate Studies formatting guidelines. It tracks 86 project-added rule IDs
 (`P001`-`P086`), including heuristic checks covering TeX source hygiene and

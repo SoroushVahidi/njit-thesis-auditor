@@ -48,7 +48,6 @@ def windows_download(environ: Mapping[str, str] | None = None) -> WindowsDownloa
         for key, value in {
             "EDITION": "njit",
             "NATIVE_TESTED": "1",
-            "CONFIDENTIALITY_REVIEWED": "1",
             "ARCHITECTURE": "x64",
         }.items()
     ):
@@ -63,7 +62,7 @@ def windows_download(environ: Mapping[str, str] | None = None) -> WindowsDownloa
     if re.fullmatch(r"[1-9][0-9]{0,11}", size) is None:
         return WindowsDownload()
     windows_versions = env.get("NJIT_AUDITOR_WINDOWS_DOWNLOAD_WINDOWS_VERSIONS", "")
-    if windows_versions not in {"Windows 10", "Windows 11", "Windows 10 and Windows 11"}:
+    if windows_versions != "Windows 11":
         return WindowsDownload()
     version = match["version"]
     return WindowsDownload(

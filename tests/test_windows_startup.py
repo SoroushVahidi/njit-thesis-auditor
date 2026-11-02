@@ -1,0 +1,62 @@
+"""Exercise the no-console startup failure without claiming native qualification."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+from urllib.parse import urlsplit
+
+import httpx
+
+
+def test_launcher_without_console_streams_starts_and_quits(tmp_path: Path) -> None:
+    state = tmp_path / "state.json"
+    env = {
+        **os.environ,
+        "LOCALAPPDATA": str(tmp_path / "profile"),
+        "XDG_DATA_HOME": str(tmp_path / "profile"),
+    }
+    code = (
+        "import sys; sys.stdout=None; sys.stderr=None; "
+        "from pathlib import Path; "
+        "from njit_auditor.offline_launcher import run_desktop; "
+        "run_desktop(headless=True,open_browser=False,state_file=Path(sys.argv[1]))"
+    )
+    process = subprocess.Popen([sys.executable, "-c", code, str(state)], env=env)
+    try:
+        deadline = time.monotonic() + 20
+        while not state.exists():
+            assert process.poll() is None, "Windowed startup failed"
+            assert time.monotonic() < deadline, "Windowed startup timed out"
+            time.sleep(0.05)
+        # File publication is tiny, but do not race the writer while loading it.
+        for _ in range(100):
+            try:
+                url = json.loads(state.read_text())["url"]
+                break
+            except (json.JSONDecodeError, KeyError):
+                time.sleep(0.01)
+        else:
+            raise AssertionError("Incomplete startup state")
+        parsed = urlsplit(url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        with httpx.Client(base_url=origin, follow_redirects=True) as client:
+            page = client.get(url)
+            assert page.status_code == 200
+            assert "NJIT Thesis Auditor" in page.text
+            csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text).group(1)
+            assert client.get("/help").status_code == 200
+            assert client.get("/rules").status_code == 200
+            result = client.post("/quit", data={"csrf_token": csrf}, headers={"Origin": origin})
+            assert result.status_code == 200
+        assert process.wait(timeout=15) == 0
+        assert not state.exists()
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=15)

@@ -23,9 +23,8 @@ PREFIX = "NJIT_AUDITOR_WINDOWS_DOWNLOAD_"
 def release_env(**overrides: str) -> dict[str, str]:
     values = {
         "URL": URL, "APPROVED": "1", "SHA256": "ab" * 32,
-        "SIZE_BYTES": "104857600", "WINDOWS_VERSIONS": "Windows 10 and Windows 11",
+        "SIZE_BYTES": "104857600", "WINDOWS_VERSIONS": "Windows 11",
         "ARCHITECTURE": "x64", "EDITION": "njit", "NATIVE_TESTED": "1",
-        "CONFIDENTIALITY_REVIEWED": "1",
     }
     values.update(overrides)
     return {PREFIX + key: value for key, value in values.items()}
@@ -131,9 +130,9 @@ def test_approved_link_and_runtime_rollback(
     rendered = section(client.get("/"))
     assert f'href="{URL}"' in rendered
     assert 'referrerpolicy="no-referrer"' in rendered
-    assert "NJIT Thesis Auditor — Windows Desktop Application" in rendered
+    assert "Download NJIT Thesis Auditor for Windows" in rendered
     assert "Version 1.0.0" in rendered
-    assert "Windows 10 and Windows 11 (x64)" in rendered
+    assert "Windows 11 (x64)" in rendered
     assert "100.0 MiB (104,857,600 bytes)" in rendered
     assert "a" * 64 in rendered
     assert "Start menu" in rendered
@@ -215,15 +214,16 @@ def test_every_required_release_field_must_be_present(key: str) -> None:
 
 @pytest.mark.parametrize(("key", "value"), [
     ("EDITION", "generic"), ("EDITION", "Document Format Auditor"),
-    ("NATIVE_TESTED", "0"), ("CONFIDENTIALITY_REVIEWED", "0"),
+    ("NATIVE_TESTED", "0"),
     ("ARCHITECTURE", "arm64"), ("SIZE_BYTES", "0"), ("SIZE_BYTES", "-1"),
     ("SIZE_BYTES", "1.5"), ("SIZE_BYTES", "100 MB"), ("SIZE_BYTES", "9" * 13),
-    ("WINDOWS_VERSIONS", "Windows XP"), ("WINDOWS_VERSIONS", "<script>"),
+    ("WINDOWS_VERSIONS", "Windows XP"), ("WINDOWS_VERSIONS", "Windows 10"),
+    ("WINDOWS_VERSIONS", "<script>"),
 ])
 def test_unqualified_or_malformed_release_fails_closed(key: str, value: str) -> None:
     assert windows_download(release_env(**{key: value})) == WindowsDownload()
 
 
-@pytest.mark.parametrize("versions", ["Windows 10", "Windows 11"])
+@pytest.mark.parametrize("versions", ["Windows 11"])
 def test_only_qualified_windows_versions_are_displayed(versions: str) -> None:
     assert windows_download(release_env(WINDOWS_VERSIONS=versions)).windows_versions == versions

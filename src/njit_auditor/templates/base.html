@@ -475,6 +475,7 @@
     <a href="/help" class="site-nav__link">Help</a>
     <span class="site-nav__sep" aria-hidden="true">|</span>
     <a href="/rules" class="site-nav__link">Rule Reference</a>
+    {% if offline_mode %}<form action="/quit" method="post" style="display:inline;margin-left:auto"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Quit</button></form>{% endif %}
   </nav>
   {% block content %}{% endblock %}
   <footer>

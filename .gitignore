@@ -43,3 +43,6 @@ tests/fixtures/web_demo/demo_project_extracted/
 .DS_Store
 .vscode/
 .idea/
+
+# Isolated native desktop build environment
+.venv-build/

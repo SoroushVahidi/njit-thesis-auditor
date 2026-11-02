@@ -1,117 +1,124 @@
-# Windows homepage download release gate
+# Full NJIT Windows application release
 
-The homepage includes **NJIT Thesis Auditor — Windows Desktop Application**.
-Downloads default to disabled, with no URL or invented release metadata. The
-online upload, Help, Rule Reference, auditing and reporting paths stay intact.
+The user has authorized distribution of the full NJIT rule implementations and
+accepted inspectable packaged files/rules. PyMuPDF licensing is resolved. Neither
+is a release blocker. The source repository remains private; only qualified
+installer assets and reviewed release documentation will be public.
 
-## Current release decision (2026-11-02)
+## Implementation
 
-Activation is blocked. GitHub main and the production checkout were verified at
-`4efd780dde53eea907a714df8bfed86e923ef86a`. No Windows installer or native Windows
-qualification report was located in repository releases or the relevant local
-desktop artifact folders. The private desktop candidate is version `0.2.0-rc.1`,
-targeting Windows 10/11 x64; those targets are **not verified platform support**.
-The historical proposed `NJIT-Thesis-Auditor-0.2.0-rc.1-windows-x64.zip` was never
-built in the available records and is not a graphical installer. There are no
-verified Windows bytes, file size, checksum or public download URL to configure.
+Candidate application: **NJIT Thesis Auditor 0.2.0-rc.2**, Windows 11 x64 target.
+Windows 10 is not advertised or accepted by this installer pending validation.
+The production reference is `4efd780dde53eea907a714df8bfed86e923ef86a`.
+See [the complete feature/rule matrix](WINDOWS_FEATURE_PARITY.md).
 
-The generic **Document Format Auditor** is a different edition. No generic
-installer was located or substituted. It must not be presented as the full NJIT
-application. Full parity with the current online application is not established
-by older same-revision Linux comparisons.
+The existing authenticated FastAPI/local-browser desktop is integrated with the
+production engine and reporting templates. No detector thresholds or rule IDs
+were changed. All rule modules, rule JSON, wording, templates, fonts, icon and
+Python runtime are bundled. URL imports have a local equivalent: save the PDF
+and upload it. Built-in examples use a locally generated synthetic PDF instead
+of distributing private student samples. Help and Rule Reference are local.
 
-The private NJIT packaging recipe at desktop commit
-`8d7a014bfee1df640731fda22963b9f28389f3aa` includes
-`data/processed/rules/project_added_rules.json`, wording resources, and a
-PyInstaller PYZ containing Python modules used by the audit engine. Recipients
-can inspect packaged resources and bytecode. Publicly distributing that full
-offline bundle therefore conflicts with the requirement to keep private NJIT
-rule implementations confidential. A private source repository or executable
-wrapper does not resolve that conflict. Do not publish this candidate. A release
-architecture that satisfies confidentiality and offline functionality is still
-required; setting an approval flag cannot make the existing bundle confidential.
+The launcher disables Uvicorn's console-dependent logging configuration so a
+windowed Windows executable can start with stdout/stderr absent. Audits run in
+supervised processes with native Windows Job Object containment; Cancel, Quit,
+reopen, bounded shutdown and temporary cleanup reuse the existing implementation.
+The launcher and workers deny outbound Python socket connections. Browser UI
+requests remain on loopback; sending email via the contact link requires connectivity.
 
-PyMuPDF licensing is resolved for this task and is not an outstanding gate.
+## Build and validate
 
-## Distribution contract
+On native Windows x64, use Python 3.12 x64 and Inno Setup 6 **on the builder only**:
 
-Use a separate public distribution repository with fresh history containing only
-reviewed public release documentation and qualified binary assets. Never mirror
-the private repository, its history, private rules, samples, logs or credentials.
-The allowlisted HTTPS contract is:
-
-```text
-https://github.com/SoroushVahidi/njit-thesis-auditor-desktop/releases/download/desktop-v<VERSION>/NJIT-Thesis-Auditor-Setup-<VERSION>.exe
+```powershell
+./packaging/build_offline_windows.ps1
 ```
 
-This is a proposed contract, **not an existing asset**. The matching tag and
-filename are versioned; the application rejects mutable `latest` URLs, private
-source-repository URLs, HTTP, arbitrary hosts, queries and fragments. Publish a
-new version for every change; never replace bytes at an approved URL. GitHub
-must serve the binary as an attachment with the correct filename and a binary
-content type. Verify those actual response headers before activation. The
-website links directly to the asset; it adds no executable-serving route,
-proxy, GitHub credentials, student authentication or directory listing.
+The script verifies a clean committed checkout, installs pinned build dependencies,
+creates the full NJIT one-folder application, checks all rule modules/resources,
+and compiles `packaging/windows_installer.iss`. Candidate output:
 
-## Evidence required before activation
+```text
+dist/installers/NJIT-Thesis-Auditor-Setup-0.2.0-rc.2.exe
+dist/installers/NJIT-Thesis-Auditor-Setup-0.2.0-rc.2.json
+dist/installers/SHA256SUMS.txt
+```
 
-1. Identify final installer bytes and provenance: NJIT edition, source commit,
-   version, exact filename, architecture, byte count and SHA-256 after signing,
-   if applicable. Confirm parity with the intended online auditing functionality.
-2. Pass native Windows installation, graphical launch without Python/developer
-   tools, disconnected synthetic PDF audits, Help/Rules, reporting and exports,
-   and safe graphical uninstallation. Test each advertised Windows version.
-   Linux tests or simulated Windows calls do not satisfy this gate.
-3. Resolve the concrete confidentiality conflict above and inspect the complete
-   installer payload, including embedded archives. No private implementations,
-   source, rule resources, dissertation data, credentials or repository history
-   may be exposed. Do not substitute the generic edition to bypass this gate.
-4. Publish only the qualified artifact to the separate public HTTPS endpoint.
-   Download without credentials or cookies from an independent browser/network.
-   Verify TLS and every redirect, attachment headers, actual installer format,
-   exact size and SHA-256. Downloading a login/HTML page is a failure. Test the
-   downloaded bytes on native Windows and retain evidence privately.
-5. Review the implementation through the normal PR workflow. Deploy only the
-   tested merged main SHA using [DEPLOYMENT.md](DEPLOYMENT.md). Check production
-   `/version`, homepage, download, Help/Rules and a synthetic audit/report flow
-   on desktop/mobile. The existing HTTP homepage does not substitute for HTTPS
-   asset delivery or independent verification of the installer.
+These are **output paths, not evidence that an installer has been built**.
+The JSON records exact installer bytes/hash/size/source and defaults qualification
+and publication flags to false. No checksum or size is invented before building.
+The graphical installer offers a custom directory, Start Menu shortcut, optional
+desktop shortcut, automatic launch, version/icon and standard uninstaller. No
+student Python installation or terminal is part of the intended install flow.
 
-## Deployment configuration
+`.github/workflows/windows-desktop.yml` runs the native build, bundle inventory,
+synthetic regressions, production-reference capture, interactive installation to
+a path with spaces/Unicode, first launch, parity, reopen, cleanup and standard
+silent uninstallation. It blocks the installed application's outbound traffic and
+keeps the test driver and runner online. Only explicit candidate/evidence files
+are uploaded as **private CI artifacts**. No source checkout is published.
 
-All variables below use the prefix `NJIT_AUDITOR_WINDOWS_DOWNLOAD_`.
-Every field is required to enable the link; absent/invalid fields fail closed.
+The default `windows-2025` runner is Windows Server, not Windows 11. Its pass
+cannot qualify Windows 11. The manual workflow also supports a registered
+`[self-hosted, Windows, X64, windows11]` interactive runner. The clean-client
+qualification still requires a Windows 11 x64 machine without Python/developer
+tools: install graphically, test the chosen path and shortcuts, disconnect the
+OS network, audit/export/view original and annotated PDFs, open Help/Rules, Quit,
+reopen and uninstall through Windows Settings. Preserve exported user files.
+Record OS build, source commit, installer SHA-256, screenshots and each result.
 
-| Suffix | Required value |
+Parity capture checks `/version` against the authoritative SHA, then uses six
+nonconfidential PDFs. Comparisons retain IDs, severity, locations, explanations,
+card text, grouped-route status/content, original bytes, report content, drawing
+geometry and PDF annotations. Only volatile job IDs/paths/timestamps and float
+serialization noise are normalized. Help comparisons retain all explanation
+sections except the explicit local/server-processing introduction. Existing
+production 404 group links are recorded as 404, not mislabeled as working links.
+
+## Publish only after qualification
+
+Keep the source repository private. Use the separate public distribution-only
+repository `SoroushVahidi/njit-thesis-auditor-desktop`, with fresh history containing
+only release documentation and approved assets. Publish the tested EXE under:
+
+```text
+https://github.com/SoroushVahidi/njit-thesis-auditor-desktop/releases/download/desktop-v0.2.0-rc.2/NJIT-Thesis-Auditor-Setup-0.2.0-rc.2.exe
+```
+
+This is a **proposed URL, not a verified download**. Publish a new version for each
+change; never replace approved bytes. Check the final installer for unintended
+student data, credentials, private logs and repository history. The NJIT rule
+implementations themselves are intentionally included.
+
+Download anonymously from an independent browser/network with TLS verification.
+Verify every redirect uses HTTPS, the response is the actual EXE with attachment
+filename/binary content type, and its exact size/SHA-256 match the final release.
+If signing changes bytes, regenerate metadata and retest the final installer.
+
+## Enable the existing homepage section
+
+The homepage title is **Download NJIT Thesis Auditor for Windows**. The existing
+PR #640 configuration defaults to disabled; no URL is exposed while unqualified.
+The enabled card displays version, Windows 11/x64, bytes/MiB, installation steps
+and SHA-256. All fields below have prefix `NJIT_AUDITOR_WINDOWS_DOWNLOAD_`:
+
+| Suffix | Value |
 | --- | --- |
-| `APPROVED` | `1` only after the complete release review |
+| `APPROVED` | `1` only after native and anonymous-download qualification |
 | `EDITION` | `njit` |
-| `NATIVE_TESTED` | `1` backed by the native qualification report |
-| `CONFIDENTIALITY_REVIEWED` | `1` only after resolving the conflict and reviewing actual bytes |
-| `URL` | Exact versioned HTTPS installer URL above |
-| `SHA256` | 64 hexadecimal characters for the actual downloaded installer |
-| `SIZE_BYTES` | Actual positive integer byte count |
-| `ARCHITECTURE` | `x64` (other architectures require separate support) |
-| `WINDOWS_VERSIONS` | `Windows 10`, `Windows 11`, or `Windows 10 and Windows 11`, as tested |
+| `NATIVE_TESTED` | `1` backed by the exact installer qualification |
+| `URL` | Exact versioned HTTPS EXE URL |
+| `SHA256` | Exact 64-character installer SHA-256 |
+| `SIZE_BYTES` | Actual positive byte count |
+| `ARCHITECTURE` | `x64` |
+| `WINDOWS_VERSIONS` | `Windows 11` |
 
-Version and release-notes URL derive from the installer URL. The card displays
-supported Windows versions/architecture, version, exact bytes and MiB, normal
-graphical installation instructions and an expandable SHA-256 checksum. No
-terminal is required for student installation. Flags record operator decisions;
-they do not verify remote availability or prove installer qualifications.
+The retired confidentiality flag is not required. Release flags record evidence;
+they do not prove tests happened. Requests cannot configure these settings.
 
-Set values together in the existing service's environment only after the gates
-pass. Unset `APPROVED` or set it to `0` and restart that service to withdraw the
-link. Preserve prior release metadata for rollback. Never edit the live checkout
-or point it at a development branch. No production settings are enabled by this
-commit.
-
-## Validation scope
-
-Run `tests/test_windows_download.py` with Playwright installed for release-gate,
-template, keyboard and real Chromium layout checks at 320/390/1440 pixels. These
-tests use synthetic release metadata with external networking blocked; they do
-not claim an installer exists. Relevant existing synthetic web tests cover
-uploads, audits, highlights, reports, Help/Rules and mobile parity. No native
-Windows qualification, public artifact download or production deployment is
-established by these Linux checks.
+After review and passing required checks, squash-merge PR #640 and follow
+[DEPLOYMENT.md](DEPLOYMENT.md) using the exact clean merged main SHA. Set release
+metadata together in the existing systemd service environment, restart only that
+service, verify `/version`, and test the live desktop/mobile download and synthetic
+auditing workflow. Withdraw the link by setting `APPROVED=0` and restarting that
+service. No activation or deployment occurs merely by committing this code.

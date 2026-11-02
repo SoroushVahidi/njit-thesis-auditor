@@ -10,6 +10,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from njit_auditor.web_fetch_error import FetchError
+
 FETCH_TIMEOUT_SEC: int = 15
 
 _ALLOWED_SCHEMES: frozenset[str] = frozenset({"http", "https"})
@@ -29,10 +31,6 @@ _PRIVATE_NETS_V6: tuple[ipaddress.IPv6Network, ...] = (
     ipaddress.IPv6Network("fc00::/7"),
     ipaddress.IPv6Network("fe80::/10"),
 )
-
-
-class FetchError(Exception):
-    """User-facing error raised when a URL download fails or is blocked."""
 
 
 def _ip_is_private(addr: str) -> bool:
