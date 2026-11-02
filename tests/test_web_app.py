@@ -4504,13 +4504,27 @@ def test_complete_student_pdf_cache_changes_when_findings_change(
 
 
 def test_complete_student_pdf_concurrent_requests_return_complete_files(
-    client: tuple[TestClient, Any], tmp_path: Path
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    import traceback
     from concurrent.futures import ThreadPoolExecutor
 
     import fitz
 
     c, wa = client
+    failures: list[str] = []
+    original_replace = os.replace
+
+    def record_replace(*args, **kwargs):
+        try:
+            return original_replace(*args, **kwargs)
+        except OSError:
+            # Synthetic test only: retain native file-sharing details without
+            # exposing document paths in production application logs.
+            failures.append(traceback.format_exc())
+            raise
+
+    monkeypatch.setattr(os, "replace", record_replace)
     job_id = _inject_complete_job_with_findings(
         wa,
         tmp_path,
@@ -4521,7 +4535,7 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
     url = f"/audits/{job_id}/download/student-report.pdf"
     with ThreadPoolExecutor(max_workers=2) as pool:
         responses = list(pool.map(c.get, (url, url)))
-    assert all(response.status_code == 200 for response in responses)
+    assert all(response.status_code == 200 for response in responses), "\n".join(failures)
     for response in responses:
         with fitz.open(stream=response.content, filetype="pdf") as document:
             assert document.page_count > 5

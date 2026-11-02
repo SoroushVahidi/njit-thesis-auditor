@@ -16,22 +16,32 @@ import httpx
 
 def test_launcher_without_console_streams_starts_and_quits(tmp_path: Path) -> None:
     state = tmp_path / "state.json"
+    diagnostic = tmp_path / "startup-exceptions.txt"
     env = {
         **os.environ,
         "LOCALAPPDATA": str(tmp_path / "profile"),
         "XDG_DATA_HOME": str(tmp_path / "profile"),
     }
-    code = (
-        "import sys; sys.stdout=None; sys.stderr=None; "
-        "from pathlib import Path; "
-        "from njit_auditor.offline_launcher import run_desktop; "
-        "run_desktop(headless=True,open_browser=False,state_file=Path(sys.argv[1]))"
-    )
-    process = subprocess.Popen([sys.executable, "-c", code, str(state)], env=env)
+    code = """
+import sys, threading, traceback
+from pathlib import Path
+def record(kind, value, tb):
+    with Path(sys.argv[2]).open('a', encoding='utf-8') as output:
+        traceback.print_exception(kind, value, tb, file=output)
+sys.excepthook = record
+threading.excepthook = lambda args: record(args.exc_type, args.exc_value, args.exc_traceback)
+sys.stdout = None
+sys.stderr = None
+from njit_auditor.offline_launcher import run_desktop
+run_desktop(headless=True, open_browser=False, state_file=Path(sys.argv[1]))
+"""
+    process = subprocess.Popen([sys.executable, "-c", code, str(state), str(diagnostic)], env=env)
     try:
         deadline = time.monotonic() + 20
         while not state.exists():
-            assert process.poll() is None, "Windowed startup failed"
+            assert process.poll() is None, "Windowed startup failed:\n" + (
+                diagnostic.read_text(encoding="utf-8") if diagnostic.exists() else "No traceback"
+            )
             assert time.monotonic() < deadline, "Windowed startup timed out"
             time.sleep(0.05)
         # File publication is tiny, but do not race the writer while loading it.
