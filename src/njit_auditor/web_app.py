@@ -91,6 +91,7 @@ from njit_auditor.web_samples import (
     list_builtin_samples,
 )
 from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
+from njit_auditor.windows_download import windows_download
 
 # ---------------------------------------------------------------------------
 # Configuration from environment
@@ -1872,6 +1873,8 @@ def _render(
     status_code: int = 200,
 ) -> HTMLResponse:
     """Render a Jinja2 template using the Starlette 1.x API."""
+    if template == "index.html":
+        context = {**context, "windows_download": windows_download()}
     return _templates.TemplateResponse(
         request=request, name=template, context=context, status_code=status_code
     )

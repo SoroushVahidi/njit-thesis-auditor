@@ -1,5 +1,10 @@
 # Deployment
 
+The homepage Windows installer link defaults to disabled. See
+[Windows release gates](PUBLIC_WINDOWS_RELEASE.md) for required native testing,
+confidentiality resolution, HTTPS artifact verification and release metadata.
+Do not enable the link merely because the web implementation passes tests.
+
 This is the canonical, consolidated deployment doc. The older
 `docs/status/live_deployment_checklist.md` has the full historical detail (including a
 superseded manual-tmux fallback procedure and dated verification snapshots) and is kept for
