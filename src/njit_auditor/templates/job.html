@@ -9,8 +9,6 @@
   .coverage-item { padding: 0.5rem 0; border-top: 1px solid var(--color-border); }
   .coverage-item dt { font-weight: 700; }
   .coverage-item dd { margin: 0.2rem 0 0; font-size: 0.88rem; overflow-wrap: anywhere; }
-  .coverage-status { font-weight: 600; font-size: 0.78rem; color: var(--color-muted); margin-left: 0.35rem; }
-  .coverage-item--manual .coverage-status, .coverage-item--guidance_differs .coverage-status { color: #8a5a00; }
   .rule-link { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
   .rule-link:hover { color: var(--color-primary-dark); }
   .page-link { color: var(--color-primary); font-size: 0.82rem; white-space: nowrap; }
@@ -395,10 +393,10 @@
 
 {% if findings %}
 <nav class="jump-links" aria-label="Jump to section">
-  <a href="#section-summary">Summary</a>
+  <a href="#section-summary">Audit summary</a>
   <a href="#section-review-order">Recommended review order</a>
   <a href="#section-findings">Findings in page order</a>
-  <a href="#section-coverage">What was checked</a>
+  <a href="#section-coverage">What you still need to check</a>
   {% if category_summary %}<a href="#section-topics">Findings by topic</a>{% endif %}
   <a href="#section-downloads">Downloads</a>
   {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Advanced details</a>{% endif %}
@@ -446,9 +444,9 @@
 </div>
 {% endif %}
 
-<section id="section-summary" class="section" aria-label="Summary">
+<section id="section-summary" class="section" aria-label="Audit summary">
   <div class="section-header">
-    <h2>Summary</h2>
+    <h2>Audit summary</h2>
     <span class="section-note">Problem counts exclude non-problem page-number inventory candidates &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
@@ -471,79 +469,36 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
   </div>
-  <p class="file-hint" style="margin-top:0.75rem;margin-bottom:0;">These are automated review signals, not confirmed formatting defects. All findings require manual verification against NJIT guidelines.</p>
-</section>
-
-<section id="section-coverage" class="section" aria-labelledby="coverage-heading">
-  <div class="section-header">
-    <h2 id="coverage-heading">{{ coverage_heading }}</h2>
-  </div>
-  <div class="card card-compact coverage-card">
-    {% for paragraph in coverage_intro %}<p>{{ paragraph }}</p>{% endfor %}
-    <details class="collapsible coverage-details">
-      <summary>Show coverage by checklist section ({{ coverage_areas | length }} sections)</summary>
-      <dl class="coverage-list">
-        {% for area in coverage_areas %}
-        <div class="coverage-item coverage-item--{{ area.status }}">
-          <dt>{{ area.title }} <span class="coverage-status">{{ area.status_label }}</span></dt>
-          {% if area.checked %}<dd><strong>Checked:</strong> {{ area.checked }}</dd>{% endif %}
-          <dd><strong>Check yourself:</strong> {{ area.manual }}</dd>
-        </div>
-        {% endfor %}
-      </dl>
-    </details>
+  <div class="card card-compact coverage-card" style="margin-top:1rem;">
+    <h3>About your audit results</h3>
+    <p>This tool flags possible formatting problems in your PDF. Some findings may be incorrect, and other problems may be missed.</p>
+    <p>An audit is not an approval of your thesis. Review the findings, check your document against NJIT's official formatting requirements, and follow Graduate Studies guidance before submitting.</p>
+    <p class="file-hint">Scanned or image-only pages without selectable text may not be checked.</p>
   </div>
 </section>
 
 {% if findings %}
 <section id="section-review-order" class="section" aria-label="Recommended review order">
-  <div class="section-header">
-    <h2>Recommended review order</h2>
-    <span class="section-note">Work through these steps with the <a href="/rules">rule reference</a> open</span>
-  </div>
-  <div class="card card-compact">
+  <details class="collapsible card card-compact">
+    <summary>Recommended review order</summary>
     <ol class="review-order-list">
       {% if fail_count > 0 %}
-      <li>
-        <span class="ro-label">Fix these first</span> —
-        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Jump to findings → Needs fixing</a> and verify each one against NJIT guidelines.
-      </li>
+      <li><span class="ro-label">Fix these first</span> — start with <a href="#section-findings">Needs fixing</a> findings and verify each against the <a href="/rules">Rule Reference</a>.</li>
       {% endif %}
+      <li><span class="ro-label">Other items to check</span> — review <a href="#section-findings">findings in page order</a>. An intentional formatting choice still needs to meet NJIT requirements.</li>
       {% if category_summary %}
-      <li>
-        <span class="ro-label">Findings in page order</span> —
-        <a href="#section-findings">The main list below</a> shows every finding in PDF page order as compact cards. Work through the document from beginning to end and use the filters to narrow by rule, category, page, or confidence.
-      </li>
-      <li>
-        <span class="ro-label">Findings by topic</span> —
-        <a href="#section-topics">The summary table below</a> ranks every category by finding count for a quick topic-wide overview. Click Review all to see every example in one category.
-      </li>
-      {% else %}
-      <li>
-        <span class="ro-label">Findings in page order</span> —
-        <a href="#section-findings">The list below</a> shows every finding in PDF page order as compact cards.
-      </li>
+      <li>Use <a href="#section-topics">Findings by topic</a> to review related findings together.</li>
       {% endif %}
-      {% if warn_count > 0 %}
-      <li>
-        <span class="ro-label">Other items to check</span> —
-        {{ warn_count }} {{ "item" if warn_count == 1 else "items" }} need your judgment: some may be expected formatting choices. Scan the <a href="#section-findings">findings in page order</a> list and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
-      </li>
-      {% endif %}
-      <li>
-        <span class="ro-label">Manual verification</span> —
-        All findings are automated signals and require manual verification. Cross-check every flagged item against the official NJIT thesis/dissertation formatting guidelines before submission to your committee reviewer.
-      </li>
     </ol>
-  </div>
+  </details>
 </section>
 {% endif %}
 
-<section id="section-findings" class="section" aria-label="Findings in page order">
+<section id="section-findings" class="section" aria-label="Formatting findings">
   <div class="section-header">
     <div>
-      <h2>Findings in page order</h2>
-      <span class="section-note">Main student review list — every counted problem finding in PDF page order by default. Use Sort problems to reorder by confidence instead. Inventory-only page-number candidates appear in Advanced below and are not counted as problems.</span>
+      <h2>Formatting findings</h2>
+      <span class="section-note">Findings in page order by default. Use the filters or Sort problems to focus your review.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -700,6 +655,47 @@
   </div>
 </section>
 {% endif %}
+
+<section id="section-coverage" class="section" aria-labelledby="coverage-heading">
+  <div class="section-header">
+    <h2 id="coverage-heading">What you still need to check</h2>
+  </div>
+  <p>The auditor cannot verify every formatting requirement. Review the following items yourself.</p>
+  <details class="collapsible card card-compact coverage-details">
+    <summary>Show manual-review checklist ({{ coverage_areas | length }} categories)</summary>
+    <dl class="coverage-list">
+      {% for area in coverage_areas %}
+      <div class="coverage-item" data-coverage-area="{{ area.key }}">
+        <dt>{{ area.title }}</dt>
+        {% if area.key == "list_of_figures" %}
+        <dd>Current Graduate Studies reviewer guidance uses title case for figure descriptions.</dd>
+        {% endif %}
+        <dd>{{ area.manual }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+  </details>
+  <p class="file-hint">See <a href="/rules">Rule Reference</a> for detailed automated-check information.</p>
+</section>
+
+<section id="section-coverage-details" class="section" aria-labelledby="coverage-details-heading">
+  <div class="section-header">
+    <h2 id="coverage-details-heading">Optional detailed information</h2>
+  </div>
+  <p class="file-hint">Inventory-only page-number candidates appear in Advanced below and are not counted as problems.</p>
+  <details class="collapsible card card-compact">
+    <summary>Automated-check coverage</summary>
+    <p>These descriptions explain the auditor's checks, not whether your document meets NJIT requirements. See <a href="/rules">Rule Reference</a> for individual rules.</p>
+    <dl class="coverage-list">
+      {% for area in coverage_areas if area.checked %}
+      <div class="coverage-item">
+        <dt>{{ area.title }}</dt>
+        <dd>{{ area.checked }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+  </details>
+</section>
 
 <section id="section-downloads" class="section export-section" aria-label="Downloads">
   <h2 style="margin-top:0;">Download reports</h2>

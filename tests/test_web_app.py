@@ -544,7 +544,7 @@ def test_summary_all_warning_report_hides_needs_fixing_and_worth_checking_cards(
     assert '<div class="summary-card__value">3</div>' in html
     assert '<div class="summary-card__label">Needs fixing</div>' not in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
-    assert "These are automated review signals, not confirmed formatting defects." in html
+    assert "Some findings may be incorrect, and other problems may be missed." in html
 
 
 def test_summary_shows_needs_fixing_card_when_fail_count_positive(
@@ -3877,7 +3877,9 @@ def test_results_page_shows_review_order_section(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     assert b"Recommended review order" in resp.content
-    assert b"Manual verification" in resp.content
+    assert (
+        b"An intentional formatting choice still needs to meet NJIT requirements." in resp.content
+    )
 
 
 def test_results_page_shows_jump_links(
@@ -3938,7 +3940,7 @@ def test_nav_chips_reflect_decluttered_report_structure(
 
     # Core, always-primary chips.
     for label in (
-        "Summary",
+        "Audit summary",
         "Recommended review order",
         "Findings in page order",
         "Findings by topic",

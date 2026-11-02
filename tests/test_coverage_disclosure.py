@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html as html_module
 import re
 from pathlib import Path
 from typing import Any
@@ -204,7 +205,7 @@ def client(tmp_path: Path) -> tuple[TestClient, Any]:
     return TestClient(app, raise_server_exceptions=False), wa
 
 
-def test_results_page_shows_coverage_after_summary(
+def test_results_page_puts_manual_review_after_findings(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
@@ -212,11 +213,12 @@ def test_results_page_shows_coverage_after_summary(
     html = c.get(f"/audits/{job_id}").text
     assert 'id="section-coverage"' in html
     assert 'href="#section-coverage"' in html
-    assert html.index('id="section-summary"') < html.index('id="section-coverage"')
-    assert html.index('id="section-coverage"') < html.index('id="section-findings"')
-    for area in COVERAGE_AREAS:
-        assert f"coverage-item--{area.status}" in html
-    assert "<details class=\"collapsible coverage-details\">" in html
+    sections = [
+        "section-summary", "section-findings", "section-coverage", "section-coverage-details"
+    ]
+    positions = [html.index(f'id="{section}"') for section in sections]
+    assert positions == sorted(positions)
+    assert 'class="collapsible card card-compact coverage-details"' in html
     # Existing problem anchors and numbering are untouched.
     assert "Problem 1" in html and "Problem 2" in html
 
@@ -231,7 +233,56 @@ def test_results_page_with_no_findings_still_discloses_coverage(
     html = c.get(f"/audits/{job_id}").text
     assert "No problems found" in html
     assert 'id="section-coverage"' in html
-    assert "does not mean your document meets NJIT requirements" in html
+    assert "An audit is not an approval of your thesis." in html
+
+
+def test_results_page_preserves_all_manual_requirements_and_optional_coverage(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
+    page = html_module.unescape(c.get(f"/audits/{job_id}").text)
+    manual = page.split('id="section-coverage"', 1)[1].split("</section>", 1)[0]
+    automated = page.split('id="section-coverage-details"', 1)[1].split("</section>", 1)[0]
+    assert len(COVERAGE_AREAS) == 16
+    assert manual.count('data-coverage-area="') == 16
+    for area in COVERAGE_AREAS:
+        assert f'<dt>{area.title}</dt>' in manual
+        assert area.manual in manual
+        if area.checked:
+            assert area.checked not in manual
+            assert area.checked in automated
+    for label in STATUS_LABELS.values():
+        assert label not in manual
+        assert label not in automated
+    assert "Current Graduate Studies reviewer guidance uses title case" in manual
+    assert "self-assessment sheet describes sentence case" in manual
+    assert "confirm the expected style with Graduate Studies" in manual
+    assert '<a href="/rules">Rule Reference</a>' in manual
+    assert "The auditor cannot verify every formatting requirement." in manual
+    assert "Review the following items yourself." in manual
+    assert not re.search(r"<details[^>]*\bopen\b", manual + automated)
+
+
+def test_results_page_uses_short_cautious_introduction(
+    client: tuple[TestClient, Any], tmp_path: Path
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job(wa, tmp_path)
+    page = html_module.unescape(c.get(f"/audits/{job_id}").text)
+    assert "About your audit results" in page
+    assert (
+        "This tool flags possible formatting problems in your PDF. "
+        "Some findings may be incorrect, and other problems may be missed."
+    ) in page
+    assert (
+        "An audit is not an approval of your thesis. Review the findings, check your document "
+        "against NJIT's official formatting requirements, and follow Graduate Studies "
+        "guidance before submitting."
+    ) in page
+    assert "Scanned or image-only pages without selectable text may not be checked." in page
+    summary = page.split('id="section-summary"', 1)[1].split("</section>", 1)[0]
+    assert all(paragraph not in summary for paragraph in COVERAGE_INTRO)
 
 
 # ---------------------------------------------------------------------------
