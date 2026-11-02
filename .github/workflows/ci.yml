@@ -52,7 +52,7 @@ jobs:
           if [ "$NJIT_DESKTOP_CANDIDATE" = true ]; then
             python -m pytest -q \
               tests/test_windows_download.py tests/test_offline_desktop.py \
-              tests/test_windows_startup.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_desktop_parity_checkout.py \
+              tests/test_windows_startup.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_desktop_parity_checkout.py tests/test_desktop_reference.py \
               tests/test_web_app.py tests/test_student_pdf_report.py tests/test_help_rules.py \
               tests/test_mobile_desktop_consistency.py tests/test_pdf_only_website_wording.py
           else

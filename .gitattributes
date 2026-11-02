@@ -10,3 +10,5 @@
 /data/processed/rules/project_added_rules.json text eol=lf
 /src/njit_auditor/audit_runner.py text eol=lf
 /src/njit_auditor/rules/*.py text eol=lf
+/tests/fixtures/desktop_reference/*.json text eol=lf
+/tests/fixtures/desktop_reference/*.gz -text

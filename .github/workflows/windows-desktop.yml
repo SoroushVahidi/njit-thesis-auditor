@@ -20,6 +20,7 @@ on:
       - '.github/workflows/ci.yml'
       - 'tests/test_*desktop*.py'
       - 'tests/test_windows*.py'
+      - 'tests/fixtures/desktop_reference/**'
       - 'pyproject.toml'
 permissions:
   contents: read
@@ -45,6 +46,10 @@ jobs:
         with:
           python-version: '3.12'
           architecture: x64
+      - name: Verify pinned production-reference artifact without network access
+        run: |
+          python scripts/desktop_reference.py unpack --manifest tests/fixtures/desktop_reference/production-4efd780-v1.manifest.json --output .runtime/windows-reference
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Locate native installer compiler
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -75,11 +80,7 @@ jobs:
           & $env:NJIT_VALIDATOR_PYTHON scripts/build_desktop_parity_matrix.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git ls-files --eol data/processed/rules/project_added_rules.json src/njit_auditor/audit_runner.py
-          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_download.py tests/test_offline_desktop.py tests/test_windows_startup.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_desktop_parity_checkout.py tests/test_web_app.py tests/test_student_pdf_report.py tests/test_help_rules.py tests/test_mobile_desktop_consistency.py tests/test_pdf_only_website_wording.py --junitxml=.runtime/windows-validation/regressions.xml
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Capture actual production reference using synthetic PDFs only
-        run: |
-          & $env:NJIT_VALIDATOR_PYTHON scripts/validate_desktop_parity.py --capture-url http://128.235.41.222:8000 --reference .runtime/windows-reference
+          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_download.py tests/test_offline_desktop.py tests/test_windows_startup.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_desktop_parity_checkout.py tests/test_desktop_reference.py tests/test_web_app.py tests/test_student_pdf_report.py tests/test_help_rules.py tests/test_mobile_desktop_consistency.py tests/test_pdf_only_website_wording.py --junitxml=.runtime/windows-validation/regressions.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Interactive install, offline parity, reopen and uninstall
         run: |
@@ -101,5 +102,17 @@ jobs:
             .runtime/windows-validation/installer.png
             .runtime/windows-validation/first-launch/result.json
             .runtime/windows-validation/reopened/result.json
+            .runtime/windows-reference/provenance.json
+            tests/fixtures/desktop_reference/production-4efd780-v1.manifest.json
       # Deliberately no public-release step: build success on Windows Server is
       # not clean-machine Windows 11, disconnected-OS or release qualification.
+  production-connectivity:
+    # Diagnostic only: installation/parity never depends on NJIT reachability.
+    runs-on: windows-2025
+    timeout-minutes: 2
+    continue-on-error: true
+    steps:
+      - name: Diagnose production reachability (no reference generation)
+        shell: pwsh
+        run: |
+          curl.exe --connect-timeout 10 --max-time 15 --fail http://128.235.41.222:8000/version

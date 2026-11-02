@@ -14,25 +14,16 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
 import pymupdf
+from desktop_reference import BASELINE, EXPORTS, PRODUCTION_URL, load_reference
 from lxml import html
 from playwright.sync_api import sync_playwright
 
 from njit_auditor.synthetic_sample import sample_pdf
-
-BASELINE = "4efd780dde53eea907a714df8bfed86e923ef86a"
-EXPORTS = [
-    "download/json",
-    "download/markdown",
-    "download/text",
-    "download/student-report.pdf",
-    "pdf",
-    "pdf/highlighted",
-    "highlighted-page.pdf?page=1",
-]
 
 
 def fixtures() -> dict[str, bytes]:
@@ -168,7 +159,8 @@ def snapshot(request, job: str) -> dict:
 
 
 def capture(url: str, directory: Path) -> None:
-    directory.mkdir(parents=True, exist_ok=True)
+    assert url.rstrip("/") == PRODUCTION_URL, "Capture must use the authoritative production host"
+    directory.mkdir(parents=True, exist_ok=False)
     with sync_playwright() as p:
         request = p.request.new_context(base_url=url, timeout=120000)
         version = request.get("/version").json()
@@ -186,14 +178,32 @@ def capture(url: str, directory: Path) -> None:
             assert response.status == 303
             manifest["fixtures"][name] = snapshot(request, response.headers["location"])
         (directory / "reference.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        after = request.get("/version").json()
+        assert after["commit"] == version["commit"] == BASELINE, "Production changed during capture"
+        provenance = {
+            "capture_kind": "live-production-http",
+            "capture_url": PRODUCTION_URL,
+            "captured_at_utc": datetime.now(timezone.utc).isoformat(),
+            "version_before": version,
+            "version_after": after,
+            "capture_tool_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "payload_sha256": {
+                path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in sorted(directory.iterdir())
+            },
+        }
+        (directory / "provenance.json").write_text(
+            json.dumps(provenance, indent=2), encoding="utf-8"
+        )
         request.dispose()
+    load_reference(directory)
     print("Captured six synthetic audits from verified production source")
 
 
 def validate(
     executable: Path | None, directory: Path, output: Path, profile_root: Path | None = None
 ) -> None:
-    reference = json.loads((directory / "reference.json").read_text(encoding="utf-8"))
+    reference = load_reference(directory)
     output.mkdir(parents=True, exist_ok=True)
     root = profile_root.resolve() if profile_root is not None else output.resolve() / "profile"
     root.mkdir(exist_ok=True)
