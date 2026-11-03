@@ -100,7 +100,8 @@ def test_built_distributions_install_with_local_runtime_resources(tmp_path: Path
                 assert file is not None
                 assert b"SYNTHETIC_UNWANTED_PACKAGE_CANARY" not in file.read()
     clean = tmp_path / "venv"
-    venv.EnvBuilder(with_pip=True).create(clean)
+    # Match the POSIX venv CLI default; copied relocatable interpreters can lose their stdlib.
+    venv.EnvBuilder(with_pip=True, symlinks=os.name != "nt").create(clean)
     python = clean / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     assert "include-system-site-packages = false" in (clean / "pyvenv.cfg").read_text()
     run(str(python), "-m", "pip", "install", str(wheel), "httpx", cwd=tmp_path, env=env)
