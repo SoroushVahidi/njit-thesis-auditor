@@ -2123,7 +2123,7 @@ def _execute_audit_task(job_id: str) -> None:
     # Sanitize before writing: replace raw messages embedding label/ref names with
     # generic privacy-safe descriptions for source (TeX) audits.
     web_payload = sanitize_report_for_web_export(payload)
-    json_report_path.write_text(json.dumps(web_payload, indent=2), encoding="utf-8")
+    json_report_path.write_text(json.dumps(web_payload, indent=2), encoding="utf-8", newline="\n")
 
     # Write Markdown report using sanitized findings so label/ref names do not
     # appear in the downloaded .md or in the in-page preview.
@@ -2216,6 +2216,7 @@ def _execute_audit_task(job_id: str) -> None:
             failed_check_count=job.failed_check_count,
         ),
         encoding="utf-8",
+        newline="\n",
     )
     job.grouped_summary = grouped_rows
     job.report_view = view_dict

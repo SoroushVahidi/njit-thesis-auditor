@@ -103,7 +103,9 @@ jobs:
             .runtime/windows-validation/installer.log
             .runtime/windows-validation/installer-windows.json
             .runtime/windows-validation/first-launch/result.json
+            .runtime/windows-validation/first-launch/*.actual.json
             .runtime/windows-validation/reopened/result.json
+            .runtime/windows-validation/reopened/*.actual.json
             .runtime/windows-reference/provenance.json
             tests/fixtures/desktop_reference/production-4efd780-v1.manifest.json
       # Deliberately no public-release step: build success on Windows Server is
