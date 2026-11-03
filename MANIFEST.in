@@ -1,0 +1,9 @@
+include data/processed/rules/project_added_rules.json
+include data/specs/ester_warning_wording_map.json
+include data/specs/ester_q_matrix.json
+include data/specs/ester_q_current_authority_overlay.json
+prune tests
+prune notes
+prune data/raw
+prune data/evaluation
+global-exclude *.py[cod]

@@ -14,14 +14,16 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from njit_auditor.resource_paths import resource_path
+
 _SPECS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "specs"
 _RULES_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "processed" / "rules"
 
 # Resolve relative to this file's repo location robustly.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_Q_MATRIX_PATH = _REPO_ROOT / "data" / "specs" / "ester_q_matrix.json"
-_CATALOG_PATH = _REPO_ROOT / "data" / "processed" / "rules" / "project_added_rules.json"
-_AUTHORITY_OVERLAY_PATH = _REPO_ROOT / "data" / "specs" / "ester_q_current_authority_overlay.json"
+_Q_MATRIX_PATH = resource_path("data", "specs", "ester_q_matrix.json")
+_CATALOG_PATH = resource_path("data", "processed", "rules", "project_added_rules.json")
+_AUTHORITY_OVERLAY_PATH = resource_path("data", "specs", "ester_q_current_authority_overlay.json")
 
 
 @dataclass

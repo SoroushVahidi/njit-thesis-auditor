@@ -75,6 +75,7 @@ from njit_auditor.report_view import (
     sort_findings,
     sort_grouped_problems,
 )
+from njit_auditor.resource_paths import resource_path
 from njit_auditor.student_cards import student_card_fields
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
@@ -508,10 +509,7 @@ _templates.env.globals["retention_notice"] = _retention_notice()
 # Rule catalog helpers (canonical structured data)
 # ---------------------------------------------------------------------------
 
-_RULES_JSON_PATH = (
-    Path(__file__).parent.parent.parent
-    / "data" / "processed" / "rules" / "project_added_rules.json"
-)
+_RULES_JSON_PATH = resource_path("data", "processed", "rules", "project_added_rules.json")
 
 _P_RULE_RE = re.compile(r"^P\d+$")
 

@@ -26,6 +26,16 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+To build an installable wheel and source distribution, run `python -m build` in
+the checkout. Install the resulting wheel in another environment with
+`python -m pip install dist/njit_thesis_auditor-*.whl`. The installed CLI and
+`njit_auditor.web_app:app` work without the checkout: distributions include only
+the required HTML templates and allowlisted canonical JSON resources. Private
+samples, evaluation corpora, logs, and test fixtures are not distributed.
+Run `python -m pytest tests/test_wheel_packaging.py` to verify a clean wheel install;
+building and installing dependencies requires access to a package index (or a
+configured local wheelhouse), while the runtime probe blocks network connections.
+
 ## Web UI
 
 ```bash
