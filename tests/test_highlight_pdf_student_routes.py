@@ -371,7 +371,9 @@ def test_sample_audit_pdf_links_never_return_json(
     if not sample.abs_path.exists():
         pytest.skip(f"{sample_id} PDF not available locally")
 
-    start = c.post("/audits/sample", data={"sample_id": sample_id}, follow_redirects=False)
+    start = c.post("/audits",
+                   files={"file": ("sample.pdf", sample.abs_path.read_bytes(), "application/pdf")},
+                   follow_redirects=False)
     assert start.status_code in (302, 303)
     job_id = start.headers["location"].rstrip("/").split("/")[-1]
 

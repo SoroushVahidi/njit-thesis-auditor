@@ -75,3 +75,12 @@ validation record. No new Windows build or asset mutation is part of repository 
 
 See [publication/build procedure](../PUBLIC_WINDOWS_RELEASE.md) and
 [installation/source development](../implementation/offline_desktop.md).
+
+## Upload-only source update (2026-11-04)
+
+The shared desktop source now requires uploaded PDFs for audits. The synthetic
+example is a download that users save and upload manually. URL audit shortcuts
+are disabled in the website and shared source. This source change does not
+replace the published rc.3 executable. No Windows rebuild or publication is part
+of this task; the published installer remains 41,326,578 bytes with SHA-256
+`70713e44f18aaac32d5cc244aee3c82c7badbd8ce9d9dbf3b1dffe919a05f690`.

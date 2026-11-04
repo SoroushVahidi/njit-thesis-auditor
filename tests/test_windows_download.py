@@ -39,8 +39,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     import njit_auditor.web_app as wa
 
     importlib.reload(wa)
-    # Do not even enumerate private sample metadata in this suite.
-    monkeypatch.setattr(wa, "list_builtin_samples", lambda: [])
     with TestClient(wa.app) as app_client:
         yield app_client
 

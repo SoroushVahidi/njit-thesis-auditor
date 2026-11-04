@@ -205,7 +205,7 @@ def test_offline_auth_routes_csrf_deletion_and_recovery() -> None:
         app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
         routes = {r.path for r in app.routes}
         assert "/audits/url" not in routes
-        assert "/audits/sample" in routes  # Locally generated synthetic example only.
+        assert "/audits/sample" in routes  # Legacy submissions receive an upload-only error.
         assert "/version" not in routes
         with TestClient(app, base_url=HOST) as client:
             assert client.get("/").status_code == 403
@@ -646,25 +646,35 @@ def test_parity_normalization_changes_only_the_report_audit_time() -> None:
     assert _normalize_audit_time(first) != _normalize_audit_time(second.replace("12.5", "13.5"))
 
 
-def test_local_example_uses_only_generated_synthetic_pdf(monkeypatch) -> None:
-    def forbidden(*_args, **_kwargs):
-        raise AssertionError('Private online samples must not be loaded')
+def test_local_example_download_requires_upload_to_audit(monkeypatch) -> None:
+    from njit_auditor import web_samples, web_url_fetch
 
-    monkeypatch.setattr(web_app, 'get_builtin_sample', forbidden)
-    monkeypatch.setattr(web_app, 'copy_builtin_sample_to_job', forbidden)
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError('Samples must not fetch documents or create audit workers')
+
+    monkeypatch.setattr(web_samples, 'get_builtin_sample', forbidden)
+    monkeypatch.setattr(web_samples, 'copy_builtin_sample_to_job', forbidden)
+    monkeypatch.setattr(web_url_fetch, 'fetch_pdf_url', forbidden)
     with TemporaryDirectory() as directory:
         root = Path(directory)
         prepare_local_storage(root)
         app = create_offline_app(port=17391, data_root=root, launch_ticket='ticket')
         with TestClient(app, base_url=HOST) as client:
             client.get('/_session/start?ticket=ticket')
+            home = client.get('/').text
+            assert 'Download sample PDF' in home
+            assert 'action="/audits/sample"' not in home
+            assert 'type="url"' not in home
             response = client.post('/audits/sample',
                                    data={'csrf_token': app.state.csrf_token},
-                                   headers={'Origin': HOST}, follow_redirects=False)
-            assert response.status_code == 303
-            job = response.headers['location']
-            assert client.get(job+'/status').json()['state'] == 'complete'
-            original = client.get(job+'/pdf')
+                                   headers={'Origin': HOST}, follow_redirects=True)
+            assert response.status_code == 400
+            assert 'Please upload your document to start an audit.' in response.text
+            original = client.get('/sample.pdf')
+            assert 'attachment' in original.headers['content-disposition']
             with fitz.open(stream=original.content, filetype='pdf') as pdf:
                 assert 'SYNTHETIC THESIS' in pdf[0].get_text()
+            assert not list((root/'audits').glob('*/upload.pdf'))
+            job = _upload(client, original.content, csrf=app.state.csrf_token)
+            assert client.get(job+'/status').json()['state'] == 'complete'
             assert _report(client, job)['findings']

@@ -36,14 +36,11 @@ pip install -e ".[dev]"
 python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000`. The public web UI is **PDF-only** and offers three entry points:
-
-- **Upload a PDF file.**
-- **Audit a public PDF URL** — server-side fetch is SSRF-guarded (only `http`/`https`, blocks
-  localhost/private IP ranges and hostnames resolving to internal addresses).
-- **Audit a built-in sample PDF** — private evaluation samples, available only on servers where
-  the repository is checked out; do not expose on a public deployment without authorization (see
-  [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md)).
+Open `http://localhost:8000`. The public web UI accepts **uploaded PDF files only**.
+To try an example, choose **Download sample PDF**, save it, and upload the saved file.
+Document-URL and built-in sample audit shortcuts are disabled. Legacy submissions receive
+“Please upload your document to start an audit.” without fetching a URL or starting a worker.
+A nonempty legacy document-URL field is rejected even when a file is also attached.
 
 Results include summary cards, findings by topic, findings in page order, client-side filters
 (rule/category/page/confidence), privacy-safe polished comments per finding, and a **Complete PDF
@@ -147,8 +144,7 @@ in full.
 
 Designed for local processing only — keep thesis/dissertation files on your own machine.
 
-- **No external API calls during audit by default.** The only network operation is the optional
-  `POST /audits/url` fetch, which is SSRF-guarded.
+- **No submitted document URL is fetched.** User-submitted audits require an uploaded PDF.
 - **Web export privacy reduction:** web-generated JSON/Markdown downloads use basename-only paths
   and, for TeX/ZIP source audits, strip private-detail keys (`label`, `ref`, `caption`, `title`,
   `author`, `body`, `text`, and related source-snippet fields). CLI `--json-out`/`--md-out` output

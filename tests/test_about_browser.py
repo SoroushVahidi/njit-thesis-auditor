@@ -118,7 +118,13 @@ def test_desktop_about_works_with_external_network_blocked(tmp_path: Path):
             keyboard_about(page, server.origin)
             assert 'This page is bundled with the app.' in page.content()
             page.goto(server.origin)
-            page.get_by_role('button', name='Audit synthetic example', exact=True).click()
+            with page.expect_download() as pending:
+                page.get_by_role('link', name='Download sample PDF', exact=True).click()
+            sample = tmp_path/'synthetic-example.pdf'
+            pending.value.save_as(sample)
+            assert pending.value.failure() is None
+            page.locator('input[type=file]').set_input_files(sample)
+            page.get_by_role('button', name='Start audit', exact=True).click()
             page.wait_for_url('**/audits/*')
             job = urlsplit(page.url).path
             wait_state(context.request, server.origin, job, {'complete'})

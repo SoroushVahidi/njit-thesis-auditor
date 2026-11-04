@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -83,13 +84,37 @@ def test_manual_qa_checklist_no_open_pdf_page_in_actionability_section() -> None
     assert "Open first example page" not in section
 
 
-def test_index_page_example_url_ui_present(client: tuple[TestClient, object]) -> None:
-    """PR #305 behavior is already on main — verify it remains."""
+def test_index_page_sample_download_and_upload_ui_present(
+    client: tuple[TestClient, object],
+) -> None:
+    """Samples must be downloaded and uploaded through the normal audit form."""
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
-    body = resp.content
-    assert b"example-thesis-box" in body
-    assert b"fill-example-url" in body
-    assert b"digitalcommons.njit.edu" in body
-    assert b"Digital Commons" in body
+    body = resp.text
+    for obsolete in (
+        'type="url"', 'name="pdf_url"', 'name="document_url"', 'name="doc_url"',
+        'name="url"', 'action="/audits/url"', 'action="/audits/sample"',
+        "example-thesis-box", "fill-example-url",
+    ):
+        assert obsolete not in body
+
+    assert 'href="/sample.pdf"' in body
+    assert "Download sample PDF" in body
+    assert "then upload the saved PDF above to start an audit" in body
+    sample = c.get("/sample.pdf")
+    assert sample.status_code == 200
+    assert sample.headers["content-type"].startswith("application/pdf")
+    assert "attachment" in sample.headers["content-disposition"]
+    assert sample.content.startswith(b"%PDF-")
+
+    upload_form = re.search(r'<form action="/audits"[^>]*>(.*?)</form>', body, re.DOTALL)
+    assert upload_form is not None
+    assert 'method="post"' in upload_form.group(0)
+    assert 'enctype="multipart/form-data"' in upload_form.group(0)
+    file_input = re.search(r'<input\s+type="file"[^>]*>', upload_form.group(1))
+    assert file_input is not None
+    assert 'name="file"' in file_input.group(0)
+    assert 'accept=".pdf"' in file_input.group(0)
+    assert "required" in file_input.group(0)
+    assert '<button type="submit">Start audit</button>' in upload_form.group(1)

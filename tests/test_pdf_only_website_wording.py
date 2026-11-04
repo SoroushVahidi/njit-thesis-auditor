@@ -1,7 +1,7 @@
 """Consolidated checks that the public website reads as a simple, PDF-only,
 student-facing tool: no "heuristic" jargon, no TeX/ZIP/LaTeX/source-audit
 mentions, and no raw Pass/Warning/Error vocabulary — while the underlying
-PDF upload, public PDF URL, sample audit, and export routes still work.
+PDF upload and export routes still work.
 """
 
 from __future__ import annotations
@@ -258,49 +258,6 @@ def test_pdf_upload_still_creates_job(client: tuple[TestClient, Any]) -> None:
             files={"file": ("thesis.pdf", _MINIMAL_PDF, "application/pdf")},
             follow_redirects=False,
         )
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-def test_public_pdf_url_audit_still_creates_job(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-
-    def _fake_fetch(url: str, dest: Path, max_bytes: int) -> None:
-        dest.write_bytes(_MINIMAL_PDF)
-
-    with patch.object(wa, "fetch_pdf_url", _fake_fetch):
-        with patch.object(wa, "_run_audit_task", lambda job_id: None):
-            resp = c.post(
-                "/audits/url",
-                data={"pdf_url": "https://example.com/thesis.pdf"},
-                follow_redirects=False,
-            )
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-def test_sample_pdf_audit_still_creates_job(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    from njit_auditor.web_samples import SampleInfo
-
-    sample = SampleInfo(
-        sample_id="ester_sample_a",
-        label="Sample A — first review (EF-annotated)",
-        rel_path="data/raw/ester/250218 Cibaku Elson First Review.pdf",
-    )
-
-    def fake_copy(sample_id: str, dest: Path) -> None:
-        dest.write_bytes(_MINIMAL_PDF)
-
-    with patch.object(wa, "list_builtin_samples", lambda: [sample]):
-        with patch.object(wa, "get_builtin_sample", lambda sid: sample):
-            with patch.object(wa, "copy_builtin_sample_to_job", fake_copy):
-                with patch.object(wa, "_run_audit_task", lambda job_id: None):
-                    resp = c.post(
-                        "/audits/sample",
-                        data={"sample_id": "ester_sample_a"},
-                        follow_redirects=False,
-                    )
     assert resp.status_code == 303
     assert resp.headers["location"].startswith("/audits/")
 

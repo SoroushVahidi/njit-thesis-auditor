@@ -31,8 +31,8 @@ python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 8000
 Verify `/` includes all of the following on both mobile and desktop:
 
 - PDF upload form
-- public PDF URL form with **"Try an example"** helper box (`#example-thesis-box`, `#fill-example-url`)
-- built-in sample PDF form or a clear "no built-in samples" message
+- **Download sample PDF** link and instructions to save and upload
+- no document-URL input or immediate sample-audit button
 - wording that the public UI is PDF-only
 - privacy/local-processing note
 - reachable links to `/help` and `/rules`
@@ -52,21 +52,16 @@ Verify:
 - completed jobs show a normal result page
 - failed jobs show a safe, user-facing error message without stack traces
 
-### Public PDF URL
+### Upload-only validation and sample download
 
-Verify:
-
-- the form accepts a direct public PDF URL
-- the **"Try an example"** box fills the URL input when **"Use this URL"** is clicked (button becomes disabled)
-- internal/private URL targets are rejected safely
-- successful submissions reach the same result-page UI shape as local uploads
-
-### Built-In Sample
-
-If samples exist:
-
-- the sample form submits successfully
-- accidental `GET /audits/sample` returns to `/` instead of a confusing job-not-found page
+- URL-only submissions to `/audits`, `/audits/url`, and `/audits/sample` are rejected
+- legacy URL fields, including a nonempty URL accompanying a file, are rejected consistently
+- the error says “Please upload your document to start an audit.”
+- POST redirects with 303 to a GET error page; refreshing it does not create a job
+- no submitted URL is fetched and no audit worker is created for rejected submissions
+- **Download sample PDF** downloads a synthetic file without starting an audit
+- uploading that saved file starts a normal audit
+- accidental `GET /audits/url` and `GET /audits/sample` return to `/`
 
 ## 5. Result Page
 
