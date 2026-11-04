@@ -50,4 +50,5 @@ Windows Beta **0.2.0-rc.3** executable is unchanged:
 
 Do not overwrite that release or imply that website deployment changes its
 installed executable. A future installer needs its own version and checksum.
-About Us remains deferred for separate verification of names and project history.
+About Us is now verified and implemented in shared source too; both changes await
+the next desktop installer. See [About Us provenance](ABOUT_US_CONTENT.md).
