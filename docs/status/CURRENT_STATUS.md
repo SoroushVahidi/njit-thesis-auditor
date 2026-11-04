@@ -1,10 +1,69 @@
 # Current Status
 
-> **Current entry point.** The first section is a dated, point-in-time snapshot.
-> Everything after the 2026-10-08 historical snapshot preserves earlier
-> decisions and measurements; pending work there is not a current instruction.
+> **Dated evidence, not continuous monitoring.** The leading snapshot records the
+> observed baseline before the documentation/CI maintenance PR. Later sections
+> preserve historical results and priorities; they are not new work instructions.
+> Check remote main, the production worktree and live `/version` for present state.
 
-## Verified status — 2026-10-12
+## Verified baseline — 2026-11-04
+
+| Field | Observed evidence |
+|---|---|
+| Remote main and production at inspection | `5576e3bf5b633e0b0e19ccf23487755921b2292c` (PR #647); detached clean deployment worktree and live `/version` agreed |
+| Production | User service `thesis-auditor-web.service` active; `/healthz`, upload, Help, Rule Reference and About returned 200; environment `production` |
+| Baseline validation | **5002 passed, 7 skipped**, full local suite on the reviewed PR #647 tree; its squash-merge tree was identical. The focused 91-test suite, Ruff and mypy were repeated on `5576e3b`. These are separate runs, not added counts. |
+| CI at that baseline | Branch/PR and post-merge CI passed on Python 3.10–3.12; [post-merge run 41769820136](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/41769820136). Browser tools were not installed by the normal matrix; local browser results are separate evidence. |
+| Unresolved PRs at inspection | 25 pre-existing open PRs, including #640–643; none were closed or merged by this organization task |
+| Rule inventory | P001–P086 registered; P082 remains opt-in. Next unused internal ID P087; no new detector work is authorized by this snapshot. |
+
+The manifest snapshot fields refer to this **observed baseline** (`5576e3b`,
+5002 passed, 7 skipped), not a predicted maintenance merge SHA or test count.
+The new focused browser CI is described in [reproducibility](../REPRODUCIBILITY.md).
+A documentation/test-only merge can advance main while production remains at this
+runtime-equivalent baseline; no production restart is required for those changes.
+
+### Current website and shared source
+
+PR #645 introduced evidence-supported checklist answers and simpler human-readable
+reports; unknown answers remain under **Check yourself**. PR #646 added bundled
+About Us and navigation; PR #647 corrected the acknowledgment to “Professor
+Ioannis Koutis, for early project discussions.” Live navigation, a synthetic audit,
+PDF report download and an anonymous click of the Windows button passed at the
+baseline. Source-template and simulated frozen-bundle tests are Ubuntu source
+checks, not native tests of an already-published Windows executable.
+
+### Published Windows rc.3
+
+The [immutable release record](../releases/windows-0.2.0-rc.3.md) identifies the
+installer built from `b83c7c81cf4043a17eb45f7b4b2042e55bbe947a`, **41,326,578 bytes**,
+SHA-256 `70713e44f18aaac32d5cc244aee3c82c7badbd8ce9d9dbf3b1dffe919a05f690`.
+Its hosted Windows Server native regressions and packaged smoke passed. It includes
+local Help/Rule Reference, active-audit recovery and the pre-#645 report UI.
+The public desktop repository hosts downloads/releases; private source stays private.
+
+### Awaiting another desktop installer
+
+PR #645 wording/checklist changes, PR #646 About Us, and PR #647 acknowledgment
+correction are in shared source and the website, **not in rc.3**. They need a new
+installer version and checksum. No Windows build or published asset replacement is
+part of this organization work. See [wording](../STUDENT_WORDING_USABILITY.md) and
+[About provenance](../ABOUT_US_CONTENT.md).
+
+### Qualification and unresolved work
+
+- Clean Windows 11 x64 qualification, installer/uninstaller lifecycle and broader
+  native manual checks remain unperformed for rc.3. Hosted Windows Server smoke
+  and Ubuntu source checks do not establish those results. The
+  [native checklist](../implementation/offline_desktop_windows_smoke.md) records
+  the broader procedure; it is not a new publication approval gate.
+- Wheel runtime resources remain the separate open PR #643. Production continues
+  to use a worktree, not a wheel-only installation.
+- The historical 19-PDF output/reviewer-triage status and detector limitations below
+  were not re-audited here. Do not infer completed reviews or new detector priorities
+  from this maintenance snapshot. No remaining non-inventory project task IDs are
+  introduced; the registered range remains P001–P086.
+
+## Historical snapshot — 2026-10-12
 
 This snapshot records checks made on 2026-10-12. It does not claim continuous
 production monitoring or completion of reviewer triage. The source of truth for

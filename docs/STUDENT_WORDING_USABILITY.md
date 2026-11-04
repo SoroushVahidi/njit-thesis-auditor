@@ -52,3 +52,5 @@ Do not overwrite that release or imply that website deployment changes its
 installed executable. A future installer needs its own version and checksum.
 About Us is now verified and implemented in shared source too; both changes await
 the next desktop installer. See [About Us provenance](ABOUT_US_CONTENT.md).
+
+The [rc.3 release record](releases/windows-0.2.0-rc.3.md) preserves the published build provenance. About Us (PR #646) and its acknowledgment correction (PR #647) also await the next installer.

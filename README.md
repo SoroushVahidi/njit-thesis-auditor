@@ -1,6 +1,6 @@
 # njit-thesis-auditor
 
-For the local desktop edition and build instructions, see [Offline desktop auditor](docs/implementation/offline_desktop.md).
+For Windows downloads and exact byte metadata, see the [rc.3 release record](docs/releases/windows-0.2.0-rc.3.md). For installation and private-source build instructions, see [Offline desktop auditor](docs/implementation/offline_desktop.md).
 
 `njit-thesis-auditor` is a local-first tool for auditing NJIT thesis/dissertation formatting
 against NJIT Graduate Studies formatting guidelines. It tracks 86 project-added rule IDs
@@ -186,12 +186,15 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 |---|---|
 | [docs/README.md](docs/README.md) | Navigate current guides and dated research records. |
 | [docs/status/CURRENT_STATUS.md](docs/status/CURRENT_STATUS.md) | Current SHA, test count, open PRs, next actions — the canonical "what's true right now." |
+| [docs/PUBLIC_WINDOWS_RELEASE.md](docs/PUBLIC_WINDOWS_RELEASE.md) and [rc.3 record](docs/releases/windows-0.2.0-rc.3.md) | Build/publication procedure, immutable installer provenance and actual test limits. |
+| [docs/ABOUT_US_CONTENT.md](docs/ABOUT_US_CONTENT.md) | Verified About Us facts and pending desktop inclusion. |
+| [docs/STUDENT_WORDING_USABILITY.md](docs/STUDENT_WORDING_USABILITY.md) | Website/shared-source wording changes awaiting another installer. |
 | [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) | Setup, CI, private validation, and wheel-installation limits. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Completed capabilities, near-term/policy-dependent/longer-term work. |
 | [docs/RULE_ARCHITECTURE.md](docs/RULE_ARCHITECTURE.md) | Full rule table, taxonomy, and canonical metadata sources. |
 | [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md) | Evaluation samples, privacy rules, finding-review labeling taxonomy. |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Live-deployment procedure, smoke test, rollback. |
-| [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) | Naming conventions ("Esther" vs. `ester_*` identifiers, etc.). |
+| [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) | Verified names (Ester Flaim) and stable `ester_*` identifiers. |
 | [docs/status/README.md](docs/status/README.md) | Index of historical/dated status and audit reports. |
 | [docs/web_gui_mvp.md](docs/web_gui_mvp.md) | Web upload UI operations guide: current public FastAPI web UI behavior. |
 | [docs/planning/synthetic_web_demo_fixtures.md](docs/planning/synthetic_web_demo_fixtures.md) | Synthetic PDF fixtures for web UI demos/screenshots. |

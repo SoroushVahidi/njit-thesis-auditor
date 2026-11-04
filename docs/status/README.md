@@ -45,3 +45,5 @@ historical records.
 
 Older dated audits below the "Historical" sections in `current_project_state_and_next_steps.md`
 are preserved for milestone context — they are **not** current status.
+
+The [Linux desktop validation record (2026-10-16)](../implementation/history/offline_desktop_linux_validation_20261016.md) preserves the earlier candidate evidence; use the [rc.3 release record](../releases/windows-0.2.0-rc.3.md) for the published Windows beta.

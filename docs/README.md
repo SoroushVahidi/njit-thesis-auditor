@@ -12,6 +12,10 @@ claim as current.
 | Local setup, CI, private gates, and packaging | [Reproducibility](REPRODUCIBILITY.md) |
 | Service operation and rollback | [Deployment](DEPLOYMENT.md) |
 | Evaluation privacy, input provenance, and review labels | [Evaluation data](EVALUATION_DATA.md), [review labels](EVALUATION_REVIEW_LABELS.md), and [Ester judgment replay](ester_judgment_replay.md) |
+| Published Windows installer / source pin | [rc.3 release record](releases/windows-0.2.0-rc.3.md) and [publication procedure](PUBLIC_WINDOWS_RELEASE.md) |
+| Install or build the local app | [Desktop guide](implementation/offline_desktop.md) |
+| Website/shared-source changes awaiting another installer | [Student wording](STUDENT_WORDING_USABILITY.md) and [About Us provenance](ABOUT_US_CONTENT.md) |
+| Historical Linux validation | [2026-10-16 candidate](implementation/history/offline_desktop_linux_validation_20261016.md) |
 | Product terminology | [Terminology](TERMINOLOGY.md) |
 
 For prior research and implementation evidence, use the dated material under

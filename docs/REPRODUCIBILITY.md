@@ -57,6 +57,46 @@ invented full-suite result. GitHub Actions checks out LFS objects and runs
 Ruff, mypy, and pytest on Python 3.10–3.12; its result is CI evidence, not a
 record of a locally run private gate.
 
+## Browser checks with synthetic local services
+
+The `browser` extra pins Playwright **1.64.1** and psutil **7.2.2**, separate from
+runtime dependencies. Use Python 3.12 for the browser CI job. From a private
+checkout on Ubuntu:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev,browser]"
+python -m playwright install --with-deps chromium
+python -m playwright --version
+python -m pytest -q tests/test_about_browser.py tests/test_ui_help_mobile_overflow.py tests/test_windows_download.py::test_browser_layout_and_keyboard tests/test_browser_audit_workflow.py --junitxml=.runtime/browser-ci.xml
+```
+
+`--with-deps` installs OS packages and may need administrator privileges locally;
+on an already prepared workstation, `python -m playwright install chromium`
+installs only the matching browser. Pinning Playwright selects its matching browser
+revision. Record the actual Chromium version printed by CI's launch preflight.
+Use `.venv/` and `.runtime/`, already ignored, for local environment and scratch data.
+
+The additive **Synthetic browser checks (3.12)** job in the existing CI workflow
+checks out without LFS payloads, installs these prerequisites, launches Chromium
+and rejects skipped tests. It reuses About navigation, local desktop rendering,
+Help overflow and Windows-button layout/gating tests. The new workflow test holds
+the actual synthetic audit at a file gate, checks worker identity and one submission
+across refresh/navigation, releases it, refreshes the completed report and follows
+actual original/highlighted PDF and complete-report links. It uses generated PDFs
+and loopback services; external browser requests are blocked. It never downloads a
+public installer or contacts production. This tests current source on Ubuntu,
+not native Windows or the published rc.3 executable.
+
+The existing full Python 3.10–3.12 CI matrix, LFS fixture checkout and release-specific
+selection remain unchanged. In a default environment without the `browser` extra,
+optional browser tests may skip; those skips are not browser coverage. CI and local
+counts are separate evidence. The manifest's dated snapshot belongs to its recorded
+source SHA: use `NJITA_STRICT_STATUS_DRIFT=1` only when intentionally comparing a
+fresh collection with a matching snapshot/environment, not to reinterpret an older
+baseline's counts as tests of a later documentation/test tree.
+
 ## Private Ester regression and visual evidence
 
 The [judgment replay guide](ester_judgment_replay.md) documents the private

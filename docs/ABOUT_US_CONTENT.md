@@ -32,7 +32,7 @@ releases**, not the application's public source repository. Source remains priva
 
 ## Pending desktop installer
 
-About Us and the student wording improvements merged in PR #645 are implemented
+About Us (PR #646), the acknowledgment correction (PR #647), and the student wording improvements (PR #645) are implemented
 in shared desktop source, **pending inclusion in the next installer release**.
 No Windows build or rc.3 replacement is part of this task. The existing installer
 remains version `0.2.0-rc.3`, 41,326,578 bytes, SHA-256:
@@ -41,3 +41,5 @@ remains version `0.2.0-rc.3`, 41,326,578 bytes, SHA-256:
 
 A future installer must have its own version and checksum. External email and
 release links require connectivity only when deliberately opened.
+
+The [rc.3 release record](releases/windows-0.2.0-rc.3.md) distinguishes its native hosted evidence from subsequent Ubuntu source/browser checks.
