@@ -37,7 +37,7 @@ version_file.write_text(f"""VSVersionInfo(
     VarFileInfo([VarStruct('Translation', [1033, 1200])])])""", encoding="utf-8")
 TEMPLATES = (
     "_macros.html", "base.html", "help.html", "job.html",
-    "problem_group.html", "rules.html",
+    "problem_group.html", "rules.html", "about.html",
 )
 DATA = [
     (str(ROOT / "src/njit_auditor/templates" / name), "src/njit_auditor/templates")

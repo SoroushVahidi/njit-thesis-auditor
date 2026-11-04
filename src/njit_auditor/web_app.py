@@ -3222,6 +3222,11 @@ async def help_page(request: Request) -> HTMLResponse:
     return _render(request, "help.html", {})
 
 
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request) -> HTMLResponse:
+    return _render(request, "about.html", {})
+
+
 @app.get("/rules", response_class=HTMLResponse)
 async def rules_page(request: Request) -> HTMLResponse:
     catalog = _build_rule_catalog()

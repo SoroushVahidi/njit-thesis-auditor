@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}About Us — NJIT Thesis Auditor{% endblock %}
+{% block content %}
+<main id="about-content">
+  <h1>About Us</h1>
+  <section class="section" aria-labelledby="about-tool-heading">
+    <h2 id="about-tool-heading">About the tool</h2>
+    <p>NJIT Thesis Auditor helps NJIT graduate students check thesis and dissertation formatting before formal review. It points to potential issues and provides reports to guide revisions.</p>
+    <p>This student-developed tool is not an official NJIT product and does not replace Graduate Studies review.</p>
+  </section>
+  <section class="section" aria-labelledby="about-development-heading">
+    <h2 id="about-development-heading">Development and acknowledgments</h2>
+    <p>Soroush Vahidi, an NJIT Computer Science PhD student, is the developer and maintainer.</p>
+    <p>The project grew from a Graduate Studies First Review Workshop discussion about earlier formatting feedback. Development began in May 2026 after discussions with Ester Flaim and Professor Ioannis Koutis. It expanded from source checks to PDF audits, reports, and a Windows beta released in November 2026.</p>
+    <p>We thank:</p>
+    <ul>
+      <li>Ester Flaim, Assistant Director of Graduate Studies, for initial formatting checklists, rule feedback, and student usability suggestions.</li>
+      <li>Professor Ioannis Koutis, Soroush’s advisor, for early project discussions.</li>
+      <li>Sotirios G. Ziavras, Vice Provost for Graduate Studies and Dean of the Graduate Faculty, for feedback on preparing the student beta.</li>
+    </ul>
+  </section>
+  <section class="section" aria-labelledby="about-feedback-heading">
+    <h2 id="about-feedback-heading">Feedback and downloads</h2>
+    <p>Feedback and bug reports: <a href="mailto:sv96@njit.edu">sv96@njit.edu</a>.</p>
+    <p><a href="https://github.com/SoroushVahidi/njit-thesis-auditor-desktop" rel="noreferrer" referrerpolicy="no-referrer">Windows desktop downloads and release notes</a>. The public desktop releases repository provides installers, checksums, and release notes.</p>
+    {% if offline_mode %}<p class="file-hint">This page is bundled with the app. Email and release links require an internet connection.</p>{% endif %}
+  </section>
+</main>
+{% endblock %}

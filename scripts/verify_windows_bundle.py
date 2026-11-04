@@ -29,6 +29,7 @@ def main() -> None:
         "data/specs/ester_warning_wording_map.json",
         "src/njit_auditor/templates/help.html",
         "src/njit_auditor/templates/rules.html",
+        "src/njit_auditor/templates/about.html",
         "assets/fonts/DejaVuSans.ttf",
         "assets/icons/njit-auditor.ico",
     ]
