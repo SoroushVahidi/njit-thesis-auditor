@@ -11,7 +11,7 @@ uses only bundled resources, with no automatic external requests.
 | --- | --- |
 | Soroush Vahidi: NJIT Computer Science PhD student and developer/maintainer | [NJIT-hosted profile](https://web.njit.edu/~sv96/), `pyproject.toml` authorship, and repository history. The profile uses the more specific “Ph.D. candidate”; “PhD student” is used on the page. |
 | Ester Flaim: Assistant Director of Graduate Studies | [Current NJIT directory](https://people.njit.edu/profile/ef264). Her own project correspondence corroborates the spelling. The earlier terminology instruction to use “Esther” was incorrect and is corrected without renaming identifiers. |
-| Ioannis Koutis: Professor of Computer Science and Soroush's advisor | [Current NJIT directory](https://people.njit.edu/profile/ikoutis) and Soroush's NJIT-hosted profile. |
+| Ioannis Koutis: Professor of Computer Science; early project discussions | [Current NJIT directory](https://people.njit.edu/profile/ikoutis) verifies the title. Authorized project correspondence supports early discussions. The user clarified that he does not advise this project; no project supervision is claimed. |
 | Sotirios G. Ziavras: Vice Provost for Graduate Studies and Dean of the Graduate Faculty | [NJIT directory](https://people.njit.edu/profile/ziavras) and [NJIT-hosted faculty page](https://web.njit.edu/~ziavras/). |
 | Development began in May 2026 | Initial scaffold commit `c9164f2f80f5c54f8214d2e3cdde0224376dff43`, dated May 19, 2026. Early May 21 commits show source checks followed by PDF auditing. |
 | Windows beta released in November 2026 | Published desktop release `desktop-v0.2.0-rc.3` and PR #644. |
