@@ -53,6 +53,18 @@ see the [native checklist](../implementation/offline_desktop_windows_smoke.md).
 Ubuntu source-template, simulated frozen-bundle and browser tests are separate
 source evidence, not additional native tests of this executable.
 
+## Later Linux check of the frozen source
+
+Creating the private source pin triggered the historical commit's ordinary Ubuntu
+workflow: [run 41771678101](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/41771678101).
+With the dependencies installed by that run, Python 3.10 reported 8 failures and
+3.11/3.12 reported 9 each. Assertions covered older wording/navigation expectations,
+validation-error redirects, and (3.11/3.12) a synthetic R035 image-geometry fixture.
+The corresponding tests were changed after rc.3; the frozen source's full Linux
+suite is not claimed green. This is separate evidence from its completed hosted
+Windows Server regressions and packaged smoke. The exact pin and published installer
+remain unchanged; no historical tests or checks were weakened for this record.
+
 ## Changes after rc.3
 
 PR #645's [student wording/checklist changes](../STUDENT_WORDING_USABILITY.md),
